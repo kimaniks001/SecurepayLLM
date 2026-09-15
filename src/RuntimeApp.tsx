@@ -14,6 +14,8 @@ const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'revie
 const agreementGateway = api ? withSessionRefresh(api.agreements, ['join', 'versions', 'version', 'confirmVersion', 'currentUserAgreements', 'currentUserActions', 'hub', 'detail', 'confirmationStatus'], session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, ['status', 'records'], session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
+// The one external origin this app already has verified authority over — see adapters.ts `media()`.
+const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
 // Vite removes the unreachable fixture import from production builds.
 const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE === 'fixture'
@@ -65,7 +67,7 @@ export default function RuntimeApp() {
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} />
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

@@ -228,7 +228,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
 
         {/* Provenance */}
         <div className="text-[0.68rem] text-sand-400 italic px-2">
-          Offer {offer.version} · {offer.storeName} · {offer.isDemoState ? 'Demo offer state' : 'Authoritative offer'}
+          {offer.isDemoState ? `Offer ${offer.version}` : `Updated ${offer.version}`} · {offer.storeName} · {offer.isDemoState ? 'Demo offer state' : 'Authoritative offer'}
         </div>
 
         {/* Actions */}

@@ -67,7 +67,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                       <div className="text-[0.875rem] font-medium text-forest-800">{offer.title}</div>
                       <div className="text-[0.72rem] text-sand-500">{offer.price} · {offer.availability}</div>
                     </div>
-                    <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">{offer.version}</span>
+                    <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">{offer.isDemoState ? offer.version : `Updated ${offer.version}`}</span>
                   </div>
                   {offer.secureLink.url && (
                     <div className="mt-2 flex items-center gap-2 text-[0.68rem] text-sand-400">

@@ -60,7 +60,7 @@ type Gateway = StoreReadGateway & StoreManageGateway;
  * informational, non-authoritative provenance); the actual seed-into-conversation call belongs to the
  * Agent controller (see features/agent/controller.ts `useOffer`) and is invoked by the caller, not here.
  */
-export function createStoreController(gateway: Gateway) {
+export function createStoreController(gateway: Gateway, trustedMediaOrigin: string | null = null) {
   let state: StoreState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<StoreState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -70,7 +70,7 @@ export function createStoreController(gateway: Gateway) {
     try {
       const requests = searchRequests(query);
       const pages = await Promise.all(requests.map(params => gateway.search(params)));
-      const results = mergeSearchResults(pages.map(searchResultsView));
+      const results = mergeSearchResults(pages.map(page => searchResultsView(page, trustedMediaOrigin)));
       update({ search: { status: 'ready', data: results } });
     } catch (error) {
       update({ search: { status: 'error', error: asApiError(error) } });
@@ -80,7 +80,7 @@ export function createStoreController(gateway: Gateway) {
   async function loadMine() {
     try {
       const [profile, offers] = await Promise.all([gateway.myProfile(), gateway.myOffers()]);
-      update({ mine: { status: 'ready', data: { profile: myStoreIdentityView(profile), offers: offers.map(myOfferView), raw: offers } } });
+      update({ mine: { status: 'ready', data: { profile: myStoreIdentityView(profile), offers: offers.map(offer => myOfferView(offer, trustedMediaOrigin)), raw: offers } } });
     } catch (error) {
       update({ mine: { status: 'error', error: asApiError(error) } });
     }
@@ -98,7 +98,7 @@ export function createStoreController(gateway: Gateway) {
       update({ view: 'profile', selectedStore: { status: 'loading' } });
       try {
         const dto = await gateway.store(canonicalKsNumber);
-        update({ selectedStore: { status: 'ready', data: { store: storeIdentityView(dto), offers: storeOffersView(dto) } } });
+        update({ selectedStore: { status: 'ready', data: { store: storeIdentityView(dto), offers: storeOffersView(dto, trustedMediaOrigin) } } });
       } catch (error) {
         update({ selectedStore: { status: 'error', error: asApiError(error) } });
       }
@@ -108,7 +108,7 @@ export function createStoreController(gateway: Gateway) {
       update({ view: 'offer', selectedOffer: { status: 'loading' } });
       try {
         const dto = await gateway.offer(canonicalKsNumber, offerId);
-        const { store, offer } = publicOfferDetailView(dto);
+        const { store, offer } = publicOfferDetailView(dto, trustedMediaOrigin);
         update({ selectedOffer: { status: 'ready', data: { store, offer, priceMinor: dto.offer.priceMinor } } });
       } catch (error) {
         update({ selectedOffer: { status: 'error', error: asApiError(error) } });

@@ -88,7 +88,7 @@ test('A2. A typed query fans out across category and location for each kind (nev
 test('B. Search results carry no ranking/rating/best-match field; merge order is recency-only', () => {
   const older = { canonicalKsNumber: 'KS-1', displayName: 'A', locationLabel: null, offer: { ...publicOfferView(), id: 'o1', updatedAt: '2026-01-01T00:00:00Z' } };
   const newer = { canonicalKsNumber: 'KS-2', displayName: 'B', locationLabel: null, offer: { ...publicOfferView(), id: 'o2', updatedAt: '2026-06-01T00:00:00Z' } };
-  const merged = api.mergeSearchResults([[api.searchResultsView([older])[0]], [api.searchResultsView([newer])[0]]]);
+  const merged = api.mergeSearchResults([[api.searchResultsView([older], null)[0]], [api.searchResultsView([newer], null)[0]]]);
   assert.deepEqual(merged.map(r => r.offer.id), ['o2', 'o1']); // recency only
   for (const key of ['rating', 'score', 'rank', 'best', 'recommended', 'popularity']) {
     assert.equal(Object.prototype.hasOwnProperty.call(merged[0].offer, key), false);
@@ -279,7 +279,7 @@ test('M. Offer SecureLink route is parsed narrowly and is a distinct hash namesp
 });
 
 test('M2. A real public Offer carries a constructed SecureLink URL under the #/store/ namespace, not the invitation route', () => {
-  const [offer] = api.searchResultsView([searchResult()]).map(r => r.offer);
+  const [offer] = api.searchResultsView([searchResult()], null).map(r => r.offer);
   assert.match(offer.secureLink.url, /#\/store\//);
   assert.doesNotMatch(offer.secureLink.url, /#\/invitation\//);
 });
@@ -289,12 +289,115 @@ test('M3. No dedicated Offer SecureLink token endpoint is invented in the gatewa
   assert.equal(gatewayMethods.some(name => /share|secureLink|token/i.test(name)), false);
 });
 
-// ─── N. mediaRefs remain references, not evidence ─────────────────────────
+// ─── N / security hardening 1. mediaRefs remain references, not trusted media authority ─────────────────────────
 
-test('N. mediaRefs are rendered as opaque reference strings, never fetched, verified, or treated as evidence', () => {
-  const offer = api.publicOfferDetailView(publicOfferDetailView({ offer: publicOfferView({ mediaRefs: ['https://example.test/a.jpg', 'asset-123'] }) })).offer;
-  assert.deepEqual(offer.media.map(m => m.url), ['https://example.test/a.jpg', 'asset-123']);
-  assert.equal(offer.media.every(m => m.isExample === false), true);
+const trustedOrigin = 'https://api.securepay.test';
+
+test('N. A mediaRef on the one configured trusted origin (the SecurePayAPI origin itself) is the only kind ever rendered as an image src', () => {
+  const offer = api.publicOfferDetailView(
+    publicOfferDetailView({ offer: publicOfferView({ mediaRefs: [`${trustedOrigin}/media/a.jpg`] }) }),
+    trustedOrigin,
+  ).offer;
+  assert.equal(offer.media[0].url, `${trustedOrigin}/media/a.jpg`);
+  assert.equal(offer.media[0].isExample, false);
+});
+
+test('N2 (security hardening 1). An arbitrary external mediaRef is never rendered as an image src, even with a trusted origin configured', () => {
+  const offer = api.publicOfferDetailView(
+    publicOfferDetailView({ offer: publicOfferView({ mediaRefs: ['https://evil.example.com/tracker.png'] }) }),
+    trustedOrigin,
+  ).offer;
+  assert.equal(offer.media[0].url, '');
+});
+
+test('N3 (security hardening 1). With no configured trusted origin, no mediaRef is ever rendered as an image, trusted-looking or not', () => {
+  const offer = api.publicOfferDetailView(
+    publicOfferDetailView({ offer: publicOfferView({ mediaRefs: [`${trustedOrigin}/media/a.jpg`] }) }),
+    null,
+  ).offer;
+  assert.equal(offer.media[0].url, '');
+});
+
+test('N4 (security hardening 1). An opaque asset-id-style mediaRef is never treated as a URL, even on the trusted origin', () => {
+  const offer = api.publicOfferDetailView(
+    publicOfferDetailView({ offer: publicOfferView({ mediaRefs: ['asset-123', 'not a url at all'] }) }),
+    trustedOrigin,
+  ).offer;
+  assert.deepEqual(offer.media.map(m => m.url), ['', '']);
+});
+
+test('N5 (security hardening 1). An arbitrary external mediaRef never reaches an <img src> in rendered OfferDetail markup — production UI shows "No photos available" instead', async () => {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { OfferDetail } from './src/components/OfferDetail';
+import { publicOfferDetailView } from './src/api/securepay/store/adapters';
+const dto = ${JSON.stringify(publicOfferDetailView({ offer: publicOfferView({ mediaRefs: ['https://evil.example.com/tracker.png'] }) }))};
+const { offer } = publicOfferDetailView(dto, ${JSON.stringify(trustedOrigin)});
+const noop = () => {};
+export const markup = renderToStaticMarkup(React.createElement(OfferDetail, { offer, onBack: noop, onInterested: noop, onUseThis: noop, onAskSecurePay: noop, onShare: noop, onViewStore: noop }));
+`;
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+  assert.doesNotMatch(mod.exports.markup, /evil\.example\.com/);
+  assert.doesNotMatch(mod.exports.markup, /<img/);
+  assert.match(mod.exports.markup, /No photos available/);
+});
+
+// ─── security hardening 2. Unknown backend enums fail closed, never inferred ─────────────────────────
+
+test('2a. An unknown OfferKind fails the whole public offer read closed — never silently becomes SERVICE', () => {
+  assert.throws(
+    () => api.publicOfferDetailView(publicOfferDetailView({ offer: publicOfferView({ kind: 'DIGITAL_DOWNLOAD' }) }), null),
+    err => err instanceof api.ApiError && err.kind === 'invalid-response',
+  );
+});
+
+test('2b. An unknown AvailabilityState fails the whole public offer read closed — never silently becomes published/actionable', () => {
+  assert.throws(
+    () => api.publicOfferDetailView(publicOfferDetailView({ offer: publicOfferView({ availabilityState: 'ON_BACKORDER' }) }), null),
+    err => err instanceof api.ApiError && err.kind === 'invalid-response',
+  );
+});
+
+test('2c. The same fail-closed enum validation applies to the trader\'s own /store/me/offers read', () => {
+  assert.throws(() => api.myOfferView(storeOfferResponse({ kind: 'BUNDLE' }), null), err => err instanceof api.ApiError && err.kind === 'invalid-response');
+  assert.throws(() => api.myOfferView(storeOfferResponse({ availabilityState: 'BACKORDERED' }), null), err => err instanceof api.ApiError && err.kind === 'invalid-response');
+});
+
+test('2d. An unknown kind/availabilityState surfaces through the controller as a closed error state, never a rendered offer', async () => {
+  const controller = api.createStoreController(fullGateway({ offer: async () => publicOfferDetailView({ offer: publicOfferView({ kind: 'BUNDLE' }) }) }));
+  await controller.openOffer('KS-100', 'offer-1');
+  assert.equal(controller.getSnapshot().selectedOffer.status, 'error');
+});
+
+test('2e. An unknown kind/availabilityState in a search result fails that whole search closed, never a partially-rendered list', async () => {
+  const controller = api.createStoreController(fullGateway({
+    search: async params => [searchResult({ offer: publicOfferView({ id: `offer-${params.kind}`, availabilityState: 'ON_BACKORDER' }) })],
+  }));
+  await controller.enter();
+  assert.equal(controller.getSnapshot().search.status, 'error');
+});
+
+// ─── security hardening 3. The real Store Offer updated-date is never presented as a version ─────────────────────────
+
+test('3a. The real offer\'s as-of value is a human-readable date, not an ISO/version-looking string', () => {
+  const offer = api.publicOfferDetailView(publicOfferDetailView({ offer: publicOfferView({ updatedAt: '2026-09-10T00:00:00Z' }) }), null).offer;
+  assert.equal(offer.version, '10 Sep 2026');
+});
+
+test('3b. sourceDescription construction never calls the updated date a "version"', async () => {
+  const contents = await readFile('src/features/store/StoreExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /offer \$\{load\.offer\.id\} \(\$\{load\.offer\.version\}\)/);
+  assert.match(contents, /updated \$\{load\.offer\.version\}/);
+});
+
+test('3c. Bolt Offer components only say "version" for genuinely versioned fixture/demo offers, never for a real offer\'s as-of date', async () => {
+  for (const file of ['src/components/OfferDetail.tsx', 'src/components/OfferToTradeHandoff.tsx', 'src/components/StoreManagementHome.tsx']) {
+    const contents = await readFile(file, 'utf8');
+    assert.match(contents, /isDemoState/, `${file} must gate its version/updated wording on isDemoState`);
+  }
 });
 
 // ─── L. Production bundle exclusions ─────────────────────────

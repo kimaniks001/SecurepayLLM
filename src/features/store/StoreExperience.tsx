@@ -35,13 +35,15 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, auth, session, initialOfferRoute, onUseOffer, onNavigate }: {
+export function StoreExperience({ gateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate }: {
   gateway: Gateway; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
+  /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
+  trustedMediaOrigin: string | null;
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string }) => void;
   onNavigate: (view: AppView) => void;
 }) {
-  const [controller] = useState(() => createStoreController(gateway));
+  const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
@@ -147,7 +149,9 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, onU
             const amount = load.priceMinor !== null ? String(load.priceMinor / 100) : undefined;
             onUseOffer({
               amount, currency: amount ? load.offer.currency : undefined,
-              sourceDescription: `Offer: ${load.offer.title} — ${load.offer.storeName} — offer ${load.offer.id} (${load.offer.version})`,
+              // offer.version is an as-of update date (no backend Store Offer version/hash exists — see
+              // adapters.ts asOfDate); phrased here as "updated", never as a version.
+              sourceDescription: `Offer: ${load.offer.title} — ${load.offer.storeName} — offer ${load.offer.id}, updated ${load.offer.version}`,
             });
           }}
         />

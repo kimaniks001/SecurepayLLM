@@ -1042,3 +1042,66 @@ order: Community/Circles source convergence, Referrals/Plugs/Masters/
 Partners/Solutions, and the sender-side invitation `roleCode` doctrine
 blocker recorded in Golden Spine D. No Money/payment-intent surface was
 touched or wired from Store, per task section 12.
+
+### 16.6 Pre-merge hardening pass (2026-09-15)
+
+Three narrow fixes requested on PR #9 review, none broadening Store scope:
+
+1. **mediaRef privacy/security.** `mediaRefs` are client-supplied and may be
+   arbitrary third-party URLs — the browser must never fetch one merely
+   because a seller listed it. `adapters.ts`'s `media()` now renders a ref as
+   an `<img>` src only when it parses as an absolute URL whose origin
+   exactly matches a new `trustedOrigin` parameter — the one external origin
+   this architecture already has verified authority over, because it is the
+   app's own configured SecurePayAPI origin (`new URL(api.baseUrl).origin`,
+   computed once in `RuntimeApp.tsx` and threaded through
+   `AgentExperience` -> `StoreExperience` -> `createStoreController` -> every
+   adapter call). Every other case — a different domain, or a string that
+   is not an absolute URL at all (an opaque asset id; `new URL()` throws and
+   the ref is never treated as one) — resolves to an empty `url`, and the
+   existing "No photos available" empty state covers it unmodified. This is
+   not a media service or a client-side proxy, just a narrow allow-check;
+   no new capability was invented. Tests N–N5 in `tests/store.test.mjs`
+   prove: a trusted-origin ref renders, an external ref and a no-trusted-
+   origin/missing-config ref never do, an asset-id string is never treated
+   as a URL, and — rendering the real adapter output through the actual
+   `OfferDetail` component — an arbitrary external mediaRef never appears
+   as an `<img src>` in production markup, falling back to "No photos
+   available" instead.
+2. **Unknown enums fail closed.** `assertKnownOfferKind`/
+   `assertKnownAvailabilityState` (adapters.ts) now validate every offer
+   read (public and trader) against the exact verified `OfferKind`/
+   `AvailabilityState` enums and throw `ApiError('invalid-response', …)` on
+   anything else — replacing the previous silent `kind ?? 'service'`
+   fallback and the previous `lifecycle()`/`availabilityText()` path that
+   would have treated an unrecognized state as generically actionable. No
+   future enum value's meaning is inferred; an offer (or an entire search
+   result page) carrying one fails that read closed. Tests 2a–2e cover the
+   public offer path, the trader `/store/me/offers` path, and both the
+   single-offer and search-list controller call sites.
+3. **The real updated-date is not a version.** There is still no backend
+   Store Offer version/hash — only `updatedAt`. `asOfDate()` now formats it
+   as a fixed, non-locale-dependent "DD Mon YYYY" string (e.g. "10 Sep
+   2026"), and the three Bolt surfaces that used to label this value
+   "Offer version"/"Offer {value}" (`OfferDetail.tsx`,
+   `OfferToTradeHandoff.tsx`, `StoreManagementHome.tsx`) now gate their
+   wording on the existing `isDemoState` flag: real data reads "Updated …"/
+   "Offer updated"/"Adopted facts from offer (updated …)", while the
+   fixture/demo path (where `version` genuinely is a version like `'v1'`)
+   is byte-identical to before (verified by test O, unchanged). The
+   `sourceDescription` string built in `StoreExperience.tsx` for the
+   `STORE_LISTING` external-fact seed also no longer wraps the date in
+   parentheses after the offer id (which read like a version tag) and says
+   "updated" explicitly. `OfferChangedState` remains unwired, as already
+   documented in 16.1 — this pass did not introduce or imply any version/
+   hash authority. Tests 3a–3c cover the value format and the absence of
+   "version" language in both the constructed `sourceDescription` and the
+   gating logic itself.
+
+Also added: `api/securepay/index.ts`'s `createSecurePayApi` now returns the
+validated `baseUrl` alongside the gateways (previously discarded after
+constructing the HTTP client) — the sole source for `trustedMediaOrigin`.
+
+`tests/store.test.mjs` grew from 24 to 36 tests, all passing; all prior
+Golden Spine suites (87 tests) remain green; `typecheck`/`lint`/`build`
+all pass.

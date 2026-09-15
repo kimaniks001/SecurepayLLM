@@ -32,9 +32,10 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, auth, session, initialStoreOfferRoute }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
+  trustedMediaOrigin: string | null;
 }) {
   const [controller, setController] = useState(() => createAgentController(gateway));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
@@ -77,6 +78,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         auth={auth}
         session={session}
         initialOfferRoute={initialStoreOfferRoute}
+        trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onUseOffer={fact => { setStore(false); setHome(false); setExpanded(true); void controller.useOffer(fact); }}
       />
