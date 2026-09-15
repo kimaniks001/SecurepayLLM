@@ -1,6 +1,5 @@
 import { ArrowLeft, MapPin, Clock, HandHelping, MessageCircle, Store, ArrowRight } from 'lucide-react';
-import type { CommunityObject, CommunityObjectType } from '../types';
-import { getOfferById } from '../storeData';
+import type { CommunityObject, CommunityObjectType, StoreOffer } from '../types';
 
 const typeLabel: Record<CommunityObjectType, string> = {
   question: 'Question',
@@ -19,10 +18,16 @@ interface CommunityObjectDetailProps {
   onDiscuss: () => void;
   onViewOffer: (offerId: string) => void;
   onToTrade: () => void;
+  /**
+   * The caller resolves this (fixture `getOfferById` in App.tsx; the real fetched Store offer in
+   * features/community) — this component never imports `storeData.ts` itself, the same "move the
+   * fixture call to the fixture caller" fix Golden Spine E/F applied to AgreementDetail/OfferToTradeHandoff,
+   * required so the real Community route's production bundle never pulls in Store fixtures.
+   */
+  offer: StoreOffer | null;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade }: CommunityObjectDetailProps) {
-  const offer = object.relatedOfferId ? getOfferById(object.relatedOfferId) : null;
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 

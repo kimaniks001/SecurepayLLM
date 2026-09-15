@@ -11,6 +11,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { StoreGateway } from '../../api/securepay/store';
+import type { CircleGateway } from '../../api/securepay/circle';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
@@ -21,6 +22,8 @@ import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import { StoreExperience } from '../store/StoreExperience';
+import { CommunityExperience } from '../community/CommunityExperience';
+import { CircleExperience } from '../circle/CircleExperience';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -32,8 +35,8 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; auth: AuthGateway; session: SessionStore;
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway; auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
 }) {
@@ -48,6 +51,9 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [home, setHome] = useState(false);
   const [workspace, setWorkspace] = useState(false);
   const [store, setStore] = useState(!!initialStoreOfferRoute);
+  const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
+  const [community, setCommunity] = useState(false);
+  const [circle, setCircle] = useState(false);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   const startNewConversation = () => {
     setController(createAgentController(gateway));
@@ -57,11 +63,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     setNotice(null);
   };
 
-  /** Shared by the top NavBar, WorkspaceExperience's own NavBar, and StoreExperience's own NavBar — one navigation-out policy. */
+  /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
+   * CommunityExperience/CircleExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
-    if (view === 'store') { setWorkspace(false); setStore(true); return; }
-    setStore(false);
+    if (view === 'store') { setWorkspace(false); setCommunity(false); setCircle(false); setStore(true); return; }
+    if (view === 'community') { setWorkspace(false); setStore(false); setCircle(false); setCommunity(true); return; }
+    if (view === 'circle') { setWorkspace(false); setStore(false); setCommunity(false); setCircle(true); return; }
+    setStore(false); setCommunity(false); setCircle(false);
     if (view === 'signed-in' || view === 'agreements' || view === 'money') {
       if (sessionState.status === 'signed-in') { setWorkspace(true); return; }
       setHome(true);
@@ -77,10 +86,34 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         gateway={storeGateway}
         auth={auth}
         session={session}
-        initialOfferRoute={initialStoreOfferRoute}
+        initialOfferRoute={storeOfferRoute}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onUseOffer={fact => { setStore(false); setHome(false); setExpanded(true); void controller.useOffer(fact); }}
+      />
+    );
+  }
+
+  if (community) {
+    return (
+      <CommunityExperience
+        gateway={storeGateway}
+        trustedMediaOrigin={trustedMediaOrigin}
+        onNavigate={navigateTo}
+        onOpenCircle={() => navigateTo('circle')}
+        onOpenStoreOffer={(canonicalKsNumber, offerId) => { setStoreOfferRoute({ canonicalKsNumber, offerId }); navigateTo('store'); }}
+      />
+    );
+  }
+
+  if (circle) {
+    return (
+      <CircleExperience
+        gateway={circleGateway}
+        auth={auth}
+        session={session}
+        onNavigate={navigateTo}
+        onAskAgent={() => navigateTo('signed-in')}
       />
     );
   }

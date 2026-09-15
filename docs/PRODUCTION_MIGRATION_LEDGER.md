@@ -96,10 +96,10 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Store media refs | PR #204 additive `mediaRefs: string[]` on `UpsertStoreOfferRequest`/`StoreOfferResponse`/`PublicOfferView` | BACKEND_PR_PENDING | Golden Spine F renders refs as opaque reference strings only; never evidence, never file-storage authority. |
 | Offer -> Trade source | Phase 5B `POST .../external-facts/amount` accepts `sourceKind: 'STORE_LISTING'`; no dedicated Store-Offer SourceReference/adoption endpoint exists | BACKEND_PR_PENDING | Golden Spine F seeds one real CANDIDATE payment-condition fact from the Offer's price (when listed) via the existing Agent gateway, then reuses the existing conversation/handoff pipeline unchanged. Do not directly turn Offer into Agreement. See 16.1 for the provenance-stripped-on-read gap. |
 | Offer SecureLink | No dedicated share-token contract exists (verified: no offer_share/offer_link endpoint) | HUMAN_DOCTRINE_BLOCKER outcome avoided — the public offer URL (`GET /api/v1/stores/{ks}/offers/{offerId}`) is itself the doctrine-compliant share mechanism | Golden Spine F builds a frontend-only `#/store/{ks}/offer/{offerId}` hash route as the truthful SecureLink; never reuses the `#/invitation/{token}` route. |
-| Community | PR #206 confirms a deliberately bounded existing R11B Community/Circle foundation, not the full Bolt object/feed model | BACKEND_PR_PENDING | Treat rich Bolt Community UI as composition until canonical backend object contracts are proven. Do not fabricate durable authority. |
-| Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits | BACKEND_PR_PENDING | Growth Credits are factual NON-MONEY activity counts. |
-| Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority | BACKEND_PR_PENDING | This is a known convergence gap versus rich Bolt Pass 10B; frontend may demo only behind explicit adapter until backend decision/support exists. |
-| Universal SourceReference across Community/Circles | Bolt contract is richer than PR #206 report; Phase 5B offers generic provenance/adoption primitives | BACKEND_PR_PENDING | Backend convergence must confirm canonical source IDs/version/snapshot and introduction chain before production wiring. |
+| Community | PR #206 confirms a deliberately bounded existing R11B Community/Circle foundation, not the full Bolt object/feed model | BACKEND_PR_PENDING / FRONTEND_COMPOSITION_ONLY | Golden Spine G wires `CommunityHome`/`CommunityObjectDetail` to real Store search results composed as `store_offer_reference` objects only; Question/Need/Opportunity/Work Story/Discussion/people/business browsing remain FRONTEND_COMPOSITION_ONLY (no backend content-object persistence exists — Phase 10 convergence audit). Row stays BACKEND_PR_PENDING for the Store-composition path until #204/#206's stacks merge to `main`. |
+| Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits, `GET /api/v1/circle/me` | BACKEND_PR_PENDING | Golden Spine G wires the real self-scoped Circle profile (identity, verification status, member since, referred/activated trader counts, agreements brought in, growth credit total) to this endpoint; row stays BACKEND_PR_PENDING until #206's stack merges to `main`. Growth Credits are factual NON-MONEY activity counts, rendered as a plain count only. |
+| Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority; Phase 11 convergence audit (`PHASE_10_CONVERGENCE_AUDIT.md`) confirms this is a deferred product-shape decision, not a gap to close inline | TRUE BACKEND GAP / DEMO_ONLY_REMOVE_BEFORE_PRODUCTION | Golden Spine G renders this as a truthful "Named Circles ... not available yet" notice in the real Circle experience. Bolt's rich named-Circle screens (`CircleHome`, `CircleDiscoveryList`, `CircleMemberDirectory`, `CircleEconomicSummary`, `CircleCreateFlow`, `CircleJoinFlow`) remain fixture-only and are never reached from the real route. |
+| Universal SourceReference across Community/Circles | Bolt contract is richer than PR #206 report; Phase 5B offers generic provenance/adoption primitives; Phase 11 convergence audit confirms `ExternalFactSourceKind` (incl. `COMMUNITY_KNOWLEDGE`) is the one real engine, not a second SourceReference authority | BACKEND_PR_PENDING | Golden Spine G deliberately does not wire `COMMUNITY_KNOWLEDGE` this slice (no real Community content object exists to adopt facts from); the one real Community→Trade path (a Store offer reference) reuses the existing STORE_LISTING seam unchanged. See section 17. |
 | Referral evaluation | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | UI must not infer candidate/qualified/reward states. |
 | Plug | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | Plug introduces/navigates; gains no Agreement/Money authority. |
 | Master profile/request/opinion | Phase 11 backend work + PR #205 dispute escalation seam | BACKEND_PR_PENDING | Qualification/accreditation separate from Master status; opinion not authority. |
@@ -1105,3 +1105,264 @@ constructing the HTTP client) — the sole source for `trustedMediaOrigin`.
 `tests/store.test.mjs` grew from 24 to 36 tests, all passing; all prior
 Golden Spine suites (87 tests) remain green; `typecheck`/`lint`/`build`
 all pass.
+
+## 17. Golden Spine G: Community + Circles implementation scope (2026-09-15)
+
+`Community browsing -> real Store-offer composition -> "View offer" ->
+(unchanged) real Store Offer detail -> explicit "Use this" -> Trade Taking
+Shape -> real Agent conversation` plus a real self-scoped `Circle` profile
+read are wired end-to-end against the Community/Circles platform contract
+verified directly against source at `kimaniks001/SecurePayAPI`
+`feat/securepay-phase10-community-circles` @
+`b371a906660493ebc0f83554bfc79362f0c666f2` (`CircleController.java`,
+`CircleProfileResponse.java`, `CircleProfileService.java`,
+`community/growth/*`, and the `CircleProfile` schema in
+`contracts/openapi/securepay-api-v1.yaml`), cross-checked against the Phase 11
+convergence audit on `feat/securepay-phase11-referrals-plugs-masters` @
+`978437f300244119302607ba3e656a76253190bb` (`docs/PHASE_10_CONVERGENCE_AUDIT.md`,
+`ExternalFactSourceKind.java`). Neither stack is merged to `main`; every
+Community/Circle row in section 4 stays `BACKEND_PR_PENDING` for its real-data
+path per the same convention Golden Spine C/D/E/F used for their own stacked
+contracts. No live deployed SecurePayAPI was exercised; browser acceptance
+(desktop and 400x860 mobile viewports) ran against a throwaway local Node HTTP
+contract double implementing the exact verified request/response shapes plus
+the already-existing Agent/Store endpoints Community's own "Use this" hand-off
+reuses (not shipped with this PR) — the same methodology as every prior Golden
+Spine slice's own local contract double.
+
+### 17.1 Verified backend shape and the resulting doctrine decisions
+
+- **`GET /api/v1/circle/me` is the entire real Circle contract this phase
+  exposes** — a self-scoped, authenticated read returning exactly
+  `canonicalKsNumber`, `displayName`, `verificationStatus`, `memberSince`,
+  `referredTraderCount`, `activatedReferredTraderCount`,
+  `agreementsBroughtInCount`, `growthCreditTotal`. `CircleController` has no
+  arbitrary-KSNumber lookup endpoint, so none was added
+  (`api/securepay/circle/index.ts`'s gateway exposes only `me`, proven by
+  test J). `verificationStatus` is literally
+  `ke.securepay.platform.identity.model.IdentityStatus`
+  (`PENDING`/`ACTIVE`/`SUSPENDED`/`CLOSED`) echoed through — identity
+  lifecycle, never a professional/qualification claim; `circleLabels.ts`
+  labels it "Identity active"/"Identity pending"/etc., deliberately avoiding
+  the word "Verified" as a badge (task section 4). An unrecognized value
+  fails the whole read closed (`assertKnownVerificationStatus`, test I).
+- **`growthCreditTotal` is a plain factual activity count, never Money** —
+  `CircleGrowthCreditAwardService` awards it lazily at read time purely by
+  observing three already-authoritative real events (a referred trader
+  reaching `ACTIVATED`/`QUALIFIED`, or an Agreement being attributed to this
+  identity as its Plug), each carrying a fixed point value with no currency
+  concept anywhere in the domain. The adapter (`api/securepay/circle/adapters.ts`)
+  and view (`CircleProfileView`) carry it straight through as a `number`;
+  `CircleExperience.tsx` renders it as "Growth credit (count)" with an
+  explicit "not Money, not a wallet balance, not currency, and never
+  spendable or redeemable" line, and never attaches a currency symbol to it
+  anywhere (tests F/G/G3).
+- **No rank/medal/score/reputation/follower/like/success-rate field exists,
+  by design** — both `CircleProfileResponse.java`'s own doctrine comment and
+  the Phase 10 convergence audit are explicit that no authoritative source
+  for any of those exists; this slice computes none of them and the adapter
+  output type carries exactly the eight verified fields (test F, and test H
+  greps the data/controller layers for absence of any such inferred field).
+- **Circle-as-named-group does not exist on the backend** — the Phase 10
+  convergence audit (§2, reproduced in
+  `docs/BACKEND_PHASE11_CONVERGENCE_UPDATE.md`) classifies this as a real,
+  deliberately deferred product-shape decision, not a small gap: "Building it
+  speculatively, without a concrete membership/organizer UI requirement to
+  size it against, risks exactly the kind of premature, over-scoped backend
+  the convergence instructions warn against." Golden Spine G therefore builds
+  no named-Circle UI against real data at all. Bolt's rich named-Circle
+  screens — `CircleHome`, `CircleDiscoveryList`, `CircleMemberDirectory`,
+  `CircleEconomicSummary`, `CircleCreateFlow`, `CircleJoinFlow` — are
+  completely untouched (byte-identical to `bolt-reference-pass11`, test T)
+  and are never imported by the real route (test C); the real Circle
+  experience (`features/circle/CircleExperience.tsx`) is a new, narrow
+  component that renders only the real profile plus a truthful "Named
+  Circles ... are not available yet" notice in the same visual language.
+  This means the real Circle nav destination does not reuse Bolt's
+  `CircleHome`/`CircleDiscoveryList` visual layout at all — a deliberate,
+  documented exception to "preserve visual location," because the rich
+  layout's entire premise (a named group with members/rules/economic
+  activity) has no real backend referent to degrade into truthfully; a
+  narrower truthful screen was judged more honest than forcing empty states
+  into a members/rules/economic-activity layout with nothing real to show in
+  any of those slots.
+- **No backend persistence exists for any Community content object**
+  (Question/Need/Opportunity/Work Story/Discussion) — confirmed by direct
+  inspection in the Phase 11 convergence audit (§1): "no backend persistence
+  for Community content objects ... exists anywhere in this repository,"
+  classified `FRONTEND-ONLY COMPOSITION`. Golden Spine G therefore never
+  fabricates any of these object types from real data; the real
+  `CommunityHome` renders their sections only when non-empty (their existing
+  `.length > 0` guards, unchanged), and in real mode they are always empty.
+  People/business discovery has the same gap: `SearchProvidersTool`/
+  `GetProviderProfileTool` (`services/agreement/src/main/java/ke/securepay/agreement/agent/discovery/`)
+  are Agent-tool-only (reachable solely through a live conversation turn, via
+  the already-existing generic `DISCOVERY`/`PROVIDER_RESULTS`/
+  `PROVIDER_PROFILE` component rendering in `api/securepay/agent/discovery.ts`
+  — wired in an earlier Golden Spine slice, not this one), not a standalone
+  browsable directory endpoint; real `CommunityHome` therefore always
+  receives empty `people`/`businesses` arrays and hides that section
+  (`.length > 0` guard, additive), while its existing "Ask SecurePay to find
+  help in the community" entry point (already truthful) is the real discovery
+  path.
+- **The one real Community content this phase has is a Store Offer
+  reference** — task sections 7/9 explicitly invite exactly this
+  composition. `features/community/view.ts`'s `storeResultToCommunityObject`
+  maps a real, already-productionized Store search result
+  (`features/store/view.ts`'s `searchRequests`/`mergeSearchResults`, reused
+  completely unchanged — no second search engine, test U2) into a
+  `CommunityObject` of type `store_offer_reference` with only real fields:
+  `author`/`title`/`body`/`generalLocation` straight from the search result,
+  `responses: []` (never fabricated), and a synthetic id
+  (`store-offer:{ks}:{offerId}`) that round-trips back to the exact real
+  identifiers (test "parseStoreOfferCommunityObjectId recovers..."). Because
+  this is the *only* real object type, and `CommunityObjectDetail`'s
+  "I can help"/"Discuss this"/"Start trade with helper" affordances are
+  gated on `need`/`opportunity`/`question` types (unchanged, untouched
+  logic), none of those consequential-looking actions is ever reachable from
+  real data — a direct, structural consequence of the composition choice,
+  not a separate guard that had to be added.
+- **Community "Use this" is never wired as a new adoption path — it reuses
+  the real Store `STORE_LISTING` pipeline unchanged.** Opening a real
+  Community object's "View offer" hands off through the exact same
+  `StoreExperience.openOffer` → `OfferDetail` → "Use this" → Trade Taking
+  Shape → "Continue to agreement" → `features/agent/controller.ts`'s
+  `useOffer` (submits the real `STORE_LISTING` external fact) pipeline
+  Golden Spine F already productionized, completely unmodified. No
+  Community-specific external-fact/adoption call, and no reference to
+  `COMMUNITY_KNOWLEDGE`, exists anywhere in the new Community/Circle files
+  (tests O/P) — there is no real Community content object with its own
+  adoptable facts to justify a second engine, and the task itself names this
+  exact Store-offer case as the one where the existing Store path must be
+  reused rather than relabelled.
+- **Community composer/discussion never claim real persistence.** There is
+  no verified persistent Community-post/feed backend contract in this phase
+  (same Phase 10 convergence finding as above). `CommunityComposer.tsx` and
+  the tool-call-only `CommunityDiscussionCard`/`CommunityStoryCard`/
+  `CommunityResultCard` components are never imported by the real Community
+  route (tests L/M) — those latter three are Bolt-fixture `mockAgent` tool-
+  result shapes (`CommunityDiscussionResponse`/`CommunityStoryResponse`/
+  `CommunityResultResponse`) that were never part of the real
+  `AgentComponentView` union to begin with (`api/securepay/agent/adapters.ts`
+  only ever produces `MESSAGE`/`AGREEMENT_PREVIEW`/`DISCOVERY`), so they were
+  already structurally unreachable in real mode before this slice; Golden
+  Spine G's own new code additionally never references them. The real
+  Community composer entry point (`onCreate`) shows a truthful "Sharing with
+  the community is not available yet." notice instead of mounting the
+  composer at all.
+
+### 17.2 New layers and Bolt component changes
+
+New: `api/securepay/circle/` (`dto.ts`, `adapters.ts`, `index.ts` —
+`createCircleGateway`), `features/circle/` (`controller.ts`,
+`CircleExperience.tsx`), `src/circleLabels.ts` (pure
+`CircleVerificationStatus` label dictionary, mirroring `storeLabels.ts`'s
+fixture-free-label pattern), `features/community/` (`controller.ts`,
+`view.ts`, `CommunityExperience.tsx`). `api/securepay/index.ts`'s
+`createSecurePayApi` gained `circle: createCircleGateway(http)`;
+`RuntimeApp.tsx` gained a `circleGateway` built with the same
+`withSessionRefresh` session boundary every other authenticated gateway
+uses. `AgentExperience.tsx` gained `community`/`circle` booleans (mutually
+exclusive with `store`/`workspace`/`home`, mirroring the existing pattern),
+a `circleGateway` prop, and a `storeOfferRoute` piece of state so
+Community's "View offer" can hand a specific `{canonicalKsNumber, offerId}`
+into a fresh `StoreExperience` mount exactly like the existing
+`#/store/{ks}/offer/{id}` SecureLink deep link already does — reusing that
+one mechanism rather than inventing a second.
+
+Bolt component changes (both required for truthful, not cosmetic, reasons,
+following the exact "move the fixture call to the fixture caller" pattern
+Golden Spine E/F used for `AgreementDetail`/`StoreHome`):
+
+1. `CommunityHome.tsx` — **fully rewritten to be props-driven**, no
+   `communityData.ts` import at all (previously an unconditional static
+   import). The fixture caller (`App.tsx`) now computes
+   `searchCommunity(query)`/`demoPeople`/`demoBusinesses` itself and passes
+   them down. Gained a `(people.length > 0 || businesses.length > 0)` guard
+   (hides that section when empty — real mode's constant state) and optional
+   `storeSearchStatus`/`storeSearchErrorText` props for the real "Offers from
+   stores" loading/error states, both omitted (no rendering change) in
+   fixture mode.
+2. `CommunityObjectDetail.tsx` — the `offer` lookup moved from an internal,
+   unconditional `import { getOfferById } from '../storeData'` to a required
+   prop the caller resolves (fixture `App.tsx` calls `getOfferById` itself;
+   real mode passes the actual fetched Store offer from the search result
+   already in hand, no extra network round-trip). This is the same fixture-
+   import-elimination fix Golden Spine F applied to `OfferToTradeHandoff`,
+   required here because this component is reachable from the real
+   Community route the moment a `store_offer_reference` card is opened.
+
+### 17.3 A real defect found and fixed during the browser walkthrough
+
+`StoreExperience.tsx`'s debounced live-search effect used a boolean
+`skippedFirstDebounce` ref to skip re-searching on its own first commit.
+This is unsafe under React 18 StrictMode's dev-only mount→cleanup→mount
+replay: the replay re-invokes the effect a second time on initial mount, and
+the boolean ref already reads `true` on that second invocation (refs are not
+reset between the replayed invocations), arming a *real* 400ms timer that
+later calls `controller.submitSearch()` — which unconditionally sets
+`view: 'home'`. On a normal "click a card from Store Home" mount this is
+silently harmless (the view is already `'home'`). But Community's "View
+offer" hand-off (and, on inspection, the pre-existing `#/store/{ks}/offer/{id}`
+SecureLink deep link, which mounts `StoreExperience` fresh directly into the
+`'offer'` view via `initialOfferRoute`) is exactly a fresh mount into a
+non-home view — roughly 400ms after landing on the real Offer detail page,
+the ghost timer fired and silently reset the view back to Store Home. This
+is a genuine pre-existing defect in already-shipped Store code (Golden Spine
+F), only surfaced because Community's hand-off exercises the same
+fresh-mount-into-offer path a second time; it was never caught by any unit
+test because no test harness in this repo renders `StoreExperience` through
+real timers under `StrictMode`. Fixed by replacing the boolean ref with a
+`previousQuery` value ref that compares the actual query value (identical
+across the StrictMode replay, so no false-positive re-search is ever armed);
+the identical, copied pattern in the new `CommunityExperience.tsx` was fixed
+the same way pre-emptively. No test in this repo exercises `StrictMode`'s
+double-invoke behavior directly (Node's test runner renders outside a
+browser), so this fix is verified only by the browser walkthrough itself,
+not by an automated regression test — a known, named gap, not a silent one.
+
+### 17.4 Doctrine boundaries proven, not merely asserted
+
+`tests/community-circles.test.mjs` (29 tests, A-W per the task's own lettering)
+covers: the real `/circle/me` auth boundary and closed-failure-before-network
+behavior (A/B); the real route's exclusion of `circleData.ts`/`communityData.ts`
+from the production bundle, both by bundle scan and by direct source-import
+grep (C/D/S); no fixture fallback on backend failure (E/E2); `CircleProfile`
+exposing exactly the eight real fields with no rank/medal/score field (F);
+`growthCreditTotal` staying a plain number with no currency anywhere in the
+rendered profile (G/G3); no rank/rating/reputation/medal/follower/like/
+success-rate inference in the data layer (H); an unrecognized
+`verificationStatus` failing closed (I); the real Circle gateway exposing
+only the one verified read, with no join/create method to call (J); the real
+Circle experience rendering no Join/Create action and the truthful gap
+notice (K); the real Community experience never mounting the Composer or a
+Discussion/reply surface (L/M); no Agreement/Money/party authority reachable
+from either feature (N/Q/R); no Community-specific adoption engine and no
+`COMMUNITY_KNOWLEDGE` usage anywhere, proving the Store-offer hand-off is the
+only real "Use this" path and it stays `STORE_LISTING` (O/P); no new
+client-side ranking logic, with the existing recency-only Store merge reused
+unchanged (U/U2); no stale/invented named-Circle endpoint (V); Bolt fixture
+rendering fully preserved for every untouched Circle/Community component,
+byte-identical against `bolt-reference-pass11` (T), and the rewritten
+`CommunityHome`/`CommunityObjectDetail` still rendering the same real Bolt
+fixture content (T2); and a final meta-test (W) that spawns
+`node --test` over all seven prior Golden Spine suites and asserts they
+still pass. All prior suites (124 tests) remain green; `typecheck`/`lint`/
+`build` all pass. One incidental pre-existing fix: `tests/store.test.mjs`'s
+own production-bundle-scan test (L) was missing the `.png` esbuild loader
+option `tests/money.test.mjs` already had, which made it fail outright in
+this environment (confirmed failing identically on a clean pre-task
+checkout) independent of anything in this slice; added the same one-line
+loader option, restoring it to green.
+
+### 17.5 What remains untouched, confirming scope discipline
+
+Referrals/Plugs/Masters/Partners/Solutions, the sender-side invitation
+`roleCode` doctrine blocker (Golden Spine D), and the Money
+funding/payment-intent mutation gap (Golden Spine E) are all unaffected by
+this slice. No Community/Circle file imports the Money gateway or any
+Agreement/handoff authority (tests N/Q/R). The rich Bolt named-Circle
+membership/feed/economic-story model, the universal cross-object
+`SourceReference` persistence Bolt's own richer contract implies, and
+`COMMUNITY_KNOWLEDGE` wiring all remain named, documented gaps — not
+silently dropped, and not fabricated to look complete.
