@@ -1,0 +1,238 @@
+# SecurePayLLM Production Migration Ledger
+
+Audit date: 2026-09-15
+
+This ledger maps the locked Bolt Pass 11 experience to real SecurePayAPI authority. It is the working contract for productionization.
+
+## 1. Frozen experience inspected
+
+Source archive SHA-256:
+
+`2f6c28bd28c80af806217e94e722f5b2498b187a865a44a3d0a7d9cbb0c5b14d`
+
+Static inspection of the uploaded Bolt export found:
+
+- Vite + React 18 + TypeScript + Tailwind
+- 177 files in the export
+- 160 files under `src/`
+- 146 components under `src/components/`
+- 99 explicit `#/demo/...` acceptance/demo routes
+- central prototype orchestration currently lives in `src/App.tsx`
+- conversational intelligence and consequential transitions currently come from `src/mockAgent.ts`
+- product demo truth is split across `demoData.ts`, `milestoneData.ts`, `moneyData.ts`, `storeData.ts`, `communityData.ts`, `circleData.ts`, `disputeData.ts`, and `ecosystemData.ts`
+- there are no real SecurePayAPI `fetch()`/HTTP calls in `src/`; external URLs found during static inspection are presentation assets such as demo imagery
+
+This confirms the Bolt project is an experience/reference implementation, not production authority.
+
+## 2. Core convergence contract
+
+Production must preserve:
+
+`Canonical source -> explicit Use this -> SourceReference -> Trade Taking Shape -> resolve delta -> Secure Identity when consequential -> Agreement authority -> Money follows Agreement`
+
+Current Bolt factories already demonstrate the intended universal source pattern:
+
+- `createSourceFromOffer`
+- `createSourceFromCommunityObject`
+- `createSourceFromPerson`
+- `createSourceFromWorkStory`
+- `createSourceFromSolution`
+- `createSourceFromMasterOpinion`
+- `createSourceFromPlugIntroduction`
+
+Production should converge these behind one source/adoption gateway rather than retain separate authority models per feature.
+
+## 3. Backend stack inspected
+
+The production audit inspected the current stacked SecurePayAPI programme, including:
+
+- PR #199 — Phase 5 Agent -> Secure Identity -> Agreement Authority handoff
+- PR #200 — Phase 5B provenance + explicit adoption
+- PR #201 — Phase 6 Signed-in Home + Agreement Hub/Detail
+- PR #202 — Phase 7 Agreement operations/changes/disputes
+- PR #203 — Phase 8 Money integration contract
+- PR #204 — Phase 9 Store
+- PR #205 — Phase 9B Agreement execution + dispute convergence
+- PR #206 — Phase 10 Community + Circles
+
+At audit time these PRs are stacked/open rather than merged to `main`. Frontend implementation must therefore track the branch/PR contract it is integrating against and must not assume `main` exposes every contract yet.
+
+## 4. Compatibility matrix
+
+| Bolt experience | Backend authority / verified contract | Migration state | Production action |
+| --- | --- | --- | --- |
+| Signed-out free intent | SecurePay Agent conversation stack from earlier Agent phases | REAL_API_AVAILABLE_NOT_WIRED | Replace `mockAgent.detectIntent/respond` with typed Agent conversation gateway while retaining Bolt choreography. |
+| Keep talking | Agent conversation turns | REAL_API_AVAILABLE_NOT_WIRED | No auth merely to talk/review. |
+| Review what we have | Agent Trade Context/context read | REAL_API_AVAILABLE_NOT_WIRED | Render context; do not manufacture settled facts. |
+| External quote/document facts | PR #200: external amount/date facts always enter as CANDIDATE | BACKEND_PR_PENDING | Wire structured external-fact endpoints; label provenance. |
+| Explicit `Use this` | PR #200: `POST .../facts/adopt` promotes existing CANDIDATE to CONFIRMED | BACKEND_PR_PENDING | This becomes the production adoption boundary; never auto-call it from Agent prose. |
+| Reuse prior Agreement term | PR #200: authenticated prior-agreement-term lookup with provenance, then separate adoption | BACKEND_PR_PENDING | Preserve exact source Agreement/version; no silent cloning. |
+| `Continue with this` | PR #199: `POST /api/agent/conversations/{conversationId}/agreement-handoff` | BACKEND_PR_PENDING | Replace Bolt's timed `continue_with_this` transition with real handoff creation. |
+| Identity boundary after intent | PR #199 handoff status `IDENTITY_REQUIRED`; existing auth then `/adopt` | BACKEND_PR_PENDING | Preserve review-before-auth. Authentication does not create/accept an Agreement. |
+| Canonical pre-Agreement review | PR #199: `GET /api/agent/agreement-handoffs/{id}/review` | BACKEND_PR_PENDING | This is distinct from conversational preview. |
+| Set securely | PR #199: `/continue` requires exact `tradeContextVersion` + `candidateDigest`; returns real draft Agreement id | BACKEND_PR_PENDING | Echo exact reviewed snapshot; stale means recreate handoff. |
+| Recipient invitation | Existing `/api/v1/agreement-invitations/*` authority | REAL_API_AVAILABLE_NOT_WIRED | Public invitation review remains separate from auth/join/confirm. |
+| Recipient authentication | Existing auth surface | REAL_API_AVAILABLE_NOT_WIRED | Auth only proves acting identity. |
+| Explicit Join | Existing AgreementJoinService / invitation authority | REAL_API_AVAILABLE_NOT_WIRED | Join != confirmation. |
+| Exact-version confirmation | Existing `/api/v1/agreements/{id}/versions/{versionId}/confirm` authority | REAL_API_AVAILABLE_NOT_WIRED | Confirmation must target current exact version; frontend may not infer establishment. |
+| Signed-in Home | Existing `GET /api/v1/me/agreements` and `GET /api/v1/me/actions` | REAL_API_AVAILABLE_NOT_WIRED | These own current Agreement summaries and what-needs-me actions. |
+| Agreement Hub | PR #201: `GET /api/v1/me/agreements/hub` | BACKEND_PR_PENDING | Use backend buckets; do not persist/derive a competing frontend lifecycle. |
+| Agreement search | PR #201: `/api/v1/me/agreements/search` | BACKEND_PR_PENDING | No location filter until backend has Agreement location truth. |
+| Agreement Detail | PR #201 plus #203/#205 | BACKEND_PR_PENDING | Build Bolt detail from unified backend projection; map into Bolt view model. |
+| Agreement Agent context | PR #201: `GET /api/v1/agreements/{id}/agent-context` | BACKEND_PR_PENDING | Bounded authenticated context; do not mix private Agreement context into identity-free Agent implicitly. |
+| Amendment comparison | PR #202: real amendment diff read | BACKEND_PR_PENDING | Use real source/current/proposed versions; no client reconstruction. |
+| Milestones/obligations | Existing backend domain; PR #205 exposes milestones on Detail | BACKEND_PR_PENDING | Replace `milestoneData.ts`; preserve action/obligation/milestone distinctions. |
+| Dispute isolate/positions/match | Existing Agreement Review v2 authority; PR #205 adds bounded case detail | BACKEND_PR_PENDING | Keep locked problem -> isolate -> code -> positions -> match sequence. |
+| Agreement Code acceptance | PR #205 explicit append-only acceptance per isolated dispute scope | BACKEND_PR_PENDING | Do not reduce to generic terms checkbox. |
+| Dispute Master escalation | PR #205 narrow escalation contract; full Master domain follows Phase 11 | BACKEND_PR_PENDING | Opinion must return to matching; cannot auto-resolve. |
+| Attention/reminders | PR #205 backend-neutral Agreement attention event foundation | BACKEND_PR_PENDING | Attention event != delivery channel. |
+| Money status | Existing `GET /api/v1/agreements/{id}/money-status` | REAL_API_AVAILABLE_NOT_WIRED | Payment Ready is backend truth. |
+| Money records | Existing `GET /api/v1/agreements/{id}/money-records` | REAL_API_AVAILABLE_NOT_WIRED | Use authoritative release/funding record projection. |
+| Agreement Detail Money handoff | PR #203: `NO_EVALUATION_YET | READY | NOT_READY | PARTIALLY_READY | BLOCKED`, reasons + count | BACKEND_PR_PENDING | Never collapse no-evaluation into not-ready. |
+| Money next action | Existing `/api/v1/me/actions`, e.g. `FUND_AGREEMENT` | REAL_API_AVAILABLE_NOT_WIRED | `READY` alone must never create a Pay button. |
+| Store public search | PR #204: `GET /api/v1/stores/search`, factual/recency, no ranking | BACKEND_PR_PENDING | Replace Store discovery demos; preserve no-opaque-ranking doctrine. |
+| Store profile/Offer CRUD/share | Existing Store/PublicStore controllers and real Store tables | REAL_API_AVAILABLE_NOT_WIRED | Map real offers into locked Bolt Store experience. |
+| Store media refs | PR #204 additive `media_refs` | BACKEND_PR_PENDING | Treat refs as media references; do not invent file-storage authority. |
+| Offer -> Trade source | Phase 5B provenance/adoption can represent Store listing facts, but full rich Bolt offer-version/source snapshot needs convergence audit | BACKEND_PR_PENDING | Do not directly turn Offer into Agreement. Explicit adoption first. |
+| Community | PR #206 confirms a deliberately bounded existing R11B Community/Circle foundation, not the full Bolt object/feed model | BACKEND_PR_PENDING | Treat rich Bolt Community UI as composition until canonical backend object contracts are proven. Do not fabricate durable authority. |
+| Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits | BACKEND_PR_PENDING | Growth Credits are factual NON-MONEY activity counts. |
+| Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority | BACKEND_PR_PENDING | This is a known convergence gap versus rich Bolt Pass 10B; frontend may demo only behind explicit adapter until backend decision/support exists. |
+| Universal SourceReference across Community/Circles | Bolt contract is richer than PR #206 report; Phase 5B offers generic provenance/adoption primitives | BACKEND_PR_PENDING | Backend convergence must confirm canonical source IDs/version/snapshot and introduction chain before production wiring. |
+| Referral evaluation | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | UI must not infer candidate/qualified/reward states. |
+| Plug | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | Plug introduces/navigates; gains no Agreement/Money authority. |
+| Master profile/request/opinion | Phase 11 backend work + PR #205 dispute escalation seam | BACKEND_PR_PENDING | Qualification/accreditation separate from Master status; opinion not authority. |
+| Partner/Solution | Later backend phase; Bolt Pass 11 is product contract only | BACKEND_PR_PENDING | Keep demo adapter until real bounded APIs exist. Do not invent bank/insurance/partner truth. |
+
+## 5. Highest-risk prototype code to retire
+
+### `src/App.tsx`
+
+The Bolt build currently encodes many consequential transitions through local state, timers and `mockAgent` calls, including:
+
+- `continue_with_this`
+- `continue_securely`
+- `confirm_identity`
+- `set_securely`
+- `send_to_peter`
+- `join_agreement`
+- `confirm_acceptance`
+- `need_change`
+
+These event handlers are experience choreography only. In production they must call authority gateways and render returned states. Do not preserve the local step numbers as authority.
+
+### `src/mockAgent.ts`
+
+This is the prototype intelligence/state source. It must be retired from production authority behind a development adapter. The real Agent API owns conversation/Trade Context state and the Agreement handoff owns the consequential transition.
+
+### Demo data modules
+
+The following modules remain useful as fixtures/visual acceptance data but must not become production truth:
+
+- `demoData.ts`
+- `milestoneData.ts`
+- `moneyData.ts`
+- `storeData.ts`
+- `communityData.ts`
+- `circleData.ts`
+- `disputeData.ts`
+- `ecosystemData.ts`
+
+Move them behind explicit fixture/demo boundaries as real vertical slices are wired.
+
+## 6. Proposed production boundaries
+
+```text
+src/
+  app/                    route composition + shell only
+  api/securepay/
+    agent/
+    auth/
+    agreements/
+    money/
+    store/
+    community/
+    circles/
+    ecosystem/
+  domain/
+    source-reference/
+    trade/
+    agreement/
+    money/
+  features/
+    home/
+    agent/
+    trade/
+    agreement/
+    money/
+    store/
+    community/
+    circles/
+    ecosystem/
+  fixtures/               Bolt demo data; never production authority
+```
+
+The exact folder move is secondary. The important rule is that locked visual components consume typed domain/view models rather than performing ad-hoc HTTP or owning protected state.
+
+## 7. First production vertical slice
+
+Build this before broad component refactoring:
+
+1. Signed-out Home captures intent.
+2. Real Agent conversation is created/continued.
+3. Trade Context/understanding renders in the Bolt conversation experience.
+4. `Continue with this` creates a real Agreement handoff.
+5. If `IDENTITY_REQUIRED`, use real SecurePay auth and adopt the handoff.
+6. Render canonical handoff review.
+7. `Set this securely` progresses with exact context version + digest.
+8. Render the resulting real Agreement.
+9. Invite a recipient through existing Agreement invitation authority.
+10. Recipient reviews invitation before auth.
+11. Authenticate, explicitly Join.
+12. Review exact Agreement version.
+13. Explicitly confirm current version.
+14. Render backend-owned established/current status.
+15. Read Money status and caller next-actions separately.
+
+Only after this spine is real should Store/Community/Circles be attached to it.
+
+## 8. Production acceptance rules for the first slice
+
+The slice fails if any of the following are true:
+
+- the frontend decides an Agreement exists before SecurePayAPI says so
+- authentication is treated as Join or confirmation
+- Join is treated as confirmation
+- confirmation does not identify exact version authority
+- a stale handoff/version proceeds
+- a candidate external fact is silently adopted
+- `READY` alone exposes Pay/Fund
+- Money state comes from demo data
+- a source selection becomes agreed without explicit adoption/review
+- errors/unknowns are converted to successful-looking states
+
+## 9. Known backend convergence items
+
+These are not frontend permission to invent data. They remain explicit integration gaps until backend support is proven:
+
+- rich canonical Community objects matching Bolt Pass 10A
+- Circle membership/reference semantics matching Bolt Pass 10B
+- universal SourceReference persistence/projection for Community/Circle/Plug/Master/Solution sources
+- referral evaluation/reward authority (Phase 11)
+- full Master profile/request/opinion authority outside the narrow dispute escalation seam (Phase 11)
+- Partner/Solution APIs and regulated capability truth
+- Store enquiries/activity feed
+- Business/team administration
+- activation/subscription/admin surfaces not implemented in Bolt because token budget ended after Pass 11
+
+## 10. Status vocabulary
+
+Update this ledger on every production PR:
+
+- `REAL_API_WIRED`
+- `REAL_API_AVAILABLE_NOT_WIRED`
+- `BACKEND_PR_PENDING`
+- `FRONTEND_COMPOSITION_ONLY`
+- `DEMO_ONLY_REMOVE_BEFORE_PRODUCTION`
+- `HUMAN_DOCTRINE_BLOCKER`
+
+Do not mark a surface complete merely because it visually matches Bolt. A protected surface is complete only when its authority is real.
