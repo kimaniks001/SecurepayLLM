@@ -248,3 +248,13 @@ DEMO_ONLY_REMOVE_BEFORE_PRODUCTION. The fixture App is available only through an
 explicit development fixture mode; production fails closed pending slices B–E.
 No API error selects fixtures. Auth, handoff, Agreement and Money gateway code is
 available for subsequent wiring; this does not complete a vertical slice.
+
+## 12. Golden Spine B implementation scope (2026-09-15)
+
+SignedOutHome, ConversationWorkspace and ContextPanel are the locked surfaces.
+Conversation creation, turns, context reads and explicit fact adoption are being
+wired through the existing Agent gateway against the re-inspected #208 stack
+head 0b0121c9 (#197/#198/#200 still BACKEND_PR_PENDING). Real loading/errors and
+candidate/provenance rendering replace local Understanding authority. Fixture
+default rendering stays intact. Continue with this remains a non-progressing
+FRONTEND_COMPOSITION_ONLY seam for Slice C; no auth or Agreement mutation.

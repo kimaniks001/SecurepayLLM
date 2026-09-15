@@ -1,3 +1,4 @@
+import { discoveryView, type DiscoveryView } from './discovery';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
 import type { AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
@@ -7,7 +8,7 @@ export interface PreviewView {
   what: string[]; who: string[]; money: string[]; when: string[];
   stillToSettle: string[]; disclaimer: string;
 }
-export type AgentComponentView = MessageResponse | PreviewView;
+export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
 
 /** A presentation adapter, never an Agreement or action dispatcher. Unsupported cards preserve the surrounding text. */
@@ -18,15 +19,15 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
   if (component.type === 'AGREEMENT_PREVIEW' && strings(data.what) && strings(data.who) && strings(data.money) && strings(data.when) && strings(data.stillWorthSettling) && typeof data.disclaimer === 'string') {
     return { type: 'AGREEMENT_PREVIEW', what: data.what, who: data.who, money: data.money, when: data.when, stillToSettle: data.stillWorthSettling, disclaimer: data.disclaimer };
   }
-  return null;
+  return discoveryView(component);
 }
 export function agentResponseView(dto: AgentResponseDto) {
   if (typeof dto?.message !== 'string') throw new ApiError('invalid-response', 'Agent response is missing its message');
-  const components = (values: ComponentDto[]) => values.map(agentComponentView).filter((value): value is AgentComponentView => value !== null);
+  const components = (values: unknown) => (Array.isArray(values) ? values : []).map(agentComponentView).filter((value): value is AgentComponentView => value !== null);
   return {
     message: { type: 'MESSAGE', text: dto.message } satisfies MessageResponse,
     components: components(dto.components ?? []),
-    panel: dto.contextualPanel ? { title: dto.contextualPanel.title, components: components(dto.contextualPanel.components ?? []) } : null,
+    panel: dto.contextualPanel && typeof dto.contextualPanel.title === 'string' ? { title: dto.contextualPanel.title, components: components(dto.contextualPanel.components ?? []) } : null,
     contextUpdates: dto.contextUpdates,
     // Guidance only; never forward these to a consequential endpoint automatically.
     suggestedActions: dto.suggestedActions,
@@ -35,6 +36,13 @@ export function agentResponseView(dto: AgentResponseDto) {
 
 /** Retain IDs, qualifiers/provenance and the original state; unknown state is never confirmed. */
 export function tradeContextView(dto: TradeContextDto) {
+  const stringMap = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value) && Object.values(value).every(item => typeof item === 'string');
+  if (!dto || typeof dto.conversationId !== 'string' || !Number.isSafeInteger(dto.version)
+    || !Array.isArray(dto.entities) || !Array.isArray(dto.relationships)
+    || dto.entities.some(entity => !entity || typeof entity.id !== 'string' || typeof entity.type !== 'string' || typeof entity.name !== 'string' || typeof entity.state !== 'string' || !stringMap(entity.attributes))
+    || dto.relationships.some(relation => !relation || typeof relation.id !== 'string' || typeof relation.kind !== 'string' || typeof relation.subjectEntityId !== 'string' || typeof relation.objectEntityId !== 'string' || typeof relation.state !== 'string' || !stringMap(relation.qualifiers))) {
+    throw new ApiError('invalid-response', 'SecurePay returned an unreadable Trade Context. Please refresh.');
+  }
   const facts = [
     ...dto.entities.map(entity => ({ id: entity.id, targetKind: 'ENTITY' as const, label: entity.type, value: entity.name, state: entity.state, provenance: entity.attributes })),
     ...dto.relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId, objectId: relation.objectEntityId }, state: relation.state, provenance: relation.qualifiers })),

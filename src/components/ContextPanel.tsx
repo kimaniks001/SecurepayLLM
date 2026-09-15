@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { AgentResponse, Understanding, Provider, StoreProduct } from '../types';
 import { ProviderCard } from './ProviderCard';
 import { PriceContextCard } from './PriceContextCard';
@@ -31,7 +31,8 @@ import type { PanelMode } from '../mockAgent';
 
 interface ContextPanelProps {
   lastRichResponses: AgentResponse[];
-  understanding: Understanding;
+  understanding?: Understanding;
+  contextContent?: ReactNode;
   selectedProviderId: string | null;
   onSelectProvider: (id: string) => void;
   panelTitle: string;
@@ -42,6 +43,7 @@ interface ContextPanelProps {
 export function ContextPanel({
   lastRichResponses,
   understanding,
+  contextContent,
   selectedProviderId,
   onSelectProvider,
   panelTitle,
@@ -93,8 +95,9 @@ export function ContextPanel({
         </div>
       </div>
 
+      {contextContent}
       {/* Understanding as secondary drawer when panel is not understanding mode */}
-      {panelMode !== 'understanding' && (
+      {understanding && panelMode !== 'understanding' && (
         <UnderstandingDrawer
           understanding={understanding}
           expanded={understandingOpen}
@@ -103,7 +106,7 @@ export function ContextPanel({
       )}
 
       {/* Understanding is primary when panelMode is 'understanding' */}
-      {panelMode === 'understanding' && (
+      {understanding && panelMode === 'understanding' && (
         <UnderstandingDrawer
           understanding={understanding}
           expanded={true}
@@ -227,7 +230,7 @@ export function ContextPanel({
       </div>
 
       {/* Empty state */}
-      {richResponses.length === 0 && panelMode === 'understanding' && (
+      {!contextContent && richResponses.length === 0 && panelMode === 'understanding' && (
         <div className="flex flex-col items-center justify-center py-12 text-center animate-quiet-in">
           <div className="w-12 h-12 rounded-full bg-cream-100 flex items-center justify-center mb-3">
             <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="text-sand-400">

@@ -1,0 +1,156 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { build } from 'esbuild';
+import { execFileSync } from 'node:child_process';
+const bundle = await build({ stdin: { contents: `
+export * from './src/features/agent/controller';
+export * from './src/api/securepay';
+export * from './src/api/securepay/http';
+export * from './src/api/securepay/agent/adapters';
+export * from './src/features/agent/TradeContext';
+export * from './src/components/AgreementPreview';
+export { createElement } from 'react';
+export { renderToStaticMarkup } from 'react-dom/server';
+`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+// CJS lets React's server renderer use Node builtins without adding dependencies.
+const { createRequire } = await import('node:module');
+const module = { exports: {} };
+new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
+const api = module.exports;
+const response = { message: 'Let’s talk', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] };
+const context = (state = 'CANDIDATE') => ({ conversationId: 'c', version: 1, entities: [{ id: 'amount', type: 'AMOUNT', name: 'KES 100', state, attributes: { sourceKind: 'QUOTATION' } }], relationships: [] });
+const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+function setup(overrides = {}) {
+  const calls = [];
+  const gateway = {
+    createConversation: async () => { calls.push('create'); return { conversationId: 'c' }; },
+    submitTurn: async (id, body) => { calls.push(['turn', id, body]); return response; },
+    readContext: async () => { calls.push('context'); return context(); },
+    adoptFact: async (id, body) => { calls.push(['adopt', id, body]); return context('CONFIRMED'); },
+    ...overrides,
+  };
+  let counter = 0;
+  return { calls, controller: api.createAgentController(gateway, () => `id-${++counter}`) };
+}
+test('intent persists synchronously; conversation creation precedes first turn; rapid sends are serialized', async () => {
+  const pending = deferred();
+  const { controller, calls } = setup({ createConversation: () => pending.promise });
+  const sending = controller.send('My bathroom needs tiles');
+  assert.equal(controller.getSnapshot().turns[0].text, 'My bathroom needs tiles');
+  assert.equal(controller.getSnapshot().conversationId, null);
+  assert.deepEqual(calls, []);
+  await controller.send('duplicate click');
+  pending.resolve({ conversationId: 'c' });
+  await sending;
+  assert.equal(calls[0][0], 'turn');
+  assert.equal(calls[0][1], 'c');
+  assert.equal(controller.getSnapshot().turns.length, 2);
+});
+test('creation failure retains intent; explicit retry creates before submitting without another user bubble', async () => {
+  let attempts = 0;
+  const { controller, calls } = setup({ createConversation: async () => { if (++attempts === 1) throw new api.ApiError('network', 'offline'); return { conversationId: 'c' }; } });
+  await controller.send('hello');
+  const id = controller.getSnapshot().pending.body.clientTurnId;
+  assert.equal(calls.length, 0);
+  await controller.retry();
+  assert.equal(calls[0][2].clientTurnId, id);
+  assert.equal(controller.getSnapshot().turns.length, 2);
+});
+test('network, timeout, 404 and unavailable retain failed turns and reuse clientTurnId only on explicit retry', async () => {
+  for (const error of [new api.ApiError('network', 'offline'), new api.ApiError('timeout', 'timeout'), new api.ApiError('http', 'missing', 404), new api.ApiError('http', 'unavailable', 503)]) {
+    const bodies = [];
+    const { controller } = setup({ submitTurn: async (_id, body) => { bodies.push(body); if (bodies.length === 1) throw error; return response; } });
+    await controller.send('hello');
+    assert.equal(bodies.length, 1);
+    assert.equal(controller.getSnapshot().turns.length, 1);
+    assert.ok(controller.getSnapshot().error);
+    await controller.retry();
+    assert.deepEqual(bodies[0], bodies[1]);
+    assert.equal(controller.getSnapshot().turns.length, 2);
+  }
+});
+test('explicit adoption makes one HTTP POST, refreshes context and renders backend-confirmed result', async () => {
+  const calls = [];
+  let adopted = false;
+  const client = api.createSecurePayApi('https://api.example', () => null, async (url, init) => {
+    calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) });
+    if (url.endsWith('/facts/adopt')) adopted = true;
+    const result = url.endsWith('/turns') ? response : url.endsWith('/conversations') ? { conversationId: 'c' } : context(adopted ? 'CONFIRMED' : 'CANDIDATE');
+    return new Response(JSON.stringify(result));
+  });
+  const controller = api.createAgentController(client.agent);
+  await controller.send('hello');
+  assert.equal(calls.some(call => call.url.endsWith('/facts/adopt')), false);
+  const adoption = controller.adopt('amount', 'ENTITY');
+  await controller.adopt('amount', 'ENTITY');
+  await adoption;
+  const posts = calls.filter(call => call.url.endsWith('/facts/adopt'));
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].method, 'POST');
+  assert.equal(posts[0].body.targetId, 'amount');
+  assert.equal(calls.at(-1).url, 'https://api.example/api/agent/conversations/c/context');
+  assert.equal(controller.getSnapshot().context.data.confirmed.length, 1);
+  await controller.adopt('amount', 'ENTITY');
+  assert.equal(calls.filter(call => call.url.endsWith('/facts/adopt')).length, 1);
+  const before = calls.length;
+  await controller.review();
+  assert.equal(calls.length, before + 1);
+  assert.ok(calls.at(-1).url.endsWith('/context'));
+  assert.equal(calls.some(call => /handoff|auth|agreements/.test(call.url)), false);
+});
+test('failed context refresh never repeats successful adoption or claims current confirmation', async () => {
+  let reads = 0;
+  const { controller, calls } = setup({ readContext: async () => { if (++reads === 2) throw Error('offline'); return context(); } });
+  await controller.send('hello');
+  await controller.adopt('amount', 'ENTITY');
+  assert.equal(controller.getSnapshot().pending, null);
+  assert.equal(controller.getSnapshot().context.status, 'error');
+  assert.equal(controller.getSnapshot().context.data, null);
+  await controller.retry();
+  await controller.review();
+  assert.equal(calls.filter(call => call[0] === 'adopt').length, 1);
+});
+test('candidate and unknown context render distinct labels, provenance, and only candidate Use this', () => {
+  for (const status of ['CANDIDATE', 'CONFIRMED', 'FUTURE']) {
+    const { controller } = setup();
+    const state = { ...controller.getSnapshot(), context: { status: 'ready', data: api.tradeContextView(context(status)) } };
+    const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
+    assert.match(html, /QUOTATION/);
+    assert.equal(html.includes('Use this'), status === 'CANDIDATE');
+    assert.equal(html.includes('Confirmed'), status === 'CONFIRMED');
+    if (status === 'FUTURE') assert.match(html, /Unknown state/);
+  }
+});
+test('preview keeps backend prose and disclaimer; unknown rich types preserve top-level message', () => {
+  const view = api.agentResponseView({ ...response, components: [{ type: 'FUTURE', data: {} }, { type: 'AGREEMENT_PREVIEW', data: { what: ['Tiling'], who: ['Peter (being considered)'], money: ['Candidate amount'], when: [], stillWorthSettling: ['Date'], disclaimer: 'Not an Agreement' } }] });
+  assert.equal(view.message.text, response.message);
+  assert.equal(view.components.length, 1);
+  const html = api.renderToStaticMarkup(api.createElement(api.AgreementPreviewCard, { data: view.components[0] }));
+  assert.match(html, /being considered/);
+  assert.match(html, /Not an Agreement/);
+});
+test('touched locked components retain byte-identical fixture markup against Bolt', async () => {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { SignedOutHome } from './src/components/SignedOutHome';
+import { ConversationWorkspace } from './src/components/ConversationWorkspace';
+import { ContextPanel } from './src/components/ContextPanel';
+import { AgreementPreviewCard } from './src/components/AgreementPreview';
+const understanding = Object.fromEntries(['job','scope','location','people','price','timing','materials'].map(key => [key, { label:key, value:'', state:'unknown' }]));
+const noop = () => {};
+export const markup = [
+ React.createElement(SignedOutHome, { onStart: noop }),
+ React.createElement(ConversationWorkspace, { turns:[], understanding, isThinking:false, onSend:noop }),
+ React.createElement(ContextPanel, { lastRichResponses:[], understanding, selectedProviderId:null, onSelectProvider:noop, panelTitle:'Understanding', panelMode:'understanding' }),
+ React.createElement(AgreementPreviewCard, { data:{ type:'AGREEMENT_PREVIEW', title:'Tiling', what:['Tile bathroom'], who:[{name:'Peter',role:'provider'}], money:{amount:'KES 100',note:'candidate'}, when:'Tomorrow', stillToSettle:['Scope'] } })
+].map(renderToStaticMarkup);`;
+  const touched = /src\/components\/(SignedOutHome|ConversationWorkspace|ContextPanel|AgreementPreview)\.tsx$/;
+  async function render(baseline) {
+    const result = await build({ stdin:{ contents:entry, resolveDir:process.cwd() }, bundle:true, write:false, format:'cjs', platform:'node', jsx:'automatic', plugins: baseline ? [{ name:'bolt', setup(builder) { builder.onLoad({filter:touched}, args => ({contents:execFileSync('git',['show',`bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`],{encoding:'utf8'}), loader:'tsx'})); } }] : [] });
+    const mod = {exports:{}};
+    new Function('require','module','exports',result.outputFiles[0].text)(createRequire(import.meta.url),mod,mod.exports);
+    return mod.exports.markup;
+  }
+  assert.deepEqual(await render(false), await render(true));
+});
