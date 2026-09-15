@@ -92,6 +92,15 @@ export function CommunityExperience({ gateway, trustedMediaOrigin, onNavigate, o
         onOpenCircles={onOpenCircle}
         storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
         storeSearchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
+        // No named-Circle/group authority exists on the backend (task: "Remove fake named-Circle copy
+        // from real Community") — never name fictitious Circles or imply membership in one.
+        circlesEntryLabel="Your Circle profile"
+        circlesEntryDescription="See your real network activity — referrals, agreements brought in, and growth credit. Not a named Circle or group."
+        // The real searchable content this phase is Store offers only (task: "Real Community search
+        // copy must match real search capability") — never imply people/questions/needs/work were
+        // searched when only Store offers actually were.
+        searchPlaceholder="Search store offers by category or location..."
+        noResultsMessage={`No store offers found for "${state.query}".`}
       />
     );
   }

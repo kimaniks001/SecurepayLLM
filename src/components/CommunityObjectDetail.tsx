@@ -54,7 +54,8 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
 
           {/* Meta */}
           <div className="mt-3 pt-3 border-t border-cream-100 space-y-1.5">
-            <div className="text-[0.72rem] text-sand-500">Posted by {object.author} · {object.createdAt}</div>
+            {/* A Store Offer reference is never a Community post — it names the real Store, not an author (task: "Store offer reference is not a Community post"). */}
+            <div className="text-[0.72rem] text-sand-500">{isStoreRef ? `Store: ${object.author} · ${object.createdAt}` : `Posted by ${object.author} · ${object.createdAt}`}</div>
             {object.generalLocation && (
               <div className="flex items-center gap-1.5 text-[0.78rem] text-sand-600">
                 <MapPin className="w-3.5 h-3.5 text-sand-400" />

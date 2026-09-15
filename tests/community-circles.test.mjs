@@ -345,6 +345,198 @@ test('parseStoreOfferCommunityObjectId recovers the exact real identifiers for h
   assert.deepEqual(parsed, { canonicalKsNumber: 'KS-100', offerId: 'offer-1' });
 });
 
+// ─── Pre-merge hardening pass (2026-09-15) ─────────────────────────
+
+const communityHomeDefaultProps = {
+  query: '', onQueryChange: () => {}, objects: [], people: [], businesses: [],
+  onOpenObject: () => {}, onOpenPerson: () => {}, onOpenBusiness: () => {}, onCreate: () => {}, onStartConversation: () => {}, onOpenCircles: () => {},
+};
+
+async function renderCommunityHome(props) {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { CommunityHome } from './src/components/CommunityHome';
+export const markup = renderToStaticMarkup(React.createElement(CommunityHome, ${JSON.stringify(props)}));`;
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+  return mod.exports.markup;
+}
+
+test('H1. Real-mode Community never names a fictitious named Circle or implies membership in one', async () => {
+  const markup = await renderCommunityHome({
+    ...communityHomeDefaultProps,
+    circlesEntryLabel: 'Your Circle profile',
+    circlesEntryDescription: 'See your real network activity — referrals, agreements brought in, and growth credit. Not a named Circle or group.',
+  });
+  assert.match(markup, /Your Circle profile/);
+  assert.doesNotMatch(markup, /Construction Circle/);
+  assert.doesNotMatch(markup, /Creative Professionals/);
+});
+
+test('H2. Fixture-mode Community (default props) still names the demo Circles — unchanged', async () => {
+  const markup = await renderCommunityHome(communityHomeDefaultProps);
+  assert.match(markup, /Your Circles/);
+  assert.match(markup, /Construction Circle/);
+  assert.match(markup, /Creative Professionals/);
+});
+
+test('H3. The real Community experience wires the truthful named-Circle copy overrides', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /circlesEntryLabel="Your Circle profile"/);
+  assert.doesNotMatch(contents, /Construction Circle|Creative Professionals/);
+});
+
+test('H4. Real-mode Community search placeholder and empty state match the real search capability (Store offers only)', async () => {
+  const markup = await renderCommunityHome({
+    ...communityHomeDefaultProps,
+    query: 'chair', storeSearchStatus: 'ready',
+    searchPlaceholder: 'Search store offers by category or location...',
+    noResultsMessage: 'No store offers found for "chair".',
+  });
+  assert.match(markup, /Search store offers by category or location/);
+  assert.match(markup, /No store offers found for &quot;chair&quot;/);
+  assert.doesNotMatch(markup, /Search people, businesses, questions, needs, work/);
+  assert.doesNotMatch(markup, /No results for &quot;chair&quot;/);
+});
+
+test('H5. Fixture-mode Community search placeholder/empty state remain byte-identical to Bolt', async () => {
+  const markup = await renderCommunityHome({ ...communityHomeDefaultProps, query: 'chair' });
+  assert.match(markup, /Search people, businesses, questions, needs, work/);
+  assert.match(markup, /No results for &quot;chair&quot;/);
+});
+
+async function renderCommunityObjectDetail(object, offer) {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { CommunityObjectDetail } from './src/components/CommunityObjectDetail';
+import { getCommunityObjectById } from './src/communityData';
+const noop = () => {};
+export const markup = renderToStaticMarkup(React.createElement(CommunityObjectDetail, {
+  object: getCommunityObjectById(${JSON.stringify(object)}), offer: ${offer ? JSON.stringify(offer) : 'null'},
+  onBack: noop, onICanHelp: noop, onDiscuss: noop, onViewOffer: noop, onToTrade: noop,
+}));`;
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+  return mod.exports.markup;
+}
+
+const fixtureStoreOffer = {
+  id: 'offer-cctv', storeId: 'store-keyman', storeName: 'Keyman Security', title: '4-Camera CCTV Package',
+  description: 'x', offerType: 'service', priceType: 'fixed', price: 'KES 85,000', currency: 'KES',
+  scope: { included: [], excluded: [] }, media: [], serviceArea: '', availability: 'Available',
+  conditions: [], documents: [], milestoneSeeds: [], obligationSeeds: [], customizationAllowed: true,
+  secureLink: { id: 'l', url: '', label: 'x', linkType: 'offer', qrAvailable: false, whatsappShareAvailable: false, embedAvailable: false },
+  lifecycle: 'published', version: 'v1', isExternalReference: false, isDemoState: true,
+};
+
+test('H6. A Store Offer reference never renders "Posted by" — it names the Store, not an author', async () => {
+  const markup = await renderCommunityObjectDetail('co-offer-ref-1', fixtureStoreOffer);
+  assert.match(markup, /Store: Keyman Security/);
+  assert.doesNotMatch(markup, /Posted by/);
+});
+
+test('H7. Genuine Community content (need/question/etc.) keeps "Posted by" unchanged', async () => {
+  const markup = await renderCommunityObjectDetail('co-need-1', null);
+  assert.match(markup, /Posted by James Kimani/);
+});
+
+test('H8. Real Circle memberSince wording never implies named-Circle/community membership', async () => {
+  const contents = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
+  assert.match(contents, /SecurePay identity since \{profile\.memberSince\}/);
+  assert.doesNotMatch(contents, />Member since/);
+});
+
+test('H9. CircleExperience resets the profile on sign-out and reloads fresh on every transition into signed-in', async () => {
+  const contents = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
+  assert.match(contents, /if \(sessionState\.status === 'signed-in'\) void controller\.load\(\);\s*\n\s*else controller\.reset\(\);/);
+});
+
+test('H10. Circle controller: signing out clears a previous ready profile, and re-authenticating loads the new session\'s own profile, never the old one', async () => {
+  let response = circleProfileResponse({ canonicalKsNumber: 'KS-OLD', displayName: 'Old Identity' });
+  const gateway = { me: async () => response };
+  const controller = api.circleController.createCircleController(gateway);
+
+  await controller.load();
+  assert.equal(controller.getSnapshot().profile.status, 'ready');
+  assert.equal(controller.getSnapshot().profile.data.canonicalKsNumber, 'KS-OLD');
+
+  // Simulates the CircleExperience effect's sign-out branch.
+  controller.reset();
+  assert.equal(controller.getSnapshot().profile.status, 'idle');
+
+  // Simulates re-authentication as a different identity.
+  response = circleProfileResponse({ canonicalKsNumber: 'KS-NEW', displayName: 'New Identity' });
+  await controller.load();
+  assert.equal(controller.getSnapshot().profile.status, 'ready');
+  assert.equal(controller.getSnapshot().profile.data.canonicalKsNumber, 'KS-NEW');
+  assert.notEqual(controller.getSnapshot().profile.data.displayName, 'Old Identity');
+});
+
+test('H11. Community search: a slower stale response never overwrites a newer, faster one', async () => {
+  function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
+  const defA = deferred();
+  const defB = deferred();
+  let callIndex = 0;
+  const resultA = searchResult({ canonicalKsNumber: 'KS-A', offer: publicOfferView({ id: 'offer-a', title: 'Search A result' }) });
+  const resultB = searchResult({ canonicalKsNumber: 'KS-B', offer: publicOfferView({ id: 'offer-b', title: 'Search B result' }) });
+  const gateway = {
+    search: async () => {
+      callIndex += 1;
+      if (callIndex <= 2) { await defA.promise; return [resultA]; }
+      await defB.promise; return [resultB];
+    },
+  };
+  const controller = api.communityController.createCommunityController(gateway);
+
+  const pA = controller.enter(); // search A: query '' -> 2 calls, pending on defA
+  controller.setQuery('b');
+  const pB = controller.submitSearch(); // search B: query 'b' -> 4 calls, pending on defB
+
+  defB.resolve();
+  await pB;
+  assert.equal(controller.getSnapshot().search.status, 'ready');
+  assert.equal(controller.getSnapshot().search.data[0].canonicalKsNumber, 'KS-B');
+
+  defA.resolve(); // stale — must never overwrite B's result
+  await pA;
+  assert.equal(controller.getSnapshot().search.status, 'ready');
+  assert.equal(controller.getSnapshot().search.data[0].canonicalKsNumber, 'KS-B');
+});
+
+test('H12. Community search: a stale slower error never overwrites a newer ready result', async () => {
+  function deferred() { let resolve, reject; const promise = new Promise((res, rej) => { resolve = res; reject = rej; }); return { promise, resolve, reject }; }
+  const defA = deferred();
+  const defB = deferred();
+  let callIndex = 0;
+  const resultB = searchResult({ canonicalKsNumber: 'KS-B', offer: publicOfferView({ id: 'offer-b' }) });
+  const gateway = {
+    search: async () => {
+      callIndex += 1;
+      if (callIndex <= 2) { await defA.promise; return []; }
+      await defB.promise; return [resultB];
+    },
+  };
+  const controller = api.communityController.createCommunityController(gateway);
+
+  const pA = controller.enter();
+  controller.setQuery('b');
+  const pB = controller.submitSearch();
+
+  defB.resolve();
+  await pB;
+  assert.equal(controller.getSnapshot().search.status, 'ready');
+
+  defA.reject(new Error('stale network failure'));
+  await pA;
+  // The stale rejection must not flip a already-ready, newer result into an error state.
+  assert.equal(controller.getSnapshot().search.status, 'ready');
+  assert.equal(controller.getSnapshot().search.data[0].canonicalKsNumber, 'KS-B');
+});
+
 // ─── W. All prior Golden Spine A-F production-foundation tests remain green ─────────────────────────
 
 test('W. All prior Golden Spine A-F test suites remain green', async () => {

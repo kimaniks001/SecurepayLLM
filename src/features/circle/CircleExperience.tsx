@@ -37,8 +37,13 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
 
   useEffect(() => {
-    if (sessionState.status === 'signed-in' && state.profile.status === 'idle') void controller.load();
-    // Runs whenever sign-in state changes; controller/state.profile.status guard prevents re-fetch loops.
+    // Runs only when sign-in status actually changes (or on mount), never on every render. A previous
+    // identity's profile must never survive into a new session: signing out resets it back to idle
+    // (session.clear() carries no identity to decode, so this is authority-boundary-safe — see
+    // api/securepay/session.ts), and every transition into signed-in (including re-authentication after
+    // a session refresh/loss) reloads the caller's own current self-scoped profile from scratch.
+    if (sessionState.status === 'signed-in') void controller.load();
+    else controller.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionState.status]);
 
@@ -101,7 +106,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
               <ShieldCheck className="w-3.5 h-3.5 text-sand-400" />
               {circleVerificationStatusLabel[profile.verificationStatus]}
             </div>
-            <div className="text-[0.72rem] text-sand-400 mt-1">Member since {profile.memberSince}</div>
+            <div className="text-[0.72rem] text-sand-400 mt-1">SecurePay identity since {profile.memberSince}</div>
           </div>
 
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4">

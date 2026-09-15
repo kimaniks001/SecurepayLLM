@@ -38,14 +38,22 @@ export function createCommunityController(gateway: Gateway, trustedMediaOrigin: 
   const listeners = new Set<() => void>();
   const update = (patch: Partial<CommunityState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
+  // Guards against an older, slower search response overwriting a newer one's result (e.g. a fast
+  // network reply to a later keystroke landing before a slow reply to an earlier one). Only the most
+  // recently *started* search may ever update `search` state; a superseded response — success or
+  // error — is silently discarded rather than applied.
+  let searchSequence = 0;
   async function runSearch(query: string) {
+    const sequence = ++searchSequence;
     update({ query, search: { status: 'loading' } });
     try {
       const requests = searchRequests(query);
       const pages = await Promise.all(requests.map(params => gateway.search(params)));
       const results = mergeSearchResults(pages.map(page => searchResultsView(page, trustedMediaOrigin)));
+      if (sequence !== searchSequence) return;
       update({ search: { status: 'ready', data: results } });
     } catch (error) {
+      if (sequence !== searchSequence) return;
       update({ search: { status: 'error', error: asApiError(error) } });
     }
   }

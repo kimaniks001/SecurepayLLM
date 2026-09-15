@@ -97,7 +97,7 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Offer -> Trade source | Phase 5B `POST .../external-facts/amount` accepts `sourceKind: 'STORE_LISTING'`; no dedicated Store-Offer SourceReference/adoption endpoint exists | BACKEND_PR_PENDING | Golden Spine F seeds one real CANDIDATE payment-condition fact from the Offer's price (when listed) via the existing Agent gateway, then reuses the existing conversation/handoff pipeline unchanged. Do not directly turn Offer into Agreement. See 16.1 for the provenance-stripped-on-read gap. |
 | Offer SecureLink | No dedicated share-token contract exists (verified: no offer_share/offer_link endpoint) | HUMAN_DOCTRINE_BLOCKER outcome avoided — the public offer URL (`GET /api/v1/stores/{ks}/offers/{offerId}`) is itself the doctrine-compliant share mechanism | Golden Spine F builds a frontend-only `#/store/{ks}/offer/{offerId}` hash route as the truthful SecureLink; never reuses the `#/invitation/{token}` route. |
 | Community | PR #206 confirms a deliberately bounded existing R11B Community/Circle foundation, not the full Bolt object/feed model | BACKEND_PR_PENDING / FRONTEND_COMPOSITION_ONLY | Golden Spine G wires `CommunityHome`/`CommunityObjectDetail` to real Store search results composed as `store_offer_reference` objects only; Question/Need/Opportunity/Work Story/Discussion/people/business browsing remain FRONTEND_COMPOSITION_ONLY (no backend content-object persistence exists — Phase 10 convergence audit). Row stays BACKEND_PR_PENDING for the Store-composition path until #204/#206's stacks merge to `main`. |
-| Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits, `GET /api/v1/circle/me` | BACKEND_PR_PENDING | Golden Spine G wires the real self-scoped Circle profile (identity, verification status, member since, referred/activated trader counts, agreements brought in, growth credit total) to this endpoint; row stays BACKEND_PR_PENDING until #206's stack merges to `main`. Growth Credits are factual NON-MONEY activity counts, rendered as a plain count only. |
+| Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits, `GET /api/v1/circle/me` | BACKEND_PR_PENDING | Golden Spine G wires the real self-scoped Circle profile (identity, verification status, `memberSince`, referred/activated trader counts, agreements brought in, growth credit total) to this endpoint; row stays BACKEND_PR_PENDING until #206's stack merges to `main`. `memberSince` is `ks_identities.created_at` (identity creation), never a named-Circle join date — rendered as "SecurePay identity since {date}", not "Member since" (17.6). Growth Credits are factual NON-MONEY activity counts, rendered as a plain count only. |
 | Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority; Phase 11 convergence audit (`PHASE_10_CONVERGENCE_AUDIT.md`) confirms this is a deferred product-shape decision, not a gap to close inline | TRUE BACKEND GAP / DEMO_ONLY_REMOVE_BEFORE_PRODUCTION | Golden Spine G renders this as a truthful "Named Circles ... not available yet" notice in the real Circle experience. Bolt's rich named-Circle screens (`CircleHome`, `CircleDiscoveryList`, `CircleMemberDirectory`, `CircleEconomicSummary`, `CircleCreateFlow`, `CircleJoinFlow`) remain fixture-only and are never reached from the real route. |
 | Universal SourceReference across Community/Circles | Bolt contract is richer than PR #206 report; Phase 5B offers generic provenance/adoption primitives; Phase 11 convergence audit confirms `ExternalFactSourceKind` (incl. `COMMUNITY_KNOWLEDGE`) is the one real engine, not a second SourceReference authority | BACKEND_PR_PENDING | Golden Spine G deliberately does not wire `COMMUNITY_KNOWLEDGE` this slice (no real Community content object exists to adopt facts from); the one real Community→Trade path (a Store offer reference) reuses the existing STORE_LISTING seam unchanged. See section 17. |
 | Referral evaluation | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | UI must not infer candidate/qualified/reward states. |
@@ -1366,3 +1366,73 @@ membership/feed/economic-story model, the universal cross-object
 `SourceReference` persistence Bolt's own richer contract implies, and
 `COMMUNITY_KNOWLEDGE` wiring all remain named, documented gaps — not
 silently dropped, and not fabricated to look complete.
+
+### 17.6 Pre-merge truth/auth hardening pass (2026-09-15)
+
+Six narrow issues flagged on PR #10 review, none broadening Community/Circle
+scope and none touching the parked visual-identity work:
+
+1. **Fake named-Circle copy removed from real Community.** `CommunityHome.tsx`
+   hardcoded "Your Circles" / "Trusted economic networks — Construction
+   Circle, Creative Professionals, and more" unconditionally — real mode has
+   no named-Circle authority at all (17.1), so naming two specific fictitious
+   Circles there was a direct false-membership implication. `CommunityHome`
+   gained four optional copy-override props (`circlesEntryLabel`,
+   `circlesEntryDescription`, `searchPlaceholder`, `noResultsMessage`), all
+   defaulting to the exact existing fixture strings when omitted — fixture
+   rendering is unchanged (test H2/H5). `CommunityExperience.tsx` passes
+   truthful real-mode copy: "Your Circle profile" / "See your real network
+   activity — referrals, agreements brought in, and growth credit. Not a
+   named Circle or group." (tests H1/H3); the button still opens the real
+   `CircleExperience` unchanged.
+2. **Real Community search copy now matches real search capability.** The
+   real search box previously read "Search people, businesses, questions,
+   needs, work..." though this slice's only real searchable content is Store
+   offers (17.1). Real mode now reads "Search store offers by category or
+   location..." and the empty state reads `No store offers found for
+   "{query}".` instead of the generic `No results for "{query}".` (tests
+   H4/H5) — neither implies people/questions/needs/work were searched when
+   they were not.
+3. **Store Offer reference metadata corrected.** `CommunityObjectDetail.tsx`
+   rendered "Posted by {author} · {date}" unconditionally, which reads as
+   authored Community content for a `store_offer_reference` object — it is a
+   reference to canonical Store truth, not a post. It now renders "Store:
+   {author} · {date}" specifically for `store_offer_reference`, unchanged
+   ("Posted by ...") for every genuine Community content type (tests
+   H6/H7).
+4. **`memberSince` wording corrected.** `CircleProfileService` sources this
+   field from `ks_identities.created_at` (identity creation), never a
+   named-Circle join timestamp — confirmed directly in its own class
+   Javadoc. The real Circle profile card previously read "Member since
+   {date}", which reads as Circle/community membership; it now reads
+   "SecurePay identity since {date}" (test H8; ledger section 4 wording
+   updated to match).
+5. **Session-transition hardening in `CircleExperience`.** The mount effect
+   previously only loaded when `sessionState.status === 'signed-in' &&
+   state.profile.status === 'idle'` — a mounted `CircleExperience` (unlike
+   `WorkspaceExperience`, which fully unmounts on sign-out) survives a
+   sign-out/sign-in cycle, so a stale `ready`/`error` profile from a
+   previous session could survive into a newly authenticated one and would
+   never auto-reload. The effect now resets the profile
+   (`controller.reset()`) on every transition away from `signed-in`, and
+   loads fresh (`controller.load()`, unconditional on `profile.status`) on
+   every transition into `signed-in` — covering both explicit sign-out and
+   re-authentication after a session refresh/loss. No token is decoded and
+   no identity is inferred; this only reacts to the existing
+   `SessionStore.getSnapshot().status` the component already reads (tests
+   H9/H10).
+6. **Community search response-ordering guard.** `createCommunityController`'s
+   `runSearch` had no protection against an older, slower request resolving
+   after a newer, faster one and overwriting its result (a real risk with
+   the existing 400ms-debounced live search once two requests are in flight
+   at once). A monotonically increasing `searchSequence` counter is captured
+   at the start of each `runSearch` call; a response (success or error)
+   is applied only if its captured sequence still matches the latest one —
+   a superseded response is silently discarded rather than ever reaching
+   `search` state. No ranking and no cancellation/AbortController
+   infrastructure was added — the guard is a single counter comparison
+   (tests H11/H12).
+
+`tests/community-circles.test.mjs` grew from 29 to 41 tests, all passing;
+all prior Golden Spine A-F suites (124 tests) remain green; `typecheck`/
+`lint`/`build` all pass.
