@@ -120,9 +120,13 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
     if (!current) { update({ phase: 'error', error: 'SecurePay could not identify a single current Agreement version.' }); return; }
     const sameVersion = current.id === reviewedVersion.id && current.versionNumber === reviewedVersion.versionNumber && current.contentHash === reviewedVersion.contentHash;
     if (sameVersion) {
-      // Not a version change: the real confirmation failure stands, never auto-retried, but the same
-      // explicit action against the same unchanged body may still be retried, so its key is kept.
-      update({ phase: 'confirm-error', error: errorText(error) });
+      // Not a version change: the real confirmation failure stands and is never auto-retried.
+      // A same-version 422 may still be retried with the same body, so its key is kept. A same-version
+      // 409 is AgreementConflictException("idempotency key reused with different request") — the
+      // backend has that exact key permanently bound to a different request digest, so reusing it
+      // would deterministically fail forever; it must be cleared so the next explicit click mints a
+      // fresh key for this same still-current reviewed version.
+      update({ phase: 'confirm-error', error: errorText(error), confirmIdempotencyKey: error.status === 409 ? null : state.confirmIdempotencyKey });
       return;
     }
     // Genuine supersession: never reuse the old confirm key against the newly current version.

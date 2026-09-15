@@ -222,9 +222,14 @@ test('12B. 422 with the same reviewed version still CURRENT is a real confirmati
   assert.equal(confirmCalls[1][3].idempotencyKey, keyBeforeRetry);
 });
 
-test('12C. 409 with the same reviewed version still CURRENT is a real confirmation failure, not "this changed"', async () => {
+test('12C. 409 with the same reviewed version still CURRENT clears the key and never auto-retries', async () => {
+  let attempt = 0;
   const { controller, calls } = setup({
-    confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); throw new api.ApiError('http', 'idempotency key reused with different request', 409, 'AGREEMENT_CONFLICT'); },
+    confirmVersion: async (agreementId, versionId, body) => {
+      attempt++; calls.push(['confirmVersion', agreementId, versionId, body]);
+      if (attempt === 1) throw new api.ApiError('http', 'idempotency key reused with different request', 409, 'AGREEMENT_CONFLICT');
+      return confirmationDto();
+    },
   });
   await controller.load();
   controller.proceed(true);
@@ -233,10 +238,21 @@ test('12C. 409 with the same reviewed version still CURRENT is a real confirmati
   await controller.confirm();
   const state = controller.getSnapshot();
   assert.equal(state.phase, 'confirm-error');
-  assert.equal(state.changed, false);
-  assert.deepEqual(state.version, reviewed);
-  assert.match(state.error, /idempotency key reused/);
-  assert.equal(calls.filter(call => call[0] === 'confirmVersion').length, 1);
+  assert.equal(state.changed, false); // real conflict, not a version change
+  assert.deepEqual(state.version, reviewed); // unchanged
+  assert.match(state.error, /idempotency key reused/); // real backend message preserved
+  assert.equal(calls.filter(call => call[0] === 'confirmVersion').length, 1); // never auto-retried
+  // 2. the 409 key is cleared, unlike 12B's 422.
+  assert.equal(state.confirmIdempotencyKey, null);
+  const firstKey = calls.find(call => call[0] === 'confirmVersion')[3].idempotencyKey;
+  // 3. the next explicit confirmation click mints a fresh key for this same still-current version.
+  await controller.confirm();
+  const confirmCalls = calls.filter(call => call[0] === 'confirmVersion');
+  assert.equal(confirmCalls.length, 2);
+  const secondKey = confirmCalls[1][3].idempotencyKey;
+  assert.notEqual(secondKey, firstKey);
+  assert.equal(controller.getSnapshot().phase, 'confirmed');
+  assert.equal(controller.getSnapshot().confirmIdempotencyKey, secondKey);
 });
 
 test('12D. /versions is consumed with the exact backend shape (id, versionStatus) and recovery never calls .../versions/undefined', async () => {

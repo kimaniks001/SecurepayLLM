@@ -373,9 +373,15 @@ New narrow layers:
   the single entry with `versionStatus === 'CURRENT'` (never the highest
   `versionNumber`; zero or more than one CURRENT entry fails closed), and
   compares its id/versionNumber/contentHash against the exact version that was
-  reviewed. Only a genuine mismatch clears the confirm key and re-reviews the
-  new current version; the same version remaining CURRENT keeps the real
-  failure as `confirm-error` with its key intact for a deliberate retry.
+  reviewed. A genuine mismatch clears the confirm key and re-reviews the new
+  current version. The same version remaining CURRENT keeps the real failure
+  as `confirm-error` without auto-retrying, but the key handling differs by
+  status: a 422 (retryable with the same body) keeps its key for a deliberate
+  retry, while a 409 — `AgreementConflictException("idempotency key reused
+  with different request")` — has that exact key permanently bound to a
+  different request digest on the backend, so it is cleared; the next
+  explicit confirmation click mints a fresh key for the same still-current
+  version.
 - `RuntimeApp.tsx`: the invitation token lives only in the URL hash fragment
   (`#/invitation/{token}`, parsed by `parseInvitationRoute`) — never a path
   segment on the frontend host, so it never reaches *this frontend's* own
