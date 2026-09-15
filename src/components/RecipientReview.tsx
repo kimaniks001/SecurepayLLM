@@ -5,9 +5,11 @@ import { ChoiceButtons } from './ChoiceButtons';
 interface RecipientReviewCardProps {
   data: RecipientReviewResponse;
   onChoice: (value: string) => void;
+  /** When provided, replaces the fixed demo caption with real backend-supplied notice text. */
+  notice?: string;
 }
 
-export function RecipientReviewCard({ data, onChoice }: RecipientReviewCardProps) {
+export function RecipientReviewCard({ data, onChoice, notice }: RecipientReviewCardProps) {
   return (
     <div className="rounded-2xl border border-forest-200 bg-white shadow-lifted overflow-hidden max-w-md mx-auto animate-quiet-in">
       <div className="px-6 py-4 bg-forest-50 border-b border-forest-100 flex items-center gap-2">
@@ -42,7 +44,7 @@ export function RecipientReviewCard({ data, onChoice }: RecipientReviewCardProps
           </div>
         </div>
 
-        <p className="mt-4 text-[0.7rem] text-sand-400">Demo SecureLink invitation</p>
+        <p className="mt-4 text-[0.7rem] text-sand-400">{notice ?? 'Demo SecureLink invitation'}</p>
       </div>
 
       <div className="px-6 pb-5">

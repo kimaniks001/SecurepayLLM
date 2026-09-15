@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementConfirmationResponse, AgreementDetailResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
+import type { AgreementConfirmationResponse, AgreementDetailResponse, AgreementVersionResponse, AgreementVersionSummaryResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -22,7 +22,9 @@ export function createAgreementGateway(http: HttpClient) {
     issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<{ invitationId: string; status: string; invitationToken: string; replayed: boolean }>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    versions: (id: string) => http.request<AgreementVersionSummaryResponse[]>(`${agreement(id)}/versions`, { auth: 'required' }),
     version: (id: string, versionId: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/versions/${segment(versionId)}`, { auth: 'required' }),
     confirmVersion: (id: string, versionId: string, body: ConfirmVersionRequest) => http.request<AgreementConfirmationResponse>(`${agreement(id)}/versions/${segment(versionId)}/confirm`, { method: 'POST', body, auth: 'required' }),
   };
 }
+export type AgreementGateway = ReturnType<typeof createAgreementGateway>;

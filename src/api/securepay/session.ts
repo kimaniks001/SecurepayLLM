@@ -1,5 +1,4 @@
 import type { AuthGateway, SessionTokensDto } from './auth';
-import type { AgentGateway } from './agent';
 
 export type SessionTokens = SessionTokensDto;
 export type SessionState = { status: 'signed-out' } | { status: 'signed-in'; tokens: SessionTokens };
@@ -36,13 +35,14 @@ export async function ensureFreshSession(session: SessionStore, auth: Pick<AuthG
   }
 }
 
-const handoffAuthedMethods = ['adoptHandoff', 'reviewHandoff', 'continueHandoff'] as const;
-
-/** Ensures a live access token before each authenticated handoff call. Reads/writes go through the same one session boundary. */
-export function withSessionRefresh(gateway: AgentGateway, session: SessionStore, auth: Pick<AuthGateway, 'refresh'>): AgentGateway {
+/**
+ * Ensures a live access token before each named authenticated call on `gateway`. Reads/writes go
+ * through the same one session boundary; the caller lists exactly which methods are authenticated.
+ */
+export function withSessionRefresh<T extends object>(gateway: T, methods: readonly (keyof T)[], session: SessionStore, auth: Pick<AuthGateway, 'refresh'>): T {
   const wrapped = { ...gateway };
-  for (const method of handoffAuthedMethods) {
-    const original = gateway[method] as (...args: unknown[]) => Promise<unknown>;
+  for (const method of methods) {
+    const original = gateway[method] as unknown as (...args: unknown[]) => Promise<unknown>;
     (wrapped[method] as unknown as (...args: unknown[]) => Promise<unknown>) = async (...args: unknown[]) => {
       await ensureFreshSession(session, auth);
       return original(...args);
