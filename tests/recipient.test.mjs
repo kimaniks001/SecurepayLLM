@@ -38,18 +38,32 @@ const confirmationDto = (overrides = {}) => ({
   ...overrides,
 });
 
+// Real backend shape for GET /api/v1/agreements/{id}/versions: List<AgreementVersionResponse>, the
+// exact same record the single-version GET returns (id + authoritative versionStatus per entry) —
+// never the lighter AgreementVersionSummaryResponse (versionId, no versionStatus) used elsewhere.
 function setup(overrides = {}) {
   const calls = [];
   const gateway = {
     invitation: async token => { calls.push(['invitation', token]); return invitationDto(); },
     join: async (token, idempotencyKey) => { calls.push(['join', token, idempotencyKey]); return joinDto(); },
-    versions: async agreementId => { calls.push(['versions', agreementId]); return [{ versionId: 'version-1', versionNumber: 1, contentHash: 'hash-1', createdAt: '2026-09-15T00:00:00Z', amendmentReason: null, materialChange: false }]; },
+    versions: async agreementId => { calls.push(['versions', agreementId]); return [versionDto()]; },
     version: async (agreementId, versionId) => { calls.push(['version', agreementId, versionId]); return versionDto(); },
     confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); return confirmationDto(); },
     ...overrides,
   };
   let n = 0;
   return { calls, controller: api.createRecipientController(gateway, TOKEN, () => `key-${++n}`) };
+}
+// No gateway call in this suite may ever be made with an undefined/"undefined" identifier — the
+// concrete regression the review flagged (recovery calling GET .../versions/undefined).
+function assertNoUndefinedArgs(calls) {
+  for (const call of calls) {
+    for (const arg of call.slice(1)) {
+      if (typeof arg === 'object' && arg !== null) continue;
+      assert.notEqual(arg, undefined, `call ${JSON.stringify(call)} received an undefined argument`);
+      assert.notEqual(arg, 'undefined', `call ${JSON.stringify(call)} received the literal string "undefined"`);
+    }
+  }
 }
 
 test('1/2/3. public invitation review works without auth and never calls Join or confirmation', async () => {
@@ -155,20 +169,109 @@ test('11. retry of the same explicit confirm reuses the same idempotency key for
   assert.equal(controller.getSnapshot().phase, 'confirmed');
 });
 
-test('12/13. stale/superseded confirmation never fabricates success, never auto-retries, and forces a fresh version read+review', async () => {
-  const { controller, calls } = setup({ confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); throw new api.ApiError('http', 'stale version number', 422, 'AGREEMENT_CONFIRMATION_ERROR'); } });
+test('12A. genuine supersession: authoritative current version actually differs from the reviewed one', async () => {
+  // Version-1 is CURRENT when joined/reviewed; it is only superseded by version-2 in the window
+  // between that review and the explicit confirm click (the real race this recovery exists for).
+  const reviewedEntry = versionDto({ id: 'version-1', versionNumber: 1, contentHash: 'hash-1', versionStatus: 'CURRENT' });
+  const supersededEntry = { ...reviewedEntry, versionStatus: 'SUPERSEDED' };
+  const currentEntry = versionDto({ id: 'version-2', versionNumber: 2, contentHash: 'hash-2', versionStatus: 'CURRENT', snapshot: { title: 'Bathroom retiling', purpose: 'Retile the bathroom, redo grout too', currency: 'KES', proposed_amount_minor: 7200000, version_number: 2 } });
+  let supersededYet = false;
+  const { controller, calls } = setup({
+    confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); supersededYet = true; throw new api.ApiError('http', 'version superseded', 422, 'AGREEMENT_CONFIRMATION_ERROR'); },
+    versions: async agreementId => { calls.push(['versions', agreementId]); return supersededYet ? [supersededEntry, currentEntry] : [reviewedEntry]; },
+    version: async (agreementId, versionId) => { calls.push(['version', agreementId, versionId]); return versionId === 'version-2' ? currentEntry : reviewedEntry; },
+  });
   await controller.load();
   controller.proceed(true);
   await controller.join();
+  assert.equal(controller.getSnapshot().version.id, 'version-1'); // reviewed version-1 while it was still CURRENT
   await controller.confirm();
   const state = controller.getSnapshot();
   assert.equal(state.phase, 'version-ready');
   assert.equal(state.changed, true);
   assert.equal(state.confirmation, null);
+  assert.deepEqual(state.version, currentEntry);
   assert.equal(calls.filter(call => call[0] === 'confirmVersion').length, 1); // never auto-retried
-  assert.equal(calls.filter(call => call[0] === 'versions').length, 1); // fresh current-version lookup
-  assert.equal(calls.filter(call => call[0] === 'version').length, 2); // joined version, then the re-read current version
+  assert.equal(calls.filter(call => call[0] === 'versions').length, 1); // fresh authoritative lookup
+  assert.deepEqual(calls.find(call => call[0] === 'version' && call[2] === 'version-2'), ['version', 'agreement-1', 'version-2']);
   assert.equal(state.confirmIdempotencyKey, null); // a new confirm click must mint a fresh key
+  assertNoUndefinedArgs(calls);
+});
+
+test('12B. 422 with the same reviewed version still CURRENT is a real confirmation failure, not "this changed"', async () => {
+  const { controller, calls } = setup({
+    confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); throw new api.ApiError('http', 'cannot confirm for another participant', 422, 'AGREEMENT_CONFIRMATION_ERROR'); },
+  });
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  const reviewed = controller.getSnapshot().version;
+  await controller.confirm();
+  const state = controller.getSnapshot();
+  assert.equal(state.phase, 'confirm-error');
+  assert.equal(state.changed, false); // never told the person the Agreement changed
+  assert.deepEqual(state.version, reviewed); // unchanged
+  assert.match(state.error, /cannot confirm for another participant/);
+  assert.equal(calls.filter(call => call[0] === 'confirmVersion').length, 1); // not auto-retried
+  assert.ok(state.confirmIdempotencyKey); // same key kept for a deliberate retry of the same body
+  // A deliberate retry against the same unchanged body reuses that key.
+  const keyBeforeRetry = state.confirmIdempotencyKey;
+  await controller.confirm();
+  const confirmCalls = calls.filter(call => call[0] === 'confirmVersion');
+  assert.equal(confirmCalls.length, 2);
+  assert.equal(confirmCalls[1][3].idempotencyKey, keyBeforeRetry);
+});
+
+test('12C. 409 with the same reviewed version still CURRENT is a real confirmation failure, not "this changed"', async () => {
+  const { controller, calls } = setup({
+    confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); throw new api.ApiError('http', 'idempotency key reused with different request', 409, 'AGREEMENT_CONFLICT'); },
+  });
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  const reviewed = controller.getSnapshot().version;
+  await controller.confirm();
+  const state = controller.getSnapshot();
+  assert.equal(state.phase, 'confirm-error');
+  assert.equal(state.changed, false);
+  assert.deepEqual(state.version, reviewed);
+  assert.match(state.error, /idempotency key reused/);
+  assert.equal(calls.filter(call => call[0] === 'confirmVersion').length, 1);
+});
+
+test('12D. /versions is consumed with the exact backend shape (id, versionStatus) and recovery never calls .../versions/undefined', async () => {
+  // A joined version that is already SUPERSEDED at join time exercises loadVersion's own recovery
+  // path (not the confirm-failure path), against a raw literal shaped exactly like the real
+  // AgreementVersionResponse record — id, not versionId; versionStatus, not an inferred number.
+  const supersededAtJoin = { id: 'version-1', versionNumber: 1, snapshot: { title: 'x', purpose: 'y', currency: 'KES', proposed_amount_minor: 100, version_number: 1 }, contentHash: 'hash-1', parentVersionId: null, amendmentReason: null, materialChange: false, versionStatus: 'SUPERSEDED', createdAt: '2026-09-01T00:00:00Z' };
+  const nowCurrent = { id: 'version-2', versionNumber: 2, snapshot: { title: 'x', purpose: 'y (amended)', currency: 'KES', proposed_amount_minor: 150, version_number: 2 }, contentHash: 'hash-2', parentVersionId: 'version-1', amendmentReason: 'scope change', materialChange: true, versionStatus: 'CURRENT', createdAt: '2026-09-10T00:00:00Z' };
+  const { controller, calls } = setup({
+    version: async (agreementId, versionId) => { calls.push(['version', agreementId, versionId]); return versionId === 'version-1' ? supersededAtJoin : nowCurrent; },
+    versions: async agreementId => { calls.push(['versions', agreementId]); return [supersededAtJoin, nowCurrent]; },
+  });
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  const state = controller.getSnapshot();
+  assert.equal(state.phase, 'version-ready');
+  assert.equal(state.changed, true);
+  assert.deepEqual(state.version, nowCurrent);
+  assertNoUndefinedArgs(calls);
+  assert.equal(calls.some(call => call[0] === 'version' && call[2] === 'version-2'), true);
+});
+
+test('12E. ambiguous/missing CURRENT authority fails closed instead of guessing', async () => {
+  const { controller, calls } = setup({
+    confirmVersion: async () => { throw new api.ApiError('http', 'version superseded', 422, 'AGREEMENT_CONFIRMATION_ERROR'); },
+    versions: async agreementId => { calls.push(['versions', agreementId]); return []; }, // no CURRENT entry at all
+  });
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  await controller.confirm();
+  const state = controller.getSnapshot();
+  assert.equal(state.phase, 'error');
+  assert.equal(state.confirmation, null);
 });
 
 test('14. wrong recipient / 403 on Join fails closed', async () => {

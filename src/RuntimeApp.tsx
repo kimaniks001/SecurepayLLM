@@ -17,8 +17,11 @@ const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE ==
   ? lazy(() => import('./App')) : null;
 
 /**
- * The invitation token lives only in the URL hash fragment (never sent to a server access log,
- * never copied into storage) for exactly as long as this recipient view needs it.
+ * The invitation token lives only in the URL hash fragment (so the frontend host's own URL/access
+ * log never sees it, and no local/session storage copy is made) for exactly as long as this recipient
+ * view needs it. SecurePayAPI itself still receives the raw token by contract, as a path segment in
+ * `GET /api/v1/agreement-invitations/{token}` and its `/join` — that is unavoidable backend authority,
+ * not something this route choice claims to prevent.
  */
 function useInvitationToken(): [string | null, () => void] {
   const [token, setToken] = useState(() => (typeof window === 'undefined' ? null : parseInvitationRoute(window.location.hash)));

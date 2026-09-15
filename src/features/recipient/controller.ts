@@ -3,10 +3,19 @@ import type { AgreementConfirmationResponse, AgreementVersionResponse, JoinAgree
 import { ApiError } from '../../api/securepay/http';
 import { errorText as agentErrorText } from '../agent/controller';
 
-/** errorText's 401/403 copy is written for the Agent turn flow ("your message is still here"), which
- * does not apply to invitation/Join/confirm. Recipient-specific wording replaces only that case. */
+/**
+ * The shared Agent errorText bakes in Agent-conversation-specific wording for several statuses (401/403
+ * "your message is still here"; 409 "refresh what SecurePay understands"; 404 "conversation or
+ * candidate") that does not apply to invitation/Join/confirm and would misrepresent a real
+ * confirmation/join failure as something it is not (e.g. presenting a genuine `AGREEMENT_CONFIRMATION_ERROR`
+ * as a generic "this changed" prompt). Any real backend HTTP failure keeps its own message here; only
+ * network/timeout/abort/invalid-response kinds fall back to the shared, kind-based generic wording.
+ */
 function errorText(error: unknown): string {
-  if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return 'SecurePay could not allow this request.';
+  if (error instanceof ApiError) {
+    if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request.';
+    if (error.kind === 'http') return error.message;
+  }
   return agentErrorText(error);
 }
 
@@ -48,13 +57,24 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
   const listeners = new Set<() => void>();
   const update = (patch: Partial<RecipientState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
+  /**
+   * Selects the single authoritative CURRENT version from a /versions read. Backend versionStatus is
+   * the only authority consulted here — never a numeric inference from versionNumber. Zero or more
+   * than one CURRENT entry is treated as ambiguous authority and fails closed (the caller renders
+   * that as an error rather than guessing).
+   */
+  function findCurrentVersion(versions: AgreementVersionResponse[]): AgreementVersionResponse | null {
+    const current = versions.filter(v => v.versionStatus === 'CURRENT');
+    return current.length === 1 ? current[0] : null;
+  }
+
   /** Re-reads which version is authoritative-current and fetches it fresh; never reuses a stale confirm key. */
   async function recoverCurrentVersion(agreementId: string) {
     try {
-      const summaries = await gateway.versions(agreementId);
-      if (summaries.length === 0) { update({ phase: 'error', error: 'SecurePay has no version to show for this Agreement.' }); return; }
-      const current = summaries.reduce((a, b) => (b.versionNumber > a.versionNumber ? b : a));
-      const version = await gateway.version(agreementId, current.versionId);
+      const versions = await gateway.versions(agreementId);
+      const current = findCurrentVersion(versions);
+      if (!current) { update({ phase: 'error', error: 'SecurePay could not identify a single current Agreement version.' }); return; }
+      const version = await gateway.version(agreementId, current.id);
       update({ version, phase: 'version-ready', changed: true, confirmIdempotencyKey: null });
     } catch (error) {
       update({ phase: 'error', error: errorText(error) });
@@ -72,6 +92,45 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
       update({ version, phase: 'version-ready', changed });
     } catch (error) {
       update({ phase: 'error', error: errorText(error) });
+    }
+  }
+
+  /**
+   * A 422/409 confirm failure is not proof by itself that the Agreement changed:
+   * AgreementConfirmationException uses one generic 422 code for stale number/hash, superseded
+   * version, and other confirmation failures (e.g. "cannot confirm for another participant"), and 409
+   * also covers idempotency-key/agreement conflicts unrelated to version drift. Re-read authoritative
+   * versions and compare identity (id/versionNumber/contentHash) against the exact version that was
+   * reviewed before deciding which of those this is.
+   */
+  async function handleConfirmFailure(agreementId: string, reviewedVersion: AgreementVersionResponse, error: unknown) {
+    if (!(error instanceof ApiError) || (error.status !== 422 && error.status !== 409)) {
+      // Network/timeout/etc: safe for the person to retry the same explicit action unchanged.
+      update({ phase: 'confirm-error', error: errorText(error) });
+      return;
+    }
+    let versions: AgreementVersionResponse[];
+    try {
+      versions = await gateway.versions(agreementId);
+    } catch (readError) {
+      update({ phase: 'error', error: errorText(readError) });
+      return;
+    }
+    const current = findCurrentVersion(versions);
+    if (!current) { update({ phase: 'error', error: 'SecurePay could not identify a single current Agreement version.' }); return; }
+    const sameVersion = current.id === reviewedVersion.id && current.versionNumber === reviewedVersion.versionNumber && current.contentHash === reviewedVersion.contentHash;
+    if (sameVersion) {
+      // Not a version change: the real confirmation failure stands, never auto-retried, but the same
+      // explicit action against the same unchanged body may still be retried, so its key is kept.
+      update({ phase: 'confirm-error', error: errorText(error) });
+      return;
+    }
+    // Genuine supersession: never reuse the old confirm key against the newly current version.
+    try {
+      const version = await gateway.version(agreementId, current.id);
+      update({ version, phase: 'version-ready', changed: true, confirmIdempotencyKey: null, error: null });
+    } catch (readError) {
+      update({ phase: 'error', error: errorText(readError) });
     }
   }
 
@@ -133,14 +192,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
         });
         update({ confirmation, phase: 'confirmed' });
       } catch (error) {
-        if (error instanceof ApiError && (error.status === 422 || error.status === 409)) {
-          // Stale/superseded/conflict: never retried automatically and never reused against a new version.
-          update({ confirmIdempotencyKey: null });
-          await recoverCurrentVersion(agreementId);
-          return;
-        }
-        // Network/timeout/etc: safe for the person to retry the same explicit action unchanged.
-        update({ phase: 'confirm-error', error: errorText(error) });
+        await handleConfirmFailure(agreementId, version, error);
       }
     },
 

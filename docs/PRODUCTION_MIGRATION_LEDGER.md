@@ -350,8 +350,11 @@ the exact verified request/response shapes, not shipped with this PR.
 New narrow layers:
 
 - `api/securepay/agreements/index.ts` gained `versions(agreementId)` (`GET
-  /api/v1/agreements/{id}/versions`), used only for authoritative
-  stale/current-version recovery — never for confirmation itself.
+  /api/v1/agreements/{id}/versions`), typed as the real `AgreementVersionResponse[]`
+  the backend returns (each entry carries its own `id` and authoritative
+  `versionStatus`) rather than the lighter `AgreementVersionSummaryResponse[]`
+  used elsewhere for Detail's `versionHistory`. Used only for authoritative
+  current-version identification/recovery — never for confirmation itself.
 - `api/securepay/session.ts`: `withSessionRefresh` is now generic over the
   caller-supplied authenticated method list (previously hardcoded to the three
   handoff methods), so the same one session boundary now also guards
@@ -362,14 +365,26 @@ New narrow layers:
   version (id/number/hash), confirmation remote state/result, and a `changed`
   flag distinguishing a freshly-recovered current version from the one first
   reviewed. `join()` and `confirm()` each mint an idempotency key lazily and
-  reuse it only across a deliberate retry against the *same* request body;
-  a stale/superseded confirm (422/409) clears the confirm key and forces a
-  fresh `versions` + `version` read before any further confirm attempt.
+  reuse it only across a deliberate retry against the *same* request body. A
+  422/409 confirm failure is not treated as proof of a version change by
+  itself — `AgreementConfirmationException` reuses one generic 422 code for
+  several distinct failures, and 409 also covers idempotency/agreement
+  conflicts — so the controller re-reads authoritative `/versions`, selects
+  the single entry with `versionStatus === 'CURRENT'` (never the highest
+  `versionNumber`; zero or more than one CURRENT entry fails closed), and
+  compares its id/versionNumber/contentHash against the exact version that was
+  reviewed. Only a genuine mismatch clears the confirm key and re-reviews the
+  new current version; the same version remaining CURRENT keeps the real
+  failure as `confirm-error` with its key intact for a deliberate retry.
 - `RuntimeApp.tsx`: the invitation token lives only in the URL hash fragment
   (`#/invitation/{token}`, parsed by `parseInvitationRoute`) — never a path
-  segment (so it never reaches a server access log) and never persisted to
-  storage. `RecipientExperience` is keyed by token so a same-tab hash change to
-  a different invitation always starts a fresh controller.
+  segment on the frontend host, so it never reaches *this frontend's* own
+  URL/access log, and never persisted to storage. SecurePayAPI itself still
+  necessarily receives the raw token as a path segment in
+  `GET /api/v1/agreement-invitations/{token}` and its `/join`, by contract;
+  the hash route does not and cannot prevent that. `RecipientExperience` is
+  keyed by token so a same-tab hash change to a different invitation always
+  starts a fresh controller.
 
 Bolt component change (truthful, not cosmetic): `RecipientReview.tsx` hardcoded
 a `"Demo SecureLink invitation"` caption with no data prop backing it. It now
