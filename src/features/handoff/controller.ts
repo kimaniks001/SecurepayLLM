@@ -1,0 +1,134 @@
+import type { AgentGateway } from '../../api/securepay/agent';
+import { handoffView } from '../../api/securepay/agent/adapters';
+import type { HandoffDto, CandidateDto } from '../../api/securepay/agent/dto';
+import { ApiError } from '../../api/securepay/http';
+import { errorText } from '../agent/controller';
+
+export type HandoffView = ReturnType<typeof handoffView>;
+export type HandoffPhase =
+  | 'idle' | 'creating' | 'identity-required' | 'adopting' | 'needs-resolution'
+  | 'review-loading' | 'review-ready' | 'review-stale' | 'progressing' | 'progressed'
+  | 'expired' | 'error';
+
+export interface HandoffState {
+  phase: HandoffPhase;
+  handoff: HandoffView | null;
+  review: CandidateDto | null;
+  error: string | null;
+}
+const initial: HandoffState = { phase: 'idle', handoff: null, review: null, error: null };
+
+type Gateway = Pick<AgentGateway, 'createHandoff' | 'readHandoff' | 'adoptHandoff' | 'reviewHandoff' | 'continueHandoff'>;
+
+function phaseFor(view: HandoffView): HandoffPhase {
+  switch (view.status) {
+    case 'IDENTITY_REQUIRED': return 'identity-required';
+    case 'NEEDS_RESOLUTION': return 'needs-resolution';
+    case 'REVIEW_STALE': return 'review-stale';
+    case 'READY_FOR_REVIEW':
+    case 'READY_TO_PROGRESS': return 'review-loading';
+    case 'PROGRESSED': return 'progressed';
+    case 'EXPIRED': return 'expired';
+    default: return 'error';
+  }
+}
+
+/**
+ * Narrow handoff orchestration only. No Agreement establishment, recipient confirmation, or
+ * Money authority lives here — this only tracks the handoff id, authoritative server state,
+ * the exact reviewed snapshot, and progression result.
+ */
+export function createHandoffController(gateway: Gateway, id = () => crypto.randomUUID()) {
+  let state: HandoffState = { ...initial };
+  const listeners = new Set<() => void>();
+  const update = (patch: Partial<HandoffState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
+
+  async function loadReview(handoffId: string) {
+    update({ phase: 'review-loading' });
+    try {
+      const review = await gateway.reviewHandoff(handoffId);
+      update({ phase: 'review-ready', review });
+    } catch (error) {
+      update({ phase: 'error', error: errorText(error) });
+    }
+  }
+
+  async function applyHandoff(dto: HandoffDto) {
+    const view = handoffView(dto);
+    const phase = phaseFor(view);
+    update({ handoff: view, error: null, phase });
+    if (phase === 'review-loading') await loadReview(view.id);
+  }
+
+  return {
+    getSnapshot: (): HandoffState => state,
+    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+
+    /** Only an explicit user action may reach this; re-entrant calls while a handoff is live are no-ops. */
+    async start(conversationId: string) {
+      if (!['idle', 'error', 'expired'].includes(state.phase)) return;
+      update({ phase: 'creating', error: null, handoff: null, review: null });
+      try {
+        const dto = await gateway.createHandoff(conversationId, id());
+        await applyHandoff(dto);
+      } catch (error) {
+        update({ phase: 'error', error: errorText(error) });
+      }
+    },
+
+    /** Re-reads authoritative handoff state; never used to fabricate progress locally. */
+    async refresh() {
+      if (!state.handoff) return;
+      try {
+        const dto = await gateway.readHandoff(state.handoff.id);
+        await applyHandoff(dto);
+      } catch (error) {
+        update({ phase: 'error', error: errorText(error) });
+      }
+    },
+
+    /**
+     * Called once a real session exists after IDENTITY_REQUIRED. Adoption is its own backend
+     * call and re-read; a successful sign-in alone never implies adoption or progression.
+     */
+    async continueAfterIdentity() {
+      if (state.phase !== 'identity-required' || !state.handoff) return;
+      update({ phase: 'adopting', error: null });
+      try {
+        await gateway.adoptHandoff(state.handoff.id);
+        const dto = await gateway.readHandoff(state.handoff.id);
+        await applyHandoff(dto);
+      } catch (error) {
+        update({ phase: 'error', error: errorText(error) });
+      }
+    },
+
+    /** Echoes only the exact reviewed snapshot already captured from authoritative handoff state. */
+    async setSecurely() {
+      if (state.phase !== 'review-ready' || !state.handoff || state.handoff.status !== 'READY_TO_PROGRESS') return;
+      const handoffId = state.handoff.id;
+      const snapshot = state.handoff.reviewSnapshot;
+      update({ phase: 'progressing', error: null });
+      try {
+        const dto = await gateway.continueHandoff(handoffId, snapshot);
+        await applyHandoff(dto);
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 409 || error.status === 410)) {
+          try {
+            const dto = await gateway.readHandoff(handoffId);
+            await applyHandoff(dto);
+            return;
+          } catch (refreshError) {
+            update({ phase: 'error', error: errorText(refreshError) });
+            return;
+          }
+        }
+        update({ phase: 'error', error: errorText(error) });
+      }
+    },
+
+    /** Returns to idle. A new handoff can only be created by a fresh explicit user action. */
+    reset() { update({ ...initial }); },
+  };
+}
+export type HandoffController = ReturnType<typeof createHandoffController>;

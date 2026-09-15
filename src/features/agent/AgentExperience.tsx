@@ -8,8 +8,13 @@ import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
+import type { AuthGateway } from '../../api/securepay/auth';
+import type { SessionStore } from '../../api/securepay/session';
 import { createAgentController } from './controller';
 import { TradeContext } from './TradeContext';
+import { createHandoffController } from '../handoff/controller';
+import { HandoffPanel } from '../handoff/HandoffPanel';
+import { createIdentityController } from '../identity/controller';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -21,13 +26,23 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway }: { gateway: AgentGateway }) {
+export function AgentExperience({ gateway, auth, session }: { gateway: AgentGateway; auth: AuthGateway; session: SessionStore }) {
   const [controller, setController] = useState(() => createAgentController(gateway));
+  const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
+  const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const reviewing = () => { setExpanded(true); void controller.review(); };
+  const startNewConversation = () => {
+    setController(createAgentController(gateway));
+    setHandoffController(createHandoffController(gateway));
+    setIdentityController(createIdentityController(auth, session));
+    setExpanded(false);
+    setNotice(null);
+  };
   const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;
   const lastResponse = [...state.turns].reverse().find(turn => turn.sender === 'agent');
   const panel = lastResponse?.sender === 'agent' ? lastResponse.response.panel : null;
@@ -50,21 +65,32 @@ export function AgentExperience({ gateway }: { gateway: AgentGateway }) {
         <div className="flex-1 overflow-hidden">
           <ConversationWorkspace turns={[]} understandingContent={context} isThinking={state.busy} inputDisabled={state.busy || !!state.pending}
             onSend={text => void controller.send(text)} selectedProviderId={null} onSelectProvider={noop} onPhotoUpload={noop} onPhotoSkip={noop} onDateSelect={noop} onChoice={noop}
-            conversationContent={state.turns.map(turn => <div key={turn.id} className="space-y-3">
-              {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
-                <MessageBubble text={turn.response.message.text} sender="agent" />
-                {turn.response.components.filter(component => component.type !== 'MESSAGE' || component.text !== turn.response.message.text).map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
-                {turn.response.panel && <div className="md:hidden space-y-3">{turn.response.panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
-              </>}
-            </div>)}
+            conversationContent={[
+              ...state.turns.map(turn => <div key={turn.id} className="space-y-3">
+                {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
+                  <MessageBubble text={turn.response.message.text} sender="agent" />
+                  {turn.response.components.filter(component => component.type !== 'MESSAGE' || component.text !== turn.response.message.text).map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
+                  {turn.response.panel && <div className="md:hidden space-y-3">{turn.response.panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
+                </>}
+              </div>),
+              handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} />
+              </div>,
+            ]}
             statusContent={<div className="space-y-3">
               {state.error && <div role="alert" className="rounded-xl border border-cream-200 bg-white p-3 text-sm text-sand-700">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
               </div>}
               <div className="flex flex-wrap gap-3 text-sm text-forest-700">
                 <button disabled={state.busy} onClick={reviewing} className="underline disabled:opacity-40">Review what we have</button>
-                <button onClick={() => setNotice('Continuing to an Agreement is not available yet. You can keep talking or review what SecurePay understands.')} className="underline">Continue with this</button>
-                <button disabled={state.busy} onClick={() => { setController(createAgentController(gateway)); setExpanded(false); setNotice(null); }} className="text-sand-500 underline disabled:opacity-40">Start new conversation</button>
+                <button
+                  disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'}
+                  onClick={() => { if (state.conversationId) void handoffController.start(state.conversationId); }}
+                  className="underline disabled:opacity-40"
+                >
+                  Continue with this
+                </button>
+                <button disabled={state.busy} onClick={startNewConversation} className="text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
             </div>} />
         </div>

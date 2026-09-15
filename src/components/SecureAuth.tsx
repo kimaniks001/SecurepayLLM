@@ -5,6 +5,11 @@ import { ChoiceButtons } from './ChoiceButtons';
 interface SecureAuthCardProps {
   data: SecureAuthResponse;
   onChoice: (value: string) => void;
+  /** When provided, fields become real controlled input instead of the read-only demo preview. */
+  values?: string[];
+  onFieldChange?: (index: number, value: string) => void;
+  disabled?: boolean;
+  errorText?: string | null;
 }
 
 const fieldIcons: Record<string, typeof Lock> = {
@@ -13,7 +18,8 @@ const fieldIcons: Record<string, typeof Lock> = {
   otp: KeyRound,
 };
 
-export function SecureAuthCard({ data, onChoice }: SecureAuthCardProps) {
+export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled, errorText }: SecureAuthCardProps) {
+  const live = !!onFieldChange;
   return (
     <div className="rounded-2xl border border-forest-200 bg-white shadow-lifted overflow-hidden max-w-md mx-auto animate-quiet-in">
       <div className="px-6 py-5">
@@ -24,10 +30,12 @@ export function SecureAuthCard({ data, onChoice }: SecureAuthCardProps) {
             </div>
           </div>
           <h2 className="font-display text-lg text-forest-800">{data.title}</h2>
-          <div className="mt-3 rounded-xl bg-cream-50 border border-cream-200 px-4 py-2.5 text-center">
-            <div className="text-[0.875rem] font-medium text-forest-800">{data.identityName}</div>
-            <div className="text-[0.78rem] text-sand-500 mt-0.5">{data.identityKsn}</div>
-          </div>
+          {(data.identityName || data.identityKsn) && (
+            <div className="mt-3 rounded-xl bg-cream-50 border border-cream-200 px-4 py-2.5 text-center">
+              <div className="text-[0.875rem] font-medium text-forest-800">{data.identityName}</div>
+              <div className="text-[0.78rem] text-sand-500 mt-0.5">{data.identityKsn}</div>
+            </div>
+          )}
           <p className="mt-3 text-[0.825rem] text-sand-600 leading-relaxed">{data.reason}</p>
         </div>
 
@@ -40,10 +48,15 @@ export function SecureAuthCard({ data, onChoice }: SecureAuthCardProps) {
                 <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-cream-300 bg-cream-50 px-3.5 py-2.5">
                   <Icon className="w-4 h-4 text-sand-400" />
                   <input
-                    type={field.type === 'password' ? 'password' : 'text'}
+                    type={field.type === 'password' ? 'password' : field.type === 'otp' ? 'text' : 'text'}
+                    inputMode={field.type === 'otp' ? 'numeric' : undefined}
                     placeholder={field.placeholder}
-                    className="flex-1 bg-transparent text-[0.875rem] text-forest-800 placeholder:text-sand-400 outline-none"
-                    readOnly
+                    className="flex-1 bg-transparent text-[0.875rem] text-forest-800 placeholder:text-sand-400 outline-none disabled:opacity-50"
+                    readOnly={!live}
+                    disabled={live && disabled}
+                    value={live ? values?.[i] ?? '' : undefined}
+                    onChange={live ? event => onFieldChange!(i, event.target.value) : undefined}
+                    autoComplete={field.type === 'password' ? 'current-password' : field.type === 'otp' ? 'one-time-code' : 'off'}
                   />
                 </div>
               </div>
@@ -51,7 +64,11 @@ export function SecureAuthCard({ data, onChoice }: SecureAuthCardProps) {
           })}
         </div>
 
-        <p className="mt-3 text-[0.7rem] text-sand-400 text-center">Demo identity — no real authentication occurs</p>
+        {live ? (
+          errorText && <p role="alert" className="mt-3 text-[0.78rem] text-ember-600 text-center">{errorText}</p>
+        ) : (
+          <p className="mt-3 text-[0.7rem] text-sand-400 text-center">Demo identity — no real authentication occurs</p>
+        )}
       </div>
 
       <div className="px-6 pb-5">
@@ -60,7 +77,7 @@ export function SecureAuthCard({ data, onChoice }: SecureAuthCardProps) {
             { label: data.primaryLabel, value: data.primaryValue },
             { label: data.secondaryLabel, value: data.secondaryValue },
           ] }}
-          onChoice={onChoice}
+          onChoice={live && disabled ? () => {} : onChoice}
         />
       </div>
     </div>

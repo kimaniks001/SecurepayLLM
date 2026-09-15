@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test:foundation": "node --test tests/foundation.test.mjs",
-    "test:agent": "node --test tests/agent.test.mjs"
+    "test:agent": "node --test tests/agent.test.mjs",
+    "test:handoff": "node --test tests/handoff.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
