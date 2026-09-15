@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 
 // Use Vite's existing esbuild dependency to run pure TypeScript with Node's built-in test runner.
 const bundle = await build({ stdin: { contents: `
@@ -91,8 +92,9 @@ test('4. successful auth alone does not mean handoff adoption/progression; adopt
   assert.equal(identity.getSnapshot().phase, 'signed-in');
   await controller.continueAfterIdentity();
   assert.deepEqual(calls.filter(call => call[0] === 'adoptHandoff'), [['adoptHandoff', 'h1']]);
-  assert.deepEqual(calls.filter(call => call[0] === 'readHandoff'), [['readHandoff', 'h1']]);
-  // Phase reflects the re-read handoff's own status (READY_FOR_REVIEW -> canonical review), never an assumed progression.
+  // One read follows adoption directly; a second follows the canonical review (fix for authoritative
+  // READY_TO_PROGRESS sync) — both against the same handoff, never an assumed progression.
+  assert.deepEqual(calls.filter(call => call[0] === 'readHandoff'), [['readHandoff', 'h1'], ['readHandoff', 'h1']]);
   assert.equal(controller.getSnapshot().phase, 'review-ready');
 });
 
@@ -122,7 +124,10 @@ test('7. canonical review comes from /review, not the Agent preview', async () =
 });
 
 test('8 & 11. exact tradeContextVersion and candidateDigest are preserved and echoed unchanged to /continue', async () => {
-  const { controller, calls } = setup({ createHandoff: async () => handoffDto('READY_TO_PROGRESS') });
+  const { controller, calls } = setup({
+    createHandoff: async () => handoffDto('READY_TO_PROGRESS'),
+    readHandoff: async id => { calls.push(['readHandoff', id]); return handoffDto('READY_TO_PROGRESS'); },
+  });
   await controller.start('c1');
   assert.deepEqual(controller.getSnapshot().handoff.reviewSnapshot, { expectedTradeContextVersion: 7, expectedCandidateDigest: digest });
   await controller.setSecurely();
@@ -149,24 +154,82 @@ test('10. expired handoff cannot progress but a fresh explicit continuation is a
 });
 
 test('12. conflict/stale response from /continue does not fabricate success', async () => {
+  let readHandoffCalls = 0;
   const { controller, calls } = setup({
     createHandoff: async () => handoffDto('READY_TO_PROGRESS'),
+    // First read is the post-review authoritative sync (still ready); second is the 409 recovery read (now stale).
+    readHandoff: async id => { readHandoffCalls++; calls.push(['readHandoff', id]); return handoffDto(readHandoffCalls === 1 ? 'READY_TO_PROGRESS' : 'REVIEW_STALE'); },
     continueHandoff: async () => { throw new api.ApiError('http', 'stale', 409, 'AGENT_AGREEMENT_HANDOFF_STALE'); },
-    readHandoff: async id => { calls.push(['readHandoff', id]); return handoffDto('REVIEW_STALE'); },
   });
   await controller.start('c1');
+  assert.equal(controller.getSnapshot().phase, 'review-ready');
   await controller.setSecurely();
   assert.equal(controller.getSnapshot().phase, 'review-stale');
   assert.equal(controller.getSnapshot().handoff.progressedAgreementId, null);
 });
 
 test('13. PROGRESSED retains the real progressedAgreementId without inferring establishment', async () => {
-  const { controller } = setup({ createHandoff: async () => handoffDto('READY_TO_PROGRESS') });
+  const { controller } = setup({
+    createHandoff: async () => handoffDto('READY_TO_PROGRESS'),
+    readHandoff: async () => handoffDto('READY_TO_PROGRESS'),
+  });
   await controller.start('c1');
   await controller.setSecurely();
   assert.equal(controller.getSnapshot().phase, 'progressed');
   assert.equal(controller.getSnapshot().handoff.progressedAgreementId, 'agreement-9');
   assert.equal(controller.getSnapshot().handoff.status, 'PROGRESSED');
+});
+
+test('PR #5 review fix 1: after a successful canonical review, an authoritative re-read observes READY_TO_PROGRESS and enables Set securely with no manual refresh', async () => {
+  let readHandoffCalls = 0;
+  const { controller, calls } = setup({
+    createHandoff: async () => handoffDto('READY_FOR_REVIEW'),
+    // The backend records that /review happened, so the very next authoritative GET already reports READY_TO_PROGRESS.
+    readHandoff: async id => { readHandoffCalls++; calls.push(['readHandoff', id]); return handoffDto('READY_TO_PROGRESS'); },
+  });
+  await controller.start('c1'); // the only explicit action taken; no controller.refresh() call anywhere below
+  assert.equal(readHandoffCalls, 1);
+  assert.equal(controller.getSnapshot().phase, 'review-ready');
+  assert.equal(controller.getSnapshot().handoff.status, 'READY_TO_PROGRESS');
+  assert.deepEqual(controller.getSnapshot().review, candidateDto);
+  const before = calls.length;
+  await controller.setSecurely();
+  assert.equal(calls.slice(before).some(call => call[0] === 'continueHandoff'), true);
+  assert.equal(controller.getSnapshot().phase, 'progressed');
+});
+
+test('PR #5 review fix 2: REVIEW_STALE is discarded, never re-read/reused as though it could recover', async () => {
+  const { controller, calls } = setup({ createHandoff: async (convId, clientActionId) => { calls.push(['createHandoff', convId, clientActionId]); return handoffDto('REVIEW_STALE'); } });
+  await controller.start('c1');
+  assert.equal(controller.getSnapshot().phase, 'review-stale');
+  const staleHandoffId = controller.getSnapshot().handoff.id;
+  // Reaching REVIEW_STALE must never itself trigger a read/review attempt on that same handoff.
+  assert.equal(calls.some(call => call[0] === 'readHandoff'), false);
+  assert.equal(calls.some(call => call[0] === 'reviewHandoff'), false);
+  controller.reset();
+  assert.equal(controller.getSnapshot().phase, 'idle');
+  assert.equal(controller.getSnapshot().handoff, null);
+  await controller.start('c1'); // only a genuinely new explicit "Continue with this" may proceed
+  assert.equal(calls.filter(call => call[0] === 'createHandoff').length, 2);
+  assert.equal(calls.some(call => call[0] === 'readHandoff' && call[1] === staleHandoffId), false);
+  assert.equal(calls.some(call => call[0] === 'reviewHandoff' && call[1] === staleHandoffId), false);
+});
+
+test('PR #5 review fix 2: the locked HandoffPanel offers no Refresh action for REVIEW_STALE, only a fresh continuation', async () => {
+  const panelBundle = await build({ stdin: { contents: `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { HandoffPanel } from './src/features/handoff/HandoffPanel';
+const noopController = snapshot => ({ subscribe: () => () => {}, getSnapshot: () => snapshot, reset() {}, refresh() {}, start() {}, setSecurely() {}, continueAfterIdentity() {} });
+const handoff = noopController({ phase: 'review-stale', handoff: { id: 'h1', status: 'REVIEW_STALE', candidate: {}, unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 1, expectedCandidateDigest: 'd' }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null }, review: null, error: null });
+const identity = noopController({ phase: 'credentials', busy: false, ksNumber: '', password: '', otp: '', challengeToken: null, error: null });
+export const markup = renderToStaticMarkup(React.createElement(HandoffPanel, { handoff, identity, onDone: () => {} }));
+`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const panelModule = { exports: {} };
+  new Function('require', 'module', 'exports', panelBundle.outputFiles[0].text)(createRequire(import.meta.url), panelModule, panelModule.exports);
+  const html = panelModule.exports.markup;
+  assert.doesNotMatch(html, /Refresh/i);
+  assert.match(html, /Start a fresh continuation/);
 });
 
 test('14. production path wires the real handoff/identity/session modules and cannot fall back to fixture state', async () => {

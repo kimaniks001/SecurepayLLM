@@ -10,8 +10,8 @@ import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView } from './view';
 
 export function HandoffPanel({ handoff, identity, onDone }: { handoff: HandoffController; identity: IdentityController; onDone: () => void }) {
-  const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot);
-  const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot);
+  const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
+  const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
 
   useEffect(() => {
     if (state.phase === 'identity-required' && identityState.phase === 'signed-in') {
@@ -77,16 +77,12 @@ export function HandoffPanel({ handoff, identity, onDone }: { handoff: HandoffCo
   }
 
   if (state.phase === 'review-stale' && state.handoff) {
+    // A stale handoff is discarded by the backend; re-reading it cannot make it fresh. Only a
+    // new explicit "Continue with this" (after returning to the conversation) creates a new one.
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
-        <ChoiceButtons
-          data={{ type: 'CHOICE_BUTTONS', choices: [
-            { label: 'Refresh review', value: 'refresh' },
-            { label: 'Start a fresh continuation', value: 'restart' },
-          ] }}
-          onChoice={value => { if (value === 'refresh') void handoff.refresh(); else leave(); }}
-        />
+        <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Start a fresh continuation', value: 'restart' }] }} onChoice={leave} />
       </div>
     );
   }

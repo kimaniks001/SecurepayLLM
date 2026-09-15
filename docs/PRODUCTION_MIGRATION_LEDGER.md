@@ -316,3 +316,18 @@ the row stays `BACKEND_PR_PENDING` until #199 merges to `main`; no live
 SecurePayAPI deployment was exercised by this PR (verified instead against a
 throwaway local contract double). Slice D (recipient invitation/Join/auth/
 exact-version confirmation) remains untouched.
+
+### 13.1 Review fixes (2026-09-15)
+
+Two integration gaps flagged on PR #5 review, both fixed without touching any
+locked Bolt visual beyond the minimum wording/action correction:
+
+1. After a successful `/review`, the controller now re-reads authoritative
+   handoff state before settling into `review-ready`. The backend records
+   that the review happened, so that GET may already report
+   `READY_TO_PROGRESS`; Set securely now reflects that immediately, with no
+   manual Refresh required and no status inferred locally.
+2. `REVIEW_STALE` no longer offers a "Refresh review" action. A stale handoff
+   is backend-discarded and cannot be revived by re-reading it; the panel now
+   offers only a route back to the conversation, so a new explicit "Continue
+   with this" is required to create a fresh handoff.

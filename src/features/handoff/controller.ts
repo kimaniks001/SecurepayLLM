@@ -32,6 +32,7 @@ function phaseFor(view: HandoffView): HandoffPhase {
     default: return 'error';
   }
 }
+const reviewEligible = (view: HandoffView) => view.status === 'READY_FOR_REVIEW' || view.status === 'READY_TO_PROGRESS';
 
 /**
  * Narrow handoff orchestration only. No Agreement establishment, recipient confirmation, or
@@ -43,21 +44,38 @@ export function createHandoffController(gateway: Gateway, id = () => crypto.rand
   const listeners = new Set<() => void>();
   const update = (patch: Partial<HandoffState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
+  /**
+   * Fetches the canonical review, then re-reads authoritative handoff state: the backend records
+   * that the review happened, so the next GET may already report READY_TO_PROGRESS. Set securely
+   * must reflect that backend truth immediately, never a locally inferred status.
+   */
   async function loadReview(handoffId: string) {
     update({ phase: 'review-loading' });
+    let review: CandidateDto;
     try {
-      const review = await gateway.reviewHandoff(handoffId);
-      update({ phase: 'review-ready', review });
+      review = await gateway.reviewHandoff(handoffId);
+    } catch (error) {
+      update({ phase: 'error', error: errorText(error) });
+      return;
+    }
+    update({ review });
+    try {
+      const dto = await gateway.readHandoff(handoffId);
+      await applyHandoff(dto, { fetchReview: false });
     } catch (error) {
       update({ phase: 'error', error: errorText(error) });
     }
   }
 
-  async function applyHandoff(dto: HandoffDto) {
+  async function applyHandoff(dto: HandoffDto, options: { fetchReview?: boolean } = {}) {
+    const { fetchReview = true } = options;
     const view = handoffView(dto);
-    const phase = phaseFor(view);
-    update({ handoff: view, error: null, phase });
-    if (phase === 'review-loading') await loadReview(view.id);
+    update({ handoff: view, error: null });
+    if (fetchReview && reviewEligible(view)) {
+      await loadReview(view.id);
+    } else {
+      update({ phase: reviewEligible(view) ? 'review-ready' : phaseFor(view) });
+    }
   }
 
   return {
