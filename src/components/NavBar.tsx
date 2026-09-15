@@ -1,5 +1,5 @@
 import { Home, FileText, Wallet, Store, Users, User } from 'lucide-react';
-import { AgentIcon } from './AgentIcon';
+import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
 
 interface NavBarProps {
@@ -30,9 +30,8 @@ export function NavBar({ view, onNavigate }: NavBarProps) {
     <>
       {/* Desktop nav */}
       <nav className="hidden md:flex items-center justify-between px-6 lg:px-10 py-4 border-b border-cream-200/60 bg-cream-50/80 backdrop-blur-sm sticky top-0 z-30">
-        <button onClick={() => onNavigate('signed-in')} className="flex items-center gap-2.5">
-          <AgentIcon state="resting" size={32} />
-          <span className="font-display text-lg text-forest-800 font-medium tracking-tight">SecurePay</span>
+        <button onClick={() => onNavigate('signed-in')} className="flex items-center">
+          <img src={securepayWordmark} alt="SecurePay" className="h-8 w-auto" />
         </button>
         <div className="flex items-center gap-1">
           {navItems.map((item) => (

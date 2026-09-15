@@ -1,4 +1,4 @@
-import { AgentIcon } from './AgentIcon';
+import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
@@ -46,7 +46,7 @@ export function SignedInHome({
       {/* Left: conversation entry */}
       <div className="flex-1 md:flex-[1.35] flex flex-col min-w-0 bg-cream-50">
         <div className="flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
-          <AgentIcon state="listening" size={28} />
+          <img src={securepayMark} alt="SecurePay" className="w-7 h-7" />
           <div>
             <div className="font-display text-sm text-forest-800">SecurePay</div>
             <div className="text-[0.7rem] text-sand-500">{greeting}</div>
@@ -56,7 +56,7 @@ export function SignedInHome({
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
           <div className="max-w-2xl mx-auto text-center">
             <div className="flex justify-center mb-6 animate-fade-in-down">
-              <AgentIcon state="listening" size={56} />
+              <img src={securepayMark} alt="SecurePay" className="w-14 h-14" />
             </div>
             <h1 className="font-display text-2xl md:text-3xl text-forest-800 font-medium leading-tight text-balance animate-fade-in-up">
               What are you trying to make happen?

@@ -233,7 +233,7 @@ export const markup = renderToStaticMarkup(React.createElement(HandoffPanel, { h
 });
 
 test('14. production path wires the real handoff/identity/session modules and cannot fall back to fixture state', async () => {
-  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' } });
+  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' }, loader: { '.png': 'dataurl' } });
   const paths = Object.keys(result.metafile.inputs);
   assert.equal(paths.some(path => /(?:mockAgent|demoData|src\/App\.tsx)/.test(path)), false);
   for (const required of ['features/handoff/controller.ts', 'features/identity/controller.ts', 'api/securepay/session.ts']) {

@@ -133,19 +133,17 @@ test('touched locked components retain byte-identical fixture markup against Bol
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SignedOutHome } from './src/components/SignedOutHome';
 import { ConversationWorkspace } from './src/components/ConversationWorkspace';
 import { ContextPanel } from './src/components/ContextPanel';
 import { AgreementPreviewCard } from './src/components/AgreementPreview';
 const understanding = Object.fromEntries(['job','scope','location','people','price','timing','materials'].map(key => [key, { label:key, value:'', state:'unknown' }]));
 const noop = () => {};
 export const markup = [
- React.createElement(SignedOutHome, { onStart: noop }),
  React.createElement(ConversationWorkspace, { turns:[], understanding, isThinking:false, onSend:noop }),
  React.createElement(ContextPanel, { lastRichResponses:[], understanding, selectedProviderId:null, onSelectProvider:noop, panelTitle:'Understanding', panelMode:'understanding' }),
  React.createElement(AgreementPreviewCard, { data:{ type:'AGREEMENT_PREVIEW', title:'Tiling', what:['Tile bathroom'], who:[{name:'Peter',role:'provider'}], money:{amount:'KES 100',note:'candidate'}, when:'Tomorrow', stillToSettle:['Scope'] } })
 ].map(renderToStaticMarkup);`;
-  const touched = /src\/components\/(SignedOutHome|ConversationWorkspace|ContextPanel|AgreementPreview)\.tsx$/;
+  const touched = /src\/components\/(ConversationWorkspace|ContextPanel|AgreementPreview)\.tsx$/;
   async function render(baseline) {
     const result = await build({ stdin:{ contents:entry, resolveDir:process.cwd() }, bundle:true, write:false, format:'cjs', platform:'node', jsx:'automatic', plugins: baseline ? [{ name:'bolt', setup(builder) { builder.onLoad({filter:touched}, args => ({contents:execFileSync('git',['show',`bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`],{encoding:'utf8'}), loader:'tsx'})); } }] : [] });
     const mod = {exports:{}};
@@ -153,4 +151,38 @@ export const markup = [
     return mod.exports.markup;
   }
   assert.deepEqual(await render(false), await render(true));
+});
+
+// SignedOutHome's canonical SecurePay brand mark (README.txt-approved: docs/CODEX_TASK_BRAND_VISUAL_CONSTITUTION.md)
+// is an explicitly approved correction to the locked Bolt experience, so it is checked separately from
+// the byte-identical set above: the old AgentIcon-as-logo glyph must be gone and the canonical asset
+// must be in its place, while the surrounding headline/subheading/input/example-prompts stay untouched.
+test('SignedOutHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap', async () => {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { SignedOutHome } from './src/components/SignedOutHome';
+const noop = () => {};
+export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { onStart: noop }));`;
+  const touched = /src\/components\/SignedOutHome\.tsx$/;
+  async function render(baseline) {
+    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
+    const mod = { exports: {} };
+    new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+    return mod.exports.markup;
+  }
+  const current = await render(false);
+  const baseline = await render(true);
+  assert.notEqual(current, baseline, 'expected the canonical brand mark swap to change SignedOutHome markup');
+  assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(current, /<img[^>]*alt="SecurePay by KEYMAN/);
+  for (const text of [
+    'What are you trying to make happen?',
+    'Tell SecurePay what you need',
+    'I need someone to tile my bathroom',
+  ]) {
+    assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
+    assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
+  }
 });
