@@ -40,7 +40,7 @@ function LoadingNotice({ text }: { text: string }) {
  * renders exactly the backend's own truth (see controller.ts / view.ts); this component only wires
  * locked Bolt components to that truth and to navigation — it derives no Agreement or Money state.
  */
-export function WorkspaceExperience({ gateway, onLeave }: { gateway: Gateway; onLeave: (startText?: string) => void }) {
+export function WorkspaceExperience({ gateway, onOpenStore, onLeave }: { gateway: Gateway; onOpenStore?: () => void; onLeave: (startText?: string) => void }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
@@ -55,6 +55,7 @@ export function WorkspaceExperience({ gateway, onLeave }: { gateway: Gateway; on
     if (view === 'signed-in') controller.goHome();
     else if (view === 'agreements') controller.goHub();
     else if (view === 'money') setNotice('Open Money from a specific agreement to view it.');
+    else if (view === 'store' && onOpenStore) onOpenStore();
     else setNotice('This area is not available yet.');
   };
 

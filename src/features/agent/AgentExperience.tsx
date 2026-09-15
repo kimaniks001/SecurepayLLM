@@ -10,14 +10,17 @@ import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
+import type { StoreGateway } from '../../api/securepay/store';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
+import type { AppView } from '../../types';
 import { createAgentController } from './controller';
 import { TradeContext } from './TradeContext';
 import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
+import { StoreExperience } from '../store/StoreExperience';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -29,8 +32,10 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, auth, session }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; auth: AuthGateway; session: SessionStore;
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; auth: AuthGateway; session: SessionStore;
+  initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
+  trustedMediaOrigin: string | null;
 }) {
   const [controller, setController] = useState(() => createAgentController(gateway));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
@@ -42,6 +47,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, auth,
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const [workspace, setWorkspace] = useState(false);
+  const [store, setStore] = useState(!!initialStoreOfferRoute);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   const startNewConversation = () => {
     setController(createAgentController(gateway));
@@ -51,24 +57,48 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, auth,
     setNotice(null);
   };
 
+  /** Shared by the top NavBar, WorkspaceExperience's own NavBar, and StoreExperience's own NavBar — one navigation-out policy. */
+  const navigateTo = (view: AppView) => {
+    setNotice(null);
+    if (view === 'store') { setWorkspace(false); setStore(true); return; }
+    setStore(false);
+    if (view === 'signed-in' || view === 'agreements' || view === 'money') {
+      if (sessionState.status === 'signed-in') { setWorkspace(true); return; }
+      setHome(true);
+      if (view !== 'signed-in') setNotice('Sign in through "Continue with this" to view your agreements.');
+      return;
+    }
+    setNotice('This area is not available yet. You can keep talking with SecurePay.');
+  };
+
+  if (store) {
+    return (
+      <StoreExperience
+        gateway={storeGateway}
+        auth={auth}
+        session={session}
+        initialOfferRoute={initialStoreOfferRoute}
+        trustedMediaOrigin={trustedMediaOrigin}
+        onNavigate={navigateTo}
+        onUseOffer={fact => { setStore(false); setHome(false); setExpanded(true); void controller.useOffer(fact); }}
+      />
+    );
+  }
+
   if (workspace && sessionState.status === 'signed-in') {
     const workspaceGateway = { ...agreementGateway, money: moneyGateway };
-    return <WorkspaceExperience gateway={workspaceGateway} onLeave={startText => { setWorkspace(false); setHome(false); if (startText) void controller.send(startText); }} />;
+    return <WorkspaceExperience gateway={workspaceGateway} onOpenStore={() => navigateTo('store')} onLeave={startText => { setWorkspace(false); setHome(false); if (startText) void controller.send(startText); }} />;
   }
 
   const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;
   const lastResponse = [...state.turns].reverse().find(turn => turn.sender === 'agent');
   const panel = lastResponse?.sender === 'agent' ? lastResponse.response.panel : null;
-  const showHome = home || state.turns.length === 0;
+  // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
+  // controller.ts) — state.conversationId alone must also route to the conversation view, or the
+  // person would land back on the generic Home prompt with no visible sign their offer was used.
+  const showHome = home || (state.turns.length === 0 && !state.conversationId);
   return <div className="h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
-    <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={view => {
-      if (view === 'signed-in' || view === 'agreements' || view === 'money') {
-        if (sessionState.status === 'signed-in') { setWorkspace(true); return; }
-        setHome(true);
-        if (view !== 'signed-in') setNotice('Sign in through "Continue with this" to view your agreements.');
-      }
-      else setNotice('This area is not available yet. You can keep talking with SecurePay.');
-    }} />
+    <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
       {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}

@@ -1031,7 +1031,7 @@ export interface MoneyDetail {
 
 // ─── Pass 9: Store, Offers & SecureLinks ───────────────────
 
-export type PriceType = 'fixed' | 'from' | 'range' | 'quote_required' | 'unit_price';
+export type PriceType = 'fixed' | 'from' | 'range' | 'quote_required' | 'unit_price' | 'unlisted';
 export type OfferLifecycle = 'draft' | 'published' | 'unavailable' | 'archived';
 export type OfferType = 'product' | 'service' | 'package' | 'professional_service' | 'digital' | 'construction' | 'recurring' | 'customizable';
 

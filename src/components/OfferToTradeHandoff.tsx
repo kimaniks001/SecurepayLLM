@@ -1,6 +1,6 @@
 import { ArrowLeft, Sparkles, FileText, ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type { StoreOffer } from '../types';
-import { createOfferTradeSnapshot } from '../storeData';
+import { createOfferTradeSnapshot } from '../offerTradeSnapshot';
 
 interface OfferToTradeHandoffProps {
   offer: StoreOffer;
@@ -38,7 +38,7 @@ export function OfferToTradeHandoff({ offer, onBack, onProceed }: OfferToTradeHa
               <span className="text-forest-800">{snapshot.storeName}</span>
             </div>
             <div className="flex items-baseline justify-between text-[0.78rem]">
-              <span className="text-sand-600">Offer version</span>
+              <span className="text-sand-600">{offer.isDemoState ? 'Offer version' : 'Offer updated'}</span>
               <span className="text-forest-800">{snapshot.offerVersion}</span>
             </div>
             <div className="flex items-baseline justify-between text-[0.78rem]">
@@ -79,7 +79,7 @@ export function OfferToTradeHandoff({ offer, onBack, onProceed }: OfferToTradeHa
         <div className="rounded-2xl border border-forest-300 bg-forest-50/30 px-5 py-4 animate-quiet-in">
           <div className="flex items-center gap-2 mb-3">
             <FileText className="w-4 h-4 text-forest-600" />
-            <span className="text-[0.7rem] font-medium text-forest-700 uppercase tracking-wide">Adopted facts from offer {snapshot.offerVersion}</span>
+            <span className="text-[0.7rem] font-medium text-forest-700 uppercase tracking-wide">Adopted facts from offer{offer.isDemoState ? ` ${snapshot.offerVersion}` : ` (updated ${snapshot.offerVersion})`}</span>
           </div>
           <div className="space-y-2 mb-3">
             {snapshot.adoptedFacts.map((fact, i) => (

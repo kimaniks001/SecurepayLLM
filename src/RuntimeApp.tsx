@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { parseInvitationRoute } from './features/recipient/route';
+import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
 import { createSessionStore, withSessionRefresh } from './api/securepay/session';
 import { runtimeMode } from './config/securepay';
@@ -12,6 +13,9 @@ try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, sess
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, ['join', 'versions', 'version', 'confirmVersion', 'currentUserAgreements', 'currentUserActions', 'hub', 'detail', 'confirmationStatus'], session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, ['status', 'records'], session, api.auth) : undefined;
+const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
+// The one external origin this app already has verified authority over — see adapters.ts `media()`.
+const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
 // Vite removes the unreachable fixture import from production builds.
 const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE === 'fixture'
@@ -35,8 +39,20 @@ function useInvitationToken(): [string | null, () => void] {
   return [token, clear];
 }
 
+/** Same hash-route seam as useInvitationToken, for the public Offer deep link (see features/store/route.ts). */
+function useStoreOfferRoute() {
+  const [route, setRoute] = useState(() => (typeof window === 'undefined' ? null : parseStoreOfferRoute(window.location.hash)));
+  useEffect(() => {
+    const onHashChange = () => setRoute(parseStoreOfferRoute(window.location.hash));
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return route;
+}
+
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
+  const storeOfferRoute = useStoreOfferRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -50,8 +66,8 @@ export default function RuntimeApp() {
       ? <RecipientExperience key={invitationToken} token={invitationToken} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearInvitationToken} />
       : <Unavailable />;
   }
-  return api && agentGateway && agreementGateway && moneyGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} auth={api.auth} session={session} />
+  return api && agentGateway && agreementGateway && moneyGateway && storeGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

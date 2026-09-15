@@ -14,7 +14,8 @@
     "test:handoff": "node --test tests/handoff.test.mjs",
     "test:recipient": "node --test tests/recipient.test.mjs",
     "test:signed-in": "node --test tests/signed-in.test.mjs",
-    "test:money": "node --test tests/money.test.mjs"
+    "test:money": "node --test tests/money.test.mjs",
+    "test:store": "node --test tests/store.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

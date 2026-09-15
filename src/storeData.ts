@@ -1,4 +1,5 @@
-import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry, SecureLink, OfferTradeSnapshot } from './types';
+import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry, SecureLink } from './types';
+export { createOfferTradeSnapshot } from './offerTradeSnapshot';
 
 // ─── Store identities ───────────────────
 
@@ -315,38 +316,4 @@ export const cctvComparison = {
   note: 'Factual comparison. No scoring or ranking. Choose based on your needs.',
 };
 
-// ─── Offer → Trade snapshot ───────────────────
-
-export function createOfferTradeSnapshot(offer: StoreOffer): OfferTradeSnapshot {
-  const sellerOfRecord = offer.isExternalReference && offer.externalSellerName
-    ? offer.externalSellerName
-    : offer.storeName;
-  const sellerOfRecordIdentity = offer.isExternalReference && offer.externalSellerIdentity
-    ? offer.externalSellerIdentity
-    : 'Business KS identity — authoritative';
-
-  return {
-    offerId: offer.id,
-    offerVersion: offer.version,
-    sellerOfRecord,
-    sellerOfRecordIdentity,
-    storeId: offer.storeId,
-    storeName: offer.storeName,
-    displaySource: offer.isExternalReference ? `Displayed in ${offer.storeName} Store` : 'Store-owned offer',
-    adoptedFacts: [
-      { label: 'Title', value: offer.title },
-      { label: 'Price', value: offer.price },
-      ...(offer.scope.included.length > 0 ? [{ label: 'Included', value: offer.scope.included.join(', ') }] : []),
-      ...(offer.scope.excluded.length > 0 ? [{ label: 'Not included', value: offer.scope.excluded.join(', ') }] : []),
-      ...(offer.serviceArea ? [{ label: 'Service area', value: offer.serviceArea }] : []),
-      ...(offer.timing ? [{ label: 'Timing', value: offer.timing }] : []),
-      ...(offer.warrantyTerms ? [{ label: 'Warranty', value: offer.warrantyTerms }] : []),
-    ],
-    provenanceLabel: offer.isExternalReference
-      ? `Started from ${offer.storeName} Store offer — seller of record: ${sellerOfRecord}`
-      : `Started from ${offer.storeName} Store offer`,
-    isExternalReference: offer.isExternalReference,
-    externalSellerName: offer.externalSellerName,
-    timestamp: new Date().toISOString(),
-  };
-}
+// createOfferTradeSnapshot moved to offerTradeSnapshot.ts (re-exported above) — see that file's comment.
