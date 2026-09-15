@@ -258,3 +258,76 @@ head 0b0121c9 (#197/#198/#200 still BACKEND_PR_PENDING). Real loading/errors and
 candidate/provenance rendering replace local Understanding authority. Fixture
 default rendering stays intact. Continue with this remains a non-progressing
 FRONTEND_COMPOSITION_ONLY seam for Slice C; no auth or Agreement mutation.
+
+## 13. Golden Spine C implementation scope (2026-09-15)
+
+`Continue with this -> Secure Identity -> canonical handoff review -> Set
+securely -> real draft Agreement progression` is wired end-to-end against the
+handoff contract on `feat/securepay-agent-phase5-agreement-handoff` (#199,
+`84d205ea56b98a776401fc31f8da8633f8ad6286`, still BACKEND_PR_PENDING) and the
+main-branch auth surface (`AuthenticationController`) inspected in the Golden
+Spine A audit.
+
+New narrow layers:
+
+- `api/securepay/session.ts` — the single in-memory session boundary
+  (`createSessionStore`, `ensureFreshSession`, `withSessionRefresh`). Tokens are
+  never persisted, logged, or read from Vite env; refresh runs only when the
+  access token is actually expired, immediately before an authenticated
+  handoff call.
+- `features/identity/controller.ts` + `view.ts` — real KS Number/password/OTP
+  against `/api/v1/auth/login`, `/complete`, `/mfa/resend`. Owns identity/
+  session authority only; never decodes tokens and never touches handoff or
+  Agreement state.
+- `features/handoff/controller.ts` + `view.ts` + `HandoffPanel.tsx` — the
+  handoff orchestration layer. Tracks handoff id, authoritative server status,
+  the exact `reviewSnapshot` (`expectedTradeContextVersion`/
+  `expectedCandidateDigest`) captured from `GET /agreement-handoffs/{id}`, the
+  `/review` candidate, and `progressedAgreementId`. `createHandoff` fires only
+  from the explicit "Continue with this" click; re-entrant clicks and clicks
+  while a handoff is already live are no-ops.
+
+State handling: `IDENTITY_REQUIRED` reuses the locked `SecureAuthCard` (now
+real-input capable — see below) and calls `/adopt` then re-reads the handoff
+only after a real session exists, never inferring adoption from sign-in alone.
+`NEEDS_RESOLUTION` returns to the conversation and blocks Set securely.
+`REVIEW_STALE` and `EXPIRED` fail closed with the locked `NoticeCard`/
+`ErrorStateCard` and require an explicit fresh continuation. `/continue`
+echoes only the snapshot already captured from authoritative handoff state; a
+409/410 response re-reads the handoff instead of assuming success.
+`PROGRESSED` renders the real `progressedAgreementId` through `NoticeCard`
+with copy that explicitly denies established/accepted/funded/paid status.
+
+Bolt component changes (both required for truthful, not cosmetic, reasons):
+
+- `SecureAuth.tsx` gained optional `values`/`onFieldChange`/`disabled`/
+  `errorText` props so the identity form can take real input; the existing
+  read-only demo path (used by the fixture `ConversationWorkspace` switch) is
+  unchanged when those props are omitted, and the byte-identical Bolt fixture
+  test does not cover this file.
+- The canonical review's "not yet ready to progress" state is expressed as a
+  `mustSettle` entry (the field the locked `CanonicalAgreementCard` actually
+  gates on) rather than the pre-existing but unused `primaryDisabled` field,
+  so the existing component — unmodified — truthfully disables Set securely
+  until backend status is `READY_TO_PROGRESS`.
+
+Status: `REAL_API_AVAILABLE_NOT_WIRED` moves to real frontend wiring here, but
+the row stays `BACKEND_PR_PENDING` until #199 merges to `main`; no live
+SecurePayAPI deployment was exercised by this PR (verified instead against a
+throwaway local contract double). Slice D (recipient invitation/Join/auth/
+exact-version confirmation) remains untouched.
+
+### 13.1 Review fixes (2026-09-15)
+
+Two integration gaps flagged on PR #5 review, both fixed without touching any
+locked Bolt visual beyond the minimum wording/action correction:
+
+1. After a successful `/review`, the controller now re-reads authoritative
+   handoff state before settling into `review-ready`. The backend records
+   that the review happened, so that GET may already report
+   `READY_TO_PROGRESS`; Set securely now reflects that immediately, with no
+   manual Refresh required and no status inferred locally.
+2. `REVIEW_STALE` no longer offers a "Refresh review" action. A stale handoff
+   is backend-discarded and cannot be revived by re-reading it; the panel now
+   offers only a route back to the conversation, so a new explicit "Continue
+   with this" is required to create a fresh handoff.

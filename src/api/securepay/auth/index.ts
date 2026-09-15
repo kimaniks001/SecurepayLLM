@@ -12,3 +12,4 @@ export function createAuthGateway(http: HttpClient) {
     logout: () => http.request<void>('/api/v1/auth/logout', { method: 'POST', auth: 'required' }),
   };
 }
+export type AuthGateway = ReturnType<typeof createAuthGateway>;
