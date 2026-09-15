@@ -85,6 +85,9 @@ import {
   getPersonById,
   getBusinessById,
   communityAttentionItems,
+  demoPeople,
+  demoBusinesses,
+  searchCommunity,
 } from './communityData';
 import {
   getCircleById,
@@ -123,6 +126,7 @@ function App() {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [offerDraft, setOfferDraft] = useState<OfferDraftFields>(emptyOfferDraft);
   const [storeQuery, setStoreQuery] = useState('');
+  const [communityQuery, setCommunityQuery] = useState('');
   const [openCommunityId, setOpenCommunityId] = useState<string | null>(null);
   const [openPersonId, setOpenPersonId] = useState<string | null>(null);
   const [openBusinessId, setOpenBusinessId] = useState<string | null>(null);
@@ -920,6 +924,11 @@ function App() {
         <NavBar view={view} onNavigate={handleNavigate} />
         {communitySubView === 'home' && (
           <CommunityHome
+            query={communityQuery}
+            onQueryChange={setCommunityQuery}
+            objects={searchCommunity(communityQuery)}
+            people={demoPeople}
+            businesses={demoBusinesses}
             onOpenObject={(id) => { setOpenCommunityId(id); setCommunitySubView('object'); }}
             onOpenPerson={(id) => { setOpenPersonId(id); setCommunitySubView('person'); }}
             onOpenBusiness={(id) => { setOpenBusinessId(id); setCommunitySubView('business'); }}
@@ -938,6 +947,7 @@ function App() {
         {communitySubView === 'object' && currentObject && (
           <CommunityObjectDetail
             object={currentObject}
+            offer={currentObject.relatedOfferId ? getOfferById(currentObject.relatedOfferId) ?? null : null}
             onBack={() => { setCommunitySubView('home'); setOpenCommunityId(null); }}
             onICanHelp={() => setView('conversation')}
             onDiscuss={() => setView('conversation')}

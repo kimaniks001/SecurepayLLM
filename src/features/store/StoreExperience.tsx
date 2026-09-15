@@ -58,10 +58,19 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   }, []);
 
   // Debounced live search: the locked StoreHome box has no submit button. The initial empty-query
-  // search already runs via controller.enter() above, so the first render of this effect is skipped.
-  const skippedFirstDebounce = useRef(false);
+  // search already runs via controller.enter() above (or the direct-offer-link openOffer() call), so a
+  // query value that has not actually changed must never re-trigger it. A boolean "skip the first run"
+  // ref is NOT safe here: React 18 StrictMode's dev-only mount→cleanup→mount replay re-invokes this
+  // effect twice on initial mount, and a boolean ref reads as already-flipped on the replay, arming a
+  // real 400ms timer that later fires `runSearch` and force-resets `view` back to 'home' — discovered via
+  // the Golden Spine G browser walkthrough landing on a real Offer via `initialOfferRoute` (Community's
+  // "View offer" hand-off; the same fresh-mount path the `#/store/{ks}/offer/{id}` SecureLink deep link
+  // already used). Comparing against the last real query value is immune to the replay, since the query
+  // itself is identical across it.
+  const previousQuery = useRef(state.query);
   useEffect(() => {
-    if (!skippedFirstDebounce.current) { skippedFirstDebounce.current = true; return; }
+    if (previousQuery.current === state.query) return;
+    previousQuery.current = state.query;
     const handle = setTimeout(() => void controller.submitSearch(), 400);
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps

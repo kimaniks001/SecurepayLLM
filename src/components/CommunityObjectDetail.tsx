@@ -1,6 +1,5 @@
 import { ArrowLeft, MapPin, Clock, HandHelping, MessageCircle, Store, ArrowRight } from 'lucide-react';
-import type { CommunityObject, CommunityObjectType } from '../types';
-import { getOfferById } from '../storeData';
+import type { CommunityObject, CommunityObjectType, StoreOffer } from '../types';
 
 const typeLabel: Record<CommunityObjectType, string> = {
   question: 'Question',
@@ -19,10 +18,16 @@ interface CommunityObjectDetailProps {
   onDiscuss: () => void;
   onViewOffer: (offerId: string) => void;
   onToTrade: () => void;
+  /**
+   * The caller resolves this (fixture `getOfferById` in App.tsx; the real fetched Store offer in
+   * features/community) — this component never imports `storeData.ts` itself, the same "move the
+   * fixture call to the fixture caller" fix Golden Spine E/F applied to AgreementDetail/OfferToTradeHandoff,
+   * required so the real Community route's production bundle never pulls in Store fixtures.
+   */
+  offer: StoreOffer | null;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade }: CommunityObjectDetailProps) {
-  const offer = object.relatedOfferId ? getOfferById(object.relatedOfferId) : null;
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -49,7 +54,8 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
 
           {/* Meta */}
           <div className="mt-3 pt-3 border-t border-cream-100 space-y-1.5">
-            <div className="text-[0.72rem] text-sand-500">Posted by {object.author} · {object.createdAt}</div>
+            {/* A Store Offer reference is never a Community post — it names the real Store, not an author (task: "Store offer reference is not a Community post"). */}
+            <div className="text-[0.72rem] text-sand-500">{isStoreRef ? `Store: ${object.author} · ${object.createdAt}` : `Posted by ${object.author} · ${object.createdAt}`}</div>
             {object.generalLocation && (
               <div className="flex items-center gap-1.5 text-[0.78rem] text-sand-600">
                 <MapPin className="w-3.5 h-3.5 text-sand-400" />

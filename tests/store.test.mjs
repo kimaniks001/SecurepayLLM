@@ -403,7 +403,7 @@ test('3c. Bolt Offer components only say "version" for genuinely versioned fixtu
 // ─── L. Production bundle exclusions ─────────────────────────
 
 test('L. Production bundle never imports storeData.ts for the real Store route', async () => {
-  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' } });
+  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' }, loader: { '.png': 'dataurl' } });
   const paths = Object.keys(result.metafile.inputs);
   assert.equal(paths.some(path => /src\/storeData\.ts$/.test(path)), false);
   assert.equal(paths.some(path => /src\/App\.tsx$/.test(path)), false);
