@@ -3,9 +3,10 @@ import { ConversationInput } from './ConversationInput';
 
 interface SignedOutHomeProps {
   onStart: (text: string) => void;
+  disabled?: boolean;
 }
 
-export function SignedOutHome({ onStart }: SignedOutHomeProps) {
+export function SignedOutHome({ onStart, disabled }: SignedOutHomeProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 md:py-24">
       <div className="max-w-2xl w-full text-center">
@@ -27,6 +28,7 @@ export function SignedOutHome({ onStart }: SignedOutHomeProps) {
         <div className="mt-8 max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           <ConversationInput
             onSend={onStart}
+            disabled={disabled}
             placeholder="I need someone to tile my bathroom..."
           />
         </div>
@@ -44,6 +46,7 @@ export function SignedOutHome({ onStart }: SignedOutHomeProps) {
           ].map((prompt) => (
             <button
               key={prompt}
+              disabled={disabled}
               onClick={() => onStart(prompt)}
               className="text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
             >

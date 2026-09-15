@@ -84,7 +84,7 @@ test('future Agent components are ignored while text and candidate state survive
   assert.equal(view.message.text, 'Still here');
   assert.equal(view.components.length, 1);
   assert.equal(view.components[0].who[0], 'Peter (being considered)');
-  const context = api.tradeContextView({ conversationId: 'c', version: 2, entities: [{ id: 'fact', type: 'AMOUNT', name: '100', state: 'CANDIDATE', attributes: { source: 'quotation' } }, { id: 'future', state: 'FUTURE', attributes: {} }], relationships: [] });
+  const context = api.tradeContextView({ conversationId: 'c', version: 2, entities: [{ id: 'fact', type: 'AMOUNT', name: '100', state: 'CANDIDATE', attributes: { source: 'quotation' } }, { id: 'future', type: 'FUTURE', name: 'Future fact', state: 'FUTURE', attributes: {} }], relationships: [] });
   assert.equal(context.candidates.length, 1);
   assert.equal(context.confirmed.length, 0);
   assert.equal(context.facts.length, 2);

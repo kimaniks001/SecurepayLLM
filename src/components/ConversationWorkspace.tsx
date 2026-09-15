@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { ConversationTurn, Understanding, AgentResponse } from '../types';
 import { MessageBubble, AgentTyping } from './MessageBubble';
 import { ConversationInput } from './ConversationInput';
@@ -48,7 +48,11 @@ import { ErrorStateCard } from './ErrorState';
 
 interface ConversationWorkspaceProps {
   turns: ConversationTurn[];
-  understanding: Understanding;
+  understanding?: Understanding;
+  understandingContent?: ReactNode;
+  conversationContent?: ReactNode;
+  inputDisabled?: boolean;
+  statusContent?: ReactNode;
   isThinking: boolean;
   onSend: (text: string) => void;
   selectedProviderId: string | null;
@@ -369,6 +373,7 @@ function ResponseRenderer({
 export function ConversationWorkspace({
   turns,
   understanding,
+  understandingContent, conversationContent, inputDisabled, statusContent,
   isThinking,
   onSend,
   selectedProviderId,
@@ -385,13 +390,14 @@ export function ConversationWorkspace({
       <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 space-y-4 pb-4">
         {/* Understanding drawer — mobile only */}
         <div className="md:hidden mb-2">
-          <UnderstandingDrawer
+          {understandingContent ?? (understanding && <UnderstandingDrawer
             understanding={understanding}
             expanded={understandingOpen}
             onToggle={() => setUnderstandingOpen((v) => !v)}
-          />
+          />)}
         </div>
 
+        {conversationContent}
         {turns.map((turn) => (
           <div key={turn.id} className="space-y-3">
             {turn.sender === 'user' && turn.responses.length > 0 && (
@@ -426,10 +432,11 @@ export function ConversationWorkspace({
         ))}
 
         {isThinking && <AgentTyping />}
+        {statusContent}
       </div>
 
       <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/60 backdrop-blur-sm">
-        <ConversationInput onSend={onSend} />
+        <ConversationInput onSend={onSend} disabled={inputDisabled} />
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import { FileText, ArrowRight, Eye } from 'lucide-react';
+import type { PreviewView } from '../api/securepay/agent/adapters';
 import type { AgreementPreviewResponse } from '../types';
 
 interface AgreementPreviewCardProps {
-  data: AgreementPreviewResponse;
+  data: AgreementPreviewResponse | PreviewView;
   onChoice?: (value: string) => void;
 }
 
@@ -16,7 +17,7 @@ export function AgreementPreviewCard({ data, onChoice }: AgreementPreviewCardPro
 
       <div className="p-4">
         <h3 className="font-display text-xl text-forest-800 mb-4 leading-tight animate-reveal-stagger" style={{ animationDelay: '0.15s' }}>
-          {data.title}
+          {'title' in data ? data.title : 'Trade taking shape'}
         </h3>
 
         {/* WHAT */}
@@ -38,8 +39,8 @@ export function AgreementPreviewCard({ data, onChoice }: AgreementPreviewCardPro
           <div className="space-y-1">
             {data.who.map((person, i) => (
               <div key={i} className="flex items-baseline gap-2 text-[0.875rem]">
-                <span className="font-medium text-forest-800">{person.name}</span>
-                <span className="text-sand-500">— {person.role}</span>
+                <span className="font-medium text-forest-800">{typeof person === 'string' ? person : person.name}</span>
+                {typeof person !== 'string' && <span className="text-sand-500">— {person.role}</span>}
               </div>
             ))}
           </div>
@@ -49,13 +50,13 @@ export function AgreementPreviewCard({ data, onChoice }: AgreementPreviewCardPro
         <div className="mb-4 animate-reveal-stagger" style={{ animationDelay: '0.45s' }}>
           <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1.5">Money</div>
           <div className="flex items-baseline gap-2">
-            <span className="font-display text-lg text-forest-800 font-medium">{data.money.amount}</span>
-            <span className="text-[0.78rem] text-sand-500">{data.money.note}</span>
+            <span className="font-display text-lg text-forest-800 font-medium">{Array.isArray(data.money) ? data.money.join(' · ') : data.money.amount}</span>
+            <span className="text-[0.78rem] text-sand-500">{Array.isArray(data.money) ? '' : data.money.note}</span>
           </div>
         </div>
 
         {/* MATERIALS */}
-        {data.materials && (
+        {'materials' in data && data.materials && (
           <div className="mb-4 animate-reveal-stagger" style={{ animationDelay: '0.55s' }}>
             <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1.5">Materials</div>
             <p className="text-[0.875rem] text-forest-800">{data.materials}</p>
@@ -65,7 +66,7 @@ export function AgreementPreviewCard({ data, onChoice }: AgreementPreviewCardPro
         {/* WHEN */}
         <div className="mb-4 animate-reveal-stagger" style={{ animationDelay: '0.65s' }}>
           <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1.5">When</div>
-          <p className="text-[0.875rem] text-forest-800">{data.when}</p>
+          <p className="text-[0.875rem] text-forest-800">{Array.isArray(data.when) ? data.when.join(' · ') : data.when}</p>
         </div>
 
         {/* STILL WORTH SETTLING — calm, deliberate */}
@@ -84,6 +85,7 @@ export function AgreementPreviewCard({ data, onChoice }: AgreementPreviewCardPro
           </ul>
         </div>
 
+        {'disclaimer' in data && <p className="text-[0.78rem] text-sand-600 mb-4">{data.disclaimer}</p>}
         {/* Actions */}
         <div className="flex gap-2 animate-reveal-stagger" style={{ animationDelay: '0.85s' }}>
           <button

@@ -1,5 +1,10 @@
 import { lazy, Suspense } from 'react';
+import { AgentExperience } from './features/agent/AgentExperience';
+import { createSecurePayApi } from './api/securepay';
 import { runtimeMode } from './config/securepay';
+
+let api: ReturnType<typeof createSecurePayApi> | undefined;
+try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, () => null); } catch { /* Missing configuration fails closed. */ }
 
 // Vite removes the unreachable fixture import from production builds.
 const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE === 'fixture'
@@ -12,8 +17,7 @@ export default function RuntimeApp() {
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }
-  // Foundation PR only: later slices mount real gateway-backed journeys here.
-  return <Unavailable />;
+  return api ? <AgentExperience gateway={api.agent} /> : <Unavailable />;
 }
 function Unavailable() {
   return <main className="min-h-screen bg-cream-50 text-forest-800 flex items-center justify-center p-6">
