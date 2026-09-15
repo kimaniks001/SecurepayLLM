@@ -236,3 +236,15 @@ Update this ledger on every production PR:
 - `HUMAN_DOCTRINE_BLOCKER`
 
 Do not mark a surface complete merely because it visually matches Bolt. A protected surface is complete only when its authority is real.
+
+## 11. Golden Spine A foundation (2026-09-15)
+
+Infrastructure only; no journey is marked REAL_API_WIRED. See
+[GOLDEN_SPINE_COMPATIBILITY_AUDIT.md](GOLDEN_SPINE_COMPATIBILITY_AUDIT.md).
+Agent runtime is also BACKEND_PR_PENDING (#197/#198); earlier available wording
+meant available on the stack, not merged to main. Typed gateways target inspected
+backend source, with all protected Bolt surfaces still
+DEMO_ONLY_REMOVE_BEFORE_PRODUCTION. The fixture App is available only through an
+explicit development fixture mode; production fails closed pending slices B–E.
+No API error selects fixtures. Auth, handoff, Agreement and Money gateway code is
+available for subsequent wiring; this does not complete a vertical slice.
