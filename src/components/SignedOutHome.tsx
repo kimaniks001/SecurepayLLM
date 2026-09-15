@@ -1,4 +1,4 @@
-import { AgentIcon } from './AgentIcon';
+import securepayLockup from '../assets/brand/securepay/securepay-lockup-by-keyman.png';
 import { ConversationInput } from './ConversationInput';
 
 interface SignedOutHomeProps {
@@ -10,9 +10,13 @@ export function SignedOutHome({ onStart, disabled }: SignedOutHomeProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 md:py-24">
       <div className="max-w-2xl w-full text-center">
-        {/* Agent icon */}
+        {/* SecurePay brand lockup */}
         <div className="flex justify-center mb-8 animate-fade-in-down">
-          <AgentIcon state="listening" size={64} />
+          <img
+            src={securepayLockup}
+            alt="SecurePay by KEYMAN — Money should follow the agreement."
+            className="h-44 sm:h-52 md:h-60 w-auto"
+          />
         </div>
 
         {/* Headline */}

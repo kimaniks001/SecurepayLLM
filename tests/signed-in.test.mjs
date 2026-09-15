@@ -273,7 +273,7 @@ import { SignedInHome } from './src/components/SignedInHome';
 const noop = () => {};
 export const fixtureMarkup = renderToStaticMarkup(React.createElement(SignedInHome, { onStart: noop, attentionItems: [], waitingItems: [], recentActivity: [], onOpenAgreement: noop, onNavigateAgreements: noop }));
 export const realMarkup = renderToStaticMarkup(React.createElement(SignedInHome, { onStart: noop, attentionItems: [], waitingItems: [], recentActivity: [], onOpenAgreement: noop, onNavigateAgreements: noop, greeting: 'Welcome back', subheading: 'Ask anything, or start something new.', suggestedPrompts: ['Help me set up a new trade'] }));`;
-  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
   const mod = { exports: {} };
   new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
   assert.match(mod.exports.fixtureMarkup, /Welcome back, James/);
@@ -286,7 +286,7 @@ export const realMarkup = renderToStaticMarkup(React.createElement(SignedInHome,
 });
 
 test('production build excludes fixture/demo sources and mockAgent from the signed-in workspace path', async () => {
-  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' } });
+  const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' }, loader: { '.png': 'dataurl' } });
   const paths = Object.keys(result.metafile.inputs);
   assert.equal(paths.some(path => /(?:mockAgent|moneyData|demoData|milestoneData|disputeData|src\/App\.tsx)/.test(path)), false);
   assert.equal(paths.some(path => /src\/features\/workspace\/(controller|view|WorkspaceExperience)\.tsx?$/.test(path)), true);
@@ -321,7 +321,11 @@ export const markup = [
   assert.deepEqual(await render(false), await render(true));
 });
 
-test('SignedInHome retains byte-identical fixture markup against Bolt when the new greeting/subheading/prompts props are omitted', async () => {
+// SignedInHome's canonical SecurePay brand mark (README.txt-approved: docs/CODEX_TASK_BRAND_VISUAL_CONSTITUTION.md)
+// is an explicitly approved correction to the locked Bolt experience, so this no longer asserts
+// byte-identical markup against the Bolt baseline (the old AgentIcon-as-logo glyph is intentionally
+// gone) — it instead asserts every non-brand-mark part of Bolt's fixture markup is untouched.
+test('SignedInHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -330,10 +334,29 @@ const noop = () => {};
 export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { onStart: noop, attentionItems: [], waitingItems: [], recentActivity: [], onOpenAgreement: noop, onNavigateAgreements: noop }));`;
   const touched = /src\/components\/SignedInHome\.tsx$/;
   async function render(baseline) {
-    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
+    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
     const mod = { exports: {} };
     new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
     return mod.exports.markup;
   }
-  assert.deepEqual(await render(false), await render(true));
+  const current = await render(false);
+  const baseline = await render(true);
+  assert.notEqual(current, baseline, 'expected the canonical brand mark swap to change SignedInHome markup');
+  // The old Bolt AgentIcon-as-logo glyph (a circle+shoulders SVG path) must be gone from the real component...
+  assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  // ...and the Bolt baseline fixture must still have it, proving the diff is really about the icon.
+  assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  // The canonical mark image must be present in its place.
+  assert.match(current, /<img[^>]*alt="SecurePay"/);
+  // Everything else — greeting, subheading, headline, conversation input — must be untouched.
+  for (const text of [
+    'Welcome back, James',
+    'SecurePay remembers your agreements, people and activity',
+    'What are you trying to make happen?',
+    'Ask SecurePay anything...',
+    'What did Peter agree to?',
+  ]) {
+    assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
+    assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
+  }
 });
