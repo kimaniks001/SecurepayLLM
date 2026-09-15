@@ -1,6 +1,6 @@
 import type {
   AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyRecordResponse,
-  CurrentUserActionResponse, CurrentUserAgreementSummaryResponse,
+  CurrentUserAgreementSummaryResponse,
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
@@ -52,22 +52,20 @@ const statusLabelText: Record<AgreementStatus, string> = {
   completed: 'Completed', cancelled: 'Cancelled', expired: 'Expired',
 };
 
-/** Where a known-status classification for this Agreement came from — always a real backend signal, never a locally recomputed lifecycle. */
-export type StatusOrigin = { kind: 'hub'; bucket: HubBucketKey } | { kind: 'home-attention' } | { kind: 'home-waiting' };
+/** Where a known-status classification for this Agreement came from — always a real backend signal, never a locally recomputed lifecycle. Signed-in Home and the Agreement Hub share the same Hub-bucket origin: Home is not a separate classification. */
+export type StatusOrigin = { kind: 'hub'; bucket: HubBucketKey };
 
 /**
  * The only status-classification logic on the frontend. It never reclassifies bucket membership —
  * `CANCELLED`/`EXPIRED`/`completion.completed` are read straight off the real summary (the same fields
  * the backend's own AgreementHubBucketClassifier checks first); everything else is exactly the bucket
- * the backend already put this Agreement in (or, from Home's plainer two-list contract, exactly which
- * of those two lists surfaced it).
+ * the backend already put this Agreement in.
  */
 export function boltAgreementStatus(summary: CurrentUserAgreementSummaryResponse, origin: StatusOrigin): AgreementStatus {
   if (summary.status === 'CANCELLED') return 'cancelled';
   if (summary.status === 'EXPIRED') return 'expired';
   if (summary.completion?.completed) return 'completed';
-  if (origin.kind === 'hub') return hubBucketStatus[origin.bucket];
-  return origin.kind === 'home-attention' ? 'waiting_for_me' : 'waiting_for_other';
+  return hubBucketStatus[origin.bucket];
 }
 
 export function agreementSummaryView(dto: CurrentUserAgreementSummaryResponse, origin: StatusOrigin): AgreementSummary {
@@ -105,33 +103,45 @@ export function findInHub(hub: HubDto, agreementId: string): { summary: CurrentU
   return null;
 }
 
-// ─── Signed-in Home: real /me/actions + /me/agreements only ─────────────────
+// ─── Signed-in Home: sourced only from the backend's own Hub buckets ────────
+//
+// Home renders the SAME authoritative classification as the Agreement Hub — never a local
+// re-derivation from whether an action happens to be present. In particular, a real Agreement can
+// carry a next action that is purely a passive wait (`NO_ACTION_REQUIRED`, `WAIT_FOR_DEPENDENCY`,
+// `WAIT_UNTIL_AVAILABLE`); the backend's own AgreementHubBucketClassifier excludes those from NEEDS_ME,
+// so this file must too.
 
-/** One attention item per real current-user next action. No dispute-specific kind is invented for codes this slice never reads. */
-export function attentionItemsView(actions: CurrentUserActionResponse[]): AttentionItem[] {
-  return actions.map(action => ({
-    id: `${action.agreementId}:${action.actionCode}`,
-    kind: 'agreement_action' as const,
-    title: action.agreementTitle,
-    detail: action.reason || humanizeCode(action.actionCode),
-    actionLabel: humanizeCode(action.actionCode),
-    actionValue: action.actionCode,
-    agreementId: action.agreementId,
-  }));
+const passiveActionCodes = new Set(['NO_ACTION_REQUIRED', 'WAIT_FOR_DEPENDENCY', 'WAIT_UNTIL_AVAILABLE']);
+
+/** One attention item per real non-passive next action on an Agreement the backend already classified NEEDS_ME. */
+export function attentionItemsFromHub(needsMe: CurrentUserAgreementSummaryResponse[]): AttentionItem[] {
+  const items: AttentionItem[] = [];
+  for (const agreement of needsMe) {
+    for (const action of agreement.nextActions) {
+      if (passiveActionCodes.has(action.actionCode)) continue;
+      items.push({
+        id: `${agreement.agreementId}:${action.actionCode}`,
+        kind: 'agreement_action' as const,
+        title: agreement.title,
+        detail: action.reason || humanizeCode(action.actionCode),
+        actionLabel: humanizeCode(action.actionCode),
+        actionValue: action.actionCode,
+        agreementId: agreement.agreementId,
+      });
+    }
+  }
+  return items;
 }
 
-/** An agreement is "waiting on others" only by real absence of any current-user action — never a re-derived lifecycle guess. */
-export function waitingItemsView(agreements: CurrentUserAgreementSummaryResponse[], actions: CurrentUserActionResponse[]): WaitingItem[] {
-  const withAction = new Set(actions.map(action => action.agreementId));
-  return agreements
-    .filter(a => !withAction.has(a.agreementId) && !a.completion?.completed && a.status !== 'CANCELLED' && a.status !== 'EXPIRED')
-    .map(a => ({
-      id: a.agreementId,
-      title: a.title,
-      detail: a.counterparty?.displayName ? `With ${a.counterparty.displayName}` : a.purpose,
-      statusText: humanizeCode(a.status),
-      agreementId: a.agreementId,
-    }));
+/** Sourced only from the backend's own WAITING_ON_OTHERS bucket — never re-derived from action absence. */
+export function waitingItemsFromHub(waitingOnOthers: CurrentUserAgreementSummaryResponse[]): WaitingItem[] {
+  return waitingOnOthers.map(a => ({
+    id: a.agreementId,
+    title: a.title,
+    detail: a.counterparty?.displayName ? `With ${a.counterparty.displayName}` : a.purpose,
+    statusText: humanizeCode(a.status),
+    agreementId: a.agreementId,
+  }));
 }
 
 // ─── Agreement Detail ─────────────────────────────────────────────────────

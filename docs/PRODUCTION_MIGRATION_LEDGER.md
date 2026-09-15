@@ -587,3 +587,59 @@ exposing the affordance, a same-agreement-only/known-action-only match, and
 `MoneyWorkspace`'s funding-flow gate proven by rendering it both ways and
 asserting the rail-picker markup's presence/absence. All prior Golden Spine
 A/B/C/D suites remain green.
+
+### 15.1 Review fixes (2026-09-15)
+
+Four authority/truthfulness issues flagged on PR #7 review, all fixed
+without redesigning any locked Bolt visual:
+
+1. `SignedInHome.tsx` hardcoded `Welcome back, James` and claimed `SecurePay
+   remembers your agreements, people and activity`, with personal-history
+   quick prompts (`What did Peter agree to?`, `Find my agreement with
+   Kamau`) — but the general Agent conversation endpoints remain
+   `auth: 'none'` and no authenticated Agreement/people/activity context is
+   wired into that orchestrator, so none of this was truthfully answerable.
+   The component gained three optional props (`greeting`/`subheading`/
+   `suggestedPrompts`) that default to the exact existing fixture strings
+   when omitted (verified byte-identical); `WorkspaceExperience` now passes
+   `"Welcome back"` (no name), a memory-free subheading, and generic
+   trade-intent prompts the signed-out Agent already truthfully handles.
+2. Home's `waitingItemsView`/`attentionItemsView` re-derived NEEDS_ME/
+   WAITING_ON_OTHERS locally from action presence/absence, which diverges
+   from the backend's own `AgreementHubBucketClassifier` (e.g. it excludes
+   passive `WAIT_FOR_DEPENDENCY`/`WAIT_UNTIL_AVAILABLE`/`NO_ACTION_REQUIRED`
+   actions from NEEDS_ME, and a DRAFT/TAKING_SHAPE Agreement is never
+   WAITING_ON_OTHERS). Home now shares the same one Hub read the Agreement
+   Hub page already uses (`state.hub` in `controller.ts`, no separate
+   `state.home`); `attentionItemsFromHub(hub.needsMe)` and
+   `waitingItemsFromHub(hub.waitingOnOthers)` render exactly the backend's
+   own buckets, filtering only the documented passive action codes.
+3. `openDetail`/`refreshDetail` used
+   `gateway.confirmationStatus(...).catch(() => [])`, so a genuine
+   confirmation-status failure silently became an empty list that
+   `agreementDetailView` would then render as if every participant's
+   confirmation state were authoritatively known (falling back to
+   `participantStatus`). The `.catch` is removed; both reads are now
+   `Promise.all`-required, so a confirmation-status failure fails the whole
+   Agreement Detail load closed (the existing `ErrorStateCard` path),
+   exactly like a `detail()` failure already did.
+4. Agreement Detail's inline Money summary derived `fundActionAvailable`
+   from cached Home actions, which could go stale. Per the smallest-change
+   option in the review, the inline summary now always passes
+   `fundActionAvailable: false` — Payment Ready still renders in full, but
+   no financial next-action claim appears there; the dedicated Money view
+   (already fetching `/me/actions` fresh on every open) remains the sole
+   place the Fund affordance is gated from current authority.
+
+New/updated tests in `tests/signed-in.test.mjs`: A–E prove Home's two lists
+come only from the real `needsMe`/`waitingOnOthers` buckets (DRAFT never
+reclassified, ACTIVE-with-no-action never "waiting", WAITING_ON_OTHERS
+rendered as-is, a passive-only action list produces no "needs you" item,
+CHANGED_REVIEW_REQUIRED stays distinct); two tests drive
+`createWorkspaceController` against a fake gateway to prove a failing
+`confirmationStatus` fails Detail closed while a succeeding one still
+renders real per-participant state; a source-pattern regression test
+proves the inline Detail Money summary can no longer read `state.home` and
+always passes `fundActionAvailable: false`; and two rendering tests prove
+`SignedInHome`'s new props default to byte-identical fixture markup while
+real-mode values never contain "James" or the memory claim.

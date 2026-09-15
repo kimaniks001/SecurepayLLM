@@ -1,7 +1,7 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
-  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyRecordResponse,
-  CurrentUserActionResponse, CurrentUserAgreementSummaryResponse,
+  AgreementDetailResponse, AgreementConfirmationStatusResponse, AgreementMoneyRecordResponse,
+  CurrentUserAgreementSummaryResponse,
 } from '../../api/securepay/agreements/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -23,7 +23,6 @@ function asApiError(error: unknown): ApiError {
 
 export type WorkspaceView = 'home' | 'hub' | 'detail' | 'money';
 
-export interface HomeData { agreements: CurrentUserAgreementSummaryResponse[]; actions: CurrentUserActionResponse[] }
 export interface DetailData { dto: AgreementDetailResponse; confirmations: AgreementConfirmationStatusResponse[] }
 export type MoneyLoad =
   | { kind: 'unavailable'; message: string }
@@ -37,7 +36,11 @@ export type MoneyLoad =
 
 export interface WorkspaceState {
   view: WorkspaceView;
-  home: RemoteState<HomeData>;
+  /**
+   * The single source for both Signed-in Home and the Agreement Hub. Home is not a separate read —
+   * it renders exactly the backend's own `needsMe`/`waitingOnOthers` buckets (see attentionItemsFromHub/
+   * waitingItemsFromHub in view.ts), never a locally re-derived classification from action presence.
+   */
   hub: RemoteState<HubDto>;
   selectedAgreementId: string | null;
   selectedStatus: AgreementStatus | null;
@@ -48,12 +51,12 @@ export interface WorkspaceState {
 
 const initial: WorkspaceState = {
   view: 'home',
-  home: { status: 'idle' }, hub: { status: 'idle' },
+  hub: { status: 'idle' },
   selectedAgreementId: null, selectedStatus: null, selectedCompletion: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
-type Gateway = Pick<AgreementGateway, 'currentUserAgreements' | 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
+type Gateway = Pick<AgreementGateway, 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
 
@@ -62,28 +65,17 @@ type Gateway = Pick<AgreementGateway, 'currentUserAgreements' | 'currentUserActi
  * view.ts) — never a locally recomputed lifecycle, Payment Ready value, or financial permission. Every
  * navigation method fetches from the authoritative endpoint for that view; Money always refetches
  * `/me/actions` fresh so a stale cached action can never expose a financial affordance after a failed
- * refresh.
+ * refresh. Agreement Detail's confirmation-status read is not allowed to fail silently: a failure there
+ * fails the whole Detail load closed rather than rendering participant confirmation state as if it were
+ * known.
  */
 export function createWorkspaceController(gateway: Gateway) {
   let state: WorkspaceState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<WorkspaceState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
-  async function loadHome() {
-    update({ view: 'home', home: { status: 'loading' } });
-    try {
-      const [agreementsPage, actionsPage] = await Promise.all([
-        gateway.currentUserAgreements(0, 100),
-        gateway.currentUserActions(0, 100),
-      ]);
-      update({ home: { status: 'ready', data: { agreements: agreementsPage.items, actions: actionsPage.items } } });
-    } catch (error) {
-      update({ home: { status: 'error', error: asApiError(error) } });
-    }
-  }
-
-  async function loadHub() {
-    update({ view: 'hub', hub: { status: 'loading' } });
+  async function loadHub(view: 'home' | 'hub') {
+    update({ view, hub: { status: 'loading' } });
     try {
       const hub = await gateway.hub();
       update({ hub: { status: 'ready', data: hub } });
@@ -97,9 +89,13 @@ export function createWorkspaceController(gateway: Gateway) {
     const completion: DetailCompletion = { completed: !!summary.completion?.completed, completedAt: summary.completion?.completedAt ?? null };
     update({ view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion, detail: { status: 'loading' } });
     try {
+      // Both reads are required: a confirmation-status failure must never be silently treated as "no
+      // participant has confirmed anything" — that would render an apparently authoritative confirmation
+      // state (Confirmed current version / Joined — Not yet confirmed / Not yet joined) from a read that
+      // never actually succeeded. Detail fails closed instead.
       const [dto, confirmations] = await Promise.all([
         gateway.detail(summary.agreementId),
-        gateway.confirmationStatus(summary.agreementId).catch(() => [] as AgreementConfirmationStatusResponse[]),
+        gateway.confirmationStatus(summary.agreementId),
       ]);
       update({ detail: { status: 'ready', data: { dto, confirmations } } });
     } catch (error) {
@@ -107,30 +103,24 @@ export function createWorkspaceController(gateway: Gateway) {
     }
   }
 
+  function openById(agreementId: string) {
+    if (state.hub.status !== 'ready') return;
+    const found = findInHub(state.hub.data, agreementId);
+    if (!found) return;
+    void openDetail(found.summary, found.origin);
+  }
+
   return {
     getSnapshot: (): WorkspaceState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
-    enter() { if (state.home.status === 'idle') void loadHome(); },
-    goHome() { void loadHome(); },
-    goHub() { void loadHub(); },
+    enter() { if (state.hub.status === 'idle') void loadHub('home'); },
+    goHome() { void loadHub('home'); },
+    goHub() { void loadHub('hub'); },
 
-    /** From Signed-in Home: only the two real lists Home itself renders can be the origin. */
-    openFromHome(agreementId: string) {
-      if (state.home.status !== 'ready') return;
-      const summary = state.home.data.agreements.find(a => a.agreementId === agreementId);
-      if (!summary) return;
-      const hasAction = state.home.data.actions.some(a => a.agreementId === agreementId);
-      void openDetail(summary, hasAction ? { kind: 'home-attention' } : { kind: 'home-waiting' });
-    },
-
-    /** From the Agreement Hub: the real bucket the card is displayed under. */
-    openFromHub(agreementId: string) {
-      if (state.hub.status !== 'ready') return;
-      const found = findInHub(state.hub.data, agreementId);
-      if (!found) return;
-      void openDetail(found.summary, found.origin);
-    },
+    /** From Signed-in Home or the Agreement Hub: both render the same authoritative Hub buckets. */
+    openFromHome(agreementId: string) { openById(agreementId); },
+    openFromHub(agreementId: string) { openById(agreementId); },
 
     /** Re-reads the same selected Agreement's Detail projection fresh (e.g. after a changed-version notice). */
     async refreshDetail() {
@@ -140,7 +130,7 @@ export function createWorkspaceController(gateway: Gateway) {
       try {
         const [dto, confirmations] = await Promise.all([
           gateway.detail(id),
-          gateway.confirmationStatus(id).catch(() => [] as AgreementConfirmationStatusResponse[]),
+          gateway.confirmationStatus(id),
         ]);
         update({ detail: { status: 'ready', data: { dto, confirmations } } });
       } catch (error) {

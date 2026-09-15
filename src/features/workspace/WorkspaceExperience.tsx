@@ -10,11 +10,22 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
-import { agreementDetailView, agreementProgressView, attentionItemsView, hubAgreementSummaries, moneyDetailView, waitingItemsView } from './view';
+import { agreementDetailView, agreementProgressView, attentionItemsFromHub, hubAgreementSummaries, moneyDetailView, waitingItemsFromHub } from './view';
 
-type Gateway = Pick<AgreementGateway, 'currentUserAgreements' | 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
+type Gateway = Pick<AgreementGateway, 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
+
+/**
+ * There is no verified authenticated display-name contract, and the general Agent conversation
+ * endpoints remain `auth: 'none'` with no signed-in Agreement/people/activity context wired into
+ * them (see Golden Spine A/B). Real mode must never claim a person's name or an account-aware Agent
+ * memory, and its suggested prompts must never presuppose personal Agreement history the Agent cannot
+ * truthfully answer — they mirror the kind of trade-intent prompt the signed-out Agent already handles.
+ */
+const realGreeting = 'Welcome back';
+const realSubheading = 'Ask anything, or start something new.';
+const realSuggestedPrompts = ['Help me set up a new trade', 'I need someone to fix a leaking tap', 'What is Payment Ready?', 'How do I invite someone to an agreement?'];
 
 function errorStateView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -50,15 +61,17 @@ export function WorkspaceExperience({ gateway, onLeave }: { gateway: Gateway; on
   let body: React.ReactNode;
 
   if (state.view === 'home') {
-    if (state.home.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.home.error))} onChoice={() => controller.goHome()} /></div>;
-    else if (state.home.status !== 'ready') body = <LoadingNotice text="Loading your SecurePay agreements…" />;
+    if (state.hub.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.hub.error))} onChoice={() => controller.goHome()} /></div>;
+    else if (state.hub.status !== 'ready') body = <LoadingNotice text="Loading your SecurePay agreements…" />;
     else {
-      const { agreements, actions } = state.home.data;
       body = (
         <SignedInHome
           onStart={text => onLeave(text)}
-          attentionItems={attentionItemsView(actions)}
-          waitingItems={waitingItemsView(agreements, actions)}
+          greeting={realGreeting}
+          subheading={realSubheading}
+          suggestedPrompts={realSuggestedPrompts}
+          attentionItems={attentionItemsFromHub(state.hub.data.needsMe)}
+          waitingItems={waitingItemsFromHub(state.hub.data.waitingOnOthers)}
           // No cross-agreement activity-feed contract is verified in this slice; a fabricated feed
           // would violate the never-fabricate-financial/agreement-history rule, so this stays empty.
           recentActivity={[]}
@@ -81,15 +94,17 @@ export function WorkspaceExperience({ gateway, onLeave }: { gateway: Gateway; on
       const { dto, confirmations } = state.detail.data;
       const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
       const progress = agreementProgressView(dto);
-      // Passive summary only (no CTA here — MoneyStatus's next-actions list is informational text, not
-      // a button); the actual Fund affordance is re-gated from a fresh /me/actions read in Money itself.
-      const homeActions = state.home.status === 'ready' ? state.home.data.actions : [];
+      // Detail's inline Money summary never claims a financial next action: doing so would require
+      // either a fresh authoritative /me/actions read on every Detail load (duplicating Money's own
+      // fetch) or reusing a cache that can go stale the moment a fresh refresh fails elsewhere. The
+      // dedicated Money view (via "Open Money") already refetches /me/actions fresh on every open and
+      // is the sole place the Fund affordance is gated from real, current authority.
       const money = dto.money.status === 'NO_EVALUATION_YET' || dto.money.status === 'READY' || dto.money.status === 'NOT_READY' || dto.money.status === 'PARTIALLY_READY' || dto.money.status === 'BLOCKED'
         ? moneyDetailView({
             agreementId: boltDetail.id, agreementTitle: boltDetail.title, agreementVersion: boltDetail.version,
             currency: dto.overview.currency, amountMinor: dto.overview.proposedAmountMinor,
             readiness: dto.money.status, outstandingReasons: dto.money.outstandingReasons, moneyRecordCount: dto.money.moneyRecordCount,
-            records: [], fundActionAvailable: homeActions.some(a => a.agreementId === boltDetail.id && a.actionCode === 'FUND_AGREEMENT'),
+            records: [], fundActionAvailable: false,
           })
         : null; // An unrecognized status fails closed to no Money summary rather than a guessed one.
       body = (
