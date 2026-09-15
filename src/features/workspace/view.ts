@@ -40,6 +40,16 @@ export type HubBucketKey = 'needsMe' | 'waitingOnOthers' | 'takingShape' | 'acti
 
 const hubBucketOrder: HubBucketKey[] = ['needsMe', 'waitingOnOthers', 'changedReviewRequired', 'takingShape', 'active', 'completed', 'cancelled', 'expired'];
 
+/**
+ * Lookup priority for `findInHub` only, when the same Agreement id is unexpectedly present in more
+ * than one bucket (malformed backend data — buckets are meant to be mutually exclusive).
+ * `changedReviewRequired` must win over `needsMe`, matching the same priority
+ * `attentionItemsFromHub` already applies on Home; this keeps that priority consistent between what
+ * Home displays and what opening the item actually resolves to. Unrelated to `hubBucketOrder`'s Hub
+ * page display order, which this does not change.
+ */
+const hubLookupOrder: HubBucketKey[] = ['changedReviewRequired', 'needsMe', 'waitingOnOthers', 'takingShape', 'active', 'completed', 'cancelled', 'expired'];
+
 const hubBucketStatus: Record<HubBucketKey, AgreementStatus> = {
   needsMe: 'waiting_for_me', waitingOnOthers: 'waiting_for_other', takingShape: 'taking_shape',
   active: 'active', changedReviewRequired: 'change_requested', completed: 'completed',
@@ -96,7 +106,7 @@ export function hubAgreementSummaries(hub: HubDto): AgreementSummary[] {
 
 /** Finds the exact CurrentUserAgreementSummaryResponse + real bucket an id came from, for Detail's carried-forward status. */
 export function findInHub(hub: HubDto, agreementId: string): { summary: CurrentUserAgreementSummaryResponse; origin: StatusOrigin } | null {
-  for (const bucket of hubBucketOrder) {
+  for (const bucket of hubLookupOrder) {
     const match = hub[bucket].find(item => item.agreementId === agreementId);
     if (match) return { summary: match, origin: { kind: 'hub', bucket } };
   }
@@ -130,16 +140,23 @@ export function attentionItemsFromHub(changedReviewRequired: CurrentUserAgreemen
   for (const agreement of changedReviewRequired) {
     if (seenAgreementIds.has(agreement.agreementId)) continue;
     seenAgreementIds.add(agreement.agreementId);
-    // The bucket's own real backend classification is the authority here; the matching action (when
-    // present in this Agreement's own nextActions) supplies the real reason text, never fabricated.
+    // The bucket's own real backend classification is the authority for WHICH Agreement needs review;
+    // the item's action/reason text still comes only from that Agreement's own real
+    // RECONFIRM_AGREEMENT_VERSION next action. If bucket membership and the summary's own nextActions
+    // ever drift (a malformed/inconsistent backend response), never synthesize a fabricated
+    // actionCode/reason to paper over it — there is no existing non-actionable presentation for a
+    // single Home attention item to fall back to without inventing one, so this Agreement is simply
+    // omitted from Home's "Needs you" list rather than shown with invented text. It remains visible,
+    // correctly bucketed, on the Agreement Hub page, and still resolves to `change_requested` if opened.
     const reconfirm = agreement.nextActions.find(a => a.actionCode === RECONFIRM_ACTION_CODE);
+    if (!reconfirm) continue;
     items.push({
-      id: `${agreement.agreementId}:${reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE}`,
+      id: `${agreement.agreementId}:${reconfirm.actionCode}`,
       kind: 'agreement_changed' as const,
       title: agreement.title,
-      detail: reconfirm?.reason || humanizeCode(reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE),
-      actionLabel: humanizeCode(reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE),
-      actionValue: reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE,
+      detail: reconfirm.reason || humanizeCode(reconfirm.actionCode),
+      actionLabel: humanizeCode(reconfirm.actionCode),
+      actionValue: reconfirm.actionCode,
       agreementId: agreement.agreementId,
     });
   }

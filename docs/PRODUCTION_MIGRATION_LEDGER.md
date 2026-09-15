@@ -679,3 +679,44 @@ distinct `agreement_changed` kind, not `agreement_action`; never appears in
 Waiting on others; opening it resolves through the real Hub lookup and
 preserves `change_requested`) plus `F` (no duplicate item if the same
 Agreement is malformed into both buckets).
+
+### 15.3 Review fix: two defensive edge cases in the changed-review path (2026-09-15)
+
+Two further corrections flagged on PR #7 review, both in the same 15.2 code:
+
+1. `attentionItemsFromHub`'s `changedReviewRequired` loop previously used
+   `reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE` — if a
+   `changedReviewRequired` summary's own `nextActions` never actually
+   contained a real `RECONFIRM_AGREEMENT_VERSION` entry (bucket membership
+   and the summary drifting apart, a malformed/inconsistent backend
+   response), this synthesized a fabricated `actionValue`/`actionLabel`/
+   `detail` rather than using real data. It now fails closed: `if
+   (!reconfirm) continue;` — that Agreement is simply omitted from Home's
+   "Needs you" list rather than shown with invented text. No existing
+   non-actionable "unavailable" presentation exists for a single Home
+   attention item, and inventing one was out of scope, so omission is the
+   correct minimal fail-closed behavior; the Agreement stays correctly
+   bucketed and visible on the Agreement Hub page regardless, and still
+   resolves to `change_requested` if somehow opened. A normal
+   `changedReviewRequired` item with a real `RECONFIRM_AGREEMENT_VERSION`
+   action is completely unaffected.
+2. `findInHub` used the same `hubBucketOrder` as the Hub page's display
+   flattening, which searches `needsMe` before `changedReviewRequired`. So
+   although `attentionItemsFromHub` already gave `changedReviewRequired`
+   priority for a malformed duplicate-bucket Agreement, clicking that same
+   Home item resolved through `findInHub` as `needsMe` — Agreement Detail
+   would have received `waiting_for_me`, silently losing
+   `change_requested`. A new `hubLookupOrder` (search order only, not
+   display order — `hubBucketOrder` is untouched) puts
+   `changedReviewRequired` first, so `findInHub`'s priority now matches
+   `attentionItemsFromHub`'s. This is duplicate-bucket conflict resolution
+   between the backend's own buckets only — no lifecycle is inferred or
+   reclassified locally.
+
+Tests: `G` proves a `changedReviewRequired` summary with no real
+`RECONFIRM_AGREEMENT_VERSION` action (empty `nextActions`, or only an
+unrelated action) emits no Home item, while a normal valid entry in the
+same call is unaffected; `H` proves a malformed
+`changedReviewRequired`+`needsMe` overlap still resolves through
+`findInHub` with `bucket === 'changedReviewRequired'` and
+`boltAgreementStatus(...) === 'change_requested'`.

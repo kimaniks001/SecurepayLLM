@@ -139,6 +139,30 @@ test('F. changedReviewRequired takes priority and is never duplicated if the sam
   assert.equal(items[0].kind, 'agreement_changed');
 });
 
+test('G. changedReviewRequired without a real RECONFIRM_AGREEMENT_VERSION action does not synthesize one and emits no actionable Home item', () => {
+  // Bucket membership and the summary's own nextActions have drifted (malformed backend response) —
+  // no RECONFIRM_AGREEMENT_VERSION action actually exists on this Agreement.
+  const driftedNoAction = summary({ agreementId: 'a1', nextActions: [] });
+  assert.deepEqual(api.attentionItemsFromHub([driftedNoAction], []), []);
+  const driftedOtherAction = summary({ agreementId: 'a2', nextActions: [nextAction({ actionCode: 'SUBMIT_EVIDENCE', reason: 'Unrelated' })] });
+  assert.deepEqual(api.attentionItemsFromHub([driftedOtherAction], []), []);
+  // A normal, valid changedReviewRequired item (real RECONFIRM_AGREEMENT_VERSION present) is unaffected.
+  const valid = summary({ agreementId: 'a3', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'Changed' })] });
+  const items = api.attentionItemsFromHub([driftedNoAction, driftedOtherAction, valid], []);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].agreementId, 'a3');
+  assert.equal(items[0].kind, 'agreement_changed');
+});
+
+test('H. malformed changedReviewRequired+needsMe overlap still resolves through findInHub as changedReviewRequired, preserving change_requested', () => {
+  const overlapping = summary({ agreementId: 'a1', status: 'CONFIRMATION_PENDING', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'Changed' }), nextAction({ actionCode: 'FUND_AGREEMENT' })] });
+  const h = hub({ changedReviewRequired: [overlapping], needsMe: [overlapping] });
+  const found = api.findInHub(h, 'a1');
+  assert.ok(found);
+  assert.equal(found.origin.bucket, 'changedReviewRequired');
+  assert.equal(api.boltAgreementStatus(found.summary, found.origin), 'change_requested');
+});
+
 test('Agreement Detail is composed from the real backend detail projection; empty sections stay empty, not fabricated', () => {
   const dto = {
     overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile', description: 'Retile the bathroom', agreementType: 'SERVICE', status: 'PARTICIPANTS_JOINING', currency: 'KES', proposedAmountMinor: '680000', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-10T00:00:00Z', expiresAt: null },
