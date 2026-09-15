@@ -70,7 +70,7 @@ export function WorkspaceExperience({ gateway, onLeave }: { gateway: Gateway; on
           greeting={realGreeting}
           subheading={realSubheading}
           suggestedPrompts={realSuggestedPrompts}
-          attentionItems={attentionItemsFromHub(state.hub.data.needsMe)}
+          attentionItems={attentionItemsFromHub(state.hub.data.changedReviewRequired, state.hub.data.needsMe)}
           waitingItems={waitingItemsFromHub(state.hub.data.waitingOnOthers)}
           // No cross-agreement activity-feed contract is verified in this slice; a fabricated feed
           // would violate the never-fabricate-financial/agreement-history rule, so this stays empty.

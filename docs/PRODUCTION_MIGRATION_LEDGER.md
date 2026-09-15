@@ -643,3 +643,39 @@ proves the inline Detail Money summary can no longer read `state.home` and
 always passes `fundActionAvailable: false`; and two rendering tests prove
 `SignedInHome`'s new props default to byte-identical fixture markup while
 real-mode values never contain "James" or the memory claim.
+
+### 15.2 Review fix: CHANGED_REVIEW_REQUIRED must still surface on Home (2026-09-15)
+
+One further correction flagged on PR #7 review: 15.1's fix (2) fed Home's
+"Needs you" list from `hub.needsMe` only. The backend's own
+`AgreementHubBucketClassifier` checks `RECONFIRM_AGREEMENT_VERSION` (→
+`CHANGED_REVIEW_REQUIRED`) *before* general `NEEDS_ME`, so an Agreement
+needing this person's reconfirmation is never in `needsMe` — it had
+silently disappeared from Home entirely.
+
+`attentionItemsFromHub` now takes both `changedReviewRequired` and
+`needsMe` (in that priority order) and keeps them as two distinct,
+mutually-exclusive real classifications rather than merging one into the
+other: a `changedReviewRequired` Agreement renders under the locked Bolt
+`agreement_changed` kind ("Change requested"), using only that Agreement's
+own real `RECONFIRM_AGREEMENT_VERSION` action's `reason` (or a humanized
+fallback of the same real code); a `needsMe` Agreement keeps rendering
+under the existing generic `agreement_action` kind. A `Set` of seen
+Agreement ids prevents a duplicate item if malformed backend data ever
+placed the same Agreement in both buckets — `changedReviewRequired` wins,
+`needsMe` is skipped for that Agreement, never both. `waitingItemsFromHub`
+is unchanged (still fed only the real `waitingOnOthers` bucket).
+Opening a changed-review Home item was already correct without further
+change: `openFromHome`/`openFromHub` both resolve through the same
+`findInHub`, which locates the Agreement's one real bucket
+(`changedReviewRequired`) and `boltAgreementStatus` already maps that
+bucket to `change_requested` — Agreement Detail's stale/review-required
+treatment was never at risk, only Home's own list was missing the item.
+
+Tests: replaced the prior test that merely asserted `changedReviewRequired`
+stayed absent from Home (an assertion of the bug, not a guard against it)
+with `E1`–`E4` (appears in Needs you from the real bucket; uses the
+distinct `agreement_changed` kind, not `agreement_action`; never appears in
+Waiting on others; opening it resolves through the real Hub lookup and
+preserves `change_requested`) plus `F` (no duplicate item if the same
+Agreement is malformed into both buckets).

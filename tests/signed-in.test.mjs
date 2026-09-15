@@ -57,9 +57,9 @@ test('TAKING_SHAPE is never promoted to Agreement/ACTIVE by the frontend', () =>
 
 test('A. Home never reclassifies a DRAFT/TAKING_SHAPE Agreement into Needs you or Waiting on others', () => {
   const draft = summary({ agreementId: 'a1', status: 'DRAFT' });
-  // Home's two lists only ever receive the needsMe/waitingOnOthers bucket arrays (see
-  // WorkspaceExperience.tsx); a taking-shape Agreement that is not in either bucket cannot appear.
-  assert.deepEqual(api.attentionItemsFromHub([]), []);
+  // Home's two lists only ever receive the changedReviewRequired/needsMe/waitingOnOthers bucket arrays
+  // (see WorkspaceExperience.tsx); a taking-shape Agreement that is not in any of those cannot appear.
+  assert.deepEqual(api.attentionItemsFromHub([], []), []);
   assert.deepEqual(api.waitingItemsFromHub([]), []);
   // Even if a caller mistakenly fed the takingShape bucket into the waiting list, nothing here
   // reclassifies it — it renders exactly the item given, but the real call site (WorkspaceExperience)
@@ -88,20 +88,55 @@ test('C. Waiting on others comes only from the real backend bucket, rendered as-
 
 test('D. A passive wait action does not create a "Needs you" item', () => {
   const passiveOnly = summary({ agreementId: 'a1', nextActions: [nextAction({ actionCode: 'WAIT_FOR_DEPENDENCY' }), nextAction({ actionCode: 'WAIT_UNTIL_AVAILABLE' }), nextAction({ actionCode: 'NO_ACTION_REQUIRED' })] });
-  assert.deepEqual(api.attentionItemsFromHub([passiveOnly]), []);
+  assert.deepEqual(api.attentionItemsFromHub([], [passiveOnly]), []);
   const mixed = summary({ agreementId: 'a2', nextActions: [nextAction({ actionCode: 'WAIT_FOR_DEPENDENCY' }), nextAction({ actionCode: 'FUND_AGREEMENT' })] });
-  const items = api.attentionItemsFromHub([mixed]);
+  const items = api.attentionItemsFromHub([], [mixed]);
   assert.equal(items.length, 1);
   assert.equal(items[0].actionValue, 'FUND_AGREEMENT');
 });
 
-test('E. CHANGED_REVIEW_REQUIRED remains distinct from Needs you / Waiting on others', () => {
-  const changed = summary({ agreementId: 'a1', status: 'CONFIRMATION_PENDING', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'The agreement changed' })] });
+// ─── CHANGED_REVIEW_REQUIRED must surface on Home Needs you, not disappear (regression for PR #7 review) ─
+
+test('E1. RECONFIRM_AGREEMENT_VERSION / changed-review appears in Home Needs you, sourced from the real changedReviewRequired bucket', () => {
+  const changed = summary({ agreementId: 'a1', title: 'Catering — Grace', status: 'CONFIRMATION_PENDING', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'The agreement changed and needs your reconfirmation' })] });
+  const items = api.attentionItemsFromHub([changed], []);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].agreementId, 'a1');
+  assert.equal(items[0].title, 'Catering — Grace');
+  assert.equal(items[0].detail, 'The agreement changed and needs your reconfirmation');
+  assert.equal(items[0].actionValue, 'RECONFIRM_AGREEMENT_VERSION');
+});
+
+test('E2. a changed-review item uses the distinct agreement_changed kind, not the generic agreement_action kind', () => {
+  const changed = summary({ agreementId: 'a1', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'Changed' })] });
+  const needsMeItem = summary({ agreementId: 'a2', nextActions: [nextAction({ actionCode: 'FUND_AGREEMENT' })] });
+  const items = api.attentionItemsFromHub([changed], [needsMeItem]);
+  assert.equal(items.find(i => i.agreementId === 'a1').kind, 'agreement_changed');
+  assert.equal(items.find(i => i.agreementId === 'a2').kind, 'agreement_action');
+});
+
+test('E3. a changed-review Agreement does not appear in Waiting on others', () => {
+  const changed = summary({ agreementId: 'a1', status: 'CONFIRMATION_PENDING', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION' })] });
   const h = hub({ changedReviewRequired: [changed] });
-  assert.deepEqual(api.hubAgreementSummaries(h).map(a => a.status), ['change_requested']);
-  // Home's two lists are fed only needsMe/waitingOnOthers — changedReviewRequired never reaches them.
-  assert.deepEqual(api.attentionItemsFromHub([]), []);
-  assert.deepEqual(api.waitingItemsFromHub([]), []);
+  // Waiting on others is sourced only from the real waitingOnOthers bucket — changedReviewRequired is
+  // never fed into it, matching the mutually exclusive bucket the backend itself put this Agreement in.
+  assert.deepEqual(api.waitingItemsFromHub(h.waitingOnOthers), []);
+});
+
+test('E4. opening a changed-review Home item resolves through the real Hub lookup and preserves change_requested into Agreement Detail', () => {
+  const changed = summary({ agreementId: 'a1', status: 'CONFIRMATION_PENDING', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION' })] });
+  const h = hub({ changedReviewRequired: [changed] });
+  const found = api.findInHub(h, 'a1');
+  assert.ok(found);
+  assert.deepEqual(found.origin, { kind: 'hub', bucket: 'changedReviewRequired' });
+  assert.equal(api.boltAgreementStatus(found.summary, found.origin), 'change_requested');
+});
+
+test('F. changedReviewRequired takes priority and is never duplicated if the same Agreement is also (incorrectly) present in needsMe', () => {
+  const overlapping = summary({ agreementId: 'a1', nextActions: [nextAction({ actionCode: 'RECONFIRM_AGREEMENT_VERSION', reason: 'Changed' }), nextAction({ actionCode: 'FUND_AGREEMENT' })] });
+  const items = api.attentionItemsFromHub([overlapping], [overlapping]);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].kind, 'agreement_changed');
 });
 
 test('Agreement Detail is composed from the real backend detail projection; empty sections stay empty, not fabricated', () => {

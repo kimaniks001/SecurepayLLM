@@ -112,11 +112,42 @@ export function findInHub(hub: HubDto, agreementId: string): { summary: CurrentU
 // so this file must too.
 
 const passiveActionCodes = new Set(['NO_ACTION_REQUIRED', 'WAIT_FOR_DEPENDENCY', 'WAIT_UNTIL_AVAILABLE']);
+const RECONFIRM_ACTION_CODE = 'RECONFIRM_AGREEMENT_VERSION';
 
-/** One attention item per real non-passive next action on an Agreement the backend already classified NEEDS_ME. */
-export function attentionItemsFromHub(needsMe: CurrentUserAgreementSummaryResponse[]): AttentionItem[] {
+/**
+ * Home's "Needs you" surface is composed from TWO distinct, mutually exclusive backend buckets —
+ * `changedReviewRequired` and `needsMe` — because the backend's own AgreementHubBucketClassifier
+ * checks `RECONFIRM_AGREEMENT_VERSION` (→ CHANGED_REVIEW_REQUIRED) *before* general NEEDS_ME, so an
+ * Agreement needing this person's reconfirmation is never in `needsMe` at all. Each Agreement stays
+ * tagged with its own real bucket — a changed-review item never becomes a generic `agreement_action`
+ * item, and is never duplicated if malformed backend data placed the same Agreement in both buckets
+ * (the `changedReviewRequired` classification wins; `needsMe` is skipped for that Agreement).
+ */
+export function attentionItemsFromHub(changedReviewRequired: CurrentUserAgreementSummaryResponse[], needsMe: CurrentUserAgreementSummaryResponse[]): AttentionItem[] {
   const items: AttentionItem[] = [];
+  const seenAgreementIds = new Set<string>();
+
+  for (const agreement of changedReviewRequired) {
+    if (seenAgreementIds.has(agreement.agreementId)) continue;
+    seenAgreementIds.add(agreement.agreementId);
+    // The bucket's own real backend classification is the authority here; the matching action (when
+    // present in this Agreement's own nextActions) supplies the real reason text, never fabricated.
+    const reconfirm = agreement.nextActions.find(a => a.actionCode === RECONFIRM_ACTION_CODE);
+    items.push({
+      id: `${agreement.agreementId}:${reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE}`,
+      kind: 'agreement_changed' as const,
+      title: agreement.title,
+      detail: reconfirm?.reason || humanizeCode(reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE),
+      actionLabel: humanizeCode(reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE),
+      actionValue: reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE,
+      agreementId: agreement.agreementId,
+    });
+  }
+
   for (const agreement of needsMe) {
+    // This Agreement's real bucket is changedReviewRequired, not needsMe — skip rather than duplicate.
+    if (seenAgreementIds.has(agreement.agreementId)) continue;
+    seenAgreementIds.add(agreement.agreementId);
     for (const action of agreement.nextActions) {
       if (passiveActionCodes.has(action.actionCode)) continue;
       items.push({
@@ -130,6 +161,7 @@ export function attentionItemsFromHub(needsMe: CurrentUserAgreementSummaryRespon
       });
     }
   }
+
   return items;
 }
 
