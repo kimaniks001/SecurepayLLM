@@ -91,10 +91,11 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Money records | Existing `GET /api/v1/agreements/{id}/money-records` | REAL_API_WIRED | Golden Spine E wires MoneyActivity to this read; authoritative release/funding record projection only. |
 | Agreement Detail Money handoff | PR #203: `NO_EVALUATION_YET \| READY \| NOT_READY \| PARTIALLY_READY \| BLOCKED`, reasons + count | BACKEND_PR_PENDING | Golden Spine E wires Detail's Money tab to this field; row stays BACKEND_PR_PENDING until #203's stack merges to `main`. Never collapse no-evaluation into not-ready. |
 | Money next action | Existing `/api/v1/me/actions`, e.g. `FUND_AGREEMENT` | REAL_API_WIRED | Golden Spine E gates the locked Pay/Fund affordance on an exact agreementId+actionCode match, refetched fresh on every Money open. `READY` alone never creates a Pay button. |
-| Store public search | PR #204: `GET /api/v1/stores/search`, factual/recency, no ranking | BACKEND_PR_PENDING | Replace Store discovery demos; preserve no-opaque-ranking doctrine. |
-| Store profile/Offer CRUD/share | Existing Store/PublicStore controllers and real Store tables | REAL_API_AVAILABLE_NOT_WIRED | Map real offers into locked Bolt Store experience. |
-| Store media refs | PR #204 additive `media_refs` | BACKEND_PR_PENDING | Treat refs as media references; do not invent file-storage authority. |
-| Offer -> Trade source | Phase 5B provenance/adoption can represent Store listing facts, but full rich Bolt offer-version/source snapshot needs convergence audit | BACKEND_PR_PENDING | Do not directly turn Offer into Agreement. Explicit adoption first. |
+| Store public search | PR #204: `GET /api/v1/stores/search` (`kind` required, `category`/`location` ILIKE, `limit` 1-10), factual/recency, no ranking | BACKEND_PR_PENDING | Golden Spine F wires `StoreHome` to this; row stays BACKEND_PR_PENDING until #204's stack merges to `main`. No free-text query param exists — see 16.1. |
+| Store profile/Offer CRUD | `StoreController`/`PublicStoreController` (verified source, not the stale OpenAPI file) | BACKEND_PR_PENDING | Golden Spine F wires trader profile read, own-offer list/create/update/availability-confirmation, and public store/offer read. Profile PUT is gateway-wired but has no locked Bolt edit UI this slice — see 16.1. |
+| Store media refs | PR #204 additive `mediaRefs: string[]` on `UpsertStoreOfferRequest`/`StoreOfferResponse`/`PublicOfferView` | BACKEND_PR_PENDING | Golden Spine F renders refs as opaque reference strings only; never evidence, never file-storage authority. |
+| Offer -> Trade source | Phase 5B `POST .../external-facts/amount` accepts `sourceKind: 'STORE_LISTING'`; no dedicated Store-Offer SourceReference/adoption endpoint exists | BACKEND_PR_PENDING | Golden Spine F seeds one real CANDIDATE payment-condition fact from the Offer's price (when listed) via the existing Agent gateway, then reuses the existing conversation/handoff pipeline unchanged. Do not directly turn Offer into Agreement. See 16.1 for the provenance-stripped-on-read gap. |
+| Offer SecureLink | No dedicated share-token contract exists (verified: no offer_share/offer_link endpoint) | HUMAN_DOCTRINE_BLOCKER outcome avoided — the public offer URL (`GET /api/v1/stores/{ks}/offers/{offerId}`) is itself the doctrine-compliant share mechanism | Golden Spine F builds a frontend-only `#/store/{ks}/offer/{offerId}` hash route as the truthful SecureLink; never reuses the `#/invitation/{token}` route. |
 | Community | PR #206 confirms a deliberately bounded existing R11B Community/Circle foundation, not the full Bolt object/feed model | BACKEND_PR_PENDING | Treat rich Bolt Community UI as composition until canonical backend object contracts are proven. Do not fabricate durable authority. |
 | Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits | BACKEND_PR_PENDING | Growth Credits are factual NON-MONEY activity counts. |
 | Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority | BACKEND_PR_PENDING | This is a known convergence gap versus rich Bolt Pass 10B; frontend may demo only behind explicit adapter until backend decision/support exists. |
@@ -720,3 +721,324 @@ same call is unaffected; `H` proves a malformed
 `changedReviewRequired`+`needsMe` overlap still resolves through
 `findInHub` with `bucket === 'changedReviewRequired'` and
 `boltAgreementStatus(...) === 'change_requested'`.
+
+## 16. Golden Spine F: Store implementation scope (2026-09-15)
+
+`Discover Store -> inspect factual Offer -> explicit "Use this" -> Trade Taking
+Shape -> resolve the customer-specific delta through the existing Agent
+conversation -> (unchanged) Agreement handoff` is wired end-to-end against the
+Store platform contract verified directly against source at
+`kimaniks001/SecurePayAPI` `feat/securepay-phase9-store-platform` @
+`69424c1f83173b71f7cf99d20d964786aef78aa3` (`StoreController.java`,
+`PublicStoreController.java`, `StoreService.java`, migrations), stacked on
+`feat/securepay-phase8-money-integration-contract`. The underlying
+provenance/adoption seam it reuses (`POST .../external-facts/amount`,
+`sourceKind: 'STORE_LISTING'`) was independently re-verified against
+`feat/securepay-agent-phase5b-provenance-adoption` @
+`c211cf0ce4407be13e43836eb77e39224c8ac65f` (`AgentController.java`,
+`AgentApiModels.java`, `ExternalFactSourceKind.java`). Neither stack is merged
+to `main`; every Store row in section 4 stays `BACKEND_PR_PENDING` per the
+same convention Golden Spine C/D/E used for their own still-stacked
+contracts. No live deployed SecurePayAPI was exercised; browser acceptance
+(desktop and mobile viewports) ran against a throwaway local Node HTTP
+contract double implementing the exact verified request/response shapes
+(not shipped with this PR) — the same methodology as prior Golden Spine
+slices' own local contract doubles. The doc named in the task,
+`docs/PHASE_9_STORE_FRONTEND_INTEGRATION.md`, does not exist on that branch;
+the actual filename is `docs/PHASE_9_STORE_PLATFORM_FRONTEND_INTEGRATION.md`,
+and its `contracts/openapi/market-store-v1.yaml` is stale relative to the
+controllers (missing `/stores/search` entirely, and missing
+`heroHeadline`/`storefrontPreset`/`storefrontTheme`/`mediaRefs` on its
+schemas) — this slice was built from the controller/service source, not the
+OpenAPI file or the doc prose.
+
+### 16.1 Verified backend shape and the resulting doctrine decisions
+
+- **Price is flat, not richer than Bolt's own `PriceType`**: `priceMinor:
+  Long` (nullable, minor units) + a DB-constrained-constant `currency =
+  'KES'`. No price-type enum, range, or unit/frequency field exists anywhere
+  in `StoreService`/the controllers/the migrations. `adapters.ts`
+  (`formatPrice`) maps a present `priceMinor` to Bolt's existing `'fixed'`
+  price type and an absent one to a new, additive `'unlisted'` `PriceType`
+  value (`types.ts`) rendering "Price not listed" — never a fabricated
+  `'quote_required'` claim the backend does not make.
+- **`OfferKind` is `PRODUCT | SERVICE` only** (no `package` /
+  `professional_service` / `digital` / `construction` / `recurring` /
+  `customizable`) and **`AvailabilityState` is a fixed 9-value enum**
+  (`AVAILABLE`, `LOW_AVAILABILITY`, `NEEDS_CONFIRMATION`, `UNAVAILABLE`,
+  `PAUSED`, `TAKING_WORK`, `LIMITED`, `FULLY_BOOKED`, `RESTING`), each kind
+  compatible with only a subset (`StoreService.isAvailabilityCompatible`,
+  mirrored client-side in `features/store/view.ts`'s `availabilityOptionsFor`
+  for UX filtering only — the backend still enforces this and returns `422`
+  on a mismatch). `adapters.ts` collapses Bolt's richer `offerType` taxonomy
+  onto the two real kinds and labels availability from a new
+  `storeLabels.ts` dictionary (mirroring `moneyLabels.ts`'s existing
+  fixture-free-label pattern) rather than inventing finer categories.
+- **`StoreOfferResponse`/`PublicOfferView` carry no scope
+  included/excluded, conditions, documents, warranty, milestone/obligation
+  seeds, or timing** — only `title`, `description` (free text),
+  `priceMinor`, `currency`, `quantityAvailable`, `availabilityState`,
+  `mediaRefs`. Every one of these Bolt `OfferDetail` sections already
+  degrades to a truthful empty/hidden state with no component change
+  needed (verified by inspection and by test N/the byte-identical fixture
+  test).
+- **No Store offer version/content-hash field exists** — only
+  `createdAt`/`updatedAt`. Bolt's `version` field (`'v1'`/`'v2'`) is mapped
+  to the offer's real `updatedAt` date (`YYYY-MM-DD`) as an honest "as of"
+  stamp, never a fabricated counter. `OfferChangedState`
+  (task section 10) is consequently **not wired this slice** — there is no
+  backend field to truthfully drive a "this offer changed" comparison for
+  Store (the closest analogue, `AGENT_PRIOR_AGREEMENT_TERM_STALE`, is scoped
+  only to the unrelated prior-agreement-term-reuse flow). Documented gap,
+  not a blocker.
+- **No external-seller/distribution-provenance concept exists on the
+  backend** — every real Store offer's seller of record is the owning
+  identity itself. `isExternalReference` is therefore always `false` in real
+  mode; `ExternalOfferPreview.tsx` (Bolt's ABC-Solar-style external-offer
+  demo) is unreachable from real data and stays fixture-only.
+- **Trader (`/store/me/**`) responses carry no `canonicalKsNumber` or
+  `displayName`** — `StoreProfileResponse` has only an opaque `identityId`
+  UUID, and there is no verified `GET /me` identity endpoint anywhere in the
+  inspected surface that resolves one to the other. (The existing identity
+  controller also actively discards the KS Number the trader typed at
+  sign-in once authenticated, by design, to minimize retained PII — see
+  Golden Spine C.) Consequences, both intentional and narrowly scoped, never
+  routed around by decoding a token:
+  - `myStoreIdentityView` (`api/securepay/store/adapters.ts`) degrades the
+    trader's own Store header to a generic, non-fabricated `'Your Store'`
+    label (or the real `heroHeadline`/`tagline` when present) with `operator`
+    and `businessIdentity` left empty; `StoreManagementHome.tsx` gained one
+    truthful, additive guard (`{store.name}{store.operator ? …
+    : ''}`) so the "Acting as X" clause simply omits itself rather than
+    rendering "Acting as" with nothing after it.
+  - The trader's own offer rows cannot carry a real outbound Offer
+    SecureLink (`myOfferView` sets `secureLink.url: ''`);
+    `StoreManagementHome.tsx` gained a second truthful, additive guard
+    hiding that row entirely when the URL is empty, rather than showing a
+    broken link. Every **customer-facing** Offer view (search results,
+    Store profile, Offer detail — all keyed by the real
+    `canonicalKsNumber` from the public endpoints) gets a fully real,
+    working SecureLink; only the trader's own management-list convenience
+    view is degraded, and this is the one Store row this slice could not
+    move past `REAL_API_AVAILABLE_NOT_WIRED`-adjacent status for that
+    single field.
+  - `GET /store/me/profile` is wired at the gateway/controller layer
+    (`myProfile`/`updateMyProfile`) but there is no locked Bolt Store
+    profile-*editing* screen among the inspected Pass 9 components to
+    attach `updateMyProfile` to — inventing one would be redesigning Store.
+    It stays available, tested, and unwired-to-UI rather than forced onto a
+    surface Bolt never specified.
+- **`TradeEntityView`/`TradeRelationshipView` never carry `sourceKind` or
+  `sourceDescription` on the wire** (`AgentPublicViewMapper` strips
+  `Provenance` before the response leaves the server; there is no
+  "read a SourceReference" endpoint at all — the provenance carrier,
+  `Provenance(sourceTurnId, sourceExcerpt, derivationNote)`, is server-side
+  audit trail only). "Preserve source/provenance" for Store therefore means:
+  the backend durably records that the submitted amount came from a
+  `STORE_LISTING`, but the frontend can never read that confirmation back
+  from `GET .../context`. `features/agent/controller.ts`'s new `useOffer`
+  method is documented accordingly (see its own code comment) — it never
+  claims the resulting CANDIDATE fact will visibly carry the Store
+  provenance text back to the UI, only that the submission itself is real.
+  The honest, durable "where did this trade come from" record for the
+  *person* is the client-side Offer snapshot already rendered by
+  `OfferToTradeHandoff`/`createOfferTradeSnapshot` (moved to
+  `src/offerTradeSnapshot.ts`, see 16.2) — exactly the same client-computed
+  snapshot pattern Bolt itself used, since no backend SourceReference read
+  ever existed to source it from instead.
+- **No free-text offer search endpoint exists.** `/api/v1/stores/search`
+  requires `kind` (`PRODUCT`|`SERVICE`, no "all kinds" value) and filters
+  only by exact `kind` plus ILIKE `category`/`location` — **ANDed**, never a
+  title/description full-text match. Rather than fabricate full-text search
+  or force a kind-picker onto the locked single-box `StoreHome`,
+  `features/store/view.ts`'s `searchRequests` fans one typed query out
+  across both real kinds and, when non-empty, `category`-only and
+  `location`-only requests *separately* (never ANDed together, since an AND
+  of the same string against two different columns would usually match
+  nothing), merging the truthful recency-ordered results
+  (`mergeSearchResults` — union, dedupe, sort by `updatedAt` desc, no
+  scoring). An empty query browses everything published across both kinds,
+  matching Bolt's existing empty-query behavior. **A query that matches only
+  an offer's title/description (not its owning Store's category or
+  location) honestly returns nothing** — a real backend gap, not a
+  frontend defect, and not silently masked.
+- **No "list all Stores" endpoint exists.** Bolt's `StoreHome` "Stores"
+  directory section has no real backend source; real mode always passes an
+  empty `stores` list (the section hides — `StoreHome.tsx`'s existing
+  `{stores.length > 0 && …}` guard), rather than fabricating a directory.
+  Sellers remain visible per-offer on each `OfferCard` (a real, already-
+  present Bolt field), which is not a gap — just not a separate browse-by-
+  business list this slice.
+- **No Store enquiries/activity-feed endpoint exists** (confirmed absent in
+  source, matching the task's own assumption and the backend's own recorded
+  gap note). `StoreManagementHome` always receives real empty arrays for
+  both; its enquiries section already hides itself when empty, and its
+  "Recent activity" list gained one small truthful-empty-state line ("No
+  recent activity to show yet.") since it previously had no empty-state
+  guard at all.
+
+### 16.2 New layers and Bolt component changes
+
+New: `api/securepay/store/` (`dto.ts`, `adapters.ts`, `index.ts` —
+`createStoreGateway`), `features/store/` (`controller.ts`, `view.ts`,
+`route.ts`, `StoreExperience.tsx`), `src/storeLabels.ts` (pure
+`AvailabilityState` label dictionary), `src/offerTradeSnapshot.ts` (the pure
+`createOfferTradeSnapshot` function, moved out of `storeData.ts` so the real
+`OfferToTradeHandoff` never pulls Store fixtures into the production
+bundle — re-exported from `storeData.ts` for the unchanged fixture call
+site). `api/securepay/http/index.ts`'s `RequestOptions.method` gained
+`'PUT'` (Store's profile/offer-update endpoints are this codebase's first
+`PUT`-using domain). `features/agent/controller.ts` gained one new `Pending`
+variant (`external-amount`, calling the existing-but-previously-unwired
+`gateway.submitAmount`) and one new public method, `useOffer` — the Store
+"Use this" -> Trade Taking Shape seed, reusing the exact same
+conversation-creation-if-needed/`readContext`-after machinery `run()`
+already used for turns/adoption, never a second Store-specific engine.
+`AgentExperience.tsx` gained a `store` boolean (mutually exclusive with
+`workspace`/`home`, mirroring the existing pattern), a `storeGateway` prop,
+an `initialStoreOfferRoute` prop for the public deep link, and one shared
+`navigateTo` function factoring the NavBar/WorkspaceExperience/
+StoreExperience navigation policy that was previously duplicated inline.
+One real defect surfaced only during the browser walkthrough: `showHome`
+was originally `home || state.turns.length === 0`, so seeding a real
+conversation from a Store Offer (which adds a Trade Context fact but no
+chat turn) silently left the person staring at the generic
+"What are you trying to make happen?" prompt with no visible sign their
+Offer was used. Fixed by also checking `state.conversationId`; verified live
+against the contract double (see 16.4) — this exact defect only reproduces
+against a real seeded conversation with zero turns, which no unit test
+harness in this repo constructs.
+
+Bolt component changes (all truthful/additive, verified either
+byte-identical when the added props are omitted, or via `assert.match`
+content checks where a real degradation is documented — see 16.5):
+
+1. `StoreHome.tsx` — **fully rewritten to be props-driven**, no `storeData.ts`
+   import at all (previously an unconditional static import, which would
+   have pulled Store fixtures into any bundle merely reaching this
+   component regardless of runtime branching). The fixture caller
+   (`App.tsx`) now computes `searchOffers(query)`/`demoStores` itself and
+   passes them down — the same "move the fixture call to the fixture
+   caller" fix Golden Spine E applied to `AgreementDetail`/`moneyData.ts`.
+   Gained a `stores.length > 0` guard (hides the directory section when
+   empty — real mode's constant state, per 16.1) and `searchStatus`/
+   `searchErrorText` branches for the real loading/error states.
+2. `StoreManagementHome.tsx` — two truthful-hide guards (operator clause;
+   per-offer SecureLink row) and one truthful-empty-state line (activity),
+   all per 16.1.
+3. `OfferToTradeHandoff.tsx` — one-line import path change only
+   (`../storeData` -> `../offerTradeSnapshot`), fully byte-identical
+   behavior (verified by test).
+4. `OfferBuilderView.tsx` — **intentionally not preserved as-is.** Bolt
+   Pass 9's version branched on `lower.includes('paint'/'cctv'/'iphone'/…)`
+   and simulated a multi-turn Q&A with hardcoded canned replies — this was
+   local mock intelligence with no backend equivalent (task section 9
+   explicitly forbids shipping it as production authority). No verified
+   production Agent contract can structure Store Offer facts from free
+   text. Rewritten to the same two-pane "offer taking shape" visual layout
+   with explicit fields (kind/title/description/price/quantity/
+   availability/media references/published) that the trader themselves
+   fills in and reviews before `submitDraft()` sends exactly those
+   reviewed fields to the real `POST`/`PUT /store/me/offers` endpoints —
+   nothing is saved from unreviewed free text.
+
+### 16.3 Doctrine boundaries proven, not merely asserted
+
+- **No cart/checkout anywhere** (task section 12): no Store surface reads
+  or imports the Money gateway; `tests/store.test.mjs` test G grep-verifies
+  every Store source file for cart/checkout/payment-intent language.
+- **Opening an Offer creates no Agreement/handoff authority**: `openOffer`
+  calls exactly one public GET; the `StoreReadGateway`/`StoreManageGateway`
+  types have no `createHandoff`/`join`/`confirm` method for it to reach for
+  (test D).
+- **"Use this" is explicit and two-staged**: opening an Offer alone never
+  enters Trade Taking Shape (test E); only the Offer-level "Use this" click
+  switches to it (a pure local view change, no network call), and only the
+  subsequent explicit "Continue to agreement" click seeds the real
+  conversation (test F/F2) — reference/adoption is never conflated with
+  Agreement establishment, and the STORE_LISTING fact submission never
+  touches `createHandoff`/`adoptHandoff` (a fake gateway missing those
+  methods proves it by throwing if ever called).
+- **Public Store/Offer/search reads never require auth; trader `/me/*`
+  reads and writes always do** — proven directly against
+  `createStoreGateway` with a request-recording fake `HttpClient` (tests
+  I/J), matching `StoreController`'s `requireAuthenticatedIdentityId()` vs.
+  `PublicStoreController`'s complete absence of an auth call.
+- **Offer SecureLink is its own real thing, never the Agreement invitation
+  route**: `parseStoreOfferRoute`/`#/store/{ks}/offer/{id}` is a distinct
+  hash namespace from `#/invitation/{token}` (test M), and no
+  share-token/secureLink method was invented on the gateway (test M3).
+- **`mediaRefs` render as opaque references only** — never re-fetched,
+  never treated as verified evidence (test N).
+- **The production bundle for the real Store route never imports
+  `storeData.ts`** (test L, mirroring the existing money/moneyData.ts
+  bundle-exclusion test) — proven via an `esbuild` metafile scan of
+  `RuntimeApp.tsx` built with `VITE_SECUREPAY_MODE=real`.
+
+### 16.4 Browser verification (desktop and mobile)
+
+Ran against a throwaway local Node HTTP contract double (not shipped)
+implementing the exact verified request/response shapes, with
+`VITE_SECUREPAY_MODE=real` and `VITE_SECUREPAY_API_BASE_URL` pointed at it —
+the same methodology Golden Spine C/D/E used. Verified, with screenshots
+inspected at each step, at both a desktop viewport and a 400x900 mobile
+viewport (confirming the locked bottom nav / single-column card layout):
+
+- Signed-out Home -> Store -> real search results render from the real
+  `/stores/search` endpoint (fanned across both kinds), never fixture data.
+- Offer detail renders every real field (price, seller-of-record, scope
+  empty-states, service area, the real `#/store/{ks}/offer/{id}`
+  SecureLink, the `updatedAt`-derived "Offer 2026-09-10" stamp, "Authoritative
+  offer" not "Demo offer state").
+- "Use this" -> Trade Taking Shape renders the real Offer snapshot;
+  "Continue to agreement" fires the real `POST
+  .../external-facts/amount` (`sourceKind: STORE_LISTING`) then `GET
+  .../context`, landing in the real conversation view with the live Trade
+  Context panel showing a real `PAYMENT_CONDITION · CANDIDATE — 85000 KES`
+  fact and its own (pre-existing, general) "Use this" adoption button,
+  "Continue with this", and "Refresh understanding" — proving the Store
+  slice hands off into the unmodified Golden Spine B/C pipeline rather than
+  building a parallel one. This is the walkthrough that surfaced and fixed
+  the `showHome`/`conversationId` defect in 16.2.
+- "Manage my store" from signed-out state renders the real
+  `SecureAuthCard` sign-in gate (KS Number/password -> OTP, both against
+  the real `/auth/login`/`/auth/complete` endpoints); on success it lands
+  directly in `StoreManagementHome`, rendering the real
+  `/store/me/profile` tagline, "No recent activity to show yet.", and the
+  hidden enquiries/operator/SecureLink lines exactly as documented in 16.1.
+- "Create an offer" renders the reworked explicit-fields
+  `OfferBuilderView`, its live "Offer taking shape" preview, and the review
+  modal; "Publish offer" fires the real `POST /store/me/offers` and the
+  new offer immediately appears in the real, refreshed
+  `/store/me/offers` list with its real availability label and
+  `updatedAt`-derived date.
+
+### 16.5 Tests
+
+`tests/store.test.mjs` (`test:store`, 24 tests) covers all 15 points named
+in the task (A-O): real-endpoint-only search with no ranking/fixture
+fallback and closed-failure handling (A/A2/B/C/C2/K); Offer-open creates no
+Agreement authority and "Use this" is a distinct explicit action from
+opening (D/E/E2); the real `STORE_LISTING` external-fact seed and its
+no-price fallback never fabricate a call (F/F2); the Store tree has no
+cart/checkout/payment-intent/Money-gateway reference (G); trader
+create/update/availability-confirmation send exactly the reviewed fields to
+the real endpoints, including prefilled-edit (H/H2/H3); the auth boundary
+matches the verified controllers exactly, both for the gateway's own
+`auth:'none'`/`'required'` tagging and for the real `HttpClient` refusing an
+unauthenticated required call (I/J/J2); the Offer SecureLink route is its
+own real, narrow, non-invitation namespace with no invented share-token
+method (M/M2/M3); `mediaRefs` stay opaque references (N); the production
+bundle excludes `storeData.ts` and `App.tsx` for the real route while
+including the real Store gateway/controller (L); and Bolt fixture
+rendering is preserved exactly where unchanged, with `OfferBuilderView`'s
+retired mock-keyword-matching explicitly proven absent (O/O2). All prior
+Golden Spine A-E suites (`foundation`/`agent`/`handoff`/`recipient`/
+`signed-in`/`money`, 87 tests) remain green; `typecheck`/`lint`/`build`
+all pass.
+
+Not started, confirming scope discipline per the task's own vertical-slice
+order: Community/Circles source convergence, Referrals/Plugs/Masters/
+Partners/Solutions, and the sender-side invitation `roleCode` doctrine
+blocker recorded in Golden Spine D. No Money/payment-intent surface was
+touched or wired from Store, per task section 12.

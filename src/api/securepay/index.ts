@@ -4,7 +4,8 @@ import { createAgentGateway } from './agent';
 import { createAuthGateway } from './auth';
 import { createAgreementGateway } from './agreements';
 import { createMoneyGateway } from './money';
+import { createStoreGateway } from './store';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const http = createHttpClient(apiBaseUrl(baseUrl), getAccessToken, fetcher);
-  return { mode: 'real' as const, agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http) };
+  return { mode: 'real' as const, agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http) };
 }

@@ -23,7 +23,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
           Store
         </button>
         <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">My Store</h1>
-        <div className="text-[0.78rem] text-sand-500 mt-0.5">{store.name} · Acting as {store.operator}</div>
+        <div className="text-[0.78rem] text-sand-500 mt-0.5">{store.name}{store.operator ? ` · Acting as ${store.operator}` : ''}</div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
@@ -69,10 +69,12 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                     </div>
                     <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">{offer.version}</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-2 text-[0.68rem] text-sand-400">
-                    <Link2 className="w-3 h-3" />
-                    {offer.secureLink.url}
-                  </div>
+                  {offer.secureLink.url && (
+                    <div className="mt-2 flex items-center gap-2 text-[0.68rem] text-sand-400">
+                      <Link2 className="w-3 h-3" />
+                      {offer.secureLink.url}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -113,6 +115,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
         <div>
           <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Recent activity</div>
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-2.5">
+            {activity.length === 0 && <p className="text-[0.78rem] text-sand-500">No recent activity to show yet.</p>}
             {activity.map((item) => (
               <div key={item.id} className="flex items-start gap-3">
                 <span className="text-[0.68rem] text-sand-400 w-16 shrink-0 mt-0.5">{item.date}</span>

@@ -10,7 +10,7 @@ export class ApiError extends Error {
   ) { super(message); this.name = 'ApiError'; }
 }
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   body?: unknown;
   auth?: 'none' | 'optional' | 'required';
   signal?: AbortSignal;

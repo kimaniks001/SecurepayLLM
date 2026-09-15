@@ -15,7 +15,8 @@ import { StoreProfileView } from './components/StoreProfileView';
 import { OfferDetail } from './components/OfferDetail';
 import { SecureLinkShareSheet } from './components/SecureLinkShareSheet';
 import { StoreManagementHome } from './components/StoreManagementHome';
-import { OfferBuilderView } from './components/OfferBuilderView';
+import { OfferBuilderView, type OfferDraftFields } from './components/OfferBuilderView';
+import { availabilityOptionsFor, emptyOfferDraft } from './features/store/view';
 import { ExternalOfferPreview } from './components/ExternalOfferPreview';
 import { OfferToTradeHandoff } from './components/OfferToTradeHandoff';
 import { OfferChangedState } from './components/OfferChangedState';
@@ -76,6 +77,8 @@ import {
   getOffersByStore,
   demoStoreActivity,
   demoEnquiries,
+  searchOffers,
+  demoStores,
 } from './storeData';
 import {
   getCommunityObjectById,
@@ -118,6 +121,8 @@ function App() {
   const [openStoreId, setOpenStoreId] = useState<string | null>(null);
   const [storeSubView, setStoreSubView] = useState<'home' | 'profile' | 'offer' | 'manage' | 'create' | 'share' | 'external' | 'to-agreement' | 'comparison' | 'changed'>('home');
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [offerDraft, setOfferDraft] = useState<OfferDraftFields>(emptyOfferDraft);
+  const [storeQuery, setStoreQuery] = useState('');
   const [openCommunityId, setOpenCommunityId] = useState<string | null>(null);
   const [openPersonId, setOpenPersonId] = useState<string | null>(null);
   const [openBusinessId, setOpenBusinessId] = useState<string | null>(null);
@@ -1005,6 +1010,10 @@ function App() {
             onManageStore={() => { setOpenStoreId('store-keyman'); setStoreSubView('manage'); }}
             onCreateOffer={() => { setOpenStoreId('store-painter'); setStoreSubView('create'); }}
             onStartConversation={() => setView('conversation')}
+            offers={searchOffers(storeQuery).filter((o) => o.lifecycle === 'published')}
+            stores={demoStores}
+            query={storeQuery}
+            onQueryChange={setStoreQuery}
           />
         )}
         {storeSubView === 'profile' && currentStore && (
@@ -1043,8 +1052,14 @@ function App() {
         )}
         {storeSubView === 'create' && (
           <OfferBuilderView
-            onBack={() => { setStoreSubView('manage'); }}
-            onPublish={() => { setStoreSubView('manage'); }}
+            draft={offerDraft}
+            availabilityOptions={availabilityOptionsFor(offerDraft.kind)}
+            busy={false}
+            error={null}
+            isEditing={false}
+            onChange={(patch) => setOfferDraft((prev) => ({ ...prev, ...patch }))}
+            onBack={() => { setOfferDraft(emptyOfferDraft); setStoreSubView('manage'); }}
+            onSubmit={() => { setOfferDraft(emptyOfferDraft); setStoreSubView('manage'); }}
           />
         )}
         {storeSubView === 'external' && currentOffer && (

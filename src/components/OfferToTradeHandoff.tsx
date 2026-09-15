@@ -1,6 +1,6 @@
 import { ArrowLeft, Sparkles, FileText, ArrowRight, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type { StoreOffer } from '../types';
-import { createOfferTradeSnapshot } from '../storeData';
+import { createOfferTradeSnapshot } from '../offerTradeSnapshot';
 
 interface OfferToTradeHandoffProps {
   offer: StoreOffer;

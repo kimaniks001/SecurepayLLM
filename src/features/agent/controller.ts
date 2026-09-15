@@ -1,12 +1,12 @@
 import type { AgentGateway } from '../../api/securepay/agent';
 import { agentResponseView, tradeContextView } from '../../api/securepay/agent/adapters';
-import type { AdoptFactRequest, TurnRequest } from '../../api/securepay/agent/dto';
+import type { AdoptFactRequest, ExternalFactRequest, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 
 export type ContextView = ReturnType<typeof tradeContextView>;
 export type ResponseView = ReturnType<typeof agentResponseView>;
 export type Turn = { id: string; sender: 'user'; text: string } | { id: string; sender: 'agent'; response: ResponseView };
-type Pending = { kind: 'turn'; body: TurnRequest } | { kind: 'adopt'; body: AdoptFactRequest };
+type Pending = { kind: 'turn'; body: TurnRequest } | { kind: 'adopt'; body: AdoptFactRequest } | { kind: 'external-amount'; body: ExternalFactRequest & { amount: string; currency?: string } };
 export interface AgentState {
   conversationId: string | null;
   turns: Turn[];
@@ -27,7 +27,7 @@ export function errorText(error: unknown): string {
   return 'SecurePay could not complete this step. Please try again.';
 }
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact'>, id = () => crypto.randomUUID()) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount'>, id = () => crypto.randomUUID()) {
   let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null } };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -52,8 +52,10 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (pending.kind === 'turn') {
         const response = agentResponseView(await gateway.submitTurn(conversationId, pending.body));
         update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
-      } else {
+      } else if (pending.kind === 'adopt') {
         await gateway.adoptFact(conversationId, pending.body);
+      } else {
+        await gateway.submitAmount(conversationId, pending.body);
       }
       // A failed GET never causes an already completed POST to be repeated.
       update({ pending: null });
@@ -81,6 +83,35 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (state.busy || state.pending || state.context.status !== 'ready') return;
       if (!state.context.data?.candidates.some(fact => fact.id === targetId && fact.targetKind === targetKind)) return;
       await run({ kind: 'adopt', body: { targetId, targetKind, clientTurnId: id() } });
+    },
+    /**
+     * The Store "Use this" -> Trade Taking Shape convergence (task section 5). If the Offer carries a
+     * determinate numeric price, it is submitted as a real CANDIDATE external fact tagged
+     * `sourceKind: 'STORE_LISTING'` (the exact enum value verified on the backend's
+     * ExternalFactSourceKind) — this is real backend-recorded provenance, not a fabricated adoption.
+     * The backend's own TradeEntityView/TradeRelationshipView strip sourceKind/sourceDescription
+     * before they reach the wire (verified: no provenance read endpoint exists), so this method never
+     * claims the resulting candidate fact will render with that source description attached — only that
+     * SecurePay's own record of the submission carries it. If the Offer has no determinate price
+     * (priceType 'unlisted'), no fact is fabricated; a conversation still starts so the customer can
+     * describe the trade in their own words.
+     */
+    async useOffer(fact: { amount?: string; currency?: string; sourceDescription: string }) {
+      if (state.busy || state.pending) return;
+      if (fact.amount) {
+        await run({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', sourceDescription: fact.sourceDescription, amount: fact.amount, currency: fact.currency } });
+        return;
+      }
+      if (state.conversationId) return;
+      update({ busy: true, error: null });
+      try {
+        const conversation = await gateway.createConversation();
+        if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
+        update({ conversationId: conversation.conversationId });
+        await readContext();
+      } catch (error) {
+        update({ error: errorText(error) });
+      } finally { update({ busy: false }); }
     },
   };
 }
