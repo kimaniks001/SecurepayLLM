@@ -22,7 +22,12 @@ export function createAgreementGateway(http: HttpClient) {
     issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<{ invitationId: string; status: string; invitationToken: string; replayed: boolean }>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,
+    // versionStatus included), not the lighter AgreementVersionSummaryResponse used in Detail's
+    // versionHistory. Callers must select CURRENT by versionStatus, never by highest versionNumber.
+    versions: (id: string) => http.request<AgreementVersionResponse[]>(`${agreement(id)}/versions`, { auth: 'required' }),
     version: (id: string, versionId: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/versions/${segment(versionId)}`, { auth: 'required' }),
     confirmVersion: (id: string, versionId: string, body: ConfirmVersionRequest) => http.request<AgreementConfirmationResponse>(`${agreement(id)}/versions/${segment(versionId)}/confirm`, { method: 'POST', body, auth: 'required' }),
   };
 }
+export type AgreementGateway = ReturnType<typeof createAgreementGateway>;

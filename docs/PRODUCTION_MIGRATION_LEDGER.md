@@ -71,10 +71,11 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Identity boundary after intent | PR #199 handoff status `IDENTITY_REQUIRED`; existing auth then `/adopt` | BACKEND_PR_PENDING | Preserve review-before-auth. Authentication does not create/accept an Agreement. |
 | Canonical pre-Agreement review | PR #199: `GET /api/agent/agreement-handoffs/{id}/review` | BACKEND_PR_PENDING | This is distinct from conversational preview. |
 | Set securely | PR #199: `/continue` requires exact `tradeContextVersion` + `candidateDigest`; returns real draft Agreement id | BACKEND_PR_PENDING | Echo exact reviewed snapshot; stale means recreate handoff. |
-| Recipient invitation | Existing `/api/v1/agreement-invitations/*` authority | REAL_API_AVAILABLE_NOT_WIRED | Public invitation review remains separate from auth/join/confirm. |
-| Recipient authentication | Existing auth surface | REAL_API_AVAILABLE_NOT_WIRED | Auth only proves acting identity. |
-| Explicit Join | Existing AgreementJoinService / invitation authority | REAL_API_AVAILABLE_NOT_WIRED | Join != confirmation. |
-| Exact-version confirmation | Existing `/api/v1/agreements/{id}/versions/{versionId}/confirm` authority | REAL_API_AVAILABLE_NOT_WIRED | Confirmation must target current exact version; frontend may not infer establishment. |
+| Recipient invitation issuance (sender side) | `POST /api/v1/agreements/{id}/invitations`, requires a `roleCode` | HUMAN_DOCTRINE_BLOCKER | Backend `roleCode` is an unvalidated free string (`IssueInvitationRequest`); Bolt's own recipient role text varies per trade type (customer/provider, buyer/seller, organizer/contributor) with no single canonical value. Not wired; see Slice D report. |
+| Recipient invitation review (token side) | `GET /api/v1/agreement-invitations/{token}` (public, no auth) | REAL_API_WIRED | Public invitation review remains separate from auth/join/confirm; renders only backend-projected facts. |
+| Recipient authentication | Existing auth surface, reusing the Slice C session boundary | REAL_API_WIRED | Auth only proves acting identity; never auto-joins. |
+| Explicit Join | `POST /api/v1/agreement-invitations/{token}/join` | REAL_API_WIRED | Join != confirmation; renders authoritative `JOINED_UNCONFIRMED`. |
+| Exact-version review + confirmation | `GET /api/v1/agreements/{id}/versions`, `GET .../versions/{versionId}`, `POST .../versions/{versionId}/confirm` | REAL_API_WIRED | Confirmation targets the exact reviewed version/hash; superseded versions force a fresh authoritative re-read and re-review before any confirm. |
 | Signed-in Home | Existing `GET /api/v1/me/agreements` and `GET /api/v1/me/actions` | REAL_API_AVAILABLE_NOT_WIRED | These own current Agreement summaries and what-needs-me actions. |
 | Agreement Hub | PR #201: `GET /api/v1/me/agreements/hub` | BACKEND_PR_PENDING | Use backend buckets; do not persist/derive a competing frontend lifecycle. |
 | Agreement search | PR #201: `/api/v1/me/agreements/search` | BACKEND_PR_PENDING | No location filter until backend has Agreement location truth. |
@@ -331,3 +332,104 @@ locked Bolt visual beyond the minimum wording/action correction:
    is backend-discarded and cannot be revived by re-reading it; the panel now
    offers only a route back to the conversation, so a new explicit "Continue
    with this" is required to create a fresh handoff.
+
+## 14. Golden Spine D implementation scope (2026-09-15)
+
+`Real draft Agreement -> real invitation -> public recipient review -> Secure
+Identity -> explicit Join -> exact current Agreement version review -> explicit
+confirmation` is wired end-to-end on the recipient-from-token side, verified
+directly against a local `SecurePayAPI` checkout at
+`0b0121c9152e3ce039e4d7df59e4fec6045d70cc` (the same head the Golden Spine A
+audit inspected; `AgreementInvitationController`, `AgreementController`,
+`AgreementJoinService`, `AgreementConfirmationService`,
+`AgreementInvitationViewService`, `InvitationOwnershipVerifier` and
+`ApiExceptionHandler`). No live deployed SecurePayAPI was exercised; browser
+acceptance ran against a throwaway local Node HTTP contract double implementing
+the exact verified request/response shapes, not shipped with this PR.
+
+New narrow layers:
+
+- `api/securepay/agreements/index.ts` gained `versions(agreementId)` (`GET
+  /api/v1/agreements/{id}/versions`), typed as the real `AgreementVersionResponse[]`
+  the backend returns (each entry carries its own `id` and authoritative
+  `versionStatus`) rather than the lighter `AgreementVersionSummaryResponse[]`
+  used elsewhere for Detail's `versionHistory`. Used only for authoritative
+  current-version identification/recovery — never for confirmation itself.
+- `api/securepay/session.ts`: `withSessionRefresh` is now generic over the
+  caller-supplied authenticated method list (previously hardcoded to the three
+  handoff methods), so the same one session boundary now also guards
+  `agreements.join/versions/version/confirmVersion`.
+- `features/recipient/controller.ts` + `view.ts` + `RecipientExperience.tsx` +
+  `route.ts` — the recipient orchestration layer. Tracks invitation token,
+  public invitation remote state, Join remote state/result, the exact reviewed
+  version (id/number/hash), confirmation remote state/result, and a `changed`
+  flag distinguishing a freshly-recovered current version from the one first
+  reviewed. `join()` and `confirm()` each mint an idempotency key lazily and
+  reuse it only across a deliberate retry against the *same* request body. A
+  422/409 confirm failure is not treated as proof of a version change by
+  itself — `AgreementConfirmationException` reuses one generic 422 code for
+  several distinct failures, and 409 also covers idempotency/agreement
+  conflicts — so the controller re-reads authoritative `/versions`, selects
+  the single entry with `versionStatus === 'CURRENT'` (never the highest
+  `versionNumber`; zero or more than one CURRENT entry fails closed), and
+  compares its id/versionNumber/contentHash against the exact version that was
+  reviewed. A genuine mismatch clears the confirm key and re-reviews the new
+  current version. The same version remaining CURRENT keeps the real failure
+  as `confirm-error` without auto-retrying, but the key handling differs by
+  status: a 422 (retryable with the same body) keeps its key for a deliberate
+  retry, while a 409 — `AgreementConflictException("idempotency key reused
+  with different request")` — has that exact key permanently bound to a
+  different request digest on the backend, so it is cleared; the next
+  explicit confirmation click mints a fresh key for the same still-current
+  version.
+- `RuntimeApp.tsx`: the invitation token lives only in the URL hash fragment
+  (`#/invitation/{token}`, parsed by `parseInvitationRoute`) — never a path
+  segment on the frontend host, so it never reaches *this frontend's* own
+  URL/access log, and never persisted to storage. SecurePayAPI itself still
+  necessarily receives the raw token as a path segment in
+  `GET /api/v1/agreement-invitations/{token}` and its `/join`, by contract;
+  the hash route does not and cannot prevent that. `RecipientExperience` is
+  keyed by token so a same-tab hash change to a different invitation always
+  starts a fresh controller.
+
+Bolt component change (truthful, not cosmetic): `RecipientReview.tsx` hardcoded
+a `"Demo SecureLink invitation"` caption with no data prop backing it. It now
+accepts an optional `notice` prop that, when supplied, replaces that caption
+with the backend's own `PublicInvitationViewResponse.notice` text; omitting the
+prop leaves the existing fixture path byte-identical to `bolt-reference-pass11`
+(verified by test). No other recipient component (`SecureAuth`, `JoinPrompt`,
+`JoinedStatus`, `CanonicalAgreement`, `NoticeCard`, `ErrorState`,
+`ChoiceButtons`) needed a truthful change.
+
+The exact-version review reuses `CanonicalAgreementCard` (the same component
+Bolt's own recipient turn renders for this exact beat, not the separately
+locked-but-unused `AcceptancePromptCard`), fed only by the verified
+`AgreementVersionResponse.snapshot` keys SecurePayAPI actually writes
+(`title`, `purpose`, `description`, `currency`, `proposed_amount_minor`,
+confirmed against `AgreementCreationService.buildSnapshot` /
+`AgreementAmendmentService.apply`) — never a fabricated parties/work
+breakdown. `parties` renders empty rather than guessing a counterparty name
+the version snapshot does not carry.
+
+Sender-side invitation issuance (`issueInvitation`, already present in the
+gateway since Golden Spine A) is deliberately **not** wired to any UI action
+in this slice: `IssueInvitationRequest.roleCode` is an unvalidated free string
+with no backend enum, and Bolt's own recipient role text is scenario-specific
+(customer/provider, buyer/seller, organizer/contributor, contractor) with no
+single value that maps unambiguously to "the" recipient role. Inventing one
+would be exactly the kind of role doctrine this task named as a stop
+condition. The recipient-from-token side (public review through confirmation)
+is fully wired regardless, per the task's explicit fallback instruction.
+
+A real defect surfaced only during the browser walkthrough (not by the
+component-level tests, which construct one controller per test and never
+re-key it): `RecipientExperience` was originally mounted without a `key`, so a
+same-tab hash change from one invitation token to another reused the previous
+mount's controller/state instead of starting fresh. Fixed by keying on
+`invitationToken` in `RuntimeApp.tsx`; a source-pattern regression test was
+added alongside the existing production-bundle test.
+
+Status: recipient-from-token rows move to `REAL_API_WIRED`; sender-side
+invitation issuance is `HUMAN_DOCTRINE_BLOCKER` pending recipient-role
+doctrine. Golden Spine A/B/C rows are unaffected and their test suites remain
+green.
