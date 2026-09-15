@@ -12,7 +12,9 @@
     "test:foundation": "node --test tests/foundation.test.mjs",
     "test:agent": "node --test tests/agent.test.mjs",
     "test:handoff": "node --test tests/handoff.test.mjs",
-    "test:recipient": "node --test tests/recipient.test.mjs"
+    "test:recipient": "node --test tests/recipient.test.mjs",
+    "test:signed-in": "node --test tests/signed-in.test.mjs",
+    "test:money": "node --test tests/money.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

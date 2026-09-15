@@ -13,7 +13,22 @@ interface SignedInHomeProps {
   recentActivity: ActivityEntry[];
   onOpenAgreement: (id: string) => void;
   onNavigateAgreements: () => void;
+  /**
+   * Real callers must supply these three explicitly (never omit) so this component never has to guess
+   * a truthful value itself; omitting them preserves the exact existing Bolt fixture text/prompts
+   * unchanged. There is no verified authenticated display-name contract, and the general Agent
+   * conversation endpoints remain `auth: 'none'` with no signed-in Agreement/people/activity context
+   * wired into them — so real mode must never claim a person's name or an account-aware Agent memory,
+   * and its suggested prompts must never presuppose personal history the Agent cannot truthfully answer.
+   */
+  greeting?: string;
+  subheading?: string;
+  suggestedPrompts?: string[];
 }
+
+const fixtureGreeting = 'Welcome back, James';
+const fixtureSubheading = 'SecurePay remembers your agreements, people and activity. Ask anything, or start something new.';
+const fixturePrompts = ['Show me everything waiting for me', 'Which agreements changed this week?', 'What did Peter agree to?', 'Find my agreement with Kamau'];
 
 export function SignedInHome({
   onStart,
@@ -22,6 +37,9 @@ export function SignedInHome({
   recentActivity,
   onOpenAgreement,
   onNavigateAgreements,
+  greeting = fixtureGreeting,
+  subheading = fixtureSubheading,
+  suggestedPrompts = fixturePrompts,
 }: SignedInHomeProps) {
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -31,7 +49,7 @@ export function SignedInHome({
           <AgentIcon state="listening" size={28} />
           <div>
             <div className="font-display text-sm text-forest-800">SecurePay</div>
-            <div className="text-[0.7rem] text-sand-500">Welcome back, James</div>
+            <div className="text-[0.7rem] text-sand-500">{greeting}</div>
           </div>
         </div>
 
@@ -44,18 +62,13 @@ export function SignedInHome({
               What are you trying to make happen?
             </h1>
             <p className="mt-3 text-[0.9rem] text-sand-600 leading-relaxed max-w-lg mx-auto animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              SecurePay remembers your agreements, people and activity. Ask anything, or start something new.
+              {subheading}
             </p>
             <div className="mt-6 max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <ConversationInput onSend={onStart} placeholder="Ask SecurePay anything..." />
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              {[
-                'Show me everything waiting for me',
-                'Which agreements changed this week?',
-                'What did Peter agree to?',
-                'Find my agreement with Kamau',
-              ].map((prompt) => (
+              {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => onStart(prompt)}

@@ -10,7 +10,8 @@ const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff'], session, api.auth) : undefined;
-const agreementGateway = api ? withSessionRefresh(api.agreements, ['join', 'versions', 'version', 'confirmVersion'], session, api.auth) : undefined;
+const agreementGateway = api ? withSessionRefresh(api.agreements, ['join', 'versions', 'version', 'confirmVersion', 'currentUserAgreements', 'currentUserActions', 'hub', 'detail', 'confirmationStatus'], session, api.auth) : undefined;
+const moneyGateway = api ? withSessionRefresh(api.money, ['status', 'records'], session, api.auth) : undefined;
 
 // Vite removes the unreachable fixture import from production builds.
 const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE === 'fixture'
@@ -49,7 +50,9 @@ export default function RuntimeApp() {
       ? <RecipientExperience key={invitationToken} token={invitationToken} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearInvitationToken} />
       : <Unavailable />;
   }
-  return api && agentGateway ? <AgentExperience gateway={agentGateway} auth={api.auth} session={session} /> : <Unavailable />;
+  return api && agentGateway && agreementGateway && moneyGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} auth={api.auth} session={session} />
+    : <Unavailable />;
 }
 function Unavailable() {
   return <main className="min-h-screen bg-cream-50 text-forest-800 flex items-center justify-center p-6">

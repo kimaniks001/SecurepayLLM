@@ -743,6 +743,9 @@ function App() {
 
   if (view === 'agreement-detail') {
     const detail = openAgreementId ? getDemoAgreementDetail(openAgreementId) : null;
+    const structure = openAgreementId ? getDemoStructure(openAgreementId) : null;
+    const moneyState = getDemoMoney('money-not-ready');
+    const moneyForAgreement = detail && moneyState ? { ...moneyState, agreementLink: { ...moneyState.agreementLink, agreementId: detail.id, agreementTitle: detail.title, agreementVersion: detail.version, amount: detail.amount } } : null;
     if (!detail) {
       return (
         <div className="min-h-screen flex flex-col bg-cream-100">
@@ -767,6 +770,8 @@ function App() {
           onViewCurrent={handleViewCurrent}
           onRaiseIssue={detail.status === 'active' || detail.status === 'change_requested' || detail.status === 'completed' ? handleRaiseIssue : undefined}
           onOpenMoney={(_id) => { setOpenMoneyId('money-not-ready'); setView('money'); }}
+          money={moneyForAgreement}
+          progress={structure ?? null}
         />
       </div>
     );

@@ -18,6 +18,15 @@ import { MoneyDisputeContext } from './MoneyDisputeContext';
 interface MoneyWorkspaceProps {
   detail: MoneyDetail;
   onBack: () => void;
+  /**
+   * Gates the rail-selection → review → confirm choreography, which is purely local UI with no
+   * backend call behind it (down to a hardcoded `PaymentPending` attempt reference). Omitting this
+   * prop preserves the exact existing fixture behavior. Real callers pass `false`: this slice verified
+   * only the Payment Ready/next-action read contracts, not a funding/payment-intent mutation contract,
+   * so the locked Bolt "Fund" affordance stays visible (via MoneyStatus's real next-actions text) without
+   * this component fabricating a payment attempt/reference that never touched SecurePayAPI.
+   */
+  fundingFlowEnabled?: boolean;
 }
 
 type Stage = 'status' | 'method' | 'review' | 'pending' | 'confirmed' | 'unknown' | 'failed';
@@ -26,8 +35,8 @@ function hasAction(actions: ParticipantNextAction[], target: ParticipantNextActi
   return actions.includes(target);
 }
 
-export function MoneyWorkspace({ detail, onBack }: MoneyWorkspaceProps) {
-  const canFund = hasAction(detail.nextActions, 'FUND_AGREEMENT');
+export function MoneyWorkspace({ detail, onBack, fundingFlowEnabled = true }: MoneyWorkspaceProps) {
+  const canFund = hasAction(detail.nextActions, 'FUND_AGREEMENT') && fundingFlowEnabled;
   const canCheckStatus = hasAction(detail.nextActions, 'CHECK_STATUS');
   const canTryAgain = hasAction(detail.nextActions, 'TRY_AGAIN');
   const canChooseAnother = hasAction(detail.nextActions, 'CHOOSE_ANOTHER');

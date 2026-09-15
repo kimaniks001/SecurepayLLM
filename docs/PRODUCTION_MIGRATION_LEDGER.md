@@ -76,10 +76,10 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Recipient authentication | Existing auth surface, reusing the Slice C session boundary | REAL_API_WIRED | Auth only proves acting identity; never auto-joins. |
 | Explicit Join | `POST /api/v1/agreement-invitations/{token}/join` | REAL_API_WIRED | Join != confirmation; renders authoritative `JOINED_UNCONFIRMED`. |
 | Exact-version review + confirmation | `GET /api/v1/agreements/{id}/versions`, `GET .../versions/{versionId}`, `POST .../versions/{versionId}/confirm` | REAL_API_WIRED | Confirmation targets the exact reviewed version/hash; superseded versions force a fresh authoritative re-read and re-review before any confirm. |
-| Signed-in Home | Existing `GET /api/v1/me/agreements` and `GET /api/v1/me/actions` | REAL_API_AVAILABLE_NOT_WIRED | These own current Agreement summaries and what-needs-me actions. |
-| Agreement Hub | PR #201: `GET /api/v1/me/agreements/hub` | BACKEND_PR_PENDING | Use backend buckets; do not persist/derive a competing frontend lifecycle. |
-| Agreement search | PR #201: `/api/v1/me/agreements/search` | BACKEND_PR_PENDING | No location filter until backend has Agreement location truth. |
-| Agreement Detail | PR #201 plus #203/#205 | BACKEND_PR_PENDING | Build Bolt detail from unified backend projection; map into Bolt view model. |
+| Signed-in Home | Existing `GET /api/v1/me/agreements` and `GET /api/v1/me/actions` | REAL_API_WIRED | Golden Spine E wires SignedInHome/NeedsAttentionList/WaitingOnOthersList to these reads; frontend wiring only, verified against the Phase 9B stack head (see section 15). |
+| Agreement Hub | PR #201: `GET /api/v1/me/agreements/hub` | BACKEND_PR_PENDING | Golden Spine E wires AgreementHub/AgreementCard to the real 8-bucket response; row stays BACKEND_PR_PENDING until #201's stack merges to `main`. |
+| Agreement search | PR #201: `/api/v1/me/agreements/search` | BACKEND_PR_PENDING | Not wired this slice; no location filter until backend has Agreement location truth. |
+| Agreement Detail | PR #201 plus #203/#205 | BACKEND_PR_PENDING | Golden Spine E wires AgreementDetail/Overview/People/Terms/Documents/Activity/Version to the real projection; row stays BACKEND_PR_PENDING until the stack merges to `main`. |
 | Agreement Agent context | PR #201: `GET /api/v1/agreements/{id}/agent-context` | BACKEND_PR_PENDING | Bounded authenticated context; do not mix private Agreement context into identity-free Agent implicitly. |
 | Amendment comparison | PR #202: real amendment diff read | BACKEND_PR_PENDING | Use real source/current/proposed versions; no client reconstruction. |
 | Milestones/obligations | Existing backend domain; PR #205 exposes milestones on Detail | BACKEND_PR_PENDING | Replace `milestoneData.ts`; preserve action/obligation/milestone distinctions. |
@@ -87,10 +87,10 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Agreement Code acceptance | PR #205 explicit append-only acceptance per isolated dispute scope | BACKEND_PR_PENDING | Do not reduce to generic terms checkbox. |
 | Dispute Master escalation | PR #205 narrow escalation contract; full Master domain follows Phase 11 | BACKEND_PR_PENDING | Opinion must return to matching; cannot auto-resolve. |
 | Attention/reminders | PR #205 backend-neutral Agreement attention event foundation | BACKEND_PR_PENDING | Attention event != delivery channel. |
-| Money status | Existing `GET /api/v1/agreements/{id}/money-status` | REAL_API_AVAILABLE_NOT_WIRED | Payment Ready is backend truth. |
-| Money records | Existing `GET /api/v1/agreements/{id}/money-records` | REAL_API_AVAILABLE_NOT_WIRED | Use authoritative release/funding record projection. |
-| Agreement Detail Money handoff | PR #203: `NO_EVALUATION_YET | READY | NOT_READY | PARTIALLY_READY | BLOCKED`, reasons + count | BACKEND_PR_PENDING | Never collapse no-evaluation into not-ready. |
-| Money next action | Existing `/api/v1/me/actions`, e.g. `FUND_AGREEMENT` | REAL_API_AVAILABLE_NOT_WIRED | `READY` alone must never create a Pay button. |
+| Money status | Existing `GET /api/v1/agreements/{id}/money-status` | REAL_API_WIRED | Golden Spine E wires MoneyStatus/MoneyWorkspace to this read; Payment Ready is backend truth. |
+| Money records | Existing `GET /api/v1/agreements/{id}/money-records` | REAL_API_WIRED | Golden Spine E wires MoneyActivity to this read; authoritative release/funding record projection only. |
+| Agreement Detail Money handoff | PR #203: `NO_EVALUATION_YET \| READY \| NOT_READY \| PARTIALLY_READY \| BLOCKED`, reasons + count | BACKEND_PR_PENDING | Golden Spine E wires Detail's Money tab to this field; row stays BACKEND_PR_PENDING until #203's stack merges to `main`. Never collapse no-evaluation into not-ready. |
+| Money next action | Existing `/api/v1/me/actions`, e.g. `FUND_AGREEMENT` | REAL_API_WIRED | Golden Spine E gates the locked Pay/Fund affordance on an exact agreementId+actionCode match, refetched fresh on every Money open. `READY` alone never creates a Pay button. |
 | Store public search | PR #204: `GET /api/v1/stores/search`, factual/recency, no ranking | BACKEND_PR_PENDING | Replace Store discovery demos; preserve no-opaque-ranking doctrine. |
 | Store profile/Offer CRUD/share | Existing Store/PublicStore controllers and real Store tables | REAL_API_AVAILABLE_NOT_WIRED | Map real offers into locked Bolt Store experience. |
 | Store media refs | PR #204 additive `media_refs` | BACKEND_PR_PENDING | Treat refs as media references; do not invent file-storage authority. |
@@ -433,3 +433,290 @@ Status: recipient-from-token rows move to `REAL_API_WIRED`; sender-side
 invitation issuance is `HUMAN_DOCTRINE_BLOCKER` pending recipient-role
 doctrine. Golden Spine A/B/C rows are unaffected and their test suites remain
 green.
+
+## 15. Golden Spine E implementation scope (2026-09-15)
+
+`Real signed-in session -> signed-in Home -> Agreement Hub -> Agreement Detail
+-> authoritative Money status/records + authoritative financial-action gating`
+is wired end-to-end, verified directly against a local `SecurePayAPI` checkout
+at `180e575c` on `feat/securepay-phase9b-agreement-execution-dispute-convergence`
+(`kimaniks001/SecurePayAPI`) — the stacked head containing Phase 6 (#201,
+Hub/Detail read model), Phase 8 (#203, Money integration contract) and Phase
+9B (#205, milestones/obligations on Detail). Also inspected on the same
+checkout: `CurrentUserAgreementWorkspaceController`,
+`CurrentUserAgreementWorkspaceService`, `AgreementHubBucketClassifier`,
+`AgreementController` (`/detail`, `/confirmation-status`),
+`AgreementMoneyStatusController`, `AgreementMoneyRecordsController`,
+`PaymentReadyOutcome`, `NextActionType` and `ApiExceptionHandler`. No live
+deployed SecurePayAPI was exercised; browser acceptance ran against a
+throwaway local fixture-DTO harness (not shipped) rendering the real
+`WorkspaceExperience` component directly, the same methodology Golden Spine
+C/D used for their own local contract doubles.
+
+Verified contracts wired:
+
+- `GET /api/v1/me/agreements`, `GET /api/v1/me/actions` — signed-in Home.
+- `GET /api/v1/me/agreements/hub` — the real 8-bucket `CurrentUserAgreementHubResponse`
+  (`needsMe`/`waitingOnOthers`/`takingShape`/`active`/`changedReviewRequired`/
+  `completed`/`cancelled`/`expired`).
+- `GET /api/v1/agreements/{id}/detail` and `GET /api/v1/agreements/{id}/confirmation-status`
+  — Agreement Detail.
+- `GET /api/v1/agreements/{id}/money-status`, `GET /api/v1/agreements/{id}/money-records`
+  — Money.
+
+New layer: `src/features/workspace/` (`controller.ts`, `view.ts`,
+`WorkspaceExperience.tsx`). `controller.ts` owns only `RemoteState` reads per
+view (home/hub/detail/money) plus which real backend field classified an
+Agreement — `boltAgreementStatus` in `view.ts` reads `CANCELLED`/`EXPIRED`/
+`completion.completed` straight off the real summary first (the same fields
+`AgreementHubBucketClassifier` itself checks first), and otherwise only
+relays the exact Hub bucket the backend already put the Agreement in, or
+which of Home's own two lists (`/me/actions` present vs. absent) surfaced it
+— it never reimplements the backend's bucket classifier. Money always
+refetches `/me/actions` fresh on every `openMoney()` call, so a stale cached
+action can never expose the Fund affordance after a failed refresh; the
+`FUND_AGREEMENT` match is exact-`agreementId`+exact-`actionCode`, matching
+neither another Agreement's action nor an unrecognized code.
+
+Locked Bolt components reused as-is: `SignedInHome`, `HomeWorkbenchSummary`,
+`NeedsAttentionList`, `WaitingOnOthersList`, `AgreementHub`, `AgreementCard`,
+`AgreementStatusBadge`, `AgreementOverview`, `AgreementPeople`,
+`AgreementTerms`, `AgreementDocuments`, `AgreementActivity`, `AgreementChanges`,
+`AgreementStaleBanner`, `AgreementSupport`, `MilestoneProgress`, `ActionList`,
+`MoneyAgreementContext`, `MoneyStatus`, `MoneyActivity`,
+`MoneyUnavailableState`. `AgreementVersionCard` and `MoneyReady` remain
+unwired this slice (no Detail composition slot uses the former; no verified
+Agent live-tool payload produces the latter — see Golden Spine A's own
+compatibility-audit note on unmapped rich cards). `RecentActivity` (used
+internally by `SignedInHome`) receives a truthfully empty array: no
+cross-agreement activity-feed contract is verified in this slice.
+
+Three narrow, truthful Bolt component changes (all optional/additive, byte-
+identical when omitted — verified by this slice's own fixture-markup test):
+
+1. `AgreementDetail.tsx` previously called `getDemoMoney`/`getDemoStructure`
+   internally, which would have pulled `moneyData.ts`/`milestoneData.ts` (and
+   their fabricated financial/milestone records) into the production bundle
+   the moment this component became reachable from real signed-in state. Its
+   demo-fixture calls moved to its existing fixture caller (`src/App.tsx`,
+   which already imports those modules and is itself excluded from
+   production by the existing `import.meta.env.DEV` fixture gate); the
+   component now takes `money`/`progress` as required props. `src/App.tsx`'s
+   one call site was updated to compute and pass the exact same values it
+   previously received implicitly — fixture behavior is unchanged.
+2. `moneyData.ts`'s two pure label dictionaries (`paymentReadinessLabel`,
+   `nextActionLabel` — real backend vocabulary, not fabricated records) moved
+   to a new `src/moneyLabels.ts` so `MoneyStatus`/`MoneyHome` (both now real-
+   mode-reachable) never pull the rest of `moneyData.ts`'s fabricated
+   `MoneyDetail` fixtures into the production bundle merely to read a label.
+3. `MoneyWorkspace.tsx` gained an optional `fundingFlowEnabled` prop
+   (default `true`, preserving the exact existing fixture path). A real
+   browser walkthrough surfaced a concrete finding: the locked rail-selection
+   -> review -> confirm choreography is pure local UI state with **no
+   backend call anywhere in it**, and `PaymentPending` renders a hardcoded
+   fake attempt reference (`'SP-MNY-2026-0042'`) if reached — i.e. wiring
+   `canFund` straight through would let a signed-in user "confirm a payment"
+   that never touched SecurePayAPI and see a fabricated reference for it.
+   This slice verified only the Payment Ready/next-action *read* contracts,
+   not a funding/payment-intent *mutation* contract (`AgreementFundingController`
+   was not inspected), so real mode passes `fundingFlowEnabled={false}`: the
+   real `FUND_AGREEMENT` affordance stays visible as text (`MoneyStatus`'s
+   own "Authorized next actions" list, `MoneyHome`'s "Needs you" bucket —
+   test 12's "affordance becomes visible"), but the unwired local-only
+   payment simulation never becomes reachable. This is the "stop and report
+   the backend gap rather than invent it" instruction from the task, applied
+   in place rather than halting the slice: `AgreementFundingController` /
+   `CreateAgreementPaymentIntentRequest` remain an explicit, named backend
+   gap for a later slice, not a silently-neutered button.
+
+Other honest gaps, all documented in code comments at their exact site
+rather than fabricated:
+
+- `NeedsAttentionList`'s `AttentionKind` gained one additive value,
+  `agreement_action`, because real `/me/actions` codes (`FUND_AGREEMENT`,
+  `SUBMIT_EVIDENCE`, `START_OBLIGATION`, …) have no honest one-to-one mapping
+  onto the existing fixture kinds, several of which are dispute-specific
+  concepts this slice never reads; forcing a real code into one of those
+  would misrepresent it. Every real action renders under this one generic
+  kind, with the real backend `reason` (or a humanized `actionCode` when no
+  reason is supplied) as the visible detail text.
+- Detail's Terms/Progress obligations have no responsible-party identity in
+  `AgreementTermResponse`; `responsibleParty` renders as an empty string
+  (the closed `Obligation` type has no optional slot for "unknown") rather
+  than a guessed name.
+- Amendment diff (PR #202, not verified this slice) leaves the Changes tab's
+  `changes` list truthfully empty; real version history still populates the
+  Versions list, with `confirmedBy` drawn from `/confirmation-status` only
+  for the current version (superseded versions' confirmers are not knowable
+  from that endpoint and are left empty, not guessed).
+- Asking the Agent from inside an Agreement Detail is not wired to the real
+  Agent conversation (no verified per-Agreement-context contract is in scope
+  here, and Golden Spine A already deferred `/agreements/{id}/agent-context`
+  for this reason); the locked Ask bar is present but returns one honest
+  static notice instead of a fabricated response.
+- `AgreementStaleBanner`'s "you were viewing X, now Y" wording needs "my own"
+  previously-confirmed version number specifically, and no response in this
+  slice's contracts identifies which participant *is* the caller (no
+  identity-decoding is permitted regardless); the banner shows for a real
+  `changedReviewRequired`/`RECONFIRM_AGREEMENT_VERSION` classification with
+  the honest generic phrase "a previous version" rather than a specific
+  number the frontend cannot verify is the caller's own.
+
+Navigation/routing: the existing `NavBar`/`AppView` seam is reused;
+`AgentExperience` gained one `workspace` boolean gated on a real
+`session.getSnapshot().status === 'signed-in'` check (never inferred from
+anything else), mounting `WorkspaceExperience` for the `signed-in`/
+`agreements`/`money` nav items. No new route hierarchy, no URL-persisted
+authority — the same choice Golden Spine D made for the invitation hash
+route. Leaving the workspace back to the conversation optionally forwards
+the Home page's own "What are you trying to make happen?" input text to a
+real new Agent turn, preserving the Agent-first posture the task requires.
+
+Not started, confirming scope discipline: Store, Community, Circles,
+Referrals, Plugs, Masters, Partners, Solutions. The sender-side invitation
+`roleCode` doctrine blocker recorded in Golden Spine D is untouched.
+
+Tests: `tests/signed-in.test.mjs` (`test:signed-in`) and `tests/money.test.mjs`
+(`test:money`), covering Hub-bucket-authority, no local reclassification,
+`TAKING_SHAPE` never promoted, Detail composition and empty-section
+truthfulness, the production-bundle exclusion (including the new
+`moneyData.ts`/`milestoneData.ts` split), and every Money doctrine point:
+exact-status rendering, `NO_EVALUATION_YET` only via the verified 404
+contract, `READY` without a matching action exposing no CTA, an exact match
+exposing the affordance, a same-agreement-only/known-action-only match, and
+`MoneyWorkspace`'s funding-flow gate proven by rendering it both ways and
+asserting the rail-picker markup's presence/absence. All prior Golden Spine
+A/B/C/D suites remain green.
+
+### 15.1 Review fixes (2026-09-15)
+
+Four authority/truthfulness issues flagged on PR #7 review, all fixed
+without redesigning any locked Bolt visual:
+
+1. `SignedInHome.tsx` hardcoded `Welcome back, James` and claimed `SecurePay
+   remembers your agreements, people and activity`, with personal-history
+   quick prompts (`What did Peter agree to?`, `Find my agreement with
+   Kamau`) — but the general Agent conversation endpoints remain
+   `auth: 'none'` and no authenticated Agreement/people/activity context is
+   wired into that orchestrator, so none of this was truthfully answerable.
+   The component gained three optional props (`greeting`/`subheading`/
+   `suggestedPrompts`) that default to the exact existing fixture strings
+   when omitted (verified byte-identical); `WorkspaceExperience` now passes
+   `"Welcome back"` (no name), a memory-free subheading, and generic
+   trade-intent prompts the signed-out Agent already truthfully handles.
+2. Home's `waitingItemsView`/`attentionItemsView` re-derived NEEDS_ME/
+   WAITING_ON_OTHERS locally from action presence/absence, which diverges
+   from the backend's own `AgreementHubBucketClassifier` (e.g. it excludes
+   passive `WAIT_FOR_DEPENDENCY`/`WAIT_UNTIL_AVAILABLE`/`NO_ACTION_REQUIRED`
+   actions from NEEDS_ME, and a DRAFT/TAKING_SHAPE Agreement is never
+   WAITING_ON_OTHERS). Home now shares the same one Hub read the Agreement
+   Hub page already uses (`state.hub` in `controller.ts`, no separate
+   `state.home`); `attentionItemsFromHub(hub.needsMe)` and
+   `waitingItemsFromHub(hub.waitingOnOthers)` render exactly the backend's
+   own buckets, filtering only the documented passive action codes.
+3. `openDetail`/`refreshDetail` used
+   `gateway.confirmationStatus(...).catch(() => [])`, so a genuine
+   confirmation-status failure silently became an empty list that
+   `agreementDetailView` would then render as if every participant's
+   confirmation state were authoritatively known (falling back to
+   `participantStatus`). The `.catch` is removed; both reads are now
+   `Promise.all`-required, so a confirmation-status failure fails the whole
+   Agreement Detail load closed (the existing `ErrorStateCard` path),
+   exactly like a `detail()` failure already did.
+4. Agreement Detail's inline Money summary derived `fundActionAvailable`
+   from cached Home actions, which could go stale. Per the smallest-change
+   option in the review, the inline summary now always passes
+   `fundActionAvailable: false` — Payment Ready still renders in full, but
+   no financial next-action claim appears there; the dedicated Money view
+   (already fetching `/me/actions` fresh on every open) remains the sole
+   place the Fund affordance is gated from current authority.
+
+New/updated tests in `tests/signed-in.test.mjs`: A–E prove Home's two lists
+come only from the real `needsMe`/`waitingOnOthers` buckets (DRAFT never
+reclassified, ACTIVE-with-no-action never "waiting", WAITING_ON_OTHERS
+rendered as-is, a passive-only action list produces no "needs you" item,
+CHANGED_REVIEW_REQUIRED stays distinct); two tests drive
+`createWorkspaceController` against a fake gateway to prove a failing
+`confirmationStatus` fails Detail closed while a succeeding one still
+renders real per-participant state; a source-pattern regression test
+proves the inline Detail Money summary can no longer read `state.home` and
+always passes `fundActionAvailable: false`; and two rendering tests prove
+`SignedInHome`'s new props default to byte-identical fixture markup while
+real-mode values never contain "James" or the memory claim.
+
+### 15.2 Review fix: CHANGED_REVIEW_REQUIRED must still surface on Home (2026-09-15)
+
+One further correction flagged on PR #7 review: 15.1's fix (2) fed Home's
+"Needs you" list from `hub.needsMe` only. The backend's own
+`AgreementHubBucketClassifier` checks `RECONFIRM_AGREEMENT_VERSION` (→
+`CHANGED_REVIEW_REQUIRED`) *before* general `NEEDS_ME`, so an Agreement
+needing this person's reconfirmation is never in `needsMe` — it had
+silently disappeared from Home entirely.
+
+`attentionItemsFromHub` now takes both `changedReviewRequired` and
+`needsMe` (in that priority order) and keeps them as two distinct,
+mutually-exclusive real classifications rather than merging one into the
+other: a `changedReviewRequired` Agreement renders under the locked Bolt
+`agreement_changed` kind ("Change requested"), using only that Agreement's
+own real `RECONFIRM_AGREEMENT_VERSION` action's `reason` (or a humanized
+fallback of the same real code); a `needsMe` Agreement keeps rendering
+under the existing generic `agreement_action` kind. A `Set` of seen
+Agreement ids prevents a duplicate item if malformed backend data ever
+placed the same Agreement in both buckets — `changedReviewRequired` wins,
+`needsMe` is skipped for that Agreement, never both. `waitingItemsFromHub`
+is unchanged (still fed only the real `waitingOnOthers` bucket).
+Opening a changed-review Home item was already correct without further
+change: `openFromHome`/`openFromHub` both resolve through the same
+`findInHub`, which locates the Agreement's one real bucket
+(`changedReviewRequired`) and `boltAgreementStatus` already maps that
+bucket to `change_requested` — Agreement Detail's stale/review-required
+treatment was never at risk, only Home's own list was missing the item.
+
+Tests: replaced the prior test that merely asserted `changedReviewRequired`
+stayed absent from Home (an assertion of the bug, not a guard against it)
+with `E1`–`E4` (appears in Needs you from the real bucket; uses the
+distinct `agreement_changed` kind, not `agreement_action`; never appears in
+Waiting on others; opening it resolves through the real Hub lookup and
+preserves `change_requested`) plus `F` (no duplicate item if the same
+Agreement is malformed into both buckets).
+
+### 15.3 Review fix: two defensive edge cases in the changed-review path (2026-09-15)
+
+Two further corrections flagged on PR #7 review, both in the same 15.2 code:
+
+1. `attentionItemsFromHub`'s `changedReviewRequired` loop previously used
+   `reconfirm?.actionCode ?? RECONFIRM_ACTION_CODE` — if a
+   `changedReviewRequired` summary's own `nextActions` never actually
+   contained a real `RECONFIRM_AGREEMENT_VERSION` entry (bucket membership
+   and the summary drifting apart, a malformed/inconsistent backend
+   response), this synthesized a fabricated `actionValue`/`actionLabel`/
+   `detail` rather than using real data. It now fails closed: `if
+   (!reconfirm) continue;` — that Agreement is simply omitted from Home's
+   "Needs you" list rather than shown with invented text. No existing
+   non-actionable "unavailable" presentation exists for a single Home
+   attention item, and inventing one was out of scope, so omission is the
+   correct minimal fail-closed behavior; the Agreement stays correctly
+   bucketed and visible on the Agreement Hub page regardless, and still
+   resolves to `change_requested` if somehow opened. A normal
+   `changedReviewRequired` item with a real `RECONFIRM_AGREEMENT_VERSION`
+   action is completely unaffected.
+2. `findInHub` used the same `hubBucketOrder` as the Hub page's display
+   flattening, which searches `needsMe` before `changedReviewRequired`. So
+   although `attentionItemsFromHub` already gave `changedReviewRequired`
+   priority for a malformed duplicate-bucket Agreement, clicking that same
+   Home item resolved through `findInHub` as `needsMe` — Agreement Detail
+   would have received `waiting_for_me`, silently losing
+   `change_requested`. A new `hubLookupOrder` (search order only, not
+   display order — `hubBucketOrder` is untouched) puts
+   `changedReviewRequired` first, so `findInHub`'s priority now matches
+   `attentionItemsFromHub`'s. This is duplicate-bucket conflict resolution
+   between the backend's own buckets only — no lifecycle is inferred or
+   reclassified locally.
+
+Tests: `G` proves a `changedReviewRequired` summary with no real
+`RECONFIRM_AGREEMENT_VERSION` action (empty `nextActions`, or only an
+unrelated action) emits no Home item, while a normal valid entry in the
+same call is unaffected; `H` proves a malformed
+`changedReviewRequired`+`needsMe` overlap still resolves through
+`findInHub` with `bucket === 'changedReviewRequired'` and
+`boltAgreementStatus(...) === 'change_requested'`.

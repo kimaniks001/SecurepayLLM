@@ -8,6 +8,8 @@ import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { MoneyGateway } from '../../api/securepay/money';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import { createAgentController } from './controller';
@@ -15,6 +17,7 @@ import { TradeContext } from './TradeContext';
 import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
+import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -26,15 +29,19 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, auth, session }: { gateway: AgentGateway; auth: AuthGateway; session: SessionStore }) {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, auth, session }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; auth: AuthGateway; session: SessionStore;
+}) {
   const [controller, setController] = useState(() => createAgentController(gateway));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
+  const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
+  const [workspace, setWorkspace] = useState(false);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   const startNewConversation = () => {
     setController(createAgentController(gateway));
@@ -43,13 +50,23 @@ export function AgentExperience({ gateway, auth, session }: { gateway: AgentGate
     setExpanded(false);
     setNotice(null);
   };
+
+  if (workspace && sessionState.status === 'signed-in') {
+    const workspaceGateway = { ...agreementGateway, money: moneyGateway };
+    return <WorkspaceExperience gateway={workspaceGateway} onLeave={startText => { setWorkspace(false); setHome(false); if (startText) void controller.send(startText); }} />;
+  }
+
   const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;
   const lastResponse = [...state.turns].reverse().find(turn => turn.sender === 'agent');
   const panel = lastResponse?.sender === 'agent' ? lastResponse.response.panel : null;
   const showHome = home || state.turns.length === 0;
   return <div className="h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={view => {
-      if (view === 'signed-in') setHome(true);
+      if (view === 'signed-in' || view === 'agreements' || view === 'money') {
+        if (sessionState.status === 'signed-in') { setWorkspace(true); return; }
+        setHome(true);
+        if (view !== 'signed-in') setNotice('Sign in through "Continue with this" to view your agreements.');
+      }
       else setNotice('This area is not available yet. You can keep talking with SecurePay.');
     }} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}

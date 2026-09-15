@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementConfirmationResponse, AgreementDetailResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
+import type { AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -19,6 +19,11 @@ export function createAgreementGateway(http: HttpClient) {
     currentUserActions: (page = 0, size = 20) => http.request<Page<CurrentUserActionResponse>>(`/api/v1/me/actions${pagination(page, size)}`, { auth: 'required' }),
     hub: () => http.request<HubDto>('/api/v1/me/agreements/hub', { auth: 'required' }),
     detail: (id: string) => http.request<AgreementDetailResponse>(`${agreement(id)}/detail`, { auth: 'required' }),
+    // Real shape: List<AgreementConfirmationStatusResponse> — one entry per current participant, carrying
+    // that participant's own confirmedVersionNumber/currentVersionNumber and confirmationCurrent/
+    // reconfirmationRequired. Used only to render real "who confirmed the current version" and this
+    // caller's own stale-review state — never to derive Agreement or Money authority.
+    confirmationStatus: (id: string) => http.request<AgreementConfirmationStatusResponse[]>(`${agreement(id)}/confirmation-status`, { auth: 'required' }),
     issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<{ invitationId: string; status: string; invitationToken: string; replayed: boolean }>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),

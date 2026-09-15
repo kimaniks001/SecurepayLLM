@@ -1,4 +1,5 @@
-import type { MoneyDetail, RailOption, MoneyActivityItem, PaymentReadinessStatus, ParticipantNextAction } from './types';
+import type { MoneyDetail, RailOption, MoneyActivityItem } from './types';
+export { paymentReadinessLabel, nextActionLabel } from './moneyLabels';
 
 const commonRails: RailOption[] = [
   { id: 'mpesa_stk', label: 'M-PESA', description: 'Pay from your mobile number', available: true, feeNote: 'Fee determined before confirmation' },
@@ -374,26 +375,6 @@ export const demoMoneyStates: Record<string, MoneyDetail> = {
 export function getDemoMoney(id: string): MoneyDetail | undefined {
   return demoMoneyStates[id];
 }
-
-export const paymentReadinessLabel: Record<PaymentReadinessStatus, string> = {
-  NO_EVALUATION_YET: 'Money not yet evaluated',
-  READY: 'Ready for payment',
-  NOT_READY: 'Not ready for payment',
-  PARTIALLY_READY: 'Partially ready for payment',
-  BLOCKED: 'Blocked',
-};
-
-export const nextActionLabel: Record<ParticipantNextAction, string> = {
-  FUND_AGREEMENT: 'Fund agreement',
-  CHOOSE_METHOD: 'Choose payment method',
-  CHECK_STATUS: 'Check status',
-  REVIEW_PAYMENT: 'Review payment',
-  REFRESH: 'Refresh Money status',
-  TRY_AGAIN: 'Try again',
-  CHOOSE_ANOTHER: 'Choose another method',
-  VIEW_AGREEMENT: 'View agreement',
-  none: 'No action available',
-};
 
 // Money attention items for signed-in home — populated from next-action projections
 export const moneyAttentionItems = [

@@ -1,4 +1,4 @@
-import { AlertCircle, FileText, CheckCircle, Gavel, MessageSquare, Handshake, Scale } from 'lucide-react';
+import { AlertCircle, FileText, CheckCircle, Gavel, MessageSquare, Handshake, Scale, Bell } from 'lucide-react';
 import type { AttentionItem } from '../types';
 
 interface NeedsAttentionListProps {
@@ -15,6 +15,7 @@ const kindIcon = {
   dispute_match_proposed: Handshake,
   dispute_master_appointment: Scale,
   dispute_master_opinion: Scale,
+  agreement_action: Bell,
 };
 
 const kindTone = {
@@ -26,6 +27,7 @@ const kindTone = {
   dispute_match_proposed: 'text-forest-600 bg-forest-50',
   dispute_master_appointment: 'text-ember-600 bg-ember-50',
   dispute_master_opinion: 'text-forest-600 bg-forest-50',
+  agreement_action: 'text-forest-600 bg-forest-50',
 };
 
 const kindLabel = {
@@ -37,6 +39,7 @@ const kindLabel = {
   dispute_match_proposed: 'Match proposed',
   dispute_master_appointment: 'Master appointment needs you',
   dispute_master_opinion: 'Master opinion ready',
+  agreement_action: 'Needs your action',
 };
 
 export function NeedsAttentionList({ items, onOpenAgreement }: NeedsAttentionListProps) {
