@@ -1,6 +1,6 @@
 import { Wallet, ChevronRight, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import type { MoneyDetail, ParticipantNextAction } from '../types';
-import { nextActionLabel } from '../moneyData';
+import { nextActionLabel } from '../moneyLabels';
 
 interface MoneyHomeProps {
   items: MoneyDetail[];

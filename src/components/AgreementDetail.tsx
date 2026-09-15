@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, MessageCircle, Wallet } from 'lucide-react';
-import type { AgreementDetail as AgreementDetailType } from '../types';
+import type { AgreementDetail as AgreementDetailType, AgreementAction, Milestone, MoneyDetail } from '../types';
 import { AgreementStatusBadge } from './AgreementStatusBadge';
 import { AgreementOverview } from './AgreementOverview';
 import { AgreementPeople } from './AgreementPeople';
@@ -10,14 +10,19 @@ import { AgreementActivity } from './AgreementActivity';
 import { AgreementChanges } from './AgreementChanges';
 import { MoneyAgreementContext } from './MoneyAgreementContext';
 import { MoneyStatus } from './MoneyStatus';
-import { getDemoMoney } from '../moneyData';
 import { AgreementSupport } from './AgreementSupport';
 import { AgreementReuse } from './AgreementReuse';
 import { AgreementStaleBanner } from './AgreementStaleBanner';
 import { MilestoneProgress } from './MilestoneProgress';
 import { ActionList } from './ActionList';
 import { ConversationInput } from './ConversationInput';
-import { getDemoStructure } from '../milestoneData';
+
+interface AgreementProgress {
+  milestones: Milestone[];
+  isSimple: boolean;
+  rootMilestone: Milestone;
+  actions: AgreementAction[];
+}
 
 interface AgreementDetailProps {
   detail: AgreementDetailType;
@@ -30,6 +35,14 @@ interface AgreementDetailProps {
   onViewCurrent?: () => void;
   onRaiseIssue?: () => void;
   onOpenMoney?: (id: string) => void;
+  /**
+   * The demo fixture's Money/progress source lives with its caller (see src/App.tsx), never inside this
+   * locked component, so a real caller can never accidentally bundle or fall back to fixture Money/
+   * milestone data. `null` means "real mode, no data for this section" (renders the section's own
+   * truthful empty/unavailable state) — distinct from omitting the prop entirely.
+   */
+  money: MoneyDetail | null;
+  progress: AgreementProgress | null;
 }
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress';
@@ -58,16 +71,15 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, money, progress }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
 
   const showVersion = detail.status !== 'taking_shape';
   const showReuse = detail.status === 'completed';
-  const structure = getDemoStructure(detail.id);
-  const moneyState = getDemoMoney(`money-not-ready`);
-  const moneyForAgreement = moneyState ? { ...moneyState, agreementLink: { ...moneyState.agreementLink, agreementId: detail.id, agreementTitle: detail.title, agreementVersion: detail.version, amount: detail.amount } } : null;
+  const structure = progress;
+  const moneyForAgreement = money;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

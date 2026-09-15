@@ -1,6 +1,6 @@
 import { CheckCircle2, Clock, AlertCircle, Ban, HelpCircle, RefreshCw, CircleDot } from 'lucide-react';
 import type { MoneyDetail, MoneyState, PaymentReadinessStatus } from '../types';
-import { paymentReadinessLabel, nextActionLabel } from '../moneyData';
+import { paymentReadinessLabel, nextActionLabel } from '../moneyLabels';
 import { MoneyAuthorityBadge } from './MoneyAuthorityBadge';
 
 const stateConfig: Record<MoneyState, { icon: typeof CheckCircle2; classes: string }> = {

@@ -7,3 +7,4 @@ export function createMoneyGateway(http: HttpClient) {
     records: (id: string) => http.request<AgreementMoneyRecordResponse[]>(`/api/v1/agreements/${segment(id)}/money-records`, { auth: 'required' }),
   };
 }
+export type MoneyGateway = ReturnType<typeof createMoneyGateway>;

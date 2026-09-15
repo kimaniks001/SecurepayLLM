@@ -596,7 +596,15 @@ export type AttentionKind =
   | 'dispute_position_needed'
   | 'dispute_match_proposed'
   | 'dispute_master_appointment'
-  | 'dispute_master_opinion';
+  | 'dispute_master_opinion'
+  /**
+   * Real `/api/v1/me/actions` next-action codes (e.g. FUND_AGREEMENT, SUBMIT_EVIDENCE,
+   * START_OBLIGATION) have no honest one-to-one mapping onto the fixture kinds above, several of
+   * which are dispute-specific concepts this Golden Spine slice does not read. Every real action
+   * renders under this one generic kind instead of being force-fit into a misleading specific kind;
+   * the real `reason`/`category` text (backend-owned) carries the actual detail.
+   */
+  | 'agreement_action';
 
 export interface AttentionItem {
   id: string;

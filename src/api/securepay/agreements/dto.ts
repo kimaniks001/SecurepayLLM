@@ -203,3 +203,15 @@ export interface AgreementMoneyRecordResponse {
   currency: string;
   amountMinor: string;
 }
+export interface AgreementConfirmationStatusResponse {
+  participantId: string;
+  identityId: string;
+  roleCode: string;
+  participantStatus: string;
+  confirmedVersionId: string | null;
+  confirmedVersionNumber: number | null;
+  currentVersionId: string;
+  currentVersionNumber: number;
+  confirmationCurrent: boolean;
+  reconfirmationRequired: boolean;
+}
