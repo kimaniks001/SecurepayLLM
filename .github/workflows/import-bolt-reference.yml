@@ -1,0 +1,98 @@
+name: Import frozen Bolt Pass 11 reference
+
+on:
+  push:
+    branches:
+      - feat/import-bolt-pass11
+    paths:
+      - project-bolt-sb1-8wcnp3ss.zip
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-bolt-pass11
+  cancel-in-progress: false
+
+jobs:
+  import-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/import-bolt-pass11
+          fetch-depth: 0
+
+      - name: No-op when the root ZIP is absent
+        id: zip
+        shell: bash
+        run: |
+          if [[ -f project-bolt-sb1-8wcnp3ss.zip ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "The frozen Bolt ZIP is not present; nothing to import."
+          fi
+
+      - name: Verify and import exact Bolt export
+        if: steps.zip.outputs.present == 'true'
+        shell: bash
+        run: bash scripts/import-bolt-reference.sh project-bolt-sb1-8wcnp3ss.zip
+
+      - name: Set up Node
+        if: steps.zip.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.zip.outputs.present == 'true'
+        run: npm ci
+
+      - name: Typecheck
+        if: steps.zip.outputs.present == 'true'
+        run: npm run typecheck
+
+      - name: Lint
+        if: steps.zip.outputs.present == 'true'
+        run: npm run lint
+
+      - name: Build
+        if: steps.zip.outputs.present == 'true'
+        run: npm run build
+
+      - name: Restore exact exported files after validation build
+        if: steps.zip.outputs.present == 'true'
+        shell: bash
+        run: bash scripts/import-bolt-reference.sh project-bolt-sb1-8wcnp3ss.zip
+
+      - name: Commit immutable reference import
+        if: steps.zip.outputs.present == 'true'
+        shell: bash
+        run: |
+          git config user.name "securepay-reference-bot"
+          git config user.email "securepay-reference-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source changes to commit."
+          else
+            git commit -m "chore: import locked Bolt Pass 11 experience"
+            git push origin HEAD:feat/import-bolt-pass11
+          fi
+
+      - name: Tag frozen experience reference
+        if: steps.zip.outputs.present == 'true'
+        shell: bash
+        run: |
+          git fetch origin feat/import-bolt-pass11
+          git checkout feat/import-bolt-pass11
+          git reset --hard origin/feat/import-bolt-pass11
+          if git rev-parse bolt-reference-pass11 >/dev/null 2>&1; then
+            echo "Tag bolt-reference-pass11 already exists."
+          else
+            git tag -a bolt-reference-pass11 -m "Frozen SecurePay Bolt experience through Pass 11"
+            git push origin bolt-reference-pass11
+          fi
