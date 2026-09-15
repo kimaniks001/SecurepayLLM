@@ -21,3 +21,20 @@ The raw export must be committed unchanged before production refactoring begins.
 ## Core convergence rule
 
 `Canonical source -> explicit Use this -> SourceReference -> Trade Taking Shape -> resolve delta -> Agreement authority -> Money follows Agreement`
+
+## Foundation runtime
+
+Copy `.env.example` for real API configuration. Real mode is the default and
+currently shows unavailable until the Golden Spine UI slices are wired.
+For the unchanged Bolt visual reference, run:
+
+```sh
+VITE_SECUREPAY_MODE=fixture npm run dev
+```
+
+Fixtures are disabled in production builds, including `#/demo/...` URLs.
+API credentials must never be placed in `VITE_*` variables.
+
+Validation: `npm run typecheck`, `npm run lint`, `npm run test:foundation`,
+`npm run build`. See [the compatibility audit](docs/GOLDEN_SPINE_COMPATIBILITY_AUDIT.md)
+for verified contracts, gaps and the next slice.
