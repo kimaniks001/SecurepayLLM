@@ -14,6 +14,8 @@ export interface RequestOptions {
   body?: unknown;
   auth?: 'none' | 'optional' | 'required';
   signal?: AbortSignal;
+  /** Extra request headers (e.g. `Idempotency-Key`). Never used for Authorization/Content-Type. */
+  headers?: Record<string, string>;
 }
 export interface HttpClient { request<T>(path: string, options?: RequestOptions): Promise<T> }
 export type AccessTokenProvider = () => string | null;
@@ -29,6 +31,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
       if (options.auth === 'required' && !token) throw new ApiError('http', 'Authentication required', 401, 'AUTHENTICATION_REQUIRED');
       if (token) headers.set('Authorization', `Bearer ${token}`);
       if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+      if (options.headers) for (const [key, value] of Object.entries(options.headers)) headers.set(key, value);
       const controller = new AbortController();
       let timedOut = false;
       const abort = () => controller.abort();

@@ -40,7 +40,7 @@ function LoadingNotice({ text }: { text: string }) {
  * renders exactly the backend's own truth (see controller.ts / view.ts); this component only wires
  * locked Bolt components to that truth and to navigation — it derives no Agreement or Money state.
  */
-export function WorkspaceExperience({ gateway, onOpenStore, onLeave }: { gateway: Gateway; onOpenStore?: () => void; onLeave: (startText?: string) => void }) {
+export function WorkspaceExperience({ gateway, onOpenStore, onOpenReferral, onLeave }: { gateway: Gateway; onOpenStore?: () => void; onOpenReferral?: (agreementId: string) => void; onLeave: (startText?: string) => void }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
@@ -120,6 +120,7 @@ export function WorkspaceExperience({ gateway, onOpenStore, onLeave }: { gateway
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}
           onRaiseIssue={undefined}
           onOpenMoney={() => void controller.openMoney(boltDetail.id)}
+          onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
         />

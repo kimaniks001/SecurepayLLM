@@ -100,9 +100,10 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Circle profile/economic facts | Existing CircleProfileService + PR #206 Growth Credits, `GET /api/v1/circle/me` | BACKEND_PR_PENDING | Golden Spine G wires the real self-scoped Circle profile (identity, verification status, `memberSince`, referred/activated trader counts, agreements brought in, growth credit total) to this endpoint; row stays BACKEND_PR_PENDING until #206's stack merges to `main`. `memberSince` is `ks_identities.created_at` (identity creation), never a named-Circle join date — rendered as "SecurePay identity since {date}", not "Member since" (17.6). Growth Credits are factual NON-MONEY activity counts, rendered as a plain count only. |
 | Circle membership/feed semantics | PR #206 explicitly did not introduce a full membership/feed/social authority; Phase 11 convergence audit (`PHASE_10_CONVERGENCE_AUDIT.md`) confirms this is a deferred product-shape decision, not a gap to close inline | TRUE BACKEND GAP / DEMO_ONLY_REMOVE_BEFORE_PRODUCTION | Golden Spine G renders this as a truthful "Named Circles ... not available yet" notice in the real Circle experience. Bolt's rich named-Circle screens (`CircleHome`, `CircleDiscoveryList`, `CircleMemberDirectory`, `CircleEconomicSummary`, `CircleCreateFlow`, `CircleJoinFlow`) remain fixture-only and are never reached from the real route. |
 | Universal SourceReference across Community/Circles | Bolt contract is richer than PR #206 report; Phase 5B offers generic provenance/adoption primitives; Phase 11 convergence audit confirms `ExternalFactSourceKind` (incl. `COMMUNITY_KNOWLEDGE`) is the one real engine, not a second SourceReference authority | BACKEND_PR_PENDING | Golden Spine G deliberately does not wire `COMMUNITY_KNOWLEDGE` this slice (no real Community content object exists to adopt facts from); the one real Community→Trade path (a Store offer reference) reuses the existing STORE_LISTING seam unchanged. See section 17. |
-| Referral evaluation | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | UI must not infer candidate/qualified/reward states. |
-| Plug | Phase 11 backend work is the target authority | BACKEND_PR_PENDING | Plug introduces/navigates; gains no Agreement/Money authority. |
-| Master profile/request/opinion | Phase 11 backend work + PR #205 dispute escalation seam | BACKEND_PR_PENDING | Qualification/accreditation separate from Master status; opinion not authority. |
+| Referral (R11A generic code) | `ReferralController` (`/api/v1/referrals/me/code`, `/redeem`, `/me/history`, `/me/lifetime-share`) — byte-identical to `origin/main` | REAL_API_WIRED | Golden Spine H wires a real shareable code, real "who I referred" history, and real redemption. `lifetime-share` (Plug's own aggregate earnings) is gateway-wired/tested but unwired to UI — no Bolt Plug-dashboard surface exists. See section 18. |
+| Referral (KeyContract per-Agreement) | `AgreementPlugAttributionController.referralStatus` — the one new method PR #207 adds; `NO_INTRODUCTION\|CANDIDATE\|NOT_QUALIFIED\|QUALIFIED` | BACKEND_PR_PENDING | UI must not infer candidate/qualified/reward states; renders exactly the backend's 4-value enum. See section 18. |
+| Plug attribution (Agreement) | `AgreementPlugAttributionController` POST/GET + `PlugMarketEntryController`/`CustomerPlugRelationshipLifecycleController` customer-side matching flow — byte-identical to `origin/main` | REAL_API_WIRED | Golden Spine H wires the real customer-request → candidates → selection → relationship → attribution flow; Plug gains no Agreement/Money authority. Rich Plug profile (name/domains/geography) remains a confirmed backend gap. See section 18. |
+| Master profile/request/opinion | Entire `ke.securepay.core.master` package — new to PR #207, not on `main` | BACKEND_PR_PENDING | Golden Spine H wires the full non-dispute lifecycle (designate/profile/request/propose-cost/accept/decline/opinion) against a local contract double. Qualification/accreditation separate from Master status; opinion not authority. See section 18. |
 | Partner/Solution | Later backend phase; Bolt Pass 11 is product contract only | BACKEND_PR_PENDING | Keep demo adapter until real bounded APIs exist. Do not invent bank/insurance/partner truth. |
 
 ## 5. Highest-risk prototype code to retire
@@ -1436,3 +1437,349 @@ scope and none touching the parked visual-identity work:
 `tests/community-circles.test.mjs` grew from 29 to 41 tests, all passing;
 all prior Golden Spine A-F suites (124 tests) remain green; `typecheck`/
 `lint`/`build` all pass.
+
+## 18. Golden Spine H: Referrals + Plugs + Masters implementation scope (2026-09-16)
+
+`Real Master profile lookup → explicit request → cost proposal/acceptance →
+opinion` plus `real customer/Plug market-matching → explicit Agreement Plug
+attribution` plus `real R11A referral code/history/redemption` are wired
+end-to-end, verified directly against source at `kimaniks001/SecurePayAPI`
+`feat/securepay-phase11-referrals-plugs-masters` @
+`978437f300244119302607ba3e656a76253190bb` (the docs-only head recording PR
+#207; the actual feature commit is `9ebe59b1`, stacked on Phase 10 @
+`b371a906`). Inspected directly: `MasterController.java` and every
+`api/master/request|response` DTO, `MasterProfile.java`/`MasterRequest.java`/
+`MasterOpinion.java` and their status/context enums, `MasterProfileService`/
+`MasterRequestService`/`MasterOpinionService`, `MasterProfileDoctrineTest`/
+`MasterRequestDoctrineTest`/`MasterOpinionDoctrineTest`/
+`MasterRequestServiceTest`; `AgreementPlugAttributionController.java` and its
+request/response records; `KeyContractReferralProjectionService`/
+`KeyContractReferralEvaluationState`; `PlugMarketEntryController.java` (full
+source, all records); `CustomerPlugRelationshipLifecycleController.java`;
+`ReferralController.java` and every `api/referral/request|response` DTO;
+`ExternalFactSourceKind.java`; `docs/PHASE_10_CONVERGENCE_AUDIT.md` and
+`docs/SECUREPAY_BACKEND_MASTER_EXECUTION.md`. No live deployed SecurePayAPI
+was exercised; browser acceptance (desktop and 400x860 mobile viewports) ran
+against a throwaway local Node HTTP contract double implementing the exact
+verified request/response shapes (not shipped with this PR) — the same
+methodology as every prior Golden Spine slice's own local contract double.
+
+### 18.1 The task's "one uniformly BACKEND_PR_PENDING surface" framing was wrong — verified by direct diff
+
+The task briefing treated Referrals+Plugs+Masters as one Phase-11-gated
+surface. Diffing every controller/service file above against `origin/main`
+directly (`git diff <sha> origin/main -- <path>`) found this is **not**
+uniform:
+
+- **Already on `origin/main`, byte-identical, real and live today:**
+  `AgreementPlugAttributionController`'s original POST/GET
+  `plug-attribution` (only its new `referral-status` sub-route is Phase 11);
+  the entire `ReferralController` (all four R11A endpoints); the entire
+  `PlugMarketEntryController`/`CustomerPlugRelationshipLifecycleController`
+  customer-side matching flow that produces a real `relationshipRef`.
+- **Genuinely new to the unmerged PR #207 stack:** the entire
+  `ke.securepay.core.master` package/`MasterController`, and
+  `KeyContractReferralProjectionService`/the `referral-status` endpoint.
+
+This changed the classification in section 4 above: most Plug/Referral rows
+are `REAL_API_WIRED` (verified against real, mergeable-today source), not
+`BACKEND_PR_PENDING`; only Master (100%) and the new per-Agreement
+`referral-status` evaluation read stay `BACKEND_PR_PENDING`.
+
+### 18.2 Two distinct, real "referral" domains — kept separate, never conflated
+
+- **R11A generic referral-code system** (`ke.securepay.core.referral.*`, on
+  `main`): `GET /api/v1/referrals/me/code` (get-or-create my own shareable
+  code), `POST /redeem`, `GET /me/history` (a genuinely real "list all my
+  referrals" global history — `ReferralHistoryResponse{referralCode,
+  totalReferred, activatedOrLaterCount, relationships}`, each relationship
+  carrying `status` (`PENDING`/`ACTIVATED`/`QUALIFIED`), `rewardAmountMinor`/
+  `rewardCurrency` (both null until `ReferralQualificationService` records a
+  real settlement-derived qualification), `qualificationExplanation`), and
+  `GET /me/lifetime-share` (the Plug's own gross earnings aggregate —
+  deliberately carries no available/withdrawable/net/payout field, per the
+  backend's own Javadoc).
+- **KeyContract / Agreement-Plug-Attribution system**
+  (`ke.securepay.core.agreement.attribution.*` +
+  `ke.securepay.core.referral.keycontract.*`): "a Plug introduced me to this
+  specific Agreement, and earns 10% of the SecurePay platform fee at
+  qualifying settlement." Per-Agreement only, scoped to the Agreement's
+  creator; no cross-Agreement list exists in this domain.
+
+Bolt's `ReferralHistoryView` (fixture-only `demoReferralEvaluations`/
+`demoIntroductions`, an introducer/introduced-to/candidate+qualification+
+reward-status triad) matches neither domain's real field shape closely
+enough to reuse as-is — Golden Spine H builds two new, narrow real screens
+instead (`features/referral/ReferralExperience.tsx` for R11A,
+`features/plug/PlugExperience.tsx`'s attribution panel for KeyContract),
+following the same divergence precedent Golden Spine G used for Circle's
+named-group gap. `ReferralHistoryView.tsx`/`PlugProfileCard.tsx`/
+`MasterProfileCard.tsx`/`MasterRequestView.tsx`/`MasterOpinionView.tsx` stay
+completely untouched, fixture-only.
+
+### 18.3 Plug attribution — the real relationshipRef flow, wired in full
+
+The task briefing called `relationshipRef` "a verified existing relationship
+reference" without describing how one is obtained. The real, full path
+(verified from `PlugMarketEntryController.java` source, all wired this
+slice, customer-side only — no Plug-side "become a Plug"/opportunity-offer
+UI exists in Bolt and none was built):
+
+1. `POST /api/v1/market-network/customer-requests` (header `Idempotency-Key`,
+   body `{requestType: GENERAL_SECUREPAY_HELP | PROPERTY_JOURNEY_HELP}`).
+2. `GET .../customer-requests/{id}/candidates` → opaque
+   `{candidateRef, interestedAt}` only — **no name, domain, or geography
+   field exists anywhere in this projection**, confirming the task's own
+   Plug-profile-richness gap concern directly from the real candidate-
+   selection payload, not just the profile endpoint.
+3. `POST .../customer-requests/{id}/selection` `{candidateRef}`.
+4. `POST .../customer-requests/{id}/relationship` → the real
+   `CustomerPlugRelationshipResponse.relationshipRef` (UUID).
+5. That exact `relationshipRef` is the only value
+   `POST /api/v1/agreements/{agreementId}/plug-attribution` accepts
+   (`AgreementPlugAttributionRequest{relationshipRef}` — the only field; the
+   server derives `plugKsNumber` server-side).
+
+`api/securepay/marketnetwork/` is the new customer-side-only gateway
+(`createRequest`, `myRequests`, `cancelRequest`, `candidates`, `selection`
+GET/POST, `relationship` GET/POST, `relationshipLifecycle`). The Plug-side
+`/plug/entry`/`/plug/exit`/`/plug/me`/`/plug/relationships`/
+`/opportunities/**` endpoints are deliberately not wired — no Bolt surface
+for "become a Plug" exists, and wiring them would be inventing a UI Bolt
+never designed, not productionizing a locked one.
+
+`api/securepay/http/index.ts`'s `RequestOptions` gained an optional
+`headers` field — the first endpoint in this codebase requiring a literal
+HTTP header (`Idempotency-Key`) rather than an idempotency key carried in
+the request body (every prior idempotent mutation, e.g. `join`/
+`confirmVersion`, used a body field).
+
+Conflict/immutability (verified from `AgreementPlugAttributionService`,
+wired exactly): first attribution for an Agreement succeeds; a repeat POST
+with the *same* `relationshipRef` is idempotent (returns the existing
+attribution); a POST with a *different* relationship after one already
+exists throws `AttributionConflictException` → real `409` → the frontend
+controller (`features/plug/controller.ts` `attributeToAgreement`) leaves the
+held `existingAttribution` completely untouched on any failure, never
+optimistically updating (task tests L/M). A "no attribution yet" `404` on
+the `GET` read is treated as the real, valid `empty` `RemoteState`, never an
+error (task section 18).
+
+**Real defect found during the browser walkthrough:** after a successful
+attribution, the already-loaded `referralStatus` (KeyContract evaluation
+state, fetched once on entry when it was truthfully `NO_INTRODUCTION`) sat
+stale on screen — the attribution had just made a real state transition
+possible, but nothing re-read it. Fixed: `attributeToAgreement` now re-reads
+`referralStatus` immediately after a successful attribution (`features/plug/controller.ts`).
+Verified live against the contract double: the panel correctly moved from
+`NO INTRODUCTION` to `CANDIDATE` immediately after attribution, with no page
+reload.
+
+### 18.4 Master — the full non-dispute lifecycle, wired against a contract double
+
+`MasterController` (`/api/v1/master`, entire package new to PR #207) is
+wired via the new `api/securepay/master/` gateway/adapters and
+`features/master/` controller/`MasterExperience.tsx`:
+
+- `POST /me/designate`, `POST /requests`, `POST /requests/{id}/propose-cost`,
+  `POST /requests/{id}/accept`, `POST /requests/{id}/decline`,
+  `POST /requests/{id}/opinion` — all `auth: 'required'`.
+- `GET /{identityId}/profile` and `GET /requests/{id}` — verified **genuinely
+  public** (no `actorProvider` call in either controller method at all,
+  confirmed by direct source read); wired as `auth: 'none'`, not the
+  protected reads the task briefing implicitly assumed.
+
+**No Master directory/search endpoint exists** (confirmed absent from
+source — only exact-identityId profile lookup). `MasterExperience.tsx`
+renders this honestly: a person reaches a real profile only by an
+`identityId` reference they already have; the UI never fabricates a
+browsable list. `MasterProfileCard.tsx` stays fixture-only because its
+`identity` field assumes a display name the real API never returns (only an
+opaque `identityId`) — the real screen labels it "Master reference:
+{identityId}", never a fabricated name.
+
+**Confirmed CRITICAL backend gap:** `MasterAuthorityException` (wrong
+owner, invalid state transition, duplicate self-designation, optimistic-lock
+conflict) has **no `@ExceptionHandler`** anywhere in `ApiExceptionHandler`
+at this SHA — every one of these becomes an unhandled `500` with no
+structured error body, indistinguishable from a genuine server outage.
+`features/master/controller.ts`'s `errorText(error, isMutation)` therefore
+treats *any* non-2xx from a Master mutation as one generic closed failure
+("This action could not be completed. It may not be allowed for your role
+or this request's current state.") — it never guesses which specific rule
+was violated. Reads (`profile`, `request`) still distinguish a real,
+handled `404`.
+
+Because the frontend never decodes identity and cannot know whether the
+signed-in caller is the request's own `masterIdentityId` or
+`requestingIdentityId`, `MasterExperience.tsx` shows every state-machine-
+valid action (propose-cost, accept, decline) labelled with which role it
+requires ("Propose cost (Master only)", "Accept cost (Requester only)") and
+lets the backend's own role check enforce and fail the request closed —
+never a client-side role guess.
+
+State machine wired exactly as verified (`MasterRequest.java` +
+`MasterRequestService`): `REQUESTED → COST_PROPOSED → ACCEPTED →
+OPINION_SUBMITTED`, with `DECLINED`/`CANCELLED` as other terminal/dead
+states. `cancel()` and `MasterOpinion.supersede()` exist on the domain model
+but have **no HTTP endpoint** — no Cancel/Correct-opinion UI action was
+added, since there is nowhere real to send it.
+
+A monotonically increasing sequence counter guards `lookupProfile` against
+an older, slower reference lookup overwriting a newer one (mirroring the
+Community search-sequence pattern) — the only place in this slice two
+overlapping requests against the same read are plausible from ordinary
+typing/re-lookup behavior.
+
+### 18.5 Referral (R11A) — real code, history, and redemption
+
+`api/securepay/referral/` (`createReferralGateway`) wires `myCode`,
+`myHistory`, `redeem` to `features/referral/ReferralExperience.tsx` (my own
+shareable code, real per-relationship status/reward, and an explicit
+"redeem a code" action — a real, safe action with no Bolt UI precedent,
+added as a small additive screen in the same visual language, matching the
+task's own instruction to make Bolt real without inventing unrelated
+authority). `myLifetimeShare` (the Plug's own gross earnings) is gateway-
+wired and tested but not attached to any UI — it is a Plug-facing dashboard
+concept with no Bolt component to attach it to this slice, the same
+"wired, tested, unwired-to-UI" precedent Golden Spine F used for Store's
+`updateMyProfile`.
+
+Reward fields (`rewardAmountMinor`/`rewardCurrency` and the KeyContract
+`rewardAmountMinor`/`currency`) render only when the backend supplies both
+together — never defaulted, never inferred. `rewardPaid` (KeyContract) is
+always `false` in every branch of the verified backend today — no payout
+authority exists anywhere — and is rendered as a plain boolean fact, never
+implying a pending payment. No referral surface anywhere renders a Pay/
+Release/Withdraw/Send-Money action (task section 5).
+
+### 18.6 Entry points
+
+Bolt's `TradeHelpPanel` had **no live entry point anywhere in the real app**
+(only reachable via the frozen `#/demo/help` fixture route) and its own
+"Referral history" button had no `onClick` at all in the locked component.
+Golden Spine H adds:
+
+- `TradeHelpPanel` gained an optional `onReferrals` prop (byte-identical
+  fixture rendering when omitted, verified by test AH1) wiring the
+  previously-dead button to the real Referral experience.
+- `CommunityHome.tsx` gained an optional `onOpenEcosystem` prop/button
+  ("Help this trade happen," byte-identical when omitted) — the natural real
+  entry point, since `ecosystem` already groups under the Community NavBar
+  tab (`NavBar.tsx`'s existing `isActive` check).
+- `AgreementSupport.tsx` gained an optional `onOpenReferral` prop/button
+  ("Referral & Plug attribution," byte-identical when omitted), threaded
+  through `AgreementDetail.tsx` → `WorkspaceExperience.tsx`'s new
+  `onOpenReferral` prop, so a specific Agreement's real Plug attribution/
+  referral-status can be reached and set from that Agreement's own Support
+  tab — the walkthrough's "referral detail for a real Agreement" step.
+
+`features/ecosystem/EcosystemExperience.tsx` is the new thin router (mirrors
+`AgentExperience`'s existing Store/Community/Circle routing pattern),
+composing `TradeHelpPanel` (real) with `MasterExperience`/`PlugExperience`/
+`ReferralExperience`. Formal Solutions/Partners remain the documented
+demo-only gap (task section 22/doctrine — Partner/Solution institutional
+authority is explicitly blocked pending human confirmation, per
+`docs/BACKEND_PHASE11_CONVERGENCE_UPDATE.md`); selecting them shows a
+truthful "not available yet" notice, matching the existing pattern used
+elsewhere in `AgentExperience.navigateTo`.
+
+### 18.7 Privacy/session-clearing
+
+`PlugExperience` resets its controller (candidates/selection/relationship/
+attribution/referral-status) on every transition away from `signed-in`, and
+reloads fresh on every transition into it (mirroring `CircleExperience`).
+`MasterExperience` clears request/opinion/draft state on the same
+transition via a new `resetSession()` controller method — the looked-up
+Master profile itself is a public, identity-free read and is deliberately
+left alone, so signing out mid-lookup doesn't discard a reference the
+person is still reading. `ReferralExperience` reloads on sign-in and resets
+on sign-out, identical to `CircleExperience`'s own pattern.
+
+### 18.8 What remains untouched / documented gaps
+
+- Dispute Master (`DisputeMasterEscalation`, Phase 9B) is completely
+  unaffected — the non-dispute `MasterRequestSourceContext` enum has no
+  `DISPUTE` value by design, and no new file references
+  `DisputeMasterEscalation` (test AE).
+- No Master directory/search, no appointment/scheduling authority beyond
+  the `siteVisitRequired`/`siteVisitDetails` free-text fields, no rich Plug
+  profile (name/domain/geography/availability) — all confirmed absent from
+  source, not merely assumed.
+- `MASTER_OPINION` was added to the real `ExternalFactSourceKind` enum by
+  PR #207 but is functionally inert: no controller/service anywhere
+  references it, and the only submission shapes that accept a `sourceKind`
+  (`SubmitExternalAmountFactRequest`/`SubmitExternalDateFactRequest`) are
+  amount/date-only — there is no free-text-observation fact type. Wiring a
+  real "Use this direction" from a Master opinion would therefore mean
+  reusing the existing `submitAmount`/`submitDate` Agent methods with
+  `sourceKind: 'MASTER_OPINION'` for a numeric/date fact the opinion
+  happens to mention — never the opinion's substantive text. This slice
+  does not wire it (no natural numeric/date fact exists on the demo
+  opinion content used in the walkthrough); the existing Golden Spine B/C
+  adoption pipeline is untouched and remains the correct, only reuse path
+  if a later slice adds it.
+- Formal Solutions/Partners remain demo-only, unchanged from prior slices.
+- Money/payment-intent surfaces are untouched; no referral/Plug/Master file
+  imports the Money gateway (tests H/I/X/AA).
+
+### 18.9 Tests
+
+`tests/referrals-plugs-masters.test.mjs` (`test:referrals-plugs-masters`, 56
+tests, A-AJ per the task's own lettering) covers: production-bundle
+exclusion of `ecosystemData.ts` (A/P); no fixture fallback on API failure
+(B1-B3); the exact verified auth boundary for every Master/market-network/
+referral/attribution endpoint, including the literal `Idempotency-Key`
+header (C1-C5); the two genuinely public Master reads (D); every unknown
+enum failing closed — Master designation/availability/source-context/
+status, KeyContract referral state, R11A relationship status, customer
+market request type/status/relationship status (E/F); reward amount/
+currency rendered only when both backend fields are present, and never as a
+Pay/Release/Withdraw/Send-Money action (G/H); no referral file importing
+Money (I); Plug attribution's explicit-action/real-relationshipRef/fail-
+closed-on-failure/fail-closed-on-conflict doctrine (J-M); no Agreement-
+party/guarantor/certified-provider claims (N/O); Master fields/doctrine
+(Q-Y); opinion submission fidelity and no Agreement side effect (Z/AA); no
+invented MASTER_OPINION submission path (AB); no fake appointment (AC); the
+dispute-Master boundary (AD/AE); session-clearing on sign-out for all three
+new controllers, both functionally and by source-pattern (AF); a stale-
+response race guard on Master profile lookup (AG); Bolt fixture
+preservation, including `TradeHelpPanel`'s byte-identical markup with
+`onReferrals` omitted (AH); no client-side ranking (AI); and a meta-test
+running all eight prior Golden Spine suites (AJ). All prior suites (221
+tests total across `foundation`/`agent`/`handoff`/`recipient`/`signed-in`/
+`money`/`store`/`community-circles`) remain green; `typecheck`/`lint`/
+`build` all pass; `git diff --check` is clean.
+
+### 18.10 Browser verification (desktop and 400x860 mobile)
+
+Ran against a throwaway local Node HTTP contract double (not shipped),
+`VITE_SECUREPAY_MODE=real`, covering: signing in via the Circle-profile
+auth gate; opening the stubbed "Bathroom retiling" Agreement → Support tab →
+the new "Referral & Plug attribution" entry, showing the real empty
+(`NO_INTRODUCTION`) state; the full customer-side Plug flow (create a
+market request → real interested candidate rendered as an opaque reference,
+no name → select → relationship opened, real `ACTIVE` status → explicit
+"Attribute this Plug to this agreement" → real `201` response rendering
+`Introduced by Plug: KS-900`, with the referral-status panel correctly
+moving to `CANDIDATE` immediately after, per the 18.3 fix); the Community
+entry point ("Help this trade happen") reaching `TradeHelpPanel` for the
+first time in the real app; the full Master lifecycle (public profile
+lookup by reference → sign-in gate on the first mutating action → pending-
+action replay landing directly on the request form after auth → submit →
+`REQUESTED` → propose cost → `COST_PROPOSED` → accept → `ACCEPTED` → submit
+opinion → `OPINION_SUBMITTED`, with the "not Money" doctrine notice shown
+at the cost-acceptance step); and the real R11A Referral screen (code,
+history with a `PENDING` and a `QUALIFIED`-with-reward entry, and a live
+"redeem a code" action). Repeated the mobile-viewport check at 400x860 for
+`TradeHelpPanel` and the Plug request-type screen — single-column layout,
+bottom nav, no overflow. One real CORS gap was found and fixed in the
+throwaway double itself (not shipped) — not a frontend defect, since the
+frontend's own `http/index.ts` sends no non-simple headers for `auth:
+'none'` requests.
+
+Not verified in the browser this slice (documented, not silently skipped):
+Master `decline` (state-machine-valid but not exercised in the walkthrough
+path taken), a genuine `409` attribution conflict end-to-end (unit-tested
+instead, tests M), and the R11A `lifetime-share` read (gateway-tested only,
+no UI exists to reach it).

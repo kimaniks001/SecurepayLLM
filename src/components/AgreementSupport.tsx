@@ -1,11 +1,14 @@
-import { MessageCircle, LifeBuoy, Flag } from 'lucide-react';
+import { MessageCircle, LifeBuoy, Flag, Users } from 'lucide-react';
 
 interface AgreementSupportProps {
   onAskAgent: () => void;
   onRaiseIssue?: () => void;
+  /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
+   * real Referral/Plug-attribution view scoped to this exact agreement. */
+  onOpenReferral?: () => void;
 }
 
-export function AgreementSupport({ onAskAgent, onRaiseIssue }: AgreementSupportProps) {
+export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral }: AgreementSupportProps) {
   return (
     <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
       <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-3">Support</div>
@@ -42,6 +45,15 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue }: AgreementSupportP
             </div>
           </div>
         </button>
+        {onOpenReferral && (
+          <button onClick={onOpenReferral} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
+            <Users className="w-4 h-4 text-forest-600 shrink-0" />
+            <div>
+              <div className="text-[0.825rem] font-medium text-forest-800">Referral &amp; Plug attribution</div>
+              <div className="text-[0.72rem] text-sand-500">See who introduced this agreement, if anyone</div>
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );

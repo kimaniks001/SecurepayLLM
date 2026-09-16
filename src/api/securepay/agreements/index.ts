@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
+import type { AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -33,6 +33,13 @@ export function createAgreementGateway(http: HttpClient) {
     versions: (id: string) => http.request<AgreementVersionResponse[]>(`${agreement(id)}/versions`, { auth: 'required' }),
     version: (id: string, versionId: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/versions/${segment(versionId)}`, { auth: 'required' }),
     confirmVersion: (id: string, versionId: string, body: ConfirmVersionRequest) => http.request<AgreementConfirmationResponse>(`${agreement(id)}/versions/${segment(versionId)}/confirm`, { method: 'POST', body, auth: 'required' }),
+    // Verified against SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @ 978437f3
+    // (AgreementPlugAttributionController). POST/GET plug-attribution are byte-identical to `origin/main`;
+    // only referral-status is new to PR #207 (docs/PRODUCTION_MIGRATION_LEDGER.md section 18). Server-side
+    // authority: only the Agreement's own creator may attribute/read attribution or read referral-status.
+    attributePlug: (id: string, relationshipRef: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { method: 'POST', body: { relationshipRef }, auth: 'required' }),
+    plugAttribution: (id: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { auth: 'required' }),
+    referralStatus: (id: string) => http.request<AgreementKeyContractReferralResponse>(`${agreement(id)}/plug-attribution/referral-status`, { auth: 'required' }),
   };
 }
 export type AgreementGateway = ReturnType<typeof createAgreementGateway>;

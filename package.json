@@ -15,7 +15,9 @@
     "test:recipient": "node --test tests/recipient.test.mjs",
     "test:signed-in": "node --test tests/signed-in.test.mjs",
     "test:money": "node --test tests/money.test.mjs",
-    "test:store": "node --test tests/store.test.mjs"
+    "test:store": "node --test tests/store.test.mjs",
+    "test:community-circles": "node --test tests/community-circles.test.mjs",
+    "test:referrals-plugs-masters": "node --test tests/referrals-plugs-masters.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
