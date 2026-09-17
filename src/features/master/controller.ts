@@ -63,9 +63,6 @@ export function createMasterController(gateway: Pick<MasterGateway, 'profile' | 
   let state: MasterState = { ...initial, draft: { ...emptyDraftRequest }, opinionDraft: { ...initial.opinionDraft } };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<MasterState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
-  // A monotonically increasing counter guarding `lookupProfile` against an older, slower request
-  // resolving after a newer, faster one (e.g. two reference lookups typed in quick succession) — a
-  // superseded response (success or error) is silently discarded rather than overwriting a newer result.
   let profileSequence = 0;
 
   return {
@@ -86,10 +83,8 @@ export function createMasterController(gateway: Pick<MasterGateway, 'profile' | 
     resetProfile() { update({ profile: { status: 'idle' } }); },
 
     setDraft(patch: Partial<DraftMasterRequest>) { update({ draft: { ...state.draft, ...patch } }); },
-    /** Explicit submit only — the draft is proposed text (including any Agent-drafted question/scope)
-     * until this exact call fires (task section 10). Requesting identity always comes from the session. */
-    async submitRequest() {
-      if (!state.draft.masterIdentityId.trim() || !state.draft.question.trim() || !state.draft.scope.trim()) return;
+    async submitRequest(): Promise<boolean> {
+      if (!state.draft.masterIdentityId.trim() || !state.draft.question.trim() || !state.draft.scope.trim()) return false;
       update({ request: { status: 'loading' } });
       const body: CreateMasterRequestRequest = {
         masterIdentityId: state.draft.masterIdentityId.trim(), sourceContext: state.draft.sourceContext,
@@ -100,14 +95,23 @@ export function createMasterController(gateway: Pick<MasterGateway, 'profile' | 
       };
       try {
         update({ request: { status: 'ready', data: masterRequestView(await gateway.createRequest(body)) } });
-      } catch (error) { update({ request: { status: 'error', error: asApiError(error) } }); }
+        return true;
+      } catch (error) {
+        update({ request: { status: 'error', error: asApiError(error) } });
+        return false;
+      }
     },
 
-    async loadRequest(requestId: string) {
-      update({ request: { status: 'loading' } });
+    async loadRequest(requestId: string): Promise<boolean> {
+      if (!requestId.trim()) return false;
+      update({ request: { status: 'loading' }, requestActionError: null });
       try {
-        update({ request: { status: 'ready', data: masterRequestView(await gateway.request(requestId)) } });
-      } catch (error) { update({ request: { status: 'error', error: asApiError(error) } }); }
+        update({ request: { status: 'ready', data: masterRequestView(await gateway.request(requestId.trim())) } });
+        return true;
+      } catch (error) {
+        update({ request: { status: 'error', error: asApiError(error) } });
+        return false;
+      }
     },
 
     async proposeCost(requestId: string, currency: string, quotedCostMinor: number) {
@@ -133,8 +137,8 @@ export function createMasterController(gateway: Pick<MasterGateway, 'profile' | 
     },
 
     setOpinionDraft(patch: Partial<MasterState['opinionDraft']>) { update({ opinionDraft: { ...state.opinionDraft, ...patch } }); },
-    async submitOpinion(requestId: string) {
-      if (!state.opinionDraft.opinionText.trim() || state.requestActionBusy) return;
+    async submitOpinion(requestId: string): Promise<boolean> {
+      if (!state.opinionDraft.opinionText.trim() || state.requestActionBusy) return false;
       update({ requestActionBusy: true, requestActionError: null });
       const body: SubmitMasterOpinionRequest = {
         reviewedEvidenceRefs: state.opinionDraft.reviewedEvidenceRefs.split('\n').map(line => line.trim()).filter(Boolean),
@@ -145,18 +149,22 @@ export function createMasterController(gateway: Pick<MasterGateway, 'profile' | 
       };
       try {
         const dto = await gateway.submitOpinion(requestId, body);
-        update({ opinion: { status: 'ready', data: masterOpinionView(dto) }, requestActionBusy: false });
-        // The backend transitions the request to OPINION_SUBMITTED as a side effect of this same call
-        // (MasterRequestService.markOpinionSubmitted) — reflect that on the held request state without a
-        // second network round trip. If no request is held yet, a caller may still `loadRequest` after.
-        if (state.request.status === 'ready') update({ request: { status: 'ready', data: { ...state.request.data, status: 'OPINION_SUBMITTED' } } });
-      } catch (error) { update({ requestActionBusy: false, requestActionError: errorText(error, true) }); }
+        update({ opinion: { status: 'ready', data: masterOpinionView(dto) }, request: { status: 'loading' } });
+        try {
+          const authoritativeRequest = await gateway.request(requestId);
+          update({ request: { status: 'ready', data: masterRequestView(authoritativeRequest) }, requestActionBusy: false });
+          return true;
+        } catch (error) {
+          update({ request: { status: 'error', error: asApiError(error) }, requestActionBusy: false, requestActionError: 'Opinion submitted, but SecurePay could not refresh the authoritative request state. Please reload this request.' });
+          return false;
+        }
+      } catch (error) {
+        update({ requestActionBusy: false, requestActionError: errorText(error, true) });
+        return false;
+      }
     },
 
     reset() { update({ ...initial, draft: { ...emptyDraftRequest }, opinionDraft: { ...initial.opinionDraft } }); },
-    /** Clears only the request/opinion/draft authored under the previous session (task section 19) — the
-     * looked-up profile is a public, identity-free read and stays, so signing out mid-lookup doesn't
-     * discard a reference the person is still reading. */
     resetSession() {
       update({ draft: { ...emptyDraftRequest }, request: { status: 'idle' }, requestActionBusy: false, requestActionError: null, opinion: { status: 'idle' }, opinionDraft: { ...initial.opinionDraft } });
     },
