@@ -92,6 +92,29 @@ test('activation-funding handles pending, failed, and destination-missing states
   assert.doesNotMatch(experience, /markAsPaid|assumePaid|Math\.random\(\)/);
 });
 
+test('unavailable next actions are explicit, truthful dead-end states, never a fabricated payment form', () => {
+  // Programme-controller correction: these must not silently tell the user to "use your usual
+  // SecurePay Money flow" or claim settlement-destination registration is "managed outside
+  // Activation" with no real handoff -- neither surface exists yet in this app, so both must be
+  // disclosed as genuine, explicit Phase-1 gaps.
+  assert.doesNotMatch(experience, /use your usual SecurePay Money flow/i);
+  assert.doesNotMatch(experience, /managed outside Activation/i);
+  assert.match(experience, /does not yet provide an in-product way to (complete|register)/);
+  assert.match(experience, /UnavailableActionState/);
+  // No fabricated payment form: no local amount/card/phone input state for paying an intent.
+  assert.doesNotMatch(experience, /useState.*[Cc]ardNumber|useState.*[Pp]honeNumber/);
+});
+
+test('a failed component is retried through its own real, attempt-scoped prepare action, never a generic refresh only', () => {
+  assert.match(experience, /RetryFailedComponentPanel/);
+  assert.match(experience, /failed\.componentType === 'ACTIVATION_VERIFICATION_RETURN'/);
+  assert.match(experience, /'PREPARE_VERIFICATION_FUNDING'/);
+  assert.match(experience, /failed\.componentType === 'ACTIVATION_REVIEW_RESERVE'/);
+  assert.match(experience, /'PREPARE_RESERVE_FUNDING'/);
+  // The subscription component's retry gap is disclosed honestly, not silently offered.
+  assert.match(experience, /subscription billing-cycle mechanism/);
+});
+
 test('initiating the settlement-verification transfer always re-reads live status afterward', () => {
   const start = experience.indexOf("case 'INITIATE_VERIFICATION_TRANSFER'");
   const nextCase = experience.indexOf('case ', start + 1);

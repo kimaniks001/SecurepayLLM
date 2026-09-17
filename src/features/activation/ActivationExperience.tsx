@@ -349,8 +349,6 @@ function ActivationFundingSection({ funding, loading, onRefresh, onAction, onCon
     );
   }
 
-  const action = funding.nextAction as ActivationFundingNextAction;
-
   return (
     <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
       <div className="px-5 py-4 border-b border-cream-200 bg-cream-50">
@@ -372,7 +370,7 @@ function ActivationFundingSection({ funding, loading, onRefresh, onAction, onCon
             </div>
           </div>
         ) : (
-          <FundingNextActionPanel action={action} loading={loading} onAction={onAction} onRefresh={onRefresh} />
+          <FundingNextActionPanel funding={funding} loading={loading} onAction={onAction} onRefresh={onRefresh} />
         )}
       </div>
     </section>
@@ -394,14 +392,35 @@ function FundingComponentRow({ component }: { component: ActivationFundingCompon
   );
 }
 
-function FundingNextActionPanel({ action, loading, onAction, onRefresh }: {
-  action: ActivationFundingNextAction;
+/** No production payment-execution or settlement-destination-registration surface exists yet in
+ * this application (confirmed by inspection: the only Money client is a read-only status/records
+ * gateway). Rather than fabricate a payment form or a fake settlement-destination picker, this
+ * renders an explicit, truthful "not yet available" state — a real, disclosed Phase-1 gap, never a
+ * silently empty or falsely-successful screen. */
+function UnavailableActionState({ title, explanation, onRefresh, loading }: {
+  title: string;
+  explanation: string;
+  onRefresh: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> {title}</div>
+      <p className="text-sm text-sand-700">{explanation}</p>
+      <button disabled={loading} onClick={onRefresh} className="rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-medium text-forest-700 hover:bg-cream-50 disabled:opacity-50">Check status</button>
+    </div>
+  );
+}
+
+function FundingNextActionPanel({ funding, loading, onAction, onRefresh }: {
+  funding: ActivationFundingStatusResponse;
   loading: boolean;
   onAction: (action: ActivationFundingNextAction) => void;
   onRefresh: () => void;
 }) {
-  const actionButton = (label: string) => (
-    <button disabled={loading} onClick={() => onAction(action)} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-50">{label}</button>
+  const action = funding.nextAction as ActivationFundingNextAction;
+  const actionButton = (label: string, target: ActivationFundingNextAction) => (
+    <button disabled={loading} onClick={() => onAction(target)} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-50">{label}</button>
   );
   const refreshButton = (label: string) => (
     <button disabled={loading} onClick={onRefresh} className="rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-medium text-forest-700 hover:bg-cream-50 disabled:opacity-50">{label}</button>
@@ -409,33 +428,42 @@ function FundingNextActionPanel({ action, loading, onAction, onRefresh }: {
 
   switch (action) {
     case 'PREPARE_VERIFICATION_FUNDING':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare the settlement-destination verification funding.</p>{actionButton('Prepare settlement verification funding')}</div>;
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare the settlement-destination verification funding.</p>{actionButton('Prepare settlement verification funding', action)}</div>;
     case 'PAY_VERIFICATION_INTENT':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Complete the settlement-verification payment intent through your usual SecurePay Money flow, then check status again. This screen cannot mark a payment as paid for you.</p>{refreshButton('Check status')}</div>;
+      return (
+        <UnavailableActionState
+          title="Awaiting your settlement-verification payment"
+          explanation="Your settlement-verification payment intent has been created and is awaiting provider confirmation. This application does not yet provide an in-product way to complete that payment — check back once it has been paid through SecurePay's payment rail."
+          onRefresh={onRefresh}
+          loading={loading}
+        />
+      );
     case 'REGISTER_SETTLEMENT_DESTINATION':
       return (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> A settlement destination is required</div>
-          <p className="text-sm text-sand-700">Register a settlement destination for your account before SecurePay can verify it. This is managed outside Activation, in your account's settlement settings.</p>
-          {refreshButton('Check status')}
-        </div>
+        <UnavailableActionState
+          title="A settlement destination is required"
+          explanation="SecurePay needs a registered settlement destination before it can verify one, and this application does not yet provide an in-product way to register one. This is a genuine, disclosed Final Completion Phase 1 gap, not something managed elsewhere in this app today."
+          onRefresh={onRefresh}
+          loading={loading}
+        />
       );
     case 'INITIATE_VERIFICATION_TRANSFER':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Your settlement-verification funding is confirmed. SecurePay can now send the verification transfer to your registered destination.</p>{actionButton('Initiate settlement verification transfer')}</div>;
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Your settlement-verification funding is confirmed. SecurePay can now send the verification transfer to your registered destination.</p>{actionButton('Initiate settlement verification transfer', action)}</div>;
     case 'PREPARE_RESERVE_FUNDING':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare your Agreement Review Reserve funding — this stays your own money.</p>{actionButton('Prepare Agreement Review Reserve funding')}</div>;
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare your Agreement Review Reserve funding — this stays your own money.</p>{actionButton('Prepare Agreement Review Reserve funding', action)}</div>;
     case 'PAY_RESERVE_INTENT':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Complete the Agreement Review Reserve payment intent through your usual SecurePay Money flow, then check status again.</p>{refreshButton('Check status')}</div>;
-    case 'ESTABLISH_REVIEW_RESERVE':
-      return <div className="space-y-2"><p className="text-sm text-sand-600">Your Agreement Review Reserve funding is confirmed. SecurePay can now establish your standing reserve.</p>{actionButton('Establish my Agreement Review Reserve')}</div>;
-    case 'RETRY_FAILED_COMPONENT':
       return (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> One activation funding component failed</div>
-          <p className="text-sm text-sand-700">Check status for the exact component. You may need to retry the failed component's funding.</p>
-          {refreshButton('Check status')}
-        </div>
+        <UnavailableActionState
+          title="Awaiting your Agreement Review Reserve payment"
+          explanation="Your Agreement Review Reserve payment intent has been created and is awaiting provider confirmation. This application does not yet provide an in-product way to complete that payment — check back once it has been paid through SecurePay's payment rail."
+          onRefresh={onRefresh}
+          loading={loading}
+        />
       );
+    case 'ESTABLISH_REVIEW_RESERVE':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Your Agreement Review Reserve funding is confirmed. SecurePay can now establish your standing reserve.</p>{actionButton('Establish my Agreement Review Reserve', action)}</div>;
+    case 'RETRY_FAILED_COMPONENT':
+      return <RetryFailedComponentPanel funding={funding} loading={loading} onAction={onAction} onRefresh={onRefresh} />;
     case 'CONFIRM_AGREEMENT':
     case 'FUND_SUBSCRIPTION':
     case 'NONE_ACTIVATION_COMPLETE':
@@ -447,12 +475,74 @@ function FundingNextActionPanel({ action, loading, onAction, onRefresh }: {
       // unrecognized nextAction before it ever reaches this component) -- kept as a second,
       // defense-in-depth layer per doctrine: never silently treat an unknown state as safe.
       return (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> SecurePay reported an unrecognized activation state</div>
-          {refreshButton('Check status')}
-        </div>
+        <UnavailableActionState
+          title="SecurePay reported an unrecognized activation state"
+          explanation="This application does not recognize the backend's reported next action and will not guess. Check status again, or contact support if this persists."
+          onRefresh={onRefresh}
+          loading={loading}
+        />
       );
   }
+}
+
+/**
+ * Programme-controller Blocker 7 (frontend side): identifies exactly which component failed from
+ * the bounded truth in `funding.components` and wires the real, backend-attempt-scoped retry —
+ * calling the same prepare action again safely opens a fresh attempt (never replays a terminally
+ * failed one, never double-charges; see ActivationFundingOrchestrationService). The subscription
+ * component has no attempt-scoped retry endpoint of its own yet (a disclosed, separate, pre-
+ * existing limitation of the unmodified subscription billing-cycle mechanism) — surfaced honestly
+ * rather than offering a button that would silently replay the same failed intent.
+ */
+function RetryFailedComponentPanel({ funding, loading, onAction, onRefresh }: {
+  funding: ActivationFundingStatusResponse;
+  loading: boolean;
+  onAction: (action: ActivationFundingNextAction) => void;
+  onRefresh: () => void;
+}) {
+  const failed = funding.components.find(component => component.state === 'FAILED');
+  if (!failed) {
+    return (
+      <UnavailableActionState
+        title="One activation funding component failed"
+        explanation="Check status again for the current detail."
+        onRefresh={onRefresh}
+        loading={loading}
+      />
+    );
+  }
+  const retryButton = (label: string, target: ActivationFundingNextAction) => (
+    <button disabled={loading} onClick={() => onAction(target)} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-50">{label}</button>
+  );
+  if (failed.componentType === 'ACTIVATION_VERIFICATION_RETURN') {
+    return (
+      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> Settlement verification failed</div>
+        <p className="text-sm text-sand-700">{failed.description} Retrying opens a fresh attempt — it never re-uses or double-charges the failed one.</p>
+        {retryButton('Retry settlement verification funding', 'PREPARE_VERIFICATION_FUNDING')}
+      </div>
+    );
+  }
+  if (failed.componentType === 'ACTIVATION_REVIEW_RESERVE') {
+    return (
+      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> Agreement Review Reserve funding failed</div>
+        <p className="text-sm text-sand-700">{failed.description} Retrying opens a fresh attempt — it never re-uses or double-charges the failed one.</p>
+        {retryButton('Retry Agreement Review Reserve funding', 'PREPARE_RESERVE_FUNDING')}
+      </div>
+    );
+  }
+  // SECUREPAY_SUBSCRIPTION_FEE failed: the unmodified subscription billing-cycle endpoint has no
+  // attempt-scoped retry of its own (see SubscriptionLifecycleService.prepareBillingCycle) --
+  // offering a retry button here would silently replay the same failed payment intent forever.
+  return (
+    <UnavailableActionState
+      title="First subscription payment failed"
+      explanation="This application does not yet provide a safe way to retry the subscription payment intent itself. This is a genuine, disclosed limitation of the existing subscription billing-cycle mechanism, separate from Final Completion Phase 1's own retry handling."
+      onRefresh={onRefresh}
+      loading={loading}
+    />
+  );
 }
 
 function ActivationHeader({ onBack }: { onBack: () => void }) {
