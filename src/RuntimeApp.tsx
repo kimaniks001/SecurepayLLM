@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
+import { ActivationExperience } from './features/activation/ActivationExperience';
 import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
@@ -18,20 +19,12 @@ const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.
 const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'createRequest', 'proposeCost', 'accept', 'decline', 'submitOpinion'], session, api.auth) : undefined;
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
-// The one external origin this app already has verified authority over — see adapters.ts `media()`.
+const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle'], session, api.auth) : undefined;
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
-// Vite removes the unreachable fixture import from production builds.
 const FixtureApp = import.meta.env.DEV && import.meta.env.VITE_SECUREPAY_MODE === 'fixture'
   ? lazy(() => import('./App')) : null;
 
-/**
- * The invitation token lives only in the URL hash fragment (so the frontend host's own URL/access
- * log never sees it, and no local/session storage copy is made) for exactly as long as this recipient
- * view needs it. SecurePayAPI itself still receives the raw token by contract, as a path segment in
- * `GET /api/v1/agreement-invitations/{token}` and its `/join` — that is unavoidable backend authority,
- * not something this route choice claims to prevent.
- */
 function useInvitationToken(): [string | null, () => void] {
   const [token, setToken] = useState(() => (typeof window === 'undefined' ? null : parseInvitationRoute(window.location.hash)));
   useEffect(() => {
@@ -43,7 +36,6 @@ function useInvitationToken(): [string | null, () => void] {
   return [token, clear];
 }
 
-/** Same hash-route seam as useInvitationToken, for the public Offer deep link (see features/store/route.ts). */
 function useStoreOfferRoute() {
   const [route, setRoute] = useState(() => (typeof window === 'undefined' ? null : parseStoreOfferRoute(window.location.hash)));
   useEffect(() => {
@@ -54,9 +46,21 @@ function useStoreOfferRoute() {
   return route;
 }
 
+function useActivationRoute() {
+  const read = () => typeof window !== 'undefined' && window.location.hash === '#/activate';
+  const [active, setActive] = useState(read);
+  useEffect(() => {
+    const onHashChange = () => setActive(read());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return active;
+}
+
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const storeOfferRoute = useStoreOfferRoute();
+  const activationRoute = useActivationRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -64,13 +68,16 @@ export default function RuntimeApp() {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }
   if (invitationToken) {
-    // Keyed so a token change while mounted (hash navigation to a different invitation) always
-    // starts a fresh recipient controller instead of reusing one closed over the previous token.
     return api && agreementGateway
       ? <RecipientExperience key={invitationToken} token={invitationToken} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearInvitationToken} />
       : <Unavailable />;
   }
-  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway
+  if (activationRoute) {
+    return api && subscriptionGateway
+      ? <ActivationExperience gateway={subscriptionGateway} auth={api.auth} session={session} onLeave={() => { window.location.hash = ''; }} />
+      : <Unavailable />;
+  }
+  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && subscriptionGateway
     ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
