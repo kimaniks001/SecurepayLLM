@@ -90,6 +90,7 @@ export function CommunityExperience({ gateway, trustedMediaOrigin, onNavigate, o
         onCreate={() => controller.showNotice('Sharing with the community is not available yet.')}
         onStartConversation={() => onNavigate('signed-in')}
         onOpenCircles={onOpenCircle}
+        onOpenEcosystem={() => onNavigate('ecosystem')}
         storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
         storeSearchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
         // No named-Circle/group authority exists on the backend (task: "Remove fake named-Circle copy

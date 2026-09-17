@@ -6,6 +6,9 @@ import { createAgreementGateway } from './agreements';
 import { createMoneyGateway } from './money';
 import { createStoreGateway } from './store';
 import { createCircleGateway } from './circle';
+import { createMasterGateway } from './master';
+import { createMarketNetworkGateway } from './marketnetwork';
+import { createReferralGateway } from './referral';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -13,5 +16,6 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     mode: 'real' as const, baseUrl: validatedBaseUrl,
     agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http),
     circle: createCircleGateway(http),
+    master: createMasterGateway(http), marketNetwork: createMarketNetworkGateway(http), referral: createReferralGateway(http),
   };
 }

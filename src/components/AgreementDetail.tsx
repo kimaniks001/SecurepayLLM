@@ -35,6 +35,7 @@ interface AgreementDetailProps {
   onViewCurrent?: () => void;
   onRaiseIssue?: () => void;
   onOpenMoney?: (id: string) => void;
+  onOpenReferral?: () => void;
   /**
    * The demo fixture's Money/progress source lives with its caller (see src/App.tsx), never inside this
    * locked component, so a real caller can never accidentally bundle or fall back to fixture Money/
@@ -71,7 +72,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, money, progress }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -161,7 +162,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
                 <ActionList actions={structure.actions} />
               </>
             )}
-            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} />}
+            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />}
 
             {showReuse && tab === 'overview' && <AgreementReuse detail={detail} />}
 
@@ -271,7 +272,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           )}
 
           {mobileSection === 'support' && (
-            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} />
+            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />
           )}
         </div>
       </div>

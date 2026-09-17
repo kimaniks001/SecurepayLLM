@@ -12,6 +12,9 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { CircleGateway } from '../../api/securepay/circle';
+import type { MasterGateway } from '../../api/securepay/master';
+import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
+import type { ReferralGateway } from '../../api/securepay/referral';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
@@ -24,6 +27,7 @@ import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import { StoreExperience } from '../store/StoreExperience';
 import { CommunityExperience } from '../community/CommunityExperience';
 import { CircleExperience } from '../circle/CircleExperience';
+import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -35,8 +39,10 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway; auth: AuthGateway; session: SessionStore;
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+  masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway;
+  auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
 }) {
@@ -50,10 +56,13 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const [workspace, setWorkspace] = useState(false);
+  const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
   const [store, setStore] = useState(!!initialStoreOfferRoute);
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [community, setCommunity] = useState(false);
   const [circle, setCircle] = useState(false);
+  const [ecosystem, setEcosystem] = useState(false);
+  const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   const startNewConversation = () => {
     setController(createAgentController(gateway));
@@ -64,20 +73,42 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   };
 
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
-   * CommunityExperience/CircleExperience's own NavBars — one navigation-out policy. */
+   * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
-    if (view === 'store') { setWorkspace(false); setCommunity(false); setCircle(false); setStore(true); return; }
-    if (view === 'community') { setWorkspace(false); setStore(false); setCircle(false); setCommunity(true); return; }
-    if (view === 'circle') { setWorkspace(false); setStore(false); setCommunity(false); setCircle(true); return; }
-    setStore(false); setCommunity(false); setCircle(false);
-    if (view === 'signed-in' || view === 'agreements' || view === 'money') {
-      if (sessionState.status === 'signed-in') { setWorkspace(true); return; }
+    if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setStore(true); return; }
+    if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setCommunity(true); return; }
+    if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setCircle(true); return; }
+    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystem(true); return; }
+
+    // Agreement-scoped Plug help temporarily unmounts the workspace. Preserve the exact Agreement id
+    // before clearing the ecosystem context so remounting can reopen it from the authoritative Hub.
+    const returningAgreementId = view === 'agreement-detail' ? ecosystemAgreementId : null;
+    setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
+    if (view === 'signed-in' || view === 'agreements' || view === 'money' || view === 'agreement-detail') {
+      if (sessionState.status === 'signed-in') {
+        setWorkspaceAgreementId(returningAgreementId);
+        setWorkspace(true);
+        return;
+      }
+      setWorkspaceAgreementId(null);
       setHome(true);
       if (view !== 'signed-in') setNotice('Sign in through "Continue with this" to view your agreements.');
       return;
     }
+    setWorkspaceAgreementId(null);
     setNotice('This area is not available yet. You can keep talking with SecurePay.');
+  };
+  /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
+   * Agreement in scope so PlugExperience can also offer real attribution, not just the general help menu. */
+  const openEcosystemForAgreement = (agreementId: string) => {
+    setWorkspaceAgreementId(agreementId);
+    setWorkspace(false);
+    setStore(false);
+    setCommunity(false);
+    setCircle(false);
+    setEcosystemAgreementId(agreementId);
+    setEcosystem(true);
   };
 
   if (store) {
@@ -118,9 +149,36 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     );
   }
 
+  if (ecosystem) {
+    return (
+      <EcosystemExperience
+        masterGateway={masterGateway}
+        marketNetworkGateway={marketNetworkGateway}
+        referralGateway={referralGateway}
+        agreementGateway={agreementGateway}
+        auth={auth}
+        session={session}
+        agreementId={ecosystemAgreementId}
+        onNavigate={navigateTo}
+        onAskAgent={() => navigateTo('signed-in')}
+      />
+    );
+  }
+
   if (workspace && sessionState.status === 'signed-in') {
     const workspaceGateway = { ...agreementGateway, money: moneyGateway };
-    return <WorkspaceExperience gateway={workspaceGateway} onOpenStore={() => navigateTo('store')} onLeave={startText => { setWorkspace(false); setHome(false); if (startText) void controller.send(startText); }} />;
+    return <WorkspaceExperience
+      gateway={workspaceGateway}
+      initialAgreementId={workspaceAgreementId}
+      onOpenStore={() => navigateTo('store')}
+      onOpenReferral={openEcosystemForAgreement}
+      onLeave={startText => {
+        setWorkspaceAgreementId(null);
+        setWorkspace(false);
+        setHome(false);
+        if (startText) void controller.send(startText);
+      }}
+    />;
   }
 
   const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;

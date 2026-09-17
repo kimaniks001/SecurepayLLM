@@ -203,6 +203,37 @@ export interface AgreementMoneyRecordResponse {
   currency: string;
   amountMinor: string;
 }
+// Verified against kimaniks001/SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @
+// 978437f300244119302607ba3e656a76253190bb (AgreementPlugAttributionController.java, the exact
+// api/agreement/request|response DTOs). `POST`/`GET .../plug-attribution` are byte-identical to
+// `origin/main` — real, live backend authority. `.../plug-attribution/referral-status` is the ONE new
+// method PR #207 adds to this controller; every other method is untouched from main (see
+// docs/PRODUCTION_MIGRATION_LEDGER.md section 18).
+export interface AgreementPlugAttributionRequest { relationshipRef: string }
+export interface AgreementPlugAttributionResponse {
+  attributionRef: string;
+  agreementId: string;
+  relationshipRef: string;
+  plugKsNumber: string;
+  attributedAt: string;
+}
+/** `state` is exactly one of NO_INTRODUCTION/CANDIDATE/NOT_QUALIFIED/QUALIFIED — never computed by the
+ * frontend. Amounts are decimal strings and populate only once QUALIFIED. `rewardPaid` is always `false`
+ * today — no payout authority exists anywhere in this backend yet. BACKEND_PR_PENDING (PR #207 only). */
+export interface AgreementKeyContractReferralResponse {
+  agreementId: string;
+  state: string;
+  plugKsNumber: string | null;
+  introducedAt: string | null;
+  platformFeeMinor: string | null;
+  rewardAmountMinor: string | null;
+  currency: string | null;
+  shareRuleVersion: string | null;
+  rewardEarned: boolean;
+  rewardPaid: boolean;
+  qualifiedAt: string | null;
+}
+
 export interface AgreementConfirmationStatusResponse {
   participantId: string;
   identityId: string;

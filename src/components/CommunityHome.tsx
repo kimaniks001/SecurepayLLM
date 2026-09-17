@@ -1,4 +1,4 @@
-import { Search, Users, MessageCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Users, MessageCircle, ArrowRight, Sparkles, HandHelping } from 'lucide-react';
 import type { CommunityObject, CommunityPerson, CommunityBusiness } from '../types';
 import { CommunityObjectCard } from './CommunityObjectCard';
 
@@ -14,6 +14,9 @@ interface CommunityHomeProps {
   onCreate: () => void;
   onStartConversation: () => void;
   onOpenCircles: () => void;
+  /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
+   * real Referrals/Plugs/Masters help entry. */
+  onOpenEcosystem?: () => void;
   /** Only the real "Offers from stores" section can genuinely load/fail; omit for fixture parity. */
   storeSearchStatus?: 'idle' | 'loading' | 'ready' | 'error';
   storeSearchErrorText?: string | null;
@@ -31,7 +34,7 @@ interface CommunityHomeProps {
 
 export function CommunityHome({
   query, onQueryChange, objects, people, businesses,
-  onOpenObject, onOpenPerson, onOpenBusiness, onCreate, onStartConversation, onOpenCircles,
+  onOpenObject, onOpenPerson, onOpenBusiness, onCreate, onStartConversation, onOpenCircles, onOpenEcosystem,
   storeSearchStatus, storeSearchErrorText,
   circlesEntryLabel = 'Your Circles',
   circlesEntryDescription = 'Trusted economic networks — Construction Circle, Creative Professionals, and more',
@@ -77,6 +80,19 @@ export function CommunityHome({
           </span>
           <p className="text-[0.72rem] text-sand-400 mt-0.5">{circlesEntryDescription}</p>
         </button>
+
+        {onOpenEcosystem && (
+          <button
+            onClick={onOpenEcosystem}
+            className="w-full mb-4 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left hover:border-forest-300 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-700">
+              <HandHelping className="w-3.5 h-3.5" />
+              Help this trade happen
+            </span>
+            <p className="text-[0.72rem] text-sand-400 mt-0.5">People who can connect, expert Masters, and your referral history</p>
+          </button>
+        )}
 
         {/* Composer entry */}
         <button

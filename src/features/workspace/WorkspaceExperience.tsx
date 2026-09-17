@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavBar } from '../../components/NavBar';
 import { SignedInHome } from '../../components/SignedInHome';
 import { AgreementHub } from '../../components/AgreementHub';
@@ -39,14 +39,30 @@ function LoadingNotice({ text }: { text: string }) {
  * Signed-in Home → Agreement Hub → Agreement Detail → Money for a selected Agreement. Every screen
  * renders exactly the backend's own truth (see controller.ts / view.ts); this component only wires
  * locked Bolt components to that truth and to navigation — it derives no Agreement or Money state.
+ *
+ * `initialAgreementId` is only a one-shot navigation restoration hint. The component never trusts it
+ * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
+ * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, onOpenStore, onLeave }: { gateway: Gateway; onOpenStore?: () => void; onLeave: (startText?: string) => void }) {
+export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
+  gateway: Gateway;
+  initialAgreementId?: string | null;
+  onOpenStore?: () => void;
+  onOpenReferral?: (agreementId: string) => void;
+  onLeave: (startText?: string) => void;
+}) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
   const [askResponses, setAskResponses] = useState<{ text: string }[]>([]);
+  const restorationConsumed = useRef(false);
 
   useEffect(() => { controller.enter(); }, [controller]);
+  useEffect(() => {
+    if (restorationConsumed.current || !initialAgreementId || state.hub.status !== 'ready') return;
+    restorationConsumed.current = true;
+    controller.openFromHome(initialAgreementId);
+  }, [controller, initialAgreementId, state.hub.status]);
   useEffect(() => { setAskResponses([]); }, [state.selectedAgreementId]);
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
@@ -120,6 +136,7 @@ export function WorkspaceExperience({ gateway, onOpenStore, onLeave }: { gateway
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}
           onRaiseIssue={undefined}
           onOpenMoney={() => void controller.openMoney(boltDetail.id)}
+          onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
         />

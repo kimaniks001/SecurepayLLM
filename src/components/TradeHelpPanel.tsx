@@ -7,9 +7,12 @@ interface TradeHelpPanelProps {
   onSolutions: () => void;
   onPartners: () => void;
   onAskAgent: () => void;
+  /** Optional so the existing fixture path (which never wired this button) stays byte-identical when
+   * omitted. Real mode passes this to reach the real Referral experience (Golden Spine H). */
+  onReferrals?: () => void;
 }
 
-export function TradeHelpPanel({ onBack, onPlugs, onMasters, onSolutions, onPartners, onAskAgent }: TradeHelpPanelProps) {
+export function TradeHelpPanel({ onBack, onPlugs, onMasters, onSolutions, onPartners, onAskAgent, onReferrals }: TradeHelpPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -104,6 +107,7 @@ export function TradeHelpPanel({ onBack, onPlugs, onMasters, onSolutions, onPart
 
         {/* Referral history */}
         <button
+          onClick={onReferrals}
           className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-all"
         >
           <div className="flex items-start gap-3">
