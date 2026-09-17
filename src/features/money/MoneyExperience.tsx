@@ -5,7 +5,9 @@ import { SecureAuthCard } from '../../components/SecureAuth';
 import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
-import type { FundedAuthorityPositionResponse, MoneyAuthorityGateway } from '../../api/securepay/money-authority';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import type { AgreementFundedAuthorityStatusResponse, MoneyAuthorityGateway } from '../../api/securepay/money-authority';
 import type { FinancialPartnerGateway, RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
 import type { SettlementDestinationGateway, SettlementDestinationResponse, SettlementVerificationStatusResponse } from '../../api/securepay/settlement-destinations';
 import { createIdentityController } from '../identity/controller';
@@ -24,6 +26,7 @@ export interface MoneyGateways {
   moneyAuthority: MoneyAuthorityGateway;
   financialPartners: FinancialPartnerGateway;
   settlementDestinations: SettlementDestinationGateway;
+  agreements: AgreementGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -78,7 +81,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           <h1 className="font-display text-2xl text-forest-800">Money</h1>
           <p className="mt-1 text-sm text-sand-600">Real backend authority only. Nothing here is calculated by this screen.</p>
         </div>
-        <FundedAuthoritySection gateway={gateways.moneyAuthority} />
+        <FundedAuthoritySection authorityGateway={gateways.moneyAuthority} agreementGateway={gateways.agreements} />
         <SettlementDestinationSection gateway={gateways.settlementDestinations} />
         <FinancialPartnersSection gateway={gateways.financialPartners} />
       </div>
@@ -106,97 +109,138 @@ function ErrorBanner({ message }: { message: string }) {
   return <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {message}</div>;
 }
 
-/** Funded Authority: open a direct-money authority, fund it from your own position, exercise it against a KS-addressed beneficiary, or release what remains. Every figure shown is the backend's own read model. */
-function FundedAuthoritySection({ gateway }: { gateway: MoneyAuthorityGateway }) {
-  const [authorityId, setAuthorityId] = useState('');
-  const [currency, setCurrency] = useState('KES');
-  const [maxAmount, setMaxAmount] = useState('');
+/**
+ * Funded Authority: Agreement-scoped only (Final Completion Phase 2 correction pass). There is no
+ * "authority id" field anywhere in this UI -- the person picks one of their own Agreements, and
+ * every fact shown (obligation, authorised max, currency, beneficiary) is the backend's own
+ * server-derived read model. Fund/Exercise/Release only ever act on the Agreement the person
+ * selected; a 409 (e.g. "you are not this Agreement's payer") is shown honestly rather than
+ * silently retried or hidden.
+ */
+function FundedAuthoritySection({ authorityGateway, agreementGateway }: {
+  authorityGateway: MoneyAuthorityGateway;
+  agreementGateway: AgreementGateway;
+}) {
+  const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
+  const [selected, setSelected] = useState<CurrentUserAgreementSummaryResponse | null>(null);
+  const [status, setStatus] = useState<AgreementFundedAuthorityStatusResponse | null>(null);
   const [fundAmount, setFundAmount] = useState('');
-  const [exerciseKsNumber, setExerciseKsNumber] = useState('');
   const [exerciseAmount, setExerciseAmount] = useState('');
-  const [position, setPosition] = useState<FundedAuthorityPositionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const startNew = () => setAuthorityId(crypto.randomUUID());
-
-  const open = async () => {
-    if (!authorityId || !maxAmount) return;
+  const loadAgreements = async () => {
     setLoading(true); setError(null);
-    try { setPosition(await gateway.open(authorityId, currency, Math.round(Number(maxAmount) * 100))); }
+    try { setAgreements((await agreementGateway.currentUserAgreements()).items); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
-  const refresh = async () => {
+
+  const select = async (agreement: CurrentUserAgreementSummaryResponse) => {
+    setSelected(agreement);
+    setStatus(null);
     setLoading(true); setError(null);
-    try { setPosition(await gateway.status(authorityId)); }
+    try { setStatus(await authorityGateway.status(agreement.agreementId)); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const refresh = async () => {
+    if (!selected) return;
+    setLoading(true); setError(null);
+    try { setStatus(await authorityGateway.status(selected.agreementId)); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+  const open = async () => {
+    if (!selected) return;
+    setLoading(true); setError(null);
+    try { setStatus(await authorityGateway.open(selected.agreementId)); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
   const fund = async () => {
-    if (!fundAmount) return;
+    if (!selected || !fundAmount) return;
     setLoading(true); setError(null);
-    try { setPosition(await gateway.fund(authorityId, Math.round(Number(fundAmount) * 100))); setFundAmount(''); }
+    try { setStatus(await authorityGateway.fund(selected.agreementId, Math.round(Number(fundAmount) * 100))); setFundAmount(''); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
   const exercise = async () => {
-    if (!exerciseKsNumber || !exerciseAmount) return;
+    if (!selected || !exerciseAmount) return;
     setLoading(true); setError(null);
     try {
-      const outcome = await gateway.exercise(authorityId, exerciseKsNumber, Math.round(Number(exerciseAmount) * 100));
-      setPosition(await gateway.status(authorityId));
-      setExerciseAmount(''); setExerciseKsNumber('');
-      void outcome;
+      await authorityGateway.exercise(selected.agreementId, Math.round(Number(exerciseAmount) * 100));
+      setStatus(await authorityGateway.status(selected.agreementId));
+      setExerciseAmount('');
     } catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
   const release = async () => {
+    if (!selected) return;
     setLoading(true); setError(null);
-    try { await gateway.release(authorityId); setPosition(await gateway.status(authorityId)); }
+    try { await authorityGateway.release(selected.agreementId); setStatus(await authorityGateway.status(selected.agreementId)); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
 
   return (
-    <SectionCard title="Funded Authority" description="Authorise a ceiling, fund it from your own position, exercise it as conditions are met.">
+    <SectionCard title="Funded Authority" description="Progress money already authorised under one of your own Agreements. Nothing here is calculated by this screen.">
       {error && <ErrorBanner message={error} />}
-      <div className="flex gap-2">
-        <input value={authorityId} onChange={e => setAuthorityId(e.target.value)} placeholder="Authority reference (a UUID you keep)" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-        <button onClick={startNew} disabled={loading} className="rounded-xl border border-forest-200 px-3 py-2 text-sm text-forest-700 hover:bg-cream-50">New</button>
-      </div>
-      {!position ? (
-        <div className="flex gap-2">
-          <input value={currency} onChange={e => setCurrency(e.target.value)} placeholder="Currency" className="w-24 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-          <input value={maxAmount} onChange={e => setMaxAmount(e.target.value)} placeholder="Max amount" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-          <button onClick={() => void open()} disabled={loading || !authorityId || !maxAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Open</button>
-          <button onClick={() => void refresh()} disabled={loading || !authorityId} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Load</button>
-        </div>
+      {!agreements ? (
+        <button onClick={() => void loadAgreements()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my Agreements</button>
+      ) : selected === null ? (
+        agreements.length === 0 ? (
+          <p className="text-sm text-sand-600">You have no Agreements yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {agreements.map(agreement => (
+              <li key={agreement.agreementId}>
+                <button onClick={() => void select(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                  <div className="font-medium text-forest-800">{agreement.title}</div>
+                  <div className="text-xs text-sand-600">{agreement.purpose}{agreement.counterparty?.ksNumber ? ` · ${agreement.counterparty.ksNumber}` : ''}</div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
       ) : (
         <div className="space-y-3">
-          <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 grid grid-cols-2 gap-2">
-            <div>Authorised max: <strong>{money(position.authorisedMaxAmountMinor, position.currency)}</strong></div>
-            <div>Funded: <strong>{money(position.fundedTotalMinor, position.currency)}</strong></div>
-            <div>Exercised/settled: <strong>{money(position.exercisedOrSettledMinor, position.currency)}</strong></div>
-            <div>Released: <strong>{money(position.releasedTotalMinor, position.currency)}</strong></div>
-            <div>Remaining: <strong>{money(position.remainingFundedMinor, position.currency)}</strong></div>
-            <div>Status: <strong>{position.closed ? 'Closed' : 'Open'}</strong></div>
-          </div>
-          {!position.closed && (
-            <>
-              <div className="flex gap-2">
-                <input value={fundAmount} onChange={e => setFundAmount(e.target.value)} placeholder="Fund amount" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-                <button onClick={() => void fund()} disabled={loading || !fundAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Fund from my own position</button>
+          <button onClick={() => { setSelected(null); setStatus(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
+          <div className="text-sm text-forest-800 font-medium">{selected.title}</div>
+          <div className="text-xs text-sand-600">{selected.purpose}</div>
+          {!status ? null : !status.established ? (
+            <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
+              <p>No Funded Authority is open yet for this Agreement{status.reasonCode ? ` (${status.reasonCode})` : ''}.</p>
+              <button onClick={() => void open()} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Open Funded Authority</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 grid grid-cols-2 gap-2">
+                <div>Authorised max: <strong>{money(status.authorisedMaxAmountMinor ?? 0, status.currency ?? '')}</strong></div>
+                <div>Funded: <strong>{money(status.fundedTotalMinor ?? 0, status.currency ?? '')}</strong></div>
+                <div>Exercised/settled: <strong>{money(status.exercisedOrSettledMinor ?? 0, status.currency ?? '')}</strong></div>
+                <div>Released: <strong>{money(status.releasedTotalMinor ?? 0, status.currency ?? '')}</strong></div>
+                <div>Remaining: <strong>{money(status.remainingFundedMinor ?? 0, status.currency ?? '')}</strong></div>
+                <div>Status: <strong>{status.closed ? 'Closed' : 'Open'}</strong></div>
+                {status.beneficiaryMaskedKsNumber && <div className="col-span-2">Beneficiary: <strong>{status.beneficiaryMaskedKsNumber}</strong></div>}
               </div>
-              <div className="flex gap-2">
-                <input value={exerciseKsNumber} onChange={e => setExerciseKsNumber(e.target.value)} placeholder="Beneficiary KS Number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-                <input value={exerciseAmount} onChange={e => setExerciseAmount(e.target.value)} placeholder="Amount" type="number" className="w-32 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-                <button onClick={() => void exercise()} disabled={loading || !exerciseKsNumber || !exerciseAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Exercise</button>
-              </div>
-              <button onClick={() => void release()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Release remaining to me</button>
-            </>
+              {!status.closed && (
+                <>
+                  <div className="flex gap-2">
+                    <input value={fundAmount} onChange={e => setFundAmount(e.target.value)} placeholder="Fund amount" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+                    <button onClick={() => void fund()} disabled={loading || !fundAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Fund from my own position</button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={exerciseAmount} onChange={e => setExerciseAmount(e.target.value)} placeholder="Amount to progress" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+                    <button onClick={() => void exercise()} disabled={loading || !exerciseAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Progress to {status.beneficiaryMaskedKsNumber ?? 'beneficiary'}</button>
+                  </div>
+                  <button onClick={() => void release()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Release remaining to me</button>
+                </>
+              )}
+              <button onClick={() => void refresh()} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
+            </div>
           )}
-          <button onClick={() => void refresh()} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
         </div>
       )}
     </SectionCard>

@@ -1,5 +1,9 @@
 import { segment, type HttpClient } from '../http';
-import type { FundedAuthorityExerciseResponse, FundedAuthorityPositionResponse, FundedAuthorityReleaseResponse } from './dto';
+import type {
+  AgreementFundedAuthorityExerciseResponse,
+  AgreementFundedAuthorityReleaseResponse,
+  AgreementFundedAuthorityStatusResponse,
+} from './dto';
 
 function freshIdempotencyKey(): string {
   // A request-safety key only (so a retried click can never double-post) -- never a financial
@@ -7,28 +11,37 @@ function freshIdempotencyKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random()}`;
 }
 
+/**
+ * Final Completion Phase 2 correction pass — every operation is Agreement-scoped. There is no
+ * "load by arbitrary authority id": the backend derives the obligation, authorised maximum,
+ * currency and beneficiary from the Agreement's own persisted MONETARY obligation, and requires
+ * the caller be that obligation's own authorised payer before fund/exercise/release will do
+ * anything (see AgreementFundedAuthorityOrchestrationService).
+ */
 export function createMoneyAuthorityGateway(http: HttpClient) {
   return {
-    open: (authorityId: string, currency: string, maxAmountMinor: number, agreementId?: string) =>
-      http.request<FundedAuthorityPositionResponse>('/api/v1/money/authorities', {
-        method: 'POST', auth: 'required', body: { authorityId, currency, maxAmountMinor, agreementId: agreementId ?? null },
-      }),
-    status: (authorityId: string) =>
-      http.request<FundedAuthorityPositionResponse>(`/api/v1/money/authorities/${segment(authorityId)}`, { auth: 'required' }),
-    fund: (authorityId: string, amountMinor: number) =>
-      http.request<FundedAuthorityPositionResponse>(`/api/v1/money/authorities/${segment(authorityId)}/fund`, {
+    status: (agreementId: string) =>
+      http.request<AgreementFundedAuthorityStatusResponse>(`/api/v1/agreements/${segment(agreementId)}/funded-authority`, { auth: 'required' }),
+    open: (agreementId: string) =>
+      http.request<AgreementFundedAuthorityStatusResponse>(`/api/v1/agreements/${segment(agreementId)}/funded-authority`, { method: 'POST', auth: 'required' }),
+    fund: (agreementId: string, amountMinor: number) =>
+      http.request<AgreementFundedAuthorityStatusResponse>(`/api/v1/agreements/${segment(agreementId)}/funded-authority/fund`, {
         method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': freshIdempotencyKey() },
       }),
-    exercise: (authorityId: string, beneficiaryKsNumber: string, amountMinor: number) =>
-      http.request<FundedAuthorityExerciseResponse>(`/api/v1/money/authorities/${segment(authorityId)}/exercise`, {
-        method: 'POST', auth: 'required', body: { beneficiaryKsNumber, amountMinor }, headers: { 'Idempotency-Key': freshIdempotencyKey() },
+    exercise: (agreementId: string, amountMinor: number) =>
+      http.request<AgreementFundedAuthorityExerciseResponse>(`/api/v1/agreements/${segment(agreementId)}/funded-authority/exercise`, {
+        method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': freshIdempotencyKey() },
       }),
-    release: (authorityId: string) =>
-      http.request<FundedAuthorityReleaseResponse>(`/api/v1/money/authorities/${segment(authorityId)}/release`, {
+    release: (agreementId: string) =>
+      http.request<AgreementFundedAuthorityReleaseResponse>(`/api/v1/agreements/${segment(agreementId)}/funded-authority/release`, {
         method: 'POST', auth: 'required', headers: { 'Idempotency-Key': freshIdempotencyKey() },
       }),
   };
 }
 
 export type MoneyAuthorityGateway = ReturnType<typeof createMoneyAuthorityGateway>;
-export type { FundedAuthorityExerciseResponse, FundedAuthorityPositionResponse, FundedAuthorityReleaseResponse } from './dto';
+export type {
+  AgreementFundedAuthorityExerciseResponse,
+  AgreementFundedAuthorityReleaseResponse,
+  AgreementFundedAuthorityStatusResponse,
+} from './dto';
