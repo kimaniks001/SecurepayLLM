@@ -33,11 +33,13 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   const [agreement, setAgreement] = useState<ActivationAgreementResponse | null>(null);
   const [billing, setBilling] = useState<SubscriptionBillingCycleResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authorityReadFailed, setAuthorityReadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     if (session.getSnapshot().status !== 'signed-in') return;
     setLoading(true);
+    setAuthorityReadFailed(false);
     setError(null);
     try {
       const current = await gateway.myStatus();
@@ -53,6 +55,11 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
         setSubscription(null);
         setAgreement(null);
       } else {
+        // A failed authority read is not an authoritative empty state. Clear any stale snapshot
+        // and keep all plan/agreement mutations unavailable until a future read succeeds.
+        setSubscription(null);
+        setAgreement(null);
+        setAuthorityReadFailed(true);
         setError(errorText(cause));
       }
     } finally {
@@ -66,13 +73,14 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
     else {
       setSubscription(null);
       setAgreement(null);
+      setAuthorityReadFailed(false);
     }
     // Session transitions are the authority boundary. Gateway/controller identities are stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionState.status]);
 
   const selectPlan = async (plan: SubscriptionPlan) => {
-    if (loading) return;
+    if (loading || authorityReadFailed) return;
     setLoading(true);
     setError(null);
     try {
@@ -87,7 +95,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   };
 
   const establishAgreement = async () => {
-    if (loading) return;
+    if (loading || authorityReadFailed) return;
     setLoading(true);
     setError(null);
     try { setAgreement(await gateway.establishActivationAgreement()); }
@@ -96,7 +104,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   };
 
   const confirmAgreement = async () => {
-    if (loading || !agreement || agreement.confirmed) return;
+    if (loading || authorityReadFailed || !agreement || agreement.confirmed) return;
     setLoading(true);
     setError(null);
     try { setAgreement(await gateway.confirmActivationAgreement()); }
@@ -105,7 +113,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   };
 
   const prepareBilling = async () => {
-    if (loading || !agreement?.confirmed) return;
+    if (loading || authorityReadFailed || !agreement?.confirmed) return;
     setLoading(true);
     setError(null);
     try { setBilling(await gateway.prepareCurrentBillingCycle()); }
@@ -159,8 +167,15 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
 
         {error && <div role="alert" className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-sand-700">{error}</div>}
         {loading && <p role="status" className="text-sm text-sand-500">Checking SecurePay…</p>}
+        {authorityReadFailed && !loading && (
+          <section className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
+            <h2 className="font-display text-lg text-forest-800">SecurePay could not verify your current activation state.</h2>
+            <p className="mt-2 text-sm text-sand-600">No activation action is available from an unknown state. Try the authoritative read again before choosing a plan, creating an Agreement, confirming it, or preparing Money.</p>
+            <button onClick={() => void load()} className="mt-4 rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-medium text-forest-700 hover:bg-cream-50">Try again</button>
+          </section>
+        )}
 
-        {!loading && !subscription && (
+        {!authorityReadFailed && !loading && !subscription && (
           <section className="grid md:grid-cols-2 gap-4" aria-label="Choose activation plan">
             <PlanCard title="For You" description="For personal agreements and the standard SecurePay agreement, Payment Ready and settlement infrastructure." onChoose={() => void selectPlan('FOR_YOU')} />
             <PlanCard title="For Business" description="For a Business KS and access to SecurePay business infrastructure, subject to the authority and entitlement checks that apply." onChoose={() => void selectPlan('BUSINESS')} />
@@ -168,7 +183,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           </section>
         )}
 
-        {subscription && !agreement && !loading && (
+        {subscription && !agreement && !loading && !authorityReadFailed && (
           <section className="rounded-2xl border border-cream-200 bg-white p-5 shadow-card">
             <div className="text-xs uppercase tracking-wide text-sand-500">Selected relationship</div>
             <h2 className="font-display text-xl text-forest-800 mt-1">{planLabel[subscription.plan]}</h2>
@@ -177,7 +192,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           </section>
         )}
 
-        {subscription && agreement && (
+        {subscription && agreement && !authorityReadFailed && (
           <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
             <div className="px-5 py-4 border-b border-cream-200 bg-cream-50 flex items-start justify-between gap-4">
               <div>
@@ -210,7 +225,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           </section>
         )}
 
-        {agreement?.confirmed && !billing && (
+        {agreement?.confirmed && !billing && !authorityReadFailed && (
           <section className="rounded-2xl border border-cream-200 bg-white p-5 shadow-card">
             <div className="flex items-center gap-2"><WalletCards className="w-4 h-4 text-forest-600" /><h2 className="font-display text-lg text-forest-800">Prepare first subscription payment</h2></div>
             <p className="mt-2 text-sm text-sand-600">The backend allows the current subscription billing cycle to be prepared only after canonical Agreement confirmation. Preparing it creates a real payment intent; it does not settle money.</p>
@@ -218,7 +233,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           </section>
         )}
 
-        {billing && (
+        {billing && !authorityReadFailed && (
           <section className="rounded-2xl border border-forest-200 bg-forest-50 p-5">
             <div className="text-xs uppercase tracking-wide text-forest-600">Payment intent prepared</div>
             <div className="mt-2 font-display text-2xl text-forest-800">{money(billing.feeDueMinor, billing.currency)}</div>
