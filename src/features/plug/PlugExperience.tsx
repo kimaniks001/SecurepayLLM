@@ -23,7 +23,6 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
   gateway: Pick<MarketNetworkGateway, 'createRequest' | 'candidates' | 'selectCandidate' | 'openRelationship' | 'relationshipLifecycle'>;
   attributionGateway: Pick<AgreementGateway, 'attributePlug' | 'plugAttribution' | 'referralStatus'>;
   auth: AuthGateway; session: SessionStore;
-  /** When present, this screen also offers to attribute the resulting relationship to this real Agreement. */
   agreementId?: string | null;
   onNavigate: (view: AppView) => void;
 }) {
@@ -39,9 +38,6 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
       void controller.loadExistingAttribution(agreementId);
       void controller.loadReferralStatus(agreementId);
     }
-    // Resets on every transition away from signed-in (explicit sign-out or a lost/refreshed session), and
-    // reloads fresh on every transition into signed-in — a previous identity's candidates/relationship/
-    // attribution state must never survive into a different or re-authenticated session (task section 19).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agreementId, sessionState.status]);
 
@@ -139,7 +135,8 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
                 <button
                   key={c.candidateRef}
                   onClick={() => controller.selectCandidateRef(c.candidateRef)}
-                  className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${state.selectedCandidateRef === c.candidateRef ? 'border-forest-400 bg-forest-50/40' : 'border-cream-200 hover:border-forest-300'}`}
+                  disabled={state.selection.status === 'loading' || state.relationship.status === 'loading'}
+                  className={`w-full text-left rounded-xl border px-4 py-3 transition-all disabled:opacity-50 ${state.selectedCandidateRef === c.candidateRef ? 'border-forest-400 bg-forest-50/40' : 'border-cream-200 hover:border-forest-300'}`}
                 >
                   <div className="text-[0.85rem] text-forest-800">Candidate — interested {c.interestedAt}</div>
                   <p className="text-[0.68rem] text-sand-400 mt-0.5">SecurePay does not yet expose a name or profile for this candidate.</p>
@@ -148,9 +145,18 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
             </div>
           )}
         </div>
+        {state.selection.status === 'error' && <p role="alert" className="text-[0.78rem] text-ember-600 px-1">{errorText(state.selection.error)}</p>}
+        {state.relationship.status === 'error' && <p role="alert" className="text-[0.78rem] text-ember-600 px-1">{errorText(state.relationship.error)}</p>}
         {state.selectedCandidateRef && requestId && (
-          <button onClick={() => { void controller.confirmSelection(requestId).then(() => void controller.openRelationship(requestId)); }} className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3">
-            Connect with this candidate
+          <button
+            onClick={() => void (async () => {
+              const selected = await controller.confirmSelection(requestId);
+              if (selected) await controller.openRelationship(requestId);
+            })()}
+            disabled={state.selection.status === 'loading' || state.relationship.status === 'loading'}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3 disabled:opacity-40"
+          >
+            {state.selection.status === 'loading' ? 'Confirming selection…' : state.relationship.status === 'loading' ? 'Opening relationship…' : 'Connect with this candidate'}
             <ArrowRight className="w-4 h-4" />
           </button>
         )}
@@ -171,8 +177,13 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
           {state.request.status === 'error' && <p role="alert" className="text-[0.78rem] text-ember-600 mt-2">{errorText(state.request.error)}</p>}
           <div className="mt-3 space-y-2">
             {(['GENERAL_SECUREPAY_HELP', 'PROPERTY_JOURNEY_HELP'] as CustomerMarketRequestType[]).map(type => (
-              <button key={type} onClick={() => void controller.startRequest(type)} className="w-full rounded-xl border border-cream-200 px-4 py-3 text-left hover:border-forest-300 text-[0.825rem] text-forest-800">
-                {type === 'GENERAL_SECUREPAY_HELP' ? 'General SecurePay help' : 'Property journey help'}
+              <button
+                key={type}
+                onClick={() => void controller.startRequest(type)}
+                disabled={state.request.status === 'loading'}
+                className="w-full rounded-xl border border-cream-200 px-4 py-3 text-left hover:border-forest-300 text-[0.825rem] text-forest-800 disabled:opacity-40"
+              >
+                {state.request.status === 'loading' ? 'Starting request…' : type === 'GENERAL_SECUREPAY_HELP' ? 'General SecurePay help' : 'Property journey help'}
               </button>
             ))}
           </div>
