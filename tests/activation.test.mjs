@@ -85,8 +85,10 @@ test('activation-funding client fails closed on any unrecognized backend enum va
 test('activation-funding handles pending, failed, and destination-missing states honestly', () => {
   for (const nextAction of [
     'PAY_VERIFICATION_INTENT', 'PAY_RESERVE_INTENT', 'REGISTER_SETTLEMENT_DESTINATION', 'RETRY_FAILED_COMPONENT',
+    'RETRY_VERIFICATION_FUNDING', 'RETRY_VERIFICATION_TRANSFER',
   ]) {
     assert.match(experience, new RegExp(`'${nextAction}'`));
+    assert.match(dto, new RegExp(`'${nextAction}'`));
   }
   // Never claims a payment as paid or a transfer as sent from this screen alone.
   assert.doesNotMatch(experience, /markAsPaid|assumePaid|Math\.random\(\)/);
@@ -105,20 +107,46 @@ test('unavailable next actions are explicit, truthful dead-end states, never a f
   assert.doesNotMatch(experience, /useState.*[Cc]ardNumber|useState.*[Pp]honeNumber/);
 });
 
-test('a failed component is retried through its own real, attempt-scoped prepare action, never a generic refresh only', () => {
+test('reserve/subscription failures are retried through RetryFailedComponentPanel; verification failures never are', () => {
   assert.match(experience, /RetryFailedComponentPanel/);
-  assert.match(experience, /failed\.componentType === 'ACTIVATION_VERIFICATION_RETURN'/);
-  assert.match(experience, /'PREPARE_VERIFICATION_FUNDING'/);
   assert.match(experience, /failed\.componentType === 'ACTIVATION_REVIEW_RESERVE'/);
   assert.match(experience, /'PREPARE_RESERVE_FUNDING'/);
   // The subscription component's retry gap is disclosed honestly, not silently offered.
   assert.match(experience, /subscription billing-cycle mechanism/);
+  // Programme-controller Blocker 2: RetryFailedComponentPanel must never branch on the
+  // verification component -- that ambiguity is now resolved entirely by the backend's own
+  // RETRY_VERIFICATION_FUNDING/RETRY_VERIFICATION_TRANSFER next actions, never inferred here.
+  assert.doesNotMatch(experience, /failed\.componentType === 'ACTIVATION_VERIFICATION_RETURN'/);
+});
+
+test('verification funding failure and transfer failure are consumed as distinct backend next actions, never inferred from componentType', () => {
+  assert.match(experience, /case 'RETRY_VERIFICATION_FUNDING':/);
+  assert.match(experience, /case 'RETRY_VERIFICATION_TRANSFER':/);
+  assert.match(experience, /Your verification funding attempt failed\./);
+  assert.match(experience, /Prepare a new verification funding attempt/);
+  assert.match(experience, /The verification transfer did not complete\. Your verification funding is still available\./);
+  assert.match(experience, /Retry verification transfer/);
+});
+
+test('RETRY_VERIFICATION_FUNDING opens a fresh funding attempt; RETRY_VERIFICATION_TRANSFER never re-funds', () => {
+  const fundingStart = experience.indexOf("case 'PREPARE_VERIFICATION_FUNDING':\n        case 'RETRY_VERIFICATION_FUNDING':");
+  assert.ok(fundingStart >= 0, 'PREPARE_VERIFICATION_FUNDING and RETRY_VERIFICATION_FUNDING must share the same dispatch');
+  const fundingBreak = experience.indexOf('break;', fundingStart);
+  const fundingBlock = experience.slice(fundingStart, fundingBreak);
+  assert.match(fundingBlock, /prepareVerificationFunding\(\)/);
+
+  const transferStart = experience.indexOf("case 'INITIATE_VERIFICATION_TRANSFER':\n        case 'RETRY_VERIFICATION_TRANSFER':");
+  assert.ok(transferStart >= 0, 'INITIATE_VERIFICATION_TRANSFER and RETRY_VERIFICATION_TRANSFER must share the same dispatch');
+  const transferBreak = experience.indexOf('break;', transferStart);
+  const transferBlock = experience.slice(transferStart, transferBreak);
+  assert.match(transferBlock, /initiateVerificationTransfer\(\)/);
+  assert.doesNotMatch(transferBlock, /prepareVerificationFunding\(\)/);
 });
 
 test('initiating the settlement-verification transfer always re-reads live status afterward', () => {
   const start = experience.indexOf("case 'INITIATE_VERIFICATION_TRANSFER'");
-  const nextCase = experience.indexOf('case ', start + 1);
-  const block = experience.slice(start, nextCase);
+  const nextBreak = experience.indexOf('break;', start);
+  const block = experience.slice(start, nextBreak);
   assert.match(block, /initiateVerificationTransfer\(\)/);
   assert.match(block, /activationFundingStatus\(\)/);
 });

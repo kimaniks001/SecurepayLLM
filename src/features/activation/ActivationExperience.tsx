@@ -168,9 +168,19 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
     try {
       switch (action) {
         case 'PREPARE_VERIFICATION_FUNDING':
+        case 'RETRY_VERIFICATION_FUNDING':
+          // Backend-authorized: RETRY_VERIFICATION_FUNDING means the prior funding attempt
+          // terminally failed -- calling the same prepare action opens a genuinely fresh,
+          // attempt-scoped payment intent (see ActivationFundingOrchestrationService); it never
+          // replays or double-charges the failed one.
           setFunding(await gateway.prepareVerificationFunding());
           break;
         case 'INITIATE_VERIFICATION_TRANSFER':
+        case 'RETRY_VERIFICATION_TRANSFER':
+          // Backend-authorized: RETRY_VERIFICATION_TRANSFER means the customer's KES 100 is
+          // already confirmed and only the rail transfer failed -- this reuses that same
+          // confirmed funding and opens a fresh transfer attempt only; it never creates another
+          // payment intent.
           await gateway.initiateVerificationTransfer();
           setFunding(await gateway.activationFundingStatus());
           break;
@@ -462,6 +472,25 @@ function FundingNextActionPanel({ funding, loading, onAction, onRefresh }: {
       );
     case 'ESTABLISH_REVIEW_RESERVE':
       return <div className="space-y-2"><p className="text-sm text-sand-600">Your Agreement Review Reserve funding is confirmed. SecurePay can now establish your standing reserve.</p>{actionButton('Establish my Agreement Review Reserve', action)}</div>;
+    case 'RETRY_VERIFICATION_FUNDING':
+      // Backend-authorized (programme-controller Blocker 2): the verification payment intent
+      // itself failed/expired/cancelled. This UI never infers that from componentType -- the
+      // backend's own next action says so directly.
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> Your verification funding attempt failed.</div>
+          {actionButton('Prepare a new verification funding attempt', action)}
+        </div>
+      );
+    case 'RETRY_VERIFICATION_TRANSFER':
+      // Backend-authorized (programme-controller Blocker 2): the customer's KES 100 is already
+      // confirmed; only the outbound rail transfer failed/was rejected. Must never re-fund.
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> The verification transfer did not complete. Your verification funding is still available.</div>
+          {actionButton('Retry verification transfer', action)}
+        </div>
+      );
     case 'RETRY_FAILED_COMPONENT':
       return <RetryFailedComponentPanel funding={funding} loading={loading} onAction={onAction} onRefresh={onRefresh} />;
     case 'CONFIRM_AGREEMENT':
@@ -493,6 +522,11 @@ function FundingNextActionPanel({ funding, loading, onAction, onRefresh }: {
  * component has no attempt-scoped retry endpoint of its own yet (a disclosed, separate, pre-
  * existing limitation of the unmodified subscription billing-cycle mechanism) — surfaced honestly
  * rather than offering a button that would silently replay the same failed intent.
+ *
+ * <p>Only ever reached for subscription/reserve failures: the backend's own next action already
+ * disambiguates verification funding-vs-transfer failure into RETRY_VERIFICATION_FUNDING/
+ * RETRY_VERIFICATION_TRANSFER (see FundingNextActionPanel) before RETRY_FAILED_COMPONENT is ever
+ * returned, so this component never needs to infer verification recovery from componentType.
  */
 function RetryFailedComponentPanel({ funding, loading, onAction, onRefresh }: {
   funding: ActivationFundingStatusResponse;
@@ -514,15 +548,6 @@ function RetryFailedComponentPanel({ funding, loading, onAction, onRefresh }: {
   const retryButton = (label: string, target: ActivationFundingNextAction) => (
     <button disabled={loading} onClick={() => onAction(target)} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-50">{label}</button>
   );
-  if (failed.componentType === 'ACTIVATION_VERIFICATION_RETURN') {
-    return (
-      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
-        <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> Settlement verification failed</div>
-        <p className="text-sm text-sand-700">{failed.description} Retrying opens a fresh attempt — it never re-uses or double-charges the failed one.</p>
-        {retryButton('Retry settlement verification funding', 'PREPARE_VERIFICATION_FUNDING')}
-      </div>
-    );
-  }
   if (failed.componentType === 'ACTIVATION_REVIEW_RESERVE') {
     return (
       <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
