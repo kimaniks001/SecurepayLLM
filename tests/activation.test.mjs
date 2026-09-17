@@ -85,7 +85,7 @@ test('activation-funding client fails closed on any unrecognized backend enum va
 test('activation-funding handles pending, failed, and destination-missing states honestly', () => {
   for (const nextAction of [
     'PAY_VERIFICATION_INTENT', 'PAY_RESERVE_INTENT', 'REGISTER_SETTLEMENT_DESTINATION', 'RETRY_FAILED_COMPONENT',
-    'RETRY_VERIFICATION_FUNDING', 'RETRY_VERIFICATION_TRANSFER',
+    'RETRY_VERIFICATION_FUNDING', 'RETRY_VERIFICATION_TRANSFER', 'AWAIT_VERIFICATION_RECONCILIATION',
   ]) {
     assert.match(experience, new RegExp(`'${nextAction}'`));
     assert.match(dto, new RegExp(`'${nextAction}'`));
@@ -141,6 +141,22 @@ test('RETRY_VERIFICATION_FUNDING opens a fresh funding attempt; RETRY_VERIFICATI
   const transferBlock = experience.slice(transferStart, transferBreak);
   assert.match(transferBlock, /initiateVerificationTransfer\(\)/);
   assert.doesNotMatch(transferBlock, /prepareVerificationFunding\(\)/);
+});
+
+test('AWAIT_VERIFICATION_RECONCILIATION never offers a transfer/retry action, only a status refresh', () => {
+  // Programme-controller final narrow correction, Blocker 1: once a transfer attempt already
+  // exists (in flight, or rail-succeeded but not yet durably reconciled), this screen must never
+  // offer INITIATE_VERIFICATION_TRANSFER or RETRY_VERIFICATION_TRANSFER again -- there is nothing
+  // left to send. Both the dto and the component must recognize the backend's own enum value.
+  assert.match(dto, /'AWAIT_VERIFICATION_RECONCILIATION'/);
+  const start = experience.indexOf("case 'AWAIT_VERIFICATION_RECONCILIATION':");
+  assert.ok(start >= 0, 'FundingNextActionPanel must handle AWAIT_VERIFICATION_RECONCILIATION explicitly');
+  const nextCase = experience.indexOf("\n    case ", start + 1);
+  const block = experience.slice(start, nextCase);
+  assert.match(block, /being processed/i);
+  // No actionButton (mutation) call in this block -- only the refresh/check-status affordance.
+  assert.doesNotMatch(block, /actionButton\(/);
+  assert.match(block, /refreshButton\(/);
 });
 
 test('initiating the settlement-verification transfer always re-reads live status afterward', () => {

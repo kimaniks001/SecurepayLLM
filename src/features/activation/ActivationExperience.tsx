@@ -192,8 +192,12 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           break;
         default:
           // PAY_VERIFICATION_INTENT / PAY_RESERVE_INTENT / REGISTER_SETTLEMENT_DESTINATION /
-          // RETRY_FAILED_COMPONENT / NONE_ACTIVATION_COMPLETE are not this UI's own action to
-          // perform -- re-reading live status is the only safe thing to do.
+          // RETRY_FAILED_COMPONENT / AWAIT_VERIFICATION_RECONCILIATION / NONE_ACTIVATION_COMPLETE
+          // are not this UI's own action to perform -- re-reading live status is the only safe
+          // thing to do. AWAIT_VERIFICATION_RECONCILIATION in particular (programme-controller
+          // final narrow correction, Blocker 1) has no legitimate mutation at all: the transfer
+          // is either still in flight or already succeeded and only its ledger reconciliation is
+          // pending, so this screen must never offer to send it again.
           setFunding(await gateway.activationFundingStatus());
       }
     } catch (cause) { setError(errorText(cause)); }
@@ -489,6 +493,19 @@ function FundingNextActionPanel({ funding, loading, onAction, onRefresh }: {
         <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> The verification transfer did not complete. Your verification funding is still available.</div>
           {actionButton('Retry verification transfer', action)}
+        </div>
+      );
+    case 'AWAIT_VERIFICATION_RECONCILIATION':
+      // Backend-authorized (programme-controller final narrow correction, Blocker 1): a transfer
+      // attempt already exists for the customer's confirmed KES 100 and has neither failed nor
+      // been rejected -- it is either still in flight on the rail, or the rail has already
+      // succeeded and only the durable ledger reconciliation is pending. Either way there is
+      // nothing left to send: no retry/initiate button is ever offered here, only a refresh.
+      return (
+        <div className="rounded-xl border border-cream-200 bg-cream-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800">Your settlement-verification transfer is being processed.</div>
+          <p className="text-sm text-sand-700">SecurePay is confirming the financial record before this component can show as Transferred. This is not something you need to send again.</p>
+          {refreshButton('Check status')}
         </div>
       );
     case 'RETRY_FAILED_COMPONENT':
