@@ -58,6 +58,16 @@ export function SignedOutHome({ onStart, disabled }: SignedOutHomeProps) {
             </button>
           ))}
         </div>
+
+        <div className="mt-8 pt-6 border-t border-cream-200/70 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <p className="text-[0.78rem] text-sand-500">Ready to use SecurePay for your own agreements?</p>
+          <a
+            href="#/activate"
+            className="inline-flex mt-2 items-center justify-center rounded-xl border border-forest-200 bg-forest-50 px-4 py-2.5 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100 transition-colors"
+          >
+            Activate SecurePay
+          </a>
+        </div>
       </div>
     </div>
   );
