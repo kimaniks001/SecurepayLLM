@@ -43,7 +43,13 @@ test('confirmation is explicit and precedes billing preparation', () => {
 test('prepared billing is not mislabeled as full activation completion', () => {
   assert.match(experience, /This is the subscription component only/);
   assert.match(experience, /does not mark activation complete here/);
-  assert.doesNotMatch(experience, /Activation complete/i);
+  assert.doesNotMatch(experience, />\s*Activation complete\s*</i);
+});
+
+test('failed authority reads do not expose empty-state mutation actions', () => {
+  assert.match(experience, /authorityReadFailed/);
+  assert.match(experience, /!authorityReadFailed\s*&&\s*!loading\s*&&\s*!subscription/);
+  assert.match(experience, /subscription\s*&&\s*!agreement\s*&&\s*!loading\s*&&\s*!authorityReadFailed/);
 });
 
 test('activation has a real signed-out entry point and a first-class runtime route', () => {
