@@ -1,15 +1,40 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, CheckCircle2, ShieldCheck, WalletCards } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, PartyPopper, ShieldCheck, WalletCards } from 'lucide-react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { SecureAuthCard } from '../../components/SecureAuth';
 import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
-import type { ActivationAgreementResponse, SubscriptionBillingCycleResponse, SubscriptionGateway, SubscriptionPlan, SubscriptionStatusResponse } from '../../api/securepay/subscription';
+import type {
+  ActivationAgreementResponse,
+  ActivationFundingComponentResponse,
+  ActivationFundingNextAction,
+  ActivationFundingStatusResponse,
+  SubscriptionBillingCycleResponse,
+  SubscriptionGateway,
+  SubscriptionPlan,
+  SubscriptionStatusResponse,
+} from '../../api/securepay/subscription';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 
 const planLabel: Record<SubscriptionPlan, string> = { FOR_YOU: 'For You', BUSINESS: 'For Business' };
+
+const componentStateLabel: Record<string, string> = {
+  NOT_STARTED: 'Not started',
+  INTENDED: 'Payment intent created — awaiting your payment',
+  CONFIRMED: 'Payment confirmed',
+  TRANSFERRED: 'Transferred to your settlement destination',
+  RESERVED: 'Reserve established',
+  EARNED: 'Earned',
+  FAILED: 'Failed',
+};
+
+const componentTitle: Record<string, string> = {
+  SECUREPAY_SUBSCRIPTION_FEE: 'First-month subscription',
+  ACTIVATION_VERIFICATION_RETURN: 'Settlement-destination verification',
+  ACTIVATION_REVIEW_RESERVE: 'Agreement Review Reserve',
+};
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -32,6 +57,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   const [subscription, setSubscription] = useState<SubscriptionStatusResponse | null>(null);
   const [agreement, setAgreement] = useState<ActivationAgreementResponse | null>(null);
   const [billing, setBilling] = useState<SubscriptionBillingCycleResponse | null>(null);
+  const [funding, setFunding] = useState<ActivationFundingStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [authorityReadFailed, setAuthorityReadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,8 +142,51 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
     if (loading || authorityReadFailed || !agreement?.confirmed) return;
     setLoading(true);
     setError(null);
-    try { setBilling(await gateway.prepareCurrentBillingCycle()); }
+    try {
+      setBilling(await gateway.prepareCurrentBillingCycle());
+      setFunding(await gateway.activationFundingStatus());
+    }
     catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const refreshFunding = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try { setFunding(await gateway.activationFundingStatus()); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+
+  // Backend-authorized next funding action only -- this UI never infers completion or advances a
+  // step the backend has not itself confirmed. Every action re-reads live status afterward.
+  const runFundingAction = async (action: ActivationFundingNextAction) => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      switch (action) {
+        case 'PREPARE_VERIFICATION_FUNDING':
+          setFunding(await gateway.prepareVerificationFunding());
+          break;
+        case 'INITIATE_VERIFICATION_TRANSFER':
+          await gateway.initiateVerificationTransfer();
+          setFunding(await gateway.activationFundingStatus());
+          break;
+        case 'PREPARE_RESERVE_FUNDING':
+          setFunding(await gateway.prepareReserveFunding());
+          break;
+        case 'ESTABLISH_REVIEW_RESERVE':
+          setFunding(await gateway.establishReviewReserve());
+          break;
+        default:
+          // PAY_VERIFICATION_INTENT / PAY_RESERVE_INTENT / REGISTER_SETTLEMENT_DESTINATION /
+          // RETRY_FAILED_COMPONENT / NONE_ACTIVATION_COMPLETE are not this UI's own action to
+          // perform -- re-reading live status is the only safe thing to do.
+          setFunding(await gateway.activationFundingStatus());
+      }
+    } catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
 
@@ -235,16 +304,155 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
 
         {billing && !authorityReadFailed && (
           <section className="rounded-2xl border border-forest-200 bg-forest-50 p-5">
-            <div className="text-xs uppercase tracking-wide text-forest-600">Payment intent prepared</div>
+            <div className="text-xs uppercase tracking-wide text-forest-600">First subscription payment intent</div>
             <div className="mt-2 font-display text-2xl text-forest-800">{money(billing.feeDueMinor, billing.currency)}</div>
             <p className="mt-1 text-sm text-sand-600">{planLabel[billing.plan]} subscription · {billing.cycleMonth}</p>
             <div className="mt-4 rounded-xl bg-white/70 p-3 text-xs text-sand-600 break-all">Payment intent: {billing.paymentIntentId}</div>
-            <p className="mt-4 text-xs leading-relaxed text-sand-500">This is the subscription component only. SecurePay does not mark activation complete here because the current customer API does not yet expose one authoritative command/status covering the returned settlement-verification transfer and customer-owned Review Reserve described in the Activation Agreement. Those states must be wired through Money rather than inferred by this UI.</p>
           </section>
+        )}
+
+        {billing && !authorityReadFailed && (
+          <ActivationFundingSection
+            funding={funding}
+            loading={loading}
+            onRefresh={() => void refreshFunding()}
+            onAction={action => void runFundingAction(action)}
+            onContinue={onLeave}
+          />
         )}
       </main>
     </div>
   );
+}
+
+/**
+ * Final Completion Phase 1 (Outcome C/E): the single, bounded activation-funding read model
+ * drives this section end to end. It shows exactly one backend-authorized next action at a time,
+ * never infers completion, never fabricates a transaction reference, and fails closed on any
+ * component state or next action it does not recognize (the gateway's own
+ * `activationFundingStatusView` already throws before an unrecognized value ever reaches here --
+ * this component's `default` branches are the second, defense-in-depth layer).
+ */
+function ActivationFundingSection({ funding, loading, onRefresh, onAction, onContinue }: {
+  funding: ActivationFundingStatusResponse | null;
+  loading: boolean;
+  onRefresh: () => void;
+  onAction: (action: ActivationFundingNextAction) => void;
+  onContinue: () => void;
+}) {
+  if (!funding) {
+    return (
+      <section className="rounded-2xl border border-cream-200 bg-white p-5 shadow-card">
+        <p className="text-sm text-sand-600">Reading your activation funding status…</p>
+        <button disabled={loading} onClick={onRefresh} className="mt-3 rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-medium text-forest-700 hover:bg-cream-50 disabled:opacity-50">Check status</button>
+      </section>
+    );
+  }
+
+  const action = funding.nextAction as ActivationFundingNextAction;
+
+  return (
+    <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-cream-200 bg-cream-50">
+        <div className="text-xs uppercase tracking-wide text-sand-500">Activation funding</div>
+        <h2 className="font-display text-lg text-forest-800 mt-1">What's required, and what's satisfied so far</h2>
+      </div>
+      <div className="p-5 space-y-4">
+        <ul className="space-y-3">
+          {funding.components.map(component => <FundingComponentRow key={component.componentType} component={component} />)}
+        </ul>
+
+        {funding.financiallyEnabled ? (
+          <div className="rounded-xl bg-forest-50 p-4 text-sm text-forest-800 flex items-start gap-2">
+            <PartyPopper className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-medium">Activation is complete.</div>
+              <p className="mt-1 text-forest-700">SecurePay has confirmed all three activation funding components. This is a real, backend-confirmed state — not something this screen calculated.</p>
+              <button onClick={onContinue} className="mt-3 rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800">Continue to SecurePay</button>
+            </div>
+          </div>
+        ) : (
+          <FundingNextActionPanel action={action} loading={loading} onAction={onAction} onRefresh={onRefresh} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function FundingComponentRow({ component }: { component: ActivationFundingComponentResponse }) {
+  const failed = component.state === 'FAILED';
+  const done = component.state === 'TRANSFERRED' || component.state === 'RESERVED' || component.state === 'EARNED';
+  return (
+    <li className={`rounded-xl border p-3 ${failed ? 'border-orange-200 bg-orange-50' : done ? 'border-forest-200 bg-forest-50' : 'border-cream-200 bg-cream-50'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-medium text-forest-800">{componentTitle[component.componentType] ?? component.componentType}</div>
+        <div className="text-sm text-sand-700">{money(component.amountMinor, component.currency)}</div>
+      </div>
+      <div className="mt-1 text-xs text-sand-600">{componentStateLabel[component.state] ?? `Unrecognized state: ${component.state}`}</div>
+      <p className="mt-1 text-xs text-sand-500">{component.description}</p>
+    </li>
+  );
+}
+
+function FundingNextActionPanel({ action, loading, onAction, onRefresh }: {
+  action: ActivationFundingNextAction;
+  loading: boolean;
+  onAction: (action: ActivationFundingNextAction) => void;
+  onRefresh: () => void;
+}) {
+  const actionButton = (label: string) => (
+    <button disabled={loading} onClick={() => onAction(action)} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-50">{label}</button>
+  );
+  const refreshButton = (label: string) => (
+    <button disabled={loading} onClick={onRefresh} className="rounded-xl border border-forest-200 bg-white px-4 py-2.5 text-sm font-medium text-forest-700 hover:bg-cream-50 disabled:opacity-50">{label}</button>
+  );
+
+  switch (action) {
+    case 'PREPARE_VERIFICATION_FUNDING':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare the settlement-destination verification funding.</p>{actionButton('Prepare settlement verification funding')}</div>;
+    case 'PAY_VERIFICATION_INTENT':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Complete the settlement-verification payment intent through your usual SecurePay Money flow, then check status again. This screen cannot mark a payment as paid for you.</p>{refreshButton('Check status')}</div>;
+    case 'REGISTER_SETTLEMENT_DESTINATION':
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> A settlement destination is required</div>
+          <p className="text-sm text-sand-700">Register a settlement destination for your account before SecurePay can verify it. This is managed outside Activation, in your account's settlement settings.</p>
+          {refreshButton('Check status')}
+        </div>
+      );
+    case 'INITIATE_VERIFICATION_TRANSFER':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Your settlement-verification funding is confirmed. SecurePay can now send the verification transfer to your registered destination.</p>{actionButton('Initiate settlement verification transfer')}</div>;
+    case 'PREPARE_RESERVE_FUNDING':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Next, SecurePay needs to prepare your Agreement Review Reserve funding — this stays your own money.</p>{actionButton('Prepare Agreement Review Reserve funding')}</div>;
+    case 'PAY_RESERVE_INTENT':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Complete the Agreement Review Reserve payment intent through your usual SecurePay Money flow, then check status again.</p>{refreshButton('Check status')}</div>;
+    case 'ESTABLISH_REVIEW_RESERVE':
+      return <div className="space-y-2"><p className="text-sm text-sand-600">Your Agreement Review Reserve funding is confirmed. SecurePay can now establish your standing reserve.</p>{actionButton('Establish my Agreement Review Reserve')}</div>;
+    case 'RETRY_FAILED_COMPONENT':
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> One activation funding component failed</div>
+          <p className="text-sm text-sand-700">Check status for the exact component. You may need to retry the failed component's funding.</p>
+          {refreshButton('Check status')}
+        </div>
+      );
+    case 'CONFIRM_AGREEMENT':
+    case 'FUND_SUBSCRIPTION':
+    case 'NONE_ACTIVATION_COMPLETE':
+      // Reached only if live status disagrees with this screen's own earlier reads (e.g. a
+      // concurrent change) -- re-read rather than assume either direction.
+      return <div className="space-y-2"><p className="text-sm text-sand-600">SecurePay's activation funding state has changed. Checking the current status.</p>{refreshButton('Check status')}</div>;
+    default:
+      // Unreachable in practice (activationFundingStatusView already fails closed on an
+      // unrecognized nextAction before it ever reaches this component) -- kept as a second,
+      // defense-in-depth layer per doctrine: never silently treat an unknown state as safe.
+      return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-sand-800"><AlertTriangle className="w-4 h-4" /> SecurePay reported an unrecognized activation state</div>
+          {refreshButton('Check status')}
+        </div>
+      );
+  }
 }
 
 function ActivationHeader({ onBack }: { onBack: () => void }) {

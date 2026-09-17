@@ -5,6 +5,7 @@ import test from 'node:test';
 const runtime = fs.readFileSync(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
 const api = fs.readFileSync(new URL('../src/api/securepay/subscription/index.ts', import.meta.url), 'utf8');
 const dto = fs.readFileSync(new URL('../src/api/securepay/subscription/dto.ts', import.meta.url), 'utf8');
+const adapters = fs.readFileSync(new URL('../src/api/securepay/subscription/adapters.ts', import.meta.url), 'utf8');
 const experience = fs.readFileSync(new URL('../src/features/activation/ActivationExperience.tsx', import.meta.url), 'utf8');
 const home = fs.readFileSync(new URL('../src/components/SignedOutHome.tsx', import.meta.url), 'utf8');
 
@@ -13,6 +14,14 @@ const requiredEndpoints = [
   '/api/v1/subscriptions/me/activation-agreement',
   '/api/v1/subscriptions/me/activation-agreement/confirm',
   '/api/v1/subscriptions/me/billing-cycles',
+];
+
+const requiredFundingEndpoints = [
+  '/api/v1/subscriptions/me/activation-funding',
+  '/api/v1/subscriptions/me/activation-funding/verification/prepare',
+  '/api/v1/subscriptions/me/activation-funding/verification/initiate',
+  '/api/v1/subscriptions/me/activation-funding/reserve/prepare',
+  '/api/v1/subscriptions/me/activation-funding/reserve/establish',
 ];
 
 test('activation uses the real Phase 14 subscription/Agreement endpoints', () => {
@@ -40,10 +49,55 @@ test('confirmation is explicit and precedes billing preparation', () => {
   assert.match(experience, /!agreement\?\.confirmed/);
 });
 
-test('prepared billing is not mislabeled as full activation completion', () => {
-  assert.match(experience, /This is the subscription component only/);
-  assert.match(experience, /does not mark activation complete here/);
-  assert.doesNotMatch(experience, />\s*Activation complete\s*</i);
+test('prepared billing on its own is never labeled as full activation completion', () => {
+  // The subscription-only billing section itself must never claim completion.
+  const billingSectionEnd = experience.indexOf('ActivationFundingSection');
+  const billingSection = experience.slice(experience.indexOf('First subscription payment intent'), billingSectionEnd);
+  assert.doesNotMatch(billingSection, /Activation is complete/i);
+});
+
+test('activation-funding orchestration uses the real Final Completion Phase 1 endpoints', () => {
+  for (const endpoint of requiredFundingEndpoints) assert.match(api, new RegExp(endpoint.replaceAll('/', '\\/')));
+});
+
+test('activation-funding status and next action are read from the backend, never fabricated', () => {
+  assert.match(dto, /financiallyEnabled/);
+  assert.match(dto, /nextAction/);
+  assert.match(experience, /funding\.financiallyEnabled/);
+  assert.match(experience, /funding\.nextAction/);
+  // The only place "Activation is complete" may render is behind the backend-owned
+  // financiallyEnabled flag -- never unconditionally, never computed client-side.
+  const completeIndex = experience.indexOf('Activation is complete');
+  assert.ok(completeIndex > 0);
+  const guardWindow = experience.slice(Math.max(0, completeIndex - 400), completeIndex);
+  assert.match(guardWindow, /funding\.financiallyEnabled\s*\?/);
+});
+
+test('activation-funding client fails closed on any unrecognized backend enum value', () => {
+  assert.match(adapters, /activationFundingStatusView/);
+  assert.match(adapters, /unrecognized activation-funding next action/);
+  assert.match(adapters, /unrecognized activation-funding component state/);
+  // Defense in depth: the component itself also has a default branch, not just the adapter.
+  assert.match(experience, /default:/);
+  assert.match(experience, /unrecognized activation state/i);
+});
+
+test('activation-funding handles pending, failed, and destination-missing states honestly', () => {
+  for (const nextAction of [
+    'PAY_VERIFICATION_INTENT', 'PAY_RESERVE_INTENT', 'REGISTER_SETTLEMENT_DESTINATION', 'RETRY_FAILED_COMPONENT',
+  ]) {
+    assert.match(experience, new RegExp(`'${nextAction}'`));
+  }
+  // Never claims a payment as paid or a transfer as sent from this screen alone.
+  assert.doesNotMatch(experience, /markAsPaid|assumePaid|Math\.random\(\)/);
+});
+
+test('initiating the settlement-verification transfer always re-reads live status afterward', () => {
+  const start = experience.indexOf("case 'INITIATE_VERIFICATION_TRANSFER'");
+  const nextCase = experience.indexOf('case ', start + 1);
+  const block = experience.slice(start, nextCase);
+  assert.match(block, /initiateVerificationTransfer\(\)/);
+  assert.match(block, /activationFundingStatus\(\)/);
 });
 
 test('failed authority reads do not expose empty-state mutation actions', () => {

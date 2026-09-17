@@ -19,7 +19,7 @@ const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.
 const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'createRequest', 'proposeCost', 'accept', 'decline', 'submitOpinion'], session, api.auth) : undefined;
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
-const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle'], session, api.auth) : undefined;
+const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle', 'activationFundingStatus', 'prepareVerificationFunding', 'initiateVerificationTransfer', 'prepareReserveFunding', 'establishReviewReserve'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
