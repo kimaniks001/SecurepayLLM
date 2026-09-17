@@ -39,14 +39,28 @@ function LoadingNotice({ text }: { text: string }) {
  * Signed-in Home → Agreement Hub → Agreement Detail → Money for a selected Agreement. Every screen
  * renders exactly the backend's own truth (see controller.ts / view.ts); this component only wires
  * locked Bolt components to that truth and to navigation — it derives no Agreement or Money state.
+ *
+ * `initialAgreementId` is only a navigation restoration hint. The component never trusts it as
+ * Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains it.
  */
-export function WorkspaceExperience({ gateway, onOpenStore, onOpenReferral, onLeave }: { gateway: Gateway; onOpenStore?: () => void; onOpenReferral?: (agreementId: string) => void; onLeave: (startText?: string) => void }) {
+export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
+  gateway: Gateway;
+  initialAgreementId?: string | null;
+  onOpenStore?: () => void;
+  onOpenReferral?: (agreementId: string) => void;
+  onLeave: (startText?: string) => void;
+}) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
   const [askResponses, setAskResponses] = useState<{ text: string }[]>([]);
 
   useEffect(() => { controller.enter(); }, [controller]);
+  useEffect(() => {
+    if (!initialAgreementId || state.hub.status !== 'ready') return;
+    if (state.view === 'detail' && state.selectedAgreementId === initialAgreementId) return;
+    controller.openFromHome(initialAgreementId);
+  }, [controller, initialAgreementId, state.hub.status, state.selectedAgreementId, state.view]);
   useEffect(() => { setAskResponses([]); }, [state.selectedAgreementId]);
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
