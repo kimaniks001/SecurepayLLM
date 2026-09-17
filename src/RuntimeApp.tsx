@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AgentExperience } from './features/agent/AgentExperience';
+import { ActivationExperience } from './features/activation/ActivationExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -18,6 +19,7 @@ const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.
 const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'createRequest', 'proposeCost', 'accept', 'decline', 'submitOpinion'], session, api.auth) : undefined;
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
+const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -54,9 +56,23 @@ function useStoreOfferRoute() {
   return route;
 }
 
+/** Activation is a first-class, non-secret route. No Agreement or payment identifiers are put in the URL. */
+function useActivationRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?activate\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const storeOfferRoute = useStoreOfferRoute();
+  const [activationRoute, clearActivationRoute] = useActivationRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -68,6 +84,11 @@ export default function RuntimeApp() {
     // starts a fresh recipient controller instead of reusing one closed over the previous token.
     return api && agreementGateway
       ? <RecipientExperience key={invitationToken} token={invitationToken} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearInvitationToken} />
+      : <Unavailable />;
+  }
+  if (activationRoute) {
+    return api && subscriptionGateway
+      ? <ActivationExperience gateway={subscriptionGateway} auth={api.auth} session={session} onLeave={clearActivationRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway
