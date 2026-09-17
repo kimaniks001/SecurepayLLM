@@ -1,4 +1,4 @@
-import { Home, FileText, Wallet, Store, Users, User } from 'lucide-react';
+import { Home, FileText, Wallet, Store, Users, User, ShieldCheck } from 'lucide-react';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
 
@@ -28,43 +28,27 @@ export function NavBar({ view, onNavigate }: NavBarProps) {
 
   return (
     <>
-      {/* Desktop nav */}
       <nav className="hidden md:flex items-center justify-between px-6 lg:px-10 py-4 border-b border-cream-200/60 bg-cream-50/80 backdrop-blur-sm sticky top-0 z-30">
         <button onClick={() => onNavigate('signed-in')} className="flex items-center">
           <img src={securepayWordmark} alt="SecurePay" className="h-8 w-auto" />
         </button>
         <div className="flex items-center gap-1">
           {navItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => onNavigate(item.view)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.825rem] font-medium transition-all ${
-                isActive(item.view)
-                  ? 'text-forest-700 bg-forest-50'
-                  : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+            <button key={item.label} onClick={() => onNavigate(item.view)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.825rem] font-medium transition-all ${isActive(item.view) ? 'text-forest-700 bg-forest-50' : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'}`}>
+              <item.icon className="w-4 h-4" />{item.label}
             </button>
           ))}
+          <a href="#/activate" className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.825rem] font-medium text-orange-700 hover:bg-orange-50 transition-all"><ShieldCheck className="w-4 h-4" />Activate</a>
         </div>
       </nav>
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-2 py-2 flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-1 py-2 flex items-center justify-around">
         {navItems.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => onNavigate(item.view)}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors ${
-              isActive(item.view) ? 'text-forest-600' : 'text-sand-400'
-            }`}
-          >
-            <item.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-            <span className="text-[0.6rem] font-medium">{item.label}</span>
+          <button key={item.label} onClick={() => onNavigate(item.view)} className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg transition-colors ${isActive(item.view) ? 'text-forest-600' : 'text-sand-400'}`}>
+            <item.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} /><span className="text-[0.58rem] font-medium">{item.label}</span>
           </button>
         ))}
+        <a href="#/activate" className="flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-orange-600"><ShieldCheck style={{ width: 18, height: 18 }} /><span className="text-[0.58rem] font-medium">Activate</span></a>
       </nav>
     </>
   );
