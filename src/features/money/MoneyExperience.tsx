@@ -7,9 +7,19 @@ import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
-import type { AgreementFundedAuthorityStatusResponse, MoneyAuthorityGateway } from '../../api/securepay/money-authority';
+import type {
+  AgreementFundedAuthorityStatusResponse,
+  AgreementMoneyTransactionResponse,
+  MoneyAuthorityGateway,
+} from '../../api/securepay/money-authority';
 import type { FinancialPartnerGateway, RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
-import type { SettlementDestinationGateway, SettlementDestinationResponse, SettlementVerificationStatusResponse } from '../../api/securepay/settlement-destinations';
+import type {
+  ExternalDestinationAccountKind,
+  SettlementDestinationGateway,
+  SettlementDestinationResponse,
+  SettlementVerificationStatusResponse,
+} from '../../api/securepay/settlement-destinations';
+import type { MoneySessionGateway } from '../../api/securepay/money-session';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 
@@ -27,6 +37,7 @@ export interface MoneyGateways {
   financialPartners: FinancialPartnerGateway;
   settlementDestinations: SettlementDestinationGateway;
   agreements: AgreementGateway;
+  moneySession: MoneySessionGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -79,9 +90,13 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-2xl mx-auto w-full">
         <div>
           <h1 className="font-display text-2xl text-forest-800">Money</h1>
-          <p className="mt-1 text-sm text-sand-600">Real backend authority only. Nothing here is calculated by this screen.</p>
+          <p className="mt-1 text-sm text-sand-600">What money you have, what it is allowed to do, and what has happened. Nothing here is calculated by this screen.</p>
         </div>
-        <FundedAuthoritySection authorityGateway={gateways.moneyAuthority} agreementGateway={gateways.agreements} />
+        <AgreementMoneySection
+          authorityGateway={gateways.moneyAuthority}
+          agreementGateway={gateways.agreements}
+          sessionGateway={gateways.moneySession}
+        />
         <SettlementDestinationSection gateway={gateways.settlementDestinations} />
         <FinancialPartnersSection gateway={gateways.financialPartners} />
       </div>
@@ -110,24 +125,32 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 /**
- * Funded Authority: Agreement-scoped only (Final Completion Phase 2 correction pass). There is no
- * "authority id" field anywhere in this UI -- the person picks one of their own Agreements, and
- * every fact shown (obligation, authorised max, currency, beneficiary) is the backend's own
- * server-derived read model. Fund/Exercise/Release only ever act on the Agreement the person
- * selected; a 409 (e.g. "you are not this Agreement's payer") is shown honestly rather than
- * silently retried or hidden.
+ * Agreement Money (customer-facing name; "Funded Authority" is the internal/API term -- see
+ * AgreementFundedAuthorityOrchestrationService). Final Completion Phase 2 completion pass,
+ * Section 1: an Agreement is not permanently one Agreement Money position -- every MONETARY
+ * obligation gets its own independent position, listed here and acted on individually. Section 2:
+ * a 409 while progressing may honestly mean the caller is not this position's payer or a valid
+ * delegate; it is shown as-is, never silently retried or hidden. Section 6: providerSettlementCertified
+ * is always false in this environment, so progressed money is always described as "Progressed
+ * within SecurePay," never "Settled."
  */
-function FundedAuthoritySection({ authorityGateway, agreementGateway }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
+  sessionGateway: MoneySessionGateway;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
-  const [selected, setSelected] = useState<CurrentUserAgreementSummaryResponse | null>(null);
-  const [status, setStatus] = useState<AgreementFundedAuthorityStatusResponse | null>(null);
+  const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
+  const [positions, setPositions] = useState<AgreementFundedAuthorityStatusResponse[] | null>(null);
+  const [selectedObligationId, setSelectedObligationId] = useState<string | null>(null);
   const [fundAmount, setFundAmount] = useState('');
-  const [exerciseAmount, setExerciseAmount] = useState('');
+  const [progressAmount, setProgressAmount] = useState('');
+  const [history, setHistory] = useState<AgreementMoneyTransactionResponse[] | null>(null);
+  const [shareableLink, setShareableLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedPosition = positions?.find(p => p.obligationId === selectedObligationId) ?? null;
 
   const loadAgreements = async () => {
     setLoading(true); setError(null);
@@ -136,67 +159,86 @@ function FundedAuthoritySection({ authorityGateway, agreementGateway }: {
     finally { setLoading(false); }
   };
 
-  const select = async (agreement: CurrentUserAgreementSummaryResponse) => {
-    setSelected(agreement);
-    setStatus(null);
+  const selectAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
+    setSelectedAgreement(agreement);
+    setPositions(null);
+    setSelectedObligationId(null);
+    setHistory(null);
+    setShareableLink(null);
     setLoading(true); setError(null);
-    try { setStatus(await authorityGateway.status(agreement.agreementId)); }
+    try {
+      const list = await authorityGateway.list(agreement.agreementId);
+      setPositions(list.positions);
+      if (list.positions.length === 1) setSelectedObligationId(list.positions[0].obligationId);
+    } catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+
+  const refreshPositions = async () => {
+    if (!selectedAgreement) return;
+    setLoading(true); setError(null);
+    try { setPositions((await authorityGateway.list(selectedAgreement.agreementId)).positions); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
 
-  const refresh = async () => {
-    if (!selected) return;
+  const withObligation = async (action: (agreementId: string, obligationId: string) => Promise<void>) => {
+    if (!selectedAgreement || !selectedObligationId) return;
     setLoading(true); setError(null);
-    try { setStatus(await authorityGateway.status(selected.agreementId)); }
+    try { await action(selectedAgreement.agreementId, selectedObligationId); await refreshPositions(); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
-  const open = async () => {
-    if (!selected) return;
+
+  const protect = () => withObligation(async (a, o) => { await authorityGateway.open(a, o); });
+  const fund = () => withObligation(async (a, o) => {
+    if (!fundAmount) return;
+    await authorityGateway.fund(a, o, Math.round(Number(fundAmount) * 100));
+    setFundAmount('');
+  });
+  const progress = () => withObligation(async (a, o) => {
+    if (!progressAmount) return;
+    await authorityGateway.exercise(a, o, Math.round(Number(progressAmount) * 100));
+    setProgressAmount('');
+  });
+  const releaseUnused = () => withObligation(async (a, o) => { await authorityGateway.release(a, o); });
+
+  const loadHistory = async () => {
+    if (!selectedAgreement || !selectedObligationId) return;
     setLoading(true); setError(null);
-    try { setStatus(await authorityGateway.open(selected.agreementId)); }
+    try { setHistory(await authorityGateway.transactions(selectedAgreement.agreementId, selectedObligationId)); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
-  const fund = async () => {
-    if (!selected || !fundAmount) return;
-    setLoading(true); setError(null);
-    try { setStatus(await authorityGateway.fund(selected.agreementId, Math.round(Number(fundAmount) * 100))); setFundAmount(''); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
-  const exercise = async () => {
-    if (!selected || !exerciseAmount) return;
+
+  const getShareableLink = async () => {
+    if (!selectedAgreement || !selectedObligationId || !selectedPosition?.remainingFundedMinor) return;
     setLoading(true); setError(null);
     try {
-      await authorityGateway.exercise(selected.agreementId, Math.round(Number(exerciseAmount) * 100));
-      setStatus(await authorityGateway.status(selected.agreementId));
-      setExerciseAmount('');
+      const created = await sessionGateway.create({
+        agreementId: selectedAgreement.agreementId,
+        obligationId: selectedObligationId,
+        purpose: 'EXERCISE',
+        amountMinorCap: selectedPosition.remainingFundedMinor,
+      });
+      setShareableLink(`${window.location.origin}/#/money-session/${created.token}`);
     } catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
-  const release = async () => {
-    if (!selected) return;
-    setLoading(true); setError(null);
-    try { await authorityGateway.release(selected.agreementId); setStatus(await authorityGateway.status(selected.agreementId)); }
-    catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
 
   return (
-    <SectionCard title="Funded Authority" description="Progress money already authorised under one of your own Agreements. Nothing here is calculated by this screen.">
+    <SectionCard title="Agreement Money" description="Money already authorised under one of your own Agreements. Nothing here is calculated by this screen.">
       {error && <ErrorBanner message={error} />}
       {!agreements ? (
         <button onClick={() => void loadAgreements()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my Agreements</button>
-      ) : selected === null ? (
+      ) : selectedAgreement === null ? (
         agreements.length === 0 ? (
           <p className="text-sm text-sand-600">You have no Agreements yet.</p>
         ) : (
           <ul className="space-y-2">
             {agreements.map(agreement => (
               <li key={agreement.agreementId}>
-                <button onClick={() => void select(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                <button onClick={() => void selectAgreement(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
                   <div className="font-medium text-forest-800">{agreement.title}</div>
                   <div className="text-xs text-sand-600">{agreement.purpose}{agreement.counterparty?.ksNumber ? ` · ${agreement.counterparty.ksNumber}` : ''}</div>
                 </button>
@@ -206,40 +248,46 @@ function FundedAuthoritySection({ authorityGateway, agreementGateway }: {
         )
       ) : (
         <div className="space-y-3">
-          <button onClick={() => { setSelected(null); setStatus(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
-          <div className="text-sm text-forest-800 font-medium">{selected.title}</div>
-          <div className="text-xs text-sand-600">{selected.purpose}</div>
-          {!status ? null : !status.established ? (
-            <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
-              <p>No Funded Authority is open yet for this Agreement{status.reasonCode ? ` (${status.reasonCode})` : ''}.</p>
-              <button onClick={() => void open()} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Open Funded Authority</button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 grid grid-cols-2 gap-2">
-                <div>Authorised max: <strong>{money(status.authorisedMaxAmountMinor ?? 0, status.currency ?? '')}</strong></div>
-                <div>Funded: <strong>{money(status.fundedTotalMinor ?? 0, status.currency ?? '')}</strong></div>
-                <div>Exercised/settled: <strong>{money(status.exercisedOrSettledMinor ?? 0, status.currency ?? '')}</strong></div>
-                <div>Released: <strong>{money(status.releasedTotalMinor ?? 0, status.currency ?? '')}</strong></div>
-                <div>Remaining: <strong>{money(status.remainingFundedMinor ?? 0, status.currency ?? '')}</strong></div>
-                <div>Status: <strong>{status.closed ? 'Closed' : 'Open'}</strong></div>
-                {status.beneficiaryMaskedKsNumber && <div className="col-span-2">Beneficiary: <strong>{status.beneficiaryMaskedKsNumber}</strong></div>}
-              </div>
-              {!status.closed && (
-                <>
-                  <div className="flex gap-2">
-                    <input value={fundAmount} onChange={e => setFundAmount(e.target.value)} placeholder="Fund amount" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-                    <button onClick={() => void fund()} disabled={loading || !fundAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Fund from my own position</button>
-                  </div>
-                  <div className="flex gap-2">
-                    <input value={exerciseAmount} onChange={e => setExerciseAmount(e.target.value)} placeholder="Amount to progress" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-                    <button onClick={() => void exercise()} disabled={loading || !exerciseAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Progress to {status.beneficiaryMaskedKsNumber ?? 'beneficiary'}</button>
-                  </div>
-                  <button onClick={() => void release()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Release remaining to me</button>
-                </>
-              )}
-              <button onClick={() => void refresh()} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
-            </div>
+          <button onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
+          <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title}</div>
+
+          {positions && positions.length === 0 && <p className="text-sm text-sand-600">This Agreement has no Agreement Money yet.</p>}
+
+          {positions && positions.length > 1 && selectedObligationId === null && (
+            <ul className="space-y-2">
+              {positions.map(p => (
+                <li key={p.obligationId ?? 'none'}>
+                  <button onClick={() => setSelectedObligationId(p.obligationId)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                    <div className="font-medium text-forest-800">{p.obligationTitle ?? 'Untitled'}</div>
+                    <div className="text-xs text-sand-600">{money(p.proposedAmountMinor ?? p.authorisedMaxAmountMinor ?? 0, p.proposedCurrency ?? p.currency ?? '')} protected</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {positions && positions.length > 1 && selectedObligationId !== null && (
+            <button onClick={() => setSelectedObligationId(null)} className="text-xs text-sand-600 underline">← Choose a different Agreement Money position</button>
+          )}
+
+          {selectedPosition && (
+            <AgreementMoneyPositionCard
+              position={selectedPosition}
+              loading={loading}
+              fundAmount={fundAmount}
+              progressAmount={progressAmount}
+              onFundAmountChange={setFundAmount}
+              onProgressAmountChange={setProgressAmount}
+              onProtect={() => void protect()}
+              onFund={() => void fund()}
+              onProgress={() => void progress()}
+              onReleaseUnused={() => void releaseUnused()}
+              onRefresh={() => void refreshPositions()}
+              history={history}
+              onLoadHistory={() => void loadHistory()}
+              shareableLink={shareableLink}
+              onGetShareableLink={() => void getShareableLink()}
+            />
           )}
         </div>
       )}
@@ -247,21 +295,130 @@ function FundedAuthoritySection({ authorityGateway, agreementGateway }: {
   );
 }
 
-/** Settlement destination: view current + history + verification status. Registration/replacement requires backend-computed values this client never fabricates -- a genuine, disclosed gap, not a fake form. */
+/**
+ * Customer state language (Section 3): "protected" (the total Agreement Money ceiling),
+ * "Ready to progress" (funded and available), "Still protected" (authorised but not yet funded),
+ * "Progressed" (already moved), "Returned" (released back to the funder(s)). Never "Settled"
+ * while providerSettlementCertified is false.
+ */
+function AgreementMoneyPositionCard({
+  position, loading, fundAmount, progressAmount, onFundAmountChange, onProgressAmountChange,
+  onProtect, onFund, onProgress, onReleaseUnused, onRefresh, history, onLoadHistory, shareableLink, onGetShareableLink,
+}: {
+  position: AgreementFundedAuthorityStatusResponse;
+  loading: boolean;
+  fundAmount: string;
+  progressAmount: string;
+  onFundAmountChange: (value: string) => void;
+  onProgressAmountChange: (value: string) => void;
+  onProtect: () => void;
+  onFund: () => void;
+  onProgress: () => void;
+  onReleaseUnused: () => void;
+  onRefresh: () => void;
+  history: AgreementMoneyTransactionResponse[] | null;
+  onLoadHistory: () => void;
+  shareableLink: string | null;
+  onGetShareableLink: () => void;
+}) {
+  const currency = position.currency ?? position.proposedCurrency ?? '';
+
+  if (!position.established) {
+    return (
+      <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
+        <div className="font-medium text-forest-800">{position.obligationTitle}</div>
+        {position.proposedAmountMinor != null && <p>{money(position.proposedAmountMinor, currency)} protected</p>}
+        <p className="text-xs text-sand-600">Not yet protected{position.reasonCode ? ` (${position.reasonCode})` : ''}.</p>
+        <button onClick={onProtect} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Protect this money</button>
+      </div>
+    );
+  }
+
+  const totalProtected = position.authorisedMaxAmountMinor ?? 0;
+  const readyToProgress = position.remainingFundedMinor ?? 0;
+  const stillProtected = Math.max(0, totalProtected - (position.fundedTotalMinor ?? 0));
+  const progressed = position.exercisedOrSettledMinor ?? 0;
+  const returned = position.releasedTotalMinor ?? 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
+        <div className="font-medium text-forest-800">{position.obligationTitle}</div>
+        <p>{money(totalProtected, currency)} protected</p>
+        {readyToProgress > 0 && (
+          <div className="pl-3 border-l-2 border-forest-300">
+            <div>{money(readyToProgress, currency)} <span className="text-forest-700 font-medium">Ready to progress</span></div>
+            {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
+          </div>
+        )}
+        {stillProtected > 0 && <div className="pl-3 border-l-2 border-cream-300">{money(stillProtected, currency)} Still protected</div>}
+        {progressed > 0 && (
+          <div className="text-xs text-sand-600">
+            {money(progressed, currency)} Progressed within SecurePay
+            {!position.providerSettlementCertified && ' (pending certified bank transfer -- never shown as Settled)'}
+          </div>
+        )}
+        {returned > 0 && <div className="text-xs text-sand-600">{money(returned, currency)} Returned</div>}
+        <div className="text-xs text-sand-500">{position.closed ? 'Closed' : 'Open'}</div>
+      </div>
+      {!position.closed && (
+        <>
+          <div className="flex gap-2">
+            <input value={fundAmount} onChange={e => onFundAmountChange(e.target.value)} placeholder="Amount to protect" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+            <button onClick={onFund} disabled={loading || !fundAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Add money</button>
+          </div>
+          <div className="flex gap-2">
+            <input value={progressAmount} onChange={e => onProgressAmountChange(e.target.value)} placeholder="Amount to progress" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+            <button onClick={onProgress} disabled={loading || !progressAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Progress to {position.beneficiaryMaskedKsNumber ?? 'beneficiary'}</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onReleaseUnused} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Release unused money</button>
+            {readyToProgress > 0 && (
+              <button onClick={onGetShareableLink} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Get a shareable link</button>
+            )}
+          </div>
+        </>
+      )}
+      {shareableLink && (
+        <p className="text-xs text-sand-600 break-all">Hosted link (opens the same real progress action): {shareableLink}</p>
+      )}
+      <div className="flex gap-3">
+        <button onClick={onRefresh} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
+        <button onClick={onLoadHistory} disabled={loading} className="text-xs text-sand-600 underline">What happened</button>
+      </div>
+      {history && (
+        history.length === 0 ? <p className="text-xs text-sand-600">Nothing has happened yet.</p> : (
+          <ul className="text-xs text-sand-600 space-y-1">
+            {history.map(entry => (
+              <li key={entry.eventId}>
+                {new Date(entry.occurredAt).toLocaleString()} — {entry.type === 'FUNDED' ? 'Protected' : entry.type === 'PROGRESSED' ? 'Progressed' : 'Returned'} {money(entry.amountMinor, entry.currency)}
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </div>
+  );
+}
+
+/** Settlement destination: self-service register/replace via the caller's own KS-derived identity (Final Completion Phase 2, Section 7). */
 function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinationGateway }) {
-  const [ksNumber, setKsNumber] = useState('');
   const [current, setCurrent] = useState<SettlementDestinationResponse | null>(null);
   const [history, setHistory] = useState<SettlementDestinationResponse[] | null>(null);
   const [verification, setVerification] = useState<SettlementVerificationStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [accountKind, setAccountKind] = useState<ExternalDestinationAccountKind>('BANK');
+  const [bankCode, setBankCode] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [beneficiaryName, setBeneficiaryName] = useState('');
 
   const load = async () => {
-    if (!ksNumber) return;
     setLoading(true); setError(null); setNotFound(false); setVerification(null);
     try {
-      const [currentDestination, destinationHistory] = await Promise.all([gateway.current(ksNumber), gateway.history(ksNumber)]);
+      const [currentDestination, destinationHistory] = await Promise.all([gateway.current(), gateway.history()]);
       setCurrent(currentDestination);
       setHistory(destinationHistory);
     } catch (cause) {
@@ -276,15 +433,24 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
+  const submit = async (mode: 'register' | 'replace') => {
+    if (!accountNumber || !beneficiaryName) return;
+    setLoading(true); setError(null);
+    try {
+      const request = { destinationType: 'PRIMARY_SETTLEMENT' as const, currency: 'KES', accountKind, bankCode: accountKind === 'BANK' ? bankCode : null, accountNumber, beneficiaryName };
+      if (mode === 'register') setCurrent(await gateway.register(request));
+      else await gateway.replace(request);
+      setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode('');
+      await load();
+    } catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
 
   return (
-    <SectionCard title="Settlement destination" description="Where an Agreement's money settles. Registering a new destination is not yet available in-product -- a genuine, disclosed gap.">
+    <SectionCard title="Settlement destination" description="Where an Agreement's money settles. The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
       {error && <ErrorBanner message={error} />}
-      <div className="flex gap-2">
-        <input value={ksNumber} onChange={e => setKsNumber(e.target.value)} placeholder="Your KS Number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-        <button onClick={() => void load()} disabled={loading || !ksNumber} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Look up</button>
-      </div>
-      {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet for this KS Number.</p>}
+      <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my settlement destination</button>
+      {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet.</p>}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
           <div>{current.maskedDestinationDisplay}</div>
@@ -298,6 +464,27 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
           <summary className="cursor-pointer">History ({history.length})</summary>
           <ul className="mt-2 space-y-1">{history.map(item => <li key={item.destinationId}>{item.maskedDestinationDisplay} — {item.destinationStatus}</li>)}</ul>
         </details>
+      )}
+      {!showForm ? (
+        <button onClick={() => setShowForm(true)} className="text-xs text-forest-700 underline">{current ? 'Replace destination' : 'Register a destination'}</button>
+      ) : (
+        <div className="space-y-2 rounded-xl border border-cream-200 p-3">
+          <div className="flex gap-2 text-xs">
+            <button onClick={() => setAccountKind('BANK')} className={`rounded-full px-3 py-1 ${accountKind === 'BANK' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Bank</button>
+            <button onClick={() => setAccountKind('MOBILE_MONEY')} className={`rounded-full px-3 py-1 ${accountKind === 'MOBILE_MONEY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Mobile money</button>
+          </div>
+          {accountKind === 'BANK' && (
+            <input value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          )}
+          <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <div className="flex gap-2">
+            <button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              {current ? 'Replace' : 'Register'}
+            </button>
+            <button onClick={() => setShowForm(false)} className="text-sm text-sand-600 underline">Cancel</button>
+          </div>
+        </div>
       )}
     </SectionCard>
   );

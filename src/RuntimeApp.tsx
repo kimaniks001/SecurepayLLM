@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
+import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -21,9 +22,10 @@ const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'cr
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
 const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle', 'activationFundingStatus', 'prepareVerificationFunding', 'initiateVerificationTransfer', 'prepareReserveFunding', 'establishReviewReserve'], session, api.auth) : undefined;
-const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, ['open', 'status', 'fund', 'exercise', 'release'], session, api.auth) : undefined;
+const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, ['list', 'open', 'status', 'fund', 'exercise', 'release', 'transactions'], session, api.auth) : undefined;
 const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, ['list'], session, api.auth) : undefined;
-const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, ['current', 'history', 'verificationStatus'], session, api.auth) : undefined;
+const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, ['current', 'history', 'verificationStatus', 'register', 'replace'], session, api.auth) : undefined;
+const moneySessionGateway = api ? withSessionRefresh(api.moneySession, ['create', 'resolve', 'redeem'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -86,11 +88,28 @@ function useMoneyRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
+function useMoneySessionRoute(): string | null {
+  const parse = () => {
+    if (typeof window === 'undefined') return null;
+    const match = /^#\/?money-session\/([^/]+)\/?$/.exec(window.location.hash);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+  const [token, setToken] = useState(parse);
+  useEffect(() => {
+    const onHashChange = () => setToken(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return token;
+}
+
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
+  const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -109,9 +128,14 @@ export default function RuntimeApp() {
       ? <ActivationExperience gateway={subscriptionGateway} auth={api.auth} session={session} onLeave={clearActivationRoute} />
       : <Unavailable />;
   }
+  if (moneySessionToken) {
+    return api && moneySessionGateway
+      ? <HostedMoneySessionExperience key={moneySessionToken} token={moneySessionToken} gateway={moneySessionGateway} auth={api.auth} session={session} />
+      : <Unavailable />;
+  }
   if (moneyRoute) {
-    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway
+      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway

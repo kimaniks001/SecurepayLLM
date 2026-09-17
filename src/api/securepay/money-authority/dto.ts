@@ -1,6 +1,10 @@
 export interface AgreementFundedAuthorityStatusResponse {
   agreementId: string;
   obligationId: string | null;
+  obligationTitle: string | null;
+  obligationDescription: string | null;
+  proposedCurrency: string | null;
+  proposedAmountMinor: number | null;
   established: boolean;
   reasonCode: string | null;
   currency: string | null;
@@ -11,6 +15,12 @@ export interface AgreementFundedAuthorityStatusResponse {
   remainingFundedMinor: number | null;
   closed: boolean | null;
   beneficiaryMaskedKsNumber: string | null;
+  providerSettlementCertified: boolean;
+}
+
+export interface AgreementFundedAuthorityListResponse {
+  agreementId: string;
+  positions: AgreementFundedAuthorityStatusResponse[];
 }
 
 export interface AgreementFundedAuthorityExerciseResponse {
@@ -20,10 +30,23 @@ export interface AgreementFundedAuthorityExerciseResponse {
   amountMinor: number;
   cumulativeExercisedMinor: number;
   remainingFundedMinor: number;
+  exercisedByDelegate: boolean;
+  providerSettlementCertified: boolean;
 }
 
 export interface AgreementFundedAuthorityReleaseResponse {
   agreementId: string;
   obligationId: string;
   releasedTotalMinor: number;
+}
+
+export interface AgreementMoneyTransactionResponse {
+  eventId: string;
+  type: 'FUNDED' | 'PROGRESSED' | 'RELEASED';
+  amountMinor: number;
+  currency: string;
+  journalId: string | null;
+  payerIdentityId: string | null;
+  beneficiaryIdentityId: string | null;
+  occurredAt: string;
 }
