@@ -36,7 +36,6 @@ export interface PlugState {
   selection: RemoteState<CustomerMarketSelectionView>;
   relationship: RemoteState<CustomerPlugRelationshipView>;
   lifecycle: RemoteState<RelationshipLifecycleView>;
-  /** `empty` = no attribution exists yet for this Agreement (a real, valid 404 state — never an error). */
   existingAttribution: RemoteState<AgreementPlugAttributionView>;
   referralStatus: RemoteState<AgreementKeyContractReferralView>;
   attributionBusy: boolean;
@@ -49,17 +48,11 @@ const initial: PlugState = {
   attributionBusy: false, attributionError: null,
 };
 
-/**
- * Customer-side "get connected with a Plug" flow (task section 6/18): create a market request, browse the
- * real (opaque — task section 7 confirms no name/domain/geography exists) interested candidates, select
- * one, open the relationship, and — only as an explicit separate action — attribute the resulting real
- * `relationshipRef` to a specific Agreement. Every step is its own explicit call; nothing here ever
- * fabricates a relationshipRef or silently attributes a Plug (task section 6/18/19 doctrine).
- */
 export function createPlugController(gateway: Gateway, id = () => crypto.randomUUID()) {
   let state: PlugState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<PlugState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
+  let pendingMarketRequest: { requestType: CustomerMarketRequestType; idempotencyKey: string } | null = null;
 
   async function loadReferralStatus(agreementId: string) {
     update({ referralStatus: { status: 'loading' } });
@@ -72,12 +65,22 @@ export function createPlugController(gateway: Gateway, id = () => crypto.randomU
     getSnapshot: (): PlugState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
-    async startRequest(requestType: CustomerMarketRequestType) {
+    async startRequest(requestType: CustomerMarketRequestType): Promise<boolean> {
+      if (state.request.status === 'loading') return false;
+      if (!pendingMarketRequest || pendingMarketRequest.requestType !== requestType) {
+        pendingMarketRequest = { requestType, idempotencyKey: id() };
+      }
+      const key = pendingMarketRequest.idempotencyKey;
       update({ request: { status: 'loading' }, candidates: { status: 'idle' }, selection: { status: 'idle' }, relationship: { status: 'idle' }, lifecycle: { status: 'idle' } });
       try {
-        const dto = await gateway.createRequest(requestType, id());
+        const dto = await gateway.createRequest(requestType, key);
         update({ request: { status: 'ready', data: customerMarketRequestView(dto) } });
-      } catch (error) { update({ request: { status: 'error', error: asApiError(error) } }); }
+        pendingMarketRequest = null;
+        return true;
+      } catch (error) {
+        update({ request: { status: 'error', error: asApiError(error) } });
+        return false;
+      }
     },
 
     async loadCandidates(requestId: string) {
@@ -88,23 +91,32 @@ export function createPlugController(gateway: Gateway, id = () => crypto.randomU
         update({ candidates: views.length === 0 ? { status: 'empty' } : { status: 'ready', data: views } });
       } catch (error) { update({ candidates: { status: 'error', error: asApiError(error) } }); }
     },
-    selectCandidateRef(candidateRef: string) { update({ selectedCandidateRef: candidateRef }); },
+    selectCandidateRef(candidateRef: string) { update({ selectedCandidateRef: candidateRef, selection: { status: 'idle' }, relationship: { status: 'idle' } }); },
 
-    async confirmSelection(requestId: string) {
-      if (!state.selectedCandidateRef) return;
-      update({ selection: { status: 'loading' } });
+    async confirmSelection(requestId: string): Promise<boolean> {
+      if (!state.selectedCandidateRef || state.selection.status === 'loading') return false;
+      update({ selection: { status: 'loading' }, relationship: { status: 'idle' } });
       try {
         const dto = await gateway.selectCandidate(requestId, state.selectedCandidateRef);
         update({ selection: { status: 'ready', data: customerMarketSelectionView(dto) } });
-      } catch (error) { update({ selection: { status: 'error', error: asApiError(error) } }); }
+        return true;
+      } catch (error) {
+        update({ selection: { status: 'error', error: asApiError(error) } });
+        return false;
+      }
     },
 
-    async openRelationship(requestId: string) {
+    async openRelationship(requestId: string): Promise<boolean> {
+      if (state.selection.status !== 'ready' || state.relationship.status === 'loading') return false;
       update({ relationship: { status: 'loading' } });
       try {
         const dto = await gateway.openRelationship(requestId);
         update({ relationship: { status: 'ready', data: customerPlugRelationshipView(dto) } });
-      } catch (error) { update({ relationship: { status: 'error', error: asApiError(error) } }); }
+        return true;
+      } catch (error) {
+        update({ relationship: { status: 'error', error: asApiError(error) } });
+        return false;
+      }
     },
     async loadRelationshipLifecycle(relationshipRef: string) {
       update({ lifecycle: { status: 'loading' } });
@@ -120,23 +132,12 @@ export function createPlugController(gateway: Gateway, id = () => crypto.randomU
         update({ existingAttribution: { status: 'ready', data: agreementPlugAttributionView(dto) } });
       } catch (error) {
         const apiError = asApiError(error);
-        // A real, valid "no attribution yet" state — the server's own documented 404 for this read, never
-        // conflated with a genuine failure (task section 18: fail closed only on real errors).
         if (apiError.status === 404) update({ existingAttribution: { status: 'empty' } });
         else update({ existingAttribution: { status: 'error', error: apiError } });
       }
     },
     loadReferralStatus,
 
-    /**
-     * Submits exactly the real `relationshipRef` this session obtained from `openRelationship` — never a
-     * fabricated Plug identifier (task test K). On failure (404 not-found, 409 conflict/immutability), the
-     * held `existingAttribution` is left completely untouched — a failed attribution never updates local
-     * UI as if it had succeeded (task test L/M). A successful attribution also re-reads the real
-     * referral-status projection: it just became causally possible for that state to move off
-     * `NO_INTRODUCTION`, and the browser walkthrough found the previously-loaded (necessarily stale, since
-     * it was read before any introduction existed) value would otherwise sit on screen unrefreshed.
-     */
     async attributeToAgreement(agreementId: string, relationshipRef: string) {
       if (state.attributionBusy) return;
       update({ attributionBusy: true, attributionError: null });
@@ -147,7 +148,7 @@ export function createPlugController(gateway: Gateway, id = () => crypto.randomU
       } catch (error) { update({ attributionBusy: false, attributionError: errorText(error) }); }
     },
 
-    reset() { update({ ...initial }); },
+    reset() { pendingMarketRequest = null; update({ ...initial }); },
   };
 }
 export type PlugController = ReturnType<typeof createPlugController>;
