@@ -18,7 +18,13 @@
     "test:store": "node --test tests/store.test.mjs",
     "test:community-circles": "node --test tests/community-circles.test.mjs",
     "test:referrals-plugs-masters": "node --test tests/referrals-plugs-masters.test.mjs",
-    "test:activation": "node --test tests/activation.test.mjs"
+    "test:activation": "node --test tests/activation.test.mjs",
+    "test:money-experience": "node --test tests/money-experience.test.mjs",
+    "test:embed-contract": "node --test tests/embed-contract.test.mjs",
+    "test:payment-intent": "node --test tests/payment-intent.test.mjs",
+    "test:money-operations": "node --test tests/money-operations.test.mjs",
+    "test:currency-fx": "node --test tests/currency-fx.test.mjs",
+    "test:business-currency-fx": "node --test tests/business-currency-fx.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

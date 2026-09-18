@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
+import { MoneyExperience } from './features/money/MoneyExperience';
+import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
+import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -20,6 +23,17 @@ const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'cr
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
 const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle', 'activationFundingStatus', 'prepareVerificationFunding', 'initiateVerificationTransfer', 'prepareReserveFunding', 'establishReviewReserve'], session, api.auth) : undefined;
+const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, ['list', 'open', 'status', 'fund', 'exercise', 'release', 'transactions'], session, api.auth) : undefined;
+const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, ['list'], session, api.auth) : undefined;
+const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, ['current', 'history', 'verificationStatus', 'register', 'replace'], session, api.auth) : undefined;
+const moneySessionGateway = api ? withSessionRefresh(api.moneySession, ['create', 'resolve', 'redeem'], session, api.auth) : undefined;
+const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, ['fundingAuthority', 'fundingOptions', 'createQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'], session, api.auth) : undefined;
+const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, ['summary'], session, api.auth) : undefined;
+const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, ['list', 'activate'], session, api.auth) : undefined;
+const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, ['create', 'get', 'list', 'capability'], session, api.auth) : undefined;
+const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, ['listMine'], session, api.auth) : undefined;
+const businessCurrencyCapabilityGateway = api ? withSessionRefresh(api.businessCurrencyCapability, ['list', 'activate'], session, api.auth) : undefined;
+const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxApplication, ['create', 'get', 'list'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -69,10 +83,55 @@ function useActivationRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/** Money is a first-class, non-secret route -- no Agreement or payment identifiers are put in the URL. */
+function useMoneyRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?money\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
+/** Money operations is a first-class, non-secret route for support/ops roles -- read-only, gated server-side by REGULATED_PARTNER_READ. */
+function useMoneyOperationsRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?money-operations\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
+/** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
+function useMoneySessionRoute(): string | null {
+  const parse = () => {
+    if (typeof window === 'undefined') return null;
+    const match = /^#\/?money-session\/([^/]+)\/?$/.exec(window.location.hash);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+  const [token, setToken] = useState(parse);
+  useEffect(() => {
+    const onHashChange = () => setToken(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return token;
+}
+
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
+  const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
+  const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
+  const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -89,6 +148,21 @@ export default function RuntimeApp() {
   if (activationRoute) {
     return api && subscriptionGateway
       ? <ActivationExperience gateway={subscriptionGateway} auth={api.auth} session={session} onLeave={clearActivationRoute} />
+      : <Unavailable />;
+  }
+  if (moneySessionToken) {
+    return api && moneySessionGateway
+      ? <HostedMoneySessionExperience key={moneySessionToken} token={moneySessionToken} gateway={moneySessionGateway} auth={api.auth} session={session} />
+      : <Unavailable />;
+  }
+  if (moneyOperationsRoute) {
+    return api && moneyOperationsGateway
+      ? <MoneyOperationsExperience gateway={moneyOperationsGateway} onLeave={clearMoneyOperationsRoute} />
+      : <Unavailable />;
+  }
+  if (moneyRoute) {
+    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway
+      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway
