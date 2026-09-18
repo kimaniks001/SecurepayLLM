@@ -1,7 +1,8 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
-  AgreementDetailResponse, AgreementConfirmationStatusResponse, AgreementMoneyRecordResponse,
-  CurrentUserAgreementSummaryResponse,
+  AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationStatusResponse,
+  AgreementMoneyRecordResponse, CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
+  PersonalTagResponse, SchedulingConflictResponse,
 } from '../../api/securepay/agreements/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -23,7 +24,18 @@ function asApiError(error: unknown): ApiError {
 
 export type WorkspaceView = 'home' | 'hub' | 'detail' | 'money';
 
-export interface DetailData { dto: AgreementDetailResponse; confirmations: AgreementConfirmationStatusResponse[] }
+export interface DetailData {
+  dto: AgreementDetailResponse;
+  confirmations: AgreementConfirmationStatusResponse[];
+  /**
+   * Best-effort Phase 3 enrichments -- a failure to load these must never fail the whole Detail
+   * view (they are additive; core Agreement truth above is what fails closed). Default to empty.
+   */
+  milestoneStates: MilestoneEffectiveStateResponse[];
+  events: AgreementCalendarEventResponse[];
+  conflicts: SchedulingConflictResponse[];
+  tags: PersonalTagResponse[];
+}
 export type MoneyLoad =
   | { kind: 'unavailable'; message: string }
   | {
@@ -42,6 +54,8 @@ export interface WorkspaceState {
    * waitingItemsFromHub in view.ts), never a locally re-derived classification from action presence.
    */
   hub: RemoteState<HubDto>;
+  /** Best-effort KSCalendar for Home -- a failure here never fails Home closed; defaults to empty. */
+  myCalendarEvents: AgreementCalendarEventResponse[];
   selectedAgreementId: string | null;
   selectedStatus: AgreementStatus | null;
   selectedCompletion: DetailCompletion | null;
@@ -52,13 +66,22 @@ export interface WorkspaceState {
 const initial: WorkspaceState = {
   view: 'home',
   hub: { status: 'idle' },
+  myCalendarEvents: [],
   selectedAgreementId: null, selectedStatus: null, selectedCompletion: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
-type Gateway = Pick<AgreementGateway, 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
+type Gateway = Pick<AgreementGateway,
+  'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
+> & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
+
+/** Best-effort enrichment read -- never fails the caller closed, always resolves to a default. */
+async function bestEffort<T>(read: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await read(); } catch { return fallback; }
+}
 
 /**
  * Owns only read state + which real backend field classified an Agreement (see boltAgreementStatus in
@@ -78,10 +101,29 @@ export function createWorkspaceController(gateway: Gateway) {
     update({ view, hub: { status: 'loading' } });
     try {
       const hub = await gateway.hub();
-      update({ hub: { status: 'ready', data: hub } });
+      const myCalendarEvents = await bestEffort(() => gateway.myCalendar(), []);
+      update({ hub: { status: 'ready', data: hub }, myCalendarEvents });
     } catch (error) {
       update({ hub: { status: 'error', error: asApiError(error) } });
     }
+  }
+
+  async function loadDetailData(agreementId: string): Promise<DetailData> {
+    // Core Agreement truth: a confirmation-status failure must never be silently treated as "no
+    // participant has confirmed anything" — that would render an apparently authoritative
+    // confirmation state from a read that never actually succeeded. This fails closed.
+    const [dto, confirmations] = await Promise.all([
+      gateway.detail(agreementId),
+      gateway.confirmationStatus(agreementId),
+    ]);
+    // Phase 3 enrichments: additive only, never allowed to fail Detail closed.
+    const [milestoneStates, events, conflicts, tags] = await Promise.all([
+      bestEffort(() => gateway.milestoneEffectiveStates(agreementId), []),
+      bestEffort(() => gateway.calendarEvents(agreementId), []),
+      bestEffort(() => gateway.calendarConflicts(agreementId), []),
+      bestEffort(() => gateway.tagsForAgreement(agreementId), []),
+    ]);
+    return { dto, confirmations, milestoneStates, events, conflicts, tags };
   }
 
   async function openDetail(summary: CurrentUserAgreementSummaryResponse, origin: StatusOrigin) {
@@ -89,15 +131,8 @@ export function createWorkspaceController(gateway: Gateway) {
     const completion: DetailCompletion = { completed: !!summary.completion?.completed, completedAt: summary.completion?.completedAt ?? null };
     update({ view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion, detail: { status: 'loading' } });
     try {
-      // Both reads are required: a confirmation-status failure must never be silently treated as "no
-      // participant has confirmed anything" — that would render an apparently authoritative confirmation
-      // state (Confirmed current version / Joined — Not yet confirmed / Not yet joined) from a read that
-      // never actually succeeded. Detail fails closed instead.
-      const [dto, confirmations] = await Promise.all([
-        gateway.detail(summary.agreementId),
-        gateway.confirmationStatus(summary.agreementId),
-      ]);
-      update({ detail: { status: 'ready', data: { dto, confirmations } } });
+      const data = await loadDetailData(summary.agreementId);
+      update({ detail: { status: 'ready', data } });
     } catch (error) {
       update({ detail: { status: 'error', error: asApiError(error) } });
     }
@@ -128,14 +163,35 @@ export function createWorkspaceController(gateway: Gateway) {
       const id = state.selectedAgreementId;
       update({ detail: { status: 'loading' } });
       try {
-        const [dto, confirmations] = await Promise.all([
-          gateway.detail(id),
-          gateway.confirmationStatus(id),
-        ]);
-        update({ detail: { status: 'ready', data: { dto, confirmations } } });
+        const data = await loadDetailData(id);
+        update({ detail: { status: 'ready', data } });
       } catch (error) {
         update({ detail: { status: 'error', error: asApiError(error) } });
       }
+    },
+
+    /**
+     * Personal, organizational-only tags -- never alters Agreement authority/state. Re-reads the
+     * caller's own tags for this Agreement fresh after a mutation rather than optimistically
+     * appending, since the backend (not this client) owns tag identity/dedupe.
+     */
+    async addTag(label: string) {
+      if (state.detail.status !== 'ready' || !state.selectedAgreementId) return;
+      const agreementId = state.selectedAgreementId;
+      try {
+        await gateway.tagAgreement(agreementId, label);
+        const tags = await bestEffort(() => gateway.tagsForAgreement(agreementId), state.detail.data.tags);
+        if (state.detail.status === 'ready') update({ detail: { status: 'ready', data: { ...state.detail.data, tags } } });
+      } catch { /* Tags are organizational only -- a failed tag write never blocks or corrupts Agreement state. */ }
+    },
+    async removeTag(tagId: string) {
+      if (state.detail.status !== 'ready' || !state.selectedAgreementId) return;
+      const agreementId = state.selectedAgreementId;
+      try {
+        await gateway.untagAgreement(agreementId, tagId);
+        const tags = await bestEffort(() => gateway.tagsForAgreement(agreementId), state.detail.data.tags);
+        if (state.detail.status === 'ready') update({ detail: { status: 'ready', data: { ...state.detail.data, tags } } });
+      } catch { /* same as addTag -- organizational only, never blocks Agreement state. */ }
     },
 
     backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, detail: { status: 'idle' } }); },

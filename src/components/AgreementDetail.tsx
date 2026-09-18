@@ -16,6 +16,8 @@ import { AgreementStaleBanner } from './AgreementStaleBanner';
 import { MilestoneProgress } from './MilestoneProgress';
 import { ActionList } from './ActionList';
 import { ConversationInput } from './ConversationInput';
+import { AgreementCalendarAndTags, type ConflictView, type TagView } from './AgreementCalendarAndTags';
+import type { CalendarEventView } from '../features/workspace/view';
 
 interface AgreementProgress {
   milestones: Milestone[];
@@ -44,9 +46,15 @@ interface AgreementDetailProps {
    */
   money: MoneyDetail | null;
   progress: AgreementProgress | null;
+  /** Phase 3 Living Agreements -- KSCalendar + personal tags for this one Agreement. */
+  events?: CalendarEventView[];
+  conflicts?: ConflictView[];
+  tags?: TagView[];
+  onAddTag?: (label: string) => void;
+  onRemoveTag?: (tagId: string) => void;
 }
 
-type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress';
+type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
 
 const tabs: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -57,10 +65,11 @@ const tabs: { value: Tab; label: string }[] = [
   { value: 'changes', label: 'Changes' },
   { value: 'money', label: 'Money' },
   { value: 'progress', label: 'Progress' },
+  { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support' },
 ];
 
-type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'support';
+type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'calendar' | 'support';
 
 const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -69,10 +78,11 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'activity-changes', label: 'Activity & changes' },
   { value: 'money', label: 'Money' },
   { value: 'progress', label: 'Progress' },
+  { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -161,6 +171,9 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
                 <MilestoneProgress milestones={structure.milestones} isSimple={structure.isSimple} rootMilestone={structure.rootMilestone} />
                 <ActionList actions={structure.actions} />
               </>
+            )}
+            {tab === 'calendar' && onAddTag && onRemoveTag && (
+              <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
             )}
             {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />}
 
@@ -269,6 +282,10 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
               <MilestoneProgress milestones={structure.milestones} isSimple={structure.isSimple} rootMilestone={structure.rootMilestone} />
               <ActionList actions={structure.actions} />
             </>
+          )}
+
+          {mobileSection === 'calendar' && onAddTag && onRemoveTag && (
+            <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
           )}
 
           {mobileSection === 'support' && (

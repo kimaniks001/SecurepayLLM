@@ -4,13 +4,17 @@ import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
 import { RecentActivity } from './RecentActivity';
 import { HomeWorkbenchSummary } from './HomeWorkbenchSummary';
+import { UpcomingEventsList } from './UpcomingEventsList';
 import type { AttentionItem, WaitingItem, ActivityEntry } from '../types';
+import type { CalendarEventView } from '../features/workspace/view';
 
 interface SignedInHomeProps {
   onStart: (text: string) => void;
   attentionItems: AttentionItem[];
   waitingItems: WaitingItem[];
   recentActivity: ActivityEntry[];
+  /** Phase 3 KSCalendar: upcoming events across every Agreement the person can read. Defaults to empty. */
+  upcomingEvents?: (CalendarEventView & { agreementId: string; agreementTitle: string })[];
   onOpenAgreement: (id: string) => void;
   onNavigateAgreements: () => void;
   /**
@@ -35,6 +39,7 @@ export function SignedInHome({
   attentionItems,
   waitingItems,
   recentActivity,
+  upcomingEvents = [],
   onOpenAgreement,
   onNavigateAgreements,
   greeting = fixtureGreeting,
@@ -84,6 +89,7 @@ export function SignedInHome({
           <div className="md:hidden mt-8 space-y-6">
             <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
             <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
+            <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
             <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
             <button
               onClick={onNavigateAgreements}
@@ -106,6 +112,7 @@ export function SignedInHome({
           />
           <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
           <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
+          <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
           <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
         </div>
       </div>

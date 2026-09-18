@@ -246,3 +246,35 @@ export interface AgreementConfirmationStatusResponse {
   confirmationCurrent: boolean;
   reconfirmationRequired: boolean;
 }
+
+// Phase 3 Living Agreements -- milestone DAG, KSCalendar, personal tags.
+export interface MilestoneEffectiveStateResponse {
+  milestoneId: string;
+  state: 'READY' | 'IN_PROGRESS' | 'WAITING' | 'BLOCKED' | 'COMPLETED' | 'CANCELLED';
+  reason: string | null;
+}
+
+export interface AgreementCalendarEventResponse {
+  id: string;
+  agreementId: string;
+  eventType: string;
+  source: 'EXPLICIT' | 'DERIVED';
+  title: string;
+  occursAt: string;
+  endsAt: string | null;
+  exclusive: boolean;
+  sourceReference: string | null;
+  cancelled: boolean;
+}
+
+export interface SchedulingConflictResponse {
+  firstEventId: string;
+  secondEventId: string;
+  severity: 'POSSIBLE_PERSONAL_CONFLICT' | 'AGREEMENT_CONFLICT' | 'EXPLICIT_EXCLUSIVITY_VIOLATION';
+}
+
+export interface PersonalTagResponse {
+  id: string;
+  label: string;
+  createdAt: string;
+}

@@ -1783,3 +1783,63 @@ Master `decline` (state-machine-valid but not exercised in the walkthrough
 path taken), a genuine `409` attribution conflict end-to-end (unit-tested
 instead, tests M), and the R11A `lifetime-share` read (gateway-tested only,
 no UI exists to reach it).
+
+## 19. Final Completion Phase 3: Living Agreements implementation scope (2026-09-18)
+
+Backend archaeology (SecurePayAPI `feat/securepay-final-phase3-living-agreements`)
+found Agreement/Obligations/Milestones/Evidence/Decisions/Completion already
+mature; the genuine gaps were milestone-to-milestone dependency declarations,
+a SecurePay Agent delegated-authority model, a KSCalendar event model,
+personal tags, and the Phase 3/4 commercial-source contract (SecurePayAPI PR
+#219). This slice wires the frontend to the parts of that backend surface a
+person can already reach from the existing real Agreements Home/Workspace
+(`WorkspaceExperience`) — it does not add new top-level routes or redesign
+locked visual patterns (Bolt preservation rule).
+
+**REAL_API_WIRED**, additive to the existing `agreements` gateway
+(`src/api/securepay/agreements/index.ts`): `milestoneEffectiveStates`,
+`calendarEvents`, `calendarConflicts`, `myCalendar`, `tagsForAgreement`,
+`tagAgreement`, `untagAgreement`, `myTags` — all real HTTP calls against
+SecurePayAPI PR #219's new endpoints, no fixture/mock. `http/index.ts`'s
+`RequestOptions.method` union was extended with `'DELETE'` (previously only
+GET/POST/PUT), needed for `untagAgreement`.
+
+- **Milestone DAG**: `agreementProgressView` (workspace/view.ts) now accepts
+  the backend's live `MilestoneEffectiveStateResponse[]` and lets it override
+  the stored-status guess; a milestone's effective `WAITING` state renders a
+  preserved "Waiting on: <title>" reason directly under its row in
+  `MilestoneProgress.tsx` (not just inside the expandable detail) — the
+  presentation-order number next to each milestone is unchanged and still
+  never gates anything, per the locked doctrine that a milestone numbered
+  higher can be Complete while a lower one is Waiting.
+- **KSCalendar**: new `AgreementCalendarAndTags.tsx` component (a new
+  "Calendar & tags" tab on `AgreementDetail`, both desktop and mobile) lists
+  real upcoming events for one Agreement and renders any scheduling conflicts
+  with UI language that distinguishes "Possible conflict" from "Agreement
+  condition cannot be satisfied" (`conflictSeverityLabel` in view.ts) — never
+  as a block. `SignedInHome` gained an `UpcomingEventsList` sourced from
+  `GET /api/v1/me/calendar` (`upcomingHomeEventsView`, resolved back to each
+  event's real Agreement title via the same Hub lookup Detail already uses).
+- **Personal tags**: the same new tab renders/add/removes the caller's own
+  tags on an Agreement (`PersonalTagController`'s real endpoints) — never a
+  client-fabricated tag id; the backend's own created/assigned tag is always
+  re-read after a mutation rather than optimistically appended.
+- Both the calendar and tags reads are explicitly best-effort
+  (`bestEffort()` in `controller.ts`): a failure to load either can never
+  fail the core Agreement Detail read closed, since they are additive
+  enrichments, not Agreement/Money truth.
+
+Verified this slice: `npm run typecheck` (clean), `npm run lint` (clean),
+`npm run build` (production bundle succeeds), and the full existing
+`node --test` suite (all pre-existing suites still green). One pre-existing
+failure, `referrals-plugs-masters.test.mjs`'s "AF2. Plug controller reset
+clears candidates/relationship/attribution state", was confirmed present on
+the pristine base commit via `git stash` before this slice touched anything
+— unrelated to Plug/Master/Referral code, not introduced here, not fixed
+here.
+
+Not verified in the browser this slice (no live backend + authenticated
+session available in this environment): the "Calendar & tags" tab, the Home
+"Upcoming" list, and the milestone waiting-reason line have not been
+exercised against a running SecurePayAPI instance. Documented here rather
+than claimed.

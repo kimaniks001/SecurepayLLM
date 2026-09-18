@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, PublicInvitationViewResponse } from './dto';
+import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -40,6 +40,21 @@ export function createAgreementGateway(http: HttpClient) {
     attributePlug: (id: string, relationshipRef: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { method: 'POST', body: { relationshipRef }, auth: 'required' }),
     plugAttribution: (id: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { auth: 'required' }),
     referralStatus: (id: string) => http.request<AgreementKeyContractReferralResponse>(`${agreement(id)}/plug-attribution/referral-status`, { auth: 'required' }),
+
+    // Phase 3 Living Agreements -- milestone DAG effective state, never derived from sequenceOrder.
+    milestoneEffectiveStates: (id: string) => http.request<MilestoneEffectiveStateResponse[]>(`${agreement(id)}/milestones/effective-states`, { auth: 'required' }),
+
+    // KSCalendar. One canonical event model; conflicts are always warnings, never automatic blocks,
+    // unless an event is explicitly exclusive.
+    calendarEvents: (id: string) => http.request<AgreementCalendarEventResponse[]>(`${agreement(id)}/calendar/events`, { auth: 'required' }),
+    calendarConflicts: (id: string) => http.request<SchedulingConflictResponse[]>(`${agreement(id)}/calendar/conflicts`, { auth: 'required' }),
+    myCalendar: () => http.request<AgreementCalendarEventResponse[]>('/api/v1/me/calendar', { auth: 'required' }),
+
+    // Personal, free-typed, owner-private tags -- organizational only.
+    tagsForAgreement: (id: string) => http.request<PersonalTagResponse[]>(`${agreement(id)}/tags`, { auth: 'required' }),
+    tagAgreement: (id: string, label: string) => http.request<PersonalTagResponse>(`${agreement(id)}/tags`, { method: 'POST', body: { label }, auth: 'required' }),
+    untagAgreement: (id: string, tagId: string) => http.request<void>(`${agreement(id)}/tags/${segment(tagId)}`, { method: 'DELETE', auth: 'required' }),
+    myTags: () => http.request<PersonalTagResponse[]>('/api/v1/me/tags', { auth: 'required' }),
   };
 }
 export type AgreementGateway = ReturnType<typeof createAgreementGateway>;

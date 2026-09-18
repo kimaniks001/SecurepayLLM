@@ -722,7 +722,7 @@ export type AppView = 'signed-out' | 'signed-in' | 'conversation' | 'agreements'
 
 // ─── Pass 7B: Milestones, Obligations, Actions ───────────────────
 
-export type MilestoneStatus = 'not_started' | 'in_progress' | 'ready_for_review' | 'complete' | 'blocked' | 'overdue';
+export type MilestoneStatus = 'not_started' | 'in_progress' | 'ready_for_review' | 'complete' | 'blocked' | 'overdue' | 'cancelled';
 
 export type CompletionSource =
   | 'self_declared'
@@ -775,6 +775,12 @@ export interface Milestone {
   completionCondition?: string;
   evidenceRequired?: string[];
   dependencyIds?: string[];
+  /**
+   * Phase 3 Living Agreements: the exact, backend-preserved reason this milestone is WAITING on an
+   * explicitly declared dependency (never inferred from sequenceOrder). Present only when status is
+   * 'blocked' for that reason.
+   */
+  waitingReason?: string;
   inspectionRequired?: boolean;
   defectRule?: string;
   customerObligation?: string;

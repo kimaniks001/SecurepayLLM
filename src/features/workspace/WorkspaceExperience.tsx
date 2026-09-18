@@ -10,9 +10,12 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
-import { agreementDetailView, agreementProgressView, attentionItemsFromHub, hubAgreementSummaries, moneyDetailView, waitingItemsFromHub } from './view';
+import { agreementCalendarView, agreementDetailView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyDetailView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 
-type Gateway = Pick<AgreementGateway, 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
+type Gateway = Pick<AgreementGateway,
+  'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
+> & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
 
@@ -89,6 +92,7 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
           suggestedPrompts={realSuggestedPrompts}
           attentionItems={attentionItemsFromHub(state.hub.data.changedReviewRequired, state.hub.data.needsMe)}
           waitingItems={waitingItemsFromHub(state.hub.data.waitingOnOthers)}
+          upcomingEvents={upcomingHomeEventsView(state.hub.data, state.myCalendarEvents)}
           // No cross-agreement activity-feed contract is verified in this slice; a fabricated feed
           // would violate the never-fabricate-financial/agreement-history rule, so this stays empty.
           recentActivity={[]}
@@ -108,9 +112,18 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
     else if (state.detail.status !== 'ready') body = <LoadingNotice text="Loading this agreement…" />;
     else if (state.selectedStatus && state.selectedCompletion) {
-      const { dto, confirmations } = state.detail.data;
+      const { dto, confirmations, milestoneStates, events, conflicts, tags } = state.detail.data;
       const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
-      const progress = agreementProgressView(dto);
+      const progress = agreementProgressView(dto, milestoneStates);
+      const calendarEvents = agreementCalendarView(events);
+      const eventTitleById = new Map(events.map(e => [e.id, e.title]));
+      const conflictViews = conflicts.map(c => ({
+        firstEventId: c.firstEventId,
+        secondEventId: c.secondEventId,
+        isViolation: c.severity === 'EXPLICIT_EXCLUSIVITY_VIOLATION',
+        label: `${conflictSeverityLabel(c.severity)}: ${eventTitleById.get(c.firstEventId) ?? 'an event'} and ${eventTitleById.get(c.secondEventId) ?? 'another event'}`,
+      }));
+      const tagViews = tags.map(t => ({ id: t.id, label: t.label }));
       // Detail's inline Money summary never claims a financial next action: doing so would require
       // either a fresh authoritative /me/actions read on every Detail load (duplicating Money's own
       // fetch) or reusing a cache that can go stale the moment a fresh refresh fails elsewhere. The
@@ -139,6 +152,11 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
+          events={calendarEvents}
+          conflicts={conflictViews}
+          tags={tagViews}
+          onAddTag={label => void controller.addTag(label)}
+          onRemoveTag={tagId => void controller.removeTag(tagId)}
         />
       );
     }
