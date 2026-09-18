@@ -24,12 +24,16 @@ import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
 import type { CurrencyCapabilityGateway } from '../../api/securepay/currency-capability';
 import type { FxApplicationGateway } from '../../api/securepay/fx-application';
 import type { RegulatedAccountsGateway } from '../../api/securepay/regulated-accounts';
+import type { BusinessCurrencyCapabilityGateway } from '../../api/securepay/business-currency-capability';
+import type { BusinessFxApplicationGateway } from '../../api/securepay/business-fx-application';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { PaymentIntentFundingSection } from './PaymentIntentFunding';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
 import { FxConversionSection } from './FxConversionSection';
+import { BusinessCurrencyCapabilitySection } from './BusinessCurrencyCapabilitySection';
+import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -63,6 +67,8 @@ export interface MoneyGateways {
   currencyCapability: CurrencyCapabilityGateway;
   fxApplication: FxApplicationGateway;
   regulatedAccounts: RegulatedAccountsGateway;
+  businessCurrencyCapability: BusinessCurrencyCapabilityGateway;
+  businessFxApplication: BusinessFxApplicationGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -126,6 +132,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
         />
         <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
         <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
+        <BusinessCurrencyCapabilitySection gateway={gateways.businessCurrencyCapability} />
+        <BusinessFxConversionSection capabilityGateway={gateways.businessCurrencyCapability} fxApplicationGateway={gateways.businessFxApplication} />
         <SettlementDestinationSection gateway={gateways.settlementDestinations} />
         <FinancialPartnersSection gateway={gateways.financialPartners} />
       </div>

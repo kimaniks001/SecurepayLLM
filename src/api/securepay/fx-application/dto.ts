@@ -27,6 +27,8 @@ export interface FxApplicationResponse {
   status: FxApplicationStatus;
   requestedAt: string;
   resolvedAt: string | null;
+  /** Present only once Choice has supplied genuine movement evidence -- this, not APPROVED alone, is what moves status to SETTLED. */
+  providerExecutionReference: string | null;
 }
 
 export interface FxCapabilityResponse {
