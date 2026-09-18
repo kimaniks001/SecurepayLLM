@@ -9,6 +9,9 @@ export * from './src/api/securepay/http';
 export * from './src/api/securepay/agent/adapters';
 export * from './src/features/agent/TradeContext';
 export * from './src/components/AgreementPreview';
+export * from './src/components/AgentUnderstoodCard';
+export * from './src/components/AgentAgreementsHomeCard';
+export * from './src/components/UnderstoodTruthSections';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
@@ -128,6 +131,63 @@ test('preview keeps backend prose and disclaimer; unknown rich types preserve to
   const html = api.renderToStaticMarkup(api.createElement(api.AgreementPreviewCard, { data: view.components[0] }));
   assert.match(html, /being considered/);
   assert.match(html, /Not an Agreement/);
+});
+// Final Phase 3 completion pass, Section 8 -- the real, server-composed AGREEMENT_WORKSPACE/
+// AGREEMENTS_HOME structured artifacts. The model decides whether asking the tool was useful; the
+// server owns every fact. This proves the adapter parses real backend shapes correctly and never
+// fabricates a value for a malformed/unexpected one (falls through, matching every other type).
+test('AGREEMENT_WORKSPACE component parses real backend shape and renders evidence/milestones/money', () => {
+  const workspace = {
+    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
+    tags: ['Home'],
+    problems: [],
+    evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  assert.equal(view.type, 'AGREEMENT_WORKSPACE');
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /waiting on site inspection/);
+  assert.match(html, /KES 600\.00 still protected|600\.00/);
+  assert.match(html, /Roof after repair/);
+});
+test('AGREEMENT_WORKSPACE component falls through (never fabricates) on a malformed shape', () => {
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: { title: 'Missing everything else' } });
+  assert.equal(view, null);
+});
+test('AGREEMENTS_HOME component parses real backend shape and renders needs-attention/money', () => {
+  const home = {
+    needsAttention: [{ title: 'Roofing', status: 'ACTIVE', nextDeadline: '2026-09-20T00:00:00Z', tags: ['Home'] }],
+    waitingOnOthers: [], problems: [], recentlyCompleted: [], upcoming: [], recentActivity: [],
+    moneyByCurrency: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, releasedTotalMinor: 10000, remainingFundedMinor: 50000, positionCount: 2 }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: home });
+  assert.equal(view.type, 'AGREEMENTS_HOME');
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
+  assert.match(html, /Roofing/);
+  assert.match(html, /500\.00 still protected/);
+});
+test('AGREEMENTS_HOME component falls through (never fabricates) on a malformed shape', () => {
+  const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: { needsAttention: 'not-an-array' } });
+  assert.equal(view, null);
+});
+// Final Phase 3 completion pass, Section 7 -- UNDERSTOOD's locked truth vocabulary is visually
+// explicit: CONFIRMED (canonical backend truth) vs STILL TO DECIDE (candidate/proposed) vs FOUND ON
+// SECUREPAY (a real presentation seam reserved for Phase 4, never populated in Phase 3).
+test('UnderstoodTruthSections renders the CONFIRMED / STILL TO DECIDE / FOUND ON SECUREPAY vocabulary', () => {
+  const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodTruthSections, {
+    confirmed: api.createElement('div', null, 'real backend fact'),
+    stillToDecide: api.createElement('div', null, 'candidate fact'),
+  }));
+  assert.match(html, /Confirmed/);
+  assert.match(html, /Still to decide/);
+  assert.match(html, /Found on SecurePay/);
+  assert.match(html, /real backend fact/);
+  assert.match(html, /candidate fact/);
+  // Phase 4 discovery is never implemented here -- the seam exists, but carries no Store/Community data.
+  assert.doesNotMatch(html, /Store|Community/i);
 });
 test('touched locked components retain byte-identical fixture markup against Bolt', async () => {
   const entry = `
