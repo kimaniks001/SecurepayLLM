@@ -1,8 +1,9 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
   AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationStatusResponse,
-  AgreementMoneyRecordResponse, CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
-  PersonalTagResponse, SchedulingConflictResponse,
+  AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementProblemSummaryResponse,
+  CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
+  PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse,
 } from '../../api/securepay/agreements/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -56,6 +57,17 @@ export interface WorkspaceState {
   hub: RemoteState<HubDto>;
   /** Best-effort KSCalendar for Home -- a failure here never fails Home closed; defaults to empty. */
   myCalendarEvents: AgreementCalendarEventResponse[];
+  /**
+   * Final Phase 3 correction (Section 9) -- best-effort enrichment from the real
+   * `/api/v1/me/agreements/home` composition: problems, recent activity, and Agreement Money by
+   * currency. A failure here never fails Home closed (attention/waiting/upcoming already render
+   * from `hub`/`myCalendarEvents` above); it defaults to empty, never a fabricated feed.
+   */
+  homeExtras: {
+    problems: AgreementProblemSummaryResponse[];
+    recentActivity: RecentActivityEntryResponse[];
+    moneyByCurrency: AgreementMoneyByCurrencyResponse[];
+  };
   selectedAgreementId: string | null;
   selectedStatus: AgreementStatus | null;
   selectedCompletion: DetailCompletion | null;
@@ -67,12 +79,13 @@ const initial: WorkspaceState = {
   view: 'home',
   hub: { status: 'idle' },
   myCalendarEvents: [],
+  homeExtras: { problems: [], recentActivity: [], moneyByCurrency: [] },
   selectedAgreementId: null, selectedStatus: null, selectedCompletion: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -102,7 +115,16 @@ export function createWorkspaceController(gateway: Gateway) {
     try {
       const hub = await gateway.hub();
       const myCalendarEvents = await bestEffort(() => gateway.myCalendar(), []);
-      update({ hub: { status: 'ready', data: hub }, myCalendarEvents });
+      const homeExtras = view === 'home'
+        ? await bestEffort(
+            async () => {
+              const home = await gateway.home();
+              return { problems: home.problems, recentActivity: home.recentActivity, moneyByCurrency: home.moneyByCurrency };
+            },
+            initial.homeExtras,
+          )
+        : state.homeExtras;
+      update({ hub: { status: 'ready', data: hub }, myCalendarEvents, homeExtras });
     } catch (error) {
       update({ hub: { status: 'error', error: asApiError(error) } });
     }

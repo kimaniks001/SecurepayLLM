@@ -1,13 +1,15 @@
 import type {
-  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyRecordResponse,
-  CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
+  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
+  AgreementMoneyRecordResponse, AgreementProblemSummaryResponse, CurrentUserAgreementSummaryResponse,
+  MilestoneEffectiveStateResponse, RecentActivityEntryResponse,
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
 import type {
-  AgreementAction, AgreementChangeEntry, AgreementDetail as AgreementDetailType, AgreementDocument,
-  AgreementPerson, AgreementStatus, AgreementSummary, AgreementVersion, AttentionItem, Milestone,
-  MilestoneStatus, MoneyDetail, ParticipantNextAction, PaymentReadinessStatus, WaitingItem,
+  ActivityEntry, AgreementAction, AgreementChangeEntry, AgreementDetail as AgreementDetailType,
+  AgreementDocument, AgreementPerson, AgreementStatus, AgreementSummary, AgreementVersion,
+  AttentionItem, Milestone, MilestoneStatus, MoneyByCurrencyItem, MoneyDetail, ParticipantNextAction,
+  PaymentReadinessStatus, ProblemItem, WaitingItem,
 } from '../../types';
 
 // ─── Shared formatting — real data only, never fabricated ───────────────────
@@ -28,6 +30,21 @@ function formatTime(iso: string | null | undefined): string {
   if (!iso) return '';
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+/** Real elapsed time since a real backend timestamp — never a fabricated/placeholder value. */
+function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const parsed = new Date(iso).getTime();
+  if (Number.isNaN(parsed)) return '';
+  const diffMs = Date.now() - parsed;
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatShortDate(iso);
 }
 /** Turns a real backend code (actionCode, status, gateCode…) into readable text — never invents a code. */
 function humanizeCode(code: string): string {
@@ -470,4 +487,40 @@ export function upcomingHomeEventsView(
       return found ? { ...event, agreementId: raw!.agreementId, agreementTitle: found.summary.title } : null;
     })
     .filter((e): e is CalendarEventView & { agreementId: string; agreementTitle: string } => e !== null);
+}
+
+// ─── Agreements Home real data (Section 9) ──────────────────────────────────
+
+/** Real cross-Agreement activity trail from GET /api/v1/me/agreements/home -- never fabricated. */
+export function recentActivityView(entries: RecentActivityEntryResponse[]): ActivityEntry[] {
+  return entries.map((entry, index) => ({
+    id: `${entry.agreementId}-${index}`,
+    text: `${humanizeCode(entry.activityType)} — ${entry.agreementTitle}`,
+    time: formatRelativeTime(entry.occurredAt),
+    agreementId: entry.agreementId,
+  }));
+}
+
+/** Real, backend-authoritative open review/dispute state -- never inferred from Agreement age. */
+export function problemsView(problems: AgreementProblemSummaryResponse[]): ProblemItem[] {
+  return problems.map(problem => ({
+    id: problem.reviewCaseId,
+    title: problem.agreementTitle ?? 'An Agreement',
+    detail: problem.responseDeadlineAt
+      ? `Response due ${formatShortDate(problem.responseDeadlineAt)}`
+      : problem.evidenceDeadlineAt
+        ? `Evidence due ${formatShortDate(problem.evidenceDeadlineAt)}`
+        : '',
+    stateLabel: humanizeCode(problem.state),
+    agreementId: problem.agreementId,
+  }));
+}
+
+/** Locked doctrine: Money is always shown per currency, never summed across currencies. */
+export function moneyByCurrencyView(entries: AgreementMoneyByCurrencyResponse[]): MoneyByCurrencyItem[] {
+  return entries.map(entry => ({
+    currency: entry.currency,
+    remainingFundedLabel: formatMoney(entry.currency, entry.remainingFundedMinor),
+    positionCount: entry.positionCount,
+  }));
 }

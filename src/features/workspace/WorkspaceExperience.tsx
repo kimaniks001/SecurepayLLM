@@ -12,10 +12,10 @@ import type { AgentAgreementWorkspaceViewDto } from '../../api/securepay/agent/d
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
-import { agreementCalendarView, agreementDetailView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyDetailView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
+import { agreementCalendarView, agreementDetailView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -133,9 +133,11 @@ export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId,
           attentionItems={attentionItemsFromHub(state.hub.data.changedReviewRequired, state.hub.data.needsMe)}
           waitingItems={waitingItemsFromHub(state.hub.data.waitingOnOthers)}
           upcomingEvents={upcomingHomeEventsView(state.hub.data, state.myCalendarEvents)}
-          // No cross-agreement activity-feed contract is verified in this slice; a fabricated feed
-          // would violate the never-fabricate-financial/agreement-history rule, so this stays empty.
-          recentActivity={[]}
+          // Final Phase 3 correction (Section 9): real cross-Agreement facts from
+          // GET /api/v1/me/agreements/home, never fabricated -- best-effort, defaults to empty.
+          recentActivity={recentActivityView(state.homeExtras.recentActivity)}
+          problems={problemsView(state.homeExtras.problems)}
+          moneyByCurrency={moneyByCurrencyView(state.homeExtras.moneyByCurrency)}
           onOpenAgreement={id => controller.openFromHome(id)}
           onNavigateAgreements={() => controller.goHub()}
         />

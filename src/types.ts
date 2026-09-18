@@ -631,6 +631,22 @@ export interface ActivityEntry {
   agreementId?: string;
 }
 
+// Final Phase 3 correction (Section 9) -- Agreements Home real data, from
+// GET /api/v1/me/agreements/home.
+export interface ProblemItem {
+  id: string;
+  title: string;
+  detail: string;
+  stateLabel: string;
+  agreementId: string;
+}
+
+export interface MoneyByCurrencyItem {
+  currency: string;
+  remainingFundedLabel: string;
+  positionCount: number;
+}
+
 export interface AgreementPerson {
   name: string;
   role: string;

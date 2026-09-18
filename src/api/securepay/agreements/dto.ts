@@ -273,6 +273,47 @@ export interface SchedulingConflictResponse {
   severity: 'POSSIBLE_PERSONAL_CONFLICT' | 'AGREEMENT_CONFLICT' | 'EXPLICIT_EXCLUSIVITY_VIOLATION';
 }
 
+// Final Phase 3 correction (Section 9) -- the complete Agreements Home read from
+// GET /api/v1/me/agreements/home. Every field is backend-authoritative; the frontend performs no
+// lifecycle or financial calculation of its own on this shape.
+export interface AgreementProblemSummaryResponse {
+  agreementId: string;
+  agreementTitle: string | null;
+  reviewCaseId: string;
+  state: string;
+  subjectType: string;
+  openedAt: string;
+  responseDeadlineAt: string | null;
+  evidenceDeadlineAt: string | null;
+}
+
+export interface RecentActivityEntryResponse {
+  agreementId: string;
+  agreementTitle: string;
+  activityType: string;
+  occurredAt: string;
+}
+
+export interface AgreementMoneyByCurrencyResponse {
+  currency: string;
+  fundedTotalMinor: number;
+  exercisedOrSettledMinor: number;
+  releasedTotalMinor: number;
+  remainingFundedMinor: number;
+  positionCount: number;
+}
+
+export interface AgreementsHomeResponse {
+  needsMe: CurrentUserAgreementSummaryResponse[];
+  inProgress: CurrentUserAgreementSummaryResponse[];
+  waitingOnOthers: CurrentUserAgreementSummaryResponse[];
+  problems: AgreementProblemSummaryResponse[];
+  recentlyCompleted: CurrentUserAgreementSummaryResponse[];
+  upcoming: AgreementCalendarEventResponse[];
+  recentActivity: RecentActivityEntryResponse[];
+  moneyByCurrency: AgreementMoneyByCurrencyResponse[];
+}
+
 export interface PersonalTagResponse {
   id: string;
   label: string;
