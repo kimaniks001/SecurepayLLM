@@ -29,6 +29,9 @@ const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDest
 const moneySessionGateway = api ? withSessionRefresh(api.moneySession, ['create', 'resolve', 'redeem'], session, api.auth) : undefined;
 const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, ['fundingAuthority', 'fundingOptions', 'createQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'], session, api.auth) : undefined;
 const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, ['summary'], session, api.auth) : undefined;
+const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, ['list', 'activate'], session, api.auth) : undefined;
+const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, ['create', 'get', 'list', 'capability'], session, api.auth) : undefined;
+const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, ['listMine'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -156,8 +159,8 @@ export default function RuntimeApp() {
       : <Unavailable />;
   }
   if (moneyRoute) {
-    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway && paymentIntentGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway
+      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway

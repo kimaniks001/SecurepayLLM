@@ -16,6 +16,9 @@ import { createMoneyAuthorityGateway } from './money-authority';
 import { createMoneySessionGateway } from './money-session';
 import { createPaymentIntentGateway } from './payment-intent';
 import { createMoneyOperationsGateway } from './money-operations';
+import { createCurrencyCapabilityGateway } from './currency-capability';
+import { createFxApplicationGateway } from './fx-application';
+import { createRegulatedAccountsGateway } from './regulated-accounts';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -26,5 +29,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     master: createMasterGateway(http), marketNetwork: createMarketNetworkGateway(http), referral: createReferralGateway(http), subscription: createSubscriptionGateway(http),
     settlementDestinations: createSettlementDestinationGateway(http), financialPartners: createFinancialPartnerGateway(http), moneyAuthority: createMoneyAuthorityGateway(http),
     moneySession: createMoneySessionGateway(http), paymentIntent: createPaymentIntentGateway(http), moneyOperations: createMoneyOperationsGateway(http),
+    currencyCapability: createCurrencyCapabilityGateway(http), fxApplication: createFxApplicationGateway(http),
+    regulatedAccounts: createRegulatedAccountsGateway(http),
   };
 }

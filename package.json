@@ -22,7 +22,8 @@
     "test:money-experience": "node --test tests/money-experience.test.mjs",
     "test:embed-contract": "node --test tests/embed-contract.test.mjs",
     "test:payment-intent": "node --test tests/payment-intent.test.mjs",
-    "test:money-operations": "node --test tests/money-operations.test.mjs"
+    "test:money-operations": "node --test tests/money-operations.test.mjs",
+    "test:currency-fx": "node --test tests/currency-fx.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

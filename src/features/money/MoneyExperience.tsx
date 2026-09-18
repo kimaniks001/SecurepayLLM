@@ -21,9 +21,15 @@ import type {
 } from '../../api/securepay/settlement-destinations';
 import type { MoneySessionGateway } from '../../api/securepay/money-session';
 import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
+import type { CurrencyCapabilityGateway } from '../../api/securepay/currency-capability';
+import type { FxApplicationGateway } from '../../api/securepay/fx-application';
+import type { RegulatedAccountsGateway } from '../../api/securepay/regulated-accounts';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { PaymentIntentFundingSection } from './PaymentIntentFunding';
+import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
+import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
+import { FxConversionSection } from './FxConversionSection';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -54,6 +60,9 @@ export interface MoneyGateways {
   agreements: AgreementGateway;
   moneySession: MoneySessionGateway;
   paymentIntent: PaymentIntentGateway;
+  currencyCapability: CurrencyCapabilityGateway;
+  fxApplication: FxApplicationGateway;
+  regulatedAccounts: RegulatedAccountsGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -113,7 +122,10 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           agreementGateway={gateways.agreements}
           sessionGateway={gateways.moneySession}
           paymentIntentGateway={gateways.paymentIntent}
+          currencyCapabilityGateway={gateways.currencyCapability}
         />
+        <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
+        <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
         <SettlementDestinationSection gateway={gateways.settlementDestinations} />
         <FinancialPartnersSection gateway={gateways.financialPartners} />
       </div>
@@ -151,11 +163,12 @@ function ErrorBanner({ message }: { message: string }) {
  * is always false in this environment, so progressed money is always described as "Progressed
  * within SecurePay," never "Settled."
  */
-function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway, currencyCapabilityGateway }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
   sessionGateway: MoneySessionGateway;
   paymentIntentGateway: PaymentIntentGateway;
+  currencyCapabilityGateway: CurrencyCapabilityGateway;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
   const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
@@ -267,7 +280,9 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
       ) : (
         <div className="space-y-3">
           <button onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
-          <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title}</div>
+          <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title} <span className="text-xs text-sand-500">({selectedAgreement.currency})</span></div>
+
+          <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />
 
           <PaymentIntentFundingSection
             agreementId={selectedAgreement.agreementId}
