@@ -1,7 +1,7 @@
 import { discoveryView, type DiscoveryView } from './discovery';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeViewDto, AgentAgreementWorkspaceViewDto, AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -13,6 +13,19 @@ export interface AgreementsHomeComponentView { type: 'AGREEMENTS_HOME'; home: Ag
 export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
+
+// Final Phase 3 question-focused pass: the server is the sole owner of which focus was actually
+// applied -- the frontend never infers focus from the question text. It only validates that the
+// server's echoed value is one of the known enum members, falling back to FULL (the always-safe,
+// fully-populated shape) on anything else, matching the backend's own safe-fallback doctrine.
+const WORKSPACE_FOCUS_VALUES = new Set<AgentAgreementWorkspaceFocus>(
+  ['FULL', 'OVERVIEW', 'NEXT_ACTIONS', 'MILESTONES', 'EVIDENCE', 'CALENDAR', 'MONEY', 'PROBLEMS', 'TAGS', 'ACTIVITY']);
+const HOME_FOCUS_VALUES = new Set<AgentAgreementsHomeFocus>(
+  ['FULL', 'NEEDS_ATTENTION', 'WAITING', 'PROBLEMS', 'RECENTLY_COMPLETED', 'UPCOMING', 'RECENT_ACTIVITY', 'MONEY', 'TAGGED']);
+const workspaceFocus = (value: unknown): AgentAgreementWorkspaceFocus =>
+  typeof value === 'string' && WORKSPACE_FOCUS_VALUES.has(value as AgentAgreementWorkspaceFocus) ? (value as AgentAgreementWorkspaceFocus) : 'FULL';
+const homeFocus = (value: unknown): AgentAgreementsHomeFocus =>
+  typeof value === 'string' && HOME_FOCUS_VALUES.has(value as AgentAgreementsHomeFocus) ? (value as AgentAgreementsHomeFocus) : 'FULL';
 
 /**
  * Final Phase 3 correction (Section 17): parses the raw, server-composed AGREEMENT_WORKSPACE/
@@ -28,6 +41,7 @@ function agreementWorkspaceView(data: Record<string, unknown>): AgentAgreementWo
     return null;
   }
   return {
+    focus: workspaceFocus(data.focus),
     title: data.title, status: data.status,
     milestones: data.milestones as AgentAgreementWorkspaceViewDto['milestones'],
     moneyPositions: data.moneyPositions as AgentAgreementWorkspaceViewDto['moneyPositions'],
@@ -44,6 +58,7 @@ function agreementsHomeView(data: Record<string, unknown>): AgentAgreementsHomeV
     return null;
   }
   return {
+    focus: homeFocus(data.focus),
     needsAttention: data.needsAttention as AgentAgreementsHomeViewDto['needsAttention'],
     waitingOnOthers: data.waitingOnOthers as AgentAgreementsHomeViewDto['waitingOnOthers'],
     problems: data.problems as AgentAgreementsHomeViewDto['problems'],

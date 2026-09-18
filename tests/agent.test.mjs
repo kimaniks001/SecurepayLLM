@@ -120,7 +120,12 @@ test('candidate and unknown context render distinct labels, provenance, and only
     const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
     assert.match(html, /QUOTATION/);
     assert.equal(html.includes('Use this'), status === 'CANDIDATE');
-    assert.equal(html.includes('Confirmed'), status === 'CONFIRMED');
+    // Final Phase 3 question-focused pass (Section 6): a conversation-confirmed Trade Context fact
+    // must never carry the literal word "Confirmed" -- the whole TradeContext card is rendered
+    // under the top-level STILL TO DECIDE section, and that label would visually contradict it by
+    // implying promoted, canonical Agreement truth. "Known in this conversation" is used instead.
+    assert.equal(html.includes('Known in this conversation'), status === 'CONFIRMED');
+    assert.equal(html.includes('Confirmed'), false);
     if (status === 'FUTURE') assert.match(html, /Unknown state/);
   }
 });
@@ -153,6 +158,68 @@ test('AGREEMENT_WORKSPACE component parses real backend shape and renders eviden
   assert.match(html, /KES 600\.00 still protected|600\.00/);
   assert.match(html, /Roof after repair/);
 });
+// Final Phase 3 question-focused pass, Section 5/8 -- the frontend must use the server-returned
+// focus, never infer it from the question, and must never show an unrelated section even if it
+// were somehow non-empty. Proves each named focus renders only its own section.
+test('AGREEMENT_WORKSPACE focus=EVIDENCE renders only evidence, never unrelated Money/Calendar/Milestones', () => {
+  const workspace = {
+    focus: 'EVIDENCE', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
+    tags: [], problems: [],
+    evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /Roof after repair/);
+  assert.doesNotMatch(html, /waiting on site inspection/);
+  assert.doesNotMatch(html, /still protected/);
+  assert.doesNotMatch(html, /Site visit/);
+});
+test('AGREEMENT_WORKSPACE focus=CALENDAR renders only the upcoming event, never unrelated Evidence/Money', () => {
+  const workspace = {
+    focus: 'CALENDAR', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
+    tags: [], problems: [],
+    evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /Site visit/);
+  assert.doesNotMatch(html, /waiting on site inspection/);
+  assert.doesNotMatch(html, /still protected/);
+  assert.doesNotMatch(html, /Roof after repair/);
+});
+test('AGREEMENT_WORKSPACE focus=MONEY renders only Phase-2-backed Money, never unrelated Evidence/Calendar', () => {
+  const workspace = {
+    focus: 'MONEY', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
+    tags: [], problems: [],
+    evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /still protected/);
+  assert.doesNotMatch(html, /waiting on site inspection/);
+  assert.doesNotMatch(html, /Site visit/);
+  assert.doesNotMatch(html, /Roof after repair/);
+});
+test('AGREEMENT_WORKSPACE unrecognized/missing focus safely falls back to FULL rendering', () => {
+  const workspace = {
+    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    milestones: [], moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [], tags: [], problems: [], evidence: [],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  assert.equal(view.workspace.focus, 'FULL');
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /still protected/);
+});
 test('AGREEMENT_WORKSPACE component falls through (never fabricates) on a malformed shape', () => {
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: { title: 'Missing everything else' } });
   assert.equal(view, null);
@@ -168,6 +235,31 @@ test('AGREEMENTS_HOME component parses real backend shape and renders needs-atte
   const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
   assert.match(html, /Roofing/);
   assert.match(html, /500\.00 still protected/);
+});
+test('AGREEMENTS_HOME focus=NEEDS_ATTENTION renders only that section, never unrelated Money/Activity', () => {
+  const home = {
+    focus: 'NEEDS_ATTENTION',
+    needsAttention: [{ title: 'Roofing', status: 'ACTIVE', nextDeadline: '2026-09-20T00:00:00Z', tags: ['Home'] }],
+    waitingOnOthers: [], problems: [], recentlyCompleted: [], upcoming: [], recentActivity: [],
+    moneyByCurrency: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, releasedTotalMinor: 10000, remainingFundedMinor: 50000, positionCount: 2 }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: home });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
+  assert.match(html, /Roofing/);
+  assert.doesNotMatch(html, /still protected/);
+});
+test('AGREEMENTS_HOME focus=RECENT_ACTIVITY renders only recent activity, never unrelated Needs-you', () => {
+  const home = {
+    focus: 'RECENT_ACTIVITY',
+    needsAttention: [{ title: 'Roofing', status: 'ACTIVE', nextDeadline: '2026-09-20T00:00:00Z', tags: ['Home'] }],
+    waitingOnOthers: [], problems: [], recentlyCompleted: [], upcoming: [],
+    recentActivity: [{ agreementTitle: 'Roofing', activityType: 'MILESTONE_COMPLETED', occurredAt: '2026-09-18T00:00:00Z' }],
+    moneyByCurrency: [],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: home });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
+  assert.match(html, /milestone completed/);
+  assert.doesNotMatch(html, /Needs you/);
 });
 test('AGREEMENTS_HOME component falls through (never fabricates) on a malformed shape', () => {
   const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: { needsAttention: 'not-an-array' } });

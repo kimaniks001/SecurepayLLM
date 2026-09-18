@@ -1,5 +1,24 @@
 import { AlertCircle, Calendar, Camera, Tag, Wallet } from 'lucide-react';
-import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
+import type { AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
+
+/**
+ * Final Phase 3 question-focused pass -- which sections this focus is allowed to show, straight
+ * from the server-returned, non-authority-bearing `focus` value. Never inferred from the question
+ * text. FULL (and ACTIVITY, which the backend itself already degrades to FULL) shows everything;
+ * every other focus shows exactly the one section it names, so "show me the roofing photos" can
+ * never surface unrelated Money, and "what happens Friday" can never surface unrelated Evidence.
+ */
+function sectionsFor(focus: AgentAgreementWorkspaceFocus) {
+  const all = focus === 'FULL' || focus === 'ACTIVITY';
+  return {
+    waiting: all || focus === 'NEXT_ACTIONS' || focus === 'MILESTONES',
+    problems: all || focus === 'PROBLEMS',
+    money: all || focus === 'MONEY',
+    calendar: all || focus === 'CALENDAR',
+    tags: all || focus === 'TAGS',
+    evidence: all || focus === 'EVIDENCE',
+  };
+}
 
 /**
  * The visual half of "Ask SecurePay" from inside an Agreement -- UNDERSTOOD's structured
@@ -9,14 +28,16 @@ import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto'
  * worth seeing rather than reading.
  */
 export function AgentUnderstoodCard({ workspace }: { workspace: AgentAgreementWorkspaceViewDto }) {
-  const waiting = workspace.milestones.filter(m => m.effectiveState === 'WAITING' && m.waitingReason);
-  const protectedMoney = workspace.moneyPositions.filter(m => m.remainingFundedMinor > 0);
-  const nextEvent = workspace.upcomingEvents[0];
+  const sections = sectionsFor(workspace.focus);
+  const waiting = sections.waiting ? workspace.milestones.filter(m => m.effectiveState === 'WAITING' && m.waitingReason) : [];
+  const protectedMoney = sections.money ? workspace.moneyPositions.filter(m => m.remainingFundedMinor > 0) : [];
+  const nextEvent = sections.calendar ? workspace.upcomingEvents[0] : undefined;
+  const problems = sections.problems ? workspace.problems : [];
+  const tags = sections.tags ? workspace.tags : [];
+  const evidence = sections.evidence ? (workspace.evidence ?? []) : [];
 
-  const evidence = workspace.evidence ?? [];
-
-  if (waiting.length === 0 && protectedMoney.length === 0 && !nextEvent && workspace.problems.length === 0
-      && workspace.tags.length === 0 && evidence.length === 0) {
+  if (waiting.length === 0 && protectedMoney.length === 0 && !nextEvent && problems.length === 0
+      && tags.length === 0 && evidence.length === 0) {
     return null;
   }
 
@@ -29,10 +50,10 @@ export function AgentUnderstoodCard({ workspace }: { workspace: AgentAgreementWo
           <span>{m.waitingReason}</span>
         </div>
       ))}
-      {workspace.problems.length > 0 && (
+      {problems.length > 0 && (
         <div className="flex items-start gap-2 text-red-600">
           <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-          <span>{workspace.problems.length} open review case{workspace.problems.length > 1 ? 's' : ''}</span>
+          <span>{problems.length} open review case{problems.length > 1 ? 's' : ''}</span>
         </div>
       )}
       {protectedMoney.map((m, i) => (
@@ -47,9 +68,9 @@ export function AgentUnderstoodCard({ workspace }: { workspace: AgentAgreementWo
           <span>{nextEvent.title} — {new Date(nextEvent.occursAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
         </div>
       )}
-      {workspace.tags.length > 0 && (
+      {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pt-0.5">
-          {workspace.tags.map((tag, i) => (
+          {tags.map((tag, i) => (
             <span key={i} className="inline-flex items-center gap-1 text-[0.68rem] text-sand-600 bg-cream-100 border border-cream-200 rounded-full px-2 py-0.5">
               <Tag className="w-2.5 h-2.5" />
               {tag}
