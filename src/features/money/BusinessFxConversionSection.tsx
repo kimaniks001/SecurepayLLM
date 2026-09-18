@@ -79,7 +79,12 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
             </button>
           </div>
         ) : positions.length < 2 ? (
-          <p className="text-sm text-sand-600">This Business needs at least two active currency positions to convert between them.</p>
+          <div className="space-y-2">
+            <p className="text-sm text-sand-600">This Business needs at least two active currency positions to convert between them.</p>
+            <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         ) : result ? (
           <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
             <div className="font-medium text-forest-800">{money(result.amountMinor, result.sourceCurrency)} -&gt; {result.targetCurrency}</div>

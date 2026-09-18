@@ -53,6 +53,11 @@ test('BusinessFxConversionSection never forces conversion -- optional, amount is
   assert.match(businessFxSection, /Optional\. Keep what the Business already holds/);
 });
 
+test('BusinessFxConversionSection: discovered live via browser verification -- a Business with fewer than two active positions can still refresh once activation completes', () => {
+  assert.match(businessFxSection, /needs at least two active currency positions/);
+  assert.match(businessFxSection, /Refresh/);
+});
+
 test('Money is wired with the business currency capability and business FX application gateways as first-class dependencies', () => {
   assert.match(experience, /businessCurrencyCapability: BusinessCurrencyCapabilityGateway/);
   assert.match(experience, /businessFxApplication: BusinessFxApplicationGateway/);
