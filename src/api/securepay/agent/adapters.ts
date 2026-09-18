@@ -1,15 +1,58 @@
 import { discoveryView, type DiscoveryView } from './discovery';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeViewDto, AgentAgreementWorkspaceViewDto, AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
   what: string[]; who: string[]; money: string[]; when: string[];
   stillToSettle: string[]; disclaimer: string;
 }
-export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView;
+export interface AgreementWorkspaceComponentView { type: 'AGREEMENT_WORKSPACE'; workspace: AgentAgreementWorkspaceViewDto }
+export interface AgreementsHomeComponentView { type: 'AGREEMENTS_HOME'; home: AgentAgreementsHomeViewDto }
+export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
+const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
+
+/**
+ * Final Phase 3 correction (Section 17): parses the raw, server-composed AGREEMENT_WORKSPACE/
+ * AGREEMENTS_HOME component data into the SAME typed shapes AgentUnderstoodCard already renders --
+ * this is a presentation adapter only; it validates shape, it never fabricates a value. A
+ * malformed/unexpected shape falls through to the "unsupported card, keep the surrounding text"
+ * doctrine, matching every other component type here.
+ */
+function agreementWorkspaceView(data: Record<string, unknown>): AgentAgreementWorkspaceViewDto | null {
+  if (typeof data.title !== 'string' || typeof data.status !== 'string'
+    || !isArray(data.milestones) || !isArray(data.moneyPositions) || !isArray(data.upcomingEvents)
+    || !strings(data.tags) || !isArray(data.problems) || !isArray(data.evidence)) {
+    return null;
+  }
+  return {
+    title: data.title, status: data.status,
+    milestones: data.milestones as AgentAgreementWorkspaceViewDto['milestones'],
+    moneyPositions: data.moneyPositions as AgentAgreementWorkspaceViewDto['moneyPositions'],
+    upcomingEvents: data.upcomingEvents as AgentAgreementWorkspaceViewDto['upcomingEvents'],
+    tags: data.tags,
+    problems: data.problems as AgentAgreementWorkspaceViewDto['problems'],
+    evidence: data.evidence as AgentAgreementWorkspaceViewDto['evidence'],
+  };
+}
+function agreementsHomeView(data: Record<string, unknown>): AgentAgreementsHomeViewDto | null {
+  if (!isArray(data.needsAttention) || !isArray(data.waitingOnOthers) || !isArray(data.problems)
+    || !isArray(data.recentlyCompleted) || !isArray(data.upcoming) || !isArray(data.recentActivity)
+    || !isArray(data.moneyByCurrency)) {
+    return null;
+  }
+  return {
+    needsAttention: data.needsAttention as AgentAgreementsHomeViewDto['needsAttention'],
+    waitingOnOthers: data.waitingOnOthers as AgentAgreementsHomeViewDto['waitingOnOthers'],
+    problems: data.problems as AgentAgreementsHomeViewDto['problems'],
+    recentlyCompleted: data.recentlyCompleted as AgentAgreementsHomeViewDto['recentlyCompleted'],
+    upcoming: data.upcoming as AgentAgreementsHomeViewDto['upcoming'],
+    recentActivity: data.recentActivity as AgentAgreementsHomeViewDto['recentActivity'],
+    moneyByCurrency: data.moneyByCurrency as AgentAgreementsHomeViewDto['moneyByCurrency'],
+  };
+}
 
 /** A presentation adapter, never an Agreement or action dispatcher. Unsupported cards preserve the surrounding text. */
 export function agentComponentView(component: ComponentDto): AgentComponentView | null {
@@ -18,6 +61,14 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
   if (component.type === 'MESSAGE' && typeof data.text === 'string') return { type: 'MESSAGE', text: data.text };
   if (component.type === 'AGREEMENT_PREVIEW' && strings(data.what) && strings(data.who) && strings(data.money) && strings(data.when) && strings(data.stillWorthSettling) && typeof data.disclaimer === 'string') {
     return { type: 'AGREEMENT_PREVIEW', what: data.what, who: data.who, money: data.money, when: data.when, stillToSettle: data.stillWorthSettling, disclaimer: data.disclaimer };
+  }
+  if (component.type === 'AGREEMENT_WORKSPACE') {
+    const workspace = agreementWorkspaceView(data);
+    return workspace ? { type: 'AGREEMENT_WORKSPACE', workspace } : null;
+  }
+  if (component.type === 'AGREEMENTS_HOME') {
+    const home = agreementsHomeView(data);
+    return home ? { type: 'AGREEMENTS_HOME', home } : null;
   }
   return discoveryView(component);
 }

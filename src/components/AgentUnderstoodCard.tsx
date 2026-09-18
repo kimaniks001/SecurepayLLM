@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar, Tag, Wallet } from 'lucide-react';
+import { AlertCircle, Calendar, Camera, Tag, Wallet } from 'lucide-react';
 import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
 
 /**
@@ -13,8 +13,10 @@ export function AgentUnderstoodCard({ workspace }: { workspace: AgentAgreementWo
   const protectedMoney = workspace.moneyPositions.filter(m => m.remainingFundedMinor > 0);
   const nextEvent = workspace.upcomingEvents[0];
 
+  const evidence = workspace.evidence ?? [];
+
   if (waiting.length === 0 && protectedMoney.length === 0 && !nextEvent && workspace.problems.length === 0
-      && workspace.tags.length === 0) {
+      && workspace.tags.length === 0 && evidence.length === 0) {
     return null;
   }
 
@@ -52,6 +54,16 @@ export function AgentUnderstoodCard({ workspace }: { workspace: AgentAgreementWo
               <Tag className="w-2.5 h-2.5" />
               {tag}
             </span>
+          ))}
+        </div>
+      )}
+      {evidence.length > 0 && (
+        <div className="space-y-1 pt-0.5">
+          {evidence.map((e, i) => (
+            <div key={i} className="flex items-start gap-2 text-forest-700">
+              <Camera className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{e.description || e.evidenceType}</span>
+            </div>
           ))}
         </div>
       )}

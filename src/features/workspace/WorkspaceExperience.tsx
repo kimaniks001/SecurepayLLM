@@ -8,11 +8,11 @@ import { MoneyUnavailableState } from '../../components/MoneyUnavailableState';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AgentGateway } from '../../api/securepay/agent';
-import type { AgentAgreementWorkspaceViewDto } from '../../api/securepay/agent/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
 import { agreementCalendarView, agreementDetailView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
+import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
   'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
@@ -21,18 +21,19 @@ type Gateway = Pick<AgreementGateway,
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
 
-type AgentAskGateway = Pick<AgentGateway, 'createConversation' | 'agreementWorkspaceView'>;
+type AgentAskGateway = Pick<AgentGateway, 'switchAccessGrant'>;
 
 /**
- * There is no verified authenticated display-name contract, and the general Agent conversation
- * endpoints remain `auth: 'none'` with no signed-in Agreement/people/activity context wired into
- * them (see Golden Spine A/B). Real mode must never claim a person's name or an account-aware Agent
- * memory, and its suggested prompts must never presuppose personal Agreement history the Agent cannot
- * truthfully answer — they mirror the kind of trade-intent prompt the signed-out Agent already handles.
+ * There is no verified authenticated display-name contract, so real mode must never claim a
+ * person's name. Final Phase 3 correction (Section 22): now that the signed-in turn carries the
+ * caller's own session (auth: 'optional' on submitTurn) and `read_my_agreements_home` is wired
+ * into the real orchestrator for FORMATION conversations, these prompts route to genuinely
+ * answerable, authorized questions about the person's own Agreements -- never a claim SecurePay
+ * remembers anything outside that real, authorized context.
  */
 const realGreeting = 'Welcome back';
 const realSubheading = 'Ask anything, or start something new.';
-const realSuggestedPrompts = ['Help me set up a new trade', 'I need someone to fix a leaking tap', 'What is Payment Ready?', 'How do I invite someone to an agreement?'];
+const realSuggestedPrompts = ['What needs me today?', 'What changed recently?', "What's happening this week?", 'Show my Agreements tagged Home'];
 
 function errorStateView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -51,11 +52,13 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
+export function WorkspaceExperience({ gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
   gateway: Gateway;
-  /** Phase 3 Living Agreements: real "Ask SecurePay" from inside an Agreement. Optional so this
-   * component still renders for any caller not yet wired with an Agent gateway. */
+  /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
+   * with the main signed-in Agent experience -- never a second, separate mini-conversation.
+   * Optional so this component still renders for any caller not yet wired with an Agent. */
   agentGateway?: AgentAskGateway;
+  agentController?: Pick<AgentController, 'getSnapshot' | 'subscribe' | 'ensureConversationId' | 'send'>;
   initialAgreementId?: string | null;
   onOpenStore?: () => void;
   onOpenReferral?: (agreementId: string) => void;
@@ -63,40 +66,39 @@ export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId,
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const agentState = useSyncExternalStore(
+    agentController?.subscribe ?? (() => () => {}),
+    agentController?.getSnapshot ?? (() => null),
+  );
   const [notice, setNotice] = useState<string | null>(null);
-  const [askResponses, setAskResponses] = useState<{ text: string }[]>([]);
-  const [askStructured, setAskStructured] = useState<AgentAgreementWorkspaceViewDto | null>(null);
-  const [askBusy, setAskBusy] = useState(false);
-  const [askConversationId, setAskConversationId] = useState<string | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
+  // Final Phase 3 correction (Section 14): the underlying conversation is never restarted just
+  // because a different Agreement is opened -- this only narrows WHICH already-shared turns this
+  // panel displays, to the ones that happened since this exact Agreement was opened.
+  const [turnsBaseline, setTurnsBaseline] = useState(0);
   const restorationConsumed = useRef(false);
 
   /**
-   * Real "Ask SecurePay" from inside an Agreement (Phase 3 Sections 5-7): conversation alone
-   * grants nothing -- AgentAgreementWorkspaceController itself re-verifies the caller's own real
-   * read authority on every call before returning anything. This does not yet parse the typed
-   * question's intent (no NLU) -- it always returns the complete structured Workspace snapshot
-   * plus a deterministic, backend-built summary; the text is never invented client-side.
+   * Real "Ask SecurePay" from inside an Agreement (Final Phase 3 completion): an explicit,
+   * idempotent access-grant transition (Section 6) establishes/confirms this conversation's
+   * bounded authority for this exact Agreement, then the typed question is submitted as a REAL
+   * turn on the SAME persistent conversation -- the backend's own orchestrator decides whether
+   * `read_agreement_workspace` is useful for this specific question and returns a real, structured
+   * AGREEMENT_WORKSPACE artifact when it is (see AgentUnderstoodCard). Nothing here fabricates an
+   * answer; a missing agentController/agentGateway fails honestly rather than pretending to ask.
    */
-  async function askAgentAboutAgreement(agreementId: string) {
-    if (!agentGateway) {
-      setAskResponses(r => [...r, { text: 'SecurePay cannot answer from here yet.' }]);
+  async function askAgentAboutAgreement(agreementId: string, question: string) {
+    if (!agentGateway || !agentController) {
+      setAskError('SecurePay cannot answer from here yet.');
       return;
     }
-    setAskBusy(true);
+    setAskError(null);
     try {
-      let conversationId = askConversationId;
-      if (!conversationId) {
-        const conversation = await agentGateway.createConversation();
-        conversationId = conversation.conversationId;
-        setAskConversationId(conversationId);
-      }
-      const result = await agentGateway.agreementWorkspaceView(conversationId, agreementId);
-      setAskResponses(r => [...r, { text: result.summaryText }]);
-      setAskStructured(result.workspace);
+      const conversationId = await agentController.ensureConversationId();
+      await agentGateway.switchAccessGrant(conversationId, agreementId);
+      await agentController.send(question);
     } catch (error) {
-      setAskResponses(r => [...r, { text: errorText(error) }]);
-    } finally {
-      setAskBusy(false);
+      setAskError(errorText(error));
     }
   }
 
@@ -106,7 +108,23 @@ export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId,
     restorationConsumed.current = true;
     controller.openFromHome(initialAgreementId);
   }, [controller, initialAgreementId, state.hub.status]);
-  useEffect(() => { setAskResponses([]); setAskStructured(null); }, [state.selectedAgreementId]);
+  useEffect(() => {
+    setAskError(null);
+    setTurnsBaseline(agentState?.turns.length ?? 0);
+    // Only re-baseline when the selected Agreement actually changes -- not on every agentState tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedAgreementId]);
+
+  const visibleAgentTurns = (agentState?.turns ?? []).slice(turnsBaseline);
+  const askResponses = visibleAgentTurns
+    .filter((turn): turn is Extract<typeof turn, { sender: 'agent' }> => turn.sender === 'agent')
+    .map(turn => ({ text: turn.response.message.text }));
+  if (askError) askResponses.push({ text: askError });
+  const askStructured = [...visibleAgentTurns].reverse()
+    .flatMap(turn => (turn.sender === 'agent' ? turn.response.components : []))
+    .find((component): component is Extract<typeof component, { type: 'AGREEMENT_WORKSPACE' }> => component.type === 'AGREEMENT_WORKSPACE')
+    ?.workspace ?? null;
+  const askBusy = agentState?.busy ?? false;
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
   const handleNavigate = (view: AppView) => {
@@ -183,7 +201,7 @@ export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId,
         <AgreementDetail
           detail={boltDetail}
           onBack={() => controller.backToHub()}
-          onAskAgent={() => void askAgentAboutAgreement(boltDetail.id)}
+          onAskAgent={text => void askAgentAboutAgreement(boltDetail.id, text)}
           isThinking={askBusy}
           agentResponses={askResponses}
           understoodWorkspace={askStructured}

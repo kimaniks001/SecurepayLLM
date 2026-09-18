@@ -6,6 +6,7 @@ import { NavBar } from '../../components/NavBar';
 import { AgentIcon } from '../../components/AgentIcon';
 import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
+import { AgentUnderstoodCard } from '../../components/AgentUnderstoodCard';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
@@ -32,6 +33,12 @@ import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
+  // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
+  // one Agreement -- built entirely from read_agreement_workspace's own tool output, never
+  // invented here. Rendered wherever the persistent conversation surfaces it, including from the
+  // signed-in Home conversation itself, not only from inside Agreement Workspace.
+  if (component.type === 'AGREEMENT_WORKSPACE') return <AgentUnderstoodCard workspace={component.workspace} />;
+  if (component.type === 'AGREEMENTS_HOME') return null; // Section 17 backend artifact; dedicated Home rendering is a disclosed follow-up.
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
     <div className="px-4 py-3 text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">{component.title}</div>
     <dl className="px-4 pb-4 space-y-2">{component.rows.map((row, i) => <div key={i} className="break-words"><dt className="text-[0.7rem] text-sand-500">{row.label}</dt><dd className="text-[0.875rem] text-forest-800">{row.value}</dd></div>)}</dl>
@@ -170,6 +177,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     return <WorkspaceExperience
       gateway={workspaceGateway}
       agentGateway={gateway}
+      agentController={controller}
       initialAgreementId={workspaceAgreementId}
       onOpenStore={() => navigateTo('store')}
       onOpenReferral={openEcosystemForAgreement}

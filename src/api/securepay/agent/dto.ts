@@ -29,6 +29,8 @@ export interface AgentAgreementMilestoneFactDto { title: string; effectiveState:
 export interface AgentAgreementMoneyPositionFactDto { currency: string; fundedTotalMinor: number; exercisedOrSettledMinor: number; remainingFundedMinor: number }
 export interface AgentAgreementUpcomingEventFactDto { title: string; eventType: string; occursAt: string }
 export interface AgentAgreementProblemFactDto { state: string; responseDeadlineAt: string | null; evidenceDeadlineAt: string | null }
+// Final Phase 3 correction (Section 20) -- never a raw object-storage reference, only metadata.
+export interface AgentAgreementEvidenceFactDto { evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string | null }
 export interface AgentAgreementWorkspaceViewDto {
   title: string; status: string;
   milestones: AgentAgreementMilestoneFactDto[];
@@ -36,5 +38,34 @@ export interface AgentAgreementWorkspaceViewDto {
   upcomingEvents: AgentAgreementUpcomingEventFactDto[];
   tags: string[];
   problems: AgentAgreementProblemFactDto[];
+  evidence: AgentAgreementEvidenceFactDto[];
 }
 export interface AgentAgreementWorkspaceAskDto { grantId: string; summaryText: string; workspace: AgentAgreementWorkspaceViewDto }
+
+// Final Phase 3 completion pass, Section 9 -- the explicit, one-time bounded access grant a person
+// gives SecurePay to work with one existing, private Agreement inside a conversation.
+export interface AgentAgreementAccessGrantDto {
+  grantId: string; agreementId: string; conversationId: string; grantedAt: string; expiresAt: string;
+}
+
+// Final Phase 3 completion pass, Section 17 -- the real, server-composed UNDERSTOOD artifacts
+// carried on a normal AgentResponseDto turn (AGREEMENT_WORKSPACE / AGREEMENTS_HOME component
+// types), built entirely from read_agreement_workspace / read_my_agreements_home's real tool
+// output -- never invented by the model.
+export interface AgentAgreementSummaryFactDto { title: string; status: string; nextDeadline: string | null; tags: string[] }
+export interface AgentHomeProblemFactDto { agreementTitle: string; state: string; responseDeadlineAt: string | null; evidenceDeadlineAt: string | null }
+export interface AgentHomeUpcomingEventFactDto { agreementTitle: string; title: string; eventType: string; occursAt: string | null }
+export interface AgentHomeActivityFactDto { agreementTitle: string; activityType: string; occurredAt: string | null }
+export interface AgentHomeMoneyByCurrencyFactDto {
+  currency: string; fundedTotalMinor: number; exercisedOrSettledMinor: number; releasedTotalMinor: number;
+  remainingFundedMinor: number; positionCount: number;
+}
+export interface AgentAgreementsHomeViewDto {
+  needsAttention: AgentAgreementSummaryFactDto[];
+  waitingOnOthers: AgentAgreementSummaryFactDto[];
+  problems: AgentHomeProblemFactDto[];
+  recentlyCompleted: AgentAgreementSummaryFactDto[];
+  upcoming: AgentHomeUpcomingEventFactDto[];
+  recentActivity: AgentHomeActivityFactDto[];
+  moneyByCurrency: AgentHomeMoneyByCurrencyFactDto[];
+}
