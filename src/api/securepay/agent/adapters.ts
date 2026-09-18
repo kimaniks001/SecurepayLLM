@@ -35,20 +35,21 @@ const homeFocus = (value: unknown): AgentAgreementsHomeFocus =>
  * doctrine, matching every other component type here.
  */
 function agreementWorkspaceView(data: Record<string, unknown>): AgentAgreementWorkspaceViewDto | null {
-  if (typeof data.title !== 'string' || typeof data.status !== 'string'
+  if (typeof data.title !== 'string' || typeof data.status !== 'string' || typeof data.version !== 'number'
     || !isArray(data.milestones) || !isArray(data.moneyPositions) || !isArray(data.upcomingEvents)
-    || !strings(data.tags) || !isArray(data.problems) || !isArray(data.evidence)) {
+    || !strings(data.tags) || !isArray(data.problems) || !isArray(data.evidence) || !isArray(data.activity)) {
     return null;
   }
   return {
     focus: workspaceFocus(data.focus),
-    title: data.title, status: data.status,
+    title: data.title, status: data.status, version: data.version,
     milestones: data.milestones as AgentAgreementWorkspaceViewDto['milestones'],
     moneyPositions: data.moneyPositions as AgentAgreementWorkspaceViewDto['moneyPositions'],
     upcomingEvents: data.upcomingEvents as AgentAgreementWorkspaceViewDto['upcomingEvents'],
     tags: data.tags,
     problems: data.problems as AgentAgreementWorkspaceViewDto['problems'],
     evidence: data.evidence as AgentAgreementWorkspaceViewDto['evidence'],
+    activity: data.activity as AgentAgreementWorkspaceViewDto['activity'],
   };
 }
 function agreementsHomeView(data: Record<string, unknown>): AgentAgreementsHomeViewDto | null {

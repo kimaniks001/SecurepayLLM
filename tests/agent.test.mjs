@@ -143,13 +143,14 @@ test('preview keeps backend prose and disclaimer; unknown rich types preserve to
 // fabricates a value for a malformed/unexpected one (falls through, matching every other type).
 test('AGREEMENT_WORKSPACE component parses real backend shape and renders evidence/milestones/money', () => {
   const workspace = {
-    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
     milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
     moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
     upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
     tags: ['Home'],
     problems: [],
     evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+    activity: [],
   };
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
   assert.equal(view.type, 'AGREEMENT_WORKSPACE');
@@ -163,12 +164,13 @@ test('AGREEMENT_WORKSPACE component parses real backend shape and renders eviden
 // were somehow non-empty. Proves each named focus renders only its own section.
 test('AGREEMENT_WORKSPACE focus=EVIDENCE renders only evidence, never unrelated Money/Calendar/Milestones', () => {
   const workspace = {
-    focus: 'EVIDENCE', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    focus: 'EVIDENCE', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
     milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
     moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
     upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
     tags: [], problems: [],
     evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+    activity: [{ activityType: 'MILESTONE_COMPLETED', occurredAt: '2026-09-18T00:00:00Z' }],
   };
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
   const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
@@ -176,15 +178,17 @@ test('AGREEMENT_WORKSPACE focus=EVIDENCE renders only evidence, never unrelated 
   assert.doesNotMatch(html, /waiting on site inspection/);
   assert.doesNotMatch(html, /still protected/);
   assert.doesNotMatch(html, /Site visit/);
+  assert.doesNotMatch(html, /milestone completed/);
 });
 test('AGREEMENT_WORKSPACE focus=CALENDAR renders only the upcoming event, never unrelated Evidence/Money', () => {
   const workspace = {
-    focus: 'CALENDAR', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    focus: 'CALENDAR', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
     milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
     moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
     upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
     tags: [], problems: [],
     evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+    activity: [],
   };
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
   const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
@@ -195,12 +199,13 @@ test('AGREEMENT_WORKSPACE focus=CALENDAR renders only the upcoming event, never 
 });
 test('AGREEMENT_WORKSPACE focus=MONEY renders only Phase-2-backed Money, never unrelated Evidence/Calendar', () => {
   const workspace = {
-    focus: 'MONEY', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    focus: 'MONEY', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
     milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
     moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
     upcomingEvents: [{ title: 'Site visit', eventType: 'INSPECTION_SITE_VISIT', occursAt: '2026-09-20T00:00:00Z' }],
     tags: [], problems: [],
     evidence: [{ evidenceType: 'PHOTO', description: 'Roof after repair', contentType: 'image/jpeg', status: 'SUBMITTED', submittedAt: '2026-09-19T00:00:00Z' }],
+    activity: [],
   };
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
   const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
@@ -211,14 +216,70 @@ test('AGREEMENT_WORKSPACE focus=MONEY renders only Phase-2-backed Money, never u
 });
 test('AGREEMENT_WORKSPACE unrecognized/missing focus safely falls back to FULL rendering', () => {
   const workspace = {
-    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING',
+    title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
     milestones: [], moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
-    upcomingEvents: [], tags: [], problems: [], evidence: [],
+    upcomingEvents: [], tags: [], problems: [], evidence: [], activity: [],
   };
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
   assert.equal(view.workspace.focus, 'FULL');
   const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
   assert.match(html, /still protected/);
+});
+// Final Phase 3 focus-semantics pass -- OVERVIEW must render real overview truth (title/status/
+// version), never a blank card, even though it carries no per-topic fact section.
+test('AGREEMENT_WORKSPACE focus=OVERVIEW visibly renders title/status/version, never blank', () => {
+  const workspace = {
+    focus: 'OVERVIEW', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [], tags: [], problems: [], evidence: [], activity: [],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /Villa roofing/);
+  assert.match(html, /v3/);
+  assert.doesNotMatch(html, /waiting on site inspection/);
+  assert.doesNotMatch(html, /still protected/);
+});
+// Final Phase 3 focus-semantics pass (Section 4 correction) -- "Show me the milestones." must show
+// EVERY milestone in its actual state, not only the ones currently WAITING.
+test('AGREEMENT_WORKSPACE focus=MILESTONES renders READY/IN_PROGRESS/COMPLETED as well as WAITING', () => {
+  const workspace = {
+    focus: 'MILESTONES', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
+    milestones: [
+      { title: 'Foundation', effectiveState: 'COMPLETED', waitingReason: null },
+      { title: 'Framing', effectiveState: 'IN_PROGRESS', waitingReason: null },
+      { title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' },
+      { title: 'Painting', effectiveState: 'READY', waitingReason: null },
+    ],
+    moneyPositions: [], upcomingEvents: [], tags: [], problems: [], evidence: [], activity: [],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /Foundation/);
+  assert.match(html, /COMPLETED/);
+  assert.match(html, /Framing/);
+  assert.match(html, /IN_PROGRESS/);
+  assert.match(html, /Roofing/);
+  assert.match(html, /waiting on site inspection/);
+  assert.match(html, /Painting/);
+  assert.match(html, /READY/);
+});
+// Final Phase 3 focus-semantics pass (Section 2 correction) -- focus=ACTIVITY must render real
+// activity, never fall back to a blank/FULL card.
+test('AGREEMENT_WORKSPACE focus=ACTIVITY renders activity and no unrelated sections', () => {
+  const workspace = {
+    focus: 'ACTIVITY', title: 'Villa roofing', status: 'PARTICIPANTS_JOINING', version: 3,
+    milestones: [{ title: 'Roofing', effectiveState: 'WAITING', waitingReason: 'waiting on site inspection' }],
+    moneyPositions: [{ currency: 'KES', fundedTotalMinor: 100000, exercisedOrSettledMinor: 40000, remainingFundedMinor: 60000 }],
+    upcomingEvents: [], tags: [], problems: [], evidence: [],
+    activity: [{ activityType: 'MILESTONE_COMPLETED', occurredAt: '2026-09-18T00:00:00Z' }],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: workspace });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentUnderstoodCard, { workspace: view.workspace }));
+  assert.match(html, /milestone completed/);
+  assert.doesNotMatch(html, /waiting on site inspection/);
+  assert.doesNotMatch(html, /still protected/);
 });
 test('AGREEMENT_WORKSPACE component falls through (never fabricates) on a malformed shape', () => {
   const view = api.agentComponentView({ type: 'AGREEMENT_WORKSPACE', data: { title: 'Missing everything else' } });
@@ -260,6 +321,25 @@ test('AGREEMENTS_HOME focus=RECENT_ACTIVITY renders only recent activity, never 
   const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
   assert.match(html, /milestone completed/);
   assert.doesNotMatch(html, /Needs you/);
+});
+// Final Phase 3 focus-semantics pass (exact-tag correction) -- "show Agreements tagged Home" must
+// render exactly the backend's already-narrowed Home-only result, never every tagged Agreement.
+// The frontend never re-filters by tag itself; it renders whatever the backend's exact tagLabel
+// match already returned.
+test('AGREEMENTS_HOME focus=TAGGED renders exactly the backend-filtered Home tag result', () => {
+  const home = {
+    focus: 'TAGGED',
+    needsAttention: [{ title: 'Roofing', status: 'ACTIVE', nextDeadline: '2026-09-20T00:00:00Z', tags: ['Home'] }],
+    waitingOnOthers: [], problems: [],
+    recentlyCompleted: [{ title: 'Fence repair', status: 'COMPLETED', nextDeadline: null, tags: ['Home'] }],
+    upcoming: [], recentActivity: [], moneyByCurrency: [],
+  };
+  const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: home });
+  const html = api.renderToStaticMarkup(api.createElement(api.AgentAgreementsHomeCard, { home: view.home }));
+  assert.match(html, /Roofing/);
+  assert.match(html, /Fence repair/);
+  assert.doesNotMatch(html, /Office lease/);
+  assert.doesNotMatch(html, /Vacation plan/);
 });
 test('AGREEMENTS_HOME component falls through (never fabricates) on a malformed shape', () => {
   const view = api.agentComponentView({ type: 'AGREEMENTS_HOME', data: { needsAttention: 'not-an-array' } });

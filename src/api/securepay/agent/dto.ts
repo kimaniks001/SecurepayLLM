@@ -31,6 +31,9 @@ export interface AgentAgreementUpcomingEventFactDto { title: string; eventType: 
 export interface AgentAgreementProblemFactDto { state: string; responseDeadlineAt: string | null; evidenceDeadlineAt: string | null }
 // Final Phase 3 correction (Section 20) -- never a raw object-storage reference, only metadata.
 export interface AgentAgreementEvidenceFactDto { evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string | null }
+// Final Phase 3 focus-semantics pass -- a narrow, safe per-Agreement activity fact: activity type +
+// when it occurred only, never raw actor/participant/metadata detail.
+export interface AgentAgreementActivityFactDto { activityType: string; occurredAt: string | null }
 // Final Phase 3 question-focused pass -- the EFFECTIVE, non-authority-bearing presentation
 // projection the server actually applied (never inferred client-side from the question text).
 export type AgentAgreementWorkspaceFocus =
@@ -39,13 +42,14 @@ export type AgentAgreementsHomeFocus =
   | 'FULL' | 'NEEDS_ATTENTION' | 'WAITING' | 'PROBLEMS' | 'RECENTLY_COMPLETED' | 'UPCOMING' | 'RECENT_ACTIVITY' | 'MONEY' | 'TAGGED';
 export interface AgentAgreementWorkspaceViewDto {
   focus: AgentAgreementWorkspaceFocus;
-  title: string; status: string;
+  title: string; status: string; version: number;
   milestones: AgentAgreementMilestoneFactDto[];
   moneyPositions: AgentAgreementMoneyPositionFactDto[];
   upcomingEvents: AgentAgreementUpcomingEventFactDto[];
   tags: string[];
   problems: AgentAgreementProblemFactDto[];
   evidence: AgentAgreementEvidenceFactDto[];
+  activity: AgentAgreementActivityFactDto[];
 }
 export interface AgentAgreementWorkspaceAskDto { grantId: string; summaryText: string; workspace: AgentAgreementWorkspaceViewDto }
 
