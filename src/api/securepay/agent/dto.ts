@@ -23,3 +23,18 @@ export interface HandoffDto {
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
 }
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }
+
+// Phase 3 Living Agreements -- SecurePay Agent wired into an existing, already-established Agreement.
+export interface AgentAgreementMilestoneFactDto { title: string; effectiveState: string; waitingReason: string | null }
+export interface AgentAgreementMoneyPositionFactDto { currency: string; fundedTotalMinor: number; exercisedOrSettledMinor: number; remainingFundedMinor: number }
+export interface AgentAgreementUpcomingEventFactDto { title: string; eventType: string; occursAt: string }
+export interface AgentAgreementProblemFactDto { state: string; responseDeadlineAt: string | null; evidenceDeadlineAt: string | null }
+export interface AgentAgreementWorkspaceViewDto {
+  title: string; status: string;
+  milestones: AgentAgreementMilestoneFactDto[];
+  moneyPositions: AgentAgreementMoneyPositionFactDto[];
+  upcomingEvents: AgentAgreementUpcomingEventFactDto[];
+  tags: string[];
+  problems: AgentAgreementProblemFactDto[];
+}
+export interface AgentAgreementWorkspaceAskDto { grantId: string; summaryText: string; workspace: AgentAgreementWorkspaceViewDto }

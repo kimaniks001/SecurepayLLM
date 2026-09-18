@@ -7,6 +7,8 @@ import { MoneyWorkspace } from '../../components/MoneyWorkspace';
 import { MoneyUnavailableState } from '../../components/MoneyUnavailableState';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgentGateway } from '../../api/securepay/agent';
+import type { AgentAgreementWorkspaceViewDto } from '../../api/securepay/agent/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
@@ -18,6 +20,8 @@ type Gateway = Pick<AgreementGateway,
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
+
+type AgentAskGateway = Pick<AgentGateway, 'createConversation' | 'agreementWorkspaceView'>;
 
 /**
  * There is no verified authenticated display-name contract, and the general Agent conversation
@@ -47,8 +51,11 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
+export function WorkspaceExperience({ gateway, agentGateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
   gateway: Gateway;
+  /** Phase 3 Living Agreements: real "Ask SecurePay" from inside an Agreement. Optional so this
+   * component still renders for any caller not yet wired with an Agent gateway. */
+  agentGateway?: AgentAskGateway;
   initialAgreementId?: string | null;
   onOpenStore?: () => void;
   onOpenReferral?: (agreementId: string) => void;
@@ -58,7 +65,40 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
   const [askResponses, setAskResponses] = useState<{ text: string }[]>([]);
+  const [askStructured, setAskStructured] = useState<AgentAgreementWorkspaceViewDto | null>(null);
+  const [askBusy, setAskBusy] = useState(false);
+  const [askConversationId, setAskConversationId] = useState<string | null>(null);
   const restorationConsumed = useRef(false);
+
+  /**
+   * Real "Ask SecurePay" from inside an Agreement (Phase 3 Sections 5-7): conversation alone
+   * grants nothing -- AgentAgreementWorkspaceController itself re-verifies the caller's own real
+   * read authority on every call before returning anything. This does not yet parse the typed
+   * question's intent (no NLU) -- it always returns the complete structured Workspace snapshot
+   * plus a deterministic, backend-built summary; the text is never invented client-side.
+   */
+  async function askAgentAboutAgreement(agreementId: string) {
+    if (!agentGateway) {
+      setAskResponses(r => [...r, { text: 'SecurePay cannot answer from here yet.' }]);
+      return;
+    }
+    setAskBusy(true);
+    try {
+      let conversationId = askConversationId;
+      if (!conversationId) {
+        const conversation = await agentGateway.createConversation();
+        conversationId = conversation.conversationId;
+        setAskConversationId(conversationId);
+      }
+      const result = await agentGateway.agreementWorkspaceView(conversationId, agreementId);
+      setAskResponses(r => [...r, { text: result.summaryText }]);
+      setAskStructured(result.workspace);
+    } catch (error) {
+      setAskResponses(r => [...r, { text: errorText(error) }]);
+    } finally {
+      setAskBusy(false);
+    }
+  }
 
   useEffect(() => { controller.enter(); }, [controller]);
   useEffect(() => {
@@ -66,7 +106,7 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
     restorationConsumed.current = true;
     controller.openFromHome(initialAgreementId);
   }, [controller, initialAgreementId, state.hub.status]);
-  useEffect(() => { setAskResponses([]); }, [state.selectedAgreementId]);
+  useEffect(() => { setAskResponses([]); setAskStructured(null); }, [state.selectedAgreementId]);
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
   const handleNavigate = (view: AppView) => {
@@ -141,9 +181,10 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
         <AgreementDetail
           detail={boltDetail}
           onBack={() => controller.backToHub()}
-          onAskAgent={text => { void text; setAskResponses(r => [...r, { text: 'Asking SecurePay from inside an agreement is not available yet. Return to the conversation to keep talking with SecurePay.' }]); }}
-          isThinking={false}
+          onAskAgent={() => void askAgentAboutAgreement(boltDetail.id)}
+          isThinking={askBusy}
           agentResponses={askResponses}
+          understoodWorkspace={askStructured}
           isStale={state.selectedStatus === 'change_requested'}
           viewedVersion={state.selectedStatus === 'change_requested' ? 'a previous version' : undefined}
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}

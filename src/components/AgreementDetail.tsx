@@ -17,6 +17,8 @@ import { MilestoneProgress } from './MilestoneProgress';
 import { ActionList } from './ActionList';
 import { ConversationInput } from './ConversationInput';
 import { AgreementCalendarAndTags, type ConflictView, type TagView } from './AgreementCalendarAndTags';
+import { AgentUnderstoodCard } from './AgentUnderstoodCard';
+import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
 import type { CalendarEventView } from '../features/workspace/view';
 
 interface AgreementProgress {
@@ -32,6 +34,8 @@ interface AgreementDetailProps {
   onAskAgent: (text: string) => void;
   isThinking: boolean;
   agentResponses: { text: string }[];
+  /** UNDERSTOOD's structured half of an Agent answer -- see AgentUnderstoodCard's own doc. */
+  understoodWorkspace?: AgentAgreementWorkspaceViewDto | null;
   isStale?: boolean;
   viewedVersion?: string;
   onViewCurrent?: () => void;
@@ -82,7 +86,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -296,6 +300,11 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
       {/* Agent bar */}
       <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/60 backdrop-blur-sm">
+        {showAgent && understoodWorkspace && (
+          <div className="mb-2">
+            <AgentUnderstoodCard workspace={understoodWorkspace} />
+          </div>
+        )}
         {showAgent && agentResponses.length > 0 && (
           <div className="mb-2 space-y-1.5 max-h-32 overflow-y-auto scrollbar-thin">
             {agentResponses.map((r, i) => (

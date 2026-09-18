@@ -169,6 +169,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     const workspaceGateway = { ...agreementGateway, money: moneyGateway };
     return <WorkspaceExperience
       gateway={workspaceGateway}
+      agentGateway={gateway}
       initialAgreementId={workspaceAgreementId}
       onOpenStore={() => navigateTo('store')}
       onOpenReferral={openEcosystemForAgreement}

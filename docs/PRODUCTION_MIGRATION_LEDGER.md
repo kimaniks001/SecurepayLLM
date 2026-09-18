@@ -1843,3 +1843,59 @@ session available in this environment): the "Calendar & tags" tab, the Home
 "Upcoming" list, and the milestone waiting-reason line have not been
 exercised against a running SecurePayAPI instance. Documented here rather
 than claimed.
+
+## 20. Final Completion Phase 3, controller completion pass (2026-09-18)
+
+Programme-controller review of PR #15 required removing the "Asking SecurePay
+from inside an agreement is not available yet" stub -- a central, explicitly
+non-optional Phase-3 deliverable.
+
+**REAL_API_WIRED**: `api/securepay/agent/index.ts` gained
+`agreementWorkspaceView(conversationId, agreementId)` against SecurePayAPI's
+new `GET /api/agent/conversations/{conversationId}/agreements/{agreementId}/workspace-view`
+(`auth: 'required'`, added to `RuntimeApp.tsx`'s `withSessionRefresh` method
+list). `WorkspaceExperience`'s `onAskAgent` no longer renders a canned stub
+message: it creates (or reuses) a real Agent conversation, calls the real
+endpoint, and renders the REAL backend-returned `summaryText` as the
+conversational (BUILD) response. The SAME response's structured `workspace`
+facts (milestones/waiting-reasons, Agreement Money still protected, the next
+upcoming event, tags, open review-case count) are rendered visually via a
+new `AgentUnderstoodCard` component -- confirmed/structured truth only,
+exactly what SecurePayAPI returned, never re-derived or invented client-side
+-- shown above the text response in the same Ask panel.
+
+**Disclosed scope, precisely (not silently claimed complete):**
+- This wires ONE concrete Agent capability (reading an existing Agreement's
+  structured Workspace facts) through a dedicated, narrow, deterministic
+  endpoint. It does NOT route through the app's main BUILD/UNDERSTOOD
+  conversation pane (`AgentExperience`'s own `ContextPanel`/`TradeContext`) --
+  the Ask interaction stays scoped to the Agreement Workspace's own existing
+  ask panel, which already had a text-response slot; `AgentUnderstoodCard` is
+  new. Unifying this into one persistent, mode-switching BUILD | UNDERSTOOD
+  surface reachable identically from Signed-in Home, Agreements Home, and
+  every Agreement Workspace is a materially larger, deliberately NOT
+  attempted change this pass (would touch the locked, Bolt-verified
+  `AgentExperience`/`ContextPanel` components this ledger's own tests pin
+  byte-identical against Bolt).
+- The typed question text is not parsed for intent (no NLU) -- every ask
+  always returns the complete structured Workspace snapshot; the person
+  cannot yet ask a narrower question like "show me the roofing photos" and
+  get only that slice back.
+- Signed-in Home's suggested prompts remain generic (Section 9's Home-level
+  "what needs me / what changed this week" conversational wiring was not
+  built this pass -- it would need a separate, cross-Agreement Agent-facing
+  endpoint that does not exist yet; today's real Home data comes from the
+  existing Hub/Upcoming-events reads only, not from a conversational query).
+- Agreements Home's Problems/disputes, Recently-completed treatment, and
+  Money-by-currency (all newly available from SecurePayAPI's new
+  `GET /api/v1/me/agreements/home`) are NOT yet wired into any frontend
+  screen -- `SignedInHome`/`AgreementHub` remain on the existing `/me/agreements/hub`
+  read only. Not attempted this pass to avoid redesigning the
+  Bolt-locked Home/Hub components under time pressure; a real, tested gap.
+
+Verified this slice: `npm run typecheck` (clean), `npm run lint` (clean),
+`npm run build` (production bundle succeeds), and the full existing
+`node --test` suite (same single pre-existing, unrelated `referrals-plugs-masters`
+AF2 failure as section 19, still present, still not introduced by this
+change). Not verified in a browser against a live backend (none available in
+this environment) -- disclosed, not claimed.
