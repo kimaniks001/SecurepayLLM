@@ -40,9 +40,14 @@ export interface AgreementFundedAuthorityReleaseResponse {
   releasedTotalMinor: number;
 }
 
+/**
+ * Final Completion Phase 2 completion pass, Section 7 -- REQUESTED/RECOVERY_PENDING/
+ * RECOVERY_COMPLETED/RECOVERY_FAILED are an exercise reversal's own lifecycle, appearing as their
+ * own distinct, later entry -- never a rewrite of the original PROGRESSED entry they reverse.
+ */
 export interface AgreementMoneyTransactionResponse {
   eventId: string;
-  type: 'FUNDED' | 'PROGRESSED' | 'RELEASED';
+  type: 'FUNDED' | 'PROGRESSED' | 'RELEASED' | 'REQUESTED' | 'RECOVERY_PENDING' | 'RECOVERY_COMPLETED' | 'RECOVERY_FAILED';
   amountMinor: number;
   currency: string;
   journalId: string | null;

@@ -14,6 +14,8 @@ import { createSettlementDestinationGateway } from './settlement-destinations';
 import { createFinancialPartnerGateway } from './financial-partners';
 import { createMoneyAuthorityGateway } from './money-authority';
 import { createMoneySessionGateway } from './money-session';
+import { createPaymentIntentGateway } from './payment-intent';
+import { createMoneyOperationsGateway } from './money-operations';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -23,6 +25,6 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     circle: createCircleGateway(http),
     master: createMasterGateway(http), marketNetwork: createMarketNetworkGateway(http), referral: createReferralGateway(http), subscription: createSubscriptionGateway(http),
     settlementDestinations: createSettlementDestinationGateway(http), financialPartners: createFinancialPartnerGateway(http), moneyAuthority: createMoneyAuthorityGateway(http),
-    moneySession: createMoneySessionGateway(http),
+    moneySession: createMoneySessionGateway(http), paymentIntent: createPaymentIntentGateway(http), moneyOperations: createMoneyOperationsGateway(http),
   };
 }

@@ -20,8 +20,10 @@ import type {
   SettlementVerificationStatusResponse,
 } from '../../api/securepay/settlement-destinations';
 import type { MoneySessionGateway } from '../../api/securepay/money-session';
+import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { PaymentIntentFundingSection } from './PaymentIntentFunding';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -32,12 +34,26 @@ function errorText(error: unknown) {
   return 'SecurePay could not complete this action.';
 }
 
+/** Final Completion Phase 2 completion pass, Section 7 -- a reversal never rewrites the original Progressed entry; it appears as its own, later, distinct line. */
+function transactionLabel(type: AgreementMoneyTransactionResponse['type']): string {
+  switch (type) {
+    case 'FUNDED': return 'Protected';
+    case 'PROGRESSED': return 'Progressed';
+    case 'RELEASED': return 'Returned';
+    case 'REQUESTED': return 'Reversal requested for';
+    case 'RECOVERY_PENDING': return 'Reversal recovery pending for';
+    case 'RECOVERY_COMPLETED': return 'Reversal recovered for';
+    case 'RECOVERY_FAILED': return 'Reversal recovery failed for';
+  }
+}
+
 export interface MoneyGateways {
   moneyAuthority: MoneyAuthorityGateway;
   financialPartners: FinancialPartnerGateway;
   settlementDestinations: SettlementDestinationGateway;
   agreements: AgreementGateway;
   moneySession: MoneySessionGateway;
+  paymentIntent: PaymentIntentGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -96,6 +112,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           authorityGateway={gateways.moneyAuthority}
           agreementGateway={gateways.agreements}
           sessionGateway={gateways.moneySession}
+          paymentIntentGateway={gateways.paymentIntent}
         />
         <SettlementDestinationSection gateway={gateways.settlementDestinations} />
         <FinancialPartnersSection gateway={gateways.financialPartners} />
@@ -134,10 +151,11 @@ function ErrorBanner({ message }: { message: string }) {
  * is always false in this environment, so progressed money is always described as "Progressed
  * within SecurePay," never "Settled."
  */
-function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
   sessionGateway: MoneySessionGateway;
+  paymentIntentGateway: PaymentIntentGateway;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
   const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
@@ -250,6 +268,12 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
         <div className="space-y-3">
           <button onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
           <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title}</div>
+
+          <PaymentIntentFundingSection
+            agreementId={selectedAgreement.agreementId}
+            gateway={paymentIntentGateway}
+            onFunded={() => void refreshPositions()}
+          />
 
           {positions && positions.length === 0 && <p className="text-sm text-sand-600">This Agreement has no Agreement Money yet.</p>}
 
@@ -391,7 +415,7 @@ function AgreementMoneyPositionCard({
           <ul className="text-xs text-sand-600 space-y-1">
             {history.map(entry => (
               <li key={entry.eventId}>
-                {new Date(entry.occurredAt).toLocaleString()} — {entry.type === 'FUNDED' ? 'Protected' : entry.type === 'PROGRESSED' ? 'Progressed' : 'Returned'} {money(entry.amountMinor, entry.currency)}
+                {new Date(entry.occurredAt).toLocaleString()} — {transactionLabel(entry.type)} {money(entry.amountMinor, entry.currency)}
               </li>
             ))}
           </ul>

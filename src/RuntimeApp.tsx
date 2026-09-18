@@ -3,6 +3,7 @@ import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
 import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
+import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -26,6 +27,8 @@ const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, ['lis
 const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, ['list'], session, api.auth) : undefined;
 const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, ['current', 'history', 'verificationStatus', 'register', 'replace'], session, api.auth) : undefined;
 const moneySessionGateway = api ? withSessionRefresh(api.moneySession, ['create', 'resolve', 'redeem'], session, api.auth) : undefined;
+const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, ['fundingAuthority', 'fundingOptions', 'createQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'], session, api.auth) : undefined;
+const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, ['summary'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -88,6 +91,19 @@ function useMoneyRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/** Money operations is a first-class, non-secret route for support/ops roles -- read-only, gated server-side by REGULATED_PARTNER_READ. */
+function useMoneyOperationsRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?money-operations\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
 /** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
 function useMoneySessionRoute(): string | null {
   const parse = () => {
@@ -109,6 +125,7 @@ export default function RuntimeApp() {
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
+  const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
@@ -133,9 +150,14 @@ export default function RuntimeApp() {
       ? <HostedMoneySessionExperience key={moneySessionToken} token={moneySessionToken} gateway={moneySessionGateway} auth={api.auth} session={session} />
       : <Unavailable />;
   }
+  if (moneyOperationsRoute) {
+    return api && moneyOperationsGateway
+      ? <MoneyOperationsExperience gateway={moneyOperationsGateway} onLeave={clearMoneyOperationsRoute} />
+      : <Unavailable />;
+  }
   if (moneyRoute) {
-    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway && paymentIntentGateway
+      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway
