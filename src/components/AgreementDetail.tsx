@@ -16,6 +16,10 @@ import { AgreementStaleBanner } from './AgreementStaleBanner';
 import { MilestoneProgress } from './MilestoneProgress';
 import { ActionList } from './ActionList';
 import { ConversationInput } from './ConversationInput';
+import { AgreementCalendarAndTags, type ConflictView, type TagView } from './AgreementCalendarAndTags';
+import { AgentUnderstoodCard } from './AgentUnderstoodCard';
+import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
+import type { CalendarEventView } from '../features/workspace/view';
 
 interface AgreementProgress {
   milestones: Milestone[];
@@ -30,6 +34,8 @@ interface AgreementDetailProps {
   onAskAgent: (text: string) => void;
   isThinking: boolean;
   agentResponses: { text: string }[];
+  /** UNDERSTOOD's structured half of an Agent answer -- see AgentUnderstoodCard's own doc. */
+  understoodWorkspace?: AgentAgreementWorkspaceViewDto | null;
   isStale?: boolean;
   viewedVersion?: string;
   onViewCurrent?: () => void;
@@ -44,9 +50,15 @@ interface AgreementDetailProps {
    */
   money: MoneyDetail | null;
   progress: AgreementProgress | null;
+  /** Phase 3 Living Agreements -- KSCalendar + personal tags for this one Agreement. */
+  events?: CalendarEventView[];
+  conflicts?: ConflictView[];
+  tags?: TagView[];
+  onAddTag?: (label: string) => void;
+  onRemoveTag?: (tagId: string) => void;
 }
 
-type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress';
+type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
 
 const tabs: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -57,10 +69,11 @@ const tabs: { value: Tab; label: string }[] = [
   { value: 'changes', label: 'Changes' },
   { value: 'money', label: 'Money' },
   { value: 'progress', label: 'Progress' },
+  { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support' },
 ];
 
-type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'support';
+type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'calendar' | 'support';
 
 const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -69,10 +82,11 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'activity-changes', label: 'Activity & changes' },
   { value: 'money', label: 'Money' },
   { value: 'progress', label: 'Progress' },
+  { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -161,6 +175,9 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
                 <MilestoneProgress milestones={structure.milestones} isSimple={structure.isSimple} rootMilestone={structure.rootMilestone} />
                 <ActionList actions={structure.actions} />
               </>
+            )}
+            {tab === 'calendar' && onAddTag && onRemoveTag && (
+              <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
             )}
             {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />}
 
@@ -271,6 +288,10 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             </>
           )}
 
+          {mobileSection === 'calendar' && onAddTag && onRemoveTag && (
+            <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
+          )}
+
           {mobileSection === 'support' && (
             <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />
           )}
@@ -279,6 +300,11 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
       {/* Agent bar */}
       <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/60 backdrop-blur-sm">
+        {showAgent && understoodWorkspace && (
+          <div className="mb-2">
+            <AgentUnderstoodCard workspace={understoodWorkspace} />
+          </div>
+        )}
         {showAgent && agentResponses.length > 0 && (
           <div className="mb-2 space-y-1.5 max-h-32 overflow-y-auto scrollbar-thin">
             {agentResponses.map((r, i) => (

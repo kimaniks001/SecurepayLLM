@@ -4,13 +4,23 @@ import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
 import { RecentActivity } from './RecentActivity';
 import { HomeWorkbenchSummary } from './HomeWorkbenchSummary';
-import type { AttentionItem, WaitingItem, ActivityEntry } from '../types';
+import { UpcomingEventsList } from './UpcomingEventsList';
+import { ProblemsList } from './ProblemsList';
+import { AgreementMoneyByCurrencySummary } from './AgreementMoneyByCurrencySummary';
+import type { AttentionItem, WaitingItem, ActivityEntry, ProblemItem, MoneyByCurrencyItem } from '../types';
+import type { CalendarEventView } from '../features/workspace/view';
 
 interface SignedInHomeProps {
   onStart: (text: string) => void;
   attentionItems: AttentionItem[];
   waitingItems: WaitingItem[];
   recentActivity: ActivityEntry[];
+  /** Phase 3 KSCalendar: upcoming events across every Agreement the person can read. Defaults to empty. */
+  upcomingEvents?: (CalendarEventView & { agreementId: string; agreementTitle: string })[];
+  /** Final Phase 3 correction (Section 9): real Agreement review/dispute state. Defaults to empty. */
+  problems?: ProblemItem[];
+  /** Final Phase 3 correction (Section 9): real Agreement Money by currency. Defaults to empty. */
+  moneyByCurrency?: MoneyByCurrencyItem[];
   onOpenAgreement: (id: string) => void;
   onNavigateAgreements: () => void;
   /**
@@ -35,6 +45,9 @@ export function SignedInHome({
   attentionItems,
   waitingItems,
   recentActivity,
+  upcomingEvents = [],
+  problems = [],
+  moneyByCurrency = [],
   onOpenAgreement,
   onNavigateAgreements,
   greeting = fixtureGreeting,
@@ -84,7 +97,10 @@ export function SignedInHome({
           <div className="md:hidden mt-8 space-y-6">
             <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
             <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
+            <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
+            <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
             <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
+            <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
             <button
               onClick={onNavigateAgreements}
               className="w-full text-center text-[0.85rem] font-medium text-forest-600 hover:text-forest-700 py-2"
@@ -106,7 +122,10 @@ export function SignedInHome({
           />
           <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
           <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
+          <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
+          <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
           <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
+          <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
         </div>
       </div>
     </div>

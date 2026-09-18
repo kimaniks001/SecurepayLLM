@@ -6,6 +6,9 @@ import { NavBar } from '../../components/NavBar';
 import { AgentIcon } from '../../components/AgentIcon';
 import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
+import { AgentUnderstoodCard } from '../../components/AgentUnderstoodCard';
+import { AgentAgreementsHomeCard } from '../../components/AgentAgreementsHomeCard';
+import { UnderstoodTruthSections } from '../../components/UnderstoodTruthSections';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
@@ -32,6 +35,12 @@ import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
+  // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
+  // one Agreement -- built entirely from read_agreement_workspace's own tool output, never
+  // invented here. Rendered wherever the persistent conversation surfaces it, including from the
+  // signed-in Home conversation itself, not only from inside Agreement Workspace.
+  if (component.type === 'AGREEMENT_WORKSPACE') return <AgentUnderstoodCard workspace={component.workspace} />;
+  if (component.type === 'AGREEMENTS_HOME') return <AgentAgreementsHomeCard home={component.home} />;
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
     <div className="px-4 py-3 text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">{component.title}</div>
     <dl className="px-4 pb-4 space-y-2">{component.rows.map((row, i) => <div key={i} className="break-words"><dt className="text-[0.7rem] text-sand-500">{row.label}</dt><dd className="text-[0.875rem] text-forest-800">{row.value}</dd></div>)}</dl>
@@ -56,6 +65,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const [workspace, setWorkspace] = useState(false);
+  // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
+  // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
+  // simultaneously and ignores this entirely (see the render below).
+  const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
+  const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
   const [store, setStore] = useState(!!initialStoreOfferRoute);
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
@@ -169,6 +183,8 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     const workspaceGateway = { ...agreementGateway, money: moneyGateway };
     return <WorkspaceExperience
       gateway={workspaceGateway}
+      agentGateway={gateway}
+      agentController={controller}
       initialAgreementId={workspaceAgreementId}
       onOpenStore={() => navigateTo('store')}
       onOpenReferral={openEcosystemForAgreement}
@@ -184,6 +200,23 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;
   const lastResponse = [...state.turns].reverse().find(turn => turn.sender === 'agent');
   const panel = lastResponse?.sender === 'agent' ? lastResponse.response.panel : null;
+  // Final Phase 3 completion pass, Section 9 -- structured artifacts (AGREEMENT_WORKSPACE/
+  // AGREEMENTS_HOME) are real, server-composed UNDERSTOOD truth; they surface in UNDERSTOOD only,
+  // never duplicated inline in the BUILD transcript, so a question gets a brief prose answer in
+  // BUILD while the richer visual truth lives in the ONE place UNDERSTOOD shows it.
+  const structuredComponents = lastResponse?.sender === 'agent'
+    ? lastResponse.response.components.filter(c => c.type === 'AGREEMENT_WORKSPACE' || c.type === 'AGREEMENTS_HOME')
+    : [];
+  const hasUnseenUnderstood = structuredComponents.length > 0 && lastResponse?.id !== lastSeenStructuredTurnId;
+  const understoodContent = (
+    <UnderstoodTruthSections
+      confirmed={structuredComponents.length > 0
+        ? <div className="space-y-3">{structuredComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
+        : null}
+      stillToDecide={<>{context}{panel && <div className="space-y-3 mt-3">{panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}</>}
+    />
+  );
+  const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
   // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
@@ -194,9 +227,28 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     {showHome ? <div className="flex-1 overflow-auto">
       {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}
       <SignedOutHome disabled={state.busy || !!state.pending} onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }} />
-    </div> : <div className="flex-1 flex overflow-hidden">
-      <div className="flex-1 md:flex-[1.35] flex flex-col min-w-0 bg-cream-50">
-        <div className="flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
+    </div> : <>
+      {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD. */}
+      <div className="md:hidden sticky top-0 z-10 flex border-b border-cream-200/60 bg-cream-50">
+        <button
+          onClick={() => setMobileTab('build')}
+          aria-current={mobileTab === 'build'}
+          className={`flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+        >
+          Build
+        </button>
+        <button
+          onClick={openUnderstood}
+          aria-current={mobileTab === 'understood'}
+          className={`relative flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+        >
+          Understood
+          {hasUnseenUnderstood && <span className="absolute top-2 right-[calc(50%-2.2rem)] w-1.5 h-1.5 rounded-full bg-ember-500" aria-label="New structured content" />}
+        </button>
+      </div>
+      <div className="flex-1 flex overflow-hidden">
+      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50`}>
+        <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
           <AgentIcon state={state.busy ? 'thinking' : 'listening'} size={28} />
           <div><div className="font-display text-sm text-forest-800">SecurePay</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
         </div>
@@ -207,8 +259,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               ...state.turns.map(turn => <div key={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
-                  {turn.response.components.filter(component => component.type !== 'MESSAGE' || component.text !== turn.response.message.text).map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
-                  {turn.response.panel && <div className="md:hidden space-y-3">{turn.response.panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
+                  {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME').map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
@@ -233,10 +284,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
             </div>} />
         </div>
       </div>
-      <div className="hidden md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-100/50 min-w-0">
-        <ContextPanel lastRichResponses={[]} selectedProviderId={null} onSelectProvider={noop} panelTitle={panel?.title || 'Trade taking shape'} panelMode="understanding"
-          contextContent={<>{context}<div className="space-y-3">{panel?.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div></>} />
+      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-100/50 min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
+        <div className="md:hidden">{understoodContent}</div>
+        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
+          <ContextPanel lastRichResponses={[]} selectedProviderId={null} onSelectProvider={noop} panelTitle={panel?.title || 'Trade taking shape'} panelMode="understanding"
+            contextContent={understoodContent} />
+        </div>
       </div>
-    </div>}
+      </div>
+    </>}
   </div>;
 }

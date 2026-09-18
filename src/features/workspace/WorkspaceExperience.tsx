@@ -7,25 +7,33 @@ import { MoneyWorkspace } from '../../components/MoneyWorkspace';
 import { MoneyUnavailableState } from '../../components/MoneyUnavailableState';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
-import { agreementDetailView, agreementProgressView, attentionItemsFromHub, hubAgreementSummaries, moneyDetailView, waitingItemsFromHub } from './view';
+import { agreementCalendarView, agreementDetailView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
+import type { AgentController } from '../agent/controller';
 
-type Gateway = Pick<AgreementGateway, 'currentUserActions' | 'hub' | 'detail' | 'confirmationStatus'> & {
+type Gateway = Pick<AgreementGateway,
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
+> & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
 
+type AgentAskGateway = Pick<AgentGateway, 'switchAccessGrant'>;
+
 /**
- * There is no verified authenticated display-name contract, and the general Agent conversation
- * endpoints remain `auth: 'none'` with no signed-in Agreement/people/activity context wired into
- * them (see Golden Spine A/B). Real mode must never claim a person's name or an account-aware Agent
- * memory, and its suggested prompts must never presuppose personal Agreement history the Agent cannot
- * truthfully answer — they mirror the kind of trade-intent prompt the signed-out Agent already handles.
+ * There is no verified authenticated display-name contract, so real mode must never claim a
+ * person's name. Final Phase 3 correction (Section 22): now that the signed-in turn carries the
+ * caller's own session (auth: 'optional' on submitTurn) and `read_my_agreements_home` is wired
+ * into the real orchestrator for FORMATION conversations, these prompts route to genuinely
+ * answerable, authorized questions about the person's own Agreements -- never a claim SecurePay
+ * remembers anything outside that real, authorized context.
  */
 const realGreeting = 'Welcome back';
 const realSubheading = 'Ask anything, or start something new.';
-const realSuggestedPrompts = ['Help me set up a new trade', 'I need someone to fix a leaking tap', 'What is Payment Ready?', 'How do I invite someone to an agreement?'];
+const realSuggestedPrompts = ['What needs me today?', 'What changed recently?', "What's happening this week?", 'Show my Agreements tagged Home'];
 
 function errorStateView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -44,8 +52,13 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
+export function WorkspaceExperience({ gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onLeave }: {
   gateway: Gateway;
+  /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
+   * with the main signed-in Agent experience -- never a second, separate mini-conversation.
+   * Optional so this component still renders for any caller not yet wired with an Agent. */
+  agentGateway?: AgentAskGateway;
+  agentController?: Pick<AgentController, 'getSnapshot' | 'subscribe' | 'ensureConversationId' | 'send'>;
   initialAgreementId?: string | null;
   onOpenStore?: () => void;
   onOpenReferral?: (agreementId: string) => void;
@@ -53,9 +66,41 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const agentState = useSyncExternalStore(
+    agentController?.subscribe ?? (() => () => {}),
+    agentController?.getSnapshot ?? (() => null),
+  );
   const [notice, setNotice] = useState<string | null>(null);
-  const [askResponses, setAskResponses] = useState<{ text: string }[]>([]);
+  const [askError, setAskError] = useState<string | null>(null);
+  // Final Phase 3 correction (Section 14): the underlying conversation is never restarted just
+  // because a different Agreement is opened -- this only narrows WHICH already-shared turns this
+  // panel displays, to the ones that happened since this exact Agreement was opened.
+  const [turnsBaseline, setTurnsBaseline] = useState(0);
   const restorationConsumed = useRef(false);
+
+  /**
+   * Real "Ask SecurePay" from inside an Agreement (Final Phase 3 completion): an explicit,
+   * idempotent access-grant transition (Section 6) establishes/confirms this conversation's
+   * bounded authority for this exact Agreement, then the typed question is submitted as a REAL
+   * turn on the SAME persistent conversation -- the backend's own orchestrator decides whether
+   * `read_agreement_workspace` is useful for this specific question and returns a real, structured
+   * AGREEMENT_WORKSPACE artifact when it is (see AgentUnderstoodCard). Nothing here fabricates an
+   * answer; a missing agentController/agentGateway fails honestly rather than pretending to ask.
+   */
+  async function askAgentAboutAgreement(agreementId: string, question: string) {
+    if (!agentGateway || !agentController) {
+      setAskError('SecurePay cannot answer from here yet.');
+      return;
+    }
+    setAskError(null);
+    try {
+      const conversationId = await agentController.ensureConversationId();
+      await agentGateway.switchAccessGrant(conversationId, agreementId);
+      await agentController.send(question);
+    } catch (error) {
+      setAskError(errorText(error));
+    }
+  }
 
   useEffect(() => { controller.enter(); }, [controller]);
   useEffect(() => {
@@ -63,7 +108,23 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
     restorationConsumed.current = true;
     controller.openFromHome(initialAgreementId);
   }, [controller, initialAgreementId, state.hub.status]);
-  useEffect(() => { setAskResponses([]); }, [state.selectedAgreementId]);
+  useEffect(() => {
+    setAskError(null);
+    setTurnsBaseline(agentState?.turns.length ?? 0);
+    // Only re-baseline when the selected Agreement actually changes -- not on every agentState tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedAgreementId]);
+
+  const visibleAgentTurns = (agentState?.turns ?? []).slice(turnsBaseline);
+  const askResponses = visibleAgentTurns
+    .filter((turn): turn is Extract<typeof turn, { sender: 'agent' }> => turn.sender === 'agent')
+    .map(turn => ({ text: turn.response.message.text }));
+  if (askError) askResponses.push({ text: askError });
+  const askStructured = [...visibleAgentTurns].reverse()
+    .flatMap(turn => (turn.sender === 'agent' ? turn.response.components : []))
+    .find((component): component is Extract<typeof component, { type: 'AGREEMENT_WORKSPACE' }> => component.type === 'AGREEMENT_WORKSPACE')
+    ?.workspace ?? null;
+  const askBusy = agentState?.busy ?? false;
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
   const handleNavigate = (view: AppView) => {
@@ -89,9 +150,12 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
           suggestedPrompts={realSuggestedPrompts}
           attentionItems={attentionItemsFromHub(state.hub.data.changedReviewRequired, state.hub.data.needsMe)}
           waitingItems={waitingItemsFromHub(state.hub.data.waitingOnOthers)}
-          // No cross-agreement activity-feed contract is verified in this slice; a fabricated feed
-          // would violate the never-fabricate-financial/agreement-history rule, so this stays empty.
-          recentActivity={[]}
+          upcomingEvents={upcomingHomeEventsView(state.hub.data, state.myCalendarEvents)}
+          // Final Phase 3 correction (Section 9): real cross-Agreement facts from
+          // GET /api/v1/me/agreements/home, never fabricated -- best-effort, defaults to empty.
+          recentActivity={recentActivityView(state.homeExtras.recentActivity)}
+          problems={problemsView(state.homeExtras.problems)}
+          moneyByCurrency={moneyByCurrencyView(state.homeExtras.moneyByCurrency)}
           onOpenAgreement={id => controller.openFromHome(id)}
           onNavigateAgreements={() => controller.goHub()}
         />
@@ -108,9 +172,18 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
     else if (state.detail.status !== 'ready') body = <LoadingNotice text="Loading this agreement…" />;
     else if (state.selectedStatus && state.selectedCompletion) {
-      const { dto, confirmations } = state.detail.data;
+      const { dto, confirmations, milestoneStates, events, conflicts, tags } = state.detail.data;
       const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
-      const progress = agreementProgressView(dto);
+      const progress = agreementProgressView(dto, milestoneStates);
+      const calendarEvents = agreementCalendarView(events);
+      const eventTitleById = new Map(events.map(e => [e.id, e.title]));
+      const conflictViews = conflicts.map(c => ({
+        firstEventId: c.firstEventId,
+        secondEventId: c.secondEventId,
+        isViolation: c.severity === 'EXPLICIT_EXCLUSIVITY_VIOLATION',
+        label: `${conflictSeverityLabel(c.severity)}: ${eventTitleById.get(c.firstEventId) ?? 'an event'} and ${eventTitleById.get(c.secondEventId) ?? 'another event'}`,
+      }));
+      const tagViews = tags.map(t => ({ id: t.id, label: t.label }));
       // Detail's inline Money summary never claims a financial next action: doing so would require
       // either a fresh authoritative /me/actions read on every Detail load (duplicating Money's own
       // fetch) or reusing a cache that can go stale the moment a fresh refresh fails elsewhere. The
@@ -128,9 +201,10 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
         <AgreementDetail
           detail={boltDetail}
           onBack={() => controller.backToHub()}
-          onAskAgent={text => { void text; setAskResponses(r => [...r, { text: 'Asking SecurePay from inside an agreement is not available yet. Return to the conversation to keep talking with SecurePay.' }]); }}
-          isThinking={false}
+          onAskAgent={text => void askAgentAboutAgreement(boltDetail.id, text)}
+          isThinking={askBusy}
           agentResponses={askResponses}
+          understoodWorkspace={askStructured}
           isStale={state.selectedStatus === 'change_requested'}
           viewedVersion={state.selectedStatus === 'change_requested' ? 'a previous version' : undefined}
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}
@@ -139,6 +213,11 @@ export function WorkspaceExperience({ gateway, initialAgreementId, onOpenStore, 
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
+          events={calendarEvents}
+          conflicts={conflictViews}
+          tags={tagViews}
+          onAddTag={label => void controller.addTag(label)}
+          onRemoveTag={tagId => void controller.removeTag(tagId)}
         />
       );
     }

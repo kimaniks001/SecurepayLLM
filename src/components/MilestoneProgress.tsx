@@ -15,9 +15,23 @@ const statusConfig: Record<MilestoneStatus, { label: string; icon: typeof Circle
   in_progress: { label: 'In progress', icon: Clock, classes: 'text-forest-600' },
   ready_for_review: { label: 'Ready for review', icon: CircleDot, classes: 'text-ember-600' },
   complete: { label: 'Complete', icon: CheckCircle2, classes: 'text-forest-500' },
-  blocked: { label: 'Blocked', icon: AlertCircle, classes: 'text-ember-600' },
+  blocked: { label: 'Waiting', icon: AlertCircle, classes: 'text-ember-600' },
   overdue: { label: 'Overdue', icon: AlertCircle, classes: 'text-red-500' },
+  cancelled: { label: 'Cancelled', icon: Ban, classes: 'text-sand-400' },
 };
+
+/**
+ * Phase 3 doctrine: milestones are independent unless the Agreement explicitly declares a
+ * dependency -- the number below is presentation order only, never a workflow gate. A milestone
+ * numbered "4" can be Complete while "2" is still Waiting, and that is correct, not a bug.
+ */
+function resolveWaitingReason(ms: Milestone, all: Milestone[]): string | null {
+  if (ms.status !== 'blocked' || !ms.waitingReason) return null;
+  const ids = ms.waitingReason.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? [];
+  if (ids.length === 0) return ms.waitingReason;
+  const titles = ids.map(id => all.find(m => m.id === id)?.title ?? id);
+  return `Waiting on: ${titles.join(', ')}`;
+}
 
 interface MilestoneProgressProps {
   milestones: Milestone[];
@@ -82,6 +96,7 @@ export function MilestoneProgress({ milestones, isSimple, rootMilestone }: Miles
           const config = statusConfig[ms.status];
           const StatusIcon = config.icon;
           const isExpanded = expandedId === ms.id;
+          const waitingReason = resolveWaitingReason(ms, milestones);
           return (
             <div key={ms.id} className="rounded-xl border border-cream-100 overflow-hidden">
               <button
@@ -94,6 +109,9 @@ export function MilestoneProgress({ milestones, isSimple, rootMilestone }: Miles
                 <span className={`text-[0.72rem] font-medium ${config.classes}`}>{config.label}</span>
                 {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-sand-400" /> : <ChevronDown className="w-3.5 h-3.5 text-sand-400" />}
               </button>
+              {waitingReason && (
+                <div className="px-4 pb-2.5 -mt-1 text-[0.72rem] text-ember-600">{waitingReason}</div>
+              )}
               {isExpanded && (
                 <div className="px-4 pb-3 pt-1 space-y-2 animate-quiet-in">
                   {ms.responsible && (

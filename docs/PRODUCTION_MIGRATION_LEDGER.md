@@ -1783,3 +1783,119 @@ Master `decline` (state-machine-valid but not exercised in the walkthrough
 path taken), a genuine `409` attribution conflict end-to-end (unit-tested
 instead, tests M), and the R11A `lifetime-share` read (gateway-tested only,
 no UI exists to reach it).
+
+## 19. Final Completion Phase 3: Living Agreements implementation scope (2026-09-18)
+
+Backend archaeology (SecurePayAPI `feat/securepay-final-phase3-living-agreements`)
+found Agreement/Obligations/Milestones/Evidence/Decisions/Completion already
+mature; the genuine gaps were milestone-to-milestone dependency declarations,
+a SecurePay Agent delegated-authority model, a KSCalendar event model,
+personal tags, and the Phase 3/4 commercial-source contract (SecurePayAPI PR
+#219). This slice wires the frontend to the parts of that backend surface a
+person can already reach from the existing real Agreements Home/Workspace
+(`WorkspaceExperience`) — it does not add new top-level routes or redesign
+locked visual patterns (Bolt preservation rule).
+
+**REAL_API_WIRED**, additive to the existing `agreements` gateway
+(`src/api/securepay/agreements/index.ts`): `milestoneEffectiveStates`,
+`calendarEvents`, `calendarConflicts`, `myCalendar`, `tagsForAgreement`,
+`tagAgreement`, `untagAgreement`, `myTags` — all real HTTP calls against
+SecurePayAPI PR #219's new endpoints, no fixture/mock. `http/index.ts`'s
+`RequestOptions.method` union was extended with `'DELETE'` (previously only
+GET/POST/PUT), needed for `untagAgreement`.
+
+- **Milestone DAG**: `agreementProgressView` (workspace/view.ts) now accepts
+  the backend's live `MilestoneEffectiveStateResponse[]` and lets it override
+  the stored-status guess; a milestone's effective `WAITING` state renders a
+  preserved "Waiting on: <title>" reason directly under its row in
+  `MilestoneProgress.tsx` (not just inside the expandable detail) — the
+  presentation-order number next to each milestone is unchanged and still
+  never gates anything, per the locked doctrine that a milestone numbered
+  higher can be Complete while a lower one is Waiting.
+- **KSCalendar**: new `AgreementCalendarAndTags.tsx` component (a new
+  "Calendar & tags" tab on `AgreementDetail`, both desktop and mobile) lists
+  real upcoming events for one Agreement and renders any scheduling conflicts
+  with UI language that distinguishes "Possible conflict" from "Agreement
+  condition cannot be satisfied" (`conflictSeverityLabel` in view.ts) — never
+  as a block. `SignedInHome` gained an `UpcomingEventsList` sourced from
+  `GET /api/v1/me/calendar` (`upcomingHomeEventsView`, resolved back to each
+  event's real Agreement title via the same Hub lookup Detail already uses).
+- **Personal tags**: the same new tab renders/add/removes the caller's own
+  tags on an Agreement (`PersonalTagController`'s real endpoints) — never a
+  client-fabricated tag id; the backend's own created/assigned tag is always
+  re-read after a mutation rather than optimistically appended.
+- Both the calendar and tags reads are explicitly best-effort
+  (`bestEffort()` in `controller.ts`): a failure to load either can never
+  fail the core Agreement Detail read closed, since they are additive
+  enrichments, not Agreement/Money truth.
+
+Verified this slice: `npm run typecheck` (clean), `npm run lint` (clean),
+`npm run build` (production bundle succeeds), and the full existing
+`node --test` suite (all pre-existing suites still green). One pre-existing
+failure, `referrals-plugs-masters.test.mjs`'s "AF2. Plug controller reset
+clears candidates/relationship/attribution state", was confirmed present on
+the pristine base commit via `git stash` before this slice touched anything
+— unrelated to Plug/Master/Referral code, not introduced here, not fixed
+here.
+
+Not verified in the browser this slice (no live backend + authenticated
+session available in this environment): the "Calendar & tags" tab, the Home
+"Upcoming" list, and the milestone waiting-reason line have not been
+exercised against a running SecurePayAPI instance. Documented here rather
+than claimed.
+
+## 20. Final Completion Phase 3, controller completion pass (2026-09-18)
+
+Programme-controller review of PR #15 required removing the "Asking SecurePay
+from inside an agreement is not available yet" stub -- a central, explicitly
+non-optional Phase-3 deliverable.
+
+**REAL_API_WIRED**: `api/securepay/agent/index.ts` gained
+`agreementWorkspaceView(conversationId, agreementId)` against SecurePayAPI's
+new `GET /api/agent/conversations/{conversationId}/agreements/{agreementId}/workspace-view`
+(`auth: 'required'`, added to `RuntimeApp.tsx`'s `withSessionRefresh` method
+list). `WorkspaceExperience`'s `onAskAgent` no longer renders a canned stub
+message: it creates (or reuses) a real Agent conversation, calls the real
+endpoint, and renders the REAL backend-returned `summaryText` as the
+conversational (BUILD) response. The SAME response's structured `workspace`
+facts (milestones/waiting-reasons, Agreement Money still protected, the next
+upcoming event, tags, open review-case count) are rendered visually via a
+new `AgentUnderstoodCard` component -- confirmed/structured truth only,
+exactly what SecurePayAPI returned, never re-derived or invented client-side
+-- shown above the text response in the same Ask panel.
+
+**Disclosed scope, precisely (not silently claimed complete):**
+- This wires ONE concrete Agent capability (reading an existing Agreement's
+  structured Workspace facts) through a dedicated, narrow, deterministic
+  endpoint. It does NOT route through the app's main BUILD/UNDERSTOOD
+  conversation pane (`AgentExperience`'s own `ContextPanel`/`TradeContext`) --
+  the Ask interaction stays scoped to the Agreement Workspace's own existing
+  ask panel, which already had a text-response slot; `AgentUnderstoodCard` is
+  new. Unifying this into one persistent, mode-switching BUILD | UNDERSTOOD
+  surface reachable identically from Signed-in Home, Agreements Home, and
+  every Agreement Workspace is a materially larger, deliberately NOT
+  attempted change this pass (would touch the locked, Bolt-verified
+  `AgentExperience`/`ContextPanel` components this ledger's own tests pin
+  byte-identical against Bolt).
+- The typed question text is not parsed for intent (no NLU) -- every ask
+  always returns the complete structured Workspace snapshot; the person
+  cannot yet ask a narrower question like "show me the roofing photos" and
+  get only that slice back.
+- Signed-in Home's suggested prompts remain generic (Section 9's Home-level
+  "what needs me / what changed this week" conversational wiring was not
+  built this pass -- it would need a separate, cross-Agreement Agent-facing
+  endpoint that does not exist yet; today's real Home data comes from the
+  existing Hub/Upcoming-events reads only, not from a conversational query).
+- Agreements Home's Problems/disputes, Recently-completed treatment, and
+  Money-by-currency (all newly available from SecurePayAPI's new
+  `GET /api/v1/me/agreements/home`) are NOT yet wired into any frontend
+  screen -- `SignedInHome`/`AgreementHub` remain on the existing `/me/agreements/hub`
+  read only. Not attempted this pass to avoid redesigning the
+  Bolt-locked Home/Hub components under time pressure; a real, tested gap.
+
+Verified this slice: `npm run typecheck` (clean), `npm run lint` (clean),
+`npm run build` (production bundle succeeds), and the full existing
+`node --test` suite (same single pre-existing, unrelated `referrals-plugs-masters`
+AF2 failure as section 19, still present, still not introduced by this
+change). Not verified in a browser against a live backend (none available in
+this environment) -- disclosed, not claimed.

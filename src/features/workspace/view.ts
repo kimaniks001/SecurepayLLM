@@ -1,13 +1,15 @@
 import type {
-  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyRecordResponse,
-  CurrentUserAgreementSummaryResponse,
+  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
+  AgreementMoneyRecordResponse, AgreementProblemSummaryResponse, CurrentUserAgreementSummaryResponse,
+  MilestoneEffectiveStateResponse, RecentActivityEntryResponse,
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
 import type {
-  AgreementAction, AgreementChangeEntry, AgreementDetail as AgreementDetailType, AgreementDocument,
-  AgreementPerson, AgreementStatus, AgreementSummary, AgreementVersion, AttentionItem, Milestone,
-  MilestoneStatus, MoneyDetail, ParticipantNextAction, PaymentReadinessStatus, WaitingItem,
+  ActivityEntry, AgreementAction, AgreementChangeEntry, AgreementDetail as AgreementDetailType,
+  AgreementDocument, AgreementPerson, AgreementStatus, AgreementSummary, AgreementVersion,
+  AttentionItem, Milestone, MilestoneStatus, MoneyByCurrencyItem, MoneyDetail, ParticipantNextAction,
+  PaymentReadinessStatus, ProblemItem, WaitingItem,
 } from '../../types';
 
 // ─── Shared formatting — real data only, never fabricated ───────────────────
@@ -28,6 +30,21 @@ function formatTime(iso: string | null | undefined): string {
   if (!iso) return '';
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+/** Real elapsed time since a real backend timestamp — never a fabricated/placeholder value. */
+function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const parsed = new Date(iso).getTime();
+  if (Number.isNaN(parsed)) return '';
+  const diffMs = Date.now() - parsed;
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatShortDate(iso);
 }
 /** Turns a real backend code (actionCode, status, gateCode…) into readable text — never invents a code. */
 function humanizeCode(code: string): string {
@@ -284,9 +301,24 @@ export function agreementDetailView(
 
 const milestoneStatusMap: Record<string, MilestoneStatus> = {
   PENDING: 'not_started', AVAILABLE: 'not_started', IN_PROGRESS: 'in_progress',
-  COMPLETED: 'complete', OVERDUE: 'overdue', CANCELLED: 'blocked',
+  COMPLETED: 'complete', OVERDUE: 'overdue', CANCELLED: 'cancelled',
 };
 function boltMilestoneStatus(status: string): MilestoneStatus { return milestoneStatusMap[status] ?? 'not_started'; }
+
+/**
+ * Phase 3 doctrine: milestones are independent unless the Agreement explicitly declares a
+ * dependency. The stored `status` above never distinguishes "waiting on an explicit dependency"
+ * from "not yet started" -- only the backend's live MilestoneEffectiveStateResponse can, so it
+ * always wins over the stored-status guess when present, and is the ONLY source of `waitingReason`.
+ */
+const effectiveStateMap: Record<MilestoneEffectiveStateResponse['state'], MilestoneStatus | null> = {
+  READY: null, // defer to stored status (not_started/in_progress) -- READY does not itself imply "not started".
+  IN_PROGRESS: 'in_progress',
+  WAITING: 'blocked',
+  BLOCKED: 'blocked',
+  COMPLETED: 'complete',
+  CANCELLED: 'cancelled',
+};
 
 function obligationsFor(termIds: string[], terms: AgreementDetailResponse['terms']) {
   return terms.filter(t => termIds.includes(t.obligationId)).map(t => ({
@@ -298,16 +330,25 @@ function obligationsFor(termIds: string[], terms: AgreementDetailResponse['terms
   }));
 }
 
-export function agreementProgressView(dto: AgreementDetailResponse): { milestones: Milestone[]; isSimple: boolean; rootMilestone: Milestone; actions: AgreementAction[] } {
+export function agreementProgressView(
+  dto: AgreementDetailResponse,
+  effectiveStates: MilestoneEffectiveStateResponse[] = [],
+): { milestones: Milestone[]; isSimple: boolean; rootMilestone: Milestone; actions: AgreementAction[] } {
   const isSimple = dto.milestones.length === 0;
-  const milestones: Milestone[] = dto.milestones.map(m => ({
-    id: m.milestoneId,
-    title: m.title,
-    status: boltMilestoneStatus(m.status),
-    work: m.description ? [m.description] : [],
-    obligations: obligationsFor(m.obligationIds, dto.terms),
-    target: m.dueAt ? formatShortDate(m.dueAt) : undefined,
-  }));
+  const effectiveById = new Map(effectiveStates.map(s => [s.milestoneId, s]));
+  const milestones: Milestone[] = dto.milestones.map(m => {
+    const effective = effectiveById.get(m.milestoneId);
+    const overrideStatus = effective ? effectiveStateMap[effective.state] : null;
+    return {
+      id: m.milestoneId,
+      title: m.title,
+      status: overrideStatus ?? boltMilestoneStatus(m.status),
+      work: m.description ? [m.description] : [],
+      obligations: obligationsFor(m.obligationIds, dto.terms),
+      target: m.dueAt ? formatShortDate(m.dueAt) : undefined,
+      waitingReason: effective?.state === 'WAITING' ? (effective.reason ?? undefined) : undefined,
+    };
+  });
   const rootStatus: MilestoneStatus = dto.terms.length === 0 ? 'not_started'
     : dto.terms.every(t => t.status === 'COMPLETED') ? 'complete'
     : dto.terms.some(t => t.status === 'OVERDUE') ? 'overdue'
@@ -388,3 +429,98 @@ export function moneyDetailView(input: MoneyViewInput): MoneyDetail {
 
 /** Detail's inline Money summary (Phase 8 AgreementMoneyHandoffResponse) reuses the same shared adapter Money's own read views already use. */
 export const detailMoneyHandoffView = moneyHandoffView;
+
+// ─── Phase 3 Living Agreements: KSCalendar ───────────────────────────────
+
+export interface CalendarEventView {
+  id: string;
+  title: string;
+  dateLabel: string;
+  timeLabel: string;
+  eventTypeLabel: string;
+  isDerived: boolean;
+  cancelled: boolean;
+  sourceReference: string | null;
+}
+
+/**
+ * Only ever-forward-looking, never-cancelled events — a cancelled or past event is not something to
+ * warn about or act on here (the Activity trail is where history belongs, not the calendar).
+ */
+export function agreementCalendarView(events: import('../../api/securepay/agreements/dto').AgreementCalendarEventResponse[]): CalendarEventView[] {
+  const now = Date.now();
+  return events
+    .filter(e => !e.cancelled && new Date(e.occursAt).getTime() >= now)
+    .sort((a, b) => new Date(a.occursAt).getTime() - new Date(b.occursAt).getTime())
+    .map(e => ({
+      id: e.id,
+      title: e.title,
+      dateLabel: formatShortDate(e.occursAt),
+      timeLabel: formatTime(e.occursAt),
+      eventTypeLabel: humanizeCode(e.eventType),
+      isDerived: e.source === 'DERIVED',
+      cancelled: e.cancelled,
+      sourceReference: e.sourceReference,
+    }));
+}
+
+/**
+ * Locked doctrine (section 8): warn scheduling conflicts clearly, never automatically block them,
+ * unless an event is explicitly exclusive. UI language must distinguish a "possible conflict" from
+ * an "Agreement condition cannot be satisfied."
+ */
+export function conflictSeverityLabel(severity: string): string {
+  if (severity === 'EXPLICIT_EXCLUSIVITY_VIOLATION') return 'Agreement condition cannot be satisfied';
+  if (severity === 'AGREEMENT_CONFLICT') return 'Possible conflict within this Agreement';
+  return 'Possible conflict';
+}
+
+/** Home-scoped KSCalendar: each event resolved back to the exact Agreement it came from via the Hub. */
+export function upcomingHomeEventsView(
+  hub: HubDto,
+  events: import('../../api/securepay/agreements/dto').AgreementCalendarEventResponse[],
+): (CalendarEventView & { agreementId: string; agreementTitle: string })[] {
+  return agreementCalendarView(events)
+    .map(event => {
+      const raw = events.find(e => e.id === event.id);
+      const found = raw ? findInHub(hub, raw.agreementId) : null;
+      return found ? { ...event, agreementId: raw!.agreementId, agreementTitle: found.summary.title } : null;
+    })
+    .filter((e): e is CalendarEventView & { agreementId: string; agreementTitle: string } => e !== null);
+}
+
+// ─── Agreements Home real data (Section 9) ──────────────────────────────────
+
+/** Real cross-Agreement activity trail from GET /api/v1/me/agreements/home -- never fabricated. */
+export function recentActivityView(entries: RecentActivityEntryResponse[]): ActivityEntry[] {
+  return entries.map((entry, index) => ({
+    id: `${entry.agreementId}-${index}`,
+    text: `${humanizeCode(entry.activityType)} — ${entry.agreementTitle}`,
+    time: formatRelativeTime(entry.occurredAt),
+    agreementId: entry.agreementId,
+  }));
+}
+
+/** Real, backend-authoritative open review/dispute state -- never inferred from Agreement age. */
+export function problemsView(problems: AgreementProblemSummaryResponse[]): ProblemItem[] {
+  return problems.map(problem => ({
+    id: problem.reviewCaseId,
+    title: problem.agreementTitle ?? 'An Agreement',
+    detail: problem.responseDeadlineAt
+      ? `Response due ${formatShortDate(problem.responseDeadlineAt)}`
+      : problem.evidenceDeadlineAt
+        ? `Evidence due ${formatShortDate(problem.evidenceDeadlineAt)}`
+        : '',
+    stateLabel: humanizeCode(problem.state),
+    agreementId: problem.agreementId,
+  }));
+}
+
+/** Locked doctrine: Money is always shown per currency, never summed across currencies. */
+export function moneyByCurrencyView(entries: AgreementMoneyByCurrencyResponse[]): MoneyByCurrencyItem[] {
+  return entries.map(entry => ({
+    currency: entry.currency,
+    remainingFundedLabel: formatMoney(entry.currency, entry.remainingFundedMinor),
+    positionCount: entry.positionCount,
+  }));
+}

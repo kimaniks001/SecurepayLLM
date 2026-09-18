@@ -67,6 +67,20 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    /**
+     * Final Phase 3 correction (Section 9/13): the ONE persistent SecurePay conversation, made
+     * available to a caller (e.g. Agreement Workspace's Ask panel) that needs the real
+     * conversationId BEFORE it can submit a turn -- e.g. to create/switch an Agreement access
+     * grant on it first. Creates the conversation if one does not exist yet; otherwise returns the
+     * existing one. Never creates a second, separate conversation.
+     */
+    async ensureConversationId(): Promise<string> {
+      if (state.conversationId) return state.conversationId;
+      const conversation = await gateway.createConversation();
+      if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
+      update({ conversationId: conversation.conversationId });
+      return conversation.conversationId;
+    },
     async send(text: string) {
       if (state.busy || state.pending || !text.trim()) return;
       const clientTurnId = id();
