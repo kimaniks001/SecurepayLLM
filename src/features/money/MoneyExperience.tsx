@@ -151,7 +151,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
 }
 
 /**
- * Money Home (Phase 3 Section 4, corrected by the deep-review pass): answers "what do I have" and
+ * Money Home (Phase 3 Section 4, corrected by the deep-review pass): surfaces Agreement Money and
  * "what needs my attention" from the same authoritative aggregate the backend already computes for
  * this purpose -- `GET /api/v1/me/agreements/home` (`agreementGateway.home()`), which the initial
  * archaeology pass missed entirely (it was already fetched for Signed-in Home, just never reused
@@ -192,7 +192,7 @@ function MoneyHomeOverview({ agreementGateway, onOpenAgreement }: {
   if (moneyByCurrency.length === 0) {
     return (
       <Surface><SurfaceBody>
-        <p className="text-sm text-sand-600">No Agreement Money is established yet. Once an Agreement's money is protected, it will appear here.</p>
+        <p className="text-sm text-sand-600">No Agreement Money is established yet. Once Agreement Money is set up for an Agreement, it will appear here.</p>
       </SurfaceBody></Surface>
     );
   }
