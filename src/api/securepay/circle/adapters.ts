@@ -32,19 +32,19 @@ export interface CircleProfileView {
   referredTraderCount: number;
   activatedReferredTraderCount: number;
   agreementsBroughtInCount: number;
-  growthCreditTotal: number;
 }
 
 /**
- * `growthCreditTotal` stays a plain `number` count through every layer of this adapter — see
- * CircleProfileResponse.java's own doctrine comment. No currency, formatting, or "KES equivalent" is
- * ever attached to it (task section 13).
+ * Final Phase 4 Economy correction (programme decision): `growthCreditTotal` is no longer part of
+ * the real backend contract or this view -- the weighted-points mechanic it represented conflicted
+ * with the locked no-points/no-gamification doctrine. Only real, separately-computed factual counts
+ * remain (referredTraderCount, activatedReferredTraderCount, agreementsBroughtInCount).
  */
 export function circleProfileView(dto: CircleProfileResponse): CircleProfileView {
   if (!isRecord(dto) || typeof dto.canonicalKsNumber !== 'string' || typeof dto.verificationStatus !== 'string'
     || typeof dto.memberSince !== 'string' || typeof dto.referredTraderCount !== 'number'
     || typeof dto.activatedReferredTraderCount !== 'number' || typeof dto.agreementsBroughtInCount !== 'number'
-    || typeof dto.growthCreditTotal !== 'number' || (dto.displayName !== null && typeof dto.displayName !== 'string')) {
+    || (dto.displayName !== null && typeof dto.displayName !== 'string')) {
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Circle profile.');
   }
   assertKnownVerificationStatus(dto.verificationStatus);
@@ -56,6 +56,5 @@ export function circleProfileView(dto: CircleProfileResponse): CircleProfileView
     referredTraderCount: dto.referredTraderCount,
     activatedReferredTraderCount: dto.activatedReferredTraderCount,
     agreementsBroughtInCount: dto.agreementsBroughtInCount,
-    growthCreditTotal: dto.growthCreditTotal,
   };
 }

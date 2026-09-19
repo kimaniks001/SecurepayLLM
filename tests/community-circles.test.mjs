@@ -21,7 +21,7 @@ const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outpu
 const circleProfileResponse = (overrides = {}) => ({
   canonicalKsNumber: 'KS-200', displayName: 'James Kimani', verificationStatus: 'ACTIVE',
   memberSince: '2026-01-01T00:00:00Z', referredTraderCount: 3, activatedReferredTraderCount: 2,
-  agreementsBroughtInCount: 1, growthCreditTotal: 7,
+  agreementsBroughtInCount: 1,
   ...overrides,
 });
 
@@ -101,20 +101,29 @@ test('S. Circle/Community controllers never import circleData.ts/communityData.t
   }
 });
 
-// ─── F/G. CircleProfile renders only real backend fields; growthCreditTotal is a count ─────────────────────────
+// ─── F/G. CircleProfile renders only real backend fields; growth-credit points are retired ─────────────────────────
 
 test('F. circleProfileView exposes exactly the real backend fields, no rank/medal/score/reputation field', () => {
   const view = api.circleAdapters.circleProfileView(circleProfileResponse());
   assert.deepEqual(Object.keys(view).sort(), [
     'activatedReferredTraderCount', 'agreementsBroughtInCount', 'canonicalKsNumber', 'displayName',
-    'growthCreditTotal', 'memberSince', 'referredTraderCount', 'verificationStatus',
+    'memberSince', 'referredTraderCount', 'verificationStatus',
   ].sort());
 });
 
-test('G. growthCreditTotal stays a plain number through the adapter, never given a currency', () => {
+// Final Phase 4 Economy correction (programme decision): the weighted growthCreditTotal points
+// mechanic is retired -- it conflicted with the locked no-points/no-gamification doctrine. The
+// adapter must never surface it even if a stale/rollback backend response still includes it.
+test('G. growthCreditTotal is never surfaced by the adapter, even if present on the wire', () => {
   const view = api.circleAdapters.circleProfileView(circleProfileResponse({ growthCreditTotal: 42 }));
-  assert.equal(typeof view.growthCreditTotal, 'number');
-  assert.equal(view.growthCreditTotal, 42);
+  assert.equal('growthCreditTotal' in view, false);
+});
+
+test('G2. The real Circle profile card never renders a growth-credit/points concept', async () => {
+  const contents = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /growthCredit/i);
+  assert.doesNotMatch(contents, /growth credit/i);
+  assert.doesNotMatch(contents, /\bpoints\b/i);
 });
 
 test('G3. The rendered real Circle profile card never shows a currency figure', async () => {

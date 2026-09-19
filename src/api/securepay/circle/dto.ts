@@ -2,8 +2,12 @@
 // (CircleController.java, CircleProfileResponse.java, CircleProfileService.java) and the OpenAPI
 // `CircleProfile` schema in contracts/openapi/securepay-api-v1.yaml. This is the entire real Circle
 // contract this phase exposes — a self-scoped read composed from identity + referral + Plug-attribution
-// + Growth Credit truth. No named-group/membership/feed authority exists (see
+// truth. No named-group/membership/feed authority exists (see
 // docs/PRODUCTION_MIGRATION_LEDGER.md section 17).
+//
+// Final Phase 4 Economy correction (programme decision): the former `growthCreditTotal` weighted-points
+// field is retired from this contract — it conflicted with the locked no-points/no-gamification
+// doctrine. The backend no longer returns it (see CircleProfileResponse.java).
 
 /** Exactly `ke.securepay.platform.identity.model.IdentityStatus` — identity lifecycle, not a
  * professional/qualification claim. An unrecognized value must fail closed (see adapters.ts). */
@@ -17,6 +21,4 @@ export interface CircleProfileResponse {
   referredTraderCount: number;
   activatedReferredTraderCount: number;
   agreementsBroughtInCount: number;
-  /** A factual economic-activity count. NEVER money — no currency, not spendable, not redeemable. */
-  growthCreditTotal: number;
 }
