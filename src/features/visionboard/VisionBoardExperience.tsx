@@ -11,7 +11,13 @@ const ITEM_TYPE_OPTIONS: VisionItemTypeCode[] = [
   'MESSAGE_TEMPLATE', 'REMINDER', 'PERSONAL_GUIDANCE',
 ];
 
-function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>; ownerKsNumber: string }) {
+const USAGE_POLICY_OPTIONS: { value: import('../../api/securepay/visionboard/dto').VisionItemUsagePolicy; label: string; hint: string }[] = [
+  { value: 'PROACTIVE', label: 'May bring this up when relevant', hint: 'SecurePay can mention it on its own, like a Christmas pricing rule.' },
+  { value: 'REFERENCE_ONLY', label: 'Keep for reference', hint: "SecurePay only uses it when you ask about something related." },
+  { value: 'EXPLICIT_ONLY', label: 'Only use when I ask for it', hint: 'For anything you want kept quiet unless you name it directly.' },
+];
+
+function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>; ownerKsNumber: string | null }) {
   const [kind, setKind] = useState<'quotation' | 'invoice' | 'receipt' | null>(null);
   const [counterpartyName, setCounterpartyName] = useState('');
   const [description, setDescription] = useState('');
@@ -24,7 +30,7 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
   const generate = async () => {
     if (!kind) return;
     setBusy(true); setError(null); setResult(null);
-    const body: GenerateDocumentRequest = { issuingKsNumber: ownerKsNumber, counterpartyName, description, amount, currency };
+    const body: GenerateDocumentRequest = { issuingKsNumber: ownerKsNumber ?? undefined, counterpartyName, description, amount, currency };
     try {
       const draft = kind === 'quotation' ? await gateway.generateQuotation(body)
         : kind === 'invoice' ? await gateway.generateInvoice(body)
@@ -96,22 +102,32 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
   onNavigate: (view: AppView) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const [ownerKsNumber, setOwnerKsNumber] = useState(defaultOwnerKsNumber ?? '');
+  const [switchKsInput, setSwitchKsInput] = useState('');
+  const [showSwitchKs, setShowSwitchKs] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newType, setNewType] = useState<VisionItemTypeCode>('IDEA');
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [newUsagePolicy, setNewUsagePolicy] = useState<import('../../api/securepay/visionboard/dto').VisionItemUsagePolicy>('REFERENCE_ONLY');
   const [searchInput, setSearchInput] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
 
+  // Convergence correction (section 43) -- never require typing your own KS number: this loads
+  // the signed-in person's own board by default, or the declared owner (e.g. a Business Project)
+  // when one was passed in. Runs once per distinct defaultOwnerKsNumber, including the "none" case.
   useEffect(() => {
-    if (defaultOwnerKsNumber) { setOwnerKsNumber(defaultOwnerKsNumber); void controller.loadForOwner(defaultOwnerKsNumber); }
+    void controller.loadForOwner(defaultOwnerKsNumber ?? undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultOwnerKsNumber]);
 
+  const [editUsagePolicy, setEditUsagePolicy] = useState<import('../../api/securepay/visionboard/dto').VisionItemUsagePolicy>('REFERENCE_ONLY');
   useEffect(() => {
-    if (state.selected.item) { setEditTitle(state.selected.item.title); setEditContent(state.selected.item.content ?? ''); }
+    if (state.selected.item) {
+      setEditTitle(state.selected.item.title);
+      setEditContent(state.selected.item.content ?? '');
+      setEditUsagePolicy(state.selected.item.usagePolicy);
+    }
   }, [state.selected.item]);
 
   const selectedItem = state.selected.item;
@@ -137,14 +153,25 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
             : null}
           <input value={editTitle} onChange={e => setEditTitle(e.target.value)} disabled={selectedItem.locked} className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.9rem] font-display disabled:bg-cream-50 disabled:text-sand-500" />
           <textarea value={editContent} onChange={e => setEditContent(e.target.value)} disabled={selectedItem.locked} rows={4} className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] disabled:bg-cream-50 disabled:text-sand-500" />
+          <div>
+            <div className="text-[0.72rem] text-sand-500 mb-1">How should SecurePay use this?</div>
+            <div className="space-y-1.5">
+              {USAGE_POLICY_OPTIONS.map(option => (
+                <label key={option.value} className={`flex items-start gap-2 text-[0.8rem] text-forest-800 ${selectedItem.locked ? 'opacity-50' : 'cursor-pointer'}`}>
+                  <input type="radio" name="editUsagePolicy" className="mt-0.5" disabled={selectedItem.locked} checked={editUsagePolicy === option.value} onChange={() => setEditUsagePolicy(option.value)} />
+                  <span>{option.label}<span className="block text-[0.7rem] text-sand-500 font-normal">{option.hint}</span></span>
+                </label>
+              ))}
+            </div>
+          </div>
           {state.selected.actionError && <p role="alert" className="text-[0.78rem] text-ember-600">{state.selected.actionError}</p>}
           <div className="flex gap-2">
-            {!selectedItem.locked && <button disabled={state.selected.busy || !editTitle.trim()} onClick={() => void controller.update(editTitle.trim(), editContent.trim() || undefined, selectedItem.usagePolicy, selectedItem.version)} className="rounded-lg bg-forest-600 text-cream-50 px-3 py-1.5 text-[0.82rem] disabled:opacity-40">Save</button>}
+            {!selectedItem.locked && <button disabled={state.selected.busy || !editTitle.trim()} onClick={() => void controller.update(editTitle.trim(), editContent.trim() || undefined, editUsagePolicy, selectedItem.version)} className="rounded-lg bg-forest-600 text-cream-50 px-3 py-1.5 text-[0.82rem] disabled:opacity-40">Save</button>}
             <button disabled={state.selected.busy || !editTitle.trim()} onClick={() => void controller.supersede(editTitle.trim(), editContent.trim() || undefined, selectedItem.version)} className="rounded-lg border border-forest-300 text-forest-700 px-3 py-1.5 text-[0.82rem] disabled:opacity-40">
               Keep this version, start a new one
             </button>
           </div>
-          <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version} · {selectedItem.usagePolicy === 'PROACTIVE' ? 'SecurePay may bring this up when relevant' : selectedItem.usagePolicy === 'EXPLICIT_ONLY' ? 'Only used when you ask for it' : 'Kept for reference'}</p>
+          <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version}</p>
         </div>
       </div>
     </div>;
@@ -175,12 +202,26 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
           </select>
           <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Title" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
           <textarea value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="What do you want SecurePay to remember?" rows={3} className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
+          <div>
+            <div className="text-[0.72rem] text-sand-500 mb-1">How should SecurePay use this?</div>
+            <div className="space-y-1.5">
+              {USAGE_POLICY_OPTIONS.map(option => (
+                <label key={option.value} className="flex items-start gap-2 text-[0.8rem] text-forest-800 cursor-pointer">
+                  <input type="radio" name="usagePolicy" className="mt-0.5" checked={newUsagePolicy === option.value} onChange={() => setNewUsagePolicy(option.value)} />
+                  <span>
+                    {option.label}
+                    <span className="block text-[0.7rem] text-sand-500 font-normal">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
           {state.createError && <p role="alert" className="text-[0.78rem] text-ember-600">{state.createError}</p>}
           <button
             disabled={state.creating || !newTitle.trim()}
             onClick={async () => {
-              const created = await controller.create(state.selectedShelf as VisionShelfCode, newType, newTitle.trim(), newContent.trim() || undefined);
-              if (created) { setNewTitle(''); setNewContent(''); setShowCreate(false); }
+              const created = await controller.create(state.selectedShelf as VisionShelfCode, newType, newTitle.trim(), newContent.trim() || undefined, newUsagePolicy);
+              if (created) { setNewTitle(''); setNewContent(''); setNewUsagePolicy('REFERENCE_ONLY'); setShowCreate(false); }
             }}
             className="rounded-lg bg-forest-600 text-cream-50 px-3 py-1.5 text-[0.82rem] disabled:opacity-40"
           >
@@ -214,10 +255,20 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
         <p className="text-[0.8rem] text-sand-500 mt-1">Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged.</p>
       </div>
 
-      <div className="rounded-2xl border border-cream-200 bg-white px-4 py-3 flex gap-2">
-        <input value={ownerKsNumber} onChange={e => setOwnerKsNumber(e.target.value)} placeholder="Your KS Number (or a Business KS Number you manage)" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
-        <button onClick={() => ownerKsNumber.trim() && void controller.loadForOwner(ownerKsNumber.trim())} className="rounded-lg border border-forest-300 text-forest-700 px-3 py-2 text-[0.85rem]">Load</button>
-      </div>
+      {/* Convergence correction (section 43) -- this is never required to see your own board; it
+          only switches to managing a different KS (e.g. a Business you administer). */}
+      {state.ownerKsNumber && <p className="text-[0.75rem] text-sand-500">Managing the Vision Board for <span className="text-forest-700">{state.ownerKsNumber}</span>.</p>}
+      {showSwitchKs ? (
+        <div className="rounded-2xl border border-cream-200 bg-white px-4 py-3 flex gap-2">
+          <input value={switchKsInput} onChange={e => setSwitchKsInput(e.target.value)} placeholder="Business KS Number you manage" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
+          <button onClick={() => { if (switchKsInput.trim()) { void controller.loadForOwner(switchKsInput.trim()); setShowSwitchKs(false); } }} className="rounded-lg bg-forest-600 text-cream-50 px-3 py-2 text-[0.85rem]">Switch</button>
+          <button onClick={() => setShowSwitchKs(false)} className="rounded-lg border border-cream-200 text-sand-600 px-3 py-2 text-[0.85rem]">Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setShowSwitchKs(true)} className="text-[0.78rem] text-forest-700 underline">
+          {state.ownerKsNumber ? 'Manage a different KS' : 'Manage a Business KS instead'}
+        </button>
+      )}
 
       {state.shelves.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Vision Board…</p>}
       {state.shelves.status === 'error' && <p role="alert" className="text-sm text-sand-600">{state.shelves.error}</p>}
@@ -236,7 +287,7 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
         </button>)}
       </div>}
 
-      {state.ownerKsNumber && <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />}
+      {state.boarded && <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />}
     </div>
   </div>;
 }

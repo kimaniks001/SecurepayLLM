@@ -181,3 +181,30 @@ test('L. generateReceipt surfaces draftOnly/truthNote exactly as the backend ret
   assert.equal(receipt.draftOnly, true);
   assert.match(receipt.truthNote, /doesn't yet show this payment as received/);
 });
+
+// ─── Convergence correction (section 43) -- never require typing your own KS number ────────────
+
+test('M. loadForOwner with no argument calls the gateway with no ownerKsNumber -- the backend resolves the signed-in person\'s own board', async () => {
+  const { gateway, calls } = fakeGateway();
+  const controller = api.createVisionBoardController(gateway);
+
+  await controller.loadForOwner();
+
+  assert.deepEqual(calls[0], ['shelves', undefined]);
+  assert.equal(controller.getSnapshot().ownerKsNumber, null);
+  assert.equal(controller.getSnapshot().boarded, true);
+});
+
+test('N. openShelf/search/create all work after loading with no declared owner (the default board), never blocked by a falsy ownerKsNumber', async () => {
+  const { gateway, calls } = fakeGateway();
+  const controller = api.createVisionBoardController(gateway);
+  await controller.loadForOwner();
+
+  await controller.openShelf('IDEAS_GROWTH');
+  const created = await controller.create('IDEAS_GROWTH', 'IDEA', 'Laundry idea', 'KES 80,000');
+
+  assert.deepEqual(calls[1], ['items', undefined, 'IDEAS_GROWTH', undefined]);
+  const createCall = calls.find(c => c[0] === 'create');
+  assert.equal(createCall[1].ownerKsNumber, undefined);
+  assert.ok(created);
+});

@@ -8,17 +8,28 @@ import type {
 /**
  * SecurePay Final Completion Phase 5B -- every call here is private, owner-scoped operating memory.
  * There is deliberately no `share`, `invite`, or `member` method: no such SecurePay endpoint exists.
+ *
+ * Convergence correction (section 43) -- `ownerKsNumber` is optional on `shelves`/`items`: omitting
+ * it resolves to the signed-in person's own KS number server-side, so a person is never forced to
+ * type their own KS number just to see their own board. Pass it explicitly only to manage a
+ * different KS (e.g. a Business) the signed-in person also administers.
  */
 export function createVisionBoardGateway(http: HttpClient) {
   const item = (id: string) => `/api/v1/vision-board/items/${segment(id)}`;
   return {
-    shelves: (ownerKsNumber: string) =>
-      http.request<VisionShelfListDto>(`/api/v1/vision-board/shelves?ownerKsNumber=${encodeURIComponent(ownerKsNumber)}`, { auth: 'required' }),
-    items: (ownerKsNumber: string, shelf?: VisionShelfCode, query?: string) => {
-      const params = new URLSearchParams({ ownerKsNumber });
+    shelves: (ownerKsNumber?: string) => {
+      const params = new URLSearchParams();
+      if (ownerKsNumber) params.set('ownerKsNumber', ownerKsNumber);
+      const query = params.toString();
+      return http.request<VisionShelfListDto>(`/api/v1/vision-board/shelves${query ? `?${query}` : ''}`, { auth: 'required' });
+    },
+    items: (ownerKsNumber?: string, shelf?: VisionShelfCode, query?: string) => {
+      const params = new URLSearchParams();
+      if (ownerKsNumber) params.set('ownerKsNumber', ownerKsNumber);
       if (shelf) params.set('shelf', shelf);
       if (query) params.set('query', query);
-      return http.request<VisionItemListDto>(`/api/v1/vision-board/items?${params.toString()}`, { auth: 'required' });
+      const search = params.toString();
+      return http.request<VisionItemListDto>(`/api/v1/vision-board/items${search ? `?${search}` : ''}`, { auth: 'required' });
     },
     get: (itemId: string) => http.request<VisionItemDto>(item(itemId), { auth: 'required' }),
     create: (body: CreateVisionItemRequest) =>

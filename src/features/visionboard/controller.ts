@@ -8,7 +8,11 @@ export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data
 const idle = <T>(): Loadable<T> => ({ status: 'idle', data: null, error: null });
 
 export interface VisionBoardState {
+  /** The explicitly chosen owner KS (e.g. a Business), or null to use the signed-in person's own KS. */
   ownerKsNumber: string | null;
+  /** True once a load has been attempted at all -- distinct from ownerKsNumber being set, since
+   *  "no ownerKsNumber" (my own board) is itself a valid, already-loaded state (section 43). */
+  boarded: boolean;
   shelves: Loadable<VisionShelfDto[]>;
   selectedShelf: VisionShelfCode | null;
   items: Loadable<VisionItemDto[]>;
@@ -21,34 +25,39 @@ export interface VisionBoardState {
 const initialSelected: VisionBoardState['selected'] = { item: null, busy: false, actionError: null };
 
 /**
- * SecurePay Final Completion Phase 5B -- session-local orchestration over the real Vision Board
- * endpoints only. No local mock authority, no invented content: every shelf/item shown comes
- * straight from the backend's own read. No share/invite/member method exists here because none
- * exists on the gateway. Locked items are never rewritten in place -- see `supersede`.
+ * SecurePay Final Completion Phase 5B, convergence-corrected against section 43 -- session-local
+ * orchestration over the real Vision Board endpoints only. No local mock authority, no invented
+ * content: every shelf/item shown comes straight from the backend's own read. No share/invite/
+ * member method exists here because none exists on the gateway. Locked items are never rewritten
+ * in place -- see `supersede`.
+ *
+ * A person is never required to type their own KS number: {@link loadForOwner} with no argument
+ * loads the signed-in person's own board (the backend resolves it); passing an explicit KS number
+ * switches to managing that KS's board instead (e.g. a Business they administer).
  */
 export function createVisionBoardController(gateway: VisionBoardGateway) {
   let state: VisionBoardState = {
-    ownerKsNumber: null, shelves: idle(), selectedShelf: null, items: idle(), searchQuery: '',
+    ownerKsNumber: null, boarded: false, shelves: idle(), selectedShelf: null, items: idle(), searchQuery: '',
     creating: false, createError: null, selected: { ...initialSelected },
   };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<VisionBoardState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
   const updateSelected = (patch: Partial<VisionBoardState['selected']>) => update({ selected: { ...state.selected, ...patch } });
 
-  async function loadShelves(ownerKsNumber: string) {
-    update({ ownerKsNumber, shelves: { status: 'loading', data: null, error: null } });
+  async function loadShelves(ownerKsNumber: string | null) {
+    update({ ownerKsNumber, boarded: true, shelves: { status: 'loading', data: null, error: null } });
     try {
-      const result = await gateway.shelves(ownerKsNumber);
+      const result = await gateway.shelves(ownerKsNumber ?? undefined);
       update({ shelves: { status: 'ready', data: result.shelves, error: null } });
     } catch (error) {
       update({ shelves: { status: 'error', data: null, error: errorText(error) } });
     }
   }
 
-  async function loadItems(ownerKsNumber: string, shelf: VisionShelfCode | null, query?: string) {
+  async function loadItems(ownerKsNumber: string | null, shelf: VisionShelfCode | null, query?: string) {
     update({ items: { status: 'loading', data: null, error: null }, selectedShelf: shelf });
     try {
-      const result = await gateway.items(ownerKsNumber, shelf ?? undefined, query);
+      const result = await gateway.items(ownerKsNumber ?? undefined, shelf ?? undefined, query);
       update({ items: { status: 'ready', data: result.items, error: null } });
     } catch (error) {
       update({ items: { status: 'error', data: null, error: errorText(error) } });
@@ -59,18 +68,19 @@ export function createVisionBoardController(gateway: VisionBoardGateway) {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
-    async loadForOwner(ownerKsNumber: string) {
-      await loadShelves(ownerKsNumber);
+    /** No argument (or a blank string) loads the signed-in person's own board. */
+    async loadForOwner(ownerKsNumber?: string) {
+      await loadShelves(ownerKsNumber && ownerKsNumber.trim() ? ownerKsNumber.trim() : null);
     },
 
     async openShelf(shelf: VisionShelfCode) {
-      if (!state.ownerKsNumber) return;
+      if (!state.boarded) return;
       await loadItems(state.ownerKsNumber, shelf);
     },
 
     async search(query: string) {
       update({ searchQuery: query });
-      if (!state.ownerKsNumber) return;
+      if (!state.boarded) return;
       await loadItems(state.ownerKsNumber, null, query || undefined);
     },
 
@@ -79,11 +89,11 @@ export function createVisionBoardController(gateway: VisionBoardGateway) {
     },
 
     async create(shelf: VisionShelfCode, itemType: VisionItemTypeCode, title: string, content?: string, usagePolicy?: VisionItemUsagePolicy) {
-      if (!state.ownerKsNumber || state.creating) return null;
+      if (!state.boarded || state.creating) return null;
       update({ creating: true, createError: null });
       try {
         const created = await gateway.create({
-          ownerKsNumber: state.ownerKsNumber, shelf, itemType, title, content, usagePolicy, source: 'OWNER',
+          ownerKsNumber: state.ownerKsNumber ?? undefined, shelf, itemType, title, content, usagePolicy, source: 'OWNER',
         });
         update({ creating: false });
         await loadShelves(state.ownerKsNumber);
@@ -112,7 +122,7 @@ export function createVisionBoardController(gateway: VisionBoardGateway) {
       try {
         const updated = await gateway.update(item.itemId, { title, content, usagePolicy, expectedVersion });
         updateSelected({ busy: false, item: updated });
-        if (state.ownerKsNumber && state.selectedShelf) await loadItems(state.ownerKsNumber, state.selectedShelf, state.searchQuery || undefined);
+        if (state.boarded && state.selectedShelf) await loadItems(state.ownerKsNumber, state.selectedShelf, state.searchQuery || undefined);
       } catch (error) {
         updateSelected({ busy: false, actionError: errorText(error) });
       }
@@ -150,7 +160,7 @@ export function createVisionBoardController(gateway: VisionBoardGateway) {
       try {
         const next = await gateway.supersede(item.itemId, { title, content, expectedVersion });
         updateSelected({ busy: false, item: next });
-        if (state.ownerKsNumber && state.selectedShelf) await loadItems(state.ownerKsNumber, state.selectedShelf, state.searchQuery || undefined);
+        if (state.boarded && state.selectedShelf) await loadItems(state.ownerKsNumber, state.selectedShelf, state.searchQuery || undefined);
       } catch (error) {
         updateSelected({ busy: false, actionError: errorText(error) });
       }

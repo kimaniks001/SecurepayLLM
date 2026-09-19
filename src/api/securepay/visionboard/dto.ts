@@ -44,7 +44,8 @@ export interface VisionItemDto {
 export interface VisionItemListDto { items: VisionItemDto[] }
 
 export interface CreateVisionItemRequest {
-  ownerKsNumber: string;
+  /** Optional (convergence correction, section 43) -- omit to use the signed-in person's own KS. */
+  ownerKsNumber?: string;
   shelf: VisionShelfCode;
   itemType: VisionItemTypeCode;
   title: string;
@@ -70,7 +71,8 @@ export interface SupersedeVisionItemRequest {
 export interface VisionItemLifecycleRequest { expectedVersion: number }
 
 export interface GenerateDocumentRequest {
-  issuingKsNumber: string;
+  /** Optional (convergence correction, section 43) -- omit to use the signed-in person's own KS. */
+  issuingKsNumber?: string;
   agreementId?: string;
   counterpartyName?: string;
   description?: string;
