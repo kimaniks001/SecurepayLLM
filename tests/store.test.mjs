@@ -164,6 +164,46 @@ test('F2. An Offer with no determinate price starts a real conversation but fabr
   assert.deepEqual(calls, ['create-conversation', 'readContext']);
 });
 
+// ─── Final Phase 4 Economy Turn 2 (Sections 2/3/9): real Store source pointer carried into
+// SecurePay's own real commercial-source selection call, never a fabricated title/price/owner. ───
+
+test('F3. "Use this" with a real offer id/owner selects the commercial source before submitting the conversational fact, using one conversation', async () => {
+  const calls = [];
+  const gateway = {
+    createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
+    selectCommercialSource: async (id, body) => { calls.push(['selectCommercialSource', id, body]); return { sourceType: 'STORE_LISTING', sourceId: 'offer-1', sourceTitle: 'CCTV installation', sourceOwnerKsNumber: 'KS007', contextReference: '#/store/KS007/offer/offer-1', capturedPriceMinor: 8500000, capturedCurrency: 'KES', selectedAt: '2026-09-19T00:00:00Z' }; },
+    submitAmount: async (id, body) => { calls.push(['submitAmount', id, body]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+    readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.useOffer({
+    amount: '85000', currency: 'KES', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)',
+    sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007',
+  });
+  assert.equal(calls[0], 'create-conversation');
+  assert.deepEqual(calls[1], ['selectCommercialSource', 'c1', { sourceType: 'STORE_LISTING', sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007' }]);
+  assert.equal(calls[2][0], 'submitAmount');
+  assert.equal(controller.getSnapshot().source?.sourceTitle, 'CCTV installation');
+  assert.equal(controller.getSnapshot().source?.sourceOwnerKsNumber, 'KS007');
+});
+
+test('F4. A failed commercial-source selection never blocks the conversational path (best-effort provenance only)', async () => {
+  const calls = [];
+  const gateway = {
+    createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
+    selectCommercialSource: async () => { calls.push('selectCommercialSource'); throw new Error('offer no longer published'); },
+    submitAmount: async (id, body) => { calls.push(['submitAmount', id, body]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+    readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.useOffer({
+    amount: '85000', currency: 'KES', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)',
+    sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007',
+  });
+  assert.deepEqual(calls, ['create-conversation', 'selectCommercialSource', ['submitAmount', 'c1', { sourceKind: 'STORE_LISTING', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)', amount: '85000', currency: 'KES' }], ['readContext', 'c1']]);
+  assert.equal(controller.getSnapshot().source, null);
+});
+
 // ─── G. No checkout/payment surface anywhere in the Store tree ─────────────────────────
 
 test('G. No Store component/feature file references cart, checkout, or a payment-intent surface', async () => {

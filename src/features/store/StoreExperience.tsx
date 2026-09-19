@@ -40,7 +40,7 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
-  onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string }) => void;
+  onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
   onNavigate: (view: AppView) => void;
 }) {
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
@@ -161,6 +161,10 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
               // offer.version is an as-of update date (no backend Store Offer version/hash exists — see
               // adapters.ts asOfDate); phrased here as "updated", never as a version.
               sourceDescription: `Offer: ${load.offer.title} — ${load.offer.storeName} — offer ${load.offer.id}, updated ${load.offer.version}`,
+              // Final Phase 4 Economy Turn 2 (Section 2/3): the real, stable offer id and owner KS
+              // Number -- never fabricated -- so the backend can attach immutable source provenance
+              // if this conversation ever becomes a real Agreement. See controller.ts's useOffer.
+              sourceId: load.offer.id, sourceOwnerKsNumber: load.store.id,
             });
           }}
         />

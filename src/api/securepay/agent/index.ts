@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, CandidateDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, CandidateDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -31,6 +31,12 @@ export function createAgentGateway(http: HttpClient) {
     readContext: (id: string) => http.request<TradeContextDto>(`${conversation(id)}/context`, { auth: 'none' }),
     adoptFact: (id: string, body: AdoptFactRequest) => http.request<TradeContextDto>(`${conversation(id)}/facts/adopt`, { method: 'POST', body, auth: 'none' }),
     submitAmount: (id: string, body: ExternalFactRequest & { amount: string; currency?: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/amount`, { method: 'POST', body, auth: 'none' }),
+    // Final Phase 4 Economy Turn 2 (Section 3/9) -- records which real commercial source (e.g. a
+    // published Store offer) this conversation is proceeding from. A pointer only -- the backend
+    // re-derives every material fact from the real record itself, never trusting this body's
+    // title/price. Read exactly once, at Agreement-handoff progression, never here.
+    selectCommercialSource: (id: string, body: SelectCommercialSourceRequest) =>
+      http.request<SelectedCommercialSourceDto>(`${conversation(id)}/commercial-source`, { method: 'POST', body, auth: 'none' }),
     submitDate: (id: string, body: ExternalFactRequest & { date: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/date`, { method: 'POST', body, auth: 'none' }),
     lookupPriorTerm: (id: string, body: { sourceAgreementPublicReference: string; termQuery: string; clientTurnId?: string }) => http.request<TradeContextDto>(`${conversation(id)}/prior-agreement-terms`, { method: 'POST', body, auth: 'required' }),
     createHandoff: (id: string, clientActionId?: string) => http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' }),

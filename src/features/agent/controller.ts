@@ -1,6 +1,6 @@
 import type { AgentGateway } from '../../api/securepay/agent';
 import { agentResponseView, tradeContextView } from '../../api/securepay/agent/adapters';
-import type { AdoptFactRequest, ExternalFactRequest, TurnRequest } from '../../api/securepay/agent/dto';
+import type { AdoptFactRequest, ExternalFactRequest, SelectedCommercialSourceDto, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 
 export type ContextView = ReturnType<typeof tradeContextView>;
@@ -14,6 +14,10 @@ export interface AgentState {
   pending: Pending | null;
   error: string | null;
   context: { status: 'idle' | 'loading' | 'ready' | 'error'; data: ContextView | null; error: string | null };
+  // Final Phase 4 Economy Turn 2 (Section 10) -- the real commercial source this conversation is
+  // currently proceeding from, if any (e.g. a selected Store offer). Provenance only, shown before
+  // progression so the person can see "started from X" -- never Agreement/CONFIRMED truth.
+  source: SelectedCommercialSourceDto | null;
 }
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
@@ -27,8 +31,8 @@ export function errorText(error: unknown): string {
   return 'SecurePay could not complete this step. Please try again.';
 }
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null } };
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource'>, id = () => crypto.randomUUID()) {
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
@@ -64,23 +68,25 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       update({ error: errorText(error), context: { status: 'error', data: null, error: 'Refresh to see the current Trade Context.' } });
     } finally { update({ busy: false }); }
   }
+  /**
+   * Final Phase 3 correction (Section 9/13): the ONE persistent SecurePay conversation, made
+   * available to a caller (e.g. Agreement Workspace's Ask panel) that needs the real
+   * conversationId BEFORE it can submit a turn -- e.g. to create/switch an Agreement access
+   * grant on it first. Creates the conversation if one does not exist yet; otherwise returns the
+   * existing one. Never creates a second, separate conversation. A standalone function (not an
+   * object-literal method relying on `this`) so it can be called safely from other methods below.
+   */
+  async function ensureConversationId(): Promise<string> {
+    if (state.conversationId) return state.conversationId;
+    const conversation = await gateway.createConversation();
+    if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
+    update({ conversationId: conversation.conversationId });
+    return conversation.conversationId;
+  }
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    /**
-     * Final Phase 3 correction (Section 9/13): the ONE persistent SecurePay conversation, made
-     * available to a caller (e.g. Agreement Workspace's Ask panel) that needs the real
-     * conversationId BEFORE it can submit a turn -- e.g. to create/switch an Agreement access
-     * grant on it first. Creates the conversation if one does not exist yet; otherwise returns the
-     * existing one. Never creates a second, separate conversation.
-     */
-    async ensureConversationId(): Promise<string> {
-      if (state.conversationId) return state.conversationId;
-      const conversation = await gateway.createConversation();
-      if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
-      update({ conversationId: conversation.conversationId });
-      return conversation.conversationId;
-    },
+    ensureConversationId,
     async send(text: string) {
       if (state.busy || state.pending || !text.trim()) return;
       const clientTurnId = id();
@@ -109,9 +115,26 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * SecurePay's own record of the submission carries it. If the Offer has no determinate price
      * (priceType 'unlisted'), no fact is fabricated; a conversation still starts so the customer can
      * describe the trade in their own words.
+     *
+     * Final Phase 4 Economy Turn 2 (Section 3/9): when the offer's stable id and owner KS Number are
+     * known (real Store data, never fabricated), this ALSO records the real commercial source
+     * pointer via `selectCommercialSource` before the conversational fact is submitted, so the
+     * eventual Agreement (if one forms) can carry immutable source provenance. This is presentation/
+     * provenance-only and never blocks the conversational path: if it fails, the person can still
+     * proceed talking to SecurePay -- a resulting Agreement simply carries no source (Section 8: no
+     * source is better than fabricated provenance).
      */
-    async useOffer(fact: { amount?: string; currency?: string; sourceDescription: string }) {
+    async useOffer(fact: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) {
       if (state.busy || state.pending) return;
+      if (fact.sourceId && fact.sourceOwnerKsNumber) {
+        try {
+          const conversationId = await ensureConversationId();
+          const selection = await gateway.selectCommercialSource(conversationId, {
+            sourceType: 'STORE_LISTING', sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+          });
+          update({ source: selection });
+        } catch { /* best-effort provenance only -- never blocks the conversational path */ }
+      }
       if (fact.amount) {
         await run({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', sourceDescription: fact.sourceDescription, amount: fact.amount, currency: fact.currency } });
         return;

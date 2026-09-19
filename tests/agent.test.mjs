@@ -129,6 +129,30 @@ test('candidate and unknown context render distinct labels, provenance, and only
     if (status === 'FUTURE') assert.match(html, /Unknown state/);
   }
 });
+// Final Phase 4 Economy Turn 2 (Section 10) -- provenance, never authority: TradeContext must show
+// where the conversation is currently proceeding from, without implying the source was accepted.
+test('TradeContext shows real "Started from" source provenance when a commercial source was selected', () => {
+  const { controller } = setup();
+  const state = {
+    ...controller.getSnapshot(),
+    context: { status: 'idle', data: null, error: null },
+    source: {
+      sourceType: 'STORE_LISTING', sourceId: 'offer-1', sourceTitle: 'CCTV installation', sourceOwnerKsNumber: 'KS007',
+      contextReference: '#/store/KS007/offer/offer-1', capturedPriceMinor: 8500000, capturedCurrency: 'KES',
+      selectedAt: '2026-09-19T00:00:00Z',
+    },
+  };
+  const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
+  assert.match(html, /Started from/);
+  assert.match(html, /CCTV installation/);
+  assert.match(html, /KS007/);
+});
+test('TradeContext shows no "Started from" line for an ordinary direct conversation with no selected source', () => {
+  const { controller } = setup();
+  const state = { ...controller.getSnapshot(), context: { status: 'idle', data: null, error: null } };
+  const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
+  assert.doesNotMatch(html, /Started from/);
+});
 test('preview keeps backend prose and disclaimer; unknown rich types preserve top-level message', () => {
   const view = api.agentResponseView({ ...response, components: [{ type: 'FUTURE', data: {} }, { type: 'AGREEMENT_PREVIEW', data: { what: ['Tiling'], who: ['Peter (being considered)'], money: ['Candidate amount'], when: [], stillWorthSettling: ['Date'], disclaimer: 'Not an Agreement' } }] });
   assert.equal(view.message.text, response.message);
