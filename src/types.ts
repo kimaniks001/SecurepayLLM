@@ -421,14 +421,21 @@ export interface AgreementSentResponse extends BaseResponse {
   steps: string[];
 }
 
+/**
+ * Deep-review correction pass: generalized off the old construction/labour-shaped card
+ * ("labour"/"materials"/"completion" fields, always shown) so a service, product, contribution,
+ * project, or general commercial Agreement can all be represented honestly. `purpose` and
+ * `proposedAmount` are optional because the public invitation contract does not always supply
+ * them; a caller must never invent a value for either.
+ */
 export interface RecipientReviewResponse extends BaseResponse {
   type: 'RECIPIENT_REVIEW';
   inviterName: string;
   title: string;
   role: string;
-  labour: string;
-  materials: string;
-  completion: string;
+  purpose: string | null;
+  proposedAmount: string | null;
+  expiry: string;
   primaryLabel: string;
   primaryValue: string;
   secondaryLabel: string;

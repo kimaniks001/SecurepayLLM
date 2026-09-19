@@ -188,6 +188,22 @@ test('Agreement Detail is composed from the real backend detail projection; empt
   assert.deepEqual(progress.actions, []);
 });
 
+// Deep-review correction: agreementProgressView's actions being honestly always-empty (above) meant
+// AgreementOverview's "Next" block, when wired to it, was dead in real production. The real
+// authority is the Hub/Home summary's own nextActions, already backend-sorted -- agreementNextView
+// is a narrow, explicit adapter from that real shape, never a re-ranking.
+test('agreementNextView surfaces the first backend-sorted next action untouched, and returns null when there is none', () => {
+  const sorted = [
+    { actionCode: 'FUND_OBLIGATION', category: 'MONEY', reason: 'Monetary obligation available to fund', deadline: '2026-10-14T00:00:00Z', attentionClass: 'NEEDS_YOU' },
+    { actionCode: 'REVIEW_CHANGE', category: 'AGREEMENT', reason: 'Review the requested change', deadline: null, attentionClass: 'NEEDS_YOU' },
+  ];
+  const next = api.agreementNextView(sorted);
+  assert.equal(next.reason, 'Monetary obligation available to fund');
+  assert.equal(next.attentionClass, 'NEEDS_YOU');
+  assert.ok(next.deadline); // formatted, non-empty
+  assert.equal(api.agreementNextView([]), null);
+});
+
 test('unavailable/empty Detail sections never receive demo values — missing version/participants/milestones stay empty', () => {
   const dto = {
     overview: { agreementId: 'agr-2', publicReference: 'AGR-2', title: 'Untitled', purpose: '', description: '', agreementType: 'SERVICE', status: 'DRAFT', currency: 'KES', proposedAmountMinor: null, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', expiresAt: null },

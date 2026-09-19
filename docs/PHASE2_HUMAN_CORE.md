@@ -90,6 +90,8 @@ suggested:
    the very top of Overview, above "What" — real backend truth, repositioned, never re-derived or
    invented. The Money field is shown quietly (`sand-500`, no bold) when its value is
    `'Not yet specified'` instead of receiving the same weight as a set price.
+   **Corrected by the deep-review pass below — this "Next" wiring was dead in real production; see
+   section J.**
 5. **Recipient invitations carry the SecurePay mark.** `RecipientExperience.tsx`'s page shell now
    shows the SecurePay wordmark above the invitation/review/join/confirm card, matching every other
    standalone page in the product.
@@ -130,6 +132,9 @@ suggested:
   `progress.actions` — the same backend-sourced array the existing Progress tab already renders —
   and picks among real `ActionStatus` values (`overdue`/`needs_you`/`waiting_on_other`/`upcoming`); it
   invents no new status, infers no completion, and renders nothing when no such action exists.
+  **This claim was wrong in one respect** — `progress.actions` (via `agreementProgressView`) is
+  documented in its own code comment as honestly, always empty in real production, so this "Next"
+  block never actually rendered against the real backend path. See section J for the correction.
 
 ## E. Desktop verification
 
@@ -197,11 +202,10 @@ No test was removed, skipped, or weakened. No behavioural/authority test was tou
   deeper rethink of whether ten peer-level tabs is the right information architecture for the whole
   page is a larger product decision than this pass's scope, deferred to a future Agreement Detail
   phase.
-- **`RecipientReviewCard`'s hardcoded Labour/Materials/Complete fields** (locked, byte-identical
-  tested) assume a labour-type Agreement and don't yet generalize to purchase/service/contribution/
-  other Agreement shapes per Section 14. Generalizing it changes a locked component's semantics, not
-  just its surface — deferred, along with updating its fixture test, to whichever phase does that
-  broader "Agreements are bigger than money" pass across recipient-facing surfaces.
+- ~~**`RecipientReviewCard`'s hardcoded Labour/Materials/Complete fields**...~~ **Fixed by the
+  deep-review correction pass — see section J.** This was originally deferred here as too risky to
+  touch in this phase; the deeper review judged it important enough (ahead of Phase 4's Store/
+  Community/Circles work) to fix immediately rather than continue deferring.
 - **`ContextPanel.tsx`'s generic panel-title styling** was left alone rather than given the same
   `.font-display` touch as `TradeContext`'s own label, since `ContextPanel` is a single, widely-shared,
   fixture-parity-tested component spanning many unrelated panel modes (providers, quotes, money
@@ -228,3 +232,102 @@ No test was removed, skipped, or weakened. No behavioural/authority test was tou
   document.
 - Tests: see Test report (G) above.
 - PR: opened as draft/open, unmerged — programme controller performs final review and merge.
+
+---
+
+## J. Deep-review correction pass (2026-09-19)
+
+Phase 2 was merged (PR #21) before a deeper architectural checkpoint reviewed Phases 1-3 together.
+That review found two genuine defects in this phase's own work, both now fixed on branch
+`fix/deep-review-phase2-human-core` (based on merged `main` at `07f24d84bc4cc23f4ac8fcdb7b852429ad5285e1`).
+This section documents the mistakes honestly rather than silently rewriting A-I above.
+
+**J.1 — "Next" was dead in real production.** Section B.4 above claimed `AgreementOverview.tsx`'s
+new leading "Next" block read `progress.actions`, "the same backend-sourced array the existing
+Progress tab already renders." That was true only about *where the data came from*, not about
+*whether it was ever populated*: `agreementProgressView` (`src/features/workspace/view.ts`) returns
+`actions: []` unconditionally, with its own honest doc comment explaining there is no faithful
+mapping from the real backend next-action projection to the old fixture-era `AgreementAction` type.
+So the "Next" block this phase built could only ever render against fixture-shaped test data, never
+against the real backend path — a genuine bug in this phase's own archaeology, not a pre-existing
+issue.
+
+**Fix**: the real authority already exists —
+`CurrentUserAgreementSummaryResponse.nextActions` (`actionCode`/`category`/`reason`/`deadline`/
+`attentionClass`), sourced from the backend's `ParticipantNextActionService` and already
+backend-sorted by urgency, then deadline, then obligation id. `openDetail` in
+`workspace/controller.ts` already receives this exact summary (previously used only to derive
+`selectedStatus`/`selectedCompletion` and then discarded) — it now also stores
+`summary.nextActions` as `selectedAgreementNextActions` on `WorkspaceState`, carried the same way as
+`selectedStatus`/`selectedCompletion` (set on open, reset on `backToHome`/`backToHub`, not re-fetched
+on `refreshDetail`). A new, narrow, explicit adapter,
+`agreementNextView(nextActions): AgreementNextView | null` (`workspace/view.ts`), translates only the
+first (already backend-sorted) action into `{ reason, deadline, attentionClass }` — never re-ranking,
+never forcing it into the unrelated `AgreementAction`/milestone type. `AgreementDetail.tsx` threads
+this through as a new `next` prop, replacing the old `actions={structure?.actions}` wiring entirely.
+The old client-side `actionPriority`/`primaryAction()` ranking in `AgreementOverview.tsx` was
+deleted — the backend already owns ordering. `progress.actions` and the Progress tab's `ActionList`
+are untouched; they were already honestly empty before Phase 2 and remain a separately-documented,
+pre-existing limitation, not something this correction was asked to fix.
+
+**J.2 — Recipient review generalized off its labour-shaped card.** Section A/H above deferred
+generalizing `RecipientReviewCard` on the grounds that it was a locked, tested component and higher
+risk than the phase's scope justified. The deeper review judged this important enough to fix now,
+ahead of Phase 4's Store/Community/Circles work, rather than carry a labour-shaped recipient doorway
+into a phase that will introduce genuinely non-labour Agreement sources.
+
+**Fix**: `recipientReviewView` (`features/recipient/view.ts`) previously forced
+`proposedAmountMinor` into a field literally named `labour` and hardcoded
+`materials: 'Not specified'` — a mapping inherited from the old Bolt card that the public invitation
+contract (`PublicInvitationViewResponse`: `title`/`purpose`/`intendedRole`/`currency`/
+`proposedAmountMinor`/`invitationExpiresAt`, nothing else) never supported. `RecipientReviewResponse`
+(`types.ts`) is now generic: `purpose: string | null` and `proposedAmount: string | null` (both
+`null`, never a fabricated placeholder, when the backend doesn't supply them), and `completion`
+(itself a labour-flavoured field name for what was really just invitation expiry) is renamed
+`expiry: string`. `RecipientReviewCard` (`components/RecipientReview.tsx`) now shows role and expiry
+unconditionally and purpose/proposed amount only when present, with the construction-specific
+Wrench/Package icons replaced by neutral User/FileText/Banknote/Calendar ones, and an explicit
+"Continuing only lets you review this Agreement in detail. It does not join or accept anything yet."
+line added regardless of what the backend's own `notice` text says — reinforcing, never replacing,
+the existing view ≠ join ≠ confirmation boundary. The Bolt fixture's own demo mock
+(`src/mockAgent.ts`) was updated to the same generic field shape (still describing the same bathroom-
+retiling demo scenario — the *content* didn't need to change, only the *field names*, which is
+exactly what "generalize the structure, not necessarily the demo's subject matter" means here).
+
+**Fixture test, updated intentionally**: `tests/recipient.test.mjs`'s
+`recipient review renders unmodified against Bolt when no real notice is supplied...` test asserted
+byte-identical markup against the labour-shaped `bolt-reference-pass11` baseline. That assertion is
+no longer meaningful once the card's data shape itself changed — the old Bolt component cannot even
+render the new field names. It was replaced with
+`recipient review is generic (not labour-shaped) and never fabricates purpose or proposed amount`,
+which asserts the corrected behaviour directly (no "Labour"/"Materials"/"Complete:" text anywhere;
+`purpose`/`proposedAmount` render when supplied and are absent — not blank, entirely absent — when
+not; role/expiry are unconditional; the authority-boundary line and the demo/real notice-caption swap
+both still work), plus a new direct unit test on `recipientReviewView` confirming it never emits a
+`labour`/`materials` key and never fabricates a value when the backend gives `null`/empty. No test
+was disabled or weakened — the old test's *intent* (verify the card's real behaviour) is preserved;
+only the specific shape it was checking against a now-intentionally-changed component was updated.
+
+**What did not change**: `RecipientExperience.tsx`'s phase machine (view → join-prompt → joining →
+version-review → confirm) and every authority boundary in it (view ≠ join, join ≠ confirmation,
+review ≠ agreement) are completely untouched — confirmed by the still-passing, unmodified
+join/confirm/version-authority tests in `tests/recipient.test.mjs`.
+
+**Tests (this correction pass)**: baseline (clean `origin/main` checkout, before any change) —
+`npm run typecheck`/`lint` clean, `node --test tests/*.mjs` 351 passed / 4 pre-existing unrelated
+failures (identical to Phases 1-3's own recorded baseline), `npm run build` succeeds. After this
+correction — `npm run typecheck`/`lint` clean, `node --test tests/*.mjs` **353** passed (2 new tests:
+`agreementNextView` in `tests/signed-in.test.mjs`, `recipientReviewView` in `tests/recipient.test.mjs`)
+/ the same 4 pre-existing unrelated failures, `npm run build` succeeds. No behavioural/authority test
+was weakened; the one fixture-parity assertion that needed to change was replaced deliberately, per
+the explanation above, not disabled.
+
+**Git**: branch `fix/deep-review-phase2-human-core`, based on `origin/main` at `07f24d8` (Phase 1 + 2
+merged). Files changed: `src/components/AgreementDetail.tsx`, `src/components/AgreementOverview.tsx`,
+`src/components/RecipientReview.tsx`, `src/features/recipient/view.ts`,
+`src/features/workspace/WorkspaceExperience.tsx`, `src/features/workspace/controller.ts`,
+`src/features/workspace/view.ts`, `src/mockAgent.ts`, `src/types.ts`, `tests/recipient.test.mjs`,
+`tests/signed-in.test.mjs`, plus this document. Opened as a focused, separate PR — not merged by this
+pass; the Phase 3 branch (PR #22) separately incorporates this same correction (see
+`docs/PHASE3_MONEY_WORLD.md` section on the correction pass) since Phase 3 does not itself touch any
+of these files.
