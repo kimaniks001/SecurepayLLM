@@ -22,7 +22,12 @@ test('PR11 review closure: assigned Master requests are reachable by request ref
 });
 
 test('PR11 review closure: Master create errors do not force navigation to request detail', () => {
-  assert.match(masterExperience, /controller\.submitRequest\(\)\.then\(ok\s*=>\s*\{\s*if\s*\(ok\)\s*setView\(['"]request-detail['"]\)/s);
+  // The implementation was later refactored from a single "if (ok) setView(...)" line to an
+  // early-return guard ("if (!ok) return;" ... "setView('request-detail')") so it could also
+  // capture the newly-created request's own id for the lookup field on success -- the doctrine
+  // this test protects (a failed submit never navigates to request-detail) is unchanged; only the
+  // exact code shape asserting it needed updating.
+  assert.match(masterExperience, /controller\.submitRequest\(\)\.then\(ok\s*=>\s*\{\s*if\s*\(!ok\)\s*return;[\s\S]*?setView\(['"]request-detail['"]\)/);
 });
 
 test('PR11 review closure: Plug market request retries retain one logical idempotency key', () => {

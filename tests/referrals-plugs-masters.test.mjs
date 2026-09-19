@@ -288,6 +288,12 @@ test('J. Opening a relationship never itself attributes a Plug to an agreement â
     openRelationship: async () => customerPlugRelationshipResponse(), relationshipLifecycle: async () => ({}),
     attribution: { attributePlug: async () => { attributeCalled = true; return agreementPlugAttributionResponse(); }, plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() },
   });
+  // openRelationship is guarded on a confirmed selection (real doctrine: you cannot open a
+  // relationship with a candidate you haven't actually selected) -- this test previously omitted
+  // that setup step entirely, so the guard silently no-opped it and the assertions below passed for
+  // the wrong reason (relationship.status never left 'idle'). Fixed to exercise the real sequence.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   assert.equal(controller.getSnapshot().relationship.status, 'ready');
   assert.equal(attributeCalled, false);
@@ -300,6 +306,9 @@ test('K. attributeToAgreement submits exactly the real relationshipRef obtained 
     openRelationship: async () => customerPlugRelationshipResponse({ relationshipRef: 'real-rel-ref-42' }), relationshipLifecycle: async () => ({}),
     attribution: { attributePlug: async (_agreementId, relationshipRef) => { receivedRef = relationshipRef; return agreementPlugAttributionResponse({ relationshipRef }); }, plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() },
   });
+  // See J's own comment: openRelationship is guarded on a confirmed selection.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   const relationshipRef = controller.getSnapshot().relationship.data.relationshipRef;
   await controller.attributeToAgreement('agr-1', relationshipRef);
@@ -497,6 +506,9 @@ test('AF1. Master controller resetSession clears request/opinion/draft but keeps
 
 test('AF2. Plug controller reset clears candidates/relationship/attribution state', async () => {
   const controller = api.plugController.createPlugController({ createRequest: async () => customerMarketRequestResponse(), candidates: async () => [interestedCandidateResponse()], selectCandidate: async () => ({}), openRelationship: async () => customerPlugRelationshipResponse(), relationshipLifecycle: async () => ({}), attribution: { attributePlug: async () => agreementPlugAttributionResponse(), plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() } });
+  // See J's own comment: openRelationship is guarded on a confirmed selection.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   assert.equal(controller.getSnapshot().relationship.status, 'ready');
   controller.reset();
