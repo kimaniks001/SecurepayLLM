@@ -1,7 +1,7 @@
 import type {
   AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
   AgreementMoneyRecordResponse, AgreementProblemSummaryResponse, CurrentUserAgreementSummaryResponse,
-  MilestoneEffectiveStateResponse, RecentActivityEntryResponse,
+  MilestoneEffectiveStateResponse, RecentActivityEntryResponse, WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
@@ -365,6 +365,34 @@ export function agreementProgressView(
   // one-to-one backend equivalent this slice; the authoritative next-action projection is already
   // surfaced via Needs-attention (Home) and Money's next-actions — this list stays truthfully empty.
   return { milestones, isSimple, rootMilestone, actions: [] };
+}
+
+// ─── Agreement Detail "Next" (deep-review correction) ───────────────────────
+//
+// A previous pass wired AgreementOverview's leading "Next" block to agreementProgressView's own
+// `actions`, which is (honestly, by the comment above) always empty in real production -- so that
+// block was dead code against the real backend path. The actual authoritative per-participant next
+// action already exists on the Hub/Home summary that was used to open this Agreement
+// (CurrentUserAgreementSummaryResponse.nextActions), pre-sorted by the backend's own
+// ParticipantNextActionService (urgency, then deadline, then obligation id). This is a narrow,
+// explicit adapter from that real shape to what Overview needs -- never a re-ranking, never forcing
+// it into the unrelated AgreementAction/milestone type.
+
+export interface AgreementNextView {
+  reason: string;
+  deadline: string | null;
+  attentionClass: string;
+}
+
+/** The first backend-sorted next action, translated for display -- `null` when there is none, never a fabricated fallback. */
+export function agreementNextView(nextActions: WorkspaceNextActionResponse[]): AgreementNextView | null {
+  const first = nextActions[0];
+  if (!first) return null;
+  return {
+    reason: first.reason,
+    deadline: first.deadline ? formatShortDate(first.deadline) : null,
+    attentionClass: first.attentionClass,
+  };
 }
 
 // ─── Money ────────────────────────────────────────────────────────────────

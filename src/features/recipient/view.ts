@@ -15,16 +15,24 @@ function formatDate(iso: string): string {
   return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-/** Composes the locked recipient-review card from backend public-invitation facts only; no inviter identity or trade detail beyond what SecurePay actually returns. */
+/**
+ * Composes the recipient-review card from backend public-invitation facts only -- no inviter
+ * identity or trade detail beyond what SecurePay actually returns. Deep-review correction: the
+ * previous version forced `proposedAmountMinor` into a "labour" field and hardcoded
+ * `materials: 'Not specified'`, encoding a construction/labour assumption the public invitation
+ * contract does not make. `purpose`/`proposedAmount` are `null` (never a fabricated placeholder
+ * string) when the backend doesn't supply them, so the card can honestly represent a service,
+ * product, contribution, project, or any other Agreement shape.
+ */
 export function recipientReviewView(invitation: PublicInvitationViewResponse): RecipientReviewResponse {
   return {
     type: 'RECIPIENT_REVIEW',
     inviterName: 'Someone',
     title: invitation.title,
     role: invitation.intendedRole,
-    labour: formatMoney(invitation.currency, invitation.proposedAmountMinor),
-    materials: 'Not specified',
-    completion: `Invitation expires ${formatDate(invitation.invitationExpiresAt)}`,
+    purpose: invitation.purpose || null,
+    proposedAmount: invitation.proposedAmountMinor != null ? formatMoney(invitation.currency, invitation.proposedAmountMinor) : null,
+    expiry: `Invitation expires ${formatDate(invitation.invitationExpiresAt)}`,
     primaryLabel: 'Continue',
     primaryValue: 'continue_review',
     secondaryLabel: "Not me / I wasn't expecting this",
