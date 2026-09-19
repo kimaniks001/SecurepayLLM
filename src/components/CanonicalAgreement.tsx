@@ -61,6 +61,17 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
             <span className="text-[0.875rem] font-medium text-forest-800">{data.price}</span>
           </Section>
 
+          {/* Final Phase 4 Economy Turn 3 (Section 6) -- provenance/commercial context only. This
+              is NOT: an accepted offer, Agreement authority, participant authority, or payment
+              authority. */}
+          {data.source && (
+            <Section label="Started from">
+              <div className="text-[0.875rem] text-forest-800">{data.source.title}{data.source.ownerKsNumber ? ` · ${data.source.ownerKsNumber}` : ''}</div>
+              <div className="text-[0.78rem] text-sand-500">Proposed price: {data.source.priceLine}</div>
+              <div className={`mt-1 text-[0.7rem] font-medium uppercase tracking-wide ${data.source.status === 'CURRENT' ? 'text-forest-600' : 'text-ember-600'}`}>Source status: {data.source.statusLabel}</div>
+            </Section>
+          )}
+
           {data.materials && (
             <Section label="Materials">
               <span className="text-[0.875rem] text-forest-800">{data.materials}</span>

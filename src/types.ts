@@ -397,6 +397,10 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   parties: { name: string; role: string }[];
   work: string[];
   price: string;
+  // Final Phase 4 Economy Turn 3 (Section 6) -- provenance/commercial context only, never
+  // Agreement/participant/payment authority: the reviewed commercial source (e.g. a Store offer)
+  // this handoff is proceeding from, if any.
+  source?: { title: string; ownerKsNumber: string | null; priceLine: string; status: 'CURRENT' | 'CHANGED' | 'UNAVAILABLE'; statusLabel: string };
   materials?: string;
   completion: string;
   defects?: string;

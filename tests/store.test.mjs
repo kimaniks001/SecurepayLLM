@@ -187,7 +187,10 @@ test('F3. "Use this" with a real offer id/owner selects the commercial source be
   assert.equal(controller.getSnapshot().source?.sourceOwnerKsNumber, 'KS007');
 });
 
-test('F4. A failed commercial-source selection never blocks the conversational path (best-effort provenance only)', async () => {
+// Final Phase 4 Economy Turn 3 (Section 5) correction: a failed commercial-source selection must
+// never silently continue as a DIRECT trade that still carries the Store's amount/description --
+// that would retain source-derived facts while discarding the provenance that justified them.
+test('F4. A failed commercial-source selection stops before submitting the offer, never silently becoming a DIRECT trade', async () => {
   const calls = [];
   const gateway = {
     createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
@@ -200,8 +203,54 @@ test('F4. A failed commercial-source selection never blocks the conversational p
     amount: '85000', currency: 'KES', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)',
     sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007',
   });
-  assert.deepEqual(calls, ['create-conversation', 'selectCommercialSource', ['submitAmount', 'c1', { sourceKind: 'STORE_LISTING', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)', amount: '85000', currency: 'KES' }], ['readContext', 'c1']]);
+  assert.deepEqual(calls, ['create-conversation', 'selectCommercialSource']);
   assert.equal(controller.getSnapshot().source, null);
+  assert.ok(controller.getSnapshot().offerSelectionFailure);
+  assert.equal(controller.getSnapshot().offerSelectionFailure.fact.sourceId, 'offer-1');
+});
+
+test('F5. retryOfferSelection re-attempts the exact same offer and clears the failure on success', async () => {
+  const calls = [];
+  let fail = true;
+  const gateway = {
+    createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
+    selectCommercialSource: async (id, body) => {
+      calls.push(['selectCommercialSource', id, body]);
+      if (fail) { fail = false; throw new Error('offer no longer published'); }
+      return { sourceType: 'STORE_LISTING', sourceId: 'offer-1', sourceTitle: 'CCTV installation', sourceOwnerKsNumber: 'KS007', contextReference: '#/store/KS007/offer/offer-1', capturedPriceMinor: 8500000, capturedCurrency: 'KES', selectedAt: '2026-09-19T00:00:00Z' };
+    },
+    submitAmount: async (id, body) => { calls.push(['submitAmount', id, body]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+    readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.useOffer({
+    amount: '85000', currency: 'KES', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)',
+    sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007',
+  });
+  assert.ok(controller.getSnapshot().offerSelectionFailure);
+  await controller.retryOfferSelection();
+  assert.equal(controller.getSnapshot().offerSelectionFailure, null);
+  assert.equal(controller.getSnapshot().source?.sourceTitle, 'CCTV installation');
+  assert.ok(calls.some(call => call[0] === 'submitAmount'));
+});
+
+test('F6. continueOfferWithoutSource clears provenance, then submits the amount as an ordinary fact', async () => {
+  const calls = [];
+  const gateway = {
+    createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
+    selectCommercialSource: async () => { calls.push('selectCommercialSource'); throw new Error('offer no longer published'); },
+    submitAmount: async (id, body) => { calls.push(['submitAmount', id, body]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+    readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.useOffer({
+    amount: '85000', currency: 'KES', sourceDescription: 'Offer: CCTV installation — Keyman Security — offer offer-1 (2026-09-10)',
+    sourceId: 'offer-1', sourceOwnerKsNumber: 'KS007',
+  });
+  await controller.continueOfferWithoutSource();
+  assert.equal(controller.getSnapshot().offerSelectionFailure, null);
+  assert.equal(controller.getSnapshot().source, null);
+  assert.ok(calls.some(call => call[0] === 'submitAmount'));
 });
 
 // ─── G. No checkout/payment surface anywhere in the Store tree ─────────────────────────

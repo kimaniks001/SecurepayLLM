@@ -77,12 +77,23 @@ export function HandoffPanel({ handoff, identity, onDone }: { handoff: HandoffCo
   }
 
   if (state.phase === 'review-stale' && state.handoff) {
-    // A stale handoff is discarded by the backend; re-reading it cannot make it fresh. Only a
-    // new explicit "Continue with this" (after returning to the conversation) creates a new one.
+    // A stale handoff is discarded by the backend; re-reading it cannot make it fresh.
+    // Final Phase 4 Economy Turn 3 (Section 7) -- when staleness traces to a CHANGED (not
+    // UNAVAILABLE) bound source, offer the explicit "review/use current source" choice, which
+    // mints a fresh handoff from the live facts without mutating this stale one. Otherwise
+    // (ordinary Trade Context drift, or the source going away entirely) only a fresh "Continue
+    // with this" from the conversation can start over.
+    const canUseCurrentSource = state.handoff.reviewedSource?.sourceStatus === 'CHANGED';
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
-        <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Start a fresh continuation', value: 'restart' }] }} onChoice={leave} />
+        <ChoiceButtons
+          data={{ type: 'CHOICE_BUTTONS', choices: [
+            ...(canUseCurrentSource ? [{ label: 'Review current source', value: 'use_current_source' }] : []),
+            { label: 'Start a fresh continuation', value: 'restart' },
+          ] }}
+          onChoice={value => { if (value === 'use_current_source') void handoff.useCurrentSource(); else leave(); }}
+        />
       </div>
     );
   }

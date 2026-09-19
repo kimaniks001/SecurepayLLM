@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, CandidateDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -42,8 +42,12 @@ export function createAgentGateway(http: HttpClient) {
     createHandoff: (id: string, clientActionId?: string) => http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' }),
     readHandoff: (id: string) => http.request<HandoffDto>(handoff(id), { auth: 'optional' }),
     adoptHandoff: (id: string) => http.request<HandoffDto>(`${handoff(id)}/adopt`, { method: 'POST', auth: 'required' }),
-    reviewHandoff: (id: string) => http.request<CandidateDto>(`${handoff(id)}/review`, { auth: 'required' }),
+    reviewHandoff: (id: string) => http.request<AgreementReviewResponseDto>(`${handoff(id)}/review`, { auth: 'required' }),
     continueHandoff: (id: string, body: ContinueHandoffRequest) => http.request<HandoffDto>(`${handoff(id)}/continue`, { method: 'POST', body, auth: 'required' }),
+    // Final Phase 4 Economy Turn 3 (Section 7) -- "review/use current source": never mutates the
+    // old, stale handoff; mints a brand new one bound to a freshly re-captured source selection.
+    useCurrentSource: (id: string, clientActionId?: string) =>
+      http.request<HandoffDto>(`${handoff(id)}/use-current-source`, { method: 'POST', body: { clientActionId }, auth: 'required' }),
   };
 }
 export type AgentGateway = ReturnType<typeof createAgentGateway>;
