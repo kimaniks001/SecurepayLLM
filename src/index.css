@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #faf7f0;
+    color: #244936;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  ::selection {
+    background-color: rgba(58, 115, 85, 0.15);
+    color: #1d3a2b;
+  }
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-feature-settings: 'ss01';
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(58, 115, 85, 0.2) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(58, 115, 85, 0.15);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(58, 115, 85, 0.3);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer utilities {
+  .transition-fact {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .transition-card {
+    transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+  }
+  .transition-panel {
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  }
+  .bg-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(58, 115, 85, 0.06) 50%, transparent 100%);
+    background-size: 200% 100%;
+  }
+
+  .animate-breathe-soft {
+    animation: breatheSoft 4s ease-in-out infinite;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+  }
+  .animate-fade-in-down {
+    animation: fadeInDown 0.4s ease-out;
+  }
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s ease-out;
+  }
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+  .animate-thinking {
+    animation: thinking 1.4s ease-in-out infinite;
+  }
+  .animate-settle {
+    animation: settle 0.6s ease-out;
+  }
+  .animate-gentle-pulse {
+    animation: gentlePulse 2.5s ease-in-out infinite;
+  }
+  .animate-fact-settle {
+    animation: factSettle 0.7s ease-out;
+  }
+  .animate-reveal-stagger {
+    animation: revealStagger 0.5s ease-out backwards;
+  }
+  .animate-quiet-in {
+    animation: quietIn 0.4s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes breatheSoft {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+@keyframes thinking {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@keyframes settle {
+  0% { transform: scale(0.95); opacity: 0; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes gentlePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(58, 115, 85, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(58, 115, 85, 0.08); }
+}
+@keyframes factSettle {
+  0% { opacity: 0; transform: translateY(6px); background-color: rgba(58, 115, 85, 0.06); }
+  40% { background-color: rgba(58, 115, 85, 0.06); }
+  100% { opacity: 1; transform: translateY(0); background-color: transparent; }
+}
+@keyframes revealStagger {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes quietIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
