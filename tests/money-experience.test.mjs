@@ -155,3 +155,39 @@ test('Section 9/10: the hosted page reuses the same session API a real embedded 
   assert.match(hostedExperience, /gateway\.redeem\(token\)/);
   assert.match(hostedExperience, /embedded/i);
 });
+
+// Deep-review correction pass: the initial Money Home overview summed
+// CurrentUserAgreementSummaryResponse.proposedAmountMinor across Agreements and called the result
+// "what you have" -- a proposed Agreement amount is not money the person has; it may never be
+// funded at all. The real aggregate already exists (agreementGateway.home()'s own moneyByCurrency,
+// AgreementMoneySummaryService's own established-positions-only total) and must be used unchanged.
+test('deep-review correction: Money Home renders the real backend Agreement Money aggregate, never a client sum of proposed amounts', () => {
+  assert.match(experience, /agreementGateway\.home\(\)/);
+  assert.match(experience, /moneyByCurrency/);
+  assert.match(experience, /remainingFundedMinor/);
+  assert.doesNotMatch(experience, /proposedAmountMinor.*totalMinor|totalMinor.*proposedAmountMinor/s);
+  // Needs-your-attention now reuses the backend's own needsMe classification, not an independent
+  // currentUserAgreements() + attentionRequired re-filter for this surface.
+  assert.match(experience, /response\.needsMe/);
+});
+
+test('deep-review correction: a non-established position never describes its proposed amount as already protected', () => {
+  const start = experience.indexOf('!position.established');
+  assert.ok(start >= 0);
+  const block = experience.slice(start, start + 600);
+  assert.match(block, /Proposed:/);
+  assert.doesNotMatch(block, /proposedAmountMinor[^}]*\}\s*protected/);
+});
+
+test('deep-review correction: open() never claims money was funded/protected; release() never implies a generic balance', () => {
+  const openStart = experience.indexOf('authorityGateway.open(a, o)');
+  assert.ok(openStart >= 0);
+  const openBlock = experience.slice(openStart, openStart + 200);
+  assert.doesNotMatch(openBlock, /This money is now protected/);
+  assert.match(openBlock, /ready/i);
+
+  const releaseStart = experience.indexOf('authorityGateway.release(a, o)');
+  assert.ok(releaseStart >= 0);
+  const releaseBlock = experience.slice(releaseStart, releaseStart + 300);
+  assert.match(releaseBlock, /funder/i);
+});

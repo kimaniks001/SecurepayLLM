@@ -87,10 +87,12 @@ export function FxConversionSection({ regulatedAccountsGateway, fxApplicationGat
               <button onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
             </div>
             <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            {/* Phase 3 Money World (Section 18): FxApplicationResponse carries no rate/fee field --
-                Choice's own contract is application-based, never an instant quote -- so this says so
-                honestly instead of fabricating or silently omitting a rate. */}
-            <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply -- the rate is set when the provider approves your application.</p>
+            {/* Phase 3 Money World (Section 18), corrected by the deep-review pass: FxApplicationResponse
+                carries no rate/fee field -- Choice's own contract is application-based, never an
+                instant quote -- so this says so honestly. The original wording claimed the rate is
+                "set when the provider approves the application," which overstates what this
+                frontend/backend contract actually proves -- narrowed to what's genuinely known. */}
+            <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply. The confirmed rate will come from the provider when it becomes available.</p>
             <Button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount}>Convert</Button>
           </>
         )}

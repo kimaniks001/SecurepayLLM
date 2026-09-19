@@ -109,7 +109,9 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
               <button onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
             </div>
             <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply -- the rate is set when the provider approves the application.</p>
+            {/* Deep-review correction: the original wording claimed the rate is "set when the
+                provider approves the application," which overstates what this contract proves. */}
+            <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply. The confirmed rate will come from the provider when it becomes available.</p>
             <Button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount}>Convert</Button>
           </>
         )}

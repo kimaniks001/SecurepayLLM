@@ -11,7 +11,7 @@ import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AgreementGateway } from '../../api/securepay/agreements';
-import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import type { AgreementMoneyByCurrencyResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type {
   AgreementFundedAuthorityStatusResponse,
   AgreementMoneyTransactionResponse,
@@ -42,21 +42,6 @@ import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
-}
-
-/** For grouping already-authoritative per-Agreement amounts by currency -- never a new financial fact, only addition within one currency at a time (Phase 3 Section 19: currencies are never mixed into one total). */
-function groupByCurrency(agreements: CurrentUserAgreementSummaryResponse[]): Map<string, { count: number; totalMinor: number }> {
-  const groups = new Map<string, { count: number; totalMinor: number }>();
-  for (const agreement of agreements) {
-    if (agreement.proposedAmountMinor == null) continue;
-    const amount = Number(agreement.proposedAmountMinor);
-    if (!Number.isFinite(amount)) continue;
-    const entry = groups.get(agreement.currency) ?? { count: 0, totalMinor: 0 };
-    entry.count += 1;
-    entry.totalMinor += amount;
-    groups.set(agreement.currency, entry);
-  }
-  return groups;
 }
 
 function errorText(error: unknown) {
@@ -162,29 +147,35 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
 }
 
 /**
- * Money Home (Phase 3, Section 4): answers "what do I have" and "what needs my attention" the
- * instant Money opens, from the same currentUserAgreements() read the Agreement picker below
- * already makes -- one call, no new endpoint, no new authority. "What you have" totals a proposed
- * amount per currency (never mixed across currencies) straight off each Agreement's own
- * proposedAmountMinor/currency; this is addition, not a new financial fact, and it is never used to
- * gate any action. "Needs your attention" is the backend's own attentionRequired flag and its own
- * next-action reason text, filtered to Agreements that carry money -- never a client-guessed
- * category. What is actually protected/funded/ready-to-progress for one Agreement still lives only
- * in that Agreement's own Agreement Money position below, which this screen does not calculate.
+ * Money Home (Phase 3 Section 4, corrected by the deep-review pass): answers "what do I have" and
+ * "what needs my attention" from the same authoritative aggregate the backend already computes for
+ * this purpose -- `GET /api/v1/me/agreements/home` (`agreementGateway.home()`), which the initial
+ * archaeology pass missed entirely (it was already fetched for Signed-in Home, just never reused
+ * here). `moneyByCurrency` (`fundedTotalMinor`/`exercisedOrSettledMinor`/`releasedTotalMinor`/
+ * `remainingFundedMinor`/`positionCount` per currency) is `AgreementMoneySummaryService`'s own
+ * aggregate over established Agreement Money positions -- it never combines currencies and never
+ * invents an FX equivalent, so this component renders it exactly as returned, with zero client
+ * arithmetic. "Needs your attention" reuses the same response's own `needsMe` bucket (already
+ * backend-classified) rather than independently fetching and re-filtering the full Agreement list.
  */
 function MoneyHomeOverview({ agreementGateway, onOpenAgreement }: {
   agreementGateway: AgreementGateway;
   onOpenAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
 }) {
-  const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
+  const [moneyByCurrency, setMoneyByCurrency] = useState<AgreementMoneyByCurrencyResponse[] | null>(null);
+  const [needsMe, setNeedsMe] = useState<CurrentUserAgreementSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true); setError(null);
-    agreementGateway.currentUserAgreements()
-      .then(response => { if (!cancelled) setAgreements(response.items); })
+    agreementGateway.home()
+      .then(response => {
+        if (cancelled) return;
+        setMoneyByCurrency(response.moneyByCurrency);
+        setNeedsMe(response.needsMe);
+      })
       .catch(cause => { if (!cancelled) setError(errorText(cause)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -192,39 +183,48 @@ function MoneyHomeOverview({ agreementGateway, onOpenAgreement }: {
 
   if (loading) return <p role="status" className="text-sm text-sand-500">Loading what you have…</p>;
   if (error) return <StatusNotice tone="warning">{error}</StatusNotice>;
-  if (!agreements) return null;
+  if (!moneyByCurrency) return null;
 
-  const withMoney = agreements.filter(a => a.proposedAmountMinor != null);
-  if (withMoney.length === 0) {
+  if (moneyByCurrency.length === 0) {
     return (
       <Surface><SurfaceBody>
-        <p className="text-sm text-sand-600">None of your Agreements involve money yet. Once one does, it will appear here.</p>
+        <p className="text-sm text-sand-600">No Agreement Money is established yet. Once an Agreement's money is protected, it will appear here.</p>
       </SurfaceBody></Surface>
     );
   }
 
-  const byCurrency = groupByCurrency(withMoney);
-  const needsAttention = withMoney.filter(a => a.attentionRequired);
+  // Needs-your-attention here is scoped to money-bearing Agreements specifically -- a real,
+  // unambiguous field (proposedAmountMinor present), never a client-guessed "money category."
+  const moneyNeedsAttention = needsMe.filter(a => a.proposedAmountMinor != null);
 
   return (
     <Surface>
       <SurfaceHeader
-        title="What you have"
-        description="Proposed amounts across your Agreements. What is actually protected or ready to progress lives inside each Agreement below."
+        title="Agreement Money"
+        description="Money currently protected across your Agreements. This total comes directly from SecurePay, not calculated by this screen."
       />
       <SurfaceBody>
-        <div className="flex flex-wrap gap-3">
-          {[...byCurrency.entries()].map(([currency, { count, totalMinor }]) => (
-            <div key={currency} className="rounded-xl bg-cream-50 px-4 py-3">
-              <MoneyValue amount={money(totalMinor, currency)} size="lg" />
-              <p className="text-xs text-sand-500 mt-0.5">across {count} agreement{count === 1 ? '' : 's'}</p>
+        <div className="flex flex-wrap gap-4">
+          {moneyByCurrency.map(entry => (
+            <div key={entry.currency} className="rounded-xl bg-cream-50 px-4 py-3 space-y-1">
+              <div>
+                <MoneyValue amount={money(entry.remainingFundedMinor, entry.currency)} size="lg" />
+                <p className="text-xs text-sand-500 mt-0.5">
+                  Available within Agreements · {entry.positionCount} position{entry.positionCount === 1 ? '' : 's'}
+                </p>
+              </div>
+              <div className="text-[0.72rem] text-sand-500 space-y-0.5 pt-1 border-t border-cream-200">
+                <div>Protected/funded: <MoneyValue amount={money(entry.fundedTotalMinor, entry.currency)} size="sm" /></div>
+                <div>Progressed: <MoneyValue amount={money(entry.exercisedOrSettledMinor, entry.currency)} size="sm" /></div>
+                <div>Released: <MoneyValue amount={money(entry.releasedTotalMinor, entry.currency)} size="sm" /></div>
+              </div>
             </div>
           ))}
         </div>
-        {needsAttention.length > 0 && (
+        {moneyNeedsAttention.length > 0 && (
           <div className="space-y-2">
             <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Needs your attention</div>
-            {needsAttention.map(agreement => (
+            {moneyNeedsAttention.map(agreement => (
               <button
                 key={agreement.agreementId}
                 onClick={() => onOpenAgreement(agreement)}
@@ -341,8 +341,10 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
   // the one the person just submitted or that the backend's own release response returned, never a
   // recomputed total.
   const protect = () => withObligation(async (a, o) => {
+    // Deep-review correction (Section 18): open() establishes the Funded Authority ceiling -- it
+    // does not itself move or fund any money. The success message must not imply money did.
     await authorityGateway.open(a, o);
-    setSuccessMessage(`This money is now protected for ${selectedAgreement?.title ?? 'this Agreement'}.`);
+    setSuccessMessage(`Agreement Money is now ready for ${selectedAgreement?.title ?? 'this Agreement'}.`);
   });
   const fund = () => withObligation(async (a, o) => {
     if (!fundAmount) return;
@@ -361,8 +363,11 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
     setSuccessMessage(`${money(amountMinor, currency)} has been progressed within SecurePay for ${selectedAgreement?.title ?? 'this Agreement'}.`);
   });
   const releaseUnused = () => withObligation(async (a, o) => {
+    // Deep-review correction (Section 18): release() returns unexercised funded money to the
+    // rightful funder(s) and closes that lifecycle -- it must never read as if the money simply
+    // became generic available balance.
     const response = await authorityGateway.release(a, o);
-    setSuccessMessage(`${money(response.releasedTotalMinor, selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '')} has been released back for ${selectedAgreement?.title ?? 'this Agreement'}.`);
+    setSuccessMessage(`${money(response.releasedTotalMinor, selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '')} has been released back to the funder(s) for ${selectedAgreement?.title ?? 'this Agreement'}.`);
   });
 
   const loadHistory = async () => {
@@ -504,16 +509,27 @@ function AgreementMoneyPositionCard({
     return (
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
-        {position.proposedAmountMinor != null && <p><MoneyValue amount={money(position.proposedAmountMinor, currency)} size="sm" /> protected</p>}
+        {/* Deep-review correction (Section 19): a proposed amount is not yet protected money --
+            it must never carry the same "protected" word as an established position's real total. */}
+        {position.proposedAmountMinor != null && <p>Proposed: <MoneyValue amount={money(position.proposedAmountMinor, currency)} size="sm" /></p>}
         <p className="text-xs text-sand-600">Not yet protected{position.reasonCode ? ` (${position.reasonCode})` : ''}.</p>
         <Button onClick={onProtect} disabled={loading}>Protect this money</Button>
       </div>
     );
   }
 
-  const totalProtected = position.authorisedMaxAmountMinor ?? 0;
+  /*
+   * Deep-review correction (Section 20): every figure below is a direct backend field, not an
+   * invented client total. `authorisedMaxAmountMinor` is the position's own established ceiling
+   * ("protected," matching the "Not yet protected" bootstrapping state above) -- it is never itself
+   * funded/moved money. The one subtraction here (authorisedMaxAmountMinor - fundedTotalMinor) is
+   * captioned explicitly so its meaning is never left to guesswork: it is the part of that ceiling
+   * not yet funded, distinct from remainingFundedMinor ("Ready to progress"), which is already-
+   * funded money not yet exercised or released.
+   */
+  const authorisedMax = position.authorisedMaxAmountMinor ?? 0;
   const readyToProgress = position.remainingFundedMinor ?? 0;
-  const stillProtected = Math.max(0, totalProtected - (position.fundedTotalMinor ?? 0));
+  const notYetFunded = Math.max(0, authorisedMax - (position.fundedTotalMinor ?? 0));
   const progressed = position.exercisedOrSettledMinor ?? 0;
   const returned = position.releasedTotalMinor ?? 0;
 
@@ -522,14 +538,23 @@ function AgreementMoneyPositionCard({
       {successMessage && <StatusNotice tone="success" icon={false}>{successMessage}</StatusNotice>}
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
-        <p><MoneyValue amount={money(totalProtected, currency)} size="md" /> protected</p>
+        <div>
+          <p><MoneyValue amount={money(authorisedMax, currency)} size="md" /> protected</p>
+          <p className="text-xs text-sand-500">Authorised maximum for this obligation</p>
+        </div>
         {readyToProgress > 0 && (
           <div className="pl-3 border-l-2 border-forest-300">
             <div><MoneyValue amount={money(readyToProgress, currency)} size="sm" /> <span className="text-forest-700 font-medium">Ready to progress</span></div>
+            <div className="text-xs text-sand-500">Already funded, not yet progressed or released</div>
             {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
           </div>
         )}
-        {stillProtected > 0 && <div className="pl-3 border-l-2 border-cream-300"><MoneyValue amount={money(stillProtected, currency)} size="sm" /> Still protected</div>}
+        {notYetFunded > 0 && (
+          <div className="pl-3 border-l-2 border-cream-300">
+            <div><MoneyValue amount={money(notYetFunded, currency)} size="sm" /> Still protected</div>
+            <div className="text-xs text-sand-500">Within the authorised maximum, not yet funded</div>
+          </div>
+        )}
         {progressed > 0 && (
           <div className="text-xs text-sand-600">
             <MoneyValue amount={money(progressed, currency)} size="sm" /> Progressed within SecurePay

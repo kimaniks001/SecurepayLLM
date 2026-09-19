@@ -46,13 +46,16 @@ are **not duplicates** — they operate at different scopes (bring money into th
 allocate already-available money to one specific position) — but the UI never explained that
 relationship, so a person could reasonably read it as two ways to do the same thing.
 
-**No aggregate "all my money" endpoint exists anywhere in the contract surface.** Every money read
-is either Agreement-scoped (`money-authority.list(agreementId)`, `payment-intent.*(agreementId)`) or
-platform-wide/ops-scoped (`money-operations.summary()`, not personal). `CurrentUserAgreementSummaryResponse`
-(from `agreementGateway.currentUserAgreements()`, already fetched by the existing Agreement picker)
-does carry `proposedAmountMinor`/`currency`/`attentionRequired`/`nextActions` per Agreement, which is
-enough to build a real, honest "what do I have" overview without any new endpoint or any N+1 fan-out
-(see Money mental model, B, and Deferred gaps, N).
+**CORRECTED by the deep-review pass (see section P) — this claim was wrong.** The original
+archaeology here said no aggregate "all my money" endpoint exists anywhere. It does:
+`agreementGateway.home()` (`GET /api/v1/me/agreements/home`) already returns
+`AgreementsHomeResponse.moneyByCurrency` — a real, backend-computed, per-currency Agreement Money
+aggregate (`fundedTotalMinor`/`exercisedOrSettledMinor`/`releasedTotalMinor`/`remainingFundedMinor`/
+`positionCount`), derived by `AgreementMoneySummaryService` from the same established positions
+`money-authority.list(agreementId)` reads individually. It was already being fetched by
+`workspace/controller.ts` for Signed-in Home's own enrichments — this archaeology pass simply never
+looked at `agreements/index.ts`'s `home()` method while surveying the `money-authority`/`money`/
+`money-operations` gateways, and so missed it. See section P for the correction.
 
 **Operational/support-only vs. customer-facing**: `MoneyOperationsExperience.tsx` is operational;
 everything else in `src/features/money/` is customer-facing.
@@ -73,11 +76,11 @@ The experience now explains money as: **a Person/Business KSNumber has financial
 enters for a purpose (an Agreement) → the Agreement provides context and authority → conditions
 determine progression → money settles only where authorised.** Concretely:
 
-- Opening Money now leads with **Money Home** (new `MoneyHomeOverview`): "What you have" (proposed
-  amounts grouped by currency, straight off each Agreement's own summary — never mixed across
-  currencies) and "Needs your attention" (the backend's own `attentionRequired` flag and its own
-  next-action reason text, filtered to money-bearing Agreements). This is presented as
-  Agreement-shaped totals, never an anonymous balance.
+- Opening Money now leads with **Money Home** (new `MoneyHomeOverview`): **corrected by the
+  deep-review pass (section P)** to render the real backend Agreement Money aggregate
+  (`agreementGateway.home()`'s `moneyByCurrency`, per currency, never mixed) and its own `needsMe`
+  bucket for "Needs your attention" — not the client-summed proposed amounts this section originally
+  described. This is presented as Agreement-shaped totals, never an anonymous balance.
 - The existing "Agreement Money" section is unchanged in its authority and now explicitly explains
   the two-step funding relationship: bring money in (a real payment rail, Agreement-scoped), then
   protect/progress a specific amount against a specific position (obligation-scoped) — worded once,
@@ -91,28 +94,37 @@ determine progression → money settles only where authorised.** Concretely:
 
 ## C. Customer experience changes
 
-1. **Money Home** (`MoneyHomeOverview`, new, in `MoneyExperience.tsx`): eagerly loads
-   `currentUserAgreements()` (the same call the Agreement picker already makes — no new endpoint) and
-   shows, above everything else: a per-currency total of proposed amounts across Agreements, and a
-   "Needs your attention" list. Clicking a "Needs your attention" item jumps straight into that exact
-   Agreement's own Agreement Money position (new `initialAgreement` prop on `AgreementMoneySection`,
-   consumed by a `useEffect` that calls the existing `selectAgreement`) instead of making the person
-   re-find it in the picker (Section 11).
+1. **Money Home** (`MoneyHomeOverview`, new, in `MoneyExperience.tsx`; **corrected by the deep-review
+   pass, see section P**): eagerly loads `agreementGateway.home()` (the same real aggregate endpoint
+   already used for Signed-in Home) and shows, above everything else: the real per-currency Agreement
+   Money totals (`remainingFundedMinor`/`fundedTotalMinor`/`exercisedOrSettledMinor`/
+   `releasedTotalMinor`/`positionCount`, straight from the backend, zero client arithmetic) and a
+   "Needs your attention" list sourced from that same response's own `needsMe` bucket. Clicking a
+   "Needs your attention" item jumps straight into that exact Agreement's own Agreement Money
+   position (new `initialAgreement` prop on `AgreementMoneySection`, consumed by a `useEffect` that
+   calls the existing `selectAgreement`) instead of making the person re-find it in the picker
+   (Section 11).
 2. **The funding relationship is explained once, in place**: a short line between
    `PaymentIntentFundingSection` and the position list clarifies that money brought in above becomes
    available to protect/progress below.
 3. **Success moments explain what changed** (Section 32): protect/fund/progress/release now each set
-   a `successMessage` (e.g. "KES 25,000 is now protected for House Painting.") shown via
-   `StatusNotice tone="success"` right above the updated position — release specifically uses the
-   backend's own `releasedTotalMinor` response value, never a recomputed figure.
+   a `successMessage` shown via `StatusNotice tone="success"` right above the updated position —
+   release specifically uses the backend's own `releasedTotalMinor` response value, never a
+   recomputed figure. **Corrected by the deep-review pass (section P)**: `protect()`'s message
+   (which calls `open()`, establishing the ceiling only, never moving money) no longer says "This
+   money is now protected" — it says "Agreement Money is now ready for [Agreement]." `release()`'s
+   message now says the money "has been released back to the funder(s)," never implying it became a
+   generic available balance.
 4. **Settlement destination** reframed as "Where your money goes"; register/replace/verify authority
    and every field (`accountNumber`, `beneficiaryName`, bank/mobile-money kind) unchanged.
 5. **Financial Partner Hall**: partner cards now show, per capability, whether it's currently
    available, its currency, min/max amount, and fee description — all real fields, never invented,
    never ranked or recommended.
 6. **FX honesty**: both `FxConversionSection` and `BusinessFxConversionSection` now say plainly that
-   no rate is shown before applying, and that the rate is set on provider approval — matching the
-   dto's own "application-based, never an instant rate" contract.
+   no rate is shown before applying. **Corrected by the deep-review pass (section P)**: the original
+   wording claimed "the rate is set when the provider approves your application," which overstated
+   what this contract actually proves — narrowed to "the confirmed rate will come from the provider
+   when it becomes available."
 7. **DNA consistency**: every raw Tailwind `orange-*`/`red-*` banner and hand-rolled button/card
    across the whole Money surface (`CurrencyCapabilitySection`, `FxConversionSection`,
    `BusinessCurrencyCapabilitySection`, `BusinessFxConversionSection`,
@@ -207,10 +219,11 @@ No frontend financial authority was invented or broadened. Specifically:
   `fxApplicationGateway.create`, `moneySessionGateway.create/redeem`) is called with the exact same
   arguments as before this phase — verified by diff review (Section C above traces every change to a
   presentational, copy, or additive-message change, never a changed argument or added mutation).
-- The new Money Home overview computes a **sum**, never a new authoritative fact: it adds already-
-  authoritative `proposedAmountMinor` values within one currency at a time (never mixed across
-  currencies), and it never gates any action — a person can still fund/protect/progress/release
-  exactly as before regardless of what Money Home shows.
+- The new Money Home overview performs **zero client arithmetic**: it renders
+  `agreementGateway.home()`'s own `moneyByCurrency` fields exactly as returned (corrected by the
+  deep-review pass — the original version summed `proposedAmountMinor` client-side; see section P),
+  and it never gates any action — a person can still fund/protect/progress/release exactly as before
+  regardless of what Money Home shows.
 - The new success messages either restate the amount/currency the person just submitted, or (for
   release) the backend's own response value (`releasedTotalMinor`) — never a client-recomputed total.
 - No new rail, provider, or capability was hardcoded anywhere; every list (`fundingOptions`,
@@ -275,20 +288,18 @@ After this phase's changes (same commands, same worktree):
 - `npm run build` — succeeds, same pre-existing chunk-size warning.
 
 No test was removed, skipped, or weakened. No fixture-parity test needed updating (Money has none —
-see Archaeology, A). No new automated test was added: every change in this phase is either a
-presentational/DNA substitution already covered by the existing literal-string assertions, or new UI
-(`MoneyHomeOverview`, success messages) that reads already-authoritative data without introducing new
-authority to test.
+see Archaeology, A). See section P for the deep-review correction pass's own, additional test
+results (3 new focused tests added there).
 
 ## N. Deferred gaps
 
-- **No backend aggregate "all my money" endpoint.** Money Home's "what you have" total is
-  necessarily built from `currentUserAgreements()`'s own `proposedAmountMinor` (the *proposed*
-  amount, not what's actually funded/protected) — genuinely showing "what's committed" across every
-  Agreement at a glance would need either a new backend aggregate endpoint or an N+1 fan-out across
-  every Agreement's own `funded-authority` list, which this phase deliberately did not build (see
-  Money mental model, B, and Authority audit, J, for why the chosen scope stays honest without it).
-  This is the single most valuable follow-up for a future Money phase.
+- ~~**No backend aggregate "all my money" endpoint.**~~ **Fixed by the deep-review correction pass —
+  see section P.** This was the original phase's single largest documented gap; it turned out to be
+  a false gap caused by incomplete archaeology, not a real backend limitation.
+- **`AgreementMoneySection`'s own Agreement picker still calls `currentUserAgreements()`
+  separately** from Money Home's `home()` call — a deliberate, documented remaining duplication (see
+  section P), not an oversight: the picker needs the full Agreement list for manual selection of any
+  Agreement, which `home()`'s bucketed response does not provide.
 - **Financial Partner Hall categories/next-step**: see H — needs new backend fields (curated
   category, indicative terms beyond a fee-description string, a real next-step action) to go further
   than presenting the flat capability list this phase built.
@@ -322,3 +333,103 @@ authority to test.
   `src/components/MoneyUnavailableState.tsx`, plus this document.
 - Tests: see Test report (M) above.
 - PR: opened as draft/open, unmerged — programme controller performs final review and merge.
+
+---
+
+## P. Deep-review correction pass (2026-09-19)
+
+This PR (#22) was reviewed, alongside Phases 1-2, by a deeper architectural checkpoint before Phase
+4 began. That review found this phase's biggest archaeology claim was wrong, plus three related
+correctness issues in the Money Home / Agreement Money display it built. All are fixed here, on the
+same branch, on top of a merge of the Phase 2 correction branch
+(`fix/deep-review-phase2-human-core`, PR #23) — this branch does not itself touch any file that
+correction changed, but incorporates it so the base this PR merges from is fully corrected.
+
+**P.1 — The central archaeology claim was wrong.** Section A above stated "No aggregate 'all my
+money' endpoint exists anywhere in the contract surface." That was false:
+`agreementGateway.home()` (`GET /api/v1/me/agreements/home`, backend controller
+`CurrentUserAgreementWorkspaceController.home()`) returns `AgreementsHomeResponse.moneyByCurrency` —
+a real, backend-computed aggregate (`AgreementMoneySummaryService`, derived from the same
+`AgreementFundedAuthorityOrchestrationService.list(...)` individual positions use), described by the
+backend itself as existing specifically so the frontend never has to calculate this. It aggregates
+only established positions, never combines currencies, and never invents an FX equivalent — exactly
+the boundary this document should have respected from the start. `workspace/controller.ts` was
+already fetching this same response for Signed-in Home's enrichments; the Money archaeology pass
+simply never looked at `agreements/index.ts`'s `home()` method while surveying the money-specific
+gateways, and so concluded no aggregate existed. This was a real miss in the original archaeology,
+not a defensible judgment call.
+
+**Fix**: `MoneyHomeOverview` (`MoneyExperience.tsx`) no longer calls `currentUserAgreements()` and
+sums `proposedAmountMinor` client-side. It now calls `agreementGateway.home()` once and renders
+`moneyByCurrency` exactly as returned — per currency: `remainingFundedMinor` ("Available within
+Agreements," the current headline figure), with `fundedTotalMinor`/`exercisedOrSettledMinor`/
+`releasedTotalMinor`/`positionCount` shown as supporting context, zero arithmetic performed by this
+screen. "Needs your attention" now reuses that same response's own `needsMe` bucket (already
+backend-classified), filtered only to Agreements carrying a real `proposedAmountMinor` — never an
+independent re-fetch-and-re-filter of the full Agreement list, and never a client-guessed "money
+category."
+
+**P.2 — Two success-message semantic errors.** `protect()` (which calls `authorityGateway.open()`)
+said "This money is now protected for [Agreement]" — but `open()` only establishes the Funded
+Authority ceiling; it never moves or funds any money. Fixed to "Agreement Money is now ready for
+[Agreement]," which claims only what actually happened. `releaseUnused()`'s message was reworded
+from "has been released back for [Agreement]" to "has been released back **to the funder(s)** for
+[Agreement]" — more precise about where the money goes, avoiding any reading that it became a
+generic available balance. `fund()`'s and `exercise()`'s messages were re-audited and left
+unchanged: `fund()` genuinely funds money from the caller's own regulated ledger position (legitimate
+to describe as "protected"), and `exercise()` already correctly said "progressed within SecurePay,"
+never "settled."
+
+**P.3 — A non-established position's proposed amount was labelled "protected."** In
+`AgreementMoneyPositionCard`, the `!position.established` branch showed
+`{money(position.proposedAmountMinor, currency)} protected` immediately above a line saying "Not yet
+protected" — a direct contradiction, since a proposed amount (before `open()` has even been called)
+is definitionally not yet protected. Fixed to "Proposed: [amount]," with no "protected" word attached.
+
+**P.4 — `stillProtected`'s arithmetic was unexplained.** The established-position card computed
+`authorisedMaxAmountMinor - fundedTotalMinor` and labelled it "Still protected" with no indication of
+what that subtraction meant, next to `remainingFundedMinor` ("Ready to progress") which sounds
+similar but is a different, direct backend field (already-funded money not yet exercised/released).
+The customer-facing vocabulary itself (`protected`/`Ready to progress`/`Still protected`/`Progressed`)
+is a locked, pre-existing programme-controller decision (`money-experience.test.mjs`'s "Section 3"
+test) that this pass does not have standing to change — but nothing required leaving the numbers
+uncaptioned. Fixed by: renaming the internal variable to `notYetFunded` for clarity, keeping the
+"Still protected" customer-facing label (satisfying the locked vocabulary), and adding an explicit
+one-line caption under every figure in this card — "Authorised maximum for this obligation," "Already
+funded, not yet progressed or released," "Within the authorised maximum, not yet funded" — so each
+number now visibly answers "what is this number?" instead of relying on the label alone.
+
+**P.5 — FX wording overstated the contract.** Both FX sections said "the rate is set when the
+provider approves the application" — the frontend/backend contract does not actually establish
+*when* or *how* the provider fixes a rate, only that no rate is shown before applying. Narrowed to
+"The confirmed rate will come from the provider when it becomes available."
+
+**P.6 — Duplicate reads, reduced and documented.** Money Home now calls `agreementGateway.home()`;
+`AgreementMoneySection`'s own Agreement picker still separately calls
+`agreementGateway.currentUserAgreements()`. This remaining duplication is deliberate and documented,
+not an oversight: `home()`'s response is bucketed (`needsMe`/`inProgress`/`waitingOnOthers`/etc.) and
+does not provide a flat "all my Agreements" list suitable for manual selection of *any* Agreement,
+which the picker needs. The two reads now serve genuinely different, non-overlapping purposes
+(aggregate + attention vs. full manual list) rather than the same purpose read twice.
+
+**What did not change**: every mutating gateway call (`open`/`fund`/`exercise`/`release`,
+`createIntent`/`initiate`, `register`/`replace`, `activate`, `fxApplicationGateway.create`,
+`moneySessionGateway.create`/`redeem`) still carries the exact same arguments as before this
+correction — confirmed by diff review. The Financial Partner Hall and Hosted Money Session
+(sections H, I) needed no correction per the deep review and are unchanged.
+
+**Tests (this correction pass)**: baseline (this branch, before the correction, i.e. the original
+Phase 3 work merged with the Phase 2 correction) — `npm run typecheck`/`lint` clean, `node --test
+tests/*.mjs` 353 passed / 4 pre-existing unrelated failures, `npm run build` succeeds. After this
+correction — `npm run typecheck`/`lint` clean, `node --test tests/*.mjs` **356** passed (353 + 3 new
+focused tests in `money-experience.test.mjs`: the Money Home aggregate uses `agreementGateway.home()`/
+`moneyByCurrency`/`needsMe` and never a proposed-amount client sum; a non-established position never
+says "protected" next to its proposed amount; `open()`'s and `release()`'s success messages match
+their real semantics) / the same 4 pre-existing unrelated failures, `npm run build` succeeds. No
+test was weakened.
+
+**Git**: this correction was made directly on `feat/final-phase3-securepay-money-world` (PR #22),
+after merging `fix/deep-review-phase2-human-core` (PR #23) into it, per the requested git strategy.
+Files changed by this correction specifically: `src/features/money/MoneyExperience.tsx`,
+`src/features/money/FxConversionSection.tsx`, `src/features/money/BusinessFxConversionSection.tsx`,
+`tests/money-experience.test.mjs`, plus this document. PR #22 remains open/draft/unmerged.
