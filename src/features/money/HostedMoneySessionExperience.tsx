@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { SecureAuthCard } from '../../components/SecureAuth';
+import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
@@ -122,7 +122,7 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
     <div className="min-h-dvh bg-cream-100 flex flex-col items-center justify-center p-6">
       <img src={securepayWordmark} alt="SecurePay" className="h-8 w-auto mb-6" />
       <div className="w-full max-w-md rounded-2xl border border-cream-200 bg-white shadow-card p-6 space-y-4">
-        {error && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}</div>}
+        {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {cancelled ? (
           <div className="text-sm text-sand-700 space-y-2">
             <p className="font-medium text-forest-800">Cancelled.</p>

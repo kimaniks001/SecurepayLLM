@@ -9,6 +9,7 @@ import { AgreementPreviewCard } from '../../components/AgreementPreview';
 import { AgentUnderstoodCard } from '../../components/AgentUnderstoodCard';
 import { AgentAgreementsHomeCard } from '../../components/AgentAgreementsHomeCard';
 import { UnderstoodTruthSections } from '../../components/UnderstoodTruthSections';
+import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
@@ -337,16 +338,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
-              {state.offerSelectionFailure && <div role="alert" className="rounded-xl border border-ember-200 bg-white p-3 text-sm text-sand-700">
+              {state.offerSelectionFailure && <StatusNotice tone="warning">
                 SecurePay could not confirm this Store offer as a real commercial source. {state.offerSelectionFailure.error}
                 <div className="flex flex-wrap gap-3 mt-2">
                   <button disabled={state.busy} onClick={() => void controller.retryOfferSelection()} className="text-forest-700 underline disabled:opacity-40">Retry</button>
                   <button disabled={state.busy} onClick={() => void controller.continueOfferWithoutSource()} className="text-sand-500 underline disabled:opacity-40">Continue without this source</button>
                 </div>
-              </div>}
-              {state.error && <div role="alert" className="rounded-xl border border-cream-200 bg-white p-3 text-sm text-sand-700">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
+              </StatusNotice>}
+              {state.error && <StatusNotice tone="warning">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
-              </div>}
+              </StatusNotice>}
               <div className="flex flex-wrap gap-3 text-sm text-forest-700">
                 <button disabled={state.busy} onClick={reviewing} className="underline disabled:opacity-40">Review what we have</button>
                 <button
