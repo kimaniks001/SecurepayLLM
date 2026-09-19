@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { ApiError } from '../../api/securepay/http';
 import type { MoneyOperationsGateway, MoneyOperationsSummaryResponse } from '../../api/securepay/money-operations';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { PageHeader } from '../../components/dna/PageHeader';
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -34,11 +36,8 @@ export function MoneyOperationsExperience({ gateway, onLeave }: { gateway: Money
         <img src={securepayWordmark} alt="SecurePay" className="h-7 w-auto" />
       </header>
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-2xl mx-auto w-full">
-        <div>
-          <h1 className="font-display text-2xl text-forest-800">Money operations</h1>
-          <p className="mt-1 text-sm text-sand-600">Read-only. Inspecting this never grants any financial mutation authority.</p>
-        </div>
-        {error && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}</div>}
+        <PageHeader title="Money operations" description="Read-only. Inspecting this never grants any financial mutation authority." />
+        {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {!summary ? (
           <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Load summary</button>
         ) : (

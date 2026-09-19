@@ -1,7 +1,12 @@
 import { useState, useSyncExternalStore } from 'react';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { SecureAuthCard } from '../../components/SecureAuth';
+import { Surface, SurfaceHeader, SurfaceBody } from '../../components/dna/Surface';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { PageHeader } from '../../components/dna/PageHeader';
+import { MoneyValue } from '../../components/dna/MoneyValue';
+import { Button } from '../../components/dna/Button';
 import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
@@ -119,10 +124,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
     <div className="min-h-dvh bg-cream-100 flex flex-col pb-8">
       <MoneyHeader onBack={onLeave} />
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-2xl mx-auto w-full">
-        <div>
-          <h1 className="font-display text-2xl text-forest-800">Money</h1>
-          <p className="mt-1 text-sm text-sand-600">What money you have, what it is allowed to do, and what has happened. Nothing here is calculated by this screen.</p>
-        </div>
+        <PageHeader title="Money" description="What money you have, what it is allowed to do, and what has happened. Nothing here is calculated by this screen." />
         <AgreementMoneySection
           authorityGateway={gateways.moneyAuthority}
           agreementGateway={gateways.agreements}
@@ -147,18 +149,15 @@ function MoneyHeader({ onBack }: { onBack: () => void }) {
 
 function SectionCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-cream-200 bg-cream-50">
-        <h2 className="font-display text-lg text-forest-800">{title}</h2>
-        <p className="mt-1 text-xs text-sand-600">{description}</p>
-      </div>
-      <div className="p-5 space-y-4">{children}</div>
-    </section>
+    <Surface>
+      <SurfaceHeader title={title} description={description} />
+      <SurfaceBody>{children}</SurfaceBody>
+    </Surface>
   );
 }
 
 function ErrorBanner({ message }: { message: string }) {
-  return <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {message}</div>;
+  return <StatusNotice tone="warning">{message}</StatusNotice>;
 }
 
 /**
@@ -269,7 +268,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
     <SectionCard title="Agreement Money" description="Money already authorised under one of your own Agreements. Nothing here is calculated by this screen.">
       {error && <ErrorBanner message={error} />}
       {!agreements ? (
-        <button onClick={() => void loadAgreements()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my Agreements</button>
+        <Button variant="secondary" onClick={() => void loadAgreements()} disabled={loading}>Show my Agreements</Button>
       ) : selectedAgreement === null ? (
         agreements.length === 0 ? (
           <p className="text-sm text-sand-600">You have no Agreements yet.</p>
@@ -287,7 +286,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
         )
       ) : (
         <div className="space-y-3">
-          <button onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs text-sand-600 underline">← Choose a different Agreement</button>
+          <Button variant="ghost" onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs">← Choose a different Agreement</Button>
           <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title} <span className="text-xs text-sand-500">({selectedAgreement.currency})</span></div>
 
           <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />
@@ -306,7 +305,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
                 <li key={p.obligationId ?? 'none'}>
                   <button onClick={() => setSelectedObligationId(p.obligationId)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
                     <div className="font-medium text-forest-800">{p.obligationTitle ?? 'Untitled'}</div>
-                    <div className="text-xs text-sand-600">{money(p.proposedAmountMinor ?? p.authorisedMaxAmountMinor ?? 0, p.proposedCurrency ?? p.currency ?? '')} protected</div>
+                    <div className="text-xs text-sand-600"><MoneyValue amount={money(p.proposedAmountMinor ?? p.authorisedMaxAmountMinor ?? 0, p.proposedCurrency ?? p.currency ?? '')} size="sm" /> protected</div>
                   </button>
                 </li>
               ))}
@@ -314,7 +313,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
           )}
 
           {positions && positions.length > 1 && selectedObligationId !== null && (
-            <button onClick={() => setSelectedObligationId(null)} className="text-xs text-sand-600 underline">← Choose a different Agreement Money position</button>
+            <Button variant="ghost" onClick={() => setSelectedObligationId(null)} className="text-xs">← Choose a different Agreement Money position</Button>
           )}
 
           {selectedPosition && (
@@ -374,9 +373,9 @@ function AgreementMoneyPositionCard({
     return (
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
-        {position.proposedAmountMinor != null && <p>{money(position.proposedAmountMinor, currency)} protected</p>}
+        {position.proposedAmountMinor != null && <p><MoneyValue amount={money(position.proposedAmountMinor, currency)} size="sm" /> protected</p>}
         <p className="text-xs text-sand-600">Not yet protected{position.reasonCode ? ` (${position.reasonCode})` : ''}.</p>
-        <button onClick={onProtect} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Protect this money</button>
+        <Button onClick={onProtect} disabled={loading}>Protect this money</Button>
       </div>
     );
   }
@@ -391,37 +390,37 @@ function AgreementMoneyPositionCard({
     <div className="space-y-3">
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
-        <p>{money(totalProtected, currency)} protected</p>
+        <p><MoneyValue amount={money(totalProtected, currency)} size="md" /> protected</p>
         {readyToProgress > 0 && (
           <div className="pl-3 border-l-2 border-forest-300">
-            <div>{money(readyToProgress, currency)} <span className="text-forest-700 font-medium">Ready to progress</span></div>
+            <div><MoneyValue amount={money(readyToProgress, currency)} size="sm" /> <span className="text-forest-700 font-medium">Ready to progress</span></div>
             {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
           </div>
         )}
-        {stillProtected > 0 && <div className="pl-3 border-l-2 border-cream-300">{money(stillProtected, currency)} Still protected</div>}
+        {stillProtected > 0 && <div className="pl-3 border-l-2 border-cream-300"><MoneyValue amount={money(stillProtected, currency)} size="sm" /> Still protected</div>}
         {progressed > 0 && (
           <div className="text-xs text-sand-600">
-            {money(progressed, currency)} Progressed within SecurePay
+            <MoneyValue amount={money(progressed, currency)} size="sm" /> Progressed within SecurePay
             {!position.providerSettlementCertified && ' (pending certified bank transfer -- never shown as Settled)'}
           </div>
         )}
-        {returned > 0 && <div className="text-xs text-sand-600">{money(returned, currency)} Returned</div>}
+        {returned > 0 && <div className="text-xs text-sand-600"><MoneyValue amount={money(returned, currency)} size="sm" /> Returned</div>}
         <div className="text-xs text-sand-500">{position.closed ? 'Closed' : 'Open'}</div>
       </div>
       {!position.closed && (
         <>
           <div className="flex gap-2">
             <input value={fundAmount} onChange={e => onFundAmountChange(e.target.value)} placeholder="Amount to protect" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <button onClick={onFund} disabled={loading || !fundAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Add money</button>
+            <Button onClick={onFund} disabled={loading || !fundAmount}>Add money</Button>
           </div>
           <div className="flex gap-2">
             <input value={progressAmount} onChange={e => onProgressAmountChange(e.target.value)} placeholder="Amount to progress" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <button onClick={onProgress} disabled={loading || !progressAmount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Progress to {position.beneficiaryMaskedKsNumber ?? 'beneficiary'}</button>
+            <Button onClick={onProgress} disabled={loading || !progressAmount}>Progress to {position.beneficiaryMaskedKsNumber ?? 'beneficiary'}</Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={onReleaseUnused} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Release unused money</button>
+            <Button variant="secondary" onClick={onReleaseUnused} disabled={loading}>Release unused money</Button>
             {readyToProgress > 0 && (
-              <button onClick={onGetShareableLink} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Get a shareable link</button>
+              <Button variant="secondary" onClick={onGetShareableLink} disabled={loading}>Get a shareable link</Button>
             )}
           </div>
         </>
@@ -430,8 +429,8 @@ function AgreementMoneyPositionCard({
         <p className="text-xs text-sand-600 break-all">Hosted link (opens the same real progress action): {shareableLink}</p>
       )}
       <div className="flex gap-3">
-        <button onClick={onRefresh} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
-        <button onClick={onLoadHistory} disabled={loading} className="text-xs text-sand-600 underline">What happened</button>
+        <Button variant="ghost" onClick={onRefresh} disabled={loading} className="text-xs">Refresh</Button>
+        <Button variant="ghost" onClick={onLoadHistory} disabled={loading} className="text-xs">What happened</Button>
       </div>
       {history && (
         history.length === 0 ? <p className="text-xs text-sand-600">Nothing has happened yet.</p> : (
