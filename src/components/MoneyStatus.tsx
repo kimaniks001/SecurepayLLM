@@ -10,9 +10,9 @@ const stateConfig: Record<MoneyState, { icon: typeof CheckCircle2; classes: stri
   payment_initiated: { icon: Clock, classes: 'text-ember-600' },
   pending_confirmation: { icon: Clock, classes: 'text-ember-600' },
   confirmed: { icon: CheckCircle2, classes: 'text-forest-600' },
-  failed: { icon: AlertCircle, classes: 'text-red-500' },
+  failed: { icon: AlertCircle, classes: 'text-ember-600' },
   unknown: { icon: HelpCircle, classes: 'text-ember-600' },
-  unavailable: { icon: Ban, classes: 'text-red-500' },
+  unavailable: { icon: Ban, classes: 'text-ember-600' },
   stale: { icon: RefreshCw, classes: 'text-ember-600' },
   no_money_activity: { icon: CheckCircle2, classes: 'text-sand-400' },
 };
@@ -22,7 +22,7 @@ const readinessConfig: Record<PaymentReadinessStatus, { icon: typeof CheckCircle
   READY: { icon: CheckCircle2, classes: 'text-forest-600', bg: 'bg-forest-50' },
   NOT_READY: { icon: Ban, classes: 'text-sand-500', bg: 'bg-cream-50' },
   PARTIALLY_READY: { icon: CircleDot, classes: 'text-ember-600', bg: 'bg-ember-50' },
-  BLOCKED: { icon: Ban, classes: 'text-red-500', bg: 'bg-red-50' },
+  BLOCKED: { icon: Ban, classes: 'text-ember-700', bg: 'bg-ember-50' },
 };
 
 interface MoneyStatusProps {
@@ -67,7 +67,7 @@ export function MoneyStatus({ detail }: MoneyStatusProps) {
           </p>
         )}
         {detail.paymentReadiness === 'BLOCKED' && (
-          <p className="text-[0.78rem] text-red-500 mt-1">
+          <p className="text-[0.78rem] text-ember-700 mt-1">
             This agreement is blocked for payment by SecurePay Money.
           </p>
         )}

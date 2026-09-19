@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../../api/securepay/http';
 import type { CurrencyCapability, CurrencyCapabilityGateway } from '../../api/securepay/currency-capability';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { Button } from '../../components/dna/Button';
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -40,18 +42,18 @@ export function AgreementCurrencyActivationPrompt({ currency, gateway }: { curre
   if (!capability || capability.status === 'ACTIVE') return null;
 
   return (
-    <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 space-y-2">
-      {error && <p className="text-xs text-orange-800">{error}</p>}
+    <StatusNotice tone="warning" icon={false}>
+      {error && <p className="text-xs">{error}</p>}
       {capability.status === 'NOT_ACTIVATED' && (
         <>
-          <p className="text-sm text-sand-800">This Agreement uses {currency}. Your KS identity does not yet have {currency} activated.</p>
-          <button onClick={() => void activate()} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          <p>This Agreement uses {currency}. Your KS identity does not yet have {currency} activated.</p>
+          <Button onClick={() => void activate()} disabled={loading} className="mt-2">
             {loading ? 'Activating…' : `Activate ${currency}`}
-          </button>
+          </Button>
         </>
       )}
-      {capability.status === 'PENDING' && <p className="text-sm text-sand-800">{currency} activation is pending provider confirmation.</p>}
-      {capability.status === 'FAILED' && <p className="text-sm text-sand-800">{currency} activation needs attention -- contact support.</p>}
-    </div>
+      {capability.status === 'PENDING' && <p>{currency} activation is pending provider confirmation.</p>}
+      {capability.status === 'FAILED' && <p>{currency} activation needs attention -- contact support.</p>}
+    </StatusNotice>
   );
 }

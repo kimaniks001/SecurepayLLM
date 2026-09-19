@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { ApiError } from '../../api/securepay/http';
 import type { BusinessCurrencyCapabilityGateway, CurrencyCapability } from '../../api/securepay/business-currency-capability';
 import type { BusinessFxApplicationGateway, FxApplicationResponse, FxOperation } from '../../api/securepay/business-fx-application';
+import { Surface, SurfaceHeader, SurfaceBody } from '../../components/dna/Surface';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { Button } from '../../components/dna/Button';
+import { MoneyValue } from '../../components/dna/MoneyValue';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -59,13 +62,10 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
   };
 
   return (
-    <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-cream-200 bg-cream-50">
-        <h2 className="font-display text-lg text-forest-800">Convert Business currency</h2>
-        <p className="mt-1 text-xs text-sand-600">Optional. Keep what the Business already holds, or convert some of it into another of its own active positions. Nothing is forced.</p>
-      </div>
-      <div className="p-5 space-y-4">
-        {error && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}</div>}
+    <Surface>
+      <SurfaceHeader title="Convert Business currency" description="Optional. Keep what the Business already holds, or convert some of it into another of its own active positions. Nothing is forced." />
+      <SurfaceBody>
+        {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {!positions ? (
           <div className="flex gap-2">
             <input
@@ -74,20 +74,20 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
               placeholder="Business KS Number"
               className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm"
             />
-            <button onClick={() => void load()} disabled={loading || !businessKsNumber.trim()} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">
+            <Button variant="secondary" onClick={() => void load()} disabled={loading || !businessKsNumber.trim()}>
               {loading ? 'Loading…' : 'Show active positions'}
-            </button>
+            </Button>
           </div>
         ) : positions.length < 2 ? (
           <div className="space-y-2">
             <p className="text-sm text-sand-600">This Business needs at least two active currency positions to convert between them.</p>
-            <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">
+            <Button variant="secondary" onClick={() => void load()} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
-            </button>
+            </Button>
           </div>
         ) : result ? (
           <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
-            <div className="font-medium text-forest-800">{money(result.amountMinor, result.sourceCurrency)} -&gt; {result.targetCurrency}</div>
+            <div className="font-medium text-forest-800"><MoneyValue amount={money(result.amountMinor, result.sourceCurrency)} size="md" /> {'->'} {result.targetCurrency}</div>
             <div className="text-xs text-sand-600">Status: {result.status}</div>
             {result.providerExecutionReference && <div className="text-xs text-sand-500">Provider reference: {result.providerExecutionReference}</div>}
             <p className="text-xs text-sand-500">This does not change any Agreement or its Agreement Money -- it converts money the Business already holds.</p>
@@ -109,10 +109,13 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
               <button onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
             </div>
             <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Convert</button>
+            {/* Deep-review correction: the original wording claimed the rate is "set when the
+                provider approves the application," which overstates what this contract proves. */}
+            <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply. The confirmed rate will come from the provider when it becomes available.</p>
+            <Button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount}>Convert</Button>
           </>
         )}
-      </div>
-    </section>
+      </SurfaceBody>
+    </Surface>
   );
 }

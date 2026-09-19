@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { SecureAuthCard } from '../../components/SecureAuth';
 import { StatusNotice } from '../../components/dna/StatusNotice';
+import { Button } from '../../components/dna/Button';
+import { MoneyValue } from '../../components/dna/MoneyValue';
 import type { AuthGateway } from '../../api/securepay/auth';
 import { ApiError } from '../../api/securepay/http';
 import type { SessionStore } from '../../api/securepay/session';
@@ -140,7 +142,7 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
               {view.agreementTitle && <p className="text-sm text-sand-600">{view.agreementTitle}</p>}
               {view.obligationTitle && <p className="text-sm text-sand-600">{view.obligationTitle}</p>}
             </div>
-            <h1 className="font-display text-2xl text-forest-800">Progress {money(view.amountMinorCap, view.currency)}</h1>
+            <h1 className="font-display text-2xl text-forest-800">Progress <MoneyValue amount={money(view.amountMinorCap, view.currency)} size="lg" /></h1>
             <dl className="text-sm text-sand-700 space-y-1">
               {view.beneficiaryMaskedKsNumber && (
                 <div className="flex gap-1"><dt className="text-sand-500">To:</dt><dd>{view.beneficiaryMaskedKsNumber}</dd></div>
@@ -152,16 +154,16 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
                 <div className="flex gap-1"><dt className="text-sand-500">From:</dt><dd>{view.agreementTitle} Agreement Money</dd></div>
               )}
               {view.remainingAfterMinor != null && (
-                <div className="flex gap-1"><dt className="text-sand-500">After this:</dt><dd>{money(view.remainingAfterMinor, view.currency)} remains protected</dd></div>
+                <div className="flex gap-1"><dt className="text-sand-500">After this:</dt><dd><MoneyValue amount={money(view.remainingAfterMinor, view.currency)} size="sm" /> remains protected</dd></div>
               )}
             </dl>
             {!view.providerSettlementCertified && (
               <p className="text-xs text-sand-500">Progressed within SecurePay -- bank transfer pending certified execution, never shown as Settled.</p>
             )}
             <p className="text-sm text-sand-600">This link only ever does this one bounded action, and only once.</p>
-            <button onClick={() => void redeem()} disabled={loading} className="w-full rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Confirm</button>
+            <Button onClick={() => void redeem()} disabled={loading} className="w-full">Confirm</Button>
             {embedOrigin && (
-              <button onClick={cancel} disabled={loading} className="w-full rounded-xl border border-cream-200 px-4 py-2 text-sm font-medium text-sand-600 disabled:opacity-50">Cancel</button>
+              <Button variant="secondary" onClick={cancel} disabled={loading} className="w-full">Cancel</Button>
             )}
           </>
         ) : (
