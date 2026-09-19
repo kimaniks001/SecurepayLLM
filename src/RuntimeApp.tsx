@@ -34,6 +34,7 @@ const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, ['creat
 const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, ['listMine'], session, api.auth) : undefined;
 const businessCurrencyCapabilityGateway = api ? withSessionRefresh(api.businessCurrencyCapability, ['list', 'activate'], session, api.auth) : undefined;
 const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxApplication, ['create', 'get', 'list'], session, api.auth) : undefined;
+const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list', 'get', 'update', 'archive', 'restore', 'addAgreement', 'removeAgreement', 'agreements', 'summary', 'calendar'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -165,8 +166,8 @@ export default function RuntimeApp() {
       ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
-  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {
