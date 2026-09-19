@@ -207,13 +207,26 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const structuredComponents = lastResponse?.sender === 'agent'
     ? lastResponse.response.components.filter(c => c.type === 'AGREEMENT_WORKSPACE' || c.type === 'AGREEMENTS_HOME')
     : [];
-  const hasUnseenUnderstood = structuredComponents.length > 0 && lastResponse?.id !== lastSeenStructuredTurnId;
+  // Final Phase 4 Economy pass (sections 8/9/42) -- real Agent market-discovery output (provider
+  // search, Store listings, price context, and any future Store/Community/opportunity result the
+  // model requested) already arrives as a real, server-composed 'DISCOVERY' component (see
+  // discoveryView in api/securepay/agent/discovery.ts) exactly like AGREEMENT_WORKSPACE/
+  // AGREEMENTS_HOME. It belongs in UNDERSTOOD's FOUND ON SECUREPAY section -- discovery truth, never
+  // Agreement truth -- not duplicated inline in BUILD.
+  const foundOnSecurePayComponents = lastResponse?.sender === 'agent'
+    ? lastResponse.response.components.filter(c => c.type === 'DISCOVERY')
+    : [];
+  const hasUnseenUnderstood = (structuredComponents.length > 0 || foundOnSecurePayComponents.length > 0)
+    && lastResponse?.id !== lastSeenStructuredTurnId;
   const understoodContent = (
     <UnderstoodTruthSections
       confirmed={structuredComponents.length > 0
         ? <div className="space-y-3">{structuredComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
         : null}
       stillToDecide={<>{context}{panel && <div className="space-y-3 mt-3">{panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}</>}
+      foundOnSecurePay={foundOnSecurePayComponents.length > 0
+        ? <div className="space-y-3">{foundOnSecurePayComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
+        : undefined}
     />
   );
   const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
@@ -259,7 +272,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               ...state.turns.map(turn => <div key={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
-                  {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME').map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
+                  {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY').map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
@@ -267,6 +280,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               </div>,
             ]}
             statusContent={<div className="space-y-3">
+              {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
+                  silent: the person must explicitly retry or continue without the source before
+                  anything from the offer reaches the conversation. */}
+              {state.offerSelectionFailure && <div role="alert" className="rounded-xl border border-ember-200 bg-white p-3 text-sm text-sand-700">
+                SecurePay could not confirm this Store offer as a real commercial source. {state.offerSelectionFailure.error}
+                <div className="flex flex-wrap gap-3 mt-2">
+                  <button disabled={state.busy} onClick={() => void controller.retryOfferSelection()} className="text-forest-700 underline disabled:opacity-40">Retry</button>
+                  <button disabled={state.busy} onClick={() => void controller.continueOfferWithoutSource()} className="text-sand-500 underline disabled:opacity-40">Continue without this source</button>
+                </div>
+              </div>}
               {state.error && <div role="alert" className="rounded-xl border border-cream-200 bg-white p-3 text-sm text-sand-700">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
               </div>}

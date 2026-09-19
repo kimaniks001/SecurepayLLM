@@ -1,10 +1,11 @@
 import type { AgentGateway } from '../../api/securepay/agent';
-import { handoffView } from '../../api/securepay/agent/adapters';
-import type { HandoffDto, CandidateDto } from '../../api/securepay/agent/dto';
+import { agreementReviewView, handoffView } from '../../api/securepay/agent/adapters';
+import type { HandoffDto } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 import { errorText } from '../agent/controller';
 
 export type HandoffView = ReturnType<typeof handoffView>;
+export type HandoffReviewView = ReturnType<typeof agreementReviewView>;
 export type HandoffPhase =
   | 'idle' | 'creating' | 'identity-required' | 'adopting' | 'needs-resolution'
   | 'review-loading' | 'review-ready' | 'review-stale' | 'progressing' | 'progressed'
@@ -13,12 +14,12 @@ export type HandoffPhase =
 export interface HandoffState {
   phase: HandoffPhase;
   handoff: HandoffView | null;
-  review: CandidateDto | null;
+  review: HandoffReviewView | null;
   error: string | null;
 }
 const initial: HandoffState = { phase: 'idle', handoff: null, review: null, error: null };
 
-type Gateway = Pick<AgentGateway, 'createHandoff' | 'readHandoff' | 'adoptHandoff' | 'reviewHandoff' | 'continueHandoff'>;
+type Gateway = Pick<AgentGateway, 'createHandoff' | 'readHandoff' | 'adoptHandoff' | 'reviewHandoff' | 'continueHandoff' | 'useCurrentSource'>;
 
 function phaseFor(view: HandoffView): HandoffPhase {
   switch (view.status) {
@@ -51,9 +52,9 @@ export function createHandoffController(gateway: Gateway, id = () => crypto.rand
    */
   async function loadReview(handoffId: string) {
     update({ phase: 'review-loading' });
-    let review: CandidateDto;
+    let review: HandoffReviewView;
     try {
-      review = await gateway.reviewHandoff(handoffId);
+      review = agreementReviewView(await gateway.reviewHandoff(handoffId));
     } catch (error) {
       update({ phase: 'error', error: errorText(error) });
       return;
@@ -141,6 +142,23 @@ export function createHandoffController(gateway: Gateway, id = () => crypto.rand
             return;
           }
         }
+        update({ phase: 'error', error: errorText(error) });
+      }
+    },
+
+    /**
+     * Final Phase 4 Economy Turn 3 (Section 7) -- the explicit "review/use current source" choice
+     * for a stale, source-changed handoff. Never mutates the old, frozen snapshot; the backend mints
+     * a brand new handoff bound to a freshly re-captured source selection, which this then adopts as
+     * the new authoritative handoff in place of the stale one.
+     */
+    async useCurrentSource() {
+      if (state.phase !== 'review-stale' || !state.handoff) return;
+      update({ phase: 'creating', error: null });
+      try {
+        const dto = await gateway.useCurrentSource(state.handoff.id, id());
+        await applyHandoff(dto);
+      } catch (error) {
         update({ phase: 'error', error: errorText(error) });
       }
     },

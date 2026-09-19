@@ -16,6 +16,15 @@ export function TradeContext({ state, controller, expanded, onToggle }: { state:
       {context.status === 'loading' && <p role="status">Updating understanding…</p>}
       {context.status === 'error' && <p role="alert" className="text-sm text-sand-600">{context.error}</p>}
       {context.status === 'idle' && <p className="text-sm text-sand-500">Start talking and details will appear here.</p>}
+      {/* Final Phase 4 Economy Turn 2 (Section 10) -- provenance, never authority: seeing this
+          never means the source was accepted, joined, or purchased; it only shows where this
+          conversation is currently proceeding from, before any Agreement review/progression. */}
+      {state.source && (
+        <div className="mb-2 rounded-lg bg-cream-50 border border-cream-200 px-3 py-2">
+          <p className="text-[0.68rem] font-medium text-sand-500 uppercase tracking-wide">Started from</p>
+          <p className="text-[0.8rem] text-forest-800">{state.source.sourceTitle}{state.source.sourceOwnerKsNumber ? ` · ${state.source.sourceOwnerKsNumber}` : ''}</p>
+        </div>
+      )}
       {context.status === 'ready' && <>
         <p className="text-[0.75rem] text-sand-500 mb-2">Trade Context only — known in this conversation, not canonical Agreement terms.</p>
         {context.data?.facts.length === 0 && <p className="text-sm text-sand-500">No facts yet.</p>}

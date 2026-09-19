@@ -129,6 +129,30 @@ test('candidate and unknown context render distinct labels, provenance, and only
     if (status === 'FUTURE') assert.match(html, /Unknown state/);
   }
 });
+// Final Phase 4 Economy Turn 2 (Section 10) -- provenance, never authority: TradeContext must show
+// where the conversation is currently proceeding from, without implying the source was accepted.
+test('TradeContext shows real "Started from" source provenance when a commercial source was selected', () => {
+  const { controller } = setup();
+  const state = {
+    ...controller.getSnapshot(),
+    context: { status: 'idle', data: null, error: null },
+    source: {
+      sourceType: 'STORE_LISTING', sourceId: 'offer-1', sourceTitle: 'CCTV installation', sourceOwnerKsNumber: 'KS007',
+      contextReference: '#/store/KS007/offer/offer-1', capturedPriceMinor: 8500000, capturedCurrency: 'KES',
+      selectedAt: '2026-09-19T00:00:00Z',
+    },
+  };
+  const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
+  assert.match(html, /Started from/);
+  assert.match(html, /CCTV installation/);
+  assert.match(html, /KS007/);
+});
+test('TradeContext shows no "Started from" line for an ordinary direct conversation with no selected source', () => {
+  const { controller } = setup();
+  const state = { ...controller.getSnapshot(), context: { status: 'idle', data: null, error: null } };
+  const html = api.renderToStaticMarkup(api.createElement(api.TradeContext, { state, controller, expanded: true, onToggle() {} }));
+  assert.doesNotMatch(html, /Started from/);
+});
 test('preview keeps backend prose and disclaimer; unknown rich types preserve top-level message', () => {
   const view = api.agentResponseView({ ...response, components: [{ type: 'FUTURE', data: {} }, { type: 'AGREEMENT_PREVIEW', data: { what: ['Tiling'], who: ['Peter (being considered)'], money: ['Candidate amount'], when: [], stillWorthSettling: ['Date'], disclaimer: 'Not an Agreement' } }] });
   assert.equal(view.message.text, response.message);
@@ -136,6 +160,28 @@ test('preview keeps backend prose and disclaimer; unknown rich types preserve to
   const html = api.renderToStaticMarkup(api.createElement(api.AgreementPreviewCard, { data: view.components[0] }));
   assert.match(html, /being considered/);
   assert.match(html, /Not an Agreement/);
+});
+// Final Phase 4 Economy pass (sections 8/9/10/42) -- the existing Agent market-discovery tools
+// (search_securepay_providers/search_securepay_store_listings/get_price_context/
+// get_provider_profile) already compose real PROVIDER_RESULTS/PROVIDER_PROFILE/PRICE_CONTEXT
+// components server-side. These parse into the shared 'DISCOVERY' shape via discoveryView, which
+// is the exact routing key AgentExperience.tsx uses to place real discovery results in UNDERSTOOD's
+// FOUND ON SECUREPAY section instead of inline in BUILD -- this proves that routing key is produced
+// correctly from a real backend shape, never fabricated by the frontend.
+test('PROVIDER_RESULTS/PRICE_CONTEXT component data parses into the DISCOVERY shape that routes to FOUND ON SECUREPAY', () => {
+  const providerResults = api.agentComponentView({
+    type: 'PROVIDER_RESULTS',
+    data: { kind: 'PROVIDERS', supported: true, providerCount: 1, providers: [{ providerRef: 'KS007', displayName: 'Kamau Hardware', serviceArea: 'Nyeri' }] },
+  });
+  assert.equal(providerResults.type, 'DISCOVERY');
+  assert.match(providerResults.title, /People to consider/);
+
+  const priceContext = api.agentComponentView({
+    type: 'PRICE_CONTEXT',
+    data: { category: 'roofing sheets', location: 'Nyeri', lowMinor: 50000, highMinor: 90000, currency: 'KES', sampleSize: 4 },
+  });
+  assert.equal(priceContext.type, 'DISCOVERY');
+  assert.equal(priceContext.title, 'Price context');
 });
 // Final Phase 3 completion pass, Section 8 -- the real, server-composed AGREEMENT_WORKSPACE/
 // AGREEMENTS_HOME structured artifacts. The model decides whether asking the tool was useful; the
@@ -358,8 +404,24 @@ test('UnderstoodTruthSections renders the CONFIRMED / STILL TO DECIDE / FOUND ON
   assert.match(html, /Found on SecurePay/);
   assert.match(html, /real backend fact/);
   assert.match(html, /candidate fact/);
-  // Phase 4 discovery is never implemented here -- the seam exists, but carries no Store/Community data.
+  // Final Phase 4 Economy pass: when the caller supplies no foundOnSecurePay content (no discovery
+  // component on the latest turn), the seam renders its own empty state rather than any Store/
+  // Community data or disappearing.
+  assert.match(html, /Nothing found yet/);
   assert.doesNotMatch(html, /Store|Community/i);
+});
+// Final Phase 4 Economy pass (sections 8/9/42): once the model has invoked a real market-discovery
+// tool, UNDERSTOOD's FOUND ON SECUREPAY section must render that real result -- discovery truth,
+// never promoted into CONFIRMED, and distinct from the empty-state text.
+test('UnderstoodTruthSections renders real foundOnSecurePay discovery content when supplied', () => {
+  const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodTruthSections, {
+    confirmed: null,
+    stillToDecide: null,
+    foundOnSecurePay: api.createElement('div', null, 'Kamau Hardware · KS007'),
+  }));
+  assert.match(html, /Found on SecurePay/);
+  assert.match(html, /Kamau Hardware/);
+  assert.doesNotMatch(html, /Nothing found yet/);
 });
 test('touched locked components retain byte-identical fixture markup against Bolt', async () => {
   const entry = `

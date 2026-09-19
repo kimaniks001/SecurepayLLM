@@ -15,10 +15,34 @@ export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
 export type SourceKind = 'QUOTATION' | 'DOCUMENT_EXTRACTION' | 'PHOTO_OBSERVATION' | 'PROVIDER_PROFILE' | 'STORE_LISTING' | 'LOCATION_RESULT' | 'PREVIOUS_AGREEMENT' | 'COMMUNITY_KNOWLEDGE' | 'PARTNER_INFORMATION' | 'MASTER_OPINION';
 export interface ExternalFactRequest { sourceKind: SourceKind; sourceDescription?: string; clientTurnId?: string }
+// Final Phase 4 Economy Turn 2 (Section 3/9) -- the ONE pointer the frontend ever tells SecurePay
+// about a chosen commercial source. Never a title/price/owner -- those are always re-derived
+// server-side from the real record; see AgentCommercialSourceController's own doctrine.
+export interface SelectCommercialSourceRequest { sourceType: string; sourceId: string; sourceOwnerKsNumber: string }
+export interface SelectedCommercialSourceDto {
+  sourceType: string; sourceId: string; sourceTitle: string | null; sourceOwnerKsNumber: string | null;
+  contextReference: string | null; capturedPriceMinor: number | null; capturedCurrency: string | null; selectedAt: string;
+}
 export interface CandidateDto { title: string | null; purpose: string | null; description: string | null; agreementType: string | null; currency: string | null; amountMinor: number | null; what: string[]; who: string[]; when: string[] }
+// Final Phase 4 Economy Turn 3 (Section 6/7) -- the EXACT commercial source bound to a handoff at
+// review/creation time, never the conversation's current mutable selection. `sourceStatus` is one
+// of CURRENT / CHANGED / UNAVAILABLE; `current` carries the live facts only when CHANGED.
+export type ReviewedSourceStatus = 'CURRENT' | 'CHANGED' | 'UNAVAILABLE';
+export interface CurrentSourceFactsDto {
+  title: string | null; capturedPriceMinor: number | null; capturedCurrency: string | null;
+  capturedAvailabilityState: string | null; capturedQuantityAvailable: number | null; capturedDescription: string | null;
+}
+export interface ReviewedSourceDto {
+  sourceType: string; sourceId: string; sourceTitle: string | null; sourceOwnerKsNumber: string | null;
+  capturedPriceMinor: number | null; capturedCurrency: string | null; capturedAvailabilityState: string | null;
+  capturedQuantityAvailable: number | null; capturedDescription: string | null; contextReference: string | null;
+  boundAt: string; sourceStatus: string; current: CurrentSourceFactsDto | null;
+}
+export interface AgreementReviewResponseDto { agreementCandidateSummary: CandidateDto; reviewedSource: ReviewedSourceDto | null }
 export type HandoffStatus = 'IDENTITY_REQUIRED' | 'NEEDS_RESOLUTION' | 'REVIEW_STALE' | 'READY_FOR_REVIEW' | 'READY_TO_PROGRESS' | 'PROGRESSED' | 'EXPIRED';
 export interface HandoffDto {
   handoffId: string; conversationId: string; status: string; agreementCandidateSummary: CandidateDto;
+  reviewedSource: ReviewedSourceDto | null;
   unresolvedMatters: string[]; guidanceNotes: string[]; tradeContextVersion: number;
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
 }

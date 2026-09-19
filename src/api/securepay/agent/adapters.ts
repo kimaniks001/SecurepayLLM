@@ -1,7 +1,7 @@
 import { discoveryView, type DiscoveryView } from './discovery';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, ComponentDto, HandoffDto, HandoffStatus, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, ComponentDto, HandoffDto, HandoffStatus, ReviewedSourceDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -120,11 +120,27 @@ export function tradeContextView(dto: TradeContextDto) {
   };
 }
 const handoffStatuses: readonly string[] = ['IDENTITY_REQUIRED', 'NEEDS_RESOLUTION', 'REVIEW_STALE', 'READY_FOR_REVIEW', 'READY_TO_PROGRESS', 'PROGRESSED', 'EXPIRED'];
+
+/**
+ * Final Phase 4 Economy Turn 3 (Section 6/7) -- the reviewed commercial source is presentation/
+ * provenance only (never Agreement/participant/payment authority — see the response's own
+ * doctrine). Passed through as-is; the view layer decides how to render `sourceStatus`.
+ */
+export function reviewedSourceView(dto: ReviewedSourceDto | null) {
+  return dto;
+}
+export type ReviewedSourceView = ReturnType<typeof reviewedSourceView>;
+
+export function agreementReviewView(dto: AgreementReviewResponseDto) {
+  return { candidate: dto.agreementCandidateSummary, reviewedSource: reviewedSourceView(dto.reviewedSource) };
+}
+
 export function handoffView(dto: HandoffDto) {
   return {
     id: dto.handoffId,
     status: handoffStatuses.includes(dto.status) ? dto.status as HandoffStatus : 'UNKNOWN' as const,
     candidate: dto.agreementCandidateSummary,
+    reviewedSource: reviewedSourceView(dto.reviewedSource),
     unresolvedMatters: dto.unresolvedMatters, guidanceNotes: dto.guidanceNotes,
     reviewSnapshot: { expectedTradeContextVersion: dto.tradeContextVersion, expectedCandidateDigest: dto.candidateDigest },
     expiresAt: dto.expiresAt, progressedAgreementId: dto.progressedAgreementId,

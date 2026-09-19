@@ -22,6 +22,10 @@ const handoffDto = (status, overrides = {}) => ({
   ...overrides,
 });
 const candidateDto = { title: 'Tile the bathroom', purpose: null, description: null, agreementType: null, currency: 'KES', amountMinor: 500000, what: ['Tiling'], who: ['Peter'], when: ['Next week'] };
+// Final Phase 4 Economy Turn 3 (Section 6) -- the /review endpoint now returns the candidate
+// alongside the reviewed commercial source (null for these ordinary DIRECT-handoff fixtures).
+const reviewResponseDto = { agreementCandidateSummary: candidateDto, reviewedSource: null };
+const reviewView = { candidate: candidateDto, reviewedSource: null };
 
 function setup(overrides = {}) {
   const calls = [];
@@ -29,8 +33,9 @@ function setup(overrides = {}) {
     createHandoff: async (id, clientActionId) => { calls.push(['createHandoff', id, clientActionId]); return handoffDto('READY_FOR_REVIEW'); },
     readHandoff: async id => { calls.push(['readHandoff', id]); return handoffDto('READY_FOR_REVIEW'); },
     adoptHandoff: async id => { calls.push(['adoptHandoff', id]); return handoffDto('READY_FOR_REVIEW'); },
-    reviewHandoff: async id => { calls.push(['reviewHandoff', id]); return candidateDto; },
+    reviewHandoff: async id => { calls.push(['reviewHandoff', id]); return reviewResponseDto; },
     continueHandoff: async (id, body) => { calls.push(['continueHandoff', id, body]); return handoffDto('PROGRESSED', { progressedAgreementId: 'agreement-9' }); },
+    useCurrentSource: async (id, clientActionId) => { calls.push(['useCurrentSource', id, clientActionId]); return handoffDto('READY_FOR_REVIEW'); },
     ...overrides,
   };
   return { calls, controller: api.createHandoffController(gateway, () => 'client-action-1') };
@@ -119,7 +124,7 @@ test('7. canonical review comes from /review, not the Agent preview', async () =
   const { controller, calls } = setup();
   await controller.start('c1');
   assert.equal(controller.getSnapshot().phase, 'review-ready');
-  assert.deepEqual(controller.getSnapshot().review, candidateDto);
+  assert.deepEqual(controller.getSnapshot().review, reviewView);
   assert.equal(calls.filter(call => call[0] === 'reviewHandoff').length, 1);
 });
 
@@ -191,7 +196,7 @@ test('PR #5 review fix 1: after a successful canonical review, an authoritative 
   assert.equal(readHandoffCalls, 1);
   assert.equal(controller.getSnapshot().phase, 'review-ready');
   assert.equal(controller.getSnapshot().handoff.status, 'READY_TO_PROGRESS');
-  assert.deepEqual(controller.getSnapshot().review, candidateDto);
+  assert.deepEqual(controller.getSnapshot().review, reviewView);
   const before = calls.length;
   await controller.setSecurely();
   assert.equal(calls.slice(before).some(call => call[0] === 'continueHandoff'), true);

@@ -18,12 +18,16 @@ function errorView(message: string): ErrorStateResponse {
 
 /**
  * The real Circle experience is deliberately narrow: `GET /api/v1/circle/me` (task section 4) is the
- * entire verified backend Circle contract this phase exposes — a self-scoped identity/referral/Growth
- * Credit read, never a named group. Bolt's rich named-Circle screens (CircleHome, CircleDiscoveryList,
+ * entire verified backend Circle contract this phase exposes — a self-scoped identity/referral read,
+ * never a named group. Bolt's rich named-Circle screens (CircleHome, CircleDiscoveryList,
  * CircleMemberDirectory, CircleEconomicSummary, CircleCreateFlow, CircleJoinFlow) stay fixture-only and
  * are never imported here (see docs/PRODUCTION_MIGRATION_LEDGER.md section 17) — this component renders
  * only the real profile plus a truthful notice for the named-Circle gap, using the same visual language
  * (not a redesign, no new component library).
+ *
+ * Final Phase 4 Economy correction (programme decision): the former synthetic weighted-score tile
+ * is retired — it conflicted with the locked no-gamification doctrine. Only real, separately-
+ * computed factual counts (traders referred, referrals activated, Agreements brought in) remain.
  */
 export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgent }: {
   gateway: Pick<CircleGateway, 'me'>; auth: AuthGateway; session: SessionStore;
@@ -127,14 +131,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
                 <div className="text-[0.95rem] font-medium text-forest-800">{profile.agreementsBroughtInCount}</div>
                 <div className="text-[0.68rem] text-sand-500">Agreements brought in</div>
               </div>
-              <div className="rounded-xl bg-forest-50 px-3 py-2.5">
-                <div className="text-[0.95rem] font-medium text-forest-800">{profile.growthCreditTotal}</div>
-                <div className="text-[0.68rem] text-sand-500">Growth credit (count)</div>
-              </div>
             </div>
-            <p className="text-[0.68rem] text-sand-400 mt-3">
-              Growth credit is a factual activity count — not Money, not a wallet balance, not currency, and never spendable or redeemable.
-            </p>
           </div>
 
           <button
@@ -156,7 +153,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
 
           <p className="text-[0.68rem] text-sand-400 italic px-2">
             Referred trader count ≠ followers. Activated referrals ≠ reputation. Agreements brought in ≠
-            revenue. Growth credit ≠ Money. Identity status ≠ professional qualification.
+            revenue. Identity status ≠ professional qualification.
           </p>
         </div>
       </div>
