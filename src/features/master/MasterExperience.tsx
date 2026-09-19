@@ -7,6 +7,7 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { MoneyValue } from '../../components/dna/MoneyValue';
+import { decimalMoney } from '../../decimalMoney';
 import type { MasterGateway } from '../../api/securepay/master';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
@@ -18,14 +19,6 @@ import { secureAuthView } from '../identity/view';
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
-}
-
-/** Phase 4 correction: matches the identical fix in features/referral/ReferralExperience.tsx and
- * features/plug/PlugExperience.tsx -- a quoted cost was previously rendered as raw minor units, never
- * divided by 100 or formatted the same way every other money display in this codebase already is.
- * Presentational fix only. */
-function money(minor: string, currency: string) {
-  return `${currency} ${(Number(minor) / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
 }
 
 const SOURCE_CONTEXTS: { value: MasterRequestSourceContext; label: string }[] = [
@@ -268,7 +261,7 @@ export function MasterExperience({ gateway, auth, session, initialIdentityId, on
             <SurfaceBody>
               <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Status</div>
               <p className="text-[0.9rem] text-forest-800 font-medium">{req.status.replace(/_/g, ' ')}</p>
-              {req.currency && req.quotedCostMinor && <div className="text-[0.82rem] text-sand-600 mt-1">Quoted cost: <MoneyValue amount={money(req.quotedCostMinor, req.currency)} size="sm" /></div>}
+              {req.currency && req.quotedCostMinor && <div className="text-[0.82rem] text-sand-600 mt-1">Quoted cost: <MoneyValue amount={decimalMoney(req.quotedCostMinor, req.currency)} size="sm" /></div>}
             </SurfaceBody>
           </Surface>
           {state.requestActionError && <StatusNotice tone="warning" icon={false}>{state.requestActionError}</StatusNotice>}

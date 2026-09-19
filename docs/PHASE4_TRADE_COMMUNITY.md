@@ -25,12 +25,16 @@ assume the prompt accurately describes what is built") is directly load-bearing 
   "Use this" → Trade Taking Shape handoff. Real search, real offer/store reads, real trader-owned
   offer management (`create`/`update`/`confirmAvailability`). No "Buy now" anywhere; no Agreement
   authority is ever created here.
-- **Circle** (`src/features/circle/CircleExperience.tsx`): `GET /api/v1/circle/me` only — 8 fields
-  (`canonicalKsNumber`, `displayName`, `verificationStatus`, `memberSince`, `referredTraderCount`,
-  `activatedReferredTraderCount`, `agreementsBroughtInCount`, `growthCreditTotal`, the last of which
-  is deliberately never surfaced by the adapter). **No named-Circle/group authority exists on the
-  backend at all** — not a small gap, a deliberate, documented product boundary. `growthCreditTotal`
-  is a plain activity count, never money.
+- **Circle** (`src/features/circle/CircleExperience.tsx`): `GET /api/v1/circle/me` only — **corrected
+  by this pass**: current `CircleProfileResponse` (`SecurePayAPI main`) carries exactly **seven**
+  fields (`canonicalKsNumber`, `displayName`, `verificationStatus`, `memberSince`,
+  `referredTraderCount`, `activatedReferredTraderCount`, `agreementsBroughtInCount`) — not eight. A
+  former `growthCreditTotal` weighted-points field was **removed from the backend response** before
+  this phase, per the backend's own javadoc, because it conflicted with the locked no-points/no-
+  gamification doctrine; it is not present-but-hidden, it is gone from the wire entirely. The frontend
+  DTO (`src/api/securepay/circle/dto.ts`) already reflects this correctly and documents the historical
+  removal in its own comment — no frontend change was needed. **No named-Circle/group authority exists
+  on the backend at all** — not a small gap, a deliberate, documented product boundary.
 - **Community** (`src/features/community/CommunityExperience.tsx`): a bounded, truthful composition
   over the already-productionized Store search — the only real Community content object is a Store-
   offer reference (`storeResultToCommunityObject`). No backend persistence exists for Question/Need/
@@ -85,11 +89,12 @@ rendered a minor-unit money amount raw — e.g. "50000 KES (minor units)" — in
 and formatting like every other money value in the product.
 
 **Deliberately, correctly missing (not gaps to fill)**: named-Circle group system; Community content-
-object persistence; a backend read endpoint for post-Agreement-creation SourceReference provenance
-(confirmed absent — `TradeEntityView`/`TradeRelationshipView` strip `sourceKind`/`sourceDescription`
-before the wire, see D); `COMMUNITY_KNOWLEDGE` wiring; a Master directory/search; a rich Plug profile
+object persistence; `COMMUNITY_KNOWLEDGE` wiring; a Master directory/search; a rich Plug profile
 (name/domain/geography/availability); Formal Solutions/Partners (already gated behind an honest "not
-available yet" notice, pending human confirmation per prior-phase doctrine).
+available yet" notice, pending human confirmation per prior-phase doctrine). **Not on this list**: an
+ordinary participant-safe read of a finished Agreement's source provenance — that one is a genuine,
+narrower gap (persisted, but only readable through an audit-gated endpoint), not a deliberate product
+boundary; see D and J.
 
 ## B. Trade-world mental model
 
@@ -140,14 +145,29 @@ Confirmed the full, real provenance lifecycle already exists and is unchanged by
   (ember-toned "Source status: [label]"), fed by `canonicalAgreementView`/`exactVersionView` from the
   live `handoff`/`recipient` review state. This is the "must not silently mutate if source changes"
   doctrine already implemented, not something this phase needed to add.
-- **After the Agreement is created**: confirmed, by reading `WorkspaceExperience.tsx` (the finished-
-  Agreement hub/detail view) end to end, that **no source/provenance display exists there, and none
-  can be built truthfully today** — `TradeEntityView`/`TradeRelationshipView` (the real read shapes
-  for an established Agreement) strip `sourceKind`/`sourceDescription` before the wire; there is no
-  backend read endpoint that returns a finished Agreement's originating source. This is the ledger's
-  own documented gap (see Deferred gaps, N), not something to fabricate via client-side storage — a
-  locally-cached "Started from" string would go stale, wouldn't survive a different device/session,
-  and would present as backend truth when it is not. Left honestly absent.
+- **After the Agreement is created — corrected by this pass**: confirmed, by reading
+  `WorkspaceExperience.tsx` (the finished-Agreement hub/detail view) end to end and by reading current
+  `SecurePayAPI main` directly, that **the source reference is genuinely persisted, not lost** — the
+  Agent-side selection (`AgentCommercialSourceController`) is read exactly once, at
+  `AgentAgreementHandoffProgressionService#progress()`, the only place it can ever become a real,
+  durable `CommercialSourceReference` row on the Agreement. `TradeEntityView`/`TradeRelationshipView`
+  (the ordinary participant-facing read shapes) do strip `sourceKind`/`sourceDescription` before the
+  wire, but that is not the same claim as "the backend cannot read it back at all": `main` also has
+  `AgreementCommercialController`'s `GET /api/v1/internal/agreements/{agreementId}/commercial/
+  projection`, which returns an `AgreementCommercialProjectionResponse` that **does** include the
+  persisted `sourceReference` when one exists. **The actual gap is narrower than the prior wording
+  here implied**: that read requires `AGREEMENT_AUDIT_READ` via
+  `AgreementAuthorizationService.requireAuditRead(actor)` — a narrow, non-participant-scoped audit
+  permission an ordinary signed-in customer is never granted, and this frontend does not call that
+  endpoint or hold that permission anywhere. So: provenance is persisted and a backend read projection
+  for it exists; what does not yet exist is an **ordinary participant-safe** read projection/route that
+  `WorkspaceExperience.tsx` could call without crossing an authorization boundary. This pass
+  deliberately did not wire the internal/audit endpoint into participant-facing Agreement Detail, and
+  did not request `AGREEMENT_AUDIT_READ` for ordinary participants — doing either would broaden
+  authority beyond what a customer should hold, which is the actual gap that remains (see Deferred
+  gaps, N). Client-side caching of the source string as a participant-facing substitute was
+  considered and rejected for the same reason as before: it would present unverifiable, possibly-stale
+  local state as backend truth.
 - **Candidate, never auto-promoted**: `agent.test.mjs`'s "candidate and unknown context render
   distinct labels, provenance, and only candidate Use this" and "explicit adoption makes one HTTP
   POST, refreshes context and renders backend-confirmed result" together confirm a source/candidate
@@ -244,12 +264,15 @@ verified it rather than rebuilt it.
 
 See D above: `CanonicalAgreement.tsx`'s "Started from" section (title, owner KS Number, proposed
 price, staleness status) is the real, already-correct provenance display at handoff/recipient-review
-time, non-editable, sourced from live review state. **Confirmed gap, reported honestly rather than
-fabricated**: this provenance is not retrievable once an Agreement is finalized and revisited later
-(`WorkspaceExperience.tsx` has no source display), because no backend read endpoint returns it post-
-creation. This is the ledger's own long-documented backend limitation, not a frontend oversight this
-phase could fix without inventing client-side persistence of backend-authority-shaped data — see
-Deferred gaps.
+time, non-editable, sourced from live review state. **Corrected by this pass**: provenance is not
+lost once an Agreement is finalized — it is persisted server-side as a real `CommercialSourceReference`
+and a backend projection endpoint can return it. What is genuinely missing is an **ordinary,
+participant-safe** read path: the only backend projection that returns it
+(`GET /api/v1/internal/agreements/{agreementId}/commercial/projection`) is gated behind the narrow,
+non-participant `AGREEMENT_AUDIT_READ` permission, which this frontend correctly does not hold and
+does not request. `WorkspaceExperience.tsx` therefore has nowhere participant-safe to read it from
+today — a missing capability (a narrow, participant-scoped provenance projection a future backend
+phase could choose to add), not a data-loss gap. See Deferred gaps.
 
 ## K. Authority audit
 
@@ -337,11 +360,15 @@ test needed weakening.
 
 ## N. Deferred gaps
 
-- **Post-creation Agreement source provenance** (see D, J): no backend read endpoint exists for a
-  finished Agreement's originating source once it leaves the live handoff/recipient-review state.
-  Genuinely needs a new backend field/endpoint (e.g. surfacing `sourceKind`/`sourceDescription` on
-  `TradeEntityView`), not a frontend workaround — building a client-cached substitute would present
-  unverifiable data as backend truth.
+- **Post-creation Agreement source provenance — corrected description** (see D, J): the provenance
+  itself is **not** lost — it is persisted as a real `CommercialSourceReference` and a backend
+  projection (`AgreementCommercialController`'s `GET .../commercial/projection`) can return it. The
+  gap is that this projection is gated behind `AGREEMENT_AUDIT_READ`, a narrow audit/service
+  permission, and is not a participant-facing Agreement Detail read. Closing this needs a new,
+  narrow, **participant-scoped** backend projection (or a participant-safe field added to
+  `TradeEntityView`) for a future backend phase to add — this pass deliberately did not solve it by
+  calling the internal/audit endpoint from customer Agreement Detail or by requesting broader
+  permissions for participants, since either would cross an authorization boundary.
 - **Named-Circle group system, Community content-object persistence, `COMMUNITY_KNOWLEDGE` wiring,
   Master directory/search, rich Plug profile fields** — all confirmed, deliberate, pre-existing
   backend product boundaries (Archaeology, A), not oversights. Building any of them from the frontend
@@ -374,3 +401,107 @@ test needed weakening.
 - Tests: see Tests (M) above — 366/366 passing, up from a 362/4-failing baseline, with the 4 pre-
   existing failures root-caused and fixed rather than carried forward.
 - PR: to be opened as draft/open, unmerged — programme controller performs final review and merge.
+
+---
+
+## P. Final correction pass (2026-09-20)
+
+A direct review of this branch alongside current `SecurePayAPI main` found the Phase 4 architecture
+itself sound, but flagged three specific correctness issues in what this document and two of its new
+money formatters claimed. All three are fixed here, on the same branch, updating PR #24 in place. No
+authority changed; no new product surface was built.
+
+**P.1 — String-backed minor-unit amounts were coerced through JS `Number`.** Master's `quotedCostMinor`
+(`string | null`) and Plug's Agreement/KeyContract referral `amountMinor` (also a decimal string, kept
+that way by their own DTOs specifically to avoid float precision loss) were both formatted via
+`Number(minor) / 100`. A large enough integer string loses exactness the moment it passes through
+`Number(...)` — the codebase's own convention of keeping these two fields as strings exists precisely
+to prevent that, and the formatter was defeating it.
+
+**Fix**: added `src/decimalMoney.ts`, a small shared `decimalMoney(minor: string, currency: string)`
+utility that never converts the amount through `Number`. It splits the sign, validates the digit
+string, and uses `BigInt` for the integral division (`value / 100n`, `value % 100n`), which is exact
+at any size — then formats the major part with comma grouping and the minor part zero-padded to two
+digits, entirely through string operations. `MasterExperience.tsx` and `PlugExperience.tsx` now import
+and call this instead of their local `Number(minor)`-based `money()` helpers, which were removed.
+`ReferralExperience.tsx`'s own `money(minor: number, currency: string)` helper is untouched — R11A's
+`rewardAmountMinor` genuinely is a backend `number`, a different DTO with no precision exposure, and
+this pass did not alter that contract or its formatter, per the explicit instruction to keep the two
+referral domains distinct rather than converge them for stylistic symmetry.
+
+**P.2 — Precision tests added.** `tests/referrals-plugs-masters.test.mjs` gained two new tests (bundle
+now also exports `src/decimalMoney.ts`): "AK" exercises `decimalMoney` directly against `"0"`, `"1"`,
+`"50"`, `"100"`, `"12345"`, a negative amount, and — the one that actually proves the fix —
+`"900719925474099312345"`, a 21-digit minor-unit string chosen specifically because
+`Number("900719925474099312345")` and `Number("900719925474099312345") + 1` already evaluate equal
+(the double has run out of precision at that size); `decimalMoney` still returns the exact
+`"KES 9,007,199,254,740,993,123.45"`. "AL" is a structural check that `MasterExperience.tsx` and
+`PlugExperience.tsx` no longer contain `Number(minor)` or `Number(req.quotedCostMinor)`/
+`Number(referral.reward.amountMinor)` anywhere, and that both files do call `decimalMoney(`.
+
+**P.3 — The finished-Agreement provenance gap was reported too absolutely.** Section D/J/N originally
+said "no backend read endpoint exists" for a finished Agreement's originating source. Reading current
+`SecurePayAPI main` directly found this overstated the gap: `AgentCommercialSourceController`'s
+conversation-scoped source selection is read exactly once, at
+`AgentAgreementHandoffProgressionService#progress()`, and turned into a real, persisted
+`CommercialSourceReference` on the Agreement — provenance is not lost. `AgreementCommercialController`
+additionally exposes `GET /api/v1/internal/agreements/{agreementId}/commercial/projection`, which
+returns that persisted `sourceReference` when one exists. **The actual, narrower gap**: that
+projection requires `AGREEMENT_AUDIT_READ` via `AgreementAuthorizationService.requireAuditRead(actor)`
+— a non-participant-scoped audit permission an ordinary signed-in customer is never granted — so it is
+not a participant-facing Agreement Detail read, and this frontend correctly does not call it or hold
+that permission. Sections D, J, and N were reworded to state this precisely: provenance is persisted
+and a backend projection for it exists; what is missing is an ordinary, **participant-safe** read
+projection, which a future backend phase could add narrowly, without granting audit authority to
+customers. Per the explicit instruction for this pass, the internal/audit endpoint was **not** wired
+into customer Agreement Detail and no broadened permission was requested — the gap is documented, not
+solved by crossing the authorization boundary.
+
+**P.4 — Circle's field count was stale.** Section A described `/api/v1/circle/me` as returning eight
+fields including `growthCreditTotal` ("never surfaced by the adapter"). Reading current
+`CircleProfileResponse` on `SecurePayAPI main` found `growthCreditTotal` has since been **removed from
+the backend response entirely** (the backend's own javadoc: it conflicted with the locked no-points/
+no-gamification doctrine) — it is not present-but-hidden, it no longer exists on the wire. The response
+is exactly the other seven fields. The frontend DTO (`src/api/securepay/circle/dto.ts`) already
+reflected this correctly with its own comment documenting the historical removal; no frontend contract
+change was needed, only this document's wording.
+
+**P.5 — Stale "unmerged backend" comments corrected.** PR #207 (the backend stack that added the
+entire `ke.securepay.core.master` package and the `AgreementPlugAttributionController.referralStatus`
+endpoint) has since merged to `SecurePayAPI main` — re-confirmed by directly reading the package and
+controller on current `main`. Three frontend source comments still described this as "the
+still-unmerged PR #207 stack" / "BACKEND_PR_PENDING (PR #207 only)": `src/api/securepay/master/dto.ts`,
+`src/api/securepay/agreements/dto.ts` (two comments), and `src/api/securepay/agreements/index.ts`. All
+four were corrected to state the merged, live status while preserving their substantive technical
+content (e.g. `rewardPaid` being always `false` today — no payout authority exists — remains accurate
+and was re-confirmed against current `main`, only its "PR pending" framing was stale). Dated
+correction annotations (not full rewrites) were also added to `docs/PRODUCTION_MIGRATION_LEDGER.md`
+(the compatibility matrix in section 4, and section 18.1's classification prose) and
+`docs/BACKEND_PHASE11_CONVERGENCE_UPDATE.md`, since both are actively-cited historical archaeology
+records that otherwise still read as if these features were pending.
+
+**What did not change**: no gateway method, its arguments, or its call site changed anywhere in this
+pass — every edit was either a display-formatting fix (P.1) or a documentation/comment correction
+(P.3-P.5). No Master/Plug/Referral lifecycle, gating, or eligibility logic was touched. No new backend
+endpoint was called, and no broader permission was requested for any participant-facing surface.
+
+**Authority audit, re-confirmed**: `Use this` still creates no Agreement; Store source remains context,
+never Agreement truth; source stale/change review remains backend-owned; referral reward qualification
+remains backend-owned; Plug introduction remains non-endorsement; Master cost acceptance remains
+Master-request authority only (`acceptCost`'s underlying `gateway.accept()` call, already documented in
+section E, is unchanged); no Agreement join/confirm/pay authority was introduced; no audit permission
+was exposed to participant UI.
+
+**Tests**: baseline (this branch, before this correction) — `npm run typecheck`/`lint` clean,
+`node --test tests/*.mjs` 366 passed / 0 failed, `npm run build` succeeds. After this correction —
+`npm run typecheck`/`lint` clean, `node --test tests/*.mjs` **368** passed (366 + 2 new precision tests
+in `referrals-plugs-masters.test.mjs`) / 0 failed — no return of the 4 previously-repaired failures —
+`npm run build` succeeds, same pre-existing chunk-size warning.
+
+**Git**: this correction was made directly on `feat/final-phase4-securepay-trade-community`, updating
+PR #24 in place (no replacement PR, not merged). Files changed:
+`src/decimalMoney.ts` (new), `src/features/master/MasterExperience.tsx`,
+`src/features/plug/PlugExperience.tsx`, `src/api/securepay/master/dto.ts`,
+`src/api/securepay/agreements/dto.ts`, `src/api/securepay/agreements/index.ts`,
+`tests/referrals-plugs-masters.test.mjs`, `docs/PHASE4_TRADE_COMMUNITY.md` (this document),
+`docs/PRODUCTION_MIGRATION_LEDGER.md`, `docs/BACKEND_PHASE11_CONVERGENCE_UPDATE.md`.

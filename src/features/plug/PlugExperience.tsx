@@ -6,6 +6,7 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { MoneyValue } from '../../components/dna/MoneyValue';
+import { decimalMoney } from '../../decimalMoney';
 import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AuthGateway } from '../../api/securepay/auth';
@@ -15,17 +16,6 @@ import { createPlugController, errorText } from './controller';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import type { CustomerMarketRequestType } from '../../api/securepay/marketnetwork/dto';
-
-/** Phase 4 correction: matches the identical fix in features/referral/ReferralExperience.tsx -- the
- * referral reward amount was previously rendered as raw minor units, never divided by 100 or formatted
- * the same way every other money display in this codebase already is. Presentational fix only;
- * rewardPaid/eligibility remain entirely backend-owned. This surface's reward comes from the
- * Agreement/KeyContract adapter, which carries amountMinor as a string (see
- * api/securepay/agreements/adapters.ts) -- unlike the separate R11A referral domain's plain number --
- * so it is parsed before dividing. */
-function money(minor: string, currency: string) {
-  return `${currency} ${(Number(minor) / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
-}
 
 /**
  * Customer-side "get connected with a Plug" flow (task section 6/7/18). Bolt's `PlugProfileCard` stays
@@ -107,7 +97,7 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
               <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Referral evaluation status</div>
               <p className="text-[0.85rem] text-forest-800 font-medium">{referral.state.replace(/_/g, ' ')}</p>
               {referral.reward && (
-                <div className="text-[0.8rem] text-sand-600 mt-1">Referral reward: <MoneyValue amount={money(referral.reward.amountMinor, referral.reward.currency)} size="sm" /></div>
+                <div className="text-[0.8rem] text-sand-600 mt-1">Referral reward: <MoneyValue amount={decimalMoney(referral.reward.amountMinor, referral.reward.currency)} size="sm" /></div>
               )}
               <p className="text-[0.72rem] text-sand-500 mt-1">Reward earned: {referral.rewardEarned ? 'yes' : 'no'} · Reward paid: {referral.rewardPaid ? 'yes' : 'no'}</p>
               <p className="text-[0.68rem] text-sand-400 mt-2 italic">Referral reward ≠ wallet balance, settlement balance, or Payment Ready. It is never released from this screen.</p>

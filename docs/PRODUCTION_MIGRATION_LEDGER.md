@@ -106,6 +106,17 @@ At audit time these PRs are stacked/open rather than merged to `main`. Frontend 
 | Master profile/request/opinion | Entire `ke.securepay.core.master` package — new to PR #207, not on `main` | BACKEND_PR_PENDING | Golden Spine H wires the full non-dispute lifecycle (designate/profile/request/propose-cost/accept/decline/opinion) against a local contract double. Qualification/accreditation separate from Master status; opinion not authority. See section 18. |
 | Partner/Solution | Later backend phase; Bolt Pass 11 is product contract only | BACKEND_PR_PENDING | Keep demo adapter until real bounded APIs exist. Do not invent bank/insurance/partner truth. |
 
+**[Phase 4 final correction pass, 2026-09-20]**: PR #207 has since merged to `SecurePayAPI main`.
+Re-confirmed by directly reading current `main`: the "Circle profile/economic facts", "Referral
+(KeyContract per-Agreement)", and "Master profile/request/opinion" rows above are no longer
+`BACKEND_PR_PENDING` for merge status — all three are real, live backend authority today (Circle's
+`growthCreditTotal` field has additionally been removed from the response since this table was
+written; see the 17.1 annotation and `docs/PHASE4_TRADE_COMMUNITY.md`). "Community"'s row remains
+accurate for its own reasons (Question/Need/Opportunity/Work Story/Discussion persistence is still a
+deliberate, ongoing product gap, not a merge-pending one). "Partner/Solution" is unaffected by PR
+#207 and remains genuinely pending. Rows are left as originally written above (this ledger's own
+convention is to append corrections, not silently rewrite history) — read this note alongside them.
+
 ## 5. Highest-risk prototype code to retire
 
 ### `src/App.tsx`
@@ -1137,7 +1148,13 @@ Spine slice's own local contract double.
   exposes** — a self-scoped, authenticated read returning exactly
   `canonicalKsNumber`, `displayName`, `verificationStatus`, `memberSince`,
   `referredTraderCount`, `activatedReferredTraderCount`,
-  `agreementsBroughtInCount`, `growthCreditTotal`. `CircleController` has no
+  `agreementsBroughtInCount`, `growthCreditTotal`. **[Phase 4 final correction
+  pass, 2026-09-20]: `growthCreditTotal` has since been removed from
+  `CircleProfileResponse` on `SecurePayAPI main` — the response is now exactly
+  the other seven fields listed here. See `docs/PHASE4_TRADE_COMMUNITY.md`
+  section A/N and `src/api/securepay/circle/dto.ts`'s own comment. This entry
+  is left otherwise unchanged as the historical record of what Golden Spine G
+  verified at the time.** `CircleController` has no
   arbitrary-KSNumber lookup endpoint, so none was added
   (`api/securepay/circle/index.ts`'s gateway exposes only `me`, proven by
   test J). `verificationStatus` is literally
@@ -1329,7 +1346,10 @@ covers: the real `/circle/me` auth boundary and closed-failure-before-network
 behavior (A/B); the real route's exclusion of `circleData.ts`/`communityData.ts`
 from the production bundle, both by bundle scan and by direct source-import
 grep (C/D/S); no fixture fallback on backend failure (E/E2); `CircleProfile`
-exposing exactly the eight real fields with no rank/medal/score field (F);
+exposing exactly the eight real fields with no rank/medal/score field (F) —
+**[Phase 4 final correction pass, 2026-09-20]: test F's own assertion has
+since been updated to seven fields, matching `growthCreditTotal`'s removal
+from the backend response; see the 17.1 annotation above**;
 `growthCreditTotal` staying a plain number with no currency anywhere in the
 rendered profile (G/G3); no rank/rating/reputation/medal/follower/like/
 success-rate inference in the data layer (H); an unrecognized
@@ -1485,6 +1505,12 @@ This changed the classification in section 4 above: most Plug/Referral rows
 are `REAL_API_WIRED` (verified against real, mergeable-today source), not
 `BACKEND_PR_PENDING`; only Master (100%) and the new per-Agreement
 `referral-status` evaluation read stay `BACKEND_PR_PENDING`.
+
+**[Phase 4 final correction pass, 2026-09-20]**: PR #207 has since merged. The
+entire `ke.securepay.core.master` package and `KeyContractReferralProjectionService`/
+`referral-status` are now also `REAL_API_WIRED`, live on `SecurePayAPI main` — re-confirmed
+by directly reading current `main` (see `docs/PHASE4_TRADE_COMMUNITY.md`). Nothing in this
+domain remains `BACKEND_PR_PENDING` today.
 
 ### 18.2 Two distinct, real "referral" domains — kept separate, never conflated
 
