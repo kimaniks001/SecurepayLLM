@@ -22,6 +22,7 @@ import { createRegulatedAccountsGateway } from './regulated-accounts';
 import { createBusinessCurrencyCapabilityGateway } from './business-currency-capability';
 import { createBusinessFxApplicationGateway } from './business-fx-application';
 import { createProjectGateway } from './projects';
+import { createVisionBoardGateway } from './visionboard';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -36,5 +37,6 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     regulatedAccounts: createRegulatedAccountsGateway(http),
     businessCurrencyCapability: createBusinessCurrencyCapabilityGateway(http), businessFxApplication: createBusinessFxApplicationGateway(http),
     projects: createProjectGateway(http),
+    visionBoard: createVisionBoardGateway(http),
   };
 }

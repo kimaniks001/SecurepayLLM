@@ -25,7 +25,8 @@
     "test:money-operations": "node --test tests/money-operations.test.mjs",
     "test:currency-fx": "node --test tests/currency-fx.test.mjs",
     "test:business-currency-fx": "node --test tests/business-currency-fx.test.mjs",
-    "test:projects": "node --test tests/projects.test.mjs"
+    "test:projects": "node --test tests/projects.test.mjs",
+    "test:vision-board": "node --test tests/visionboard.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
