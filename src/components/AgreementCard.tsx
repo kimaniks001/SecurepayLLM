@@ -8,6 +8,10 @@ interface AgreementCardProps {
 
 export function AgreementCard({ agreement, onOpen }: AgreementCardProps) {
   const isTakingShape = agreement.status === 'taking_shape';
+  // Phase 2 Human Core (Section 14/16): an Agreement is bigger than money, so an amount that isn't
+  // actually known yet is not a fact worth the same weight as one that is -- it still renders, just
+  // without the emphasis a real figure earns.
+  const hasAmount = agreement.amount !== 'Not yet specified';
 
   return (
     <button
@@ -17,7 +21,10 @@ export function AgreementCard({ agreement, onOpen }: AgreementCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-display text-[0.95rem] font-medium text-forest-800 leading-tight">{agreement.title}</h3>
-          <p className="text-[0.8rem] text-sand-500 mt-0.5">{agreement.counterparty} · {agreement.counterpartyRole}</p>
+          <p className="text-[0.8rem] text-sand-500 mt-0.5">
+            {agreement.counterparty}
+            {agreement.counterpartyRole !== '—' && ` · ${agreement.counterpartyRole}`}
+          </p>
           {isTakingShape && (
             <p className="text-[0.7rem] text-sand-400 mt-1 italic">Not yet an agreement</p>
           )}
@@ -26,10 +33,6 @@ export function AgreementCard({ agreement, onOpen }: AgreementCardProps) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[0.78rem]">
-        <span className="text-sand-600">
-          <span className="text-sand-400">Amount: </span>
-          <span className="font-medium text-forest-800">{agreement.amount}</span>
-        </span>
         {agreement.completion !== '—' && (
           <span className="text-sand-600">
             <span className="text-sand-400">Complete by: </span>
@@ -42,6 +45,11 @@ export function AgreementCard({ agreement, onOpen }: AgreementCardProps) {
             <span className="text-forest-800">{agreement.location}</span>
           </span>
         )}
+        {/* Money only where materially relevant (Section 14/16) -- last in the row, quiet when unknown. */}
+        <span className={hasAmount ? 'text-sand-600' : 'text-sand-400'}>
+          <span className="text-sand-400">Amount: </span>
+          <span className={hasAmount ? 'font-medium text-forest-800' : ''}>{agreement.amount}</span>
+        </span>
       </div>
 
       <div className="mt-3 pt-3 border-t border-cream-100 flex items-center justify-between gap-2">

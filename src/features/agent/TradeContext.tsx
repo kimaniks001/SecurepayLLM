@@ -9,7 +9,7 @@ export function TradeContext({ state, controller, expanded, onToggle }: { state:
   };
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
     <button onClick={onToggle} aria-expanded={expanded} className="w-full flex items-center justify-between px-4 py-3 hover:bg-cream-50 transition-colors">
-      <span className="text-[0.825rem] font-medium text-forest-700">What SecurePay understands</span>
+      <span className="font-display text-[0.9rem] text-forest-700">What SecurePay understands</span>
       <ChevronDown className={`w-4 h-4 text-sand-400 ${expanded ? 'rotate-180' : ''}`} />
     </button>
     {expanded && <div className="px-4 pb-3 animate-fade-in-down">
@@ -28,7 +28,7 @@ export function TradeContext({ state, controller, expanded, onToggle }: { state:
       {context.status === 'ready' && <>
         <p className="text-[0.75rem] text-sand-500 mb-2">Trade Context only — known in this conversation, not canonical Agreement terms.</p>
         {context.data?.facts.length === 0 && <p className="text-sm text-sand-500">No facts yet.</p>}
-        {context.data?.facts.map(fact => <div key={`${fact.targetKind}:${fact.id}`} className="flex items-start gap-2.5 py-2.5 border-b border-cream-100 last:border-0">
+        {context.data?.facts.map(fact => <div key={`${fact.targetKind}:${fact.id}`} className="flex items-start gap-2.5 py-2.5 border-b border-cream-100 last:border-0 animate-fact-settle">
           <span className="pt-0.5 shrink-0">{fact.state === 'CONFIRMED' ? <Check className="w-3.5 h-3.5 text-forest-500" /> : fact.state === 'CANDIDATE' ? <Circle className="w-3 h-3 text-ember-400" /> : <HelpCircle className="w-3.5 h-3.5 text-sand-400" />}</span>
           <div className="min-w-0 flex-1 break-words">
             {/* Final Phase 3 question-focused pass (Section 6, truth vocabulary): these are

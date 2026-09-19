@@ -18,6 +18,7 @@ import { ActionList } from './ActionList';
 import { ConversationInput } from './ConversationInput';
 import { AgreementCalendarAndTags, type ConflictView, type TagView } from './AgreementCalendarAndTags';
 import { AgentUnderstoodCard } from './AgentUnderstoodCard';
+import { StatusNotice } from './dna/StatusNotice';
 import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
 import type { CalendarEventView } from '../features/workspace/view';
 
@@ -149,7 +150,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4">
           <div className="max-w-2xl mx-auto space-y-4">
-            {tab === 'overview' && <AgreementOverview detail={detail} />}
+            {tab === 'overview' && <AgreementOverview detail={detail} actions={structure?.actions} />}
             {tab === 'terms' && <AgreementTerms detail={detail} />}
             {tab === 'people' && <AgreementPeople people={detail.people} />}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
@@ -184,15 +185,13 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {showReuse && tab === 'overview' && <AgreementReuse detail={detail} />}
 
             {detail.status === 'cancelled' && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                <div className="text-[0.7rem] font-medium text-red-700 uppercase tracking-wide">Cancelled</div>
-                <p className="text-[0.825rem] text-red-600 mt-1">
-                  Cancelled by {detail.cancelledBy} on {detail.cancelledDate}
-                </p>
+              <StatusNotice tone="error" icon={false}>
+                <div className="text-[0.7rem] font-medium uppercase tracking-wide">Cancelled</div>
+                <p className="mt-1">Cancelled by {detail.cancelledBy} on {detail.cancelledDate}</p>
                 {detail.cancelledReason && (
                   <p className="text-[0.78rem] text-sand-600 mt-0.5">{detail.cancelledReason}</p>
                 )}
-              </div>
+              </StatusNotice>
             )}
             {detail.status === 'expired' && (
               <div className="rounded-xl border border-cream-300 bg-cream-100 px-4 py-3">
@@ -227,18 +226,16 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           {/* Section content */}
           {mobileSection === 'overview' && (
             <>
-              <AgreementOverview detail={detail} />
+              <AgreementOverview detail={detail} actions={structure?.actions} />
               {showReuse && <AgreementReuse detail={detail} />}
               {detail.status === 'cancelled' && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                  <div className="text-[0.7rem] font-medium text-red-700 uppercase tracking-wide">Cancelled</div>
-                  <p className="text-[0.825rem] text-red-600 mt-1">
-                    Cancelled by {detail.cancelledBy} on {detail.cancelledDate}
-                  </p>
+                <StatusNotice tone="error" icon={false}>
+                  <div className="text-[0.7rem] font-medium uppercase tracking-wide">Cancelled</div>
+                  <p className="mt-1">Cancelled by {detail.cancelledBy} on {detail.cancelledDate}</p>
                   {detail.cancelledReason && (
                     <p className="text-[0.78rem] text-sand-600 mt-0.5">{detail.cancelledReason}</p>
                   )}
-                </div>
+                </StatusNotice>
               )}
               {detail.status === 'expired' && (
                 <div className="rounded-xl border border-cream-300 bg-cream-100 px-4 py-3">

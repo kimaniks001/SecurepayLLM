@@ -8,7 +8,7 @@ const statusConfig: Record<AgreementStatus, { label: string; classes: string; do
   active: { label: 'Active', classes: 'bg-forest-50 text-forest-700', dot: 'bg-forest-500' },
   change_requested: { label: 'Change requested', classes: 'bg-ember-50 text-ember-700', dot: 'bg-ember-500' },
   completed: { label: 'Completed', classes: 'bg-cream-100 text-sand-600', dot: 'bg-sand-400' },
-  cancelled: { label: 'Cancelled', classes: 'bg-red-50 text-red-600', dot: 'bg-red-400' },
+  cancelled: { label: 'Cancelled', classes: 'bg-ember-50 text-ember-700', dot: 'bg-ember-500' },
   expired: { label: 'Expired', classes: 'bg-cream-200 text-sand-500', dot: 'bg-sand-400' },
 };
 
