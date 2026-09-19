@@ -311,9 +311,8 @@ results (3 new focused tests added there).
   addresses the beneficiary by masked KS Number, not a phone number — so a future KS-to-KS rail would
   appear automatically with no frontend change required. Documented as an existing architectural
   property, not something built this phase.
-- **`RecipientReviewCard`'s hardcoded Labour/Materials fields** (already flagged as deferred in
-  Phase 2) remain untouched — not a Money concern this phase, still relevant to a future
-  "Agreements are bigger than money" pass.
+- ~~**`RecipientReviewCard`'s hardcoded Labour/Materials fields**...~~ **Fixed by the Phase 2
+  deep-review correction (PR #23)**, merged into this branch's ancestry — no longer a gap.
 - **Mobile visual verification** — see L. Should be the first thing checked once a real backend or a
   Money-aware fixture/staging environment is available.
 
@@ -433,3 +432,109 @@ after merging `fix/deep-review-phase2-human-core` (PR #23) into it, per the requ
 Files changed by this correction specifically: `src/features/money/MoneyExperience.tsx`,
 `src/features/money/FxConversionSection.tsx`, `src/features/money/BusinessFxConversionSection.tsx`,
 `tests/money-experience.test.mjs`, plus this document. PR #22 remains open/draft/unmerged.
+
+---
+
+## Q. Final Phase 3 semantics correction (2026-09-19)
+
+The architecture fix in section P was right, but a further review found that several *numbers*
+shown by that correct architecture were still given a stronger financial meaning than the backend
+actually establishes. The governing rule applied here: **a valid number is not automatically a valid
+financial meaning** — every customer-facing claim below was checked against the one backend field
+that actually proves it, and narrowed or removed where none did.
+
+**Q.1 — "What money you have" overstated the aggregate's proof.** `AgreementMoneySummaryService`
+(the backend service behind `moneyByCurrency`) is explicit that it establishes one faithful
+category — Agreement Money across the actor's own readable Agreements — and does *not* faithfully
+distinguish personal ownership, money due to the actor, money the actor merely manages, or a general
+balance. Every "what money you have" / "what you have" occurrence (the Money page's own description,
+its signed-out variant, and `MoneyHomeOverview`'s loading state) was reworded to "Agreement Money
+across your Agreements" / "Agreement Money SecurePay can show for Agreements you can access" —
+language the aggregate actually proves.
+
+**Q.2 — `remainingFundedMinor` was labelled "Available within Agreements."** "Available" implies
+personal spendability the field doesn't prove — it is funded money not yet progressed or released,
+nothing more. Relabelled "Remaining funded," with an explicit supporting line ("Funded Agreement
+Money not yet progressed or released") so the number states its own meaning rather than relying on
+an ambiguous label.
+
+**Q.3 — `authorisedMaxAmountMinor` was still labelled "protected."** The position card's headline
+figure said "KES X protected" for the authorised ceiling — but the ceiling has never itself moved or
+been funded. Fixed: the ceiling is now shown as its own unlabelled figure captioned "Authorised
+maximum for this obligation," with no "protected" word attached anywhere near it. The multi-position
+picker list (`AgreementMoneySection`'s own list of positions) had the same defect — it showed
+whichever of `proposedAmountMinor`/`authorisedMaxAmountMinor` happened to be non-null, universally
+labelled "protected." Fixed to show "Proposed" for a not-yet-established position and "Authorised
+maximum" for an established one — never "protected" for either.
+
+**Q.4 — `fundedTotalMinor` is now the one field carrying the "protected" meaning.** It is the money
+that has actually been funded into the position, matching this codebase's own transaction-history
+vocabulary (`FUNDED` → `"Protected"`). It is now shown directly, labelled "Funded / protected,"
+whenever it is greater than zero.
+
+**Q.5 — The "Still protected" derived category was removed, not relabelled.** It computed
+`authorisedMaxAmountMinor - fundedTotalMinor` and presented the result as its own financial state.
+That arithmetic is not wrong, but the *category* it implies (money that is somehow "still protected"
+distinct from being funded or not) is not one the backend establishes. Removed outright. The
+customer-facing vocabulary this retires (`"Still protected"`) was previously locked by
+`money-experience.test.mjs`'s "Section 3" test as a "programme-controller decision" — that test was
+updated deliberately (documented in its own comment) to require the phrase's *absence* instead,
+since this correction is itself a later, superseding decision from the same authority, not an
+unreviewed weakening.
+
+**Q.6 — The non-established CTA and its success message.** `authorityGateway.open()` only
+establishes the Agreement Money authority (the ceiling) for an obligation — it does not fund or
+protect any money. The CTA ("Protect this money") and its success message ("Agreement Money is now
+ready for...") both still implied otherwise. Fixed: CTA reworded to "Set up Agreement Money"; success
+message reworded to "Agreement Money is ready for funding for [Agreement]." `fund()`'s and
+`exercise()`'s messages were re-checked and left unchanged (already accurate — see section P.2/P.6
+history above); `release()`'s wording ("released back to the funder(s)") was already correct from the
+prior pass.
+
+**Q.7 — Money Home's "Needs your attention" used a money-*presence* proxy, not a money-*action*
+proof.** The prior correction (P.1) filtered `needsMe` to Agreements with a `proposedAmountMinor` —
+but a money-bearing Agreement can need attention for evidence, review, confirmation, or an unrelated
+obligation; a proposed amount proves nothing about *why* the Agreement needs attention. Fixed: the
+filter now requires the Agreement's own `nextActions` to contain a verified, real, money-specific
+action code (`FUND_AGREEMENT` — the exact same code already used elsewhere in this codebase,
+`workspace/controller.ts`'s `fundActionAvailable` check and `money/adapters.ts`'s own action lookup,
+confirmed against a real `/api/v1/me/actions` code documented in `types.ts`). If no verified money
+action exists for an Agreement, it is simply omitted from this list — never sent to the wrong
+destination, never given an invented reason.
+
+**Full final mapping** (the one this phase now uses everywhere):
+
+| Concept | Backend field | Customer label |
+|---|---|---|
+| Proposed Agreement amount | `proposedAmountMinor` (not yet established) | "Proposed" |
+| Authorised maximum | `authorisedMaxAmountMinor` | "Authorised maximum" (never "protected") |
+| Funded / protected | `fundedTotalMinor` | "Funded / protected" |
+| Remaining funded | `remainingFundedMinor` | "Remaining funded" / "Ready to progress" (never "available") |
+| Progressed | `exercisedOrSettledMinor` | "Progressed" (never "Settled" unless `providerSettlementCertified`) |
+| Released | `releasedTotalMinor` | "Released back to the funder(s)" |
+
+These six are kept visually and semantically distinct everywhere Agreement Money is shown; no two are
+ever combined into a third, invented category.
+
+**What did not change**: every mutating gateway call (`open`/`fund`/`exercise`/`release`,
+`createIntent`/`initiate`, `register`/`replace`, `activate`, `fxApplicationGateway.create`,
+`moneySessionGateway.create`/`redeem`) still carries the exact same arguments as before this
+correction — confirmed by diff review. No backend contract was touched; no new backend contradiction
+was found requiring escalation instead of a frontend fix. The Financial Partner Hall and Hosted Money
+Session sections needed no change and are unchanged. FX wording (already corrected in section P) was
+re-checked and needed no further change.
+
+**Tests**: baseline (this branch, before this final correction) — `npm run typecheck`/`lint` clean,
+`node --test tests/*.mjs` 356 passed / 4 pre-existing unrelated failures, `npm run build` succeeds.
+After this correction — `npm run typecheck`/`lint` clean, `node --test tests/*.mjs` **362** passed
+(356 + 6 new focused tests in `money-experience.test.mjs`, covering Q.1 through Q.7 above) / the same
+4 pre-existing unrelated failures, `npm run build` succeeds. One existing test
+(`money-experience.test.mjs`'s "Section 3" test) was updated deliberately, with an in-file comment
+explaining why, per the same standard applied to the Phase 2 `RecipientReviewCard` fixture-parity
+test — not disabled, not silently weakened; its replacement actively asserts the retired vocabulary's
+absence.
+
+**Git**: this correction was made directly on `feat/final-phase3-securepay-money-world` (PR #22), on
+top of the section P correction (no rebase, no history rewrite). Files changed:
+`src/features/money/MoneyExperience.tsx`, `tests/money-experience.test.mjs`, plus this document. PR
+#22 remains open/draft/unmerged; PR #23 was not touched by this pass.
