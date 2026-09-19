@@ -19,10 +19,10 @@ export function secureAuthView(identity: IdentityState): SecureAuthResponse {
   }
   return {
     type: 'SECURE_AUTH',
-    title: 'Secure Identity required',
+    title: 'You are ready to set this securely',
     identityName: '',
     identityKsn: '',
-    reason: 'Continuing requires verifying who you are. This is identity only — not joining, confirming, or accepting any Agreement.',
+    reason: 'Verifying who you are keeps this secure. This is identity only — it does not join, confirm, or accept any Agreement on its own.',
     fields: [
       { label: 'KS Number', placeholder: 'KS-000000', type: 'text' },
       { label: 'Password', placeholder: 'Password', type: 'password' },

@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { RecipientReviewCard } from '../../components/RecipientReview';
 import { SecureAuthCard } from '../../components/SecureAuth';
 import { JoinPromptCard } from '../../components/JoinPrompt';
@@ -116,7 +117,11 @@ export function RecipientExperience({ token, gateway, auth, session, onLeave }: 
   }
 
   return (
-    <main className="min-h-dvh bg-cream-100 flex items-center justify-center p-6">
+    <main className="min-h-dvh bg-cream-100 flex flex-col items-center justify-center p-6 gap-6">
+      {/* Phase 2 Human Core (Section 21/22): the recipient must feel like the same SecurePay
+          experience from the other side, not an anonymous public link -- own markup, not part of
+          any locked Bolt component, so it never affects fixture parity for the cards below it. */}
+      <img src={securepayWordmark} alt="SecurePay" className="h-7 w-auto" />
       <div className="w-full max-w-lg">{body}</div>
     </main>
   );

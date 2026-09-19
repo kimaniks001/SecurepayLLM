@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { ConversationWorkspace } from '../../components/ConversationWorkspace';
 import { ContextPanel } from '../../components/ContextPanel';
@@ -90,6 +90,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
   const reviewing = () => { setExpanded(true); void controller.review(); };
+  // Phase 2 Human Core (Section 9/10): the moment a fact first settles into Trade Context, open
+  // "What SecurePay understands" on its own -- the person should see understanding take shape,
+  // not have to discover and click a collapsed accordion to find out something happened.
+  const hasFacts = (state.context.data?.facts.length ?? 0) > 0;
+  useEffect(() => { if (hasFacts) setExpanded(true); }, [hasFacts]);
   const startNewConversation = () => {
     setController(createAgentController(gateway));
     setHandoffController(createHandoffController(gateway));
