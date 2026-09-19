@@ -20,7 +20,7 @@ import { AgreementCalendarAndTags, type ConflictView, type TagView } from './Agr
 import { AgentUnderstoodCard } from './AgentUnderstoodCard';
 import { StatusNotice } from './dna/StatusNotice';
 import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
-import type { CalendarEventView } from '../features/workspace/view';
+import type { AgreementNextView, CalendarEventView } from '../features/workspace/view';
 
 interface AgreementProgress {
   milestones: Milestone[];
@@ -51,6 +51,13 @@ interface AgreementDetailProps {
    */
   money: MoneyDetail | null;
   progress: AgreementProgress | null;
+  /**
+   * Deep-review correction: the authoritative first next action for this Agreement, already
+   * backend-sorted (never re-ranked here) -- distinct from `progress.actions`, which is honestly
+   * always empty in real production (see agreementProgressView's own doc comment). `null` means no
+   * action is currently due for this participant; Overview shows nothing rather than a fallback.
+   */
+  next?: AgreementNextView | null;
   /** Phase 3 Living Agreements -- KSCalendar + personal tags for this one Agreement. */
   events?: CalendarEventView[];
   conflicts?: ConflictView[];
@@ -87,7 +94,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -150,7 +157,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4">
           <div className="max-w-2xl mx-auto space-y-4">
-            {tab === 'overview' && <AgreementOverview detail={detail} actions={structure?.actions} />}
+            {tab === 'overview' && <AgreementOverview detail={detail} next={next} />}
             {tab === 'terms' && <AgreementTerms detail={detail} />}
             {tab === 'people' && <AgreementPeople people={detail.people} />}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
@@ -226,7 +233,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           {/* Section content */}
           {mobileSection === 'overview' && (
             <>
-              <AgreementOverview detail={detail} actions={structure?.actions} />
+              <AgreementOverview detail={detail} next={next} />
               {showReuse && <AgreementReuse detail={detail} />}
               {detail.status === 'cancelled' && (
                 <StatusNotice tone="error" icon={false}>

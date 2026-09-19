@@ -3,7 +3,7 @@ import type {
   AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationStatusResponse,
   AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementProblemSummaryResponse,
   CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
-  PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse,
+  PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse, WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -71,6 +71,14 @@ export interface WorkspaceState {
   selectedAgreementId: string | null;
   selectedStatus: AgreementStatus | null;
   selectedCompletion: DetailCompletion | null;
+  /**
+   * Deep-review correction: the authoritative per-participant next actions from the same Hub/Home
+   * summary used to open this Agreement (already backend-sorted by ParticipantNextActionService),
+   * carried alongside selectedStatus/selectedCompletion so AgreementOverview's "Next" block reads
+   * real truth instead of the always-empty agreementProgressView(...).actions. Not re-fetched on
+   * refreshDetail(), matching the existing selectedStatus/selectedCompletion behaviour.
+   */
+  selectedAgreementNextActions: WorkspaceNextActionResponse[];
   detail: RemoteState<DetailData>;
   money: RemoteState<MoneyLoad>;
 }
@@ -80,7 +88,7 @@ const initial: WorkspaceState = {
   hub: { status: 'idle' },
   myCalendarEvents: [],
   homeExtras: { problems: [], recentActivity: [], moneyByCurrency: [] },
-  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null,
+  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [],
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
@@ -151,7 +159,10 @@ export function createWorkspaceController(gateway: Gateway) {
   async function openDetail(summary: CurrentUserAgreementSummaryResponse, origin: StatusOrigin) {
     const status = boltAgreementStatus(summary, origin);
     const completion: DetailCompletion = { completed: !!summary.completion?.completed, completedAt: summary.completion?.completedAt ?? null };
-    update({ view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion, detail: { status: 'loading' } });
+    update({
+      view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion,
+      selectedAgreementNextActions: summary.nextActions, detail: { status: 'loading' },
+    });
     try {
       const data = await loadDetailData(summary.agreementId);
       update({ detail: { status: 'ready', data } });
@@ -216,8 +227,8 @@ export function createWorkspaceController(gateway: Gateway) {
       } catch { /* same as addTag -- organizational only, never blocks Agreement state. */ }
     },
 
-    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, detail: { status: 'idle' } }); },
-    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, detail: { status: 'idle' } }); },
+    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], detail: { status: 'idle' } }); },
+    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], detail: { status: 'idle' } }); },
 
     /** Money is always entered for one selected Agreement and always re-reads status/records/actions fresh. */
     async openMoney(agreementId: string) {

@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/recipient/controller';
 export * from './src/features/recipient/route';
+export * from './src/features/recipient/view';
 export * from './src/features/identity/controller';
 export * from './src/api/securepay/http';
 export * from './src/api/securepay/session';
@@ -331,26 +332,67 @@ test('16. production path wires the real recipient/identity/session modules and 
   assert.match(runtime, /key=\{invitationToken\}/);
 });
 
-test('recipient review renders unmodified against Bolt when no real notice is supplied, and never shows the demo caption when one is', async () => {
+// Deep-review correction pass: RecipientReviewCard's old Bolt baseline hardcoded a construction/
+// labour shape ("Labour"/"Materials"/"Complete" rows, always shown, fed by a real adapter that
+// forced proposedAmountMinor into "labour" and invented materials: 'Not specified'). The public
+// invitation contract makes no labour assumption at all -- it exists for service, product,
+// contribution, project, and general commercial Agreements alike. This intentionally no longer
+// asserts byte-identical markup against that labour-shaped Bolt baseline; it instead asserts the
+// generalized real behaviour directly: role and expiry always shown, purpose/proposed amount shown
+// only when the backend actually supplies them, and the demo-caption swap still works.
+test('recipient review is generic (not labour-shaped) and never fabricates purpose or proposed amount', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { RecipientReviewCard } from './src/components/RecipientReview';
-const data = { type: 'RECIPIENT_REVIEW', inviterName: 'James', title: 'Bathroom retiling', role: 'Provider', labour: 'KES 68,000', materials: 'Customer supplies tiles, adhesive and grout', completion: 'By 20 October 2026', primaryLabel: 'Continue', primaryValue: 'continue_review', secondaryLabel: "Not me / I wasn't expecting this", secondaryValue: 'not_me' };
+const withBoth = { type: 'RECIPIENT_REVIEW', inviterName: 'James', title: 'Bathroom retiling', role: 'Provider', purpose: 'Retile the bathroom', proposedAmount: 'KES 68,000.00', expiry: 'Invitation expires 20 October 2026', primaryLabel: 'Continue', primaryValue: 'continue_review', secondaryLabel: "Not me / I wasn't expecting this", secondaryValue: 'not_me' };
+const withNeither = { ...withBoth, purpose: null, proposedAmount: null };
 const noop = () => {};
-export const fixtureMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data, onChoice: noop }));
-export const realMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data, onChoice: noop, notice: 'Viewing this invitation is not acceptance and does not join the agreement.' }));`;
-  const touched = /src\/components\/RecipientReview\.tsx$/;
-  async function render(baseline) {
-    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
-    const mod = { exports: {} };
-    new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
-    return mod.exports;
-  }
-  const current = await render(false);
-  const baseline = await render(true);
-  assert.equal(current.fixtureMarkup, baseline.fixtureMarkup); // unchanged when the real notice is omitted
-  assert.match(current.fixtureMarkup, /Demo SecureLink invitation/);
-  assert.doesNotMatch(current.realMarkup, /Demo SecureLink invitation/);
-  assert.match(current.realMarkup, /does not join the agreement/);
+export const bothMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data: withBoth, onChoice: noop }));
+export const neitherMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data: withNeither, onChoice: noop }));
+export const demoCaptionMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data: withBoth, onChoice: noop }));
+export const realCaptionMarkup = renderToStaticMarkup(React.createElement(RecipientReviewCard, { data: withBoth, onChoice: noop, notice: 'Viewing this invitation is not acceptance and does not join the agreement.' }));`;
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+  const { bothMarkup, neitherMarkup, demoCaptionMarkup, realCaptionMarkup } = mod.exports;
+
+  // The old labour-specific vocabulary must be gone entirely.
+  assert.doesNotMatch(bothMarkup, /Labour|Materials|Complete:/);
+  // Real facts, when supplied, are shown.
+  assert.match(bothMarkup, /Purpose:/);
+  assert.match(bothMarkup, /Proposed amount:/);
+  assert.match(bothMarkup, /Invitation expires 20 October 2026/);
+  // When the backend supplies neither, nothing is fabricated to fill the row -- it simply doesn't render.
+  assert.doesNotMatch(neitherMarkup, /Purpose:/);
+  assert.doesNotMatch(neitherMarkup, /Proposed amount:/);
+  // Role and expiry are unconditional -- every invitation has these.
+  assert.match(neitherMarkup, /Your role:/);
+  assert.match(neitherMarkup, /Invitation expires/);
+  // The card states its own authority boundary regardless of backend notice text.
+  assert.match(bothMarkup, /does not join or accept anything yet/);
+  // The demo/real notice-caption swap still works.
+  assert.match(demoCaptionMarkup, /Demo SecureLink invitation/);
+  assert.doesNotMatch(realCaptionMarkup, /Demo SecureLink invitation/);
+  assert.match(realCaptionMarkup, /does not join the agreement/);
+});
+
+test('recipientReviewView never labels a proposed amount as labour, and never fabricates purpose/amount when the backend omits them', () => {
+  const withAmount = api.recipientReviewView({
+    publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile the bathroom', intendedRole: 'PROVIDER',
+    currency: 'KES', proposedAmountMinor: 6800000, invitationExpiresAt: '2026-12-01T00:00:00Z', proposalVersionNumber: 1,
+    notice: 'Viewing this invitation is not acceptance and does not join the agreement.',
+  });
+  assert.equal(withAmount.purpose, 'Retile the bathroom');
+  assert.match(withAmount.proposedAmount, /KES/);
+  assert.ok(!('labour' in withAmount));
+  assert.ok(!('materials' in withAmount));
+
+  const withoutAmount = api.recipientReviewView({
+    publicReference: 'AGR-2', title: 'Used iPhone purchase', purpose: '', intendedRole: 'BUYER',
+    currency: 'KES', proposedAmountMinor: null, invitationExpiresAt: '2026-12-01T00:00:00Z', proposalVersionNumber: 1,
+    notice: 'Viewing this invitation is not acceptance and does not join the agreement.',
+  });
+  assert.equal(withoutAmount.purpose, null);
+  assert.equal(withoutAmount.proposedAmount, null);
 });
