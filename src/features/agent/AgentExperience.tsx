@@ -34,6 +34,9 @@ import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
 import { ProjectsExperience } from '../projects/ProjectsExperience';
 import { createProjectsController } from '../projects/controller';
 import type { ProjectGateway } from '../../api/securepay/projects';
+import { VisionBoardExperience } from '../visionboard/VisionBoardExperience';
+import { createVisionBoardController } from '../visionboard/controller';
+import type { VisionBoardGateway } from '../../api/securepay/visionboard';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -51,9 +54,10 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
+  visionBoardGateway: VisionBoardGateway;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
@@ -62,6 +66,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const [projectsController] = useState(() => createProjectsController(projectGateway));
+  const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
@@ -82,6 +87,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
+  const [visionBoard, setVisionBoard] = useState(false);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   const startNewConversation = () => {
     setController(createAgentController(gateway));
@@ -95,25 +101,35 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
-    if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setStore(true); return; }
-    if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setCommunity(true); return; }
-    if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setCircle(true); return; }
-    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setEcosystem(true); return; }
+    if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
+    if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
+    if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
+    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
     if (view === 'projects') {
-      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null);
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setVisionBoard(false);
       if (sessionState.status === 'signed-in') { setProjects(true); return; }
       setHome(true);
       setNotice('Sign in through "Continue with this" to view your Projects.');
+      return;
+    }
+    // Final Completion Phase 5B -- the Vision Board is a private, authenticated-only KS operating
+    // memory (ideas, plans, guidance, templates), never a shared or public surface; a signed-out
+    // visitor is routed to sign in first, exactly like Projects above.
+    if (view === 'vision-board') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false);
+      if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
+      setHome(true);
+      setNotice('Sign in through "Continue with this" to view your Vision Board.');
       return;
     }
 
     // Agreement-scoped Plug help temporarily unmounts the workspace. Preserve the exact Agreement id
     // before clearing the ecosystem context so remounting can reopen it from the authoritative Hub.
     const returningAgreementId = view === 'agreement-detail' ? ecosystemAgreementId : null;
-    setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false);
+    setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
     if (view === 'signed-in' || view === 'agreements' || view === 'money' || view === 'agreement-detail') {
       if (sessionState.status === 'signed-in') {
         setWorkspaceAgreementId(returningAgreementId);
@@ -200,6 +216,17 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         controller={projectsController}
         agreementGateway={agreementGateway}
         onNavigate={navigateTo}
+        onOpenVisionBoard={() => navigateTo('vision-board')}
+      />
+    );
+  }
+
+  if (visionBoard && sessionState.status === 'signed-in') {
+    return (
+      <VisionBoardExperience
+        controller={visionBoardController}
+        documentGateway={visionBoardGateway}
+        onNavigate={navigateTo}
       />
     );
   }
@@ -214,6 +241,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       onOpenStore={() => navigateTo('store')}
       onOpenReferral={openEcosystemForAgreement}
       onOpenProjects={() => navigateTo('projects')}
+      onOpenVisionBoard={() => navigateTo('vision-board')}
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);

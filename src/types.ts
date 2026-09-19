@@ -738,7 +738,7 @@ export interface AgreementDetailResponse extends BaseResponse {
   detail: AgreementDetail;
 }
 
-export type AppView = 'signed-out' | 'signed-in' | 'conversation' | 'agreements' | 'agreement-detail' | 'dispute' | 'agreement-builder' | 'money' | 'store' | 'community' | 'circle' | 'ecosystem' | 'projects';
+export type AppView = 'signed-out' | 'signed-in' | 'conversation' | 'agreements' | 'agreement-detail' | 'dispute' | 'agreement-builder' | 'money' | 'store' | 'community' | 'circle' | 'ecosystem' | 'projects' | 'vision-board';
 
 // ─── Pass 7B: Milestones, Obligations, Actions ───────────────────
 

@@ -52,7 +52,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onLeave }: {
+export function WorkspaceExperience({ gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onLeave }: {
   gateway: Gateway;
   /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
    * with the main signed-in Agent experience -- never a second, separate mini-conversation.
@@ -64,6 +64,8 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   onOpenReferral?: (agreementId: string) => void;
   /** Final Completion Phase 5A -- private Projects organization view. Optional, mirroring onOpenStore. */
   onOpenProjects?: () => void;
+  /** Final Completion Phase 5B -- private Vision Board operating memory. Optional, mirroring onOpenProjects. */
+  onOpenVisionBoard?: () => void;
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
@@ -136,6 +138,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
     else if (view === 'money') setNotice('Open Money from a specific agreement to view it.');
     else if (view === 'store' && onOpenStore) onOpenStore();
     else if (view === 'projects' && onOpenProjects) onOpenProjects();
+    else if (view === 'vision-board' && onOpenVisionBoard) onOpenVisionBoard();
     else setNotice('This area is not available yet.');
   };
 
@@ -252,11 +255,13 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view={navBarView} onNavigate={handleNavigate} />
-      {/* Final Completion Phase 5A -- private Projects organization, one tap from Home/Agreements.
-          Own markup, not part of any locked Bolt component, so it never affects fixture parity. */}
-      {(state.view === 'home' || state.view === 'hub') && onOpenProjects && (
-        <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex justify-end">
-          <button onClick={onOpenProjects} className="text-[0.8rem] text-forest-700 underline">My Projects</button>
+      {/* Final Completion Phase 5A/5B -- private Projects organization and private Vision Board
+          operating memory, one tap from Home/Agreements. Own markup, not part of any locked Bolt
+          component, so it never affects fixture parity. */}
+      {(state.view === 'home' || state.view === 'hub') && (onOpenProjects || onOpenVisionBoard) && (
+        <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex justify-end gap-4">
+          {onOpenProjects && <button onClick={onOpenProjects} className="text-[0.8rem] text-forest-700 underline">My Projects</button>}
+          {onOpenVisionBoard && <button onClick={onOpenVisionBoard} className="text-[0.8rem] text-forest-700 underline">My Vision Board</button>}
         </div>
       )}
       {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}

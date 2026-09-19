@@ -16,11 +16,13 @@ function formatMoney(currency: string, amountMinor: number): string {
  * project wallet, Fund Project, Pay Project, or Project Payment Ready appears anywhere below,
  * because none of those exist on the backend for a Project.
  */
-export function ProjectsExperience({ controller, agreementGateway, defaultOwnerKsNumber, onNavigate }: {
+export function ProjectsExperience({ controller, agreementGateway, defaultOwnerKsNumber, onNavigate, onOpenVisionBoard }: {
   controller: ProjectsController;
   agreementGateway: Pick<AgreementGateway, 'currentUserAgreements'>;
   defaultOwnerKsNumber?: string | null;
   onNavigate: (view: AppView) => void;
+  /** Final Completion Phase 5B -- the Vision Board sits alongside Projects on this entry screen (section 15). */
+  onOpenVisionBoard?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [ownerKsNumber, setOwnerKsNumber] = useState(defaultOwnerKsNumber ?? '');
@@ -134,7 +136,7 @@ export function ProjectsExperience({ controller, agreementGateway, defaultOwnerK
         <h1 className="font-display text-xl text-forest-800 flex items-center gap-2"><FolderOpen className="w-5 h-5" /> My Projects</h1>
         <button onClick={() => setShowCreate(v => !v)} className="flex items-center gap-1 rounded-lg bg-forest-600 text-cream-50 px-3 py-1.5 text-[0.82rem]"><Plus className="w-3.5 h-3.5" /> New Project</button>
       </div>
-      <p className="text-[0.8rem] text-sand-500">Private folders for organizing Agreements you consider related. Never shared, never a source of Agreement authority.</p>
+      <p className="text-[0.8rem] text-sand-500">Keep related Agreements together here — a house build, a client job, an event, a business expansion or anything else you're working on. Private, never shared, never a source of Agreement authority.</p>
 
       <div className="rounded-2xl border border-cream-200 bg-white px-4 py-3 flex gap-2">
         <input value={ownerKsNumber} onChange={e => setOwnerKsNumber(e.target.value)} placeholder="Your KS Number (or a Business KS Number you manage)" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
@@ -156,7 +158,14 @@ export function ProjectsExperience({ controller, agreementGateway, defaultOwnerK
 
       {state.list.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading Projects…</p>}
       {state.list.status === 'error' && <p role="alert" className="text-sm text-sand-600">{state.list.error}</p>}
-      {state.list.status === 'ready' && state.list.data?.length === 0 && <p className="text-sm text-sand-500">No Projects yet.</p>}
+      {state.list.status === 'ready' && state.list.data?.length === 0 && <p className="text-sm text-sand-500">No Projects yet. Create one above whenever you have Agreements worth organizing together.</p>}
+      {state.list.status === 'ready' && state.list.data?.length === 0 && onOpenVisionBoard && (
+        <div className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+          <div className="text-[0.85rem] text-forest-800 font-display">My Vision Board</div>
+          <p className="text-[0.78rem] text-sand-500 mt-1 mb-2">Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged.</p>
+          <button onClick={onOpenVisionBoard} className="text-[0.8rem] text-forest-700 underline">Open my Vision Board</button>
+        </div>
+      )}
       <ul className="space-y-2">
         {state.list.data?.map(project => <li key={project.projectId}>
           <button onClick={() => void controller.open(project.projectId)} className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-colors">
