@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TradeHelpPanel } from '../../components/TradeHelpPanel';
+import { StatusNotice } from '../../components/dna/StatusNotice';
 import { MasterExperience } from '../master/MasterExperience';
 import { PlugExperience } from '../plug/PlugExperience';
 import { ReferralExperience } from '../referral/ReferralExperience';
@@ -40,7 +41,7 @@ export function EcosystemExperience({ masterGateway, marketNetworkGateway, refer
 
   return (
     <>
-      {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
+      {notice && <div className="px-4 py-2"><StatusNotice tone="info" icon={false}>{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></StatusNotice></div>}
       <TradeHelpPanel
         onBack={() => onNavigate('signed-in')}
         onPlugs={() => setSub('plug')}

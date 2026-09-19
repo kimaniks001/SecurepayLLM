@@ -3,6 +3,8 @@ import { ArrowLeft, Users, TrendingUp, ShieldCheck } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { SecureAuthCard } from '../../components/SecureAuth';
 import { ErrorStateCard } from '../../components/ErrorState';
+import { Surface, SurfaceBody } from '../../components/dna/Surface';
+import { PageHeader } from '../../components/dna/PageHeader';
 import type { CircleGateway } from '../../api/securepay/circle';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
@@ -95,44 +97,48 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
             <ArrowLeft className="w-3.5 h-3.5" />
             Community
           </button>
-          <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">Your Circle profile</h1>
+          <PageHeader title="Your Circle profile" />
         </div>
 
         <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
-          <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="w-4 h-4 text-forest-500" />
-              <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Identity</span>
-            </div>
-            <div className="text-[0.95rem] font-medium text-forest-800">{profile.displayName || profile.canonicalKsNumber}</div>
-            <div className="text-[0.78rem] text-sand-500 mt-0.5">{profile.canonicalKsNumber}</div>
-            <div className="mt-3 flex items-center gap-1.5 text-[0.78rem] text-sand-600">
-              <ShieldCheck className="w-3.5 h-3.5 text-sand-400" />
-              {circleVerificationStatusLabel[profile.verificationStatus]}
-            </div>
-            <div className="text-[0.72rem] text-sand-400 mt-1">SecurePay identity since {profile.memberSince}</div>
-          </div>
+          <Surface className="animate-quiet-in">
+            <SurfaceBody>
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-forest-500" />
+                <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Identity</span>
+              </div>
+              <div className="text-[0.95rem] font-medium text-forest-800">{profile.displayName || profile.canonicalKsNumber}</div>
+              <div className="text-[0.78rem] text-sand-500 mt-0.5">{profile.canonicalKsNumber}</div>
+              <div className="mt-3 flex items-center gap-1.5 text-[0.78rem] text-sand-600">
+                <ShieldCheck className="w-3.5 h-3.5 text-sand-400" />
+                {circleVerificationStatusLabel[profile.verificationStatus]}
+              </div>
+              <div className="text-[0.72rem] text-sand-400 mt-1">SecurePay identity since {profile.memberSince}</div>
+            </SurfaceBody>
+          </Surface>
 
-          <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-forest-500" />
-              <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Real network activity</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-cream-50 px-3 py-2.5">
-                <div className="text-[0.95rem] font-medium text-forest-800">{profile.referredTraderCount}</div>
-                <div className="text-[0.68rem] text-sand-500">Traders referred</div>
+          <Surface>
+            <SurfaceBody>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-forest-500" />
+                <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Real network activity</span>
               </div>
-              <div className="rounded-xl bg-cream-50 px-3 py-2.5">
-                <div className="text-[0.95rem] font-medium text-forest-800">{profile.activatedReferredTraderCount}</div>
-                <div className="text-[0.68rem] text-sand-500">Referrals activated</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-cream-50 px-3 py-2.5">
+                  <div className="text-[0.95rem] font-medium text-forest-800">{profile.referredTraderCount}</div>
+                  <div className="text-[0.68rem] text-sand-500">Traders referred</div>
+                </div>
+                <div className="rounded-xl bg-cream-50 px-3 py-2.5">
+                  <div className="text-[0.95rem] font-medium text-forest-800">{profile.activatedReferredTraderCount}</div>
+                  <div className="text-[0.68rem] text-sand-500">Referrals activated</div>
+                </div>
+                <div className="rounded-xl bg-cream-50 px-3 py-2.5">
+                  <div className="text-[0.95rem] font-medium text-forest-800">{profile.agreementsBroughtInCount}</div>
+                  <div className="text-[0.68rem] text-sand-500">Agreements brought in</div>
+                </div>
               </div>
-              <div className="rounded-xl bg-cream-50 px-3 py-2.5">
-                <div className="text-[0.95rem] font-medium text-forest-800">{profile.agreementsBroughtInCount}</div>
-                <div className="text-[0.68rem] text-sand-500">Agreements brought in</div>
-              </div>
-            </div>
-          </div>
+            </SurfaceBody>
+          </Surface>
 
           <button
             onClick={onAskAgent}
@@ -142,14 +148,16 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
             <p className="text-[0.72rem] text-sand-400 mt-0.5">SecurePay can look for real people, businesses, and offers that match what you need</p>
           </button>
 
-          <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Named Circles</div>
-            <p className="text-[0.825rem] text-sand-600">
-              Named Circles — discovery, member directories, joining, creating, and a Circle-scoped economic
-              story — are not available yet. SecurePay does not currently record Circle membership as a
-              named group; only the real activity above is authoritative.
-            </p>
-          </div>
+          <Surface>
+            <SurfaceBody>
+              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Named Circles</div>
+              <p className="text-[0.825rem] text-sand-600">
+                Named Circles — discovery, member directories, joining, creating, and a Circle-scoped economic
+                story — are not available yet. SecurePay does not currently record Circle membership as a
+                named group; only the real activity above is authoritative.
+              </p>
+            </SurfaceBody>
+          </Surface>
 
           <p className="text-[0.68rem] text-sand-400 italic px-2">
             Referred trader count ≠ followers. Activated referrals ≠ reputation. Agreements brought in ≠
