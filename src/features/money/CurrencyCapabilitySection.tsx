@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { ApiError } from '../../api/securepay/http';
 import type { CurrencyCapability, CurrencyCapabilityGateway } from '../../api/securepay/currency-capability';
+import { Surface, SurfaceHeader, SurfaceBody } from '../../components/dna/Surface';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { Button } from '../../components/dna/Button';
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -47,15 +49,12 @@ export function CurrencyCapabilitySection({ gateway, onChanged }: { gateway: Cur
   };
 
   return (
-    <section className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-cream-200 bg-cream-50">
-        <h2 className="font-display text-lg text-forest-800">Currencies</h2>
-        <p className="mt-1 text-xs text-sand-600">Your KS identity is not tied to one currency. KES is your default; activate others as you need them.</p>
-      </div>
-      <div className="p-5 space-y-4">
-        {error && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-sand-800 flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {error}</div>}
+    <Surface>
+      <SurfaceHeader title="Currencies" description="Your KS identity is not tied to one currency. KES is your default; activate others as you need them." />
+      <SurfaceBody>
+        {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {!capabilities ? (
-          <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my currencies</button>
+          <Button variant="secondary" onClick={() => void load()} disabled={loading}>Show my currencies</Button>
         ) : (
           <ul className="space-y-2">
             {capabilities.map(capability => (
@@ -65,19 +64,15 @@ export function CurrencyCapabilitySection({ gateway, onChanged }: { gateway: Cur
                   <div className="text-xs text-sand-600">{statusLabel(capability.status)}</div>
                 </div>
                 {capability.status === 'NOT_ACTIVATED' && (
-                  <button
-                    onClick={() => void activate(capability.currency)}
-                    disabled={activating === capability.currency}
-                    className="rounded-xl bg-forest-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-                  >
+                  <Button onClick={() => void activate(capability.currency)} disabled={activating === capability.currency} className="px-3 py-1.5">
                     {activating === capability.currency ? 'Activating…' : `Activate ${capability.currency}`}
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </div>
-    </section>
+      </SurfaceBody>
+    </Surface>
   );
 }

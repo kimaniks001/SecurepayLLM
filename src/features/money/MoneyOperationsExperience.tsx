@@ -5,6 +5,8 @@ import { ApiError } from '../../api/securepay/http';
 import type { MoneyOperationsGateway, MoneyOperationsSummaryResponse } from '../../api/securepay/money-operations';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
+import { Surface, SurfaceHeader, SurfaceBody } from '../../components/dna/Surface';
+import { Button } from '../../components/dna/Button';
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -39,28 +41,25 @@ export function MoneyOperationsExperience({ gateway, onLeave }: { gateway: Money
         <PageHeader title="Money operations" description="Read-only. Inspecting this never grants any financial mutation authority." />
         {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {!summary ? (
-          <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Load summary</button>
+          <Button variant="secondary" onClick={() => void load()} disabled={loading}>Load summary</Button>
         ) : (
           <div className="space-y-6">
-            <section className="rounded-2xl border border-cream-200 bg-white shadow-card p-5 space-y-2">
-              <h2 className="font-display text-lg text-forest-800">Choice connector</h2>
+            <Surface><SurfaceHeader title="Choice connector" /><SurfaceBody>
               <p className="text-sm text-sand-700">Connector active: <strong>{String(summary.choiceConnectorActive)}</strong></p>
               <p className="text-sm text-sand-700">Outbound transfer allowed: <strong>{String(summary.choiceOutboundTransferAllowed)}</strong></p>
               <p className="text-sm text-sand-700">Internal transfer certified: <strong>{String(summary.choiceInternalTransferCertified)}</strong></p>
               <p className="text-sm text-sand-700">FX enabled: <strong>{String(summary.fxEnabled)}</strong></p>
-            </section>
+            </SurfaceBody></Surface>
 
-            <section className="rounded-2xl border border-cream-200 bg-white shadow-card p-5 space-y-2">
-              <h2 className="font-display text-lg text-forest-800">Regulated partners ({summary.partners.length})</h2>
+            <Surface><SurfaceHeader title={`Regulated partners (${summary.partners.length})`} /><SurfaceBody>
               <ul className="space-y-2">
                 {summary.partners.map(partner => (
                   <li key={partner.partnerCode} className="text-sm text-sand-700">{partner.displayName} — {partner.partnerType} · {partner.environment} · {partner.status}</li>
                 ))}
               </ul>
-            </section>
+            </SurfaceBody></Surface>
 
-            <section className="rounded-2xl border border-cream-200 bg-white shadow-card p-5 space-y-2">
-              <h2 className="font-display text-lg text-forest-800">Open exceptions ({summary.openExceptions.length})</h2>
+            <Surface><SurfaceHeader title={`Open exceptions (${summary.openExceptions.length})`} /><SurfaceBody>
               {summary.openExceptions.length === 0 ? <p className="text-sm text-sand-600">None open.</p> : (
                 <ul className="space-y-2">
                   {summary.openExceptions.map(exception => (
@@ -72,10 +71,9 @@ export function MoneyOperationsExperience({ gateway, onLeave }: { gateway: Money
                   ))}
                 </ul>
               )}
-            </section>
+            </SurfaceBody></Surface>
 
-            <section className="rounded-2xl border border-cream-200 bg-white shadow-card p-5 space-y-2">
-              <h2 className="font-display text-lg text-forest-800">Pending reconciliation ({summary.pendingReconciliation.length})</h2>
+            <Surface><SurfaceHeader title={`Pending reconciliation (${summary.pendingReconciliation.length})`} /><SurfaceBody>
               {summary.pendingReconciliation.length === 0 ? <p className="text-sm text-sand-600">Nothing pending.</p> : (
                 <ul className="space-y-2">
                   {summary.pendingReconciliation.map(item => (
@@ -83,10 +81,9 @@ export function MoneyOperationsExperience({ gateway, onLeave }: { gateway: Money
                   ))}
                 </ul>
               )}
-            </section>
+            </SurfaceBody></Surface>
 
-            <section className="rounded-2xl border border-cream-200 bg-white shadow-card p-5 space-y-2">
-              <h2 className="font-display text-lg text-forest-800">Pending recovery ({summary.pendingRecovery.length})</h2>
+            <Surface><SurfaceHeader title={`Pending recovery (${summary.pendingRecovery.length})`} /><SurfaceBody>
               {summary.pendingRecovery.length === 0 ? <p className="text-sm text-sand-600">Nothing pending.</p> : (
                 <ul className="space-y-2">
                   {summary.pendingRecovery.map(item => (
@@ -94,9 +91,9 @@ export function MoneyOperationsExperience({ gateway, onLeave }: { gateway: Money
                   ))}
                 </ul>
               )}
-            </section>
+            </SurfaceBody></Surface>
 
-            <button onClick={() => void load()} disabled={loading} className="text-xs text-sand-600 underline">Refresh</button>
+            <Button variant="ghost" onClick={() => void load()} disabled={loading} className="text-xs">Refresh</Button>
           </div>
         )}
       </div>

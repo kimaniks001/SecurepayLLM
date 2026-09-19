@@ -7,6 +7,9 @@ import type {
   PaymentIntentResponse,
   PaymentIntentStatus,
 } from '../../api/securepay/payment-intent';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { Button } from '../../components/dna/Button';
+import { MoneyValue } from '../../components/dna/MoneyValue';
 
 function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
@@ -127,10 +130,10 @@ export function PaymentIntentFundingSection({ agreementId, gateway, onFunded }: 
   return (
     <div className="rounded-xl border border-cream-200 p-3 space-y-3">
       <div className="text-sm font-medium text-forest-800">Funding needed</div>
-      {error && <div className="text-xs text-orange-700">{error}</div>}
+      {error && <StatusNotice tone="warning">{error}</StatusNotice>}
 
       {stage.name === 'idle' && (
-        <button onClick={() => void start()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Choose a funding source</button>
+        <Button variant="secondary" onClick={() => void start()} disabled={loading}>Add money</Button>
       )}
 
       {stage.name === 'not-authorized' && (
@@ -148,9 +151,9 @@ export function PaymentIntentFundingSection({ agreementId, gateway, onFunded }: 
                   <div className="font-medium text-forest-800">{rail.displayName}</div>
                   {(rail.minimumAmountMinor != null || rail.maximumAmountMinor != null) && (
                     <div className="text-xs text-sand-600">
-                      {rail.minimumAmountMinor != null && `Min ${money(rail.minimumAmountMinor, rail.currency)}`}
+                      {rail.minimumAmountMinor != null && <>Min <MoneyValue amount={money(rail.minimumAmountMinor, rail.currency)} size="sm" /></>}
                       {rail.minimumAmountMinor != null && rail.maximumAmountMinor != null && ' · '}
-                      {rail.maximumAmountMinor != null && `Max ${money(rail.maximumAmountMinor, rail.currency)}`}
+                      {rail.maximumAmountMinor != null && <>Max <MoneyValue amount={money(rail.maximumAmountMinor, rail.currency)} size="sm" /></>}
                     </div>
                   )}
                 </button>
@@ -163,13 +166,13 @@ export function PaymentIntentFundingSection({ agreementId, gateway, onFunded }: 
       {stage.name === 'quoted' && (
         <div className="space-y-2">
           <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
-            <div>{money(stage.quote.amountMinor, stage.quote.currency)} via {stage.rail.displayName}</div>
-            <div className="text-xs text-sand-600">Provider fee {money(stage.quote.providerChargeMinor, stage.quote.currency)} + platform fee {money(stage.quote.platformChargeMinor, stage.quote.currency)} = {money(stage.quote.totalChargeMinor, stage.quote.currency)} total charge</div>
+            <div><MoneyValue amount={money(stage.quote.amountMinor, stage.quote.currency)} size="md" /> via {stage.rail.displayName}</div>
+            <div className="text-xs text-sand-600">Provider fee {money(stage.quote.providerChargeMinor, stage.quote.currency)} + platform fee {money(stage.quote.platformChargeMinor, stage.quote.currency)} = <MoneyValue amount={money(stage.quote.totalChargeMinor, stage.quote.currency)} size="sm" /> total charge</div>
             <div className="text-xs text-sand-500">Quote expires {new Date(stage.quote.expiresAt).toLocaleTimeString()}</div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => void proceed(stage.rail, stage.quote.quoteReference)} disabled={loading} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Continue</button>
-            <button onClick={reset} disabled={loading} className="text-sm text-sand-600 underline">Choose another rail</button>
+            <Button onClick={() => void proceed(stage.rail, stage.quote.quoteReference)} disabled={loading}>Continue</Button>
+            <Button variant="ghost" onClick={reset} disabled={loading}>Choose another rail</Button>
           </div>
         </div>
       )}
@@ -177,7 +180,7 @@ export function PaymentIntentFundingSection({ agreementId, gateway, onFunded }: 
       {stage.name === 'in-flight' && (
         <div className="space-y-2">
           <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
-            <div>{money(stage.intent.amountMinor, stage.intent.currency)}</div>
+            <div><MoneyValue amount={money(stage.intent.amountMinor, stage.intent.currency)} size="md" /></div>
             <div className="text-xs text-sand-600">{statusLine(stage.intent.status)}</div>
           </div>
           {stage.instruction?.type && (
@@ -192,10 +195,10 @@ export function PaymentIntentFundingSection({ agreementId, gateway, onFunded }: 
             <a href={stage.instruction.redirectUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-forest-700 underline">Continue with provider</a>
           )}
           {TERMINAL.includes(stage.intent.status) && stage.intent.status !== 'CONFIRMED' && (
-            <button onClick={reset} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700">Try again</button>
+            <Button variant="secondary" onClick={reset}>Try again</Button>
           )}
           {stage.intent.status === 'CONFIRMED' && (
-            <button onClick={reset} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700">Done</button>
+            <Button variant="secondary" onClick={reset}>Done</Button>
           )}
         </div>
       )}

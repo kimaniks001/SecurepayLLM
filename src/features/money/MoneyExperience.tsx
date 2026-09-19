@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { SecureAuthCard } from '../../components/SecureAuth';
@@ -44,6 +44,21 @@ function money(minor: number, currency: string) {
   return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
 }
 
+/** For grouping already-authoritative per-Agreement amounts by currency -- never a new financial fact, only addition within one currency at a time (Phase 3 Section 19: currencies are never mixed into one total). */
+function groupByCurrency(agreements: CurrentUserAgreementSummaryResponse[]): Map<string, { count: number; totalMinor: number }> {
+  const groups = new Map<string, { count: number; totalMinor: number }>();
+  for (const agreement of agreements) {
+    if (agreement.proposedAmountMinor == null) continue;
+    const amount = Number(agreement.proposedAmountMinor);
+    if (!Number.isFinite(amount)) continue;
+    const entry = groups.get(agreement.currency) ?? { count: 0, totalMinor: 0 };
+    entry.count += 1;
+    entry.totalMinor += amount;
+    groups.set(agreement.currency, entry);
+  }
+  return groups;
+}
+
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
   return 'SecurePay could not complete this action.';
@@ -85,6 +100,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
+  const [jumpAgreement, setJumpAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
 
   if (sessionState.status !== 'signed-in') {
     const data = secureAuthView(identityState);
@@ -125,12 +141,14 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
       <MoneyHeader onBack={onLeave} />
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-2xl mx-auto w-full">
         <PageHeader title="Money" description="What money you have, what it is allowed to do, and what has happened. Nothing here is calculated by this screen." />
+        <MoneyHomeOverview agreementGateway={gateways.agreements} onOpenAgreement={setJumpAgreement} />
         <AgreementMoneySection
           authorityGateway={gateways.moneyAuthority}
           agreementGateway={gateways.agreements}
           sessionGateway={gateways.moneySession}
           paymentIntentGateway={gateways.paymentIntent}
           currencyCapabilityGateway={gateways.currencyCapability}
+          initialAgreement={jumpAgreement}
         />
         <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
         <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
@@ -140,6 +158,86 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
         <FinancialPartnersSection gateway={gateways.financialPartners} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Money Home (Phase 3, Section 4): answers "what do I have" and "what needs my attention" the
+ * instant Money opens, from the same currentUserAgreements() read the Agreement picker below
+ * already makes -- one call, no new endpoint, no new authority. "What you have" totals a proposed
+ * amount per currency (never mixed across currencies) straight off each Agreement's own
+ * proposedAmountMinor/currency; this is addition, not a new financial fact, and it is never used to
+ * gate any action. "Needs your attention" is the backend's own attentionRequired flag and its own
+ * next-action reason text, filtered to Agreements that carry money -- never a client-guessed
+ * category. What is actually protected/funded/ready-to-progress for one Agreement still lives only
+ * in that Agreement's own Agreement Money position below, which this screen does not calculate.
+ */
+function MoneyHomeOverview({ agreementGateway, onOpenAgreement }: {
+  agreementGateway: AgreementGateway;
+  onOpenAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
+}) {
+  const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(null);
+    agreementGateway.currentUserAgreements()
+      .then(response => { if (!cancelled) setAgreements(response.items); })
+      .catch(cause => { if (!cancelled) setError(errorText(cause)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [agreementGateway]);
+
+  if (loading) return <p role="status" className="text-sm text-sand-500">Loading what you have…</p>;
+  if (error) return <StatusNotice tone="warning">{error}</StatusNotice>;
+  if (!agreements) return null;
+
+  const withMoney = agreements.filter(a => a.proposedAmountMinor != null);
+  if (withMoney.length === 0) {
+    return (
+      <Surface><SurfaceBody>
+        <p className="text-sm text-sand-600">None of your Agreements involve money yet. Once one does, it will appear here.</p>
+      </SurfaceBody></Surface>
+    );
+  }
+
+  const byCurrency = groupByCurrency(withMoney);
+  const needsAttention = withMoney.filter(a => a.attentionRequired);
+
+  return (
+    <Surface>
+      <SurfaceHeader
+        title="What you have"
+        description="Proposed amounts across your Agreements. What is actually protected or ready to progress lives inside each Agreement below."
+      />
+      <SurfaceBody>
+        <div className="flex flex-wrap gap-3">
+          {[...byCurrency.entries()].map(([currency, { count, totalMinor }]) => (
+            <div key={currency} className="rounded-xl bg-cream-50 px-4 py-3">
+              <MoneyValue amount={money(totalMinor, currency)} size="lg" />
+              <p className="text-xs text-sand-500 mt-0.5">across {count} agreement{count === 1 ? '' : 's'}</p>
+            </div>
+          ))}
+        </div>
+        {needsAttention.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Needs your attention</div>
+            {needsAttention.map(agreement => (
+              <button
+                key={agreement.agreementId}
+                onClick={() => onOpenAgreement(agreement)}
+                className="w-full text-left rounded-xl border border-ember-200 bg-ember-50 px-3 py-2.5 hover:border-ember-300 transition-colors"
+              >
+                <div className="text-sm font-medium text-forest-800">{agreement.title}</div>
+                <div className="text-xs text-sand-600">{agreement.nextActions[0]?.reason ?? 'Needs your attention'}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </SurfaceBody>
+    </Surface>
   );
 }
 
@@ -170,12 +268,15 @@ function ErrorBanner({ message }: { message: string }) {
  * is always false in this environment, so progressed money is always described as "Progressed
  * within SecurePay," never "Settled."
  */
-function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway, currencyCapabilityGateway }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway, currencyCapabilityGateway, initialAgreement }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
   sessionGateway: MoneySessionGateway;
   paymentIntentGateway: PaymentIntentGateway;
   currencyCapabilityGateway: CurrencyCapabilityGateway;
+  /** Phase 3 Money Home (Section 11) -- a "Needs your attention" item there jumps straight into
+   * this exact Agreement's own position, instead of making the person re-find it in the picker. */
+  initialAgreement?: CurrentUserAgreementSummaryResponse | null;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
   const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
@@ -187,6 +288,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
   const [shareableLink, setShareableLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const selectedPosition = positions?.find(p => p.obligationId === selectedObligationId) ?? null;
 
@@ -203,6 +305,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
     setSelectedObligationId(null);
     setHistory(null);
     setShareableLink(null);
+    setSuccessMessage(null);
     setLoading(true); setError(null);
     try {
       const list = await authorityGateway.list(agreement.agreementId);
@@ -211,6 +314,11 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
     } catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (initialAgreement) void selectAgreement(initialAgreement);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAgreement?.agreementId]);
 
   const refreshPositions = async () => {
     if (!selectedAgreement) return;
@@ -222,24 +330,40 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
 
   const withObligation = async (action: (agreementId: string, obligationId: string) => Promise<void>) => {
     if (!selectedAgreement || !selectedObligationId) return;
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setSuccessMessage(null);
     try { await action(selectedAgreement.agreementId, selectedObligationId); await refreshPositions(); }
     catch (cause) { setError(errorText(cause)); }
     finally { setLoading(false); }
   };
 
-  const protect = () => withObligation(async (a, o) => { await authorityGateway.open(a, o); });
+  // Phase 3 Money World (Section 32): a successful money action explains what changed, in terms of
+  // the Agreement it belongs to -- never just "Success." The amount/currency named here is always
+  // the one the person just submitted or that the backend's own release response returned, never a
+  // recomputed total.
+  const protect = () => withObligation(async (a, o) => {
+    await authorityGateway.open(a, o);
+    setSuccessMessage(`This money is now protected for ${selectedAgreement?.title ?? 'this Agreement'}.`);
+  });
   const fund = () => withObligation(async (a, o) => {
     if (!fundAmount) return;
-    await authorityGateway.fund(a, o, Math.round(Number(fundAmount) * 100));
+    const amountMinor = Math.round(Number(fundAmount) * 100);
+    const currency = selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '';
+    await authorityGateway.fund(a, o, amountMinor);
     setFundAmount('');
+    setSuccessMessage(`${money(amountMinor, currency)} is now protected for ${selectedAgreement?.title ?? 'this Agreement'}.`);
   });
   const progress = () => withObligation(async (a, o) => {
     if (!progressAmount) return;
-    await authorityGateway.exercise(a, o, Math.round(Number(progressAmount) * 100));
+    const amountMinor = Math.round(Number(progressAmount) * 100);
+    const currency = selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '';
+    await authorityGateway.exercise(a, o, amountMinor);
     setProgressAmount('');
+    setSuccessMessage(`${money(amountMinor, currency)} has been progressed within SecurePay for ${selectedAgreement?.title ?? 'this Agreement'}.`);
   });
-  const releaseUnused = () => withObligation(async (a, o) => { await authorityGateway.release(a, o); });
+  const releaseUnused = () => withObligation(async (a, o) => {
+    const response = await authorityGateway.release(a, o);
+    setSuccessMessage(`${money(response.releasedTotalMinor, selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '')} has been released back for ${selectedAgreement?.title ?? 'this Agreement'}.`);
+  });
 
   const loadHistory = async () => {
     if (!selectedAgreement || !selectedObligationId) return;
@@ -296,6 +420,11 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
             gateway={paymentIntentGateway}
             onFunded={() => void refreshPositions()}
           />
+          {/* Phase 3 Money World (Section 5/7): two distinct, non-duplicate steps -- above brings new
+              money into this Agreement from a real payment method; below allocates money that is
+              already available to a specific position. Explained once, here, so it never reads as
+              two competing "add money" mechanisms. */}
+          <p className="text-xs text-sand-500">Once money is available, protect and progress it against a specific position below.</p>
 
           {positions && positions.length === 0 && <p className="text-sm text-sand-600">This Agreement has no Agreement Money yet.</p>}
 
@@ -333,6 +462,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
               onLoadHistory={() => void loadHistory()}
               shareableLink={shareableLink}
               onGetShareableLink={() => void getShareableLink()}
+              successMessage={successMessage}
             />
           )}
         </div>
@@ -349,7 +479,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
  */
 function AgreementMoneyPositionCard({
   position, loading, fundAmount, progressAmount, onFundAmountChange, onProgressAmountChange,
-  onProtect, onFund, onProgress, onReleaseUnused, onRefresh, history, onLoadHistory, shareableLink, onGetShareableLink,
+  onProtect, onFund, onProgress, onReleaseUnused, onRefresh, history, onLoadHistory, shareableLink, onGetShareableLink, successMessage,
 }: {
   position: AgreementFundedAuthorityStatusResponse;
   loading: boolean;
@@ -366,6 +496,7 @@ function AgreementMoneyPositionCard({
   onLoadHistory: () => void;
   shareableLink: string | null;
   onGetShareableLink: () => void;
+  successMessage: string | null;
 }) {
   const currency = position.currency ?? position.proposedCurrency ?? '';
 
@@ -388,6 +519,7 @@ function AgreementMoneyPositionCard({
 
   return (
     <div className="space-y-3">
+      {successMessage && <StatusNotice tone="success" icon={false}>{successMessage}</StatusNotice>}
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
         <p><MoneyValue amount={money(totalProtected, currency)} size="md" /> protected</p>
@@ -493,18 +625,18 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   };
 
   return (
-    <SectionCard title="Settlement destination" description="Where an Agreement's money settles. The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
+    <SectionCard title="Where your money goes" description="The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
       {error && <ErrorBanner message={error} />}
-      <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show my settlement destination</button>
+      <Button variant="secondary" onClick={() => void load()} disabled={loading}>Show my settlement destination</Button>
       {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet.</p>}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
-          <div>{current.maskedDestinationDisplay}</div>
+          <div className="font-medium text-forest-800">{current.maskedDestinationDisplay}</div>
           <div>Status: <strong>{current.destinationStatus}</strong> · Verification: <strong>{current.verificationStatus}</strong></div>
-          <button onClick={() => void checkVerification()} disabled={loading} className="mt-1 text-xs text-forest-700 underline">Check verification status</button>
+          <Button variant="ghost" onClick={() => void checkVerification()} disabled={loading} className="mt-1 text-xs">Check verification status</Button>
         </div>
       )}
-      {verification && <div className="text-xs text-sand-600">Latest verification: {verification.verificationStatus} ({money(verification.amountMinor, verification.currency)})</div>}
+      {verification && <div className="text-xs text-sand-600">Latest verification: {verification.verificationStatus} (<MoneyValue amount={money(verification.amountMinor, verification.currency)} size="sm" />)</div>}
       {history && history.length > 0 && (
         <details className="text-xs text-sand-600">
           <summary className="cursor-pointer">History ({history.length})</summary>
@@ -512,7 +644,7 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
         </details>
       )}
       {!showForm ? (
-        <button onClick={() => setShowForm(true)} className="text-xs text-forest-700 underline">{current ? 'Replace destination' : 'Register a destination'}</button>
+        <Button variant="ghost" onClick={() => setShowForm(true)} className="text-xs">{current ? 'Replace destination' : 'Register a destination'}</Button>
       ) : (
         <div className="space-y-2 rounded-xl border border-cream-200 p-3">
           <div className="flex gap-2 text-xs">
@@ -525,10 +657,10 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
           <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <input value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
-            <button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName} className="rounded-xl bg-forest-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+            <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName}>
               {current ? 'Replace' : 'Register'}
-            </button>
-            <button onClick={() => setShowForm(false)} className="text-sm text-sand-600 underline">Cancel</button>
+            </Button>
+            <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
           </div>
         </div>
       )}
@@ -536,7 +668,17 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   );
 }
 
-/** Financial Partners: factual discovery only. Choice is the backbone BaaS provider; the architecture remains provider-neutral. */
+function humanizeCapability(capability: string): string {
+  return capability.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+}
+
+/**
+ * Financial Partner Hall (Phase 3, Sections 14-16): a dignified place to see which regulated
+ * partners SecurePay works with and what they factually support -- not a promotional marketplace.
+ * Every field shown (currency, limits, fee description) comes straight from
+ * RegulatedPartnerResponse; nothing here is invented, ranked, or recommended. Choice is the
+ * backbone BaaS provider; the architecture remains provider-neutral.
+ */
 function FinancialPartnersSection({ gateway }: { gateway: FinancialPartnerGateway }) {
   const [partners, setPartners] = useState<RegulatedPartnerResponse[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -550,22 +692,48 @@ function FinancialPartnersSection({ gateway }: { gateway: FinancialPartnerGatewa
   };
 
   return (
-    <SectionCard title="Financial partners" description="Regulated partners SecurePay works with, and what they factually support.">
+    <SectionCard title="Financial partners" description="Regulated partners SecurePay works with, and what they factually support. This is information, not a recommendation.">
       {error && <ErrorBanner message={error} />}
       {!partners ? (
-        <button onClick={() => void load()} disabled={loading} className="rounded-xl border border-forest-200 px-4 py-2 text-sm text-forest-700 disabled:opacity-50">Show partners</button>
+        <Button variant="secondary" onClick={() => void load()} disabled={loading}>Show partners</Button>
+      ) : partners.length === 0 ? (
+        <p className="text-sm text-sand-600">No financial partners are currently listed.</p>
       ) : (
         <ul className="space-y-3">
           {partners.map(partner => (
             <li key={partner.id} className="rounded-xl border border-cream-200 p-3">
-              <div className="font-medium text-forest-800">{partner.displayName}</div>
-              <div className="text-xs text-sand-600">{partner.partnerType} · {partner.environment} · {partner.status}</div>
-              {partner.capabilities.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {partner.capabilities.map(c => (
-                    <span key={c.capability} className="rounded-full bg-cream-100 px-2 py-0.5 text-xs text-sand-700">{c.capability}</span>
-                  ))}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-medium text-forest-800">{partner.displayName}</div>
+                  <div className="text-xs text-sand-500">{partner.partnerType} · {partner.environment}</div>
                 </div>
+                <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide shrink-0">{partner.status}</span>
+              </div>
+              {partner.capabilities.length > 0 && (
+                <ul className="mt-3 space-y-2 border-t border-cream-100 pt-2">
+                  {partner.capabilities.map(c => (
+                    <li key={c.capability} className="text-xs text-sand-700">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-forest-800">{humanizeCapability(c.capability)}</span>
+                        {!c.enabled && <span className="text-sand-400">Not currently available</span>}
+                      </div>
+                      {c.enabled && (
+                        <div className="text-sand-600 mt-0.5">
+                          {c.currency}
+                          {(c.minAmountMinor != null || c.maxAmountMinor != null) && (
+                            <>
+                              {' · '}
+                              {c.minAmountMinor != null && <>Min <MoneyValue amount={money(c.minAmountMinor, c.currency)} size="sm" /></>}
+                              {c.minAmountMinor != null && c.maxAmountMinor != null && ' · '}
+                              {c.maxAmountMinor != null && <>Max <MoneyValue amount={money(c.maxAmountMinor, c.currency)} size="sm" /></>}
+                            </>
+                          )}
+                          {c.feeDescription && <> · {c.feeDescription}</>}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
             </li>
           ))}
