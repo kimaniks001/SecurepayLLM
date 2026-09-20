@@ -9,7 +9,7 @@ export interface AgentResponseDto {
   suggestedActions: { id: string; label: string; payload: Record<string, string> }[];
 }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string> }
-export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId: string; qualifiers: Record<string, string>; state: string; confidence: number }
+export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number }
 export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[] }
 export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
@@ -45,6 +45,15 @@ export interface HandoffDto {
   reviewedSource: ReviewedSourceDto | null;
   unresolvedMatters: string[]; guidanceNotes: string[]; tradeContextVersion: number;
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
+}
+/**
+ * GET /api/v1/identities/by-ksnumber/{canonicalKsNumber}. The wire record is the FULL identity
+ * record (internal id, sequence, timestamps). It is declared here only so the adapter can drop
+ * everything except the participant-safe projection -- see `ksIdentityView`.
+ */
+export interface KsIdentityDto {
+  identityId?: string; canonicalKsNumber: string; sequenceNumber?: number; identityType?: string;
+  status: string; displayName?: string | null; createdAt?: string; updatedAt?: string;
 }
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }
 
