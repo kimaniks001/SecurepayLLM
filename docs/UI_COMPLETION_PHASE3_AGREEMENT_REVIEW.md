@@ -35,7 +35,7 @@ Conversation/Trade Context (Phase 1 instruments) → Handoff (frozen snapshot, b
 6. Result: “Draft Agreement created…” (no raw id).
 
 ## E. Source continuity
-`sourceType` is passed adapter → view → `CanonicalAgreement` → `SourceReference`. An absent type is shown as “Selected source”, **never** assumed to be SecurePay Store (this changes Phase 2’s default). CURRENT is calm (no freshness claim). CHANGED shows Selected earlier vs Current listing with **Review with the current listing** (`useCurrentSource`) or back. UNAVAILABLE keeps the historical provenance and offers only the way back — never silently DIRECT or another listing.
+`sourceType` is passed adapter → view → `CanonicalAgreement` → `SourceReference`. An absent type is shown as “Selected source”, **never** assumed to be SecurePay Store (this changes Phase 2’s default). CURRENT is calm (no freshness claim). CHANGED shows Selected earlier vs Current listing with **Review with the current listing** (`useCurrentSource`) or back. UNAVAILABLE keeps the historical provenance and offers only the way back to the conversation to choose another listing — it makes no “carry on without a listing” promise and never silently becomes DIRECT or another listing.
 
 ## F. Agreement version truth
 The version shown is the backend’s `tradeContextVersion`; nothing local. Stale handoffs are frozen and never re-read as if recoverable.
@@ -45,7 +45,7 @@ Authentication ≠ confirm; join ≠ accept; Use this ≠ buy/accept/join/confir
 
 ## H. Failure behaviour
 - Uncertain create/draft (timeout, network, 5xx): state `progress-uncertain` — “We’re not sure that went through”, **Check what happened** (a read; PROGRESSED is the proof) or **Try again** (same snapshot; backend idempotent by handoff).
-- `createHandoff` / `useCurrentSource` reuse one `clientActionId` until success, so a retry can never mint a second handoff (the previous code used a fresh id every time).
+- `createHandoff` / `useCurrentSource` reuse one `clientActionId` until success or until the handoff is reset/abandoned (`reset()` clears them, so a later explicit action always gets a fresh id), so a retry can never mint a second handoff (the previous code used a fresh id every time).
 - 409/410 re-read authoritative state; 4xx is a definite failure.
 
 ## I. Verification (clearly separated)
@@ -62,6 +62,7 @@ Authentication ≠ confirm; join ≠ accept; Use this ≠ buy/accept/join/confir
 - No amendment mechanism: corrections are made in the conversation, producing a new handoff.
 - No money-timing/conditions fields on the candidate beyond `when`.
 - `/review` is auth-only; the pre-auth preview is the handoff summary, not the canonical review.
+- There is currently no explicit authority/API operation demonstrated by this phase for removing an already-selected commercial source and deliberately continuing as DIRECT after the source becomes unavailable. Not built here.
 - No first-class “DIRECT vs source” flag beyond `reviewedSource == null`.
 - Legacy Store/Community `OfferToTradeHandoff` / `SourceToTradeHandoff` / `CommunityToTradeHandoff` (“Continue to agreement”) and `mockAgent` copy are demo/fixture paths not on the real handoff route; left untouched (Store is byte-locked; Community out of scope).
 

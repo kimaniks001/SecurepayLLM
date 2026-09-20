@@ -183,7 +183,8 @@ test('UNAVAILABLE keeps the historical provenance, offers only the way back, and
   const out = panel({ phase: 'review-stale', handoff: view });
   assert.match(out, /SecurePay Store · Leather shoes/); assert.match(out, /Listed at KES 4,000 when chosen/);
   assert.match(out, /no longer available/); assert.match(out, /Back to the conversation/);
-  assert.doesNotMatch(out, /Review with the current listing|Create the draft Agreement/);
+  assert.match(out, /Go back to the conversation to choose another listing/);
+  assert.doesNotMatch(out, /Review with the current listing|Create the draft Agreement|without a listing|without this listing|carry on|continue without|directly/i);
 });
 test('an unavailable-current-source stale handoff cannot use useCurrentSource', async () => {
   const { controller, calls } = setup({ createHandoff: async () => dto('REVIEW_STALE', { reviewedSource: source({ sourceStatus: 'UNAVAILABLE' }) }) });
@@ -214,4 +215,31 @@ test('the calm entry wording: Review this, and the old commitment wording is gon
   assert.match(exp, /Review this/); assert.doesNotMatch(exp, /Continue with this|Continue to agreement|Set securely/);
   const panelSrc = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');
   assert.doesNotMatch(panelSrc, /Set securely|Setting this securely|canonical Agreement review/);
+});
+
+// ---------------------------------------------------------------- retry id lifecycle
+const idsOf = (calls, name) => calls.filter(c => c[0] === name).map(c => c[2]);
+test('retry ids: failed create -> retry without reset reuses the id', async () => {
+  let n = 0;
+  const { controller, calls } = setup({ createHandoff: async (c, k) => { calls.push(['create', c, k]); if (++n === 1) throw network(); return dto('READY_FOR_REVIEW'); } });
+  await controller.start('c1'); await controller.start('c1');
+  const [a, b] = idsOf(calls, 'create'); assert.equal(a, b);
+});
+test('retry ids: failed create -> reset -> new start gets a DIFFERENT id (reset ends the retry sequence)', async () => {
+  const { controller, calls } = setup({ createHandoff: async (c, k) => { calls.push(['create', c, k]); throw network(); } });
+  await controller.start('c1'); controller.reset(); await controller.start('c1');
+  const [a, b] = idsOf(calls, 'create'); assert.notEqual(a, b);
+});
+test('retry ids: failed use-current-source -> retry reuses; after reset a distinct action does not inherit it', async () => {
+  const changed = () => dto('REVIEW_STALE', { reviewedSource: source({ sourceStatus: 'CHANGED', current: { capturedPriceMinor: 450000, capturedCurrency: 'KES', capturedAvailabilityState: 'AVAILABLE' } }) });
+  const { controller, calls } = setup({ createHandoff: async () => changed(), useCurrentSource: async (id, k) => { calls.push(['useCurrent', id, k]); throw network(); } });
+  await controller.start('c1'); await controller.useCurrentSource(); await controller.useCurrentSource();
+  const [a, b] = idsOf(calls, 'useCurrent'); assert.equal(a, b);
+  controller.reset(); await controller.start('c1'); await controller.useCurrentSource();
+  const ids = idsOf(calls, 'useCurrent'); assert.notEqual(ids[2], a);
+});
+test('retry ids: a successful create releases its key', async () => {
+  const { controller, calls } = setup();
+  await controller.start('c1'); controller.reset(); await controller.start('c1');
+  const [a, b] = idsOf(calls, 'create'); assert.notEqual(a, b);
 });

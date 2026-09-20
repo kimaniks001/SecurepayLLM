@@ -208,7 +208,8 @@ export function createHandoffController(gateway: Gateway, id = () => crypto.rand
     acknowledgeChange() { update({ changedDuringSignIn: false }); },
 
     /** Returns to idle. A new handoff can only be created by a fresh explicit user action. */
-    reset() { update({ ...initial }); },
+    /** Abandoning the handoff ends any retry sequence: a later explicit action must get a fresh clientActionId. */
+    reset() { actionIds.clear(); update({ ...initial }); },
   };
 }
 export type HandoffController = ReturnType<typeof createHandoffController>;

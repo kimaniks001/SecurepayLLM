@@ -85,7 +85,7 @@ export function handoffNoticeView(handoff: HandoffView): NoticeResponse {
     // commercial source specifically, say exactly what changed rather than a generic notice.
     const source = handoff.reviewedSource;
     if (source && source.sourceStatus === 'UNAVAILABLE') {
-      return { type: 'NOTICE', label: 'This source is no longer available', text: `${source.sourceTitle ?? 'This offer'} is no longer available. Your earlier choice is kept below for reference. Go back to the conversation to choose another, or carry on without a listing.`, tone: 'worth_checking' };
+      return { type: 'NOTICE', label: 'This source is no longer available', text: `${source.sourceTitle ?? 'This listing'} is no longer available. Your earlier choice is kept below for reference. Go back to the conversation to choose another listing.`, tone: 'worth_checking' };
     }
     if (source && source.sourceStatus === 'CHANGED' && source.current) {
       // What changed is laid out beside it (Selected earlier / Current listing) -- the browser never reconciles the two.
