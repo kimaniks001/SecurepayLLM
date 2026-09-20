@@ -1,0 +1,108 @@
+import { useEffect, useSyncExternalStore } from 'react';
+import { ShieldCheck, LogOut, Briefcase, Settings as SettingsIcon, Code2, FolderOpen, Sparkles } from 'lucide-react';
+import { NavBar } from '../../components/NavBar';
+import { Surface, SurfaceBody } from '../../components/dna/Surface';
+import { Button } from '../../components/dna/Button';
+import { StatusNotice } from '../../components/dna/StatusNotice';
+import { PageHeader } from '../../components/dna/PageHeader';
+import { circleVerificationStatusLabel } from '../../circleLabels';
+import type { AppView } from '../../types';
+import type { AccountController } from './controller';
+
+/**
+ * Phase 5 -- Account: who you are, not how SecurePay behaves for you (see Settings) and not an
+ * operational Business dashboard (see Business Home). Identity is the real, self-scoped `/circle/me`
+ * read this codebase already trusts. A Business membership is a separate, explicit lookup -- there is
+ * no backend index of "which Businesses do I belong to," so entering that Business's KS Number is
+ * the honest mechanism, not a fabricated auto-discovered list.
+ */
+export function AccountExperience({ controller, onNavigate }: {
+  controller: AccountController;
+  onNavigate: (view: AppView) => void;
+}) {
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+
+  useEffect(() => { void controller.load(); }, [controller]);
+
+  const identity = state.identity.data;
+
+  return (
+    <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+      <NavBar view="signed-in" onNavigate={onNavigate} />
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
+        <PageHeader title="Account" description="Your identity, your Businesses, and your security — not a settings dumping ground." />
+
+        {state.identity.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your identity…</p>}
+        {state.identity.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.identity.error}</StatusNotice>}
+
+        {identity && (
+          <Surface className="animate-quiet-in">
+            <SurfaceBody>
+              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Your KS Number</div>
+              <div className="text-[1.1rem] font-display text-forest-800 font-medium">{identity.canonicalKsNumber}</div>
+              {identity.displayName && <div className="text-[0.82rem] text-sand-600 mt-0.5">{identity.displayName}</div>}
+              <div className="mt-3 flex items-center gap-1.5 text-[0.78rem] text-sand-600">
+                <ShieldCheck className="w-3.5 h-3.5 text-sand-400" />
+                {circleVerificationStatusLabel[identity.verificationStatus]}
+              </div>
+              <div className="text-[0.72rem] text-sand-400 mt-1">SecurePay identity since {identity.memberSince}</div>
+            </SurfaceBody>
+          </Surface>
+        )}
+
+        <Surface>
+          <SurfaceBody>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onNavigate('settings')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><SettingsIcon className="w-4 h-4 text-forest-500" /> Settings</button>
+              <button onClick={() => onNavigate('projects')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><FolderOpen className="w-4 h-4 text-forest-500" /> Projects</button>
+              <button onClick={() => onNavigate('vision-board')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Sparkles className="w-4 h-4 text-forest-500" /> Vision Board</button>
+              <button onClick={() => onNavigate('business')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Briefcase className="w-4 h-4 text-forest-500" /> Business</button>
+              <button onClick={() => onNavigate('developer')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><Code2 className="w-4 h-4 text-forest-500" /> Developer / Connect</button>
+            </div>
+          </SurfaceBody>
+        </Surface>
+
+        <Surface>
+          <SurfaceBody>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">A Business you administer</div>
+            <p className="text-[0.78rem] text-sand-600 mb-2">SecurePay does not yet list every Business you belong to automatically — enter one you administer to check it here.</p>
+            <div className="flex gap-2">
+              <input value={state.businessKsInput} onChange={e => controller.setBusinessKsInput(e.target.value)} placeholder="Business KS Number" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
+              <Button variant="secondary" onClick={() => void controller.checkBusiness()} disabled={!state.businessKsInput.trim() || state.business.status === 'loading'} className="px-4">Check</Button>
+            </div>
+            {state.business.status === 'loading' && <p role="status" className="text-sm text-sand-500 mt-2">Checking…</p>}
+            {state.business.status === 'error' && <StatusNotice tone="warning" icon={false} className="mt-2">{state.business.error}</StatusNotice>}
+            {state.business.status === 'ready' && state.business.data && (
+              <div className="mt-3 rounded-xl bg-cream-50 border border-cream-200 px-3 py-2.5">
+                <div className="text-[0.82rem] text-forest-800">{state.business.data.businessKsNumber}</div>
+                <div className="text-[0.7rem] text-sand-500 mt-0.5">Organization activated {new Date(state.business.data.activatedAt).toLocaleDateString()}</div>
+                {state.authority.status === 'ready' && state.authority.data && (
+                  <div className="mt-2 pt-2 border-t border-cream-200">
+                    <div className="text-[0.68rem] text-sand-500 uppercase tracking-wide mb-1">What you can do here</div>
+                    {state.authority.data.permissions.length === 0
+                      ? <p className="text-[0.75rem] text-sand-500">No permissions are currently granted to you for this Business.</p>
+                      : <div className="flex flex-wrap gap-1.5">{state.authority.data.permissions.map(p => <span key={p} className="text-[0.68rem] text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">{p.replace(/_/g, ' ').toLowerCase()}</span>)}</div>}
+                  </div>
+                )}
+                <button onClick={() => onNavigate('business')} className="text-[0.78rem] text-forest-700 underline mt-2">Open Business Home</button>
+              </div>
+            )}
+          </SurfaceBody>
+        </Surface>
+
+        <Surface>
+          <SurfaceBody>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Security</div>
+            <p className="text-[0.78rem] text-sand-600 mb-3">If you believe another device or session has access you don't recognise, sign out everywhere. This ends every active session and refresh token for your account.</p>
+            {state.logoutAllError && <StatusNotice tone="warning" icon={false} className="mb-2">{state.logoutAllError}</StatusNotice>}
+            {state.logoutAllDone && <StatusNotice tone="success" icon={false} className="mb-2">You've been signed out everywhere. This device will need to sign in again shortly.</StatusNotice>}
+            <Button variant="secondary" onClick={() => void controller.signOutEverywhere()} disabled={state.logoutAllBusy} className="w-full py-2.5 flex items-center justify-center gap-2">
+              <LogOut className="w-4 h-4" /> {state.logoutAllBusy ? 'Signing out…' : 'Sign out everywhere'}
+            </Button>
+            <button onClick={() => onNavigate('recovery')} className="text-[0.78rem] text-forest-700 underline mt-3 block">Forgot your password? Recover your account</button>
+          </SurfaceBody>
+        </Surface>
+      </div>
+    </div>
+  );
+}

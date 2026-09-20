@@ -13,7 +13,7 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: Wallet, label: 'Money', view: 'money' },
   { icon: Store, label: 'Store', view: 'store' },
   { icon: Users, label: 'Community', view: 'community' },
-  { icon: User, label: 'Account', view: 'signed-in' },
+  { icon: User, label: 'Account', view: 'account' },
 ];
 
 export function NavBar({ view, onNavigate }: NavBarProps) {
@@ -23,6 +23,7 @@ export function NavBar({ view, onNavigate }: NavBarProps) {
     if (itemView === 'money' && (view === 'money' || view === 'dispute')) return true;
     if (itemView === 'store' && view === 'store') return true;
     if (itemView === 'community' && (view === 'community' || view === 'circle' || view === 'ecosystem')) return true;
+    if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'vision-board' || view === 'recovery')) return true;
     return false;
   };
 

@@ -36,6 +36,10 @@ const businessCurrencyCapabilityGateway = api ? withSessionRefresh(api.businessC
 const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxApplication, ['create', 'get', 'list'], session, api.auth) : undefined;
 const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list', 'get', 'update', 'archive', 'restore', 'addAgreement', 'removeAgreement', 'agreements', 'summary', 'calendar'], session, api.auth) : undefined;
 const visionBoardGateway = api ? withSessionRefresh(api.visionBoard, ['shelves', 'items', 'get', 'create', 'update', 'lock', 'unlock', 'supersede', 'generateQuotation', 'generateInvoice', 'generateReceipt'], session, api.auth) : undefined;
+const settingsGateway = api ? withSessionRefresh(api.settings, ['get', 'update'], session, api.auth) : undefined;
+const businessGateway = api ? withSessionRefresh(api.business, ['activate', 'get', 'members', 'inviteMember', 'acceptInvitation', 'removeMember'], session, api.auth) : undefined;
+const authorizationGateway = api ? withSessionRefresh(api.authorization, ['authoritySummary', 'initiateRoleAssignment', 'executeRoleAssignment', 'approveProtectedAction', 'rejectProtectedAction', 'createDelegation', 'revokeDelegation'], session, api.auth) : undefined;
+const developerGateway = api ? withSessionRefresh(api.developer, ['registerApplication', 'getApplication', 'integrationCheck', 'suspendApplication', 'reactivateApplication', 'revokeApplication', 'issueCredential', 'rotateCredential', 'revokeCredential', 'registerWebhook', 'rotateWebhookSecret', 'webhookDeliveries', 'replayWebhookDelivery', 'issueSecureCode', 'revokeSecureCode'], session, api.auth) : undefined;
 // The one external origin this app already has verified authority over — see adapters.ts `media()`.
 const trustedMediaOrigin = api ? new URL(api.baseUrl).origin : null;
 
@@ -167,8 +171,8 @@ export default function RuntimeApp() {
       ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
-  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

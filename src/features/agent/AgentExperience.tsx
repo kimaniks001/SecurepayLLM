@@ -38,6 +38,20 @@ import type { ProjectGateway } from '../../api/securepay/projects';
 import { VisionBoardExperience } from '../visionboard/VisionBoardExperience';
 import { createVisionBoardController } from '../visionboard/controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
+import { AccountExperience } from '../account/AccountExperience';
+import { createAccountController } from '../account/controller';
+import { SettingsExperience } from '../settings/SettingsExperience';
+import { createSettingsController } from '../settings/controller';
+import type { SettingsGateway } from '../../api/securepay/settings';
+import { RecoveryExperience } from '../recovery/RecoveryExperience';
+import { createRecoveryController } from '../recovery/controller';
+import { BusinessExperience } from '../business/BusinessExperience';
+import { createBusinessController } from '../business/controller';
+import type { BusinessGateway } from '../../api/securepay/business';
+import type { AuthorizationGateway } from '../../api/securepay/authorization';
+import { DeveloperExperience } from '../developer/DeveloperExperience';
+import { createDeveloperController } from '../developer/controller';
+import type { DeveloperGateway } from '../../api/securepay/developer';
 
 function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -55,10 +69,11 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
+  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
@@ -89,6 +104,29 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
+  // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
+  const [account, setAccount] = useState(false);
+  const [settingsView, setSettingsView] = useState(false);
+  const [recoveryView, setRecoveryView] = useState(false);
+  const [businessView, setBusinessView] = useState(false);
+  const [developerView, setDeveloperView] = useState(false);
+  const [accountController] = useState(() => createAccountController({ circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll }));
+  const [settingsController] = useState(() => createSettingsController(settingsGateway));
+  const [recoveryController] = useState(() => createRecoveryController(auth));
+  const [businessController] = useState(() => createBusinessController({ business: businessGateway, authorization: authorizationGateway }));
+  const [developerController] = useState(() => createDeveloperController(developerGateway));
+  // Phase 5 -- resolved once via the same real, self-scoped `/circle/me` read Account/Circle already
+  // use, so Projects never forces the person to type their own KS Number for the common case (Vision
+  // Board's own backend already defaults to the caller's own KS when none is supplied; Projects'
+  // `ownerKsNumber` query parameter is required server-side, so this is the frontend-side equivalent).
+  const [ownKsNumber, setOwnKsNumber] = useState<string | null>(null);
+  useEffect(() => {
+    if (sessionState.status !== 'signed-in' || ownKsNumber) return;
+    let cancelled = false;
+    void circleGateway.me().then(profile => { if (!cancelled) setOwnKsNumber(profile.canonicalKsNumber); }).catch(() => { /* Projects still works with manual KS entry. */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState.status]);
   const reviewing = () => { setExpanded(true); void controller.review(); };
   // Phase 2 Human Core (Section 9/10): the moment a fact first settles into Trade Context, open
   // "What SecurePay understands" on its own -- the person should see understanding take shape,
@@ -107,6 +145,9 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
+    // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
+    // never need editing to know about these five new destinations.
+    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false);
     if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
@@ -129,6 +170,28 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
       setHome(true);
       setNotice('Sign in through "Continue with this" to view your Vision Board.');
+      return;
+    }
+    // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly
+    // like Projects/Vision Board above. Recovery is the one exception: it must be reachable while
+    // signed out (that is the entire point of account recovery).
+    if (view === 'account' || view === 'settings' || view === 'business' || view === 'developer') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false);
+      if (sessionState.status === 'signed-in') {
+        if (view === 'account') setAccount(true);
+        else if (view === 'settings') setSettingsView(true);
+        else if (view === 'business') setBusinessView(true);
+        else setDeveloperView(true);
+        return;
+      }
+      setHome(true);
+      setNotice('Sign in through "Continue with this" to view your account.');
+      return;
+    }
+    if (view === 'recovery') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false); setHome(false);
+      recoveryController.reset();
+      setRecoveryView(true);
       return;
     }
 
@@ -221,6 +284,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       <ProjectsExperience
         controller={projectsController}
         agreementGateway={agreementGateway}
+        defaultOwnerKsNumber={ownKsNumber}
         onNavigate={navigateTo}
         onOpenVisionBoard={() => navigateTo('vision-board')}
       />
@@ -235,6 +299,29 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         onNavigate={navigateTo}
       />
     );
+  }
+
+  if (account && sessionState.status === 'signed-in') {
+    return <AccountExperience controller={accountController} onNavigate={navigateTo} />;
+  }
+
+  if (settingsView && sessionState.status === 'signed-in') {
+    return <SettingsExperience controller={settingsController} onNavigate={navigateTo} />;
+  }
+
+  if (businessView && sessionState.status === 'signed-in') {
+    return <BusinessExperience controller={businessController} onNavigate={navigateTo} />;
+  }
+
+  if (developerView && sessionState.status === 'signed-in') {
+    return <DeveloperExperience controller={developerController} onNavigate={navigateTo} />;
+  }
+
+  if (recoveryView) {
+    // 'signed-in' is deliberate here, not 'signed-out': navigateTo's own fallback for that view,
+    // when the session is not actually signed in yet, quietly returns to Home with no notice --
+    // exactly "ready to sign in" with the new password, never a stray "not available yet" message.
+    return <RecoveryExperience controller={recoveryController} onNavigate={navigateTo} onSignIn={() => navigateTo('signed-in')} />;
   }
 
   if (workspace && sessionState.status === 'signed-in') {
@@ -300,6 +387,9 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     {showHome ? <div className="flex-1 overflow-auto">
       {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}
       <SignedOutHome disabled={state.busy || !!state.pending} onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }} />
+      {sessionState.status !== 'signed-in' && (
+        <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
+      )}
     </div> : <>
       {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD. */}
       <div className="md:hidden sticky top-0 z-10 flex border-b border-cream-200/60 bg-cream-50">
