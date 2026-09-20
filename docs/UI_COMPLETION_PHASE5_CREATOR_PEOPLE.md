@@ -53,6 +53,8 @@ Naming: the backend calls the Agreement invitation link a "SecureLink" in its jo
 4. **KS Number not validated at creation.** The form now says: "SecurePay will bind this invitation to the KS Number you enter. It is not checked when the invitation is created, so check the number carefully. Only the account with this KS Number will be able to join." No verified/found/valid wording.
 5. **Unknown invitation status fails closed.** Only `ISSUED` reads "Not opened yet"; anything else reads "Invitation status unavailable" and offers no Revoke.
 
+6. **Production session-refresh boundary audited and brought current.** `RuntimeApp` had a hand-copied `withSessionRefresh` method list for the Agreement gateway that had drifted: `confirmations`, `propose`, `invitations`, `revokeInvitation`, `issueInvitation`, `participants`, `milestoneEffectiveStates`, `calendarEvents`, `calendarConflicts`, `tagsForAgreement`, `tagAgreement`, `untagAgreement`, `myCalendar` (and `myTags`) were missing, so an expired-but-refreshable access token could surface as a 401 (falsely: "confirmation status unavailable", invitation list/creation failure). The list now lives in `agreements/refresh.ts` (`AUTHENTICATED_AGREEMENT_METHODS`, every `auth: 'required'` method; the public `invitation(token)` is deliberately excluded) and `RuntimeApp` uses it. `tests/agreement-session-refresh.test.mjs` parses the gateway source and fails loudly if any authenticated method is unlisted, and proves an expired session refreshes before `issueInvitation`/`propose`/`invitations`/`revokeInvitation`/`confirmations`, that a valid session is not refreshed, that the public GET never refreshes, and that a rejected refresh makes no call. No gateway authority, InvitePanel behaviour or sign-in flow changed.
+
 ## F–H. People (participants + confirmations joined by participant id)
 | Backend fact | Shown |
 |---|---|
@@ -79,7 +81,7 @@ One request (key + role + KS) is held from the first attempt until success, a de
 - **Not tested:** real sign-in/session expiry mid-invite, a real clipboard denial, screen-reader behaviour, revoke in the browser (unit only), the Phase 3 "Open this Agreement" jump (it relies on the new draft appearing in the Hub; if it doesn't, nothing opens).
 
 ## L. Tests
-652 tests, 0 failing (`node --test tests/*.test.mjs`); `tsc`, `eslint src`, `vite build` clean.
+658 tests, 0 failing (`node --test tests/*.test.mjs`); `tsc`, `eslint src`, `vite build` clean.
 
 ## M. Changed files
 `invitations/{controller,InvitePanel}` (new), `workspace/{controller,view,WorkspaceExperience}`, `components/{AgreementPeople,AgreementDetail}`, `api/securepay/agreements/index`, `handoff/{HandoffPanel,view}`, `agent/AgentExperience`, `types.ts`, tests, this doc.
