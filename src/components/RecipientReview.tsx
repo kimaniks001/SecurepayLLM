@@ -24,20 +24,20 @@ export function RecipientReviewCard({ data, onChoice, notice }: RecipientReviewC
       </div>
 
       <div className="px-6 py-5">
-        <p className="text-[0.875rem] text-sand-600 mb-1">{data.inviterName} has invited you to review</p>
-        <h2 className="font-display text-lg text-forest-800 leading-tight">{data.title}</h2>
+        <p className="text-[0.875rem] text-sand-600 mb-1">{data.inviterName ? `${data.inviterName} has invited you to review` : 'You’ve been invited to look at this before deciding anything'}</p>
+        <h2 className="break-words font-display text-lg text-forest-800 leading-tight">{data.title}</h2>
 
         <div className="mt-4 space-y-3">
           <div className="flex items-center gap-2.5">
             <User className="w-4 h-4 text-forest-400 shrink-0" />
             <span className="text-[0.78rem] text-sand-600">Your role:</span>
-            <span className="text-[0.875rem] font-medium text-forest-800">{data.role}</span>
+            <span className="min-w-0 break-words text-[0.875rem] font-medium text-forest-800">{data.role}</span>
           </div>
           {data.purpose && (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-start gap-2.5">
               <FileText className="w-4 h-4 text-forest-400 shrink-0" />
               <span className="text-[0.78rem] text-sand-600">Purpose:</span>
-              <span className="text-[0.875rem] text-forest-800">{data.purpose}</span>
+              <span className="min-w-0 break-words text-[0.875rem] text-forest-800">{data.purpose}</span>
             </div>
           )}
           {data.proposedAmount && (
@@ -53,7 +53,12 @@ export function RecipientReviewCard({ data, onChoice, notice }: RecipientReviewC
           </div>
         </div>
 
-        <p className="mt-4 text-[0.78rem] text-sand-500">Continuing only lets you review this Agreement in detail. It does not join or accept anything yet.</p>
+        <p className="mt-4 text-[0.85rem] leading-snug text-forest-800">Opening this page has not added you to the Agreement, and nothing has been agreed.</p>
+        {data.nextSteps && data.nextSteps.length > 0 && <div className="mt-3">
+          <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">What happens next</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-[0.82rem] leading-snug text-sand-700">{data.nextSteps.map((step, i) => <li key={i}>{step}</li>)}</ol>
+        </div>}
+        {!data.nextSteps && <p className="mt-2 text-[0.78rem] text-sand-500">Continuing only lets you review this Agreement in detail. It does not join or accept anything yet.</p>}
         <p className="mt-2 text-[0.7rem] text-sand-400">{notice ?? 'Demo SecureLink invitation'}</p>
       </div>
 

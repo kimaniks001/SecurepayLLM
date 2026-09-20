@@ -112,8 +112,8 @@ test('6. Join uses a stable idempotency key on deliberate retry', async () => {
   const { controller, calls } = setup({ join: async (token, idempotencyKey) => { attempt++; calls.push(['join', token, idempotencyKey]); if (attempt === 1) throw new api.ApiError('network', 'unavailable'); return joinDto(); } });
   await controller.load();
   controller.proceed(true);
-  await controller.join(); // fails
-  assert.equal(controller.getSnapshot().phase, 'join-error');
+  await controller.join(); // outcome unknown
+  assert.equal(controller.getSnapshot().phase, 'join-uncertain');
   await controller.join(); // deliberate retry
   const joinCalls = calls.filter(call => call[0] === 'join');
   assert.equal(joinCalls.length, 2);
@@ -162,7 +162,7 @@ test('11. retry of the same explicit confirm reuses the same idempotency key for
   controller.proceed(true);
   await controller.join();
   await controller.confirm();
-  assert.equal(controller.getSnapshot().phase, 'confirm-error');
+  assert.equal(controller.getSnapshot().phase, 'confirm-uncertain');
   await controller.confirm(); // deliberate retry, same explicit action
   const confirmCalls = calls.filter(call => call[0] === 'confirmVersion');
   assert.equal(confirmCalls.length, 2);
