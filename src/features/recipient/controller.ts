@@ -59,6 +59,12 @@ export function invitationProblem(error: unknown): string {
   return 'This invitation couldn’t be opened. You have not joined or confirmed anything.';
 }
 
+/** The single CURRENT version by SecurePay's own versionStatus; zero or several is ambiguous authority -> null (fail closed). */
+export function pickCurrentVersion(versions: AgreementVersionResponse[]): AgreementVersionResponse | null {
+  const current = versions.filter(v => v.versionStatus === 'CURRENT');
+  return current.length === 1 ? current[0] : null;
+}
+
 export type RecipientPhase =
   | 'idle' | 'loading-invitation' | 'invitation-ready' | 'invitation-error'
   | 'identity-required'
@@ -109,10 +115,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
    * than one CURRENT entry is treated as ambiguous authority and fails closed (the caller renders
    * that as an error rather than guessing).
    */
-  function findCurrentVersion(versions: AgreementVersionResponse[]): AgreementVersionResponse | null {
-    const current = versions.filter(v => v.versionStatus === 'CURRENT');
-    return current.length === 1 ? current[0] : null;
-  }
+  const findCurrentVersion = pickCurrentVersion;
 
   /** Re-reads which version is authoritative-current and fetches it fresh; never reuses a stale confirm key. */
   async function recoverCurrentVersion(agreementId: string) {

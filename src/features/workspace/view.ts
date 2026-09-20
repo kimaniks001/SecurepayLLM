@@ -244,11 +244,17 @@ export function peopleView(
     if (invited) return { ...base, statusText: 'Invitation issued · not joined yet', statusKind: 'waiting' as const };
     if (p.participantStatus !== 'JOINED_UNCONFIRMED' && p.participantStatus !== 'CONFIRMED') return { ...base, statusText: humanizeCode(p.participantStatus), statusKind: 'neutral' as const };
     if (confirmations === null) return { ...base, statusText: 'Joined · confirmation status couldn’t be loaded', statusKind: 'unknown' as const };
-    const mine = confirmations.filter(c => c.participantId === p.participantId && c.status === 'CONFIRMED');
-    const current = mine.find(c => c.confirmationCurrent);
+    // A CONFIRMED row on the current version is a current confirmation. An earlier confirmation is either still CONFIRMED
+    // on an older version (a non-material change) or INVALIDATED (a material change): both mean "confirmed earlier, this
+    // version needs review". WITHDRAWN is not a confirmation.
+    const mine = confirmations.filter(c => c.participantId === p.participantId && (c.status === 'CONFIRMED' || c.status === 'INVALIDATED'));
+    const current = mine.find(c => c.confirmationCurrent && c.status === 'CONFIRMED');
     if (current) return { ...base, statusText: `Joined · confirmed version ${current.versionNumber}`, statusKind: 'current' as const };
-    if (mine.length > 0) {
-      const earlier = Math.max(...mine.map(c => c.versionNumber));
+    const earlierRows = mine.filter(c => !c.confirmationCurrent);
+    // An INVALIDATED row that SecurePay also flags as on the current version contradicts itself: unknown, not a guess.
+    if (mine.length > 0 && earlierRows.length === 0) return { ...base, statusText: 'Joined · confirmation details couldn’t be established', statusKind: 'unknown' as const };
+    if (earlierRows.length > 0) {
+      const earlier = Math.max(...earlierRows.map(c => c.versionNumber));
       return { ...base, statusText: `Confirmed version ${earlier} · needs to review ${currentVersionNumber != null ? `version ${currentVersionNumber}` : 'the current version'}`, statusKind: 'needs' as const };
     }
     // Only where the participant authority ALSO says unconfirmed may a missing row mean "not confirmed". A participant

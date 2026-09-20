@@ -9,6 +9,9 @@ export interface HubDto {
 }
 /** `invitationToken` is null on an idempotent REPLAY: SecurePay returns the existing invitation but never the raw token again. */
 export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean }
+export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
+export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
+export interface AmendmentDiffDto { amendmentId: string; sourceVersionId: string; changes: AmendmentFieldChangeDto[] }
 export interface AgreementInvitationDto { id: string; roleCode: string; status: string; issuedAt: string; expiresAt: string; revokedAt: string | null }
 export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
@@ -43,6 +46,18 @@ export function createAgreementGateway(http: HttpClient) {
     // Every confirmation on the Agreement (all participants), each flagged confirmationCurrent against the CURRENT version.
     // (`confirmation-status` above returns ONLY the caller's own row.)
     confirmations: (id: string) => http.request<AgreementConfirmationResponse[]>(`${agreement(id)}/confirmations`, { auth: 'required' }),
+    // Amendments. Real shapes verified against AgreementController / AgreementAmendmentService (read-only).
+    // Listing works ONLY while the Agreement allows amendments (PARTICIPANTS_JOINING | CONFIRMATION_PENDING); otherwise 422.
+    amendments: (id: string) => http.request<AgreementAmendmentDto[]>(`${agreement(id)}/amendments`, { auth: 'required' }),
+    // NOT safe to render as "what will change" unless it contains no REMOVED entry (diff treats proposedTerms as a full
+    // snapshot; apply merges it as a patch). See features/amendments/display.ts.
+    amendmentDiff: (id: string, amendmentId: string) => http.request<AmendmentDiffDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/diff`, { auth: 'required' }),
+    // Returns the NEW canonical version. A replay of an already-applied amendment answers 422 "amendment not applicable"
+    // (the status check runs before the idempotency lookup), so an uncertain outcome must be settled by re-reading.
+    applyAmendment: (id: string, amendmentId: string, idempotencyKey: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/amendments/${segment(amendmentId)}/apply`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Reject / withdraw return the amendment and are a silent no-op (200, unchanged status) when it is no longer PROPOSED.
+    rejectAmendment: (id: string, amendmentId: string) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/reject`, { method: 'POST', auth: 'required' }),
+    withdrawAmendment: (id: string, amendmentId: string) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/withdraw`, { method: 'POST', auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,

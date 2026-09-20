@@ -66,6 +66,10 @@ interface AgreementDetailProps {
   onRemoveTag?: (tagId: string) => void;
   /** Real mode: the Invite action + invitation list, rendered inside the People area. */
   peopleExtra?: React.ReactNode;
+  /** Real mode: replaces the fixture Changes content with versions + proposed changes. */
+  changesPanel?: React.ReactNode;
+  /** Real mode: something the caller should see before the tabs (e.g. a version that needs their review). */
+  topExtra?: React.ReactNode;
 }
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
@@ -96,7 +100,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, topExtra }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -140,6 +144,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       )}
 
       {/* Desktop: Tabbed workspace */}
+      {topExtra && <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50/60 max-h-[70vh] overflow-y-auto">{topExtra}</div>}
       <div className="hidden md:flex flex-1 flex-col overflow-hidden">
         <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex gap-1 overflow-x-auto scrollbar-thin">
           {tabs.map((t) => (
@@ -164,7 +169,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {tab === 'people' && <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
             {tab === 'activity' && <AgreementActivity activity={detail.activity} />}
-            {tab === 'changes' && <AgreementChanges changes={detail.changes} versions={detail.versions} />}
+            {tab === 'changes' && (changesPanel ?? <AgreementChanges changes={detail.changes} versions={detail.versions} />)}
             {tab === 'money' && moneyForAgreement && (
               <>
                 <MoneyAgreementContext detail={moneyForAgreement} />
@@ -267,7 +272,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           {mobileSection === 'activity-changes' && (
             <>
               <AgreementActivity activity={detail.activity} />
-              <AgreementChanges changes={detail.changes} versions={detail.versions} />
+              {changesPanel ?? <AgreementChanges changes={detail.changes} versions={detail.versions} />}
             </>
           )}
 
