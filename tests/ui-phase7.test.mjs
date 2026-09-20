@@ -151,9 +151,10 @@ test('evidence approval is shown only from SecurePay\'s completion-status (the e
 const reviewWorld = { obligations: [ob({ status: 'EVIDENCE_SUBMITTED', responsibleParticipantId: OTHER, beneficiaryParticipantId: ME })], actions: [act({ actionType: 'REVIEW_EVIDENCE', prerequisiteStatus: 'REVIEW_PENDING', supportingEvidenceIds: ['e1'] })], evidence: [ev()], completion: comp({ unmetRequirements: ['evidence_review_pending_e1'] }) };
 test('review controls come only from SecurePay\'s REVIEW_EVIDENCE next action; Approve and Reject only -- no "more information"', async () => {
   const yes = setup({}, reviewWorld); await yes.controller.load(); assert.deepEqual(yes.controller.reviewTarget('o1'), { evidenceId: 'e1', participantId: ME });
-  const out = text(panel(yes.controller)); assert.match(out, /Approve evidence/); assert.match(out, /Reject evidence/); assert.doesNotMatch(out, /more information|Ask for more|NEEDS_MORE/i);
-  assert.match(out, /Approving records that this evidence is accepted\. Rejecting records that it is not accepted/); assert.match(out, /doesn.t complete the obligation/);
-  const no = setup({}, { ...reviewWorld, actions: [] }); await no.controller.load(); assert.equal(no.controller.reviewTarget('o1'), null); assert.doesNotMatch(text(panel(no.controller)), /Approve evidence|Reject evidence/);
+  // WITHHELD in production: the review is shown as a read-only fact with the limitation, never as Approve/Reject controls.
+  const out = text(panel(yes.controller)); assert.match(out, /SecurePay says this evidence needs review\./); assert.match(out, /Recording the review from this screen is temporarily unavailable until SecurePay can bind it safely to the current Agreement version\./);
+  assert.doesNotMatch(out, /Approve evidence|Reject evidence|more information|Ask for more|NEEDS_MORE/i); assert.match(out, /Photo — Fitted cabinets/); // the evidence stays visible
+  const no = setup({}, { ...reviewWorld, actions: [] }); await no.controller.load(); assert.equal(no.controller.reviewTarget('o1'), null); assert.doesNotMatch(text(panel(no.controller)), /needs review|Recording the review/);
 });
 test('Approve and Reject send distinct decisions bound to the exact evidence and the caller\'s participant id; 200 is claimed as "recorded", never as a status change', async () => {
   const a = setup({}, reviewWorld); await a.controller.load(); await a.controller.review('o1', 'APPROVED');
@@ -168,7 +169,7 @@ test('an uncertain review pins its decision: the opposite decision is never offe
   const { controller, calls } = setup({ reviewEvidence: async (id, eid, body) => { calls.push(['review', eid, body]); if (first) { first = false; throw err('timeout', null); } return ev(); } }, reviewWorld);
   await controller.load(); await controller.review('o1', 'APPROVED');
   assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain'); assert.match(controller.getSnapshot().notices.o1.text, /We.re not sure whether that review was recorded/);
-  const out = text(panel(controller)); assert.match(out, /Try approving again/); assert.doesNotMatch(out, /Reject evidence|not accepting/);
+  const out = text(panel(controller)); assert.doesNotMatch(out, /Try approving again|Reject evidence|not accepting|Check what happened/); // controller archaeology only: no production control drives it
   await controller.review('o1', 'REJECTED'); assert.equal(calls.filter(c => c[0] === 'review').length, 1); // contradiction refused
   await controller.review('o1', 'APPROVED');
   const sends = calls.filter(c => c[0] === 'review'); assert.equal(sends.length, 2); assert.equal(sends[0][2].idempotencyKey, sends[1][2].idempotencyKey); assert.equal(sends[1][2].decision, 'APPROVED');
@@ -197,11 +198,11 @@ test('eligible=false: unmet requirements are shown in plain words (no ids), and 
   assert.match(out, /Evidence has to be submitted/); assert.match(out, /“Site inspection” has to be completed first/); assert.match(out, /A required condition isn.t satisfied yet/); assert.match(out, /SecurePay lists a requirement this screen can.t describe yet/);
   assert.doesNotMatch(out, /Complete this obligation/); assert.doesNotMatch(raw, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mystery_code/);
 });
-test('eligible=true does NOT auto-complete; Complete needs an explicit press and only the responsible participant sees it', async () => {
+test('eligible=true does NOT auto-complete; the controller Complete gate (archaeology) is unchanged, but nothing in the UI presses it', async () => {
   const elig = comp({ eligible: true, unmetRequirements: [], satisfiedRequirements: ['evidence_approved_e1'] });
   const mine = setup({}, { ...active, completion: elig }); await mine.controller.load();
   assert.equal(mine.controller.canComplete('o1'), true); assert.equal(names(mine.calls).includes('complete'), false);
-  const out = text(panel(mine.controller)); assert.match(out, /SecurePay says the completion requirements for this obligation are satisfied/); assert.match(out, /Complete this obligation/); assert.match(out, /does not by itself mean the whole Agreement is complete or that Money is released/);
+  const out = text(panel(mine.controller)); assert.match(out, /SecurePay says the completion requirements for this obligation are satisfied/); assert.match(out, /Completing it from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version\./); assert.doesNotMatch(out, /Complete this obligation/);
   const notMine = setup({}, { ...active, completion: elig, me: OTHER }); await notMine.controller.load(); assert.equal(notMine.controller.canComplete('o1'), false);
   const noMe = setup({}, { ...active, completion: elig, me: null }); await noMe.controller.load(); assert.equal(noMe.controller.canComplete('o1'), false); // own participant unknown -> no control
   const wrongState = setup({}, { obligations: [ob({ status: 'AVAILABLE' })], actions: [], completion: elig }); await wrongState.controller.load(); await wrongState.controller.loadDetails('o1'); assert.equal(wrongState.controller.canComplete('o1'), false);
@@ -288,8 +289,8 @@ test('a simple Agreement (no milestones) shows the obligations directly and inve
 });
 test('the obligation card: title, who is responsible (by participant id), status, what SecurePay says next; no percentages', async () => {
   const { controller } = setup({}, { obligations: [ob({ status: 'AVAILABLE' })] }); await controller.load();
-  const out = text(panel(controller)); assert.match(out, /Install the cabinets/); assert.match(out, /Responsible: Kamau \(you\)/); assert.match(out, /Ready to start/); assert.match(out, /SecurePay says this work is ready for you to start/); assert.match(out, /Start work/);
-  assert.match(out, /SecurePay will record that this obligation has started\. It won.t submit evidence or complete anything/); assert.doesNotMatch(out, /%|\d+ of \d+/);
+  const out = text(panel(controller)); assert.match(out, /Install the cabinets/); assert.match(out, /Responsible: Kamau \(you\)/); assert.match(out, /Ready to start/); assert.match(out, /SecurePay says this work is ready for you to start\./); assert.match(out, /Starting work from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version\./);
+  assert.doesNotMatch(out, /Start work|will record that this obligation has started/); assert.doesNotMatch(out, /%|\d+ of \d+/);
   const anon = setup({}, { obligations: [ob({ responsibleParticipantId: 'unknown-id' })], actions: [] }); await anon.controller.load(); assert.match(text(panel(anon.controller, { me: null })), /Responsible: Responsible participant/);
 });
 test('overdue is factual and calm; unknown statuses are "unavailable"', async () => {
@@ -511,4 +512,57 @@ test('the version-moved explanation survives the reload it triggers, then is dro
   const { controller, world } = setup(); await controller.load(); world.current = 'v3'; await controller.start('o1');
   await controller.load(); assert.match(controller.getSnapshot().notices.o1.text, /The Agreement changed while you were looking at it/); // the workspace reload re-mounts the panel
   await controller.load(); assert.equal(controller.getSnapshot().notices.o1, undefined);
+});
+
+// ------------------------------------------------------------ FINAL BOUNDARY: Start / Review / Complete are withheld in production
+// The backend's start, complete and review endpoints do not require the target to belong to the CURRENT Agreement version at commit time,
+// so a fresh preflight (kept, tested, unwired) can reduce stale exposure but cannot make the mutation atomic.
+const stripComments = src => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+test('PRODUCTION GUARD: no source outside the controller itself calls the three withheld mutations (or their recovery)', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const walk = async dir => (await readdir(dir, { withFileTypes: true })).flatMap(e => e.isDirectory() ? [] : [`${dir}/${e.name}`]);
+  const dirs = ['src/features/execution', 'src/features/workspace', 'src/components', 'src/features/agent', 'src/features/handoff', 'src/features/recipient', 'src/features/amendments', 'src/features/invitations'];
+  const files = (await Promise.all(dirs.map(walk))).flat().filter(f => /\.(ts|tsx)$/.test(f) && f !== 'src/features/execution/controller.ts');
+  assert.ok(files.length > 20);
+  for (const f of files) {
+    const src = stripComments(await readFile(f, 'utf8'));
+    // Only files that touch the EXECUTION controller are in scope (other controllers legitimately have their own start()/review()).
+    if (/execution\/controller|ExecutionController|executionFor|createExecutionController/.test(src)) assert.doesNotMatch(src, /\.(start|review|complete|checkStart|checkReview|checkComplete)\(/, f);
+    assert.doesNotMatch(src, /\.(startObligation|completeObligation|reviewEvidence)\(/, f);
+  }
+});
+test('PRODUCTION GUARD: the Progress panel has no Start / Approve / Reject / Complete control, whatever the state', async () => {
+  const src = stripComments(await readFile('src/features/execution/ProgressPanel.tsx', 'utf8'));
+  assert.doesNotMatch(src, />\s*(Start work|Approve evidence|Reject evidence|Complete this obligation|Try again: not accepting|Try approving again)\b/);
+  assert.doesNotMatch(src, /onClick=\{[^}]*controller\.(start|review|complete|checkStart|checkReview|checkComplete)\(/);
+  // every kind of situation that used to offer a control renders none
+  for (const [world, kind] of [[{}, 'start'], [reviewWorld, 'review'], [{ ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }, 'complete']]) {
+    const { controller } = setup({}, world); await controller.load(); await controller.loadDetails('o1');
+    const markup = panel(controller);
+    assert.doesNotMatch(markup, /<button[^>]*>\s*(Start work|Approve evidence|Reject evidence|Complete this obligation)/, kind);
+  }
+});
+test('the three read-only facts stay visible: START / REVIEW / eligible completion, each with its limitation', async () => {
+  const s = setup(); await s.controller.load(); const a = text(panel(s.controller)); assert.match(a, /SecurePay says this work is ready for you to start\./); assert.match(a, /Starting work from this screen is temporarily unavailable/);
+  const r = setup({}, reviewWorld); await r.controller.load(); const b = text(panel(r.controller)); assert.match(b, /SecurePay says this evidence needs review\./); assert.match(b, /Recording the review from this screen is temporarily unavailable/);
+  const c = setup({}, { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }); await c.controller.load(); const d = text(panel(c.controller)); assert.match(d, /SecurePay says the completion requirements for this obligation are satisfied\./); assert.match(d, /Completing it from this screen is temporarily unavailable/);
+  assert.doesNotMatch(a + b + d, /backend|endpoint|race|TOCTOU|version guard/i); // no jargon
+});
+test('externally progressed work renders normally: AVAILABLE -> IN_PROGRESS -> EVIDENCE_SUBMITTED -> COMPLETED from SecurePay\'s reads', async () => {
+  const { controller, world } = setup({}, { actions: [], obligations: [ob({ status: 'AVAILABLE' })] });
+  for (const [st, word] of [['AVAILABLE', 'Ready to start'], ['IN_PROGRESS', 'In progress'], ['EVIDENCE_SUBMITTED', 'Evidence submitted'], ['COMPLETED', 'Completed']]) {
+    world.obligations = [ob({ status: st })]; await controller.load(); const out = text(panel(controller)); assert.match(out, new RegExp(word));
+    assert.doesNotMatch(out, /<button|Start work|Complete this obligation/);
+  }
+});
+test('the completion projection stays read-only in every state: completed, not complete, unsupported, unavailable', async () => {
+  const { controller } = setup({}, { obligations: [], actions: [] }); await controller.load();
+  for (const [c, re] of [[C({ completed: true, status: 'COMPLETED', reasonCodes: [], completedAt: '2026-09-21T09:00:00Z' }), /Agreement completed/], [C(), /Not complete yet/], [C({ status: 'UNSUPPORTED' }), /Completion isn.t available/], [null, /Completion status unavailable/]]) {
+    const markup = panel(controller, { completion: c }); assert.match(text(markup), re); assert.doesNotMatch(markup, /<button[^>]*>[^<]*(Complete|complete)/);
+  }
+});
+test('the preflight archaeology is kept: the controller still refuses stale work (unwired), documenting why frontend validation alone is not atomic', async () => {
+  const src = await readFile('src/features/execution/controller.ts', 'utf8');
+  assert.match(src, /ACTION-TIME AUTHORITY/); assert.match(src, /freshAuthority/);
+  assert.match(src, /cannot eliminate the race|can shrink but never close|not atomic/i);
 });

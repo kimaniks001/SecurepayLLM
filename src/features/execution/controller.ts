@@ -71,7 +71,10 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
   }
   /**
    * ACTION-TIME AUTHORITY. The backend's start / complete / review endpoints do not themselves reject work that belongs to a
-   * SUPERSEDED version, so what rendered a button is never enough. Immediately before a consequential call, ask SecurePay afresh
+   * SUPERSEDED version, so what rendered a button is never enough. THIS PREFLIGHT CANNOT ELIMINATE THE RACE: between the fresh read and
+   * the POST another client can make a new version current and the endpoint (which is not conditional on the current version) will still
+   * accept the old target. Only the backend can make that check atomic, so the production UI withholds Start / Review / Complete and this
+   * controller is unwired archaeology (see docs/UI_COMPLETION_PHASE7_EXECUTION.md). Immediately before a consequential call, ask SecurePay afresh
    * which version is current, which obligations exist, and what the caller's next actions are. Any read that fails means the
    * version can't be established, so nothing is sent.
    */

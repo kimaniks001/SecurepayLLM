@@ -6,9 +6,13 @@ import type { ExecutionController, Notice } from './controller';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
 const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disabled:opacity-40`;
-const PRIMARY = `${BTN} bg-forest-700 text-cream-50 hover:bg-forest-800`;
 const SECONDARY = `${BTN} border border-cream-300 bg-white text-forest-700 hover:border-forest-300`;
 const dateOf = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
+const LIMIT = {
+  start: 'Starting work from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
+  review: 'Recording the review from this screen is temporarily unavailable until SecurePay can bind it safely to the current Agreement version.',
+  complete: 'Completing it from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
+};
 const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 text-forest-800' : n.kind === 'info' ? 'border-cream-300 bg-cream-50 text-sand-800' : 'border-ember-200 bg-ember-50 text-sand-800';
 
 /**
@@ -35,11 +39,10 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
 
   const card = (o: ObligationDto) => {
     const next = nextFor(o.id); const notice = state.notices[o.id];
-    const busy = state.busy?.id === o.id ? state.busy.action : null; const anyBusy = state.busy !== null;
     const comp = state.completion[o.id]; const ev = state.evidence[o.id];
     const responsible = nameOf(o.responsibleParticipantId); const mine = !!me && o.responsibleParticipantId === me;
     const blockers = (next?.blockedByObligationIds ?? []).map(titleOfObligation);
-    const review = controller.reviewTarget(o.id); const pending = controller.pendingReviewFor(o.id);
+    const review = controller.reviewTarget(o.id);
     const approved = (eid: string) => comp?.status === 'ready' && comp.data.satisfiedRequirements.includes(`evidence_approved_${eid}`);
     const monetary = o.obligationType === 'MONETARY';
     const detailsLoaded = !!comp || !!ev;
@@ -78,26 +81,13 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       </div>}
       {comp?.status === 'error' && <p className="mt-2 text-[0.82rem] text-sand-700">The completion requirements couldn’t be loaded right now, so nothing can be completed from here.</p>}
 
-      <div className="mt-3 space-y-2">
-        {controller.canStart(o.id) && <div><button type="button" className={PRIMARY} disabled={anyBusy} onClick={() => void controller.start(o.id)}>{busy === 'start' ? 'Starting…' : 'Start work'}</button><p className="mt-1 text-[0.75rem] text-sand-600">SecurePay will record that this obligation has started. It won’t submit evidence or complete anything.</p></div>}
-        {review && <div>
-          <p className="text-[0.8rem] text-sand-800">SecurePay is waiting for your review of the evidence above. It will record your review; it doesn’t complete the obligation.</p>
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {(!pending || pending.decision === 'APPROVED') && <button type="button" className={PRIMARY} disabled={anyBusy} onClick={() => void controller.review(o.id, 'APPROVED')}>{busy === 'review' ? 'Recording…' : pending ? 'Try approving again' : 'Approve evidence'}</button>}
-            {(!pending || pending.decision === 'REJECTED') && <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void controller.review(o.id, 'REJECTED')}>{pending ? 'Try again: not accepting' : 'Reject evidence'}</button>}
-          </div>
-          {!pending && <p className="mt-1 text-[0.75rem] text-sand-600">Approving records that this evidence is accepted. Rejecting records that it is not accepted.</p>}
-        </div>}
-        {controller.canComplete(o.id) && <div><button type="button" className={PRIMARY} disabled={anyBusy} onClick={() => void controller.complete(o.id)}>{busy === 'complete' ? 'Completing…' : 'Complete this obligation'}</button><p className="mt-1 text-[0.75rem] text-sand-600">Completing this obligation does not by itself mean the whole Agreement is complete or that Money is released.</p></div>}
-      </div>
-      {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}>
-        <p>{notice.text}</p>
-        {notice.kind === 'uncertain' && notice.action === 'start' && <button type="button" className={`${SECONDARY} mt-1.5`} disabled={anyBusy} onClick={() => void controller.checkStart(o.id)}>Check what happened</button>}
-        {notice.kind === 'uncertain' && notice.action === 'start' && controller.canStart(o.id) && <button type="button" className={`${PRIMARY} ml-2 mt-1.5`} disabled={anyBusy} onClick={() => void controller.start(o.id)}>Try again</button>}
-        {notice.kind === 'uncertain' && notice.action === 'review' && <button type="button" className={`${SECONDARY} mt-1.5`} disabled={anyBusy} onClick={() => void controller.checkReview(o.id)}>Check what happened</button>}
-        {notice.kind === 'uncertain' && notice.action === 'complete' && <button type="button" className={`${SECONDARY} mt-1.5`} disabled={anyBusy} onClick={() => void controller.checkComplete(o.id)}>Check what happened</button>}
-        {notice.kind === 'uncertain' && notice.action === 'complete' && controller.canComplete(o.id) && <button type="button" className={`${PRIMARY} ml-2 mt-1.5`} disabled={anyBusy} onClick={() => void controller.complete(o.id)}>Try again</button>}
-      </div>}
+      {/* WITHHELD: Start work, Approve/Reject and Complete. SecurePay's start / review / complete endpoints don't require the target to belong to the
+          CURRENT Agreement version at commit time, so a frontend preflight can shrink but never close the race. Until the backend binds the action
+          to the current version, these facts are shown read-only; no control here calls the controller's mutations. */}
+      {controller.canStart(o.id) && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.start}</p>}
+      {review && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.review}</p>}
+      {comp?.status === 'ready' && comp.data.eligible && mine && (o.status === 'IN_PROGRESS' || o.status === 'EVIDENCE_SUBMITTED') && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.complete}</p>}
+      {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}><p>{notice.text}</p></div>}
     </li>;
   };
 

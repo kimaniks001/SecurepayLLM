@@ -18,7 +18,7 @@ export const milestoneStateWord = (state: string) => MILESTONE_STATE_WORDS[state
 export const NEXT_ACTION_WORDS: Readonly<Record<string, string>> = {
   START_OBLIGATION: 'SecurePay says this work is ready for you to start.',
   SUBMIT_EVIDENCE: 'SecurePay is waiting for evidence from you.',
-  REVIEW_EVIDENCE: 'SecurePay is waiting for you to review the evidence.',
+  REVIEW_EVIDENCE: 'SecurePay says this evidence needs review.',
   WAIT_FOR_DEPENDENCY: 'SecurePay is waiting — there is nothing for you to do yet.',
   FUND_AGREEMENT: 'This is a payment obligation. Money is handled in the Money area.',
 };
