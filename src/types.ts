@@ -401,6 +401,8 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   // Agreement/participant/payment authority: the reviewed commercial source (e.g. a Store offer)
   // this handoff is proceeding from, if any.
   source?: {
+    /** The backend's own source type, passed through unchanged; absent means unknown, never assumed to be the Store. */
+    sourceType?: string | null;
     title: string; ownerKsNumber: string | null; priceLine: string; status: 'CURRENT' | 'CHANGED' | 'UNAVAILABLE'; statusLabel: string;
     /** The backend's own captured/current facts, for the shared SourceReference (Phase 2). Never reconciled in the browser. */
     capturedPriceMinor?: number | null; capturedCurrency?: string | null; capturedAvailability?: string | null;
@@ -417,6 +419,8 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   secondaryLabel: string;
   secondaryValue: string;
   primaryDisabled?: boolean;
+  /** One plain line saying what the primary action really does (and does not do). */
+  consequence?: string;
 }
 
 export interface AgreementSentResponse extends BaseResponse {

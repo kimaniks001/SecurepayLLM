@@ -17,6 +17,12 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+/** Plain words for the backend's display statuses; an unknown status is shown as it is, never guessed. */
+const STATUS_LABEL: Record<string, string> = {
+  READY_TO_PROGRESS: 'Reviewed, ready for a draft', READY_FOR_REVIEW: 'Ready to review', NEEDS_RESOLUTION: 'Needs settling',
+  REVIEW_STALE: 'Changed since reviewed', PROGRESSED: 'Draft created', IDENTITY_REQUIRED: 'Sign in to continue', EXPIRED: 'Expired',
+};
+
 export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCardProps) {
   const blocked = data.mustSettle.length > 0;
 
@@ -31,8 +37,8 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
         <h2 className="font-display text-lg text-forest-800 leading-tight">{data.title}</h2>
         <div className="mt-2 flex items-center gap-3 text-[0.75rem]">
           <span className="text-sand-500">Version: <span className="text-forest-700 font-medium">{data.version}</span></span>
-          <span className="text-sand-300">·</span>
-          <span className="text-sand-500">Status: <span className="text-ember-600 font-medium">{data.status}</span></span>
+          <span className="text-sand-300" aria-hidden="true">·</span>
+          <span className="text-sand-500">Status: <span className="text-ember-700 font-medium">{STATUS_LABEL[data.status] ?? data.status}</span></span>
         </div>
 
         <div className="mt-4">
@@ -41,7 +47,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
               {data.parties.map((party, i) => (
                 <div key={i} className="flex items-baseline gap-2">
                   <span className="text-[0.875rem] font-medium text-forest-800">{party.name}</span>
-                  <span className="text-[0.78rem] text-sand-500">— {party.role}</span>
+                  {party.role && <span className="text-[0.78rem] text-sand-500">— {party.role}</span>}
                 </div>
               ))}
             </div>
@@ -67,7 +73,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
               authority. */}
           {data.source && (
             <SourceReference source={{
-              title: data.source.title, ownerKs: data.source.ownerKsNumber, capturedPriceMinor: data.source.capturedPriceMinor ?? null, capturedCurrency: data.source.capturedCurrency ?? null,
+              sourceType: data.source.sourceType ?? undefined, title: data.source.title, ownerKs: data.source.ownerKsNumber, capturedPriceMinor: data.source.capturedPriceMinor ?? null, capturedCurrency: data.source.capturedCurrency ?? null,
               status: data.source.status, current: data.source.current ?? null, capturedAvailability: data.source.capturedAvailability ?? null,
             }} />
           )}
@@ -114,7 +120,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
             <div className="mt-3 rounded-xl border border-ember-300 bg-ember-50 px-4 py-3">
               <div className="flex items-center gap-1.5 mb-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-ember-700" />
-                <span className="text-[0.7rem] font-medium text-ember-700 uppercase tracking-wide">Must settle before setting</span>
+                <span className="text-[0.7rem] font-medium text-ember-700 uppercase tracking-wide">Needs settling first</span>
               </div>
               {data.mustSettle.map((item, i) => (
                 <div key={i} className="mb-2 last:mb-0">
@@ -122,7 +128,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
                   <div className="text-[0.78rem] text-sand-600">{item.detail}</div>
                 </div>
               ))}
-              <p className="mt-1 text-[0.72rem] font-medium text-ember-700">Resolve this before setting the agreement.</p>
+              <p className="mt-1 text-[0.72rem] font-medium text-ember-700">Talk it through to settle this, then review again.</p>
             </div>
           )}
         </div>
@@ -133,13 +139,13 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
           <div className="flex flex-wrap gap-2">
             <button
               disabled
-              className="text-[0.825rem] font-medium rounded-full px-4 py-2 bg-cream-200 text-sand-400 cursor-not-allowed"
+              className="min-h-11 text-[0.825rem] font-medium rounded-full px-4 py-2 bg-cream-200 text-sand-400 cursor-not-allowed"
             >
               {data.primaryLabel}
             </button>
             <button
               onClick={() => onChoice(data.secondaryValue)}
-              className="text-[0.825rem] font-medium rounded-full px-4 py-2 bg-white text-forest-700 border border-cream-200 hover:border-forest-300 hover:bg-cream-50 shadow-soft transition-all duration-200 active:scale-[0.97]"
+              className="min-h-11 text-[0.825rem] font-medium rounded-full px-4 py-2 bg-white text-forest-700 border border-cream-200 hover:border-forest-300 hover:bg-cream-50 shadow-soft transition-all duration-200 active:scale-[0.97]"
             >
               {data.secondaryLabel}
             </button>
@@ -153,6 +159,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
             onChoice={onChoice}
           />
         )}
+        {data.consequence && <p className="mt-3 text-[0.78rem] leading-snug text-sand-600">{data.consequence}</p>}
       </div>
     </div>
   );
