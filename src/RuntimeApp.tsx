@@ -10,6 +10,7 @@ import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
 import { createSessionStore, withSessionRefresh } from './api/securepay/session';
 import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
+import { REVIEW_AUTHENTICATED_METHODS } from './api/securepay/agreement-review/refresh';
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
 
@@ -30,6 +31,7 @@ const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, 
 const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, MONEY_AUTHENTICATED_METHODS.settlementDestinations, session, api.auth) : undefined;
 const moneySessionGateway = api ? withSessionRefresh(api.moneySession, MONEY_AUTHENTICATED_METHODS.moneySession, session, api.auth) : undefined;
 const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, MONEY_AUTHENTICATED_METHODS.paymentIntent, session, api.auth) : undefined;
+const agreementReviewGateway = api ? withSessionRefresh(api.agreementReview, REVIEW_AUTHENTICATED_METHODS, session, api.auth) : undefined;
 const paymentReleaseGateway = api ? withSessionRefresh(api.paymentRelease, MONEY_AUTHENTICATED_METHODS.paymentRelease, session, api.auth) : undefined;
 const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, MONEY_AUTHENTICATED_METHODS.moneyOperations, session, api.auth) : undefined;
 const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, MONEY_AUTHENTICATED_METHODS.currencyCapability, session, api.auth) : undefined;
@@ -175,8 +177,8 @@ export default function RuntimeApp() {
       ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
-  return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+  return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} circleGateway={circleGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

@@ -40,6 +40,7 @@ import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
+import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { StoreExperience } from '../store/StoreExperience';
 import { CommunityExperience } from '../community/CommunityExperience';
 import { CircleExperience } from '../circle/CircleExperience';
@@ -93,8 +94,8 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
@@ -403,7 +404,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   }
 
   if (workspace && sessionState.status === 'signed-in') {
-    const workspaceGateway = { ...agreementGateway, money: moneyGateway };
+    const workspaceGateway = { ...agreementGateway, money: moneyGateway, review: agreementReviewGateway };
     return <WorkspaceExperience
       gateway={workspaceGateway}
       agentGateway={gateway}

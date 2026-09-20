@@ -1,4 +1,5 @@
-import { MessageCircle, LifeBuoy, Flag, Users } from 'lucide-react';
+import { useState } from 'react';
+import { MessageCircle, LifeBuoy, Flag, Users, Scale } from 'lucide-react';
 
 interface AgreementSupportProps {
   onAskAgent: () => void;
@@ -6,9 +7,12 @@ interface AgreementSupportProps {
   /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
    * real Referral/Plug-attribution view scoped to this exact agreement. */
   onOpenReferral?: () => void;
+  /** Real (non-fixture) path only: the canonical Agreement Review surface. When omitted the fixture 'Raise an issue' row is unchanged. */
+  reviewPanel?: React.ReactNode;
 }
 
-export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral }: AgreementSupportProps) {
+export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, reviewPanel }: AgreementSupportProps) {
+  const [showReviews, setShowReviews] = useState(false);
   return (
     <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
       <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-3">Support</div>
@@ -28,6 +32,18 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral }: A
             <div className="text-[0.72rem] text-sand-500">Coming soon</div>
           </div>
         </div>
+        {reviewPanel ? (
+          <>
+            <button onClick={() => setShowReviews(v => !v)} aria-expanded={showReviews} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
+              <Scale className="w-4 h-4 text-forest-600 shrink-0" />
+              <div>
+                <div className="text-[0.825rem] font-medium text-forest-800">Reviews &amp; issues</div>
+                <div className="text-[0.72rem] text-sand-500">See formal reviews on this agreement</div>
+              </div>
+            </button>
+            {showReviews && reviewPanel}
+          </>
+        ) : (
         <button
           onClick={onRaiseIssue}
           disabled={!onRaiseIssue}
@@ -45,6 +61,7 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral }: A
             </div>
           </div>
         </button>
+        )}
         {onOpenReferral && (
           <button onClick={onOpenReferral} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
             <Users className="w-4 h-4 text-forest-600 shrink-0" />
