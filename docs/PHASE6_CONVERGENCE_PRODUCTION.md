@@ -772,3 +772,38 @@ Final result:
 - Commit: see the branch's latest commit for this pass (this document and the code were committed
   together).
 - PR #26 remains **open, draft, unmerged, not deployed**. No Phase 7 was started.
+
+## Y. Session-clearing correction
+
+A narrow correctness fix, made after review found an authority/state mismatch: the backend's
+`changePassword` (section X1) revokes every session and refresh token for the identity, including
+the current one, but the frontend's own `SessionStore` was not cleared until a subsequent request
+happened to fail. Fixed:
+
+- `createAccountController` now takes a second parameter, `onPasswordChanged: () => void`, called
+  exactly once, immediately after a successful `gateway.changePassword(...)` call — never on
+  failure, never on cancel. Account keeps no direct dependency on the `SessionStore` itself, only
+  this narrow callback.
+- `AgentExperience.tsx` (the one place that owns both `session` and the account controller) supplies
+  `() => { session.clear(); setNotice('Password changed. Sign in again with your new password.'); }`
+  — reusing the existing `notice` banner mechanism already used elsewhere in this router, rather than
+  building a new flash-message architecture for one case.
+- `session.clear()` flips `sessionState.status` to `'signed-out'`; every authenticated-only branch in
+  `AgentExperience.tsx` (Account, Settings, Business, Developer, Notifications, Workspace) already
+  gates on `sessionState.status === 'signed-in'`, so all of them close in the same render pass — not
+  just Account. `session.clear()` is called *before* the controller's own `changePasswordDone` flag
+  is set, so even in a worst-case unbatched render, a success card can never appear on an
+  already-revoked, authenticated-only screen.
+- `signOutEverywhere` is untouched by this fix — it was not in scope, and its existing (lazy,
+  next-request-discovers-it) behavior is preserved exactly as before.
+
+6 new tests added to `tests/phase6-convergence.test.mjs` (W1–W6): successful change calls the real
+gateway and notifies exactly once; a failed change never notifies; cancel never notifies;
+`AgentExperience` wires the callback to the real `SessionStore.clear()` and the existing notice
+banner (no new storage-backed auth state, no token decoding); every authenticated view still gates
+on `sessionState.status`; `signOutEverywhere` is provably unchanged.
+
+Final result: `npm run typecheck` — clean. `npm run lint` — clean. `node --test tests/*.test.mjs` —
+**451 passed, 0 failed** (445 baseline + 6 new, nothing weakened). `npm run build` — succeeds.
+
+PR #26 remains **open, draft, unmerged, not deployed**.

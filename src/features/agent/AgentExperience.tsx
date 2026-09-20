@@ -117,7 +117,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [businessView, setBusinessView] = useState(false);
   const [developerView, setDeveloperView] = useState(false);
   const [notificationsView, setNotificationsView] = useState(false);
-  const [accountController] = useState(() => createAccountController({ circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword }));
+  // Session-clearing correction: the backend already revoked this session the moment a password
+  // change succeeds (verified in controller.ts's own doc comment) -- the frontend must reflect that
+  // immediately, not wait for a subsequent request to fail. session.clear() is the one real session
+  // boundary (api/securepay/session.ts); reusing the existing `notice` banner (already used for
+  // "sign in to view your account" elsewhere in this router) avoids building a new flash-message
+  // mechanism for one narrow case.
+  const [accountController] = useState(() => createAccountController(
+    { circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword },
+    () => { session.clear(); setNotice('Password changed. Sign in again with your new password.'); },
+  ));
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));

@@ -47,6 +47,15 @@ export interface AccountState {
  * `AuthenticationController#changePassword` -- verified to revoke every session and refresh token
  * for the identity, including the current one, so a successful change is truthfully reported as a
  * full sign-out, exactly like `signOutEverywhere`'s own copy already does).
+ *
+ * Phase 6 session-clearing correction: backend authority wins immediately, not eventually. A
+ * successful password change already revokes the current session server-side (verified above), so
+ * this controller notifies its caller via `onPasswordChanged` the moment that succeeds -- never on
+ * failure, never on cancel (cancel never calls `changePassword` at all). The caller (AgentExperience)
+ * owns the actual `SessionStore`; this controller is deliberately given only a narrow callback, not
+ * the session object itself, so Account's dependency surface stays exactly what it needs and no
+ * more. `signOutEverywhere` is intentionally left as-is by this correction -- it was not asked for
+ * and changing it is out of this fix's narrow scope.
  */
 export function createAccountController(gateway: {
   circle: Pick<CircleGateway, 'me'>;
@@ -55,7 +64,7 @@ export function createAccountController(gateway: {
   logoutAll: () => Promise<void>;
   subscription: Pick<SubscriptionGateway, 'myStatus'>;
   changePassword: (body: { currentPassword: string; newPassword: string }) => Promise<void>;
-}) {
+}, onPasswordChanged: () => void) {
   let state: AccountState = {
     identity: idle(), businessKsInput: '', business: idle(), authority: idle(),
     logoutAllBusy: false, logoutAllError: null, logoutAllDone: false,
@@ -140,6 +149,12 @@ export function createAccountController(gateway: {
       update({ changePasswordBusy: true, changePasswordError: null, changePasswordDone: false });
       try {
         await gateway.changePassword({ currentPassword, newPassword });
+        // Backend authority already revoked this session server-side -- reflect that immediately,
+        // not on the next failed request. Called before this controller's own success flag so an
+        // authenticated-only screen can never render a stale success card even for one extra
+        // render pass: by the time anything re-renders, the session is already signed-out. Never
+        // called on a failed attempt or a cancel.
+        onPasswordChanged();
         update({ changePasswordBusy: false, changePasswordDone: true });
       } catch (error) {
         update({ changePasswordBusy: false, changePasswordError: errorText(error) });

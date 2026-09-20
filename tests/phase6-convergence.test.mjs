@@ -421,3 +421,95 @@ test('V1. Plan & Subscription formats monthlyFeeMinor through the shared BigInt-
   assert.match(contents, /decimalMoney\(String\(subscription\.monthlyFeeMinor\)/, 'must format through the shared decimalMoney formatter, converting to string first (never dividing/multiplying via Number)');
   assert.doesNotMatch(contents, /Number\(\s*subscription\.monthlyFeeMinor/, 'must never coerce monthlyFeeMinor through Number(...)');
 });
+
+// ─── W. Session-clearing correction: backend authority wins immediately on password change ─────
+
+test('W1. A successful password change calls the real changePassword gateway and then notifies its caller -- authority is reflected immediately, not on the next failed request', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/features/account/controller';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const calls = [];
+  const gateway = {
+    circle: { me: async () => { throw new Error('not used'); } },
+    business: { get: async () => { throw new Error('not used'); } },
+    authorization: { authoritySummary: async () => { throw new Error('not used'); } },
+    logoutAll: async () => { throw new Error('not used'); },
+    subscription: { myStatus: async () => { throw new Error('not used'); } },
+    changePassword: async (body) => { calls.push(body); },
+  };
+  let onPasswordChangedCalls = 0;
+  const controller = api.createAccountController(gateway, () => { onPasswordChangedCalls += 1; });
+  await controller.changePassword('old-pw', 'new-pw');
+  assert.deepEqual(calls, [{ currentPassword: 'old-pw', newPassword: 'new-pw' }], 'must call the real gateway with exactly these two fields');
+  assert.equal(onPasswordChangedCalls, 1, 'must notify its caller exactly once on success');
+  assert.equal(controller.getSnapshot().changePasswordDone, true);
+});
+
+test('W2. A failed password change does NOT notify its caller -- the current session must not be cleared on failure', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/features/account/controller';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const gateway = {
+    circle: { me: async () => { throw new Error('not used'); } },
+    business: { get: async () => { throw new Error('not used'); } },
+    authorization: { authoritySummary: async () => { throw new Error('not used'); } },
+    logoutAll: async () => { throw new Error('not used'); },
+    subscription: { myStatus: async () => { throw new Error('not used'); } },
+    changePassword: async () => { throw new Error('wrong current password'); },
+  };
+  let onPasswordChangedCalls = 0;
+  const controller = api.createAccountController(gateway, () => { onPasswordChangedCalls += 1; });
+  await controller.changePassword('wrong-pw', 'new-pw');
+  assert.equal(onPasswordChangedCalls, 0, 'a failed attempt must never clear the session');
+  assert.equal(controller.getSnapshot().changePasswordDone, false);
+  assert.ok(controller.getSnapshot().changePasswordError, 'must surface the failure');
+});
+
+test('W3. Cancelling the Change Password form never notifies the session-clearing callback -- resetChangePasswordStatus is a local UI reset only', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/features/account/controller';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const gateway = {
+    circle: { me: async () => { throw new Error('not used'); } },
+    business: { get: async () => { throw new Error('not used'); } },
+    authorization: { authoritySummary: async () => { throw new Error('not used'); } },
+    logoutAll: async () => { throw new Error('not used'); },
+    subscription: { myStatus: async () => { throw new Error('not used'); } },
+    changePassword: async () => { throw new Error('not used -- cancel must never call the gateway'); },
+  };
+  let onPasswordChangedCalls = 0;
+  const controller = api.createAccountController(gateway, () => { onPasswordChangedCalls += 1; });
+  controller.resetChangePasswordStatus();
+  assert.equal(onPasswordChangedCalls, 0, 'cancel must never clear the session');
+});
+
+test('W4. AgentExperience wires the account controller\'s session-clearing callback to the real SessionStore.clear(), and reuses the existing notice banner rather than a new flash-message mechanism', async () => {
+  const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const callSite = contents.slice(contents.indexOf('createAccountController('), contents.indexOf('createAccountController(') + 600);
+  assert.match(callSite, /session\.clear\(\)/, 'must call the real SessionStore.clear()');
+  assert.match(callSite, /setNotice\(/, 'must reuse the existing notice banner, not a new mechanism');
+  assert.doesNotMatch(contents, /localStorage|sessionStorage/, 'must never introduce a second, storage-backed auth state');
+  assert.doesNotMatch(contents, /jwt-decode|atob\(.*token/i, 'must never decode a token client-side to manage session state');
+});
+
+test('W5. Authenticated-only views (Account, Settings, Business, Developer, Notifications, Workspace) all still gate on sessionState.status === \'signed-in\' -- clearing the session immediately closes every one of them, not just Account', async () => {
+  const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const guardedReturns = [
+    /if \(account && sessionState\.status === 'signed-in'\)/,
+    /if \(settingsView && sessionState\.status === 'signed-in'\)/,
+    /if \(businessView && sessionState\.status === 'signed-in'\)/,
+    /if \(developerView && sessionState\.status === 'signed-in'\)/,
+    /if \(notificationsView && sessionState\.status === 'signed-in'\)/,
+    /if \(workspace && sessionState\.status === 'signed-in'\)/,
+  ];
+  for (const pattern of guardedReturns) {
+    assert.match(contents, pattern, `expected ${pattern} -- every authenticated screen must fail closed the instant sessionState flips to signed-out`);
+  }
+});
+
+test('W6. signOutEverywhere\'s existing behaviour is unchanged by this correction -- it still only calls logoutAll, never the new session-clearing callback', async () => {
+  const controller = await readFile('src/features/account/controller.ts', 'utf8');
+  const start = controller.indexOf('async signOutEverywhere()');
+  const end = controller.indexOf('async changePassword(');
+  assert.ok(start > -1 && end > start, 'expected to find signOutEverywhere before changePassword');
+  const signOutEverywhereBlock = controller.slice(start, end);
+  assert.match(signOutEverywhereBlock, /gateway\.logoutAll\(\)/);
+  assert.doesNotMatch(signOutEverywhereBlock, /onPasswordChanged/, 'signOutEverywhere must not be touched by this narrow fix');
+});
