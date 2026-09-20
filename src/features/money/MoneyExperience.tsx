@@ -38,6 +38,8 @@ import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import { createAttemptStore, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 import { resolveSelection, type SelectionTarget } from './selection';
+import { openSupportFromRoute } from '../support/context';
+import { exceptionHeading, exceptionReason, recordedOn, requiredActionWords, RECOVERY_HEADROOM_NOTE, RECOVERY_LABEL } from '../support/display';
 import { readSettlementScope, submitDestination, type ScopeRead, type CurrentRead, type HistoryRead } from './settlementDestination';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
@@ -59,12 +61,11 @@ function transactionLabel(type: AgreementMoneyTransactionResponse['type']): stri
     case 'FUNDED': return 'Funded';
     case 'PROGRESSED': return 'Progressed';
     case 'RELEASED': return 'Returned to funder(s)';
-    case 'REQUESTED': return 'Reversal requested for';
-    case 'RECOVERY_PENDING': return 'Reversal recovery pending for';
-    case 'RECOVERY_COMPLETED': return 'Reversal recovered for';
-    case 'RECOVERY_FAILED': return 'Reversal recovery failed for';
+    // A recovery never rewrites the original Progressed entry, and a completed ledger recovery does not by itself restore spending headroom.
+    default: return RECOVERY_LABEL[type] ?? 'A recorded event for';
   }
 }
+const isRecoveryEntry = (type: string) => type in RECOVERY_LABEL;
 
 export interface MoneyGateways {
   moneyAuthority: MoneyAuthorityGateway;
@@ -440,7 +441,8 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
           </div>
 
           <ActivityPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} />
-          <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} currentVersionId={freshVersionId} />
+          <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} currentVersionId={freshVersionId}
+            onGetHelp={exception => openSupportFromRoute({ kind: 'money-exception', agreementId: selectedAgreement.agreementId, title: selectedAgreement.title, heading: exceptionHeading(exception), reason: exceptionReason(exception), requiredAction: requiredActionWords(exception.requiredAction), recordedOn: recordedOn(exception.recordedAt) })} />
         </div>
       )}
     </SectionCard>
@@ -513,11 +515,14 @@ export function AgreementMoneyPositionCard({ position, loading, onRefresh, histo
       {historyUnknown && <ErrorBanner message="What happened couldn’t be loaded. That doesn’t mean nothing did." />}
       {history && (
         history.length === 0 ? <p className="text-xs text-sand-600">SecurePay shows nothing has happened here yet.</p> : (
+          <>
+          {history.some(entry => isRecoveryEntry(entry.type)) && <p className="text-xs text-sand-500">{RECOVERY_HEADROOM_NOTE}</p>}
           <ul className="text-xs text-sand-600 space-y-1">
             {history.map(entry => (
               <li key={entry.eventId}>{new Date(entry.occurredAt).toLocaleString()} — {transactionLabel(entry.type)} {money(entry.amountMinor, entry.currency)}</li>
             ))}
           </ul>
+          </>
         )
       )}
     </div>

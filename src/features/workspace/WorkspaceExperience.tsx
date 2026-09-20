@@ -15,6 +15,8 @@ import { createAmendmentsController } from '../amendments/controller';
 import { createReconfirmController } from '../amendments/reconfirm';
 import { ProgressPanel } from '../execution/ProgressPanel';
 import { ReviewPanel } from '../review/ReviewPanel';
+import { peekDetailTabHint, clearDetailTabHint } from '../support/tabHint';
+import type { SupportContext } from '../support/context';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
@@ -63,7 +65,9 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onLeave }: {
+  /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
+  onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
   /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
    * with the main signed-in Agent experience -- never a second, separate mini-conversation.
@@ -80,6 +84,9 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
+  // One-shot navigation hint from Help ("Reviews & issues"): captured at mount, cleared right after. Never Agreement truth.
+  const [tabHint] = useState(() => peekDetailTabHint());
+  useEffect(() => { clearDetailTabHint(); }, []);
   // One invite controller per selected Agreement; its in-memory state (incl. an unshared link) survives quiet refreshes.
   const [invites] = useState(() => new Map<string, ReturnType<typeof createInviteController>>());
   const [amendmentControllers] = useState(() => new Map<string, ReturnType<typeof createAmendmentsController>>());
@@ -273,7 +280,9 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
-          reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
+          initialTab={tabHint?.agreementId === boltDetail.id ? tabHint.tab : undefined}
+          onOpenHelp={onOpenSupport ? () => onOpenSupport({ kind: 'agreement', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null }) : undefined}
+          reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} onGetHelp={onOpenSupport ? () => onOpenSupport({ kind: 'review', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null }) : undefined} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}

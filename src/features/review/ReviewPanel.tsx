@@ -41,13 +41,15 @@ const EVIDENCE_STATES = new Set(['OPENED', 'AWAITING_RESPONSE', 'EVIDENCE_COLLEC
  * evidence metadata) and the two participant commands the repository proves safe -- acknowledge and respond -- are offered. Opening a review, adding
  * evidence and requesting escalation are withheld (see docs/UI_COMPLETION_PHASE9_AGREEMENT_REVIEW.md). Nothing here computes or implies a financial effect.
  */
-export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney }: {
+export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney, onGetHelp }: {
   gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
   agreementGateway: Pick<AgreementGateway, 'obligations' | 'versions'>;
   agreementId: string;
   /** From the exact Agreement Detail read (Phase 5/8). null = couldn't be established -> neutral version wording. */
   currentVersionId: string | null;
   onOpenMoney?: () => void;
+  /** Opens Help & Support for this Agreement's formal review (Help is guidance; it doesn't act on the review). */
+  onGetHelp?: () => void;
 }) {
   const [cases, refreshCases] = useRead(() => gateway.list({ agreementId, size: 50 }), agreementId);
   const [versions] = useRead(async () => new Map((await agreementGateway.versions(agreementId)).map(v => [v.id, v.versionNumber] as const)), agreementId);
@@ -70,7 +72,7 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
   const merged: Read<{ items: ReviewCaseSummaryResponse[]; totalElements: number }> = cases.status === 'ready' ? { ...cases, data: { items: [...cases.data.items, ...extra], totalElements: cases.data.totalElements } } : cases;
   const chosen = merged.status === 'ready' ? merged.data.items.find(c => c.reviewCaseId === selected) ?? null : null;
   if (selected && chosen) {
-    return <CaseView key={chosen.reviewCaseId} gateway={gateway} summary={chosen} lookup={lookup} currentVersionId={currentVersionId} onBack={() => { setSelected(null); refreshCases(); }} onOpenMoney={onOpenMoney} />;
+    return <CaseView key={chosen.reviewCaseId} gateway={gateway} summary={chosen} lookup={lookup} currentVersionId={currentVersionId} onBack={() => { setSelected(null); refreshCases(); }} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp} />;
   }
 
   return <ReviewListView cases={merged} lookup={lookup} currentVersionId={currentVersionId} onOpen={setSelected} onMore={() => void loadMore()} moreState={moreState} />;
@@ -122,22 +124,22 @@ function CaseRow({ c, lookup, currentVersionId, onOpen }: { c: ReviewCaseSummary
   );
 }
 
-function CaseView({ gateway, summary, lookup, currentVersionId, onBack, onOpenMoney }: {
+function CaseView({ gateway, summary, lookup, currentVersionId, onBack, onOpenMoney, onGetHelp }: {
   gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
-  summary: ReviewCaseSummaryResponse; lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void;
+  summary: ReviewCaseSummaryResponse; lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: () => void;
 }) {
   const [detail, refreshDetail] = useRead<ReviewCaseDetailResponse>(() => gateway.detail(summary.reviewCaseId, summary.agreementId), summary.reviewCaseId);
   const [evidence, refreshEvidence] = useRead(async () => (await gateway.evidence(summary.reviewCaseId, summary.agreementId)).items, summary.reviewCaseId);
   const refreshAll = () => { refreshDetail(); refreshEvidence(); };
   return (
-    <CaseDetailView summary={summary} detail={detail} evidence={evidence} lookup={lookup} currentVersionId={currentVersionId} onBack={onBack} onRefresh={refreshAll} onOpenMoney={onOpenMoney}
+    <CaseDetailView summary={summary} detail={detail} evidence={evidence} lookup={lookup} currentVersionId={currentVersionId} onBack={onBack} onRefresh={refreshAll} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp}
       yourPart={<YourPart gateway={gateway} summary={summary} d={detail.status === 'ready' ? detail.data : null} refreshing={detail.status === 'ready' && detail.refreshing} refresh={refreshAll} />} />
   );
 }
 
-export function CaseDetailView({ summary, detail, evidence, lookup, currentVersionId, onBack, onRefresh, onOpenMoney, yourPart, now = new Date() }: {
+export function CaseDetailView({ summary, detail, evidence, lookup, currentVersionId, onBack, onRefresh, onOpenMoney, onGetHelp, yourPart, now = new Date() }: {
   summary: ReviewCaseSummaryResponse; detail: Read<ReviewCaseDetailResponse>; evidence: Read<ReviewEvidenceItemResponse[]>; lookup: SubjectLookup; currentVersionId: string | null;
-  onBack: () => void; onRefresh: () => void; onOpenMoney?: () => void; yourPart: React.ReactNode; now?: Date;
+  onBack: () => void; onRefresh: () => void; onOpenMoney?: () => void; onGetHelp?: () => void; yourPart: React.ReactNode; now?: Date;
 }) {
   // The list summary is enough to say WHAT and WHICH VERSION even if the detail read fails; the detail read adds the caller's own facts.
   const d = detail.status === 'ready' ? detail.data : null;
@@ -203,6 +205,7 @@ export function CaseDetailView({ summary, detail, evidence, lookup, currentVersi
         <Note>{stateGroup(state) === 'active' ? MONEY_MAY_BE_AFFECTED : OUTCOME_NOT_MONEY}</Note>
         {onOpenMoney && <button onClick={onOpenMoney} className={btn}>Open Money for the current financial effect</button>}
       </section>
+      {onGetHelp && <button onClick={onGetHelp} className="block text-xs text-forest-700 underline">Help with this review</button>}
       <button onClick={onRefresh} className="text-xs text-forest-700 underline">Refresh this review</button>
     </div>
   );

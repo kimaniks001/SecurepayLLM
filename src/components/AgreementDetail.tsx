@@ -43,6 +43,10 @@ interface AgreementDetailProps {
   onRaiseIssue?: () => void;
   /** Real path only: the canonical Agreement Review surface, shown from the Support tab/section. */
   reviewPanel?: React.ReactNode;
+  /** Real path only: open on this tab (one-shot navigation hint from Help). */
+  initialTab?: 'support';
+  /** Real path only: opens Help & Support scoped to this Agreement. */
+  onOpenHelp?: () => void;
   onOpenMoney?: (id: string) => void;
   onOpenReferral?: () => void;
   /**
@@ -104,9 +108,9 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
-  const [tab, setTab] = useState<Tab>('overview');
-  const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
+  const [mobileSection, setMobileSection] = useState<MobileSection>(initialTab ?? 'overview');
   const [showAgent, setShowAgent] = useState(false);
 
   const showVersion = detail.status !== 'taking_shape';
@@ -199,7 +203,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {tab === 'calendar' && onAddTag && onRemoveTag && (
               <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
             )}
-            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} />}
+            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />}
 
             {showReuse && tab === 'overview' && <AgreementReuse detail={detail} />}
 
@@ -310,7 +314,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           )}
 
           {mobileSection === 'support' && (
-            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} />
+            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />
           )}
         </div>
       </div>
