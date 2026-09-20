@@ -2,7 +2,7 @@ import type { SecureAuthResponse } from '../../types';
 import type { IdentityState } from './controller';
 
 /** Composes the locked SecureAuth card for the real credential/OTP phases. No identity is claimed before SecurePay confirms it. */
-export function secureAuthView(identity: IdentityState): SecureAuthResponse {
+export function secureAuthView(identity: IdentityState, context?: { title: string; reason: string; secondaryLabel?: string }): SecureAuthResponse {
   if (identity.phase === 'otp') {
     return {
       type: 'SECURE_AUTH',
@@ -19,17 +19,17 @@ export function secureAuthView(identity: IdentityState): SecureAuthResponse {
   }
   return {
     type: 'SECURE_AUTH',
-    title: 'Sign in to review this',
+    title: context?.title ?? 'Sign in to review this',
     identityName: '',
     identityKsn: '',
-    reason: 'Signing in only proves who you are, so SecurePay can show you the full review. It does not create, join, confirm or accept anything.',
+    reason: context?.reason ?? 'Signing in only proves who you are, so SecurePay can show you the full review. It does not create, join, confirm or accept anything.',
     fields: [
       { label: 'KS Number', placeholder: 'KS-000000', type: 'text' },
       { label: 'Password', placeholder: 'Password', type: 'password' },
     ],
     primaryLabel: identity.busy ? 'Signing in…' : 'Sign in',
     primaryValue: 'submit_credentials',
-    secondaryLabel: 'Back to conversation',
+    secondaryLabel: context?.secondaryLabel ?? 'Back to conversation',
     secondaryValue: 'cancel_auth',
   };
 }

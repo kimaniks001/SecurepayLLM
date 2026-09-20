@@ -7,6 +7,7 @@ export interface HubDto {
   changedReviewRequired: CurrentUserAgreementSummaryResponse[]; completed: CurrentUserAgreementSummaryResponse[];
   cancelled: CurrentUserAgreementSummaryResponse[]; expired: CurrentUserAgreementSummaryResponse[];
 }
+export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
 export function createAgreementGateway(http: HttpClient) {
   const agreement = (id: string) => `/api/v1/agreements/${segment(id)}`;
@@ -37,6 +38,8 @@ export function createAgreementGateway(http: HttpClient) {
     // versionStatus included), not the lighter AgreementVersionSummaryResponse used in Detail's
     // versionHistory. Callers must select CURRENT by versionStatus, never by highest versionNumber.
     versions: (id: string) => http.request<AgreementVersionResponse[]>(`${agreement(id)}/versions`, { auth: 'required' }),
+    // Real shape: List<AgreementParticipantResponse> -- id, identityId, roleCode, participantStatus, addedAt. No name / KS Number.
+    participants: (id: string) => http.request<AgreementParticipantDto[]>(`${agreement(id)}/participants`, { auth: 'required' }),
     version: (id: string, versionId: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/versions/${segment(versionId)}`, { auth: 'required' }),
     confirmVersion: (id: string, versionId: string, body: ConfirmVersionRequest) => http.request<AgreementConfirmationResponse>(`${agreement(id)}/versions/${segment(versionId)}/confirm`, { method: 'POST', body, auth: 'required' }),
     // Verified against SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @ 978437f3

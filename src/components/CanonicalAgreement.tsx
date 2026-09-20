@@ -35,7 +35,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
 
       <div className="px-6 py-4">
         <h2 className="font-display text-lg text-forest-800 leading-tight">{data.title}</h2>
-        <div className="mt-2 flex items-center gap-3 text-[0.75rem]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.75rem]">
           <span className="text-sand-500">Version: <span className="text-forest-700 font-medium">{data.version}</span></span>
           <span className="text-sand-300" aria-hidden="true">·</span>
           <span className="text-sand-500">Status: <span className="text-ember-700 font-medium">{STATUS_LABEL[data.status] ?? data.status}</span></span>

@@ -1,4 +1,4 @@
-import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgreementGateway, AgreementParticipantDto } from '../../api/securepay/agreements';
 import type { AgreementConfirmationResponse, AgreementVersionResponse, JoinAgreementResponse, PublicInvitationViewResponse } from '../../api/securepay/agreements/dto';
 import { ApiError } from '../../api/securepay/http';
 import { errorText as agentErrorText } from '../agent/controller';
@@ -10,21 +10,61 @@ import { errorText as agentErrorText } from '../agent/controller';
  * confirmation/join failure as something it is not (e.g. presenting a genuine `AGREEMENT_CONFIRMATION_ERROR`
  * as a generic "this changed" prompt). Any real backend HTTP failure keeps its own message here; only
  * network/timeout/abort/invalid-response kinds fall back to the shared, kind-based generic wording.
+ *
+ * 401/403 are deliberately NOT worded here: what they mean depends on the STAGE (before Join nothing is joined;
+ * after Join it very much is), so each stage words them itself -- see `authWords` / `forbiddenWords`.
  */
 function errorText(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request.';
+    if (isUncertain(error)) return UNCERTAIN;
     if (error.kind === 'http') return error.message;
   }
   return agentErrorText(error);
 }
 
+const SESSION_ENDED = 'Your session ended before SecurePay could act on this.';
+/** What a 401 truthfully allows us to say at each stage. */
+const authWords = {
+  join: `${SESSION_ENDED} Nothing has been joined.`,
+  read: `${SESSION_ENDED} You have already joined this Agreement — sign in again to open it.`,
+  confirm: `${SESSION_ENDED} Nothing was confirmed. Sign in again, then check the version and confirm.`,
+};
+/** What a 403 truthfully allows us to say at each stage. Never names or hints at who the invitation was for. */
+const forbiddenWords = {
+  join: 'This invitation isn’t linked to the account you’re signed in with. Sign in with the account it was sent to.',
+  read: 'The signed-in account can’t open this Agreement right now.',
+  confirm: 'The signed-in account can’t confirm this Agreement. Nothing was confirmed.',
+};
+
+/** A client timeout / network failure / 5xx is not proof the step failed: SecurePay may already have recorded it. */
+export const isUncertain = (error: unknown) => error instanceof ApiError && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500);
+const UNCERTAIN = 'SecurePay couldn’t confirm whether that went through.';
+
+/**
+ * SecurePay answers every unusable invitation with ONE status (422 AGREEMENT_INVITATION_ERROR) and tells the
+ * cases apart only in its message. Known messages get plain words; anything else gets a calm generic line and is
+ * never echoed, so an unexpected backend string is not shown to a stranger. Nothing here reveals whether a
+ * private Agreement exists beyond what SecurePay itself already said.
+ */
+export function invitationProblem(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (isUncertain(error)) return 'SecurePay couldn’t finish opening this invitation. You have not joined or confirmed anything. Try again.';
+    const said = error.kind === 'http' ? error.message.toLowerCase() : '';
+    if (said.includes('revoked')) return 'This invitation is no longer available. The person who sent it withdrew it.';
+    if (said.includes('expired')) return 'This invitation has expired. You can ask the person who sent it for a new one.';
+    if (said.includes('already joined')) return 'This invitation has already been used to join. If that was you, open the Agreement from your Agreements.';
+    if (said.includes('no longer available')) return 'This Agreement is no longer available.';
+    if (said.includes('not found') || said.includes('invalid')) return 'SecurePay can’t find this invitation. Check the link you were sent.';
+  }
+  return 'This invitation couldn’t be opened. You have not joined or confirmed anything.';
+}
+
 export type RecipientPhase =
   | 'idle' | 'loading-invitation' | 'invitation-ready' | 'invitation-error'
   | 'identity-required'
-  | 'join-prompt' | 'joining' | 'join-error'
+  | 'join-prompt' | 'joining' | 'join-error' | 'join-uncertain'
   | 'version-loading' | 'version-ready'
-  | 'confirming' | 'confirm-error' | 'confirmed'
+  | 'confirming' | 'confirm-error' | 'confirm-uncertain' | 'confirmed'
   | 'error';
 
 export interface RecipientState {
@@ -35,16 +75,22 @@ export interface RecipientState {
   confirmation: AgreementConfirmationResponse | null;
   /** True once the version being shown was re-fetched after the previously joined/reviewed one stopped being current. */
   changed: boolean;
+  /** Who else is on the Agreement, as SecurePay lists them (role + status only -- it exposes no name or KS Number). null = not loaded. */
+  participants: AgreementParticipantDto[] | null;
+  /** Where to go once the person has signed in again mid-journey (never assumes the interrupted step happened). */
+  resume: 'join-prompt' | 'version-ready' | 'reload-version' | null;
+  /** Why the person is being asked to sign in again (stage-aware; shown on the sign-in screen). */
+  authNotice: string | null;
   joinIdempotencyKey: string | null;
   confirmIdempotencyKey: string | null;
   error: string | null;
 }
 const initial: RecipientState = {
   phase: 'idle', invitation: null, join: null, version: null, confirmation: null,
-  changed: false, joinIdempotencyKey: null, confirmIdempotencyKey: null, error: null,
+  changed: false, participants: null, resume: null, authNotice: null, joinIdempotencyKey: null, confirmIdempotencyKey: null, error: null,
 };
 
-type Gateway = Pick<AgreementGateway, 'invitation' | 'join' | 'versions' | 'version' | 'confirmVersion'>;
+type Gateway = Pick<AgreementGateway, 'invitation' | 'join' | 'versions' | 'version' | 'confirmVersion' | 'participants'>;
 
 /**
  * Narrow recipient orchestration only: invitation -> identity (owned by the shared identity
@@ -76,9 +122,25 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
       if (!current) { update({ phase: 'error', error: 'SecurePay could not identify a single current Agreement version.' }); return; }
       const version = await gateway.version(agreementId, current.id);
       update({ version, phase: 'version-ready', changed: true, confirmIdempotencyKey: null });
+      void loadParticipants(agreementId);
     } catch (error) {
-      update({ phase: 'error', error: errorText(error) });
+      readFailure(error);
     }
+  }
+
+  /**
+   * A failed READ of an Agreement the person has already joined. 401 goes back to sign-in and resumes with ONLY the
+   * read (Join is never repeated, and `state.join` is kept); 403 is worded for a participant, never as "not joined".
+   */
+  function readFailure(error: unknown) {
+    if (error instanceof ApiError && error.status === 401) { update({ phase: 'identity-required', resume: 'reload-version', authNotice: authWords.read, error: null }); return; }
+    if (error instanceof ApiError && error.status === 403) { update({ phase: 'error', error: forbiddenWords.read }); return; }
+    update({ phase: 'error', error: errorText(error) });
+  }
+
+  /** Best-effort: roles and statuses are context for the review, never a precondition for it. */
+  async function loadParticipants(agreementId: string) {
+    try { update({ participants: await gateway.participants(agreementId) }); } catch { /* the review stands without it */ }
   }
 
   async function loadVersion(agreementId: string, versionId: string, changed: boolean) {
@@ -90,8 +152,9 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
         return;
       }
       update({ version, phase: 'version-ready', changed });
+      void loadParticipants(agreementId);
     } catch (error) {
-      update({ phase: 'error', error: errorText(error) });
+      readFailure(error);
     }
   }
 
@@ -104,8 +167,20 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
    * reviewed before deciding which of those this is.
    */
   async function handleConfirmFailure(agreementId: string, reviewedVersion: AgreementVersionResponse, error: unknown) {
+    if (isUncertain(error)) {
+      // Not proof it failed. The SAME request (same key, same exact version) is safe to send again: SecurePay replays it.
+      update({ phase: 'confirm-uncertain', error: UNCERTAIN });
+      return;
+    }
+    if (error instanceof ApiError && error.status === 401) {
+      update({ phase: 'identity-required', resume: 'version-ready', authNotice: authWords.confirm, error: null });
+      return;
+    }
+    if (error instanceof ApiError && error.status === 403) {
+      update({ phase: 'confirm-error', error: forbiddenWords.confirm });
+      return;
+    }
     if (!(error instanceof ApiError) || (error.status !== 422 && error.status !== 409)) {
-      // Network/timeout/etc: safe for the person to retry the same explicit action unchanged.
       update({ phase: 'confirm-error', error: errorText(error) });
       return;
     }
@@ -113,7 +188,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
     try {
       versions = await gateway.versions(agreementId);
     } catch (readError) {
-      update({ phase: 'error', error: errorText(readError) });
+      readFailure(readError);
       return;
     }
     const current = findCurrentVersion(versions);
@@ -134,7 +209,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
       const version = await gateway.version(agreementId, current.id);
       update({ version, phase: 'version-ready', changed: true, confirmIdempotencyKey: null, error: null });
     } catch (readError) {
-      update({ phase: 'error', error: errorText(readError) });
+      readFailure(readError);
     }
   }
 
@@ -150,14 +225,22 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
         const invitation = await gateway.invitation(token);
         update({ invitation, phase: 'invitation-ready' });
       } catch (error) {
-        update({ phase: 'invitation-error', error: errorText(error) });
+        update({ phase: 'invitation-error', error: invitationProblem(error) });
       }
     },
 
     /** Called once a real session exists. Moves only to the explicit Join boundary — never joins by itself. */
     afterIdentitySignedIn() {
       if (state.phase !== 'identity-required') return;
-      update({ phase: 'join-prompt' });
+      const resume = state.resume;
+      if (resume === 'reload-version' && state.join) {
+        // Already joined: only the READ is repeated. Join is never called again.
+        update({ resume: null, authNotice: null });
+        void loadVersion(state.join.agreementId, state.join.joinedVersionId, false);
+        return;
+      }
+      // Join / confirm always come back to their own explicit button; signing in never performs them.
+      update({ phase: resume === 'version-ready' ? 'version-ready' : 'join-prompt', resume: null, authNotice: null });
     },
 
     /** From the invitation review: routes to identity if needed, or straight to the explicit Join boundary. */
@@ -168,7 +251,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
 
     /** Only an explicit user action may reach this. Reuses the same idempotency key on a deliberate retry. */
     async join() {
-      if (state.phase !== 'join-prompt' && state.phase !== 'join-error') return;
+      if (!['join-prompt', 'join-error', 'join-uncertain'].includes(state.phase)) return;
       const idempotencyKey = state.joinIdempotencyKey ?? id();
       update({ phase: 'joining', error: null, joinIdempotencyKey: idempotencyKey });
       try {
@@ -176,13 +259,17 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
         update({ join: result });
         await loadVersion(result.agreementId, result.joinedVersionId, false);
       } catch (error) {
+        if (isUncertain(error)) { update({ phase: 'join-uncertain', error: UNCERTAIN }); return; }
+        // 401 / 403 are definite rejections (nothing joined), so the key is released; sign-in is the real account boundary.
+        if (error instanceof ApiError && error.status === 401) { update({ phase: 'identity-required', resume: 'join-prompt', authNotice: authWords.join, joinIdempotencyKey: null, error: null }); return; }
+        if (error instanceof ApiError && error.status === 403) { update({ phase: 'identity-required', resume: 'join-prompt', authNotice: forbiddenWords.join, joinIdempotencyKey: null, error: null }); return; }
         update({ phase: 'join-error', error: errorText(error) });
       }
     },
 
-    /** Only the locked explicit "Yes, this is what I agree to" action may reach this. */
+    /** Only the explicit "Yes, I confirm this version" action may reach this: it records THIS participant's confirmation of THIS exact version. */
     async confirm() {
-      if (state.phase !== 'version-ready' && state.phase !== 'confirm-error') return;
+      if (!['version-ready', 'confirm-error', 'confirm-uncertain'].includes(state.phase)) return;
       if (!state.join || !state.version || state.version.versionStatus !== 'CURRENT') return;
       const { agreementId } = state.join;
       const version = state.version;
@@ -198,6 +285,12 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
       } catch (error) {
         await handleConfirmFailure(agreementId, version, error);
       }
+    },
+
+    /** After Join succeeded but the version could not be loaded: the person IS joined, so only the read is retried. */
+    async reloadVersion() {
+      if (!state.join || state.phase !== 'error') return;
+      await loadVersion(state.join.agreementId, state.join.joinedVersionId, false);
     },
 
     /** Returns to the initial idle-equivalent state. A fresh load() is required to view an invitation again. */

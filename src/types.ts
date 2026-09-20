@@ -445,6 +445,8 @@ export interface RecipientReviewResponse extends BaseResponse {
   purpose: string | null;
   proposedAmount: string | null;
   expiry: string;
+  /** What the next steps are, in order, so opening the link is understood as committing to nothing. */
+  nextSteps?: string[];
   primaryLabel: string;
   primaryValue: string;
   secondaryLabel: string;
@@ -466,6 +468,8 @@ export interface JoinedStatusResponse extends BaseResponse {
   title: string;
   text: string;
   status: string;
+  /** The separate, still-true statement that nothing has been agreed yet. */
+  notAgreed?: string;
 }
 
 export interface AcceptancePromptResponse extends BaseResponse {
