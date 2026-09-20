@@ -320,5 +320,6 @@ Account fix and the five new `AppView` destinations; no fixture-data import into
   `src/api/securepay/index.ts`, `src/api/securepay/auth/index.ts`, `src/components/NavBar.tsx`,
   `src/features/agent/AgentExperience.tsx`, `src/features/projects/ProjectsExperience.tsx`,
   `src/features/visionboard/VisionBoardExperience.tsx`, `src/types.ts`.
+- Commit: `df8b1ab` — "Phase 5: Life & Business World -- Account, Settings, Recovery, Business, Developer/Connect"
 - Tests: see Tests (P) above — 388/388 passing, up from a 368/0-failing baseline.
-- PR: to be opened as draft/open, unmerged — programme controller performs final review and merge.
+- PR: #25 — opened as draft/open, unmerged — programme controller performs final review and merge.
