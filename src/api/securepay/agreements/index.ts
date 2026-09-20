@@ -40,9 +40,10 @@ export function createAgreementGateway(http: HttpClient) {
     version: (id: string, versionId: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/versions/${segment(versionId)}`, { auth: 'required' }),
     confirmVersion: (id: string, versionId: string, body: ConfirmVersionRequest) => http.request<AgreementConfirmationResponse>(`${agreement(id)}/versions/${segment(versionId)}/confirm`, { method: 'POST', body, auth: 'required' }),
     // Verified against SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @ 978437f3
-    // (AgreementPlugAttributionController). POST/GET plug-attribution are byte-identical to `origin/main`;
-    // only referral-status is new to PR #207 (docs/PRODUCTION_MIGRATION_LEDGER.md section 18). Server-side
-    // authority: only the Agreement's own creator may attribute/read attribution or read referral-status.
+    // (AgreementPlugAttributionController). POST/GET plug-attribution and referral-status are all now
+    // live on `SecurePayAPI main` (PR #207 has since merged; re-confirmed during the Phase 4 final
+    // correction pass, 2026-09-20 -- see docs/PHASE4_TRADE_COMMUNITY.md). Server-side authority: only
+    // the Agreement's own creator may attribute/read attribution or read referral-status.
     attributePlug: (id: string, relationshipRef: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { method: 'POST', body: { relationshipRef }, auth: 'required' }),
     plugAttribution: (id: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { auth: 'required' }),
     referralStatus: (id: string) => http.request<AgreementKeyContractReferralResponse>(`${agreement(id)}/plug-attribution/referral-status`, { auth: 'required' }),

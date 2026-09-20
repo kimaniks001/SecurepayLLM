@@ -3,6 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { CommunityHome } from '../../components/CommunityHome';
 import { CommunityObjectDetail } from '../../components/CommunityObjectDetail';
 import { ErrorStateCard } from '../../components/ErrorState';
+import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createCommunityController, errorText } from './controller';
@@ -110,8 +111,10 @@ export function CommunityExperience({ gateway, trustedMediaOrigin, onNavigate, o
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view={navBarView} onNavigate={onNavigate} />
       {state.notice && (
-        <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">
-          {state.notice} <button onClick={() => controller.dismissNotice()} className="underline">Dismiss</button>
+        <div className="px-4 py-2">
+          <StatusNotice tone="info" icon={false}>
+            {state.notice} <button onClick={() => controller.dismissNotice()} className="underline">Dismiss</button>
+          </StatusNotice>
         </div>
       )}
       <div className="flex-1 flex flex-col overflow-hidden">{body}</div>

@@ -19,6 +19,7 @@ export * as referralGatewayModule from './src/api/securepay/referral';
 export * as agreementAdapters from './src/api/securepay/agreements/adapters';
 export * as agreementGatewayModule from './src/api/securepay/agreements';
 export * as http from './src/api/securepay/http';
+export * as decimalMoney from './src/decimalMoney';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
 const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
@@ -288,6 +289,12 @@ test('J. Opening a relationship never itself attributes a Plug to an agreement �
     openRelationship: async () => customerPlugRelationshipResponse(), relationshipLifecycle: async () => ({}),
     attribution: { attributePlug: async () => { attributeCalled = true; return agreementPlugAttributionResponse(); }, plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() },
   });
+  // openRelationship is guarded on a confirmed selection (real doctrine: you cannot open a
+  // relationship with a candidate you haven't actually selected) -- this test previously omitted
+  // that setup step entirely, so the guard silently no-opped it and the assertions below passed for
+  // the wrong reason (relationship.status never left 'idle'). Fixed to exercise the real sequence.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   assert.equal(controller.getSnapshot().relationship.status, 'ready');
   assert.equal(attributeCalled, false);
@@ -300,6 +307,9 @@ test('K. attributeToAgreement submits exactly the real relationshipRef obtained 
     openRelationship: async () => customerPlugRelationshipResponse({ relationshipRef: 'real-rel-ref-42' }), relationshipLifecycle: async () => ({}),
     attribution: { attributePlug: async (_agreementId, relationshipRef) => { receivedRef = relationshipRef; return agreementPlugAttributionResponse({ relationshipRef }); }, plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() },
   });
+  // See J's own comment: openRelationship is guarded on a confirmed selection.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   const relationshipRef = controller.getSnapshot().relationship.data.relationshipRef;
   await controller.attributeToAgreement('agr-1', relationshipRef);
@@ -497,6 +507,9 @@ test('AF1. Master controller resetSession clears request/opinion/draft but keeps
 
 test('AF2. Plug controller reset clears candidates/relationship/attribution state', async () => {
   const controller = api.plugController.createPlugController({ createRequest: async () => customerMarketRequestResponse(), candidates: async () => [interestedCandidateResponse()], selectCandidate: async () => ({}), openRelationship: async () => customerPlugRelationshipResponse(), relationshipLifecycle: async () => ({}), attribution: { attributePlug: async () => agreementPlugAttributionResponse(), plugAttribution: async () => agreementPlugAttributionResponse(), referralStatus: async () => keyContractReferralResponse() } });
+  // See J's own comment: openRelationship is guarded on a confirmed selection.
+  controller.selectCandidateRef('cand-1');
+  await controller.confirmSelection('mkt-req-1');
   await controller.openRelationship('mkt-req-1');
   assert.equal(controller.getSnapshot().relationship.status, 'ready');
   controller.reset();
@@ -590,4 +603,33 @@ test('AJ. All prior Golden Spine test suites remain green', async () => {
   const files = ['foundation', 'agent', 'handoff', 'recipient', 'signed-in', 'money', 'store', 'community-circles'].map(name => `tests/${name}.test.mjs`);
   const result = spawnSync(process.execPath, ['--test', ...files], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+// ─── AK/AL. Precision-safe money formatting for string-backed minor units ─────────────────────────
+
+test('AK. decimalMoney formats decimal-string minor-unit amounts exactly, without ever going through JS Number, even beyond Number.MAX_SAFE_INTEGER', () => {
+  const { decimalMoney } = api.decimalMoney;
+  assert.equal(decimalMoney('0', 'KES'), 'KES 0.00');
+  assert.equal(decimalMoney('1', 'KES'), 'KES 0.01');
+  assert.equal(decimalMoney('50', 'KES'), 'KES 0.50');
+  assert.equal(decimalMoney('100', 'KES'), 'KES 1.00');
+  assert.equal(decimalMoney('12345', 'KES'), 'KES 123.45');
+  assert.equal(decimalMoney('-500', 'KES'), '-KES 5.00');
+
+  // Number.MAX_SAFE_INTEGER is 9007199254740991 -- a string several digits beyond it already loses
+  // exactness under Number(...): the sanity check below confirms Number(...) can no longer even tell
+  // this value apart from the next integer up, i.e. the double has run out of precision. decimalMoney
+  // must still produce the exact digit-for-digit answer via BigInt, never through that lossy Number.
+  const beyondSafeInteger = '900719925474099312345';
+  assert.equal(Number(beyondSafeInteger), Number(beyondSafeInteger) + 1, 'sanity: this string is large enough that Number(...) has already lost precision (cannot distinguish it from n+1)');
+  assert.equal(decimalMoney(beyondSafeInteger, 'KES'), 'KES 9,007,199,254,740,993,123.45');
+});
+
+test('AL. Master/Plug money display no longer converts a string-backed minor-unit amount through Number(...)', async () => {
+  for (const file of ['src/features/master/MasterExperience.tsx', 'src/features/plug/PlugExperience.tsx']) {
+    const contents = await readFile(file, 'utf8');
+    assert.doesNotMatch(contents, /Number\(\s*minor\s*\)/, `${file} must not coerce a string-backed minor-unit amount through Number(...)`);
+    assert.doesNotMatch(contents, /Number\((req|referral)\.(quotedCostMinor|reward\.amountMinor)\)/, `${file} must not coerce the real string-backed field through Number(...) at the call site either`);
+    assert.match(contents, /decimalMoney\(/, `${file} must render its string-backed minor-unit amount through the shared precision-safe formatter`);
+  }
 });

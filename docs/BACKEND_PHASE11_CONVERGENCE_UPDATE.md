@@ -2,6 +2,11 @@
 
 Date: 2026-09-15
 
+**[Phase 4 final correction pass, 2026-09-20]**: PR #207 has since merged to `SecurePayAPI main`.
+Everything below describing it as "now open"/pending is a historical snapshot of the brief as it was
+written; see `docs/PHASE4_TRADE_COMMUNITY.md` and `docs/PRODUCTION_MIGRATION_LEDGER.md` section 18.1
+for current status.
+
 SecurePayAPI PR #207 is now open on `feat/securepay-phase11-referrals-plugs-masters`, stacked on Phase 10.
 
 This supersedes the migration ledger's earlier wording that Phase 11 was merely forthcoming.

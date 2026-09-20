@@ -205,10 +205,11 @@ export interface AgreementMoneyRecordResponse {
 }
 // Verified against kimaniks001/SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @
 // 978437f300244119302607ba3e656a76253190bb (AgreementPlugAttributionController.java, the exact
-// api/agreement/request|response DTOs). `POST`/`GET .../plug-attribution` are byte-identical to
-// `origin/main` — real, live backend authority. `.../plug-attribution/referral-status` is the ONE new
-// method PR #207 adds to this controller; every other method is untouched from main (see
-// docs/PRODUCTION_MIGRATION_LEDGER.md section 18).
+// api/agreement/request|response DTOs). `POST`/`GET .../plug-attribution` and
+// `.../plug-attribution/referral-status` are all real, live backend authority on `SecurePayAPI main`
+// (PR #207, which originally added `referral-status`, has since merged; re-confirmed during the
+// Phase 4 final correction pass, 2026-09-20 -- see docs/PHASE4_TRADE_COMMUNITY.md and
+// docs/PRODUCTION_MIGRATION_LEDGER.md section 18 for the original archaeology).
 export interface AgreementPlugAttributionRequest { relationshipRef: string }
 export interface AgreementPlugAttributionResponse {
   attributionRef: string;
@@ -219,7 +220,9 @@ export interface AgreementPlugAttributionResponse {
 }
 /** `state` is exactly one of NO_INTRODUCTION/CANDIDATE/NOT_QUALIFIED/QUALIFIED — never computed by the
  * frontend. Amounts are decimal strings and populate only once QUALIFIED. `rewardPaid` is always `false`
- * today — no payout authority exists anywhere in this backend yet. BACKEND_PR_PENDING (PR #207 only). */
+ * today — no payout authority exists anywhere in this backend yet (re-confirmed against current
+ * `SecurePayAPI main` during the Phase 4 final correction pass, 2026-09-20 -- this substantive claim
+ * is still accurate; only the now-merged PR #207's "pending" framing was stale, see index.ts). */
 export interface AgreementKeyContractReferralResponse {
   agreementId: string;
   state: string;

@@ -1,8 +1,11 @@
 // Verified against kimaniks001/SecurePayAPI feat/securepay-phase11-referrals-plugs-masters @
 // 978437f300244119302607ba3e656a76253190bb (MasterController.java, the api/master/request|response DTOs,
 // MasterDesignationStatus.java, MasterAvailabilityStatus.java, MasterRequestStatus.java,
-// MasterRequestSourceContext.java). The entire `ke.securepay.core.master` package is NOT on `origin/main` —
-// gated on the still-unmerged PR #207 stack (docs/PRODUCTION_MIGRATION_LEDGER.md section 18).
+// MasterRequestSourceContext.java). The entire `ke.securepay.core.master` package is now live on
+// `SecurePayAPI main` (PR #207 has since merged; re-confirmed by directly reading the package on
+// current main during the Phase 4 final correction pass, 2026-09-20 -- see
+// docs/PHASE4_TRADE_COMMUNITY.md and docs/PRODUCTION_MIGRATION_LEDGER.md section 18 for the original
+// archaeology, which predates the merge).
 //
 // This is the narrow NON-DISPUTE Master domain only. A dispute-scoped Master engagement is a different,
 // already-existing lifecycle (`DisputeMasterEscalation`, Phase 9B) and is never reached from here.
