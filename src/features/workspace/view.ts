@@ -5,6 +5,7 @@ import type {
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
+import { decimalMoney } from '../../decimalMoney';
 import type {
   ActivityEntry, AgreementAction, AgreementChangeEntry, AgreementDetail as AgreementDetailType,
   AgreementDocument, AgreementPerson, AgreementStatus, AgreementSummary, AgreementVersion,
@@ -14,12 +15,22 @@ import type {
 
 // ─── Shared formatting — real data only, never fabricated ───────────────────
 
+/**
+ * Phase 6 final correction -- this helper is the single most widely-rendered money display in the
+ * app (every Agreement Detail's inline Money summary, the dedicated Money workspace, and the Money
+ * activity/record list all call it). It previously did
+ * `typeof amountMinor === 'string' ? Number(amountMinor) : amountMinor`, silently corrupting any
+ * large value from a genuinely string-backed field -- `AgreementDetailResponse.overview
+ * .proposedAmountMinor` and `AgreementMoneyRecordResponse.amountMinor` are both real `string`
+ * fields, kept that way by their own DTOs to avoid exactly this. Both call-site paths (string and
+ * number) now go through the same shared, BigInt-backed `decimalMoney` formatter this codebase
+ * already established for the identical Master/Plug/Projects bugs -- never `Number(...)` again.
+ */
 function formatMoney(currency: string | null | undefined, amountMinor: string | number | null | undefined): string {
   if (amountMinor == null || currency == null) return 'Not yet specified';
-  const minor = typeof amountMinor === 'string' ? Number(amountMinor) : amountMinor;
-  if (!Number.isFinite(minor)) return 'Not yet specified';
-  const major = (minor / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${currency} ${major}`;
+  const digits = typeof amountMinor === 'number' ? String(Math.trunc(amountMinor)) : amountMinor;
+  if (!/^-?\d+$/.test(digits)) return 'Not yet specified';
+  return decimalMoney(digits, currency);
 }
 function formatShortDate(iso: string | null | undefined): string {
   if (!iso) return '—';
