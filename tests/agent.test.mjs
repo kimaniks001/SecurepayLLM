@@ -515,3 +515,10 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
     assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
   }
 });
+
+test('retry wording is truthful for each pending operation: message, Use this, amount', () => {
+  assert.equal(api.retryLabel({ kind: 'turn', body: { message: 'x' } }), 'Retry message');
+  assert.equal(api.retryLabel({ kind: 'adopt', body: { targetId: 'a', targetKind: 'ENTITY' } }), 'Retry Use this');
+  assert.equal(api.retryLabel({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', amount: '1' } }), 'Retry amount');
+  assert.equal(api.retryLabel(null), 'Retry message');
+});

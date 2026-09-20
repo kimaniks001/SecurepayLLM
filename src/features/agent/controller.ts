@@ -46,6 +46,10 @@ export type SourceSelectionResult =
   | { status: 'failed'; error: string }
   | { status: 'busy' }
   | { status: 'no-source' };
+/** Truthful wording for retrying whatever is pending -- an amount submission is not a conversational turn. */
+export function retryLabel(pending: AgentState['pending']): string {
+  return pending?.kind === 'adopt' ? 'Retry Use this' : pending?.kind === 'external-amount' ? 'Retry amount' : 'Retry message';
+}
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 404) return 'This conversation or candidate could not be found. You can retry or start a new conversation.';

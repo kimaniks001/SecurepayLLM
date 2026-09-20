@@ -21,7 +21,7 @@ import type { ReferralGateway } from '../../api/securepay/referral';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
-import { createAgentController } from './controller';
+import { createAgentController, retryLabel } from './controller';
 import { ConversationSurface } from '../conversation/ConversationSurface';
 import { createInstrumentController } from '../instruments/controller';
 import { InstrumentHost } from '../instruments/ui/InstrumentHost';
@@ -544,7 +544,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error}
                 onRetry={() => void controller.retryOfferSelection()} onContinueWithout={() => void controller.continueOfferWithoutSource()} />}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
-                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
+                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}
               <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Review what we have</button>
