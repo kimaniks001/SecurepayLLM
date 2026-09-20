@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { KsIdentityDto, AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -28,11 +28,6 @@ export function createAgentGateway(http: HttpClient) {
     // private Agreement/Home tools. The model never supplies identity; this is purely a transport
     // concern, matching the existing createHandoff/readHandoff convention below.
     submitTurn: (id: string, body: TurnRequest) => http.request<AgentResponseDto>(`${conversation(id)}/turns`, { method: 'POST', body, auth: 'optional' }),
-    // Phase 1 Conversational Workbench: the KSFinder's ONE identity read. `auth: 'optional'` because
-    // formation is available signed-out. Caller MUST normalise/validate the KS Number first (the
-    // backend parser is strict: ^KS[0-9]{3,}$, no whitespace) and MUST pass the result through
-    // `ksIdentityView`, which drops every field except the participant-safe projection.
-    lookupKsIdentity: (canonicalKsNumber: string) => http.request<KsIdentityDto>(`/api/v1/identities/by-ksnumber/${segment(canonicalKsNumber)}`, { auth: 'optional' }),
     readContext: (id: string) => http.request<TradeContextDto>(`${conversation(id)}/context`, { auth: 'none' }),
     adoptFact: (id: string, body: AdoptFactRequest) => http.request<TradeContextDto>(`${conversation(id)}/facts/adopt`, { method: 'POST', body, auth: 'none' }),
     submitAmount: (id: string, body: ExternalFactRequest & { amount: string; currency?: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/amount`, { method: 'POST', body, auth: 'none' }),

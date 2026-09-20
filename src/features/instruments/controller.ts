@@ -33,6 +33,8 @@ const IDLE: InstrumentState = { active: null, draft: null, phase: 'editing', err
 
 export function createInstrumentController(agent: InstrumentAgent) {
   let state: InstrumentState = IDLE;
+  // A typed KS Number is never lost when the person goes back to the conversation.
+  const parked = new Map<string, InstrumentDraft>();
   const listeners = new Set<() => void>();
   const update = (patch: Partial<InstrumentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   const close = () => update({ active: null, draft: null, phase: 'editing', error: null });
@@ -54,7 +56,7 @@ export function createInstrumentController(agent: InstrumentAgent) {
       // Re-opening the SAME instrument for the same fact keeps what the person had already entered.
       if (state.active && specKey(state.active) === specKey(spec)) { update({ openCount: state.openCount + 1 }); return; }
       if (state.phase === 'failed') agent.discardFailedTurn();
-      update({ active: spec, draft, phase: 'editing', error: null, openCount: state.openCount + 1 });
+      update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1 });
     },
     setDraft(draft: InstrumentDraft) {
       if (!state.active || state.phase === 'sending') return;
@@ -66,6 +68,7 @@ export function createInstrumentController(agent: InstrumentAgent) {
     cancel() {
       if (state.phase === 'sending') return;
       if (state.phase === 'failed') agent.discardFailedTurn();
+      if (state.active && state.draft?.kind === 'who' && state.draft.ks.trim()) parked.set(specKey(state.active), state.draft);
       close();
     },
     async submit() {
@@ -73,9 +76,6 @@ export function createInstrumentController(agent: InstrumentAgent) {
       if (!active || !draft || phase === 'sending') return;
       const statement = statementFor(active, draft, {
         previousAmount: active.kind === 'money' ? active.amount : undefined,
-        previousCurrency: active.kind === 'money' ? active.currency : undefined,
-        previousDateText: active.kind === 'when' ? active.currentText : undefined,
-        previousPlace: active.kind === 'where' ? active.currentText : undefined,
       });
       if (!statement) return;
       update({ phase: 'sending', error: null });

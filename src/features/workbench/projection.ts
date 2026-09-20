@@ -1,6 +1,6 @@
 import type { ContextView } from '../agent/controller';
 import { KNOWN_ROLES } from '../../api/securepay/agent/instruments';
-import { formatMoney, parseAmount, type InstrumentSpec } from '../instruments/model';
+import { formatMoney, fromIso, longDate, parseAmount, FORMATION_CURRENCY, type InstrumentSpec } from '../instruments/model';
 import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 
 /**
@@ -105,7 +105,7 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       details.push(humanize(role.qualifiers.role ?? 'OTHER'));
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
-    items.push({ key: `where:${entity.id}`, section: 'where', value: entity.name, details, state: entity.state, adopt, spec: { kind: 'where', origin: 'understood', currentText: entity.name } });
+    items.push({ key: `where:${entity.id}`, section: 'where', value: entity.name, details, state: entity.state, adopt, spec: null });
   }
 
   // --- WHAT --------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     items.push({
       key: `when:${entity.id}`, section: 'when', value: entity.name, details: entity.type === 'RECURRENCE' ? ['Repeats'] : [], state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
-      spec: entity.type === 'RECURRENCE' ? null : { kind: entity.type === 'DATE_RANGE' ? 'when-range' : 'when', origin: 'understood', currentText: entity.name },
+      spec: null, // a recorded date cannot be replaced through formation, so it is never offered for editing
     });
   }
   for (const relation of relationships) {
@@ -138,8 +138,8 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       usedRelationshipIds.add(relation.id);
       const text = q.date ?? q.startDate ?? '';
       items.push({
-        key: `when:${relation.id}`, section: 'when', value: text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
-        spec: { kind: 'when', origin: 'understood', currentText: text },
+        key: `when:${relation.id}`, section: 'when', value: fromIso(text) ? longDate(text) : text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
+        spec: null,
       });
     } else if (relation.kind === 'PAYMENT_CONDITION' && q.amount) {
       usedRelationshipIds.add(relation.id);
@@ -151,7 +151,8 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       items.push({
         key: `money:${relation.id}`, section: 'money',
         value: parsed.ok ? formatMoney(parsed.value, currency) : `${currency} ${q.amount}`.trim(), details: extras, state: relation.state, adopt,
-        spec: plain && parsed.ok ? { kind: 'money', origin: 'understood', amount: parsed.value, currency: currency || 'KES' } : null,
+        // Editable only as a plain KES amount: the interpreter files every figure as KES, so any other currency could not be read back.
+        spec: plain && parsed.ok && currency === FORMATION_CURRENCY ? { kind: 'money', origin: 'understood', amount: parsed.value } : null,
       });
     }
   }
@@ -180,10 +181,13 @@ export function projectWorkbench(context: ContextView | null): Workbench {
 
   items.sort((a, b) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section));
 
+  // An instrument is offered only where the real formation path can represent AND read back the result:
+  // a first date, a first place, a first amount. A recorded one can only be changed in conversation.
   const has = (section: WorkbenchSection) => items.some(item => item.section === section);
+  const hasDeadline = relationships.some(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string') || entities.some(e => e.type === 'DATE' || e.type === 'DATE_RANGE');
   const adds: WorkbenchAdd[] = [];
   if (!has('who')) adds.push({ key: 'who', label: 'Who', spec: { kind: 'who', origin: 'add' } });
-  if (!has('when')) adds.push({ key: 'when', label: 'When', spec: { kind: 'when', origin: 'add' } });
+  if (!hasDeadline) adds.push({ key: 'when', label: 'When', spec: { kind: 'when', origin: 'add' } });
   if (!has('where')) adds.push({ key: 'where', label: 'Where', spec: { kind: 'where', origin: 'add' } });
   if (!has('money')) adds.push({ key: 'money', label: 'Amount', spec: { kind: 'money', origin: 'add' } });
   return { items, adds, empty: items.length === 0 };
@@ -191,28 +195,26 @@ export function projectWorkbench(context: ContextView | null): Workbench {
 
 /**
  * An Agent-proposed input affordance (`INSTRUMENT_PROMPT`) opens the SAME instrument a workbench row
- * would, seeded from what is already understood -- so "Which Friday?" shows the real Fridays for the
- * "Friday" SecurePay already holds, rather than opening a blank calendar. Payload hints are optional
- * and were validated by the bridge; existing understood facts always take precedence over them.
+ * would -- but only when that instrument can really record the result. Otherwise the person gets an
+ * honest note instead of a control that would add a conflicting second date/place/amount.
  */
-export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench): InstrumentSpec {
-  const existing = (section: WorkbenchSection, kinds: InstrumentSpec['kind'][]) => workbench.items.find(item => item.section === section && item.spec && kinds.includes(item.spec.kind))?.spec ?? null;
+export type PromptResolution = { spec: InstrumentSpec } | { note: string };
+export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench): PromptResolution {
+  const items = (section: WorkbenchSection) => workbench.items.filter(item => item.section === section);
   switch (prompt.instrument) {
     case 'who': {
-      const spec = workbench.items.find(item => item.section === 'who' && item.identityUnresolved)?.spec;
-      return spec?.kind === 'who' ? { ...spec, origin: 'agent', role: spec.role ?? prompt.hints.role } : { kind: 'who', origin: 'agent', role: prompt.hints.role };
+      const spec = items('who').find(item => item.identityUnresolved)?.spec;
+      return { spec: spec?.kind === 'who' ? { ...spec, origin: 'agent', role: spec.role ?? prompt.hints.role } : { kind: 'who', origin: 'agent', role: prompt.hints.role } };
     }
-    case 'when': case 'when-range': {
-      const spec = existing('when', ['when']);
-      return { kind: prompt.instrument, origin: 'agent', currentText: prompt.instrument === 'when' && spec?.kind === 'when' ? spec.currentText : undefined, hintDate: prompt.hints.date };
-    }
+    case 'when':
+      return workbench.adds.some(a => a.key === 'when') ? { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } } : { note: 'SecurePay already holds a date and can’t replace it from here. Tell KS001 if it has changed.' };
     case 'money': {
-      const spec = existing('money', ['money']);
-      return spec?.kind === 'money' ? { ...spec, origin: 'agent' } : { kind: 'money', origin: 'agent', currency: prompt.hints.currency };
+      const money = items('money');
+      if (money.length === 0) return { spec: { kind: 'money', origin: 'agent' } };
+      const editable = money.length === 1 ? money[0].spec : null;
+      return editable?.kind === 'money' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds an amount that can’t be changed here (Kenya shillings only). Tell KS001 in the conversation.' };
     }
-    case 'where': {
-      const spec = existing('where', ['where']);
-      return { kind: 'where', origin: 'agent', currentText: spec?.kind === 'where' ? spec.currentText : undefined };
-    }
+    case 'where':
+      return workbench.adds.some(a => a.key === 'where') ? { spec: { kind: 'where', origin: 'agent' } } : { note: 'SecurePay already holds a place and can’t replace it from here. Tell KS001 if it has changed.' };
   }
 }

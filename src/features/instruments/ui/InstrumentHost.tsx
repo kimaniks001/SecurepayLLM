@@ -1,9 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { KsIdentityDto } from '../../../api/securepay/agent/dto';
 import { specKey, type InstrumentController } from '../controller';
-import { formatMoney, isCurrencyCode, parseAmount, statementFor, type InstrumentDraft, type InstrumentSpec } from '../model';
+import { formatMoney, FORMATION_CURRENCY, parseAmount, parsePlace, statementFor, type InstrumentDraft, type InstrumentSpec } from '../model';
 import { FOCUS, PrimaryButton, QuietButton } from './atoms';
 import { useIsDesktop, useKeyboardInset } from './hooks';
 import { WhoInstrument } from './WhoInstrument';
@@ -15,18 +14,16 @@ function titleFor(spec: InstrumentSpec, draft: InstrumentDraft | null): string {
   switch (spec.kind) {
     case 'who': { const role = (draft?.kind === 'who' && draft.role) || spec.role; return role ? `Who is the ${role}?` : 'Who is this with?'; }
     case 'when': return 'When?';
-    case 'when-range': return 'Which dates?';
     case 'money': return spec.amount ? 'Change the amount' : 'How much?';
     case 'where': return 'Where?';
   }
 }
 /** The primary action's label and readiness for the current draft -- `null` label means "no primary yet". */
 function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: string | null; ready: boolean } {
-  if (spec.kind === 'who' && draft.kind === 'who') return { label: draft.ks ? `Use ${draft.ks}${draft.role ? ` as ${draft.role}` : ''}` : null, ready: !!draft.ks && !!draft.role };
+  // WHO never has a primary in Phase 1: production cannot check or link a KS Number (see WhoInstrument).
   if (spec.kind === 'when' && draft.kind === 'when') return { label: 'Use this date', ready: !!draft.date };
-  if (spec.kind === 'when-range' && draft.kind === 'when-range') return { label: 'Use these dates', ready: !!draft.start && !!draft.end };
-  if (spec.kind === 'money' && draft.kind === 'money') { const parsed = parseAmount(draft.amount); const ok = parsed.ok && isCurrencyCode(draft.currency); return { label: ok && parsed.ok ? `Use ${formatMoney(parsed.value, draft.currency)}` : 'Use this amount', ready: ok }; }
-  if (spec.kind === 'where' && draft.kind === 'where') return { label: 'Use this place', ready: draft.place.trim().length > 0 };
+  if (spec.kind === 'money' && draft.kind === 'money') { const parsed = parseAmount(draft.amount); return { label: parsed.ok ? `Use ${formatMoney(parsed.value, FORMATION_CURRENCY)}` : 'Use this amount', ready: parsed.ok }; }
+  if (spec.kind === 'where' && draft.kind === 'where') return { label: 'Use this place', ready: parsePlace(draft.place).ok };
   return { label: null, ready: false };
 }
 
@@ -35,8 +32,8 @@ function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: stri
  * returned to whatever invoked it. Desktop: an anchored panel in the UNDERSTOOD column (the
  * conversation stays fully visible beside it). Mobile: a bottom sheet that rides above the keyboard.
  */
-export function InstrumentHost({ controller, agentBusy, lookup, onFindOnSecurePay, panelSlot }: {
-  controller: InstrumentController; agentBusy: boolean; lookup: (ks: string) => Promise<KsIdentityDto>; onFindOnSecurePay: () => void;
+export function InstrumentHost({ controller, agentBusy, onBackToConversation, panelSlot }: {
+  controller: InstrumentController; agentBusy: boolean; onBackToConversation: () => void;
   /** Desktop: where the anchored panel is portalled (top of the UNDERSTOOD column). */
   panelSlot: HTMLElement | null;
 }) {
@@ -58,14 +55,14 @@ export function InstrumentHost({ controller, agentBusy, lookup, onFindOnSecurePa
   }, [active]);
 
   if (!active || !state.draft) return null;
-  const surface = <Surface key={specKey(active)} controller={controller} state={state} agentBusy={agentBusy} lookup={lookup} onFindOnSecurePay={onFindOnSecurePay} variant={desktop ? 'panel' : 'sheet'} />;
+  const surface = <Surface key={specKey(active)} controller={controller} state={state} agentBusy={agentBusy} onBackToConversation={onBackToConversation} variant={desktop ? 'panel' : 'sheet'} />;
   if (!desktop) return surface;
   return panelSlot ? createPortal(surface, panelSlot) : null;
 }
 
-function Surface({ controller, state, agentBusy, lookup, onFindOnSecurePay, variant }: {
+function Surface({ controller, state, agentBusy, onBackToConversation, variant }: {
   controller: InstrumentController; state: ReturnType<InstrumentController['getSnapshot']>; agentBusy: boolean;
-  lookup: (ks: string) => Promise<KsIdentityDto>; onFindOnSecurePay: () => void; variant: 'panel' | 'sheet';
+  onBackToConversation: () => void; variant: 'panel' | 'sheet';
 }) {
   const spec = state.active!; const draft = state.draft!;
   const root = useRef<HTMLDivElement>(null);
@@ -73,10 +70,7 @@ function Surface({ controller, state, agentBusy, lookup, onFindOnSecurePay, vari
   const sending = state.phase === 'sending';
   const locked = sending;
   const primary = primaryFor(spec, draft);
-  const statement = statementFor(spec, draft, {
-    previousAmount: spec.kind === 'money' ? spec.amount : undefined, previousCurrency: spec.kind === 'money' ? spec.currency : undefined,
-    previousDateText: spec.kind === 'when' ? spec.currentText : undefined, previousPlace: spec.kind === 'where' ? spec.currentText : undefined,
-  });
+  const statement = statementFor(spec, draft, { previousAmount: spec.kind === 'money' ? spec.amount : undefined });
   const title = titleFor(spec, draft);
 
   // Deliberate initial focus: the field the person will type into, or the calendar's one tab stop.
@@ -99,8 +93,8 @@ function Surface({ controller, state, agentBusy, lookup, onFindOnSecurePay, vari
   const submit = () => { if (primary.ready && !agentBusy) void controller.submit(); };
 
   let body: ReactNode = null;
-  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} lookup={lookup} onFindOnSecurePay={onFindOnSecurePay} />;
-  else if ((spec.kind === 'when' || spec.kind === 'when-range') && (draft.kind === 'when' || draft.kind === 'when-range')) body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
+  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onBackToConversation={onBackToConversation} />;
+  else if (spec.kind === 'when' && draft.kind === 'when') body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
   else if (spec.kind === 'money' && draft.kind === 'money') body = <MoneyInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
   else if (spec.kind === 'where' && draft.kind === 'where') body = <WhereInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
 

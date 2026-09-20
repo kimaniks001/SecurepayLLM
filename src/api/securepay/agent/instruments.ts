@@ -1,4 +1,6 @@
 import type { ComponentDto } from './dto';
+import { KNOWN_ROLES } from './roles';
+export { KNOWN_ROLES };
 
 /**
  * Phase 1 Production Agent Component Bridge.
@@ -14,17 +16,20 @@ import type { ComponentDto } from './dto';
  * A proposal is an INVITATION to open an instrument, never an action: nothing here selects a
  * person, sets a date/amount, or uploads anything.
  */
-export type InstrumentPromptKind = 'who' | 'when' | 'when-range' | 'money' | 'where';
+export type InstrumentPromptKind = 'who' | 'when' | 'money' | 'where';
 export interface InstrumentHints { label?: string; role?: string; currency?: string; date?: string }
 export interface InstrumentPromptView { type: 'INSTRUMENT_PROMPT'; instrument: InstrumentPromptKind; hints: InstrumentHints }
-/** PHOTO_UPLOAD / DOCUMENT_UPLOAD: no durable pre-Agreement upload path exists (see Phase 1 doc). Rendered as an honest note. */
-export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' }
+/**
+ * Inputs the backend cannot honestly support yet, rendered as an honest note: PHOTO_UPLOAD / DOCUMENT_UPLOAD
+ * (no durable pre-Agreement upload) and DATE_RANGE_PICKER (formation keeps ONE `deadline.value`; a second
+ * date overwrites the first, so start and end cannot both be represented). The bridge still PARSES them.
+ */
+export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' }
 
 const KIND: Record<string, InstrumentPromptKind> = {
-  PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when', DATE_RANGE_PICKER: 'when-range',
+  PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when',
   AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where',
 };
-export const KNOWN_ROLES = ['seller', 'buyer', 'service provider', 'client', 'landlord', 'tenant', 'lender', 'borrower', 'organizer', 'recipient', 'counterparty'] as const;
 
 const text = (value: unknown, max = 120): string | undefined => {
   if (typeof value !== 'string') return undefined;
@@ -41,6 +46,7 @@ export function isRealIsoDate(value: string): boolean {
 
 export function instrumentComponentView(component: ComponentDto): InstrumentPromptView | UnavailableInputView | null {
   if (component.type === 'PHOTO_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'photo' };
+  if (component.type === 'DATE_RANGE_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'date-range' };
   if (component.type === 'DOCUMENT_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'document' };
   const instrument = KIND[component.type];
   if (!instrument || typeof component.data !== 'object' || component.data === null || Array.isArray(component.data)) return null;
@@ -49,7 +55,7 @@ export function instrumentComponentView(component: ComponentDto): InstrumentProm
   const label = text(data.label) ?? text(data.prompt);
   if (label) hints.label = label;
   const role = text(data.role)?.toLowerCase();
-  if (role && (KNOWN_ROLES as readonly string[]).includes(role)) hints.role = role;
+  if (role && KNOWN_ROLES.includes(role)) hints.role = role;
   const currency = text(data.currency, 3)?.toUpperCase();
   if (currency && /^[A-Z]{3}$/.test(currency)) hints.currency = currency;
   const date = text(data.date, 10) ?? text(data.month, 10);

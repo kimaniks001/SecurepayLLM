@@ -12,7 +12,8 @@ export * from './src/features/workbench/projection';
 export { UnderstoodWorkbench } from './src/features/workbench/UnderstoodWorkbench';
 export { CalendarInstrument } from './src/features/instruments/ui/CalendarInstrument';
 export { InstrumentPrompt } from './src/features/instruments/ui/InstrumentPrompt';
-export * from './src/api/securepay/agent/ksidentity';
+export * from './src/api/securepay/agent/ksformat';
+export * from './src/api/securepay/agent/roles';
 export * from './src/api/securepay/agent/instruments';
 export * from './src/api/securepay/agent/adapters';
 export * from './src/features/agent/controller';
@@ -66,25 +67,135 @@ test('follow: ConversationSurface uses refs, layout effects and a ResizeObserver
   assert.match(src, /aria-live="polite"/);
 });
 
-// ---------------------------------------------------------------- AMOUNT
+// ---------------------------------------------------------------- THE INSPECTED BACKEND CONTRACT
+// A JS port of the RuleBasedAgreementInterpreter / LegacyFactTradeContextAdapter rules the instruments depend on,
+// transcribed from SecurePayAPI @ 75a490bc (regexes verbatim). SecurePayAPI itself is NOT modified or run.
+const B = (() => {
+  const EXPLICIT_KES_AMOUNT = /\b(?:kes|kshs?|ksh|shs?)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(k|m|million|thousand)?\b/i;
+  const AMOUNT_NOT_AMOUNT = /[0-9][0-9,]*(?:\.[0-9]{1,2})?\s*,?\s*not\s+(?:kes|kshs?|ksh|shs?)?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?/i;
+  const EXPLICIT_CORRECTION = /\b(?:actually|correction|sorry|no,?|instead|change|make that|i meant|not .+ but|is not (?:a|an|the)\b|isn't (?:a|an|the)\b|are not (?:a|an|the)\b|aren't (?:a|an|the)\b|,\s*not (?:a|an|the)\b)\b/i;
+  const NATURAL_DATE = /\b([0-9]{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+([0-9]{4})\b/g;
+  const PLACE_PREPOSITION = /\b(?:in|at)\s+([A-Z][a-z]{1,30})(?!['’]s)\b/g;
+  const KS_NUMBER_TOKEN = /\bKS\s?([0-9]{9})\b/i;
+  const MONTHS = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+  const STOP = new Set(['I','The','This','That','My','Our','We','You','He','She','They','It','A','An','Is','Are','Was','Were','For','And','But','So','If','When','Then','There','Kes','Kshs','Ksh','Shs','Bob','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','January','February','March','April','May','June','July','August','September','October','November','December','Rent','Church','Chama','Securepay']);
+  const maskRejected = text => { const m = AMOUNT_NOT_AMOUNT.exec(text); if (!m) return text; const rej = /not\s+(?:kes|kshs?|ksh|shs?)?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i.exec(m[0]); const at = m.index + rej.index + rej[0].length - rej[1].length; return text.slice(0, at) + '#'.repeat(rej[1].length) + text.slice(at + rej[1].length); };
+  return {
+    /** facts one turn yields, keyed like the legacy adapter reads them */
+    extract(text) {
+      const facts = []; const correction = EXPLICIT_CORRECTION.test(text) || AMOUNT_NOT_AMOUNT.test(text);
+      const scanned = maskRejected(text); const g = new RegExp(EXPLICIT_KES_AMOUNT.source, 'gi'); let last = null, m;
+      while ((m = g.exec(scanned))) last = m[1].replace(/,/g, '');
+      if (last && Number(last) > 0) { facts.push({ key: 'value.amount', value: String(Number(last)), correction }); facts.push({ key: 'value.currency', value: 'KES' }); }
+      const lower = text.toLowerCase(); const d = new RegExp(NATURAL_DATE.source, 'g');
+      while ((m = d.exec(text))) {
+        const iso = `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2, '0')}-${String(Number(m[1])).padStart(2, '0')}`;
+        const before = lower.slice(0, m.index).slice(-40);
+        if (['starting', 'start on', 'begins on', 'begin on', 'beginning'].some(c => before.includes(c))) facts.push({ key: 'start.condition', value: `starting ${iso}` });
+        else facts.push({ key: 'deadline.value', value: iso, confidence: ['by ', 'complete by', 'completed by', 'finish by', 'deadline'].some(c => before.includes(c)) ? 0.9 : 0.6 });
+      }
+      const p = new RegExp(PLACE_PREPOSITION.source, 'g');
+      while ((m = p.exec(text))) if (!STOP.has(m[1])) facts.push({ key: 'entity.place', value: m[1], type: 'PLACE' });
+      const ks = KS_NUMBER_TOKEN.exec(text); if (ks) facts.push({ key: 'ks', value: `KS${ks[1]}` });
+      return facts;
+    },
+    /** flat map: later facts overwrite earlier ones with the same key, exactly like `flat.put` in the adapter */
+    flat: facts => Object.fromEntries(facts.map(f => [f.key, f.value])),
+  };
+})();
+const stmt = (spec, draft, ctx) => api.statementFor(spec, draft, ctx);
+
+// ---------------------------------------------------------------- KS FORMAT + WHO
+test('KS format finding: platform accepts KS+3 digits, formation accepts only KS+9 digits -- a real KS such as KS003 cannot be linked', () => {
+  assert.equal(api.PLATFORM_KS.test('KS003'), true); assert.equal(api.FORMATION_KS.test('KS003'), false);
+  assert.deepEqual(B.extract('KS003 is the seller.').filter(f => f.key === 'ks'), []);           // the real token pattern does not see KS003
+  assert.deepEqual(B.extract('KS000000003 is the seller.').filter(f => f.key === 'ks'), [{ key: 'ks', value: 'KS000000003' }]); // only a 9-digit token is read (and padding is forbidden)
+  assert.equal(api.ksShape('ks 003'), 'platform-only'); assert.equal(api.ksShape('KS123456789'), 'formation-compatible');
+  for (const bad of ['', 'KS', 'KS12', 'K003', 'KS000', '003']) assert.equal(api.ksShape(bad), 'malformed', bad);
+});
+test('WHO / KSFinder: no statement can ever be produced, so nothing is sent and no association is claimed; no padding exists in source', async () => {
+  for (const spec of [{ kind: 'who', origin: 'add' }, { kind: 'who', origin: 'understood', entityName: 'John', role: 'seller' }]) assert.equal(stmt(spec, { kind: 'who', ks: 'KS003', role: 'seller' }), null);
+  for (const f of ['src/api/securepay/agent/ksformat.ts', 'src/features/instruments/ui/WhoInstrument.tsx', 'src/features/instruments/model.ts']) assert.doesNotMatch(await readFile(f, 'utf8'), /padStart\(9|padEnd\(9|KS0{6}/, f);
+});
+test('WHO / KSFinder: typed KS is preserved when the person goes back to the conversation', () => {
+  const { agent } = fakeAgent({ result: () => ({ ok: true, context: null }) });
+  const ic = api.createInstrumentController(agent); const spec = { kind: 'who', origin: 'add' };
+  ic.open(spec); ic.setDraft({ kind: 'who', ks: 'KS003', role: '' }); ic.cancel();
+  assert.equal(ic.getSnapshot().active, null);
+  ic.open(spec); assert.equal(ic.getSnapshot().draft.ks, 'KS003');
+});
+test('roles: UI vocabulary maps to real backend canonical roles; "service provider" is NOT offered (backend would file it as OTHER)', () => {
+  assert.equal(api.KNOWN_ROLES.includes('service provider'), false);
+  assert.deepEqual([api.canonicalRole('contractor'), api.canonicalRole('supplier'), api.canonicalRole('Seller'), api.canonicalRole('service provider')], ['SERVICE_PROVIDER', 'SERVICE_PROVIDER', 'SELLER', null]);
+  for (const w of api.KNOWN_ROLES) assert.notEqual(api.canonicalRole(w), 'OTHER');
+});
+const whoCtx = (over = {}) => ctx(
+  [ent('john', 'PERSON', 'John', 'CANDIDATE'), ent('ks', 'PERSON', 'Anna', 'CONFIRMED', { ksnumber: 'KS000000003' }), ...(over.entities ?? [])],
+  [rel('r1', 'ROLE', 'john', { role: 'SELLER', descriptor: 'seller' }, 'CANDIDATE'), rel('r2', 'ROLE', 'ks', { role: 'BUYER', descriptor: 'buyer' }), ...(over.relationships ?? [])]);
+test('WHO read-back: KS + role must be on the SAME entity and the role must be the selected canonical role', () => {
+  const who = (ks, role, entityName) => api.isWhoLinked(whoCtx(), { ks, role, entityName });
+  assert.equal(who('KS000000003', 'buyer'), true);                       // correct KS + correct role, same entity
+  assert.equal(who('KS000000003', 'seller'), false);                     // correct KS + wrong role (the KS holder is the BUYER; John is the seller)
+  assert.equal(who('KS000000009', 'buyer'), false);                      // wrong KS + correct role elsewhere
+  assert.equal(who('KS000000003', 'seller', 'John'), false);             // the same role on ANOTHER entity does not count for the KS entity
+  assert.equal(who('KS000000003', 'buyer', 'John'), false);              // intended entity has no KS
+  assert.equal(api.isWhoLinked(whoCtx(), { ks: '', role: 'seller' }), false);           // unresolved identity
+  assert.equal(api.isWhoLinked(whoCtx(), { ks: 'KS000000003', role: 'service provider' }), false); // unrecognised word: no canonical role to prove
+  const linked = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE', { ksnumber: 'KS000000003' })], [rel('r', 'ROLE', 'j', { role: 'SERVICE_PROVIDER', descriptor: 'contractor' }, 'CANDIDATE')]);
+  assert.equal(api.isWhoLinked(linked, { ks: 'KS000000003', role: 'contractor', entityName: 'John' }), true);   // candidate state does not change linkage truth
+  const confirmed = ctx([ent('j', 'PERSON', 'John', 'CONFIRMED', { ksnumber: 'KS000000003' })], [rel('r', 'ROLE', 'j', { role: 'SERVICE_PROVIDER' }, 'CONFIRMED')]);
+  assert.equal(api.isWhoLinked(confirmed, { ks: 'KS000000003', role: 'supplier' }), true);
+  const kinOnly = ctx([ent('j', 'PERSON', 'John', 'CONFIRMED', { ksnumber: 'KS000000003' })], []);
+  assert.equal(api.isWhoLinked(kinOnly, { ks: 'KS000000003', role: 'seller' }), false);  // KS without any role relationship
+});
+
+// ---------------------------------------------------------------- MONEY (KES only)
 test('amount: decimal strings only, comma/space tolerant, precision and zero rules', () => {
   assert.deepEqual(api.parseAmount('4,000'), { ok: true, value: '4000' });
   assert.deepEqual(api.parseAmount('4 000.50'), { ok: true, value: '4000.5' });
-  assert.deepEqual(api.parseAmount('0004000.00'), { ok: true, value: '4000' });
   for (const bad of ['1.234', '-5', '1e5', 'abc', '1.2.3', '9999999999999']) assert.equal(api.parseAmount(bad).ok, false, bad);
   assert.equal(api.parseAmount('0').reason, 'zero'); assert.equal(api.parseAmount('').reason, 'empty');
-  assert.equal(api.groupAmount('1234567.5'), '1,234,567.50');
-  assert.equal(api.formatMoney('9007199254740993', 'KES'), 'KES 9,007,199,254,740,993'); // beyond Number.MAX_SAFE_INTEGER -- never a float
+  assert.equal(api.formatMoney('9007199254740993', 'KES'), 'KES 9,007,199,254,740,993');
   assert.equal(api.sameAmount('4,000', '4000.00'), true);
 });
-test('amount: a correction names the previous amount so the backend applies its own correction rule; a first amount does not', () => {
-  const spec = { kind: 'money', origin: 'understood', amount: '4000', currency: 'KES' };
-  assert.equal(api.statementFor(spec, { kind: 'money', amount: '5,000', currency: 'KES' }, { previousAmount: '4000', previousCurrency: 'KES' }), 'Correction: the amount is KES 5,000, not KES 4,000.');
-  assert.equal(api.statementFor({ kind: 'money', origin: 'add' }, { kind: 'money', amount: '5000', currency: 'KES' }), 'The amount is KES 5,000.');
-  assert.equal(api.statementFor({ kind: 'money', origin: 'add' }, { kind: 'money', amount: 'abc', currency: 'KES' }), null);
+test('contract: the interpreter files EVERY amount as KES -- so the UI is KES-only and a non-KES statement is never produced', () => {
+  const usd = B.flat(B.extract('The amount is USD 4,000.'));
+  assert.equal(usd['value.amount'], undefined);                            // "USD 4,000" is not even recognised as money by the KES pattern
+  assert.equal(B.flat(B.extract('The amount is KES 4,000.'))['value.currency'], 'KES');
+  const spec = { kind: 'money', origin: 'add' };
+  assert.equal(stmt(spec, { kind: 'money', amount: '4000', currency: 'USD' }), null);
+  assert.equal(stmt(spec, { kind: 'money', amount: 'abc', currency: 'KES' }), null);
+});
+test('contract: first amount and correction sentences yield exactly the intended amount (rejected figure masked, correction flagged)', () => {
+  const first = stmt({ kind: 'money', origin: 'add' }, { kind: 'money', amount: '4,000', currency: 'KES' });
+  assert.equal(first, 'The amount is KES 4,000.');
+  assert.deepEqual(B.flat(B.extract(first)), { 'value.amount': '4000', 'value.currency': 'KES' });
+  const fix = stmt({ kind: 'money', origin: 'understood', amount: '4000' }, { kind: 'money', amount: '5000', currency: 'KES' }, { previousAmount: '4000' });
+  assert.equal(fix, 'Correction: the amount is KES 5,000, not KES 4,000.');
+  const facts = B.extract(fix);
+  assert.equal(facts.find(f => f.key === 'value.amount').value, '5000');   // NOT 4000
+  assert.equal(facts.find(f => f.key === 'value.amount').correction, true); // so the backend supersedes rather than appends
+  const same = stmt({ kind: 'money', origin: 'understood', amount: '4000' }, { kind: 'money', amount: '4000', currency: 'KES' }, { previousAmount: '4000' });
+  assert.equal(same, 'The amount is KES 4,000.');
+});
+test('money read-back: amount AND currency must both match', () => {
+  const kes = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '4000', currency: 'KES' })]);
+  const usd = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '4000', currency: 'USD' })]);
+  const spec = { kind: 'money' };
+  assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4,000', currency: 'KES' }, kes), true);
+  assert.equal(api.isRecorded(spec, { kind: 'money', amount: '5000', currency: 'KES' }, kes), false);
+  assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4000', currency: 'KES' }, usd), false);   // same amount, wrong currency
+  assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4000', currency: 'USD' }, usd), false);   // USD can never be "recorded" by this path
+  assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4000', currency: 'KES' }, ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '4000' })])), false); // currency absent
+});
+test('money: a non-KES existing amount is read-only (never offered for editing) and an Agent AMOUNT_INPUT gets an honest note', () => {
+  const usd = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '4000', currency: 'USD' })]));
+  const row = usd.items.find(i => i.section === 'money'); assert.equal(row.value, 'USD 4,000'); assert.equal(row.spec, null);
+  assert.ok('note' in api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'money', hints: { currency: 'USD' } }, usd));
+  assert.equal(usd.adds.some(a => a.key === 'money'), false);
 });
 
-// ---------------------------------------------------------------- DATE
+// ---------------------------------------------------------------- DATE (one date, no time, no range)
 test('calendar: no hard-coded year/month anywhere in the production date code', async () => {
   for (const f of ['src/features/instruments/model.ts', 'src/features/instruments/ui/CalendarInstrument.tsx']) {
     const src = await readFile(f, 'utf8');
@@ -92,67 +203,92 @@ test('calendar: no hard-coded year/month anywhere in the production date code', 
     assert.doesNotMatch(src, /October 2026|useState\(2026\)|useState\(9\)/);
   }
 });
-test('calendar: real month grids from injected clock; ambiguous weekday detection; date reading', () => {
+test('calendar: real month grids from an injected clock', () => {
   assert.equal(api.todayIso(new Date(2031, 1, 9)), '2031-02-09');
-  const grid = api.monthGrid(2026, 8); // September 2026 starts on a Tuesday
-  assert.equal(grid[0][0], null); assert.equal(grid[0][1].iso, '2026-09-01');
-  assert.equal(grid.flat().filter(Boolean).length, 30);
-  assert.equal(api.monthGrid(2028, 1).flat().filter(Boolean).length, 29); // leap year
-  assert.equal(api.ambiguousWeekday('Friday'), 5); assert.equal(api.ambiguousWeekday('next friday'), 5);
-  assert.equal(api.ambiguousWeekday('Friday, 25 September 2026'), null); assert.equal(api.ambiguousWeekday('25 September'), null);
-  assert.equal(api.readDateText('25 September 2026', '2026-01-01'), '2026-09-25');
-  assert.equal(api.readDateText('Friday', '2026-09-20'), null);
+  const grid = api.monthGrid(2026, 8);
+  assert.equal(grid[0][0], null); assert.equal(grid[0][1].iso, '2026-09-01'); assert.equal(grid.flat().filter(Boolean).length, 30);
+  assert.equal(api.monthGrid(2028, 1).flat().filter(Boolean).length, 29);
 });
-test('calendar: renders the injected month with the real weekday candidates marked, and no silent selection', () => {
-  const html = api.renderToStaticMarkup(api.createElement(api.CalendarInstrument, { spec: { kind: 'when', origin: 'agent', currentText: 'Friday' }, draft: { kind: 'when', date: null, time: '' }, onChange() {}, disabled: false, today: '2031-02-09' }));
-  assert.match(html, /February 2031/); assert.match(html, /Fridays are marked/); assert.match(html, /Choose a day/);
+test('calendar render: injected month, nothing pre-selected, NO time field and NO range mode', () => {
+  const html = api.renderToStaticMarkup(api.createElement(api.CalendarInstrument, { spec: { kind: 'when', origin: 'agent' }, draft: { kind: 'when', date: null }, onChange() {}, disabled: false, today: '2031-02-09' }));
+  assert.match(html, /February 2031/); assert.match(html, /Choose a day/);
   assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 0);
-  assert.equal((html.match(/, a Friday"/g) ?? []).length, 4);
+  assert.doesNotMatch(html, /type="time"|Time \(optional\)/i);
 });
-test('date statements: a specific date, an optional time, a range; a bare-weekday predecessor is not quoted as a correction', () => {
-  const when = { kind: 'when', origin: 'agent' };
-  assert.equal(api.statementFor(when, { kind: 'when', date: '2026-09-25', time: '15:00' }), 'The date is Friday, 25 September 2026 at 3:00 pm.');
-  assert.equal(api.statementFor({ ...when, currentText: 'Friday' }, { kind: 'when', date: '2026-09-25', time: '' }, { previousDateText: 'Friday' }), 'The date is Friday, 25 September 2026.');
-  assert.equal(api.statementFor(when, { kind: 'when', date: '2026-09-25', time: '' }, { previousDateText: '1 September 2026' }), 'Correction: the date is Friday, 25 September 2026, not 1 September 2026.');
-  assert.equal(api.statementFor({ kind: 'when-range', origin: 'agent' }, { kind: 'when-range', start: '2026-10-01', end: '2026-10-05' }), 'The dates are from Thursday, 1 October 2026 to Monday, 5 October 2026.');
-  assert.equal(api.statementFor(when, { kind: 'when', date: null, time: '' }), null);
+test('contract: the single-date sentence is read by the real grammar as ONE ISO deadline; nothing else is extracted', () => {
+  const sentence = stmt({ kind: 'when', origin: 'add' }, { kind: 'when', date: '2026-09-25' });
+  assert.equal(sentence, 'The date is Friday, 25 September 2026.');
+  assert.deepEqual(B.extract(sentence), [{ key: 'deadline.value', value: '2026-09-25', confidence: 0.6 }]);  // stored as an ISO CANDIDATE; adoption is the person's separate "Use this"
+  assert.equal(stmt({ kind: 'when', origin: 'add' }, { kind: 'when', date: null }), null);
+});
+test('contract: a date RANGE cannot be represented -- start and end collapse into one `deadline.value` key -- so it is deferred, not faked', () => {
+  const facts = B.extract('The dates are from Thursday, 1 October 2026 to Monday, 5 October 2026.');
+  assert.equal(facts.filter(f => f.key === 'deadline.value').length, 2);
+  assert.equal(B.flat(facts)['deadline.value'], '2026-10-05');            // the start date is gone
+  const view = api.agentComponentView({ type: 'DATE_RANGE_PICKER', data: {} });
+  assert.deepEqual(view, { type: 'UNAVAILABLE_INPUT', input: 'date-range' });
+  const html = api.renderToStaticMarkup(api.createElement(api.InstrumentPrompt, { unavailable: 'date-range' }));
+  assert.doesNotMatch(html, /<button|<input/); assert.match(html, /keeps one date/);
+});
+test('time: no structured formation time exists, so no time is offered, sent or "verified"', async () => {
+  assert.equal(B.extract('The date is Friday, 25 September 2026 at 3:00 pm.').some(f => /time/i.test(f.key)), false); // parser drops it
+  for (const f of ['src/features/instruments/model.ts', 'src/features/instruments/ui/CalendarInstrument.tsx', 'src/features/instruments/verify.ts']) assert.doesNotMatch(await readFile(f, 'utf8'), /friendlyTime|type="time"|time:/, f);
+});
+test('date read-back: exactly that ISO date must be the active deadline; a stale different one is a conflict, not success', () => {
+  const one = ctx([ent('d', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'd', { date: '2026-09-25' }, 'CANDIDATE')]);
+  const two = ctx([ent('d', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'd', { date: '2026-09-25' }, 'CANDIDATE'), rel('q', 'CONDITION', 'd', { date: '2026-10-01' }, 'CONFIRMED')]);
+  const spec = { kind: 'when' };
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25' }, one), true);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-26' }, one), false);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25' }, two), false);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25' }, ctx([], [])), false);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25' }, ctx([ent('d', 'CONCEPT', 'start')], [rel('r', 'CONDITION', 'd', { startDate: '2026-09-25' })])), false); // "starting" is a different meaning
+});
+test('date: only a FIRST date is offered; a recorded date is shown read-only in words and changed through conversation', () => {
+  const dated = api.projectWorkbench(ctx([ent('d', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'd', { date: '2026-09-25' }, 'CANDIDATE')]));
+  const row = dated.items.find(i => i.section === 'when');
+  assert.equal(row.value, 'Friday, 25 September 2026'); assert.equal(row.spec, null); assert.equal(dated.adds.some(a => a.key === 'when'), false);
+  assert.ok('note' in api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: {} }, dated));
+  assert.ok('spec' in api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: {} }, api.projectWorkbench(null)));
 });
 
-// ---------------------------------------------------------------- KS FINDER
-test('ks: normalises like the backend parser; malformed never leaves the browser', () => {
-  assert.deepEqual(api.normalizeKsNumber(' ks 003 '), { ok: true, value: 'KS003' });
-  assert.deepEqual(api.normalizeKsNumber('KS1234'), { ok: true, value: 'KS1234' });
-  for (const bad of ['', 'KS', 'KS12', 'K003', 'KS000', 'KS00A', '003']) assert.equal(api.normalizeKsNumber(bad).ok, false, bad);
+// ---------------------------------------------------------------- WHERE (real place grammar)
+test('contract: "The location is Kilimani." is NOT read as a place by the real grammar; the emitted "in <Place>" sentence is', () => {
+  assert.deepEqual(B.extract('The location is Kilimani.').filter(f => f.type === 'PLACE'), []);
+  const sentence = stmt({ kind: 'where', origin: 'add' }, { kind: 'where', place: 'Kilimani' });
+  assert.equal(sentence, 'The place is in Kilimani.');
+  assert.deepEqual(B.extract(sentence).filter(f => f.type === 'PLACE'), [{ key: 'entity.place', value: 'Kilimani', type: 'PLACE' }]);
 });
-test('ks: only the participant-safe projection survives; internal id/sequence/timestamps are dropped; inactive is not usable', () => {
-  const wire = { identityId: 'uuid', canonicalKsNumber: 'KS003', sequenceNumber: 3, identityType: 'INDIVIDUAL', status: 'ACTIVE', displayName: ' Wanjiru ', createdAt: 'x', updatedAt: 'y' };
-  const view = api.ksIdentityView(wire, 'KS003');
-  assert.deepEqual(view, { ksNumber: 'KS003', displayName: 'Wanjiru', kind: 'INDIVIDUAL', active: true });
-  assert.equal(JSON.stringify(view).includes('uuid'), false);
-  assert.equal(api.ksIdentityView({ ...wire, status: 'SUSPENDED' }, 'KS003').active, false);
-  assert.equal(api.ksIdentityView({ ...wire, identityType: 'SYSTEM' }, 'KS003').kind, null);
-  assert.equal(api.ksIdentityView({ ...wire, canonicalKsNumber: 'KS004' }, 'KS003'), null); // response for a different number is never shown
+test('contract: place input is limited to what the grammar can read back (one capitalised word, not a stopword)', () => {
+  assert.deepEqual(api.parsePlace('kilimani'), { ok: true, value: 'Kilimani' });
+  assert.equal(api.parsePlace('Kilimani, Nairobi').ok, false);
+  assert.equal(api.parsePlace('Kilimani Road').ok, false);
+  assert.equal(api.parsePlace('Friday').reason, 'reserved'); assert.equal(api.parsePlace('Church').reason, 'reserved'); assert.equal(api.parsePlace('').reason, 'empty');
+  assert.equal(stmt({ kind: 'where', origin: 'add' }, { kind: 'where', place: 'Kilimani, Nairobi' }), null);
+  assert.equal(B.extract('The place is in Kilimani, Nairobi.').filter(f => f.type === 'PLACE').length, 1); // truncation the UI now prevents
 });
-test('ks: a KS Number implies no role -- a statement needs BOTH a resolved KS and a role the person chose', () => {
-  const spec = { kind: 'who', origin: 'add' };
-  assert.equal(api.statementFor(spec, { kind: 'who', ks: 'KS003', role: '' }), null);
-  assert.equal(api.statementFor(spec, { kind: 'who', ks: '', role: 'seller' }), null);
-  assert.equal(api.statementFor(spec, { kind: 'who', ks: 'KS003', role: 'seller' }), 'KS003 is the seller.');
-  assert.equal(api.statementFor({ kind: 'who', origin: 'understood', entityName: 'John' }, { kind: 'who', ks: 'KS003', role: 'seller' }), 'KS003 is John, a seller in this.');
+test('where read-back: exactly the selected place; an older, different place still active is a conflict, never success', () => {
+  const spec = { kind: 'where' };
+  const one = ctx([ent('p', 'PLACE', 'Kilimani')], []);
+  const both = ctx([ent('p', 'PLACE', 'Kilimani'), ent('w', 'PLACE', 'Westlands')], []);
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Kilimani' }, one), true);
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Kilimani' }, both), false);   // Westlands -> Kilimani cannot be superseded by formation
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Kilimani' }, ctx([ent('p', 'PERSON', 'Kilimani')], [])), false); // became a PERSON: not a place
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Kilimani' }, ctx([], [])), false);
 });
-test('ks: no invitation/agreement/join/confirm/money call is reachable from any instrument or workbench source', async () => {
-  for (const f of ['src/features/instruments/controller.ts', 'src/features/instruments/model.ts', 'src/features/workbench/projection.ts', 'src/features/instruments/ui/WhoInstrument.tsx', 'src/features/instruments/ui/InstrumentHost.tsx']) {
-    const src = await readFile(f, 'utf8');
-    assert.doesNotMatch(src, /issueInvitation|createHandoff|adoptHandoff|continueHandoff|confirmVersion|agreementGateway|api\.agreements|gateway\.join|paymentIntent|moneyGateway|fund\(|release\(/, f);
-  }
+test('where: only a FIRST place is offered; a recorded place is read-only and corrections go to conversation', () => {
+  const placed = api.projectWorkbench(ctx([ent('w', 'PLACE', 'Westlands')], []));
+  assert.equal(placed.items.find(i => i.section === 'where').spec, null); assert.equal(placed.adds.some(a => a.key === 'where'), false);
+  assert.ok('note' in api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'where', hints: {} }, placed));
 });
 
 // ---------------------------------------------------------------- AGENT COMPONENT BRIDGE
-test('bridge: each safe model-proposable component parses to ONE instrument prompt', () => {
-  const kinds = { PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when', DATE_RANGE_PICKER: 'when-range', AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where' };
+test('bridge: each safe model-proposable component parses; unsupported ones become honest UNAVAILABLE notes', () => {
+  const kinds = { PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when', AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where' };
   for (const [type, instrument] of Object.entries(kinds)) assert.deepEqual(api.agentComponentView({ type, data: {} }), { type: 'INSTRUMENT_PROMPT', instrument, hints: {} }, type);
   assert.deepEqual(api.agentComponentView({ type: 'PHOTO_UPLOAD', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'photo' });
   assert.deepEqual(api.agentComponentView({ type: 'DOCUMENT_UPLOAD', data: { anything: 'x' } }), { type: 'UNAVAILABLE_INPUT', input: 'document' });
+  assert.deepEqual(api.agentComponentView({ type: 'DATE_RANGE_PICKER', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'date-range' });
 });
 test('bridge: hints are optional and strictly validated; nothing else from the payload is trusted', () => {
   const v = api.agentComponentView({ type: 'AMOUNT_INPUT', data: { currency: 'kes', label: 'How much?', date: '2026-02-30', role: 'emperor', people: [{ name: 'Fabricated' }], url: 'https://evil' } });
@@ -160,6 +296,7 @@ test('bridge: hints are optional and strictly validated; nothing else from the p
   assert.equal(JSON.stringify(v).includes('Fabricated'), false);
   assert.deepEqual(api.agentComponentView({ type: 'DATE_PICKER', data: { date: '2026-10-02', label: 'https://x.y' } }).hints, { date: '2026-10-02' });
   assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: { role: 'Seller' } }).hints, { role: 'seller' });
+  assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: { role: 'service provider' } }).hints, {});
 });
 test('bridge: malformed and unknown components are ignored without throwing and the Agent message survives', () => {
   for (const c of [{ type: 'DATE_PICKER', data: null }, { type: 'DATE_PICKER', data: [] }, { type: 'DATE_PICKER' }, { type: 'FROM_THE_FUTURE', data: {} }, null]) assert.equal(api.agentComponentView(c), null);
@@ -167,10 +304,12 @@ test('bridge: malformed and unknown components are ignored without throwing and 
   assert.equal(view.message.text, 'Which Friday?');
   assert.deepEqual(view.components.map(c => c.type), ['MESSAGE', 'INSTRUMENT_PROMPT']);
 });
-test('bridge: no fixture data (Bolt DatePicker constants, fabricated people) reaches production instrument code', async () => {
+test('bridge: no fixture data reaches production instrument code; no invitation/Agreement/Money reachability', async () => {
   for (const f of ['src/api/securepay/agent/instruments.ts', 'src/features/instruments/ui/CalendarInstrument.tsx', 'src/features/instruments/ui/InstrumentPrompt.tsx', 'src/features/agent/AgentExperience.tsx']) {
-    const src = await readFile(f, 'utf8');
-    assert.doesNotMatch(src, /mockAgent|demoData|from '..\/..\/components\/(DatePicker|MapCard|LocationPicker|PhotoUpload|ConversationWorkspace|ContextPanel)'/, f);
+    assert.doesNotMatch(await readFile(f, 'utf8'), /mockAgent|demoData|from '..\/..\/components\/(DatePicker|MapCard|LocationPicker|PhotoUpload|ConversationWorkspace|ContextPanel)'/, f);
+  }
+  for (const f of ['src/features/instruments/controller.ts', 'src/features/instruments/model.ts', 'src/features/instruments/verify.ts', 'src/features/workbench/projection.ts', 'src/features/instruments/ui/WhoInstrument.tsx', 'src/features/instruments/ui/InstrumentHost.tsx']) {
+    assert.doesNotMatch(await readFile(f, 'utf8'), /issueInvitation|createHandoff|adoptHandoff|continueHandoff|confirmVersion|agreementGateway|api\.agreements|gateway\.join|paymentIntent|moneyGateway|fund\(|release\(/, f);
   }
 });
 
@@ -181,25 +320,23 @@ test('trade context: a relationship with NO objectEntityId (backend non_null omi
   assert.throws(() => api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [{ id: 'r', kind: 'ROLE', subjectEntityId: 'e', objectEntityId: 5, qualifiers: {}, state: 'CONFIRMED' }] }));
 });
 const golden = () => ctx(
-  [ent('s', 'SERVICE', 'House painting'), ent('john', 'PERSON', 'John', 'CANDIDATE'), ent('v', 'CONCEPT', 'value'), ent('d', 'CONCEPT', 'deadline'), ent('k', 'PERSON', 'KS003', 'CONFIRMED', { ksnumber: 'KS003' })],
-  [rel('r1', 'ROLE', 'john', { role: 'SELLER', descriptor: 'seller' }, 'CANDIDATE'), rel('r2', 'ROLE', 'k', { role: 'BUYER' }), rel('r3', 'PAYMENT_CONDITION', 'v', { amount: '20000', currency: 'KES' }), rel('r4', 'CONDITION', 'd', { date: 'Friday' })]);
-test('workbench: rows are exactly what the backend holds, each with the right instrument; nothing fabricated', () => {
+  [ent('s', 'SERVICE', 'House painting'), ent('john', 'PERSON', 'John', 'CANDIDATE'), ent('v', 'CONCEPT', 'value'), ent('d', 'CONCEPT', 'deadline'), ent('k', 'PERSON', 'Anna', 'CONFIRMED', { ksnumber: 'KS000000003' })],
+  [rel('r1', 'ROLE', 'john', { role: 'SELLER', descriptor: 'seller' }, 'CANDIDATE'), rel('r2', 'ROLE', 'k', { role: 'BUYER' }), rel('r3', 'PAYMENT_CONDITION', 'v', { amount: '20000', currency: 'KES' }), rel('r4', 'CONDITION', 'd', { date: '2026-09-25' }, 'CANDIDATE')]);
+test('workbench: rows are exactly what the backend holds, with an instrument ONLY where the result can be read back', () => {
   const wb = api.projectWorkbench(golden());
   const by = key => wb.items.filter(i => i.key.startsWith(key));
   assert.equal(by('what:')[0].value, 'House painting'); assert.equal(by('what:')[0].spec, null);
-  const who = by('who:');
-  assert.equal(who.length, 2);
-  const john = who.find(i => i.value === 'John'); const ks = who.find(i => i.value === 'KS003');
+  const who = by('who:'); assert.equal(who.length, 2);
+  const john = who.find(i => i.value === 'John'); const anna = who.find(i => i.value === 'Anna');
   assert.equal(john.identityUnresolved, true); assert.deepEqual(john.details, ['Seller']); assert.equal(john.state, 'CANDIDATE');
   assert.equal(john.spec.entityName, 'John'); assert.equal(john.spec.role, 'seller');
-  assert.equal(ks.identityUnresolved, false); assert.equal(ks.state, 'CONFIRMED'); assert.equal(ks.spec.entityName, undefined);
-  assert.equal(by('when:')[0].value, 'Friday'); assert.equal(by('when:')[0].spec.kind, 'when');
+  assert.equal(anna.identityUnresolved, false); assert.equal(anna.state, 'CONFIRMED');
+  assert.equal(by('when:')[0].value, 'Friday, 25 September 2026'); assert.equal(by('when:')[0].spec, null);
   assert.equal(by('money:')[0].value, 'KES 20,000'); assert.equal(by('money:')[0].spec.amount, '20000');
-  assert.equal(wb.items.some(i => i.section === 'where'), false);            // never an invented "Where: not set"
-  assert.deepEqual(wb.adds.map(a => a.key), ['where']);                       // only what could really be added
-  assert.equal(wb.items.some(i => /deadline|value/.test(i.value) && i.section === 'other'), false); // internal concept entities never surface
+  assert.equal(wb.items.some(i => i.section === 'where'), false);
+  assert.deepEqual(wb.adds.map(a => a.key), ['where']);
 });
-test('workbench: not a five-field form -- an empty context has no rows; complex money stays conversational; non-money facts are shown', () => {
+test('workbench: not a five-field form -- empty has no rows; complex money stays conversational; non-money facts are shown', () => {
   const empty = api.projectWorkbench(null);
   assert.equal(empty.empty, true); assert.deepEqual(empty.adds.map(a => a.key), ['who', 'when', 'where', 'money']);
   const plan = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'contribution'), ent('p', 'PERSON', 'Chama')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '20000', appliesTo: 'each member', frequency: 'monthly' }), rel('q', 'AUTHORITY_RULE', 'c', { rule: 'two of three sign', domain: 'DECISION_QUORUM' })]));
@@ -207,25 +344,18 @@ test('workbench: not a five-field form -- an empty context has no rows; complex 
   assert.equal(money.spec, null); assert.deepEqual(money.details, ['each member', 'monthly']);
   assert.ok(plan.items.some(i => i.section === 'other' && i.value === 'two of three sign'));
 });
-test('workbench: "being considered" is shown as such and stays a candidate; state is passed through, never derived', () => {
+test('workbench: "being considered" stays a candidate and is shown as such', () => {
   const wb = api.projectWorkbench(ctx([ent('p', 'PERSON', 'Peter', 'CANDIDATE')], [rel('r', 'ROLE', 'p', { role: 'PROVIDER_CANDIDATE', status: 'CONSIDERED' }, 'CANDIDATE')]));
   const peter = wb.items[0];
   assert.deepEqual(peter.details, ['Being considered']); assert.equal(peter.state, 'CANDIDATE'); assert.equal(peter.spec.role, undefined);
   assert.deepEqual(peter.adopt.map(a => a.targetKind).sort(), ['ENTITY', 'RELATIONSHIP']);
 });
-test('workbench: an Agent prompt opens the same instrument seeded from what is understood ("Which Friday?")', () => {
-  const wb = api.projectWorkbench(golden());
-  const spec = api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: {} }, wb);
-  assert.equal(spec.currentText, 'Friday');
-  assert.equal(api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'who', hints: {} }, wb).entityName, 'John');
-  assert.equal(api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'money', hints: {} }, api.projectWorkbench(null)).amount, undefined);
-});
-test('workbench render: actionable rows are buttons; read-only rows are not; candidates say "Suggested"; the word "Confirmed" is never used', () => {
+test('workbench render: only actionable rows are buttons; candidates say "Suggested"; the word "Confirmed" is never used', () => {
   const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data: golden(), error: null }, source: null, offerSelectionFailure: null };
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {}, stillToSettle: ['Where the house is'] }));
-  assert.match(html, /aria-label="When: Friday\. Change the date"/); assert.match(html, /aria-label="Money: KES 20,000\. Change the amount"/);
-  assert.doesNotMatch(html, /aria-label="What: House painting/);
-  assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
+  assert.match(html, /aria-label="Money: KES 20,000\. Change the amount"/); assert.match(html, /aria-label="Who: John\. Change who"/);
+  assert.doesNotMatch(html, /aria-label="When:/); assert.doesNotMatch(html, /aria-label="What:/);
+  assert.match(html, /Friday, 25 September 2026/); assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
   assert.doesNotMatch(html, /Confirmed/); assert.match(html, /Where the house is/); assert.match(html, /Not an Agreement/);
 });
 test('workbench render: an open instrument marks its row aria-expanded', () => {
@@ -241,18 +371,7 @@ test('prompt render: a live prompt is one button; photo/document get an honest n
   assert.doesNotMatch(u, /<button|<input/); assert.match(u, /can.t be added to SecurePay here yet/);
 });
 
-// ---------------------------------------------------------------- VERIFY + INSTRUMENT LIFECYCLE
-test('verify: an instrument only counts as recorded when Trade Context really shows it', () => {
-  const c = golden();
-  assert.equal(api.isRecorded({ kind: 'money' }, { kind: 'money', amount: '20,000', currency: 'KES' }, c), true);
-  assert.equal(api.isRecorded({ kind: 'money' }, { kind: 'money', amount: '5000', currency: 'KES' }, c), false);
-  assert.equal(api.isRecorded({ kind: 'who' }, { kind: 'who', ks: 'KS003', role: 'seller' }, c), true);
-  assert.equal(api.isRecorded({ kind: 'who' }, { kind: 'who', ks: 'KS009', role: 'seller' }, c), false);
-  const dated = ctx([ent('d', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'd', { date: 'Friday, 25 September 2026' })]);
-  assert.equal(api.isRecorded({ kind: 'when' }, { kind: 'when', date: '2026-09-25', time: '' }, dated), true);
-  assert.equal(api.isRecorded({ kind: 'when' }, { kind: 'when', date: '2026-09-26', time: '' }, dated), false);
-  assert.equal(api.isRecorded({ kind: 'where' }, { kind: 'where', place: 'Kilimani' }, ctx([ent('p', 'PLACE', 'Kilimani, Nairobi')], [])), true);
-});
+// ---------------------------------------------------------------- INSTRUMENT LIFECYCLE
 function fakeAgent({ result, retryOutcome } = {}) {
   const calls = [];
   const snapshot = { pending: null, error: null, context: { status: 'ready', data: null, error: null } };
@@ -264,7 +383,7 @@ function fakeAgent({ result, retryOutcome } = {}) {
     review: async () => { calls.push(['review']); },
   } };
 }
-const moneySpec = { kind: 'money', origin: 'understood', amount: '4000', currency: 'KES' };
+const moneySpec = { kind: 'money', origin: 'understood', amount: '4000' };
 test('instrument lifecycle: success closes ONLY after the backend shows the fact; the only call made is one statement', async () => {
   const good = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '5000', currency: 'KES' })]);
   const { agent, calls } = fakeAgent({ result: () => ({ ok: true, context: good }) });
@@ -345,8 +464,12 @@ test('agent controller: a FAILED turn keeps the last-known understanding and can
   controller.discardFailedTurn();                                          // nothing pending: never removes answered history
   assert.equal(controller.getSnapshot().turns.length, 2);
 });
-test('agent gateway: KS lookup uses the strict canonical path with optional auth; date/amount external-fact paths remain for external evidence', async () => {
+test('agent gateway: production never calls the identity record endpoint; external-fact paths remain for external evidence', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const walk = async dir => (await Promise.all((await readdir(dir, { withFileTypes: true })).map(e => e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]))).flat();
+  for (const f of (await walk('src')).filter(f => /\.(ts|tsx)$/.test(f) && !/mockAgent|demoData/.test(f))) {
+    assert.doesNotMatch(await readFile(f, 'utf8'), /api\/v1\/identities|lookupKsIdentity|KsIdentityDto/, f);
+  }
   const src = await readFile('src/api/securepay/agent/index.ts', 'utf8');
-  assert.match(src, /lookupKsIdentity: .*\/api\/v1\/identities\/by-ksnumber\/\$\{segment\(canonicalKsNumber\)\}.*auth: 'optional'/);
   assert.match(src, /external-facts\/date/); assert.match(src, /external-facts\/amount/);
 });

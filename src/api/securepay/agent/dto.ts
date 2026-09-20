@@ -46,15 +46,6 @@ export interface HandoffDto {
   unresolvedMatters: string[]; guidanceNotes: string[]; tradeContextVersion: number;
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
 }
-/**
- * GET /api/v1/identities/by-ksnumber/{canonicalKsNumber}. The wire record is the FULL identity
- * record (internal id, sequence, timestamps). It is declared here only so the adapter can drop
- * everything except the participant-safe projection -- see `ksIdentityView`.
- */
-export interface KsIdentityDto {
-  identityId?: string; canonicalKsNumber: string; sequenceNumber?: number; identityType?: string;
-  status: string; displayName?: string | null; createdAt?: string; updatedAt?: string;
-}
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }
 
 // Phase 3 Living Agreements -- SecurePay Agent wired into an existing, already-established Agreement.

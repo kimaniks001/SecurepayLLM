@@ -28,7 +28,7 @@ import { InstrumentHost } from '../instruments/ui/InstrumentHost';
 import { InstrumentPrompt } from '../instruments/ui/InstrumentPrompt';
 import type { InstrumentSpec } from '../instruments/model';
 import { UnderstoodWorkbench } from '../workbench/UnderstoodWorkbench';
-import { projectWorkbench, specForPrompt } from '../workbench/projection';
+import { projectWorkbench, specForPrompt, type PromptResolution } from '../workbench/projection';
 import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
@@ -63,7 +63,7 @@ import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
 
-function RichResponse({ component, onReview, live = false, onPrompt }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void }) {
+function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
   // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
@@ -74,7 +74,11 @@ function RichResponse({ component, onReview, live = false, onPrompt }: { compone
   if (component.type === 'AGREEMENTS_HOME') return <AgentAgreementsHomeCard home={component.home} />;
   // Phase 1: a model-proposed input affordance is an invitation to open ONE instrument -- live only
   // on the newest agent turn (an older prompt is stale), and never an action by itself.
-  if (component.type === 'INSTRUMENT_PROMPT') return live && onPrompt ? <InstrumentPrompt prompt={component} onOpen={() => onPrompt(component)} /> : null;
+  if (component.type === 'INSTRUMENT_PROMPT') {
+    if (!live || !onPrompt) return null;
+    const resolved = resolvePrompt?.(component);
+    return resolved && 'note' in resolved ? <InstrumentPrompt note={resolved.note} /> : <InstrumentPrompt prompt={component} onOpen={() => onPrompt(component)} />;
+  }
   if (component.type === 'UNAVAILABLE_INPUT') return live ? <InstrumentPrompt unavailable={component.input} /> : null;
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
     <div className="px-4 py-3 text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">{component.title}</div>
@@ -542,7 +546,8 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
                   {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY' && component.type !== 'AGREEMENT_PREVIEW')
                     .map((component, i) => <RichResponse key={i} component={component} onReview={reviewing}
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
-                      onPrompt={prompt => instruments.open(specForPrompt(prompt, workbenchModel))} />)}
+                      resolvePrompt={prompt => specForPrompt(prompt, workbenchModel)}
+                      onPrompt={prompt => { const resolved = specForPrompt(prompt, workbenchModel); if ('spec' in resolved) instruments.open(resolved.spec); }} />)}
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
@@ -568,7 +573,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       </div>
       </div>
     </>}
-    <InstrumentHost controller={instruments} agentBusy={state.busy || !!state.pending} lookup={gateway.lookupKsIdentity} panelSlot={panelSlot}
-      onFindOnSecurePay={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }} />
+    <InstrumentHost controller={instruments} agentBusy={state.busy || !!state.pending} panelSlot={panelSlot}
+      onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }} />
   </div>;
 }

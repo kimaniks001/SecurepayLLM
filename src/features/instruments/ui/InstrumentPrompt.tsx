@@ -2,9 +2,9 @@ import { CalendarDays, Coins, Image as ImageIcon, MapPin, UserRound } from 'luci
 import type { InstrumentPromptView } from '../../../api/securepay/agent/instruments';
 
 const LABEL: Record<InstrumentPromptView['instrument'], string> = {
-  who: 'Find by KS Number', when: 'Choose a date', 'when-range': 'Choose the dates', money: 'Enter the amount', where: 'Name the place',
+  who: 'Enter a KS Number', when: 'Choose a date', money: 'Enter the amount', where: 'Name the place',
 };
-const ICON = { who: UserRound, when: CalendarDays, 'when-range': CalendarDays, money: Coins, where: MapPin } as const;
+const ICON = { who: UserRound, when: CalendarDays, money: Coins, where: MapPin } as const;
 
 /**
  * The in-conversation face of an Agent-proposed input affordance: one quiet, unmistakably
@@ -12,11 +12,16 @@ const ICON = { who: UserRound, when: CalendarDays, 'when-range': CalendarDays, m
  * UNDERSTOOD workbench opens; it never acts by itself. PHOTO_UPLOAD / DOCUMENT_UPLOAD have no
  * durable pre-Agreement backend path, so they render an honest note instead of a dead control.
  */
-export function InstrumentPrompt({ prompt, onOpen, unavailable }: { prompt?: InstrumentPromptView; onOpen?: () => void; unavailable?: 'photo' | 'document' }) {
-  if (unavailable) {
+const NOTE: Record<string, string> = {
+  photo: 'Photos can’t be added to SecurePay here yet. You can describe it in words.',
+  document: 'Documents can’t be added to SecurePay here yet. You can describe it in words.',
+  'date-range': 'SecurePay can’t hold a range of dates yet — it keeps one date. You can tell KS001 the dates in words.',
+};
+export function InstrumentPrompt({ prompt, onOpen, unavailable, note }: { prompt?: InstrumentPromptView; onOpen?: () => void; unavailable?: 'photo' | 'document' | 'date-range'; note?: string }) {
+  if (unavailable || note) {
     return <div className="ml-[2.625rem] flex items-start gap-2 text-[0.82rem] leading-snug text-sand-500">
       <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>{unavailable === 'photo' ? 'Photos can’t be added to SecurePay here yet.' : 'Documents can’t be added to SecurePay here yet.'} You can describe it in words.</span>
+      <span>{note ?? NOTE[unavailable!]}</span>
     </div>;
   }
   if (!prompt || !onOpen) return null;

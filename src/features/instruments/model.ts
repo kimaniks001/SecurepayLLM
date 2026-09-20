@@ -15,32 +15,40 @@
  *  - Direct edit != confirmation. Whether the resulting fact is CANDIDATE or CONFIRMED is decided by
  *    the backend and read back from Trade Context; nothing here sets or assumes a state.
  *  - Money is decimal STRINGS end to end. `Number` is used only for calendar arithmetic on days.
+ *  - AN INSTRUMENT MAY CLOSE ONLY WHEN TRADE CONTEXT PROVES THE EXACT MEANING SELECTED (see verify.ts),
+ *    and it is offered ONLY where the real formation path (RuleBasedAgreementInterpreter ->
+ *    LegacyFactTradeContextAdapter) can represent and read back that meaning. Where it cannot, the
+ *    instrument is deliberately not offered -- see docs/UI_COMPLETION_PHASE1_CONVERSATIONAL_WORKBENCH.md.
  */
 
-export type InstrumentKind = 'who' | 'when' | 'when-range' | 'money' | 'where';
+export type InstrumentKind = 'who' | 'when' | 'money' | 'where';
 
 /** Where the instrument was summoned from -- affects only presentation and focus return. */
 export type InstrumentOrigin = 'understood' | 'agent' | 'add';
 
+/** WHO: KSFinder. Production cannot resolve or link a KS Number yet (see ksformat.ts); the spec still carries context. */
 export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; entityName?: string; role?: string }
-export interface WhenSpec { kind: 'when' | 'when-range'; origin: InstrumentOrigin; currentText?: string; hintDate?: string }
-export interface MoneySpec { kind: 'money'; origin: InstrumentOrigin; amount?: string; currency?: string }
-export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin; currentText?: string }
+/** WHEN: a FIRST date only. Formation files it as `deadline.value` (ISO) and cannot supersede it. */
+export interface WhenSpec { kind: 'when'; origin: InstrumentOrigin; hintDate?: string }
+/** MONEY: KES only -- the interpreter forces `value.currency = KES` for every amount it recognises. */
+export interface MoneySpec { kind: 'money'; origin: InstrumentOrigin; amount?: string }
+/** WHERE: a FIRST single-word place only. Formation creates one PLACE entity per name and never replaces it. */
+export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin }
 export type InstrumentSpec = WhoSpec | WhenSpec | MoneySpec | WhereSpec;
 
 export type InstrumentDraft =
   | { kind: 'who'; ks: string; role: string }
-  | { kind: 'when'; date: string | null; time: string }
-  | { kind: 'when-range'; start: string | null; end: string | null }
+  | { kind: 'when'; date: string | null }
   | { kind: 'money'; amount: string; currency: string }
   | { kind: 'where'; place: string };
+
+export const FORMATION_CURRENCY = 'KES';
 
 export function emptyDraft(spec: InstrumentSpec): InstrumentDraft {
   switch (spec.kind) {
     case 'who': return { kind: 'who', ks: '', role: spec.role ?? '' };
-    case 'when': return { kind: 'when', date: null, time: '' };
-    case 'when-range': return { kind: 'when-range', start: null, end: null };
-    case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: spec.currency ?? 'KES' };
+    case 'when': return { kind: 'when', date: null };
+    case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: FORMATION_CURRENCY };
     case 'where': return { kind: 'where', place: '' };
   }
 }
@@ -119,79 +127,48 @@ export function monthGrid(year: number, month0: number): (MonthCell | null)[][] 
   return Array.from({ length: cells.length / 7 }, (_, row) => cells.slice(row * 7, row * 7 + 7));
 }
 
+/** Local 24h and weekday helpers intentionally absent: SecurePay formation stores a bare ISO date, nothing else. */
+
+// ---------------------------------------------------------------------------------------------
+// Places -- mirrors RuleBasedAgreementInterpreter.PLACE_PREPOSITION and NAME_STOPWORDS.
+// ---------------------------------------------------------------------------------------------
+
 /**
- * "Friday" / "next friday" / "on Fri" -> weekday index, so an AMBIGUOUS weekday can be resolved by
- * showing the real Fridays instead of silently choosing one. Only a bare weekday counts as
- * ambiguous: anything containing a digit or a month name is treated as an already-specific date.
+ * The formation parser reads a place ONLY as `(in|at) <Capitalised single word>` (`[A-Z][a-z]{1,30}`);
+ * "Kilimani, Nairobi" would record just "Kilimani", "Kilimani Road" just "Kilimani", "westlands" nothing.
+ * Words on its name stoplist are never taken as names.
  */
-export function ambiguousWeekday(text: string | undefined): number | null {
-  if (!text) return null;
-  const lower = text.toLowerCase();
-  if (/\d/.test(lower) || MONTHS.some(month => lower.includes(month.toLowerCase()))) return null;
-  const index = WEEKDAYS.findIndex(day => new RegExp(`\\b${day.toLowerCase().slice(0, 3)}(?:${day.toLowerCase().slice(3)})?\\b`).test(lower));
-  return index >= 0 ? index : null;
-}
-/** Best-effort read of an already-recorded date string, used only to place the calendar's initial month/selection. */
-export function readDateText(text: string | undefined, today: string): string | null {
-  if (!text) return null;
-  if (fromIso(text.trim())) return text.trim();
-  const named = /(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?([A-Za-z]{3,9})\.?,?\s*(\d{4})?/.exec(text) ?? null;
-  if (named) {
-    const month0 = MONTHS.findIndex(m => m.toLowerCase().startsWith(named[2].toLowerCase().slice(0, 3)));
-    const year = named[3] ? Number(named[3]) : Number(today.slice(0, 4));
-    const iso = month0 >= 0 ? toIso(year, month0, Number(named[1])) : '';
-    if (fromIso(iso)) return iso;
-  }
-  return null;
-}
-
-/** Local 24h "HH:MM" -> "3:00 pm". */
-export function friendlyTime(hhmm: string): string | null {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  return `${hour % 12 === 0 ? 12 : hour % 12}:${match[2]} ${hour < 12 ? 'am' : 'pm'}`;
+const PLACE_STOPWORDS = new Set(['I', 'The', 'This', 'That', 'My', 'Our', 'We', 'You', 'He', 'She', 'They', 'It', 'A', 'An', 'Is', 'Are', 'Was', 'Were', 'For', 'And', 'But', 'So', 'If', 'When', 'Then', 'There', 'Another', 'Different', 'Second', 'More', 'Other', 'Same', 'By', 'Way', 'Also', 'However', 'Actually', 'Please', 'Once', 'After', 'Before', 'During', 'Since', 'While', 'Because', 'Though', 'Although', 'Kes', 'Kshs', 'Ksh', 'Shs', 'Bob', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', ...MONTHS, 'Contribution', 'Contributing', 'Buying', 'Building', 'Selling', 'Paying', 'Hiring', 'Collecting', 'Funeral', 'Wedding', 'Forming', 'Setting', 'Making', 'Purchase', 'Purchasing', 'Rent', 'Church', 'Chama', 'Securepay']);
+export function parsePlace(raw: string): { ok: true; value: string } | { ok: false; reason: 'empty' | 'one-word' | 'reserved' } {
+  const trimmed = raw.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return { ok: false, reason: 'empty' };
+  const value = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  if (!/^[A-Z][a-z]{1,30}$/.test(value)) return { ok: false, reason: 'one-word' };
+  if (PLACE_STOPWORDS.has(value)) return { ok: false, reason: 'reserved' };
+  return { ok: true, value };
 }
 
 // ---------------------------------------------------------------------------------------------
-// Statements -- the ONLY thing an instrument ever sends. Ordinary conversational sentences, so the
-// existing Agent (and its correction handling) is the sole authority on what they mean.
+// Statements -- the ONLY thing an instrument ever sends. Ordinary conversational sentences chosen
+// to match the grammar the real formation interpreter recognises (proved in tests/ui-phase1.test.mjs).
 // ---------------------------------------------------------------------------------------------
 
-const article = (role: string): string => /^[aeiou]/i.test(role) ? 'an' : 'a';
-
-export function statementFor(spec: InstrumentSpec, draft: InstrumentDraft, ctx: { previousAmount?: string; previousCurrency?: string; previousDateText?: string; previousPlace?: string } = {}): string | null {
-  if (spec.kind === 'who' && draft.kind === 'who') {
-    const ks = draft.ks.trim();
-    const role = draft.role.trim().toLowerCase();
-    if (!ks || !role) return null;
-    return spec.entityName
-      ? `${ks} is ${spec.entityName}, ${article(role)} ${role} in this.`
-      : `${ks} is the ${role}.`;
-  }
-  if ((spec.kind === 'when') && draft.kind === 'when') {
-    if (!draft.date) return null;
-    const time = friendlyTime(draft.time);
-    const when = `${longDate(draft.date)}${time ? ` at ${time}` : ''}`;
-    return ctx.previousDateText && ambiguousWeekday(ctx.previousDateText) === null ? `Correction: the date is ${when}, not ${ctx.previousDateText}.` : `The date is ${when}.`;
-  }
-  if (spec.kind === 'when-range' && draft.kind === 'when-range') {
-    if (!draft.start || !draft.end) return null;
-    return `The dates are from ${longDate(draft.start)} to ${longDate(draft.end)}.`;
+export function statementFor(spec: InstrumentSpec, draft: InstrumentDraft, ctx: { previousAmount?: string; previousCurrency?: string } = {}): string | null {
+  if (spec.kind === 'who') return null; // production cannot link a KS Number: there is never a statement to send
+  if (spec.kind === 'when' && draft.kind === 'when') {
+    // "D Month YYYY" is the one date shape the interpreter reads; it stores the ISO date as `deadline.value`.
+    return draft.date && fromIso(draft.date) ? `The date is ${longDate(draft.date)}.` : null;
   }
   if (spec.kind === 'money' && draft.kind === 'money') {
     const parsed = parseAmount(draft.amount);
-    if (!parsed.ok || !isCurrencyCode(draft.currency)) return null;
-    const next = formatMoney(parsed.value, draft.currency);
-    if (ctx.previousAmount && !sameAmount(ctx.previousAmount, parsed.value)) {
-      return `Correction: the amount is ${next}, not ${formatMoney(ctx.previousAmount, ctx.previousCurrency ?? draft.currency)}.`;
-    }
-    return `The amount is ${next}.`;
+    if (!parsed.ok || draft.currency !== FORMATION_CURRENCY) return null; // the interpreter would file any figure as KES
+    const next = formatMoney(parsed.value, FORMATION_CURRENCY);
+    const changed = !!ctx.previousAmount && (!sameAmount(ctx.previousAmount, parsed.value) || (ctx.previousCurrency ?? FORMATION_CURRENCY) !== FORMATION_CURRENCY);
+    return changed ? `Correction: the amount is ${next}, not ${formatMoney(ctx.previousAmount!, ctx.previousCurrency ?? FORMATION_CURRENCY)}.` : `The amount is ${next}.`;
   }
   if (spec.kind === 'where' && draft.kind === 'where') {
-    const place = draft.place.replace(/\s+/g, ' ').trim();
-    if (!place || place.length > 200) return null;
-    return ctx.previousPlace ? `Correction: the location is ${place}, not ${ctx.previousPlace}.` : `The location is ${place}.`;
+    const place = parsePlace(draft.place);
+    return place.ok ? `The place is in ${place.value}.` : null;
   }
   return null;
 }
