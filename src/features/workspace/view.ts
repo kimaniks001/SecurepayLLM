@@ -251,6 +251,9 @@ export function peopleView(
       const earlier = Math.max(...mine.map(c => c.versionNumber));
       return { ...base, statusText: `Confirmed version ${earlier} · needs to review ${currentVersionNumber != null ? `version ${currentVersionNumber}` : 'the current version'}`, statusKind: 'needs' as const };
     }
+    // Only where the participant authority ALSO says unconfirmed may a missing row mean "not confirmed". A participant
+    // row saying CONFIRMED with no matching confirmation record is a contradiction this client cannot resolve.
+    if (p.participantStatus === 'CONFIRMED') return { ...base, statusText: 'Joined · confirmation details couldn’t be established', statusKind: 'unknown' as const };
     return { ...base, statusText: 'Joined · confirmation still needed', statusKind: 'waiting' as const };
   });
 }

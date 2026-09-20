@@ -18,8 +18,11 @@ export function invitationStatusText(item: AgreementInvitationDto, now = Date.no
   if (item.status === 'REVOKED') return 'Revoked — the link no longer works';
   if (expired) return 'Expired';
   if (item.status === 'VIEWED') return `Link opened · nobody has joined with it · expires ${dateOf(item.expiresAt)}`;
-  return `Not opened yet · expires ${dateOf(item.expiresAt)}`;
+  if (item.status === 'ISSUED') return `Not opened yet · expires ${dateOf(item.expiresAt)}`;
+  // An unrecognised status must not be passed off as any known one.
+  return 'Invitation status unavailable';
 }
+/** Mutation authority fails closed: only a recognised, still-usable status offers Revoke. */
 const usable = (item: AgreementInvitationDto, now = Date.now()) => (item.status === 'ISSUED' || item.status === 'VIEWED') && new Date(item.expiresAt).getTime() >= now;
 
 /**
@@ -64,7 +67,7 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
         <label htmlFor={`${uid}-ks`} className="block text-[0.8rem] text-sand-700">Their KS Number</label>
         <input id={`${uid}-ks`} value={state.ksNumber} disabled={locked} onChange={e => controller.setKs(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby={`${uid}-ks-help`}
           className={`mt-1 min-h-11 w-full rounded-xl border border-cream-300 bg-white px-3 text-[0.95rem] text-forest-800 ${FOCUS}`} />
-        <p id={`${uid}-ks-help`} className="mt-1 text-[0.75rem] text-sand-600">Exactly as it appears on their SecurePay account. Only the account with this KS Number will be able to join.</p>
+        <p id={`${uid}-ks-help`} className="mt-1 text-[0.75rem] text-sand-600">SecurePay will bind this invitation to the KS Number you enter. It is not checked when the invitation is created, so check the number carefully. Only the account with this KS Number will be able to join.</p>
       </div>
       <div>
         <label htmlFor={`${uid}-role`} className="block text-[0.8rem] text-sand-700">Their role in this Agreement</label>
@@ -90,7 +93,7 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
       </div>
     </form>}
 
-    {state.phase === 'issued' && state.issued && <div ref={region} tabIndex={-1} className="space-y-2 rounded-2xl border border-forest-200 bg-forest-50/60 px-4 py-3 focus:outline-none">
+    {state.phase === 'issued' && state.issued?.link && <div ref={region} tabIndex={-1} className="space-y-2 rounded-2xl border border-forest-200 bg-forest-50/60 px-4 py-3 focus:outline-none">
       <h3 className="font-display text-[1.05rem] text-forest-800">Invitation ready</h3>
       <p className="text-[0.85rem] leading-snug text-sand-700">The invitation link is ready for you to share. Nothing has been sent, and no one has joined.</p>
       <div className="flex flex-wrap items-center gap-2">
@@ -101,11 +104,23 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
       <p className="text-[0.75rem] leading-snug text-sand-600">SecurePay shows this link only now. If you leave without copying it, revoke this invitation below and create a new one.</p>
     </div>}
 
-    {state.phase === 'issued-earlier' && <div ref={region} tabIndex={-1} className="space-y-2 rounded-2xl border border-cream-300 bg-cream-50 px-4 py-3 focus:outline-none">
-      <h3 className="font-display text-[1.05rem] text-forest-800">This invitation already exists</h3>
-      <p className="text-[0.85rem] leading-snug text-sand-700">SecurePay created it on an earlier attempt, and it can’t show that link again. If you didn’t get the link, revoke it in the list below and create a new one.</p>
-      <button type="button" className={SECONDARY} onClick={() => controller.reset()}>Done</button>
-    </div>}
+    {state.phase === 'issued-earlier' && state.issued && (() => {
+      const id = state.issued.invitationId;
+      // The exact id SecurePay returned -- never a list guess. "Revoked" is read from the list entry with THAT id.
+      const revoked = state.list.status === 'ready' && state.list.items.some(item => item.id === id && item.status === 'REVOKED');
+      return <div ref={region} tabIndex={-1} className="space-y-2 rounded-2xl border border-cream-300 bg-cream-50 px-4 py-3 focus:outline-none">
+        <h3 className="font-display text-[1.05rem] text-forest-800">{revoked ? 'That invitation is revoked' : 'This invitation already exists'}</h3>
+        {revoked
+          ? <p className="text-[0.85rem] leading-snug text-sand-700">The link from that attempt no longer works. You can create a new invitation when you’re ready.</p>
+          : <p className="text-[0.85rem] leading-snug text-sand-700">SecurePay created it on an earlier attempt and can’t show its link again. You can revoke exactly this invitation, then create a new one.</p>}
+        <div className="flex flex-wrap gap-2">
+          {!revoked && <button type="button" className={PRIMARY} disabled={state.revokingId !== null} onClick={() => void controller.revoke(id)}>Revoke this invitation</button>}
+          {revoked && <button type="button" className={PRIMARY} onClick={() => { controller.reset(); controller.open(); }}>Create a new invitation</button>}
+          <button type="button" className={SECONDARY} onClick={() => controller.reset()}>Done</button>
+        </div>
+        {state.revokeError && <p role="alert" className="text-[0.8rem] text-ember-700">{state.revokeError}</p>}
+      </div>;
+    })()}
 
     <div className="mt-4">
       <h3 className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Invitations</h3>

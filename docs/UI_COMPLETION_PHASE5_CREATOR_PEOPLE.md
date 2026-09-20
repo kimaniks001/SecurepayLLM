@@ -46,6 +46,13 @@ Open a draft from Agreements → People → **Propose this Agreement** (draft on
 
 Naming: the backend calls the Agreement invitation link a "SecureLink" in its join notification ("Someone joined your SecureLink") but the frontend's SecureLink components are Store offer doorways. The UI stays factual: **invitation link**. Naming question left open.
 
+## Correction pass (review of head `608d462`)
+1. **Nullable token contract.** `IssueInvitationDto.invitationToken` is `string | null` (a replay returns the invitation without its token).
+2. **Exact replay identity.** A replay without a token keeps the returned `invitationId` (`issued: { invitationId, link: null }`; never the token). The "This invitation already exists" state has **Revoke this invitation** bound to exactly that id (not chosen by role, date, position or text), then **Create a new invitation** (fresh key). "Revoked" is read from the list entry with **that id**; an uncertain revoke keeps the id, re-reads the list, and is not shown as revoked until SecurePay says so. `reset()` clears the identity.
+3. **`CONFIRMED` participant with no matching confirmed record = UNKNOWN** ("Joined · confirmation details couldn't be established"); "still needed" is used only where the participant status is also `JOINED_UNCONFIRMED`. A record belonging to a different participant does not fill the gap.
+4. **KS Number not validated at creation.** The form now says: "SecurePay will bind this invitation to the KS Number you enter. It is not checked when the invitation is created, so check the number carefully. Only the account with this KS Number will be able to join." No verified/found/valid wording.
+5. **Unknown invitation status fails closed.** Only `ISSUED` reads "Not opened yet"; anything else reads "Invitation status unavailable" and offers no Revoke.
+
 ## F–H. People (participants + confirmations joined by participant id)
 | Backend fact | Shown |
 |---|---|
@@ -53,7 +60,8 @@ Naming: the backend calls the Agreement invitation link a "SecureLink" in its jo
 | `INVITED`/`PENDING` | "Invitation issued · not joined yet" (identity only if SecurePay supplied one; else "Someone invited") |
 | joined, a `CONFIRMED` confirmation with `confirmationCurrent` | "Joined · confirmed version N" |
 | joined, only confirmations with `confirmationCurrent=false` | "Confirmed version M · needs to review version N" |
-| joined, none | "Joined · confirmation still needed" |
+| `JOINED_UNCONFIRMED`, confirmations read OK, no confirmed row | "Joined · confirmation still needed" |
+| `CONFIRMED` participant, no matching confirmed row (the authorities disagree) | "Joined · confirmation details couldn't be established" (unknown) |
 | joined, `/confirmations` failed | "Joined · confirmation status couldn't be loaded" (never "not confirmed") |
 Currentness is SecurePay's flag, never a version-number comparison; matching is by `participantId`, never name/KS/role/position; no percentages, bars or "2/3". Identity is `displayName · ksNumber` only where the Detail projection supplies it; internal identity ids are never shown. Every state has an icon **and** words.
 
@@ -66,11 +74,12 @@ One request (key + role + KS) is held from the first attempt until success, a de
 ## K. Browser verification (kept separate)
 - **Real API:** not run.
 - **Scripted mock in real Chrome** (shaped from the controllers above; proxied via a scratch config, never port 8080): A first invitation (People → Invite → KS + role → Create → Invitation ready → Copy, with a real mouse click: "Link copied. Copying doesn't send it to anyone."; the mock log shows one issue with role, KS and no identity id); B joined → "Joined · confirmation still needed"; C confirmed current → "Joined · confirmed version 1"; D Agreement moved to v2 → "Confirmed version 1 · needs to review version 2"; E lost response → "We're not sure…" → retry (log: two issues, **one key**, one invitation, then "already exists"); F 403 → "This account can't invite people…", no invitation; G confirmations failed → participants kept, "confirmation status couldn't be loaded". Mobile: at **320 and 375** (same-origin iframe) the People area (long title, long participant name, stale badge) and the invite form wrapped with no horizontal overflow outside the app's pre-existing bottom navigation, which clips at 320.
-- **Render/unit:** `tests/ui-phase5.test.mjs` (40) + updated `tests/signed-in.test.mjs`.
+- **Correction pass, scripted mock (real API not run):** a decoy invitation (`inv-1`, same role, listed first) was created first; the target attempt was lost, retried with the same key (replay, no token), and the direct **Revoke this invitation** sent `revoke inv-2` (the replay's returned id) — the mock shows `inv-1:ISSUED, inv-2:REVOKED`; a deliberate **Create a new invitation** then issued with a fresh key (`issue` keys: decoy, 9f33f6ed, 9f33f6ed, 7cc3d837). The KS helper copy was read from the live page.
+- **Render/unit:** `tests/ui-phase5.test.mjs` (50) + updated `tests/signed-in.test.mjs`.
 - **Not tested:** real sign-in/session expiry mid-invite, a real clipboard denial, screen-reader behaviour, revoke in the browser (unit only), the Phase 3 "Open this Agreement" jump (it relies on the new draft appearing in the Hub; if it doesn't, nothing opens).
 
 ## L. Tests
-642 tests, 0 failing (`node --test tests/*.test.mjs`); `tsc`, `eslint src`, `vite build` clean.
+652 tests, 0 failing (`node --test tests/*.test.mjs`); `tsc`, `eslint src`, `vite build` clean.
 
 ## M. Changed files
 `invitations/{controller,InvitePanel}` (new), `workspace/{controller,view,WorkspaceExperience}`, `components/{AgreementPeople,AgreementDetail}`, `api/securepay/agreements/index`, `handoff/{HandoffPanel,view}`, `agent/AgentExperience`, `types.ts`, tests, this doc.

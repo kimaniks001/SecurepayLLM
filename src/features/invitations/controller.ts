@@ -29,7 +29,8 @@ export interface InviteState {
   /** The exact request being (re)tried. Held from the first attempt until success or a definite rejection or reset. */
   request: { key: string; roleCode: string; ksNumber: string } | null;
   /** In memory ONLY: a bearer doorway, never persisted or logged. Cleared on reset/leave. */
-  issued: { invitationId: string; link: string } | null;
+  /** `link` is null when SecurePay replayed an existing invitation without a token: the exact `invitationId` is kept so it can be revoked precisely. */
+  issued: { invitationId: string; link: string | null } | null;
   error: string | null;
   list: ListState;
   proposing: boolean;
@@ -102,7 +103,7 @@ export function createInviteController(gateway: Pick<AgreementGateway, 'propose'
       try {
         const result = await gateway.issueInvitation(agreementId, { idempotencyKey: request.key, roleCode: request.roleCode, intendedKsNumber: request.ksNumber });
         // Success releases the retry sequence: the next explicit invitation gets a fresh key.
-        update({ request: null, issued: result.invitationToken ? { invitationId: result.invitationId, link: linkFor(result.invitationToken) } : null, phase: result.invitationToken ? 'issued' : 'issued-earlier' });
+        update({ request: null, issued: { invitationId: result.invitationId, link: result.invitationToken ? linkFor(result.invitationToken) : null }, phase: result.invitationToken ? 'issued' : 'issued-earlier' });
         void loadList(); onAgreementChanged();
       } catch (error) {
         if (isUncertain(error)) { update({ phase: 'uncertain', error: UNCERTAIN }); return; }
