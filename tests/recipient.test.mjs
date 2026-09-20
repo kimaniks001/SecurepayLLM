@@ -297,7 +297,9 @@ test('14. wrong recipient / 403 on Join fails closed', async () => {
   controller.proceed(true);
   await controller.join();
   const state = controller.getSnapshot();
-  assert.equal(state.phase, 'join-error');
+  // Wrong account: fail closed at the real sign-in boundary (same invitation), never a Try-again on the same wrong session.
+  assert.equal(state.phase, 'identity-required');
+  assert.equal(state.resume, 'join-prompt');
   assert.equal(state.join, null);
   assert.equal(calls.some(call => call[0] === 'version'), false);
 });

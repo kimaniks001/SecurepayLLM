@@ -54,7 +54,11 @@ export function RecipientExperience({ token, gateway, auth, session, onLeave }: 
       />
     );
   } else if (state.phase === 'identity-required') {
-    const authData = secureAuthView(identityState, AUTH_CONTEXT);
+    // After Join, "before adding you to this Agreement" would be false: only the stage-true words are used.
+    const afterJoin = state.resume === 'reload-version' || state.resume === 'version-ready';
+    const authData = secureAuthView(identityState, state.authNotice
+      ? { ...AUTH_CONTEXT, reason: afterJoin ? `${state.authNotice} Signing in only proves who you are — it does not confirm anything.` : `${state.authNotice} ${AUTH_CONTEXT.reason}` }
+      : AUTH_CONTEXT);
     body = (
       <SecureAuthCard
         data={authData}
@@ -109,7 +113,7 @@ export function RecipientExperience({ token, gateway, auth, session, onLeave }: 
         <CanonicalAgreementCard
           data={exactVersionView(state.version, participantsView(state.participants, state.join.participantId))}
           onChoice={value => {
-            if (value === 'confirm_acceptance') void recipient.confirm();
+            if (value === 'confirm_version') void recipient.confirm();
             else if (value === 'need_change') setNeedsChanging(open => !open);
           }}
         />

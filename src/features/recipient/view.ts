@@ -110,7 +110,7 @@ export function exactVersionView(version: AgreementVersionResponse, parties: { n
     mustSettle: [],
     // Truthful: SecurePay records this participant's confirmation of THIS exact version (number + content hash).
     primaryLabel: 'Yes, I confirm this version',
-    primaryValue: 'confirm_acceptance',
+    primaryValue: 'confirm_version',
     secondaryLabel: 'This needs changing',
     secondaryValue: 'need_change',
     consequence: `Your confirmation is recorded against version ${version.versionNumber} exactly. If the Agreement changes, you will be asked again. It doesn’t mean everyone has confirmed, and nothing is paid.`,

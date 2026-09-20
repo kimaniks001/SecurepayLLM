@@ -97,7 +97,7 @@ test('session ending during Join does not imply Join happened; after sign-in the
   controller.afterIdentitySignedIn();
   assert.equal(controller.getSnapshot().phase, 'join-prompt'); // must press Join again; nothing silent
   await controller.join();
-  const keys = calls.filter(c => c[0] === 'join').map(c => c[2]); assert.equal(keys[0], keys[1]);
+  const keys = calls.filter(c => c[0] === 'join').map(c => c[2]); assert.notEqual(keys[0], keys[1]); // 401 is a definite rejection: the key is released
 });
 test('session ending before confirmation does not imply confirmation; the reviewed version is kept', async () => {
   const { controller } = setup({ confirmVersion: async () => { throw err('http', 401, 'auth'); } });
@@ -143,11 +143,9 @@ test('5xx after Join is uncertain too; a definite 4xx is a failure with the back
   const a = setup({ join: async () => { throw err('http', 503, 'down'); } });
   await a.controller.load(); a.controller.proceed(true); await a.controller.join();
   assert.equal(a.controller.getSnapshot().phase, 'join-uncertain');
-  const b = setup({ join: async () => { throw err('http', 403, 'AGREEMENT_OWNERSHIP_MISMATCH'); } });
+  const b = setup({ join: async () => { throw err('http', 422, 'invitation already joined'); } });
   await b.controller.load(); b.controller.proceed(true); await b.controller.join();
   assert.equal(b.controller.getSnapshot().phase, 'join-error');
-  assert.match(b.controller.getSnapshot().error, /isn.t linked to the account you.re signed in with/);
-  assert.doesNotMatch(b.controller.getSnapshot().error, /KS\d|@|\+254/); // says nothing about who it was intended for
 });
 test('Joined but the version read failed: only the READ is retried, never Join', async () => {
   let reads = 0;
@@ -259,7 +257,12 @@ test('unusable invitations fail closed in plain, distinct words without echoing 
   assert.match(problem('agreement no longer available'), /no longer available/);
   assert.match(problem('invitation already joined'), /already been used/);
   const odd = problem('some internal detail SELECT * FROM'); assert.doesNotMatch(odd, /SELECT|internal/);
-  assert.match(api.invitationProblem(err('network', null, 'off')), /Nothing has changed/);
+  for (const e of [err('network', null, 'off'), err('timeout', null, 't'), err('http', 503, 'x')]) {
+    const said = api.invitationProblem(e);
+    assert.match(said, /You have not joined or confirmed anything/);
+    assert.doesNotMatch(said, /nothing has changed|nothing changed|no change/i); // opening can record VIEWED even if the response was lost
+  }
+  assert.doesNotMatch(api.invitationProblem(new Error('boom')), /nothing has changed/i);
 });
 test('an invalid invitation fails closed in the controller', async () => {
   const { controller } = setup({ invitation: async () => { throw err('http', 422, 'invitation expired'); } });
@@ -276,5 +279,77 @@ test('production recipient path has no funding/payment authority and no contradi
   for (const f of ['src/features/recipient/RecipientExperience.tsx', 'src/features/recipient/view.ts', 'src/features/recipient/controller.ts', 'src/components/RecipientReview.tsx', 'src/components/JoinPrompt.tsx', 'src/components/JoinedStatus.tsx']) {
     const src = await readFile(f, 'utf8');
     assert.doesNotMatch(src, /Accept invitation|Join & Accept|Sign contract|Accept & Join|Agree & Continue|Agreement complete|Transaction confirmed|Pay now|fundAgreement|payment-intent/i, f);
+  }
+});
+
+// ------------------------------------------------------------ stage-aware 401 / 403 (Phase 4 correction)
+test('Join succeeds, then the version read gets 401: Join is kept, sign-in returns and ONLY the read repeats', async () => {
+  let reads = 0;
+  const { controller, calls } = setup({ version: async (id, vid) => { reads++; calls.push(['version', id, vid]); if (reads === 1) throw err('http', 401, 'auth'); return version(); } });
+  await controller.load(); controller.proceed(true); await controller.join();
+  const s = controller.getSnapshot();
+  assert.equal(s.phase, 'identity-required'); assert.equal(s.resume, 'reload-version'); assert.ok(s.join, 'Join is still true');
+  assert.doesNotMatch(s.authNotice, /nothing (was|has been) joined/i); assert.match(s.authNotice, /already joined this Agreement/);
+  controller.afterIdentitySignedIn(); await new Promise(r => setTimeout(r, 0));
+  assert.equal(controller.getSnapshot().phase, 'version-ready');
+  assert.equal(calls.filter(c => c[0] === 'join').length, 1); // never Join again
+  assert.equal(calls.filter(c => c[0] === 'version').length, 2);
+  assert.equal(calls.some(c => c[0] === 'confirm'), false);
+});
+test('wrong-account Join 403 routes to a real sign-in boundary; signing in returns to the Join prompt and joins nothing', async () => {
+  let n = 0;
+  const { controller, calls } = setup({ join: async (t, k) => { calls.push(['join', t, k]); if (++n === 1) throw err('http', 403, 'AGREEMENT_OWNERSHIP_MISMATCH'); return join(); } });
+  await controller.load(); controller.proceed(true); await controller.join();
+  let s = controller.getSnapshot();
+  assert.equal(s.phase, 'identity-required'); assert.equal(s.resume, 'join-prompt'); assert.equal(s.join, null);
+  assert.match(s.authNotice, /isn.t linked to the account you.re signed in with\. Sign in with the account it was sent to/);
+  assert.doesNotMatch(s.authNotice, /KS\d|@|\+254/);
+  controller.afterIdentitySignedIn();
+  s = controller.getSnapshot();
+  assert.equal(s.phase, 'join-prompt'); assert.equal(calls.filter(c => c[0] === 'join').length, 1); // no automatic Join
+  await controller.join();
+  const keys = calls.filter(c => c[0] === 'join').map(c => c[2]); assert.notEqual(keys[0], keys[1]); // a definite rejection releases the key
+  assert.equal(controller.getSnapshot().phase, 'version-ready');
+});
+test('post-Join 403 never says nothing was joined, keeps Join, and reveals nothing about the intended recipient', async () => {
+  const { controller } = setup({ version: async () => { throw err('http', 403, 'forbidden'); } });
+  await controller.load(); controller.proceed(true); await controller.join();
+  const s = controller.getSnapshot();
+  assert.equal(s.phase, 'error'); assert.ok(s.join);
+  assert.equal(s.error, 'The signed-in account can’t open this Agreement right now.');
+  assert.doesNotMatch(s.error, /nothing|joined|invitation|linked|KS\d/i);
+});
+test('Confirm 401: Join and the reviewed version are kept; after sign-in the exact review returns and nothing is auto-confirmed', async () => {
+  let n = 0;
+  const { controller, calls } = setup({ confirmVersion: async (id, vid, body) => { calls.push(['confirm', id, vid, body]); if (++n === 1) throw err('http', 401, 'auth'); return confirmation(); } });
+  await controller.load(); controller.proceed(true); await controller.join(); await controller.confirm();
+  let s = controller.getSnapshot();
+  assert.equal(s.phase, 'identity-required'); assert.equal(s.resume, 'version-ready'); assert.ok(s.join); assert.equal(s.version.id, 'v1'); assert.equal(s.confirmation, null);
+  assert.match(s.authNotice, /Nothing was confirmed/); assert.doesNotMatch(s.authNotice, /joined/i);
+  controller.afterIdentitySignedIn();
+  s = controller.getSnapshot();
+  assert.equal(s.phase, 'version-ready'); assert.equal(calls.filter(c => c[0] === 'confirm').length, 1); // no automatic confirm
+  await controller.confirm();
+  assert.equal(controller.getSnapshot().phase, 'confirmed');
+});
+test('Confirm 403 uses confirmation wording only: no invitation-ownership or "nothing joined" wording; joined/reviewed state kept', async () => {
+  const { controller } = setup({ confirmVersion: async () => { throw err('http', 403, 'forbidden'); } });
+  await controller.load(); controller.proceed(true); await controller.join(); await controller.confirm();
+  const s = controller.getSnapshot();
+  assert.equal(s.phase, 'confirm-error'); assert.ok(s.join); assert.equal(s.version.id, 'v1');
+  assert.equal(s.error, 'The signed-in account can’t confirm this Agreement. Nothing was confirmed.');
+  assert.doesNotMatch(s.error, /invitation|linked|nothing was joined|not joined/i);
+});
+test('Join 401 says only that nothing has been joined and returns to the explicit Join boundary', async () => {
+  let n = 0;
+  const { controller } = setup({ join: async () => { if (++n === 1) throw err('http', 401, 'auth'); return join(); } });
+  await controller.load(); controller.proceed(true); await controller.join();
+  assert.equal(controller.getSnapshot().authNotice, 'Your session ended before SecurePay could act on this. Nothing has been joined.');
+  controller.afterIdentitySignedIn(); assert.equal(controller.getSnapshot().phase, 'join-prompt');
+});
+test('the recipient confirm action value is confirm_version, not acceptance', async () => {
+  assert.equal(api.exactVersionView(version()).primaryValue, 'confirm_version');
+  for (const f of ['src/features/recipient/view.ts', 'src/features/recipient/RecipientExperience.tsx', 'src/features/recipient/controller.ts']) {
+    assert.doesNotMatch(await readFile(f, 'utf8'), /confirm_acceptance|what I agree to/, f);
   }
 });
