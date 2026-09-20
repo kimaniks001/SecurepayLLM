@@ -380,5 +380,58 @@ test('settlement destination: no silent current()/history() default call remains
   assert.doesNotMatch(gw, /currency = 'KES'/); // no invisible transport default
   assert.match(exp, /aria-label="Settlement currency"/);
   assert.match(exp, /useState\('KES'\)/); // a visible default only
-  assert.match(exp, /const changeCurrency[\s\S]{0,400}setCurrent\(null\); setHistory\(null\); setVerification\(null\)/);
+  assert.match(exp, /const changeCurrency[\s\S]{0,400}setCurrentRead\(null\); setHistoryRead\(null\); setVerification\(null\)/);
+});
+
+// ---- Settlement destination: current and history are independent reads
+const D = (id, status = 'CLOSED') => ({ destinationId: id, maskedDestinationDisplay: `****${id}`, destinationStatus: status, verificationStatus: 'VERIFIED' });
+const gw = ({ current, history, register, replace }) => ({ current: async () => { const r = await current(); return r; }, history: async () => history(), register: async () => register?.() ?? D('new', 'ACTIVE'), replace: async () => replace?.() ?? {} });
+const e404 = () => new m.ApiError('http', 'no settlement destination', 404, null);
+const e500 = () => new m.ApiError('http', 'boom', 500, null);
+const fail = e => async () => { throw e(); };
+
+test('current 404 + history with two entries: current absent, both historical rows preserved', async () => {
+  const r = await m.readSettlementScope(gw({ current: fail(e404), history: async () => [D('a'), D('b')] }), 'usd');
+  assert.deepEqual(r.current, { state: 'absent' });
+  assert.equal(r.history.state, 'loaded'); assert.equal(r.history.items.length, 2);
+});
+test('current 404 + empty history: a legitimate no-current / no-history state', async () => {
+  const r = await m.readSettlementScope(gw({ current: fail(e404), history: async () => [] }), 'USD');
+  assert.deepEqual(r.current, { state: 'absent' }); assert.deepEqual(r.history, { state: 'loaded', items: [] });
+});
+test('current 500 + history succeeds: current is UNKNOWN (never absent), history preserved', async () => {
+  const r = await m.readSettlementScope(gw({ current: fail(e500), history: async () => [D('a')] }), 'USD');
+  assert.deepEqual(r.current, { state: 'unavailable' }); assert.equal(r.history.items.length, 1);
+  const n = await m.readSettlementScope(gw({ current: fail(() => new m.ApiError('network', 'x', null, null)), history: async () => [] }), 'USD');
+  assert.equal(n.current.state, 'unavailable');
+});
+test('current succeeds + history 500: current preserved, history unavailable', async () => {
+  const r = await m.readSettlementScope(gw({ current: async () => D('cur', 'ACTIVE'), history: fail(e500) }), 'USD');
+  assert.equal(r.current.state, 'found'); assert.equal(r.current.value.destinationId, 'cur');
+  assert.deepEqual(r.history, { state: 'unavailable' });
+});
+test('both reads fail: both are unavailable independently', async () => {
+  const r = await m.readSettlementScope(gw({ current: fail(e500), history: fail(e500) }), 'USD');
+  assert.deepEqual([r.current.state, r.history.state], ['unavailable', 'unavailable']);
+});
+test('USD register success + current reload OK + history reload fails: the write stays a success and current stays visible', async () => {
+  const out = await m.submitDestination(gw({ current: async () => D('new', 'ACTIVE'), history: fail(e500) }), stores(), 'register', form('usd'));
+  assert.equal(out.kind, 'ok'); assert.equal(out.currency, 'USD');
+  assert.equal(out.scope.current.state, 'found'); assert.deepEqual(out.scope.history, { state: 'unavailable' });
+});
+test('USD replace success + current reload fails + history OK: the write stays a success, history kept, current unavailable (not absent)', async () => {
+  const out = await m.submitDestination(gw({ current: fail(e500), history: async () => [D('old'), D('new', 'ACTIVE')] }), stores(), 'replace', form('usd'));
+  assert.equal(out.kind, 'ok');
+  assert.deepEqual(out.scope.current, { state: 'unavailable' });
+  assert.equal(out.scope.history.items.length, 2);
+});
+test('the UI renders each fact independently and offers register/replace only when the current state is known', async () => {
+  const exp = await src('src/features/money/MoneyExperience.tsx');
+  assert.match(exp, /No current \{scope\} settlement destination is registered\./);
+  assert.match(exp, /Current settlement destination couldn’t be confirmed\./);
+  assert.match(exp, /Settlement destination history couldn’t be loaded\./);
+  assert.match(exp, /historyRead\?\.state === 'loaded' && historyRead\.items\.length > 0/);
+  assert.match(exp, /currentRead\?\.state === 'found' \|\| currentRead\?\.state === 'absent'/);
+  assert.doesNotMatch(exp, /setNotFound|notFound/);
+  assert.doesNotMatch(await src('src/features/money/settlementDestination.ts'), /notFound/);
 });

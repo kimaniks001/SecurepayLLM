@@ -8,21 +8,27 @@ import { isUncertainFinancialError, type AttemptStore } from './attempt';
  */
 export const isCurrency = (value: string) => /^[A-Za-z]{3}$/.test(value);
 
-export type ScopeRead = { current: SettlementDestinationResponse | null; history: SettlementDestinationResponse[]; notFound: boolean };
+/**
+ * `current` and `history` are INDEPENDENT reads (SettlementDestinationSelfServiceOrchestrationService): no current destination (404) does NOT mean no history
+ * (a replaced/closed destination stays in history), and a failure of one never fabricates or erases the other.
+ */
+export type CurrentRead = { state: 'found'; value: SettlementDestinationResponse } | { state: 'absent' } | { state: 'unavailable' };
+export type HistoryRead = { state: 'loaded'; items: SettlementDestinationResponse[] } | { state: 'unavailable' };
+export interface ScopeRead { current: CurrentRead; history: HistoryRead }
+export const NO_CURRENT: CurrentRead = { state: 'absent' };
+
 export async function readSettlementScope(gateway: SettlementDestinationGateway, currency: string): Promise<ScopeRead> {
   const scope = currency.toUpperCase();
-  try {
-    const [current, history] = await Promise.all([gateway.current(scope), gateway.history(scope)]);
-    return { current, history, notFound: false };
-  } catch (cause) {
-    if (cause instanceof ApiError && cause.status === 404) return { current: null, history: [], notFound: true };
-    throw cause;
-  }
+  const [current, history] = await Promise.all([
+    gateway.current(scope).then((value): CurrentRead => ({ state: 'found', value }), (cause): CurrentRead => (cause instanceof ApiError && cause.status === 404 ? { state: 'absent' } : { state: 'unavailable' })),
+    gateway.history(scope).then((items): HistoryRead => ({ state: 'loaded', items }), (): HistoryRead => ({ state: 'unavailable' })),
+  ]);
+  return { current, history };
 }
 
 export interface DestinationForm { accountKind: ExternalDestinationAccountKind; bankCode: string; accountNumber: string; beneficiaryName: string; currency: string }
 export type SubmitOutcome =
-  | { kind: 'ok'; currency: string; scope: ScopeRead | null }
+  | { kind: 'ok'; currency: string; scope: ScopeRead }
   | { kind: 'refused' }          // a different request while one is unresolved: nothing sent
   | { kind: 'uncertain' }        // same request + same keys must be retried
   | { kind: 'rejected'; error: unknown };
@@ -48,6 +54,6 @@ export async function submitDestination(
     return { kind: 'rejected', error: cause };
   }
   attempts.main.settle(); attempts.verification.settle();
-  try { return { kind: 'ok', currency: request.currency, scope: await readSettlementScope(gateway, request.currency) }; }
-  catch { return { kind: 'ok', currency: request.currency, scope: null }; } // the write succeeded; only the reload failed
+  // The write is proven. The reload keeps independent-read semantics, so a failed reload (either side) can never turn it into a failure.
+  return { kind: 'ok', currency: request.currency, scope: await readSettlementScope(gateway, request.currency) };
 }

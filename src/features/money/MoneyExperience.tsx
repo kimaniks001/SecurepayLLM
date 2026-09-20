@@ -38,7 +38,7 @@ import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import { createAttemptStore, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 import { resolveSelection, type SelectionTarget } from './selection';
-import { readSettlementScope, submitDestination, type ScopeRead } from './settlementDestination';
+import { readSettlementScope, submitDestination, type ScopeRead, type CurrentRead, type HistoryRead } from './settlementDestination';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
 import { FxConversionSection } from './FxConversionSection';
@@ -526,12 +526,13 @@ export function AgreementMoneyPositionCard({ position, loading, onRefresh, histo
 
 /** Settlement destination: self-service register/replace via the caller's own KS-derived identity (Final Completion Phase 2, Section 7). */
 function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinationGateway }) {
-  const [current, setCurrent] = useState<SettlementDestinationResponse | null>(null);
-  const [history, setHistory] = useState<SettlementDestinationResponse[] | null>(null);
+  // null = not read yet. Current and history are independent facts (see settlementDestination.ts).
+  const [currentRead, setCurrentRead] = useState<CurrentRead | null>(null);
+  const [historyRead, setHistoryRead] = useState<HistoryRead | null>(null);
+  const current: SettlementDestinationResponse | null = currentRead?.state === 'found' ? currentRead.value : null;
   const [verification, setVerification] = useState<SettlementVerificationStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [accountKind, setAccountKind] = useState<ExternalDestinationAccountKind>('BANK');
   const [bankCode, setBankCode] = useState('');
@@ -545,19 +546,18 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   const [attempts] = useState(() => ({ main: createAttemptStore(), verification: createAttemptStore() }));
   const [uncertain, setUncertain] = useState(false);
 
-  const applyScope = (read: ScopeRead) => { setCurrent(read.current); setHistory(read.history); setNotFound(read.notFound); };
+  const applyScope = (read: ScopeRead) => { setCurrentRead(read.current); setHistoryRead(read.history); };
   const load = async () => {
     if (!currencyValid) return;
-    setLoading(true); setError(null); setNotFound(false); setVerification(null);
-    try { applyScope(await readSettlementScope(gateway, scope)); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
+    setLoading(true); setError(null); setVerification(null);
+    applyScope(await readSettlementScope(gateway, scope));
+    setLoading(false);
   };
   /** Changing the currency changes the scope: facts read for the previous currency are cleared, never shown beside a different currency's form. */
   const changeCurrency = (value: string) => {
     if (uncertain) return; // the currency is part of the exact unresolved request
     setCurrency(value.slice(0, 3));
-    setCurrent(null); setHistory(null); setVerification(null); setNotFound(false); setError(null); setShowForm(false);
+    setCurrentRead(null); setHistoryRead(null); setVerification(null); setError(null); setShowForm(false);
   };
   const checkVerification = async () => {
     if (!current) return;
@@ -575,7 +575,7 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
     else if (outcome.kind === 'rejected') { setUncertain(false); setError(errorText(outcome.error)); }
     else {
       setUncertain(false); setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode(''); setVerification(null);
-      if (outcome.scope) applyScope(outcome.scope); else setError('Your destination was saved, but SecurePay couldn’t refresh it just now. Use “Show my settlement destination” to check.');
+      applyScope(outcome.scope);
     }
     setLoading(false);
   };
@@ -588,7 +588,8 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
       </label>
       {!currencyValid && <p className="text-xs text-sand-500">Enter a three-letter currency, for example KES or USD.</p>}
       <Button variant="secondary" onClick={() => void load()} disabled={loading || uncertain || !currencyValid}>Show my {scope} settlement destination</Button>
-      {notFound && <p className="text-sm text-sand-600">No {scope} settlement destination is registered yet.</p>}
+      {currentRead?.state === 'absent' && <p className="text-sm text-sand-600">No current {scope} settlement destination is registered.</p>}
+      {currentRead?.state === 'unavailable' && <ErrorBanner message="Current settlement destination couldn’t be confirmed." />}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
           <div className="font-medium text-forest-800">{current.maskedDestinationDisplay}</div>
@@ -597,14 +598,16 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
         </div>
       )}
       {verification && <div className="text-xs text-sand-600">Latest verification: {verification.verificationStatus} (<MoneyValue amount={money(verification.amountMinor, verification.currency)} size="sm" />)</div>}
-      {history && history.length > 0 && (
+      {historyRead?.state === 'unavailable' && <ErrorBanner message="Settlement destination history couldn’t be loaded." />}
+      {historyRead?.state === 'loaded' && historyRead.items.length > 0 && (
         <details className="text-xs text-sand-600">
-          <summary className="cursor-pointer">History ({history.length})</summary>
-          <ul className="mt-2 space-y-1">{history.map(item => <li key={item.destinationId}>{item.maskedDestinationDisplay} — {item.destinationStatus}</li>)}</ul>
+          <summary className="cursor-pointer">History ({historyRead.items.length})</summary>
+          <ul className="mt-2 space-y-1">{historyRead.items.map(item => <li key={item.destinationId}>{item.maskedDestinationDisplay} — {item.destinationStatus}</li>)}</ul>
         </details>
       )}
+      {currentRead?.state === 'unavailable' && <p className="text-xs text-sand-500">Registering or replacing a destination isn’t offered until the current one can be confirmed.</p>}
       {!showForm ? (
-        <Button variant="ghost" onClick={() => setShowForm(true)} className="text-xs">{current ? 'Replace destination' : 'Register a destination'}</Button>
+        (currentRead?.state === 'found' || currentRead?.state === 'absent') && <Button variant="ghost" onClick={() => setShowForm(true)} className="text-xs">{current ? 'Replace destination' : 'Register a destination'}</Button>
       ) : (
         <div className="space-y-2 rounded-xl border border-cream-200 p-3">
           <div className="flex gap-2 text-xs">
