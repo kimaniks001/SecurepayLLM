@@ -34,6 +34,7 @@ function setup(over = {}, world = {}) {
   const w = { obligations: [ob()], actions: [act()], completion: comp(), evidence: [], current: V2, me: ME, ...world };
   const calls = []; let n = 0; const changed = [];
   const gateway = {
+    detail: async () => { calls.push(['detail']); return { currentVersion: w.current ? { versionId: w.current } : null }; },
     obligations: async () => { calls.push(['obligations']); return w.obligations; },
     myNextActions: async () => { calls.push(['next']); return { actions: w.actions }; },
     obligationCompletionStatus: async (id, oid) => { calls.push(['completion', oid]); return w.completion; },
@@ -43,7 +44,9 @@ function setup(over = {}, world = {}) {
     reviewEvidence: async (id, eid, body) => { calls.push(['review', eid, body]); return ev(); },
     ...over,
   };
-  const controller = api.createExecutionController(gateway, 'agr-1', () => w.current, () => w.me, () => { changed.push(1); }, () => `k${++n}`);
+  // The workspace hands the controller its CACHED detail: it only moves when onChanged reloads it (as the real workspace does).
+  let cached = w.current;
+  const controller = api.createExecutionController(gateway, 'agr-1', () => cached, () => w.me, () => { cached = w.current; changed.push(1); }, () => `k${++n}`);
   return { controller, calls, world: w, changed };
 }
 const names = calls => calls.map(c => c[0]);
@@ -76,8 +79,10 @@ test('Start appears ONLY from SecurePay\'s own START_OBLIGATION next action for 
   const failed = setup({ myNextActions: async () => { throw err('http', 500) } }); await failed.controller.load(); assert.equal(failed.controller.canStart('o1'), false); // next actions unavailable -> read-only
 });
 test('Start is an explicit press; success is claimed from the returned status, then everything is re-read (nothing advanced locally)', async () => {
-  const { controller, calls, changed, world } = setup(); await controller.load(); assert.equal(names(calls).includes('start'), false);
-  const before = calls.length; world.obligations = [ob({ status: 'IN_PROGRESS' })]; world.actions = [act({ actionType: 'SUBMIT_EVIDENCE', prerequisiteStatus: 'IN_PROGRESS' })];
+  let wref;
+  const { controller, calls, changed, world } = setup({ startObligation: async (id, oid, key) => { calls.push(['start', oid, key]); wref.obligations = [ob({ status: 'IN_PROGRESS' })]; wref.actions = [act({ actionType: 'SUBMIT_EVIDENCE', prerequisiteStatus: 'IN_PROGRESS' })]; return ob({ status: 'IN_PROGRESS' }); } });
+  wref = world; await controller.load(); assert.equal(names(calls).includes('start'), false);
+  const before = calls.length;
   await controller.start('o1');
   assert.equal(controller.getSnapshot().notices.o1.text, 'SecurePay recorded that this work is in progress.');
   assert.ok(names(calls.slice(before)).includes('obligations') && names(calls.slice(before)).includes('next')); assert.ok(changed.length >= 1);
@@ -106,9 +111,8 @@ test('Start 403 / 401 are definite and release the key; an already-started 422 i
     assert.match(controller.getSnapshot().notices.o1.text, re);
     const keys = calls.filter(c => c[0] === 'start').map(c => c[2]); assert.notEqual(keys[0], keys[1]);
   }
-  const { controller, world } = setup({ startObligation: async () => { throw err('http', 422, 'invalid transition'); } }); await controller.load();
-  world.obligations = [ob({ status: 'IN_PROGRESS' })]; world.actions = [];
-  // canStart is re-evaluated at press time from the loaded next actions (still present here), then the 422 is settled by a re-read
+  let wr2; const r2 = setup({ startObligation: async () => { wr2.obligations = [ob({ status: 'IN_PROGRESS' })]; wr2.actions = []; throw err('http', 422, 'invalid transition'); } }); wr2 = r2.world; const controller = r2.controller; await controller.load();
+  // the preflight passes (still startable), the 422 lands, and it is settled by a re-read
   await controller.start('o1'); assert.match(controller.getSnapshot().notices.o1.text, /already in progress/);
 });
 
@@ -208,14 +212,15 @@ test('the completion-status read failing removes Complete rather than guessing',
 });
 test('Complete: same key on an uncertain retry; obligation-only; dependents and completion are re-read, never advanced locally', async () => {
   let first = true;
-  const { controller, calls, world, changed } = setup({ completeObligation: async (id, oid, key) => { calls.push(['complete', oid, key]); if (first) { first = false; throw err('timeout', null); } return ob({ status: 'COMPLETED' }); } },
+  let wc; const r = setup({ completeObligation: async (id, oid, key) => { calls.push(['complete', oid, key]); if (first) { first = false; throw err('timeout', null); } wc.obligations = [ob({ status: 'COMPLETED' })]; wc.actions = []; return ob({ status: 'COMPLETED' }); } },
     { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) });
+  const { controller, calls, world, changed } = r; wc = world;
   await controller.load(); await controller.complete('o1');
   assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain'); assert.match(controller.getSnapshot().notices.o1.text, /We.re not sure whether SecurePay recorded the completion/);
   await controller.checkComplete('o1'); assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain'); // re-read still IN_PROGRESS
-  world.obligations = [ob({ status: 'COMPLETED' })]; world.actions = [];
-  await controller.complete('o1');
+  await controller.complete('o1'); // still IN_PROGRESS and eligible on the fresh read: the SAME request is re-sent
   const keys = calls.filter(c => c[0] === 'complete').map(c => c[2]); assert.equal(keys.length, 2); assert.equal(keys[0], keys[1]);
+  world.obligations = [ob({ status: 'COMPLETED' })]; world.actions = [];
   assert.match(controller.getSnapshot().notices.o1.text, /doesn.t by itself mean the whole Agreement is complete or that Money is released/);
   assert.ok(changed.length >= 1);
   assert.equal(controller.getSnapshot().obligations.data[0].status, 'COMPLETED');
@@ -363,4 +368,147 @@ test('reopening the panel drops settled outcomes but keeps an unsettled (uncerta
   assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain'); // unsettled: kept
   const done = setup(); await done.controller.load(); await done.controller.start('o1'); assert.ok(done.controller.getSnapshot().notices.o1); await done.controller.load();
   assert.equal(done.controller.getSnapshot().notices.o1, undefined); // settled: dropped on a fresh look
+});
+
+// ------------------------------------------------------------ Phase 7 correction: action-time authority, honest settlement, fail-closed refresh
+const sent = calls => calls.filter(c => ['start', 'complete', 'review'].includes(c[0]));
+test('RACE Start: v1 rendered, v2 becomes current before the press -> ZERO start call; refreshed; old action not transplanted', async () => {
+  const { controller, calls, world, changed } = setup(); await controller.load(); assert.equal(controller.canStart('o1'), true);
+  world.current = 'v3'; // another client made v3 current; the obligation still belongs to V2 and SecurePay still lists the (stale) action
+  await controller.start('o1');
+  assert.equal(sent(calls).length, 0);
+  assert.match(controller.getSnapshot().notices.o1.text, /The Agreement changed while you were looking at it\. This work belongs to an earlier version, so nothing was started\. Review the current Agreement\./);
+  assert.ok(changed.length >= 1); assert.equal(controller.canStart('o1'), false); assert.deepEqual(controller.current(), []); // refreshed: nothing from the old version is current work
+});
+test('RACE Start: an obligation that exists in the new version under a NEW id is never pressed on the old one\'s behalf', async () => {
+  const { controller, calls, world } = setup(); await controller.load();
+  world.current = 'v3'; world.obligations = [ob({ id: 'o1', agreementVersionId: V2 }), ob({ id: 'n1', agreementVersionId: 'v3', title: 'Install the cabinets' })]; world.actions = [act({ targetObligationId: 'n1' })];
+  await controller.start('o1'); assert.equal(sent(calls).length, 0);
+  assert.equal(controller.canStart('n1'), true); // the NEW work is offered only as its own fresh action, never auto-started
+  assert.equal(sent(calls).length, 0);
+});
+test('RACE Review: v-old evidence shown, new version current before the press -> ZERO review call', async () => {
+  const { controller, calls, world } = setup({}, reviewWorld); await controller.load(); assert.ok(controller.reviewTarget('o1'));
+  world.current = 'v3'; await controller.review('o1', 'APPROVED');
+  assert.equal(sent(calls).length, 0); assert.match(controller.getSnapshot().notices.o1.text, /nothing was reviewed/);
+});
+test('RACE Complete: eligible on v-old, new version current before the press -> ZERO complete call', async () => {
+  const { controller, calls, world } = setup({}, { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }); await controller.load(); assert.equal(controller.canComplete('o1'), true);
+  world.current = 'v3'; await controller.complete('o1');
+  assert.equal(sent(calls).length, 0); assert.match(controller.getSnapshot().notices.o1.text, /nothing was completed/);
+});
+test('an uncertain review RETRY still fails closed when the Agreement moved: a cached pendingReview is no bypass', async () => {
+  let first = true;
+  const { controller, calls, world } = setup({ reviewEvidence: async (id, eid, body) => { calls.push(['review', eid, body]); if (first) { first = false; throw err('timeout', null); } return ev(); } }, reviewWorld);
+  await controller.load(); await controller.review('o1', 'APPROVED'); assert.equal(Object.keys(controller.getSnapshot().pendingReview).length, 1);
+  world.current = 'v3'; await controller.review('o1', 'APPROVED');
+  assert.equal(calls.filter(c => c[0] === 'review').length, 1); // only the original uncertain attempt
+});
+test('an uncertain review RETRY on the SAME version proceeds with the same key even if the review action is already gone', async () => {
+  let first = true;
+  const { controller, calls, world } = setup({ reviewEvidence: async (id, eid, body) => { calls.push(['review', eid, body]); if (first) { first = false; throw err('timeout', null); } return ev(); } }, reviewWorld);
+  await controller.load(); await controller.review('o1', 'APPROVED'); world.actions = []; // the first attempt landed, so SecurePay no longer asks
+  await controller.review('o1', 'APPROVED');
+  const s2 = calls.filter(c => c[0] === 'review'); assert.equal(s2.length, 2); assert.equal(s2[0][2].idempotencyKey, s2[1][2].idempotencyKey);
+});
+test('any failed preflight read means nothing is sent (the version cannot be established)', async () => {
+  const good = { obligations: [ob()], myNextActions: { actions: [act()] }, detail: { currentVersion: { versionId: V2 } } };
+  for (const key of ['detail', 'obligations', 'myNextActions']) {
+    let armed = false;
+    const r = setup({ [key]: async () => { if (armed) throw err('http', 500); return good[key]; } });
+    await r.controller.load(); armed = true; // the render-time read worked; only the fresh preflight fails
+    await r.controller.start('o1');
+    assert.equal(sent(r.calls).length, 0, key);
+    assert.match(r.controller.getSnapshot().notices.o1.text, /couldn.t confirm the current version of the Agreement, so nothing was started/);
+  }
+});
+test('the fresh next actions must still hold the action: START gone -> no start; REVIEW gone (first attempt) -> no review; eligible gone -> no complete', async () => {
+  const a = setup(); await a.controller.load(); a.world.actions = []; await a.controller.start('o1'); assert.equal(sent(a.calls).length, 0);
+  const b = setup({}, reviewWorld); await b.controller.load(); b.world.actions = []; await b.controller.review('o1', 'APPROVED'); assert.equal(sent(b.calls).length, 0);
+  const c = setup({}, { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }); await c.controller.load(); c.world.completion = comp({ eligible: false }); await c.controller.complete('o1'); assert.equal(sent(c.calls).length, 0);
+  const d = setup({}, { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }); await d.controller.load(); d.world.obligations = [ob({ status: 'IN_PROGRESS', responsibleParticipantId: OTHER })]; await d.controller.complete('o1'); assert.equal(sent(d.calls).length, 0);
+});
+test('a normal press with a current, authorised target still sends exactly once (the preflight does not block valid work)', async () => {
+  const s = setup(); await s.controller.load(); await s.controller.start('o1'); assert.equal(s.calls.filter(c => c[0] === 'start').length, 1);
+  const c = setup({}, { ...active, completion: comp({ eligible: true, unmetRequirements: [] }) }); await c.controller.load(); await c.controller.complete('o1'); assert.equal(c.calls.filter(c2 => c2[0] === 'complete').length, 1);
+});
+test('preflight uses SecurePay reads (detail, obligations, next actions) immediately before each consequential call', async () => {
+  const { controller, calls } = setup(); await controller.load(); const n = calls.length; await controller.start('o1');
+  const seq = names(calls.slice(n)); const startAt = seq.indexOf('start');
+  assert.ok(seq.slice(0, startAt).includes('detail') && seq.slice(0, startAt).includes('obligations') && seq.slice(0, startAt).includes('next'));
+});
+
+// --- Start uncertainty: only justified conclusions
+const uncertainStart = async status => {
+  const w = {}; let wr;
+  const r = setup({ startObligation: async () => { throw err('timeout', null); } }); wr = r.world;
+  await r.controller.load(); await r.controller.start('o1'); assert.equal(r.controller.getSnapshot().notices.o1.kind, 'uncertain');
+  wr.obligations = [ob({ status })]; wr.actions = status === 'AVAILABLE' ? [act()] : [];
+  await r.controller.checkStart('o1'); return r;
+};
+test('Start uncertainty: IN_PROGRESS / EVIDENCE_SUBMITTED / COMPLETED / REJECTED prove progression, worded as what SecurePay NOW shows (never "your start succeeded")', async () => {
+  for (const [st, word] of [['IN_PROGRESS', 'in progress'], ['EVIDENCE_SUBMITTED', 'evidence submitted'], ['COMPLETED', 'completed'], ['REJECTED', 'rejected']]) {
+    const r = await uncertainStart(st); const n = r.controller.getSnapshot().notices.o1;
+    assert.equal(n.text, `SecurePay now shows this work as ${word}.`); assert.equal(n.kind, 'done'); assert.doesNotMatch(n.text, /your start|start succeeded|you started|recorded your/i);
+  }
+});
+test('Start uncertainty: BLOCKED / OVERDUE / CANCELLED do NOT prove the start; neutral message, no success tone, no retry', async () => {
+  for (const st of ['BLOCKED', 'OVERDUE', 'CANCELLED']) {
+    const r = await uncertainStart(st); const n = r.controller.getSnapshot().notices.o1;
+    assert.equal(n.kind, 'info'); assert.match(n.text, new RegExp(`SecurePay now shows this work as ${st.toLowerCase()}\\. SecurePay can.t establish from this read whether the earlier start request was recorded\\. Start isn.t available from this state\\.`));
+    assert.doesNotMatch(n.text, /recorded that|succeeded|in progress/i);
+    const out = text(panel(r.controller)); assert.doesNotMatch(out, /Try again|Check what happened|Start work/);
+    assert.equal(r.controller.canStart('o1'), false);
+    const before = r.calls.length; await r.controller.start('o1'); assert.equal(r.calls.length, before); // no retry: not even a preflight read
+  }
+});
+test('Start uncertainty: still AVAILABLE stays unresolved with the same-request retry', async () => {
+  const r = await uncertainStart('AVAILABLE'); assert.equal(r.controller.getSnapshot().notices.o1.kind, 'uncertain');
+});
+
+// --- Approval outcome vs reviewer attribution
+test('uncertain approval settled from completion-status says the evidence IS approved -- never that YOU approved it', async () => {
+  const r = setup({ reviewEvidence: async () => { throw err('network', null); } }, reviewWorld); await r.controller.load(); await r.controller.review('o1', 'APPROVED');
+  r.world.completion = comp({ eligible: true, unmetRequirements: [], satisfiedRequirements: ['evidence_approved_e1'] }); r.world.actions = [];
+  await r.controller.checkReview('o1');
+  const n = r.controller.getSnapshot().notices.o1; assert.equal(n.text, 'SecurePay now shows this evidence as approved in review.');
+  assert.doesNotMatch(n.text, /your approval|you approved|your review|reviewed by|approved by/i); assert.deepEqual(r.controller.getSnapshot().pendingReview, {});
+  const src = await readFile('src/features/execution/controller.ts', 'utf8'); assert.match(src, /proves the review OUTCOME, not who made it/);
+});
+test('a direct 200 from the caller\'s own review request may still say SecurePay recorded YOUR review', async () => {
+  const r = setup({}, reviewWorld); await r.controller.load(); await r.controller.review('o1', 'APPROVED'); assert.equal(r.controller.getSnapshot().notices.o1.text, 'SecurePay recorded your review: approved.');
+});
+
+// --- Fail-closed post-mutation summary refresh
+test('after a successful mutation, a FAILED Hub refresh makes completion UNKNOWN and clears stale next actions; Detail and the mutation fact stay', async () => {
+  const detailDto = { overview: { agreementId: 'agr-1', publicReference: 'A', title: 'T', purpose: '', description: '', agreementType: 'SERVICE', status: 'CONFIRMATION_PENDING', currency: 'KES', proposedAmountMinor: null, createdAt: 'x', updatedAt: 'x', expiresAt: null }, currentVersion: { versionId: V2, versionNumber: 2, contentHash: 'h', createdAt: 'x', amendmentReason: null, materialChange: false }, participants: [{ participantId: ME, roleCode: 'X', participantStatus: 'CONFIRMED', ksNumber: 'KS001', displayName: 'Kamau' }], milestones: [], terms: [], documents: [], activity: [], versionHistory: [], money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 } };
+  let hubOk = true;
+  const summary = () => ({ agreementId: 'agr-1', publicReference: 'A', title: 'T', purpose: '', status: 'CONFIRMATION_PENDING', agreementType: 'SERVICE', proposedAmountMinor: null, currency: 'KES', createdAt: 'x', updatedAt: 'x', currentActor: { roleCode: 'X', participantStatus: 'CONFIRMED' }, counterparty: null, nextDeadline: null, attentionRequired: true, nextActions: [{ actionCode: 'START_OBLIGATION', category: 'AGREEMENT', reason: 'obligation available to start', deadline: null, attentionClass: 'NEEDS_YOU' }], currentAgreementVersionId: V2, completion: C() });
+  const hub = () => { if (!hubOk) throw err('http', 500); return { needsMe: [summary()], waitingOnOthers: [], takingShape: [], active: [], changedReviewRequired: [], completed: [], cancelled: [], expired: [] }; };
+  const wsGateway = { currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }), hub: async () => hub(), detail: async () => detailDto, confirmations: async () => [], confirmationStatus: async () => [{ participantId: ME }], milestoneEffectiveStates: async () => [], money: { status: async () => { throw err('http', 404) }, records: async () => [] } };
+  const ws = api.createWorkspaceController(wsGateway); ws.enter(); await tick(); ws.openFromHome('agr-1'); await tick();
+  assert.equal(ws.getSnapshot().selectedCompletionFacts.completed, false); assert.equal(ws.getSnapshot().selectedAgreementNextActions.length, 1);
+  const world = { obligations: [ob({ status: 'IN_PROGRESS' })], actions: [], completion: comp({ eligible: true, unmetRequirements: [] }), current: V2, me: ME };
+  const gw = { detail: async () => ({ currentVersion: { versionId: V2 } }), obligations: async () => world.obligations, myNextActions: async () => ({ actions: world.actions }), obligationCompletionStatus: async () => world.completion, obligationEvidence: async () => [], completeObligation: async () => { world.obligations = [ob({ status: 'COMPLETED' })]; return ob({ status: 'COMPLETED' }); } };
+  const exec = api.createExecutionController(gw, 'agr-1', () => V2, () => ME, async () => { await Promise.all([ws.reloadDetailQuietly(), ws.refreshSummary()]); });
+  await exec.load(); hubOk = false; await exec.complete('o1');
+  assert.equal(exec.getSnapshot().obligations.data[0].status, 'COMPLETED'); // the mutation fact survives
+  assert.equal(exec.getSnapshot().notices.o1.kind, 'done');
+  assert.equal(ws.getSnapshot().selectedCompletionFacts, null); assert.equal(ws.getSnapshot().selectedAgreementNextActions.length, 0); // no stale "Not complete yet" / old action
+  assert.equal(ws.getSnapshot().detail.status, 'ready'); // Detail is not torn down
+  assert.match(text(panel(exec, { completion: ws.getSnapshot().selectedCompletionFacts })), /Completion status unavailable/);
+  hubOk = true; await ws.refreshSummary(); assert.equal(ws.getSnapshot().selectedCompletionFacts.completed, false); // a later good read restores it
+});
+
+test('after the Agreement moves on, the explanation survives even though the old obligation card is gone', async () => {
+  const { controller, world } = setup(); await controller.load(); world.current = 'v3'; await controller.start('o1');
+  const out = text(panel(controller, { detail: dtl({ currentVersion: { versionId: 'v3', versionNumber: 3 } }) }));
+  assert.match(out, /The Agreement changed while you were looking at it\. This work belongs to an earlier version, so nothing was started\. Review the current Agreement\./);
+  assert.doesNotMatch(out, /Install the cabinets/); // the old work is not shown as current
+});
+
+test('the version-moved explanation survives the reload it triggers, then is dropped on a later fresh look', async () => {
+  const { controller, world } = setup(); await controller.load(); world.current = 'v3'; await controller.start('o1');
+  await controller.load(); assert.match(controller.getSnapshot().notices.o1.text, /The Agreement changed while you were looking at it/); // the workspace reload re-mounts the panel
+  await controller.load(); assert.equal(controller.getSnapshot().notices.o1, undefined);
 });

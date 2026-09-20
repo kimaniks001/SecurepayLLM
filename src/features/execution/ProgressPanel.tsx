@@ -125,6 +125,8 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       <p className="text-[0.85rem] leading-snug text-sand-800">{facts.text}</p>
       {facts.completedAt && <p className="text-[0.78rem] text-sand-600">Completed {dateOf(facts.completedAt)}</p>}
     </div>
+    {/* An outcome about work that is no longer current (e.g. the Agreement moved on) has no card to sit on: say it here. */}
+    {Object.entries(state.notices).filter(([oid]) => !currentList.some(o => o.id === oid)).map(([oid, n]) => <div key={oid} role={n.kind === 'error' ? 'alert' : 'status'} className={`rounded-xl border px-3 py-2 text-[0.82rem] ${tone(n)}`}>{n.text}</div>)}
     {state.nextActions.status === 'error' && <p className="text-[0.82rem] text-sand-700">SecurePay’s next steps couldn’t be loaded, so no actions are shown here.</p>}
     {state.obligations.status === 'loading' && <p role="status" className="text-[0.85rem] text-sand-600">Loading the work in this Agreement…</p>}
     {state.obligations.status === 'error' && <p className="text-[0.85rem] text-sand-700">The work in this Agreement couldn’t be loaded right now. <button type="button" className={`underline ${FOCUS}`} onClick={() => void controller.load()}>Try again</button></p>}

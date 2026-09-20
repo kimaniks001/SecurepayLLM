@@ -200,7 +200,7 @@ export function createWorkspaceController(gateway: Gateway) {
 
     /**
      * Re-reads the Hub summary of the selected Agreement (status, next actions, whole-Agreement completion) WITHOUT tearing the view down.
-     * Used after an execution action so completion is SecurePay's fresh answer, never a local conclusion. A failure keeps what is shown.
+     * Used after an execution action so completion is SecurePay's fresh answer, never a local conclusion. A failed refresh makes completion UNKNOWN and clears the Hub next actions rather than leaving stale ones on screen.
      */
     async refreshSummary() {
       const agreementId = state.selectedAgreementId;
@@ -212,7 +212,11 @@ export function createWorkspaceController(gateway: Gateway) {
           selectedCompletion: { completed: !!found.summary.completion?.completed, completedAt: found.summary.completion?.completedAt ?? null },
           selectedCompletionFacts: found.summary.completion ?? null, selectedAgreementNextActions: found.summary.nextActions,
         });
-      } catch { /* the previous summary stays on screen */ }
+      } catch {
+        // Fail closed: a stale "Not complete yet" or an old next action must not keep looking like SecurePay's current answer.
+        // Known Detail facts stay; only what needed this refresh becomes unknown / empty.
+        if (state.selectedAgreementId === agreementId) update({ selectedCompletionFacts: null, selectedAgreementNextActions: [] });
+      }
     },
 
     /** Re-reads Detail WITHOUT the loading state (so an open Invite panel isn't torn down) -- used after invite/propose. */
