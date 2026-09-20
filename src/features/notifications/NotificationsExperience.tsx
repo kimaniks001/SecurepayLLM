@@ -155,6 +155,15 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                 {state.inbox.data.map(notification => (
                   <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} />
                 ))}
+                {state.hasMore && (
+                  <button
+                    onClick={() => void controller.loadMore()}
+                    disabled={state.loadingMore}
+                    className="w-full text-center text-[0.8rem] text-forest-700 underline py-2 disabled:opacity-50"
+                  >
+                    {state.loadingMore ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
               </div>
             )}
           </>

@@ -81,10 +81,10 @@ export function NavBar({ view, onNavigate }: NavBarProps) {
         ))}
         <button
           onClick={() => onNavigate('notifications')}
-          className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
+          className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
         >
           <Bell style={{ width: 18, height: 18 }} />
-          <span className="text-[0.6rem] font-medium">Alerts</span>
+          <span className="text-[0.55rem] font-medium leading-tight">Notifications</span>
         </button>
       </nav>
     </>

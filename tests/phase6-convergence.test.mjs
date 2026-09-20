@@ -274,3 +274,150 @@ test('P. The Notifications screen never puts an identifier in a URL query string
   const contents = await readFile('src/api/securepay/notifications/index.ts', 'utf8');
   assert.doesNotMatch(contents, /URLSearchParams.*(?:notificationId|agreementId|identityId)/, 'no identifier may be placed in a query string');
 });
+
+// ─── Q-V. Final Correction Pass: Chat Atmosphere / KS001 Mobile / Understanding Title / Notification Truth / Account Completeness ─────
+
+test('Q1. The mobile sticky header shows a real KS001 identity row (real mark icon + name), not just BUILD/UNDERSTOOD tabs alone', async () => {
+  const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const start = contents.indexOf('md:hidden sticky top-0 z-10 bg-cream-50');
+  const end = contents.indexOf('flex-1 flex overflow-hidden');
+  assert.ok(start > -1 && end > start, 'expected to find the mobile sticky header block');
+  const mobileHeaderBlock = contents.slice(start, end);
+  assert.match(mobileHeaderBlock, /securepayMark/, 'mobile header must show the real SecurePay mark icon');
+  assert.match(mobileHeaderBlock, />KS001</, 'mobile header must name KS001');
+  assert.match(mobileHeaderBlock, /Build/);
+  assert.match(mobileHeaderBlock, /Understood/);
+});
+
+test('Q2. The active KS001 conversation surface uses the restrained green atmosphere token, whose value never bundles a bare color into background-image (the exact bug this pass found: an invalid extra layer silently drops the whole declaration)', async () => {
+  const agentExperience = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(agentExperience, /bg-ks001-surface/, 'the conversation surfaces must use the ks001-surface atmosphere token');
+  const tailwindConfig = await readFile('tailwind.config.js', 'utf8');
+  const match = tailwindConfig.match(/'ks001-surface':\s*'([^']+)'/);
+  assert.ok(match, 'ks001-surface token must be defined in tailwind.config.js');
+  const value = match[1];
+  assert.doesNotMatch(value, /,\s*#[0-9a-fA-F]{3,8}\s*$/, 'background-image value must never end with a bare hex color as an extra layer');
+  assert.match(value, /^radial-gradient/, 'must be built from gradient functions only');
+});
+
+test('Q3. The desktop understanding panel title is always exactly "What SecurePay understands", never a backend-supplied per-turn panel title', async () => {
+  const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(contents, /panelTitle="What SecurePay understands"/, 'the panel title must be the exact, hardcoded product-doctrine string');
+  assert.doesNotMatch(contents, /panelTitle=\{panel\?\.title/, 'must never let a backend panel.title override the product title');
+});
+
+test('Q4. No generic avatar (AgentIcon or a hand-drawn silhouette) is reintroduced anywhere in real production KS001 surfaces', async () => {
+  for (const file of ['src/features/agent/AgentExperience.tsx', 'src/components/MessageBubble.tsx', 'src/components/ContextPanel.tsx']) {
+    const contents = await readFile(file, 'utf8');
+    assert.doesNotMatch(contents, /AgentIcon/, `${file} must not reintroduce the retired generic AgentIcon`);
+    assert.doesNotMatch(contents, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/, `${file} must not reintroduce the hand-drawn generic silhouette path`);
+  }
+});
+
+test('R1. SignedOutHome/SignedInHome still carry the locked Home copy and Fair Trade affordance, untouched by this correction pass', async () => {
+  for (const file of ['src/components/SignedOutHome.tsx', 'src/components/SignedInHome.tsx']) {
+    const contents = await readFile(file, 'utf8');
+    assert.match(contents, /Tell SecurePay what you're trying to make happen\./, `${file} must keep the exact locked headline`);
+    assert.match(contents, /FairTradeAffordance/, `${file} must keep the Fair Trade affordance`);
+  }
+  const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
+  assert.match(signedOut, /It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed\./, 'must keep the exact locked supporting text');
+});
+
+test('S1. Notifications loadMore preserves the active category/unreadOnly filters, appends without duplicating, and never fabricates a total -- hasMore only ever means "the last page was full"', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/features/notifications/controller';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const notification = (id, overrides = {}) => ({ id, category: 'AGREEMENTS', eventKey: 'agreement.invitation_issued', priority: 'HIGH', title: 't', body: 'b', agreementId: null, bridgeId: null, actionKey: null, createdAt: '2026-01-01T00:00:00Z', readAt: null, resolvedAt: null, resolutionAction: null, version: 1, ...overrides });
+  const calls = [];
+  const pageOne = Array.from({ length: 20 }, (_, i) => notification(`n${i}`));
+  const pageTwo = [notification('n19'), notification('n20'), notification('n21')]; // n19 overlaps -- must not duplicate
+  const gateway = {
+    list: async (params) => { calls.push(params); return params.page === 0 ? pageOne : pageTwo; },
+    markRead: async () => { throw new Error('not used'); },
+    resolve: async () => { throw new Error('not used'); },
+    getPreferences: async () => { throw new Error('not used'); },
+    updatePreferences: async () => { throw new Error('not used'); },
+  };
+  const controller = api.createNotificationsController(gateway);
+  // Set both filters and let their own (fire-and-forget) loads settle before the assertions below,
+  // which only examine the load()/loadMore() calls made once filters are stable -- not the
+  // transient loadInbox() each setter triggers on its own.
+  controller.setCategoryFilter('AGREEMENTS');
+  controller.setUnreadOnly(true);
+  await new Promise(r => setTimeout(r, 0));
+  calls.length = 0;
+  await controller.load();
+  assert.equal(controller.getSnapshot().inbox.data.length, 20);
+  assert.equal(controller.getSnapshot().hasMore, true, 'a full page (20 === size) must permit one further load');
+  await controller.loadMore();
+  const state = controller.getSnapshot();
+  assert.equal(state.inbox.data.length, 22, 'n19 must not be duplicated: 20 + 3 - 1 overlap = 22');
+  assert.equal(state.hasMore, false, 'a short page (3 < 20) must end pagination, never fabricate a total');
+  assert.equal(calls.length, 2, 'expected exactly one load() call and one loadMore() call');
+  for (const call of calls) {
+    assert.equal(call.category, 'AGREEMENTS', 'loadMore must preserve the active category filter');
+    assert.equal(call.unreadOnly, true, 'loadMore must preserve the active unreadOnly filter');
+  }
+});
+
+test('S2. No generic resolve action/button is exposed in the Notifications UI -- only real, backend-returned resolved state is displayed', async () => {
+  const contents = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /controller\.resolve\(/, 'the Notifications screen must not invent a generic resolution control');
+  assert.match(contents, /resolvedAt/, 'must still display real resolved state where the backend returns it');
+});
+
+test('T1. Settings no longer binds a WhatsApp/SMS/Email toggle to TraderSettings\' own draft -- Notifications is the one real delivery-control surface', async () => {
+  // Strip comments first -- this file's own doc comment names notifyEmail/notifySms/notifyPush as
+  // the fields it deliberately no longer renders, which would false-positive a naive scan.
+  const raw = await readFile('src/features/settings/SettingsExperience.tsx', 'utf8');
+  const codeOnly = raw.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(codeOnly, /notifyEmail|notifySms|notifyPush/, 'the three inert TraderSettings channel toggles must no longer be rendered');
+  assert.match(codeOnly, /onNavigate\('notifications'\)/, 'must point to Notifications as the one delivery-control surface');
+});
+
+test('T2. The WhatsApp preference toggle always reflects the real draft value -- never a hardcoded true', async () => {
+  const contents = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
+  assert.match(contents, /checked=\{state\.preferencesDraft\.whatsappEnabled\}/, 'the WhatsApp toggle must be bound to the real draft value');
+});
+
+test('U1. Plan & Subscription reads only real subscription-status fields -- no invented invoices, next billing date, cancellation, payment card, or upgrade recommendations', async () => {
+  // Strip comments first -- this file's own doc comment names exactly these forbidden concepts as
+  // what it deliberately does NOT invent, which would false-positive a naive scan.
+  const raw = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
+  const codeOnly = raw.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(codeOnly, /invoice|next billing|upgrade|cancellation|payment card/i, 'must not invent subscription capabilities the backend does not return');
+  assert.match(codeOnly, /subscription\.plan/);
+  assert.match(codeOnly, /subscription\.monthlyFeeMinor/);
+});
+
+test('U2. Plan & Subscription never mutates the plan on a simple view -- no selectPlan call from AccountExperience/its controller', async () => {
+  const experience = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
+  const controller = await readFile('src/features/account/controller.ts', 'utf8');
+  assert.doesNotMatch(experience, /selectPlan/, 'viewing the plan must never itself select/change it');
+  assert.doesNotMatch(controller, /selectPlan/, 'the account controller must never call selectPlan');
+});
+
+test('U3. Change password uses the real AuthGateway currentPassword/newPassword contract; the confirmation field is local-only and never sent anywhere', async () => {
+  const controller = await readFile('src/features/account/controller.ts', 'utf8');
+  assert.match(controller, /changePassword\(currentPassword: string, newPassword: string\)/, 'must use the real two-field contract');
+  assert.match(controller, /gateway\.changePassword\(\{ currentPassword, newPassword \}\)/, 'must call the real gateway method with exactly these two fields');
+  assert.doesNotMatch(controller, /confirmPassword/, 'the controller must never see a confirmPassword field -- that check is local-only in the component');
+  const experience = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
+  assert.doesNotMatch(experience, /controller\.changePassword\([^)]*confirmPassword/, 'confirmPassword must never be sent to the controller');
+});
+
+test('U4. Password fields clear immediately on success, on cancel, and on unmount, and are never logged, persisted, or placed in a URL', async () => {
+  const experience = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
+  assert.match(experience, /useEffect\(\(\) => \{ if \(state\.changePasswordDone\) clearFields\(\); \}/, 'fields must clear immediately on success');
+  assert.match(experience, /useEffect\(\(\) => \(\) => clearFields\(\), \[\]\)/, 'fields must clear on unmount');
+  assert.match(experience, /const cancel = \(\) => \{ clearFields\(\)/, 'fields must clear on cancel');
+  assert.doesNotMatch(experience, /console\./, 'must never log password values');
+  assert.doesNotMatch(experience, /localStorage|sessionStorage/, 'must never persist password values');
+  assert.doesNotMatch(experience, /URLSearchParams.*[Pp]assword/, 'must never place a password in a query string');
+});
+
+test('V1. Plan & Subscription formats monthlyFeeMinor through the shared BigInt-safe decimalMoney formatter, never a new Number-based minor-unit conversion', async () => {
+  const contents = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
+  assert.match(contents, /decimalMoney\(String\(subscription\.monthlyFeeMinor\)/, 'must format through the shared decimalMoney formatter, converting to string first (never dividing/multiplying via Number)');
+  assert.doesNotMatch(contents, /Number\(\s*subscription\.monthlyFeeMinor/, 'must never coerce monthlyFeeMinor through Number(...)');
+});

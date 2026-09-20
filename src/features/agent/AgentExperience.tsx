@@ -43,6 +43,7 @@ import { createAccountController } from '../account/controller';
 import { SettingsExperience } from '../settings/SettingsExperience';
 import { createSettingsController } from '../settings/controller';
 import type { SettingsGateway } from '../../api/securepay/settings';
+import type { SubscriptionGateway } from '../../api/securepay/subscription';
 import { NotificationsExperience } from '../notifications/NotificationsExperience';
 import { createNotificationsController } from '../notifications/controller';
 import type { NotificationsGateway } from '../../api/securepay/notifications';
@@ -72,12 +73,13 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   notificationsGateway: NotificationsGateway;
+  subscriptionGateway: Pick<SubscriptionGateway, 'myStatus'>;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
@@ -115,7 +117,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [businessView, setBusinessView] = useState(false);
   const [developerView, setDeveloperView] = useState(false);
   const [notificationsView, setNotificationsView] = useState(false);
-  const [accountController] = useState(() => createAccountController({ circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll }));
+  const [accountController] = useState(() => createAccountController({ circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword }));
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));
@@ -426,30 +428,44 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
       )}
     </div> : <>
-      {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD. */}
-      <div className="md:hidden sticky top-0 z-10 flex border-b border-cream-200/60 bg-cream-50">
-        <button
-          onClick={() => setMobileTab('build')}
-          aria-current={mobileTab === 'build'}
-          className={`flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
-        >
-          Build
-        </button>
-        <button
-          onClick={openUnderstood}
-          aria-current={mobileTab === 'understood'}
-          className={`relative flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
-        >
-          Understood
-          {hasUnseenUnderstood && <span className="absolute top-2 right-[calc(50%-2.2rem)] w-1.5 h-1.5 rounded-full bg-ember-500" aria-label="New structured content" />}
-        </button>
+      {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD.
+          Phase 6 final correction: a compact KS001 identity row now sits above the tabs so mobile
+          (which hides the desktop identity block below) still clearly shows who the person is
+          talking to -- one coherent header, not a second bulky bar. */}
+      <div className="md:hidden sticky top-0 z-10 bg-cream-50 border-b border-cream-200/60">
+        <div className="flex items-center gap-2 px-3 pt-2 pb-1.5">
+          <img src={securepayMark} alt="" className={`w-5 h-5 ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <span className="font-display text-[0.8rem] text-forest-800">KS001</span>
+          <span className="text-[0.65rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</span>
+        </div>
+        <div className="flex">
+          <button
+            onClick={() => setMobileTab('build')}
+            aria-current={mobileTab === 'build'}
+            className={`flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+          >
+            Build
+          </button>
+          <button
+            onClick={openUnderstood}
+            aria-current={mobileTab === 'understood'}
+            className={`relative flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+          >
+            Understood
+            {hasUnseenUnderstood && <span className="absolute top-2 right-[calc(50%-2.2rem)] w-1.5 h-1.5 rounded-full bg-ember-500" aria-label="New structured content" />}
+          </button>
+        </div>
       </div>
       <div className="flex-1 flex overflow-hidden">
-      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50`}>
+      {/* Phase 6 final correction: a restrained soft-green atmosphere on the active KS001
+          conversation surface (see tailwind.config.js's `ks001-surface` token) -- warm cream base,
+          quiet green tonal light, no flat solid color and no decorative gradient. */}
+      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50 bg-ks001-surface`}>
         {/* Task doctrine (KS001 identity): the person is talking to KS001, not "SecurePay" --
             SecurePay is the system/brand (see NavBar's top-left brand), KS001 is who is in this
             conversation. Reuses the one real, canonical SecurePay mark asset -- no generic
-            silhouette, no separately-drawn avatar. */}
+            silhouette, no separately-drawn avatar. Mobile's equivalent identity row is in the
+            sticky header above. */}
         <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
           <img src={securepayMark} alt="" className={`w-7 h-7 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <div><div className="font-display text-sm text-forest-800">KS001</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
@@ -496,10 +512,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
             </div>} />
         </div>
       </div>
-      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-100/50 min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
+      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-50 bg-ks001-surface min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
         <div className="md:hidden">{understoodContent}</div>
         <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
-          <ContextPanel lastRichResponses={[]} selectedProviderId={null} onSelectProvider={noop} panelTitle={panel?.title || 'Trade taking shape'} panelMode="understanding"
+          {/* Product doctrine (task section 4): the overall panel title is always "What SecurePay
+              understands" -- KS001 talks with the person, SecurePay maintains the structured
+              understanding. A backend-supplied `panel.title` (a per-turn contextual heading) must
+              never replace this; it simply isn't surfaced as the panel's own title. */}
+          <ContextPanel lastRichResponses={[]} selectedProviderId={null} onSelectProvider={noop} panelTitle="What SecurePay understands" panelMode="understanding"
             contextContent={understoodContent} />
         </div>
       </div>

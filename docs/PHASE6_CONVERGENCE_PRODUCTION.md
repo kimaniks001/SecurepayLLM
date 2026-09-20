@@ -597,3 +597,178 @@ components directly, not a separate mock of them):
 - `npm run typecheck` / `npm run lint` / `npm run build`: all clean/succeeding (see R2).
 - PR: #26 — remains open/draft, unmerged, not deployed. Description updated (see the PR itself) to
   cover this pass's findings alongside the original convergence pass.
+
+## X. Final Correction Pass — Chat Atmosphere / KS001 Mobile / Understanding Title / Notification Truth / Account Completeness
+
+A third pass on this same branch/PR, made after direct programme-controller review of PR #26 found
+several product/completeness claims in section W were ahead of the actual implementation. Narrow
+corrections only — no redesign, no new phase.
+
+### X1. Archaeology findings
+
+**Frontend**: `AgentExperience.tsx`'s conversation surfaces (`bg-cream-50`/`bg-cream-100/50`) had no
+green atmosphere at all; its mobile sticky header showed only BUILD/UNDERSTOOD tabs, with the KS001
+identity block explicitly `hidden md:flex`; its desktop understanding panel title fell back to the
+literal string `'Trade taking shape'` whenever a turn had no backend `contextualPanel.title`, in
+direct contradiction of the locked "What SecurePay understands" doctrine. `NotificationsExperience`
+had no pagination at all (`gateway.list()` was always called with no `page`/`size`, silently
+capping the inbox at the backend's default first page) but correctly never exposed a generic
+resolve action. `SettingsExperience` still rendered `notifyEmail`/`notifySms`/`notifyPush` toggles
+alongside Notifications' own WhatsApp/SMS/Email toggles. `AccountExperience` had no Plan &
+Subscription surface and no Change Password flow, despite `SubscriptionGateway.myStatus()` and
+`AuthGateway.changePassword()` already existing and being fully wired end-to-end in the codebase.
+
+**Backend (SecurePayAPI), verified fresh**:
+- `TraderSettings.notifyEmail/notifySms/notifyPush` (and, it turns out, `marketingOptIn`/
+  `profileVisibility` too) have **zero consumers anywhere in production Java outside their own
+  settings module** (confirmed by a repo-wide grep; the only non-test/non-module reference found
+  was a phase-numbered integration test). `NotificationPreferences.whatsappEnabled/smsEnabled/
+  emailEnabled`, by contrast, are read directly by the real, live `NotificationChannelRoutingPolicy`.
+  This is the concrete evidence behind removing the three colliding toggles from Settings rather
+  than merely re-labelling them.
+- `GET /api/v1/subscriptions/me` (`SubscriptionController`) throws a real, distinct `NoSubscriptionException`
+  (404, code `NO_SUBSCRIPTION`) when the identity has never opened a subscription — a real, expected
+  state, not an error, so the frontend's `SubscriptionLoadable` gives it its own `'none'` status
+  rather than folding it into `'error'` or fabricating a friendlier lie.
+- `SubscriptionStatus` is `PENDING | ACTIVE | SUSPENDED | CANCELLED` — rendered as-is (lower-cased),
+  no invented label.
+- `POST /api/v1/auth/password` (`DefaultAuthenticationPasswordChangeService.changePassword`) was
+  read line-by-line: on success it calls `sessionRepository.revokeAllByIdentityId` **and**
+  `refreshTokenRepository.revokeAllActiveByIdentityId` — every session and refresh token for the
+  identity, including the one making the request, is revoked. The frontend's success copy ("every
+  device — including this one — has been signed out") is therefore a verified fact, not a guess,
+  and mirrors the existing `signOutEverywhere` success copy's own lazy-invalidation pattern (no
+  forced client-side redirect; the next request will simply discover the session is gone, exactly
+  like `logoutAll` already behaves here).
+- `SubscriptionStatusResponse.monthlyFeeMinor` (and the retention-reward field) are `number`-typed
+  JSON fields, not decimal strings — the shared HTTP client's own JSON-parse reviver already throws
+  on any unsafe integer before this code ever sees a corrupted value, so no new precision handling
+  was needed; the value is still routed through `decimalMoney(String(minor), currency)` (never
+  `Number(...)` arithmetic) for consistency with the rest of the app's money-formatting discipline.
+
+### X2. Chat visual correction — the soft-green atmosphere
+
+Added a new Tailwind `backgroundImage` token, `ks001-surface` (two low-alpha forest-toned radial
+gradients), applied alongside `bg-cream-50` on both conversation-side surfaces in
+`AgentExperience.tsx`. **A real bug was found and fixed during this work**: the first version of the
+token appended a bare hex color as a third comma-separated "layer" inside the `background-image`
+value (`radial-gradient(...), radial-gradient(...), #fdfcf8`) — invalid CSS, since a `background-image`
+layer must be an `<image>`, never a plain color. This silently invalidated the *entire* declaration
+(confirmed via direct DOM inspection: the generated CSS rule was emitted as `.bg-ks001-surface { }`,
+completely empty). Fixed by moving the base fill to a separate `bg-cream-50` class alongside the
+gradient-only token. Now verified live (see X8) to render a real, restrained, perceptible tint —
+warm cream base, quiet green tonal light, no flat page, no decorative gradient.
+
+### X3. Desktop + mobile KS001 identity
+
+Desktop identity block (icon + "KS001" + busy state) is unchanged from section W4 and was
+re-verified. Mobile now has its own compact identity row (real `securepay-mark-green.png` icon,
+"KS001", busy state) directly above the BUILD/UNDERSTOOD tab bar, inside the same sticky header —
+one coherent mobile header, not a second bulky bar. Verified live (X8): adds roughly one line of
+height, BUILD/UNDERSTOOD remain fully usable.
+
+### X4. Understanding-panel title correction
+
+`ContextPanel`'s `panelTitle` prop on the desktop understanding panel is now unconditionally the
+literal string `"What SecurePay understands"` — the previous `panel?.title || 'Trade taking shape'`
+fallback (which let a backend-supplied per-turn `contextualPanel.title` silently replace the product
+title) is gone. The backend's own per-turn title is no longer surfaced as the panel's own title
+anywhere; it was not otherwise displayed before this change either, so nothing regressed.
+
+### X5. Notifications — pagination and resolution truth
+
+- `createNotificationsController` now tracks `nextPage`/`hasMore`/`loadingMore`; `loadInbox()`
+  (used by initial `load()` and by every filter change) always resets to page 0, and a new
+  `loadMore()` fetches exactly the next page with the *same* active category/unreadOnly filters,
+  de-duplicates by id against the existing list, and appends. `hasMore` is derived only from
+  whether the last fetch returned a full page (`length === size`) — never a fabricated total, per
+  doctrine. `NotificationsExperience` shows a calm "Load more" text link beneath the list, never an
+  infinite-scroll/auto-load mechanic.
+- No generic resolve action was added. The inbox still only ever displays real, backend-returned
+  `resolvedAt` state (a quiet "Resolved" line with a checkmark) — there is still no `resolve(...)`
+  call anywhere in the Notifications frontend, because no real event contract in this codebase
+  currently defines what resolution action is semantically valid for which event type. This is
+  documented as a deliberate non-feature, not an oversight.
+- `actionKey` remains unused for routing (section W1/W-L); `agreementId` remains the only field used
+  to open an Agreement from a notification.
+
+### X6. Preference reconciliation — final decision
+
+`TraderSettings`'s three notification-channel toggles (`notifyEmail`/`notifySms`/`notifyPush`) are no
+longer rendered in `SettingsExperience` — confirmed via backend archaeology (X1) that they drive no
+real delivery path today. The backend field/endpoint/contract is completely untouched (no contract
+change from the frontend, per instruction); `TraderSettingsController`'s `PUT /me` still accepts and
+persists them exactly as before, and `SettingsController`'s own `save()` still round-trips whatever
+values were already loaded. Settings' Notifications section is now a single sentence pointing to the
+one real control surface (Notifications' own WhatsApp/SMS/Email + category toggles). Marketing opt-in
+and profile visibility remain in Settings — they have no colliding second control surface elsewhere,
+so the contradictory-toggle problem does not apply to them.
+
+### X7. Account completeness — Plan & Subscription and Change Password
+
+- **Plan & Subscription**: a new Surface in `AccountExperience` reads `subscriptionGateway.myStatus()`
+  (threaded through `RuntimeApp.tsx` → `AgentExperience` → `createAccountController`) and renders
+  only real fields: plan (For You/Business), status, monthly fee (via `decimalMoney`), consecutive/
+  lifetime paid cycles, and retention-qualified reward when present. A `NoSubscriptionException`
+  (404/`NO_SUBSCRIPTION`) renders a calm "you haven't activated a subscription yet" state with a
+  link into the existing Activation route — never an error banner. No invoices, next billing date,
+  cancellation, payment method, or upgrade recommendation is invented; nothing here can mutate the
+  plan (`selectPlan` is never called from this view).
+- **Change Password**: added under Account → Security as a collapsed "Change password" link that
+  expands into a local-only form (current/new/confirm password, an equality check purely in
+  component state — `confirmPassword` is never sent to the controller or backend). Calls the real
+  `AuthGateway.changePassword({ currentPassword, newPassword })`. Fields clear immediately on
+  success, on Cancel, and on unmount. Success copy truthfully states every device — including the
+  current one — has been signed out (verified against the backend implementation, X1), matching the
+  existing `signOutEverywhere` copy's own style and lazy-invalidation behavior. No password value is
+  ever logged, persisted, or placed in a URL/query string.
+
+### X8. Visual verification
+
+Real production `AgentExperience`/`RuntimeApp` still requires a live authenticated backend not
+configured in this environment (unchanged limitation from section W9). This pass went further than
+W9 by building a **temporary, uncommitted, local-only harness** (`verify.html` +
+`src/devVerifyEntry.tsx`, deleted immediately after use, never part of any commit) that mounted the
+*real* `AgentExperience` component with fake gateway objects returning plausible data — not a
+fabrication of backend capability, but a way to render and directly inspect the real component tree
+that the Bolt fixture harness cannot reach. Confirmed live via `claude-in-chrome`, both desktop and
+mobile viewports:
+- Desktop: `[icon] KS001` + busy state in the conversation header; `WHAT SECUREPAY UNDERSTANDS` /
+  "What SecurePay understands" panel title (no longer "Trade taking shape"); the `ks001-surface`
+  gradient confirmed present via `getComputedStyle(...).backgroundImage` (this is exactly how the
+  invalid-CSS bug in X2 was caught — the very first attempt returned `"none"`).
+  Plan & Subscription card rendered correctly with realistic fake data (plan/fee/status/cycles).
+  Notifications screen rendered its category chips and calm empty state ("Nothing needs your
+  attention right now.") with no loud feed styling.
+- Mobile: the compact `[icon] KS001 listening` row directly above Build/Understood, confirmed as one
+  coherent header with normal conversation flow beneath it; the mobile bottom nav's renamed
+  "Notifications" label (was "Alerts") fits cleanly at typical phone width without wrapping or
+  overlapping neighboring tabs.
+- Not independently re-verified live this pass (unchanged from W9's own disclosure): Settings' updated
+  copy and the Change Password form's own visual layout were confirmed by source read and by the
+  existing collapsed/expanded interaction pattern already used elsewhere in Account, not by a fresh
+  screenshot of that exact sub-state.
+
+### X9. Tests
+
+Added to `tests/phase6-convergence.test.mjs`: Q1–Q4 (mobile KS001 identity row, the ks001-surface
+token's CSS validity and usage, the hardcoded understanding-panel title, no generic-avatar
+reintroduction), R1 (Home locked copy/Fair Trade unchanged), S1–S2 (pagination preserves filters and
+de-duplicates with no fabricated total; no generic resolve action), T1–T2 (Settings no longer binds
+the inert toggles; WhatsApp toggle never hardcoded true), U1–U4 (Plan & Subscription real-fields-only
+and non-mutating; Change Password's real contract, local-only confirmation, and field-clearing
+discipline), V1 (subscription fee formatted through the shared BigInt-safe `decimalMoney`, never
+`Number(...)`).
+
+Final result:
+- `npm run typecheck` — clean.
+- `npm run lint` — clean.
+- `node --test tests/*.test.mjs` — **445 passed, 0 failed** (431 baseline + 14 new tests; no
+  previously-passing test broken, no existing test weakened).
+- `npm run build` — succeeds; same pre-existing chunk-size warning, no new heavy dependency.
+
+### X10. Commit and PR
+
+- Commit: see the branch's latest commit for this pass (this document and the code were committed
+  together).
+- PR #26 remains **open, draft, unmerged, not deployed**. No Phase 7 was started.
