@@ -21,13 +21,19 @@ import type { ReferralGateway } from '../../api/securepay/referral';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
-import { createAgentController } from './controller';
+import { createAgentController, retryLabel } from './controller';
 import { ConversationSurface } from '../conversation/ConversationSurface';
 import { createInstrumentController } from '../instruments/controller';
 import { InstrumentHost } from '../instruments/ui/InstrumentHost';
 import { InstrumentPrompt } from '../instruments/ui/InstrumentPrompt';
 import type { InstrumentSpec } from '../instruments/model';
 import { UnderstoodWorkbench } from '../workbench/UnderstoodWorkbench';
+import { createDiscoveryController, emptyQuery, type DiscoveryQuery } from '../discovery/controller';
+import { DiscoveryHost } from '../discovery/ui/DiscoveryHost';
+import { FoundOnSecurePay } from '../discovery/ui/FoundOnSecurePay';
+import { SourceFailureNote } from '../discovery/ui/SourceReference';
+import type { DiscoveryView } from '../../api/securepay/agent/discovery';
+import { foundLabel } from '../discovery/result';
 import { projectWorkbench, specForPrompt, type PromptResolution } from '../workbench/projection';
 import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
@@ -108,8 +114,19 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   // conversation always starts with a fresh, closed instrument.
   const instruments = useMemo(() => createInstrumentController(controller), [controller]);
   const instrumentState = useSyncExternalStore(instruments.subscribe, instruments.getSnapshot);
+  // Phase 2 "Find on SecurePay": bound to the same conversation controller so choosing a result is the SAME
+  // commercial-source selection (`useOffer`) the standalone Store already uses -- one pathway, one conversation.
+  const discovery = useMemo(() => createDiscoveryController(storeGateway, controller, trustedMediaOrigin), [storeGateway, controller, trustedMediaOrigin]);
+  const discoveryState = useSyncExternalStore(discovery.subscribe, discovery.getSnapshot);
   const [panelSlot, setPanelSlot] = useState<HTMLElement | null>(null);
   const [composerFocusKey, setComposerFocusKey] = useState(0);
+  // "See what SecurePay found": bring the visible FOUND ON SECUREPAY section into view and focus it.
+  const [foundFocusKey, setFoundFocusKey] = useState(0);
+  useEffect(() => {
+    if (!foundFocusKey) return;
+    const target = [...document.querySelectorAll<HTMLElement>('[data-found-on-securepay]')].find(el => el.offsetParent !== null);
+    target?.focus(); target?.scrollIntoView({ block: 'start' });
+  }, [foundFocusKey]);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [notice, setNotice] = useState<string | null>(null);
@@ -166,6 +183,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const reviewing = () => { void controller.review(); };
   const startNewConversation = () => {
     instruments.cancel();
+    discovery.close();
     setController(createAgentController(gateway));
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
@@ -431,20 +449,26 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const workbenchModel = projectWorkbench(state.context.data);
   const preview = panel?.components.find((c): c is PreviewView => c.type === 'AGREEMENT_PREVIEW');
   const panelRest = (panel?.components ?? []).filter(c => c.type !== 'AGREEMENT_PREVIEW' && c.type !== 'INSTRUMENT_PROMPT' && c.type !== 'UNAVAILABLE_INPUT');
-  const openInstrument = (spec: InstrumentSpec) => instruments.open(spec);
+  // One contextual surface at a time: opening an instrument closes discovery, and vice versa.
+  const openInstrument = (spec: InstrumentSpec) => { discovery.close(); instruments.open(spec); };
+  const openDiscovery = (query: DiscoveryQuery = emptyQuery(), runNow = false) => { instruments.cancel(); discovery.open(query, runNow); };
+  const openStoreOf = (ownerKs: string, ownerName: string) => { instruments.cancel(); void discovery.openStore(ownerKs, ownerName); };
+  // Every discovery the SERVER composed in this conversation, newest first (real tool output only).
+  const discoveryGroups: DiscoveryView[][] = [...state.turns].reverse().map(turn => turn.sender === 'agent' ? turn.response.components.filter((c): c is DiscoveryView => c.type === 'DISCOVERY') : []).filter(group => group.length > 0).slice(0, 5);
+  const discoveryViews: DiscoveryView[] = discoveryGroups[0] ?? [];
+  // Real facts already understood that Store search cannot filter by -- shown as "still to check", never searched.
+  const contextDetails = workbenchModel.items.filter(item => (item.section === 'money' || item.section === 'other') && item.value.length <= 40).map(item => item.value);
   const understoodContent = (
     <UnderstoodTruthSections
       confirmed={structuredComponents.length > 0
         ? <div className="space-y-3">{structuredComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
         : null}
       stillToDecide={<div className="space-y-3">
-        <UnderstoodWorkbench state={state} controller={controller} activeSpec={instrumentState.active} onOpen={openInstrument} stillToSettle={preview?.stillToSettle} notes={preview?.disclaimer} />
+        <UnderstoodWorkbench state={state} controller={controller} activeSpec={instrumentState.active} onOpen={openInstrument} onFind={(kind, what) => openDiscovery({ ...emptyQuery(kind), what: what ?? '' }, !!what)} stillToSettle={preview?.stillToSettle} notes={preview?.disclaimer} />
         {workbenchModel.empty && preview && <RichResponse component={preview} onReview={reviewing} />}
         {panelRest.length > 0 && <div className="space-y-3">{panelRest.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
       </div>}
-      foundOnSecurePay={foundOnSecurePayComponents.length > 0
-        ? <div className="space-y-3">{foundOnSecurePayComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
-        : undefined}
+      foundOnSecurePay={discoveryGroups.length > 0 ? <div data-found-on-securepay tabIndex={-1} className="focus:outline-none"><FoundOnSecurePay views={discoveryViews} earlier={discoveryGroups.slice(1)} onOpenStore={openStoreOf} /></div> : undefined}
     />
   );
   const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
@@ -517,15 +541,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
-              {state.offerSelectionFailure && <StatusNotice tone="warning">
-                SecurePay could not confirm this Store offer as a real commercial source. {state.offerSelectionFailure.error}
-                <div className="flex flex-wrap gap-3 mt-2">
-                  <button disabled={state.busy} onClick={() => void controller.retryOfferSelection()} className="text-forest-700 underline disabled:opacity-40">Retry</button>
-                  <button disabled={state.busy} onClick={() => void controller.continueOfferWithoutSource()} className="text-sand-500 underline disabled:opacity-40">Continue without this source</button>
-                </div>
-              </StatusNotice>}
+              {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error}
+                onRetry={() => void controller.retryOfferSelection()} onContinueWithout={() => void controller.continueOfferWithoutSource()} />}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
-                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
+                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}
               <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Review what we have</button>
@@ -548,6 +567,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
                       resolvePrompt={prompt => specForPrompt(prompt, workbenchModel)}
                       onPrompt={prompt => { const resolved = specForPrompt(prompt, workbenchModel); if ('spec' in resolved) instruments.open(resolved.spec); }} />)}
+                  {(() => {
+                    const found = turn.response.components.filter((c): c is DiscoveryView => c.type === 'DISCOVERY' && c.payload !== null);
+                    return found.length > 0 ? <div className="ml-[2.625rem]"><button type="button" onClick={() => { setMobileTab('understood'); setFoundFocusKey(k => k + 1); }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white px-4 text-[0.85rem] text-forest-700 shadow-soft hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Found on SecurePay · {foundLabel(found)}<span aria-hidden="true">›</span></button></div> : null;
+                  })()}
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
@@ -573,7 +597,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       </div>
       </div>
     </>}
+    <DiscoveryHost controller={discovery} panelSlot={panelSlot} contextDetails={contextDetails}
+      onBackToConversation={() => { discovery.close(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }}
+      onAddPerson={() => { discovery.close(); const add = workbenchModel.adds.find(a => a.key === 'who'); if (add) instruments.open(add.spec); }} />
     <InstrumentHost controller={instruments} agentBusy={state.busy} agentUncertain={!!state.pending} panelSlot={panelSlot}
-      onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }} />
+      onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }}
+      onFind={() => { instruments.cancel(); openDiscovery(emptyQuery('SERVICE')); }} />
   </div>;
 }

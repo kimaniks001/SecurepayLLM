@@ -400,7 +400,12 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   // Final Phase 4 Economy Turn 3 (Section 6) -- provenance/commercial context only, never
   // Agreement/participant/payment authority: the reviewed commercial source (e.g. a Store offer)
   // this handoff is proceeding from, if any.
-  source?: { title: string; ownerKsNumber: string | null; priceLine: string; status: 'CURRENT' | 'CHANGED' | 'UNAVAILABLE'; statusLabel: string };
+  source?: {
+    title: string; ownerKsNumber: string | null; priceLine: string; status: 'CURRENT' | 'CHANGED' | 'UNAVAILABLE'; statusLabel: string;
+    /** The backend's own captured/current facts, for the shared SourceReference (Phase 2). Never reconciled in the browser. */
+    capturedPriceMinor?: number | null; capturedCurrency?: string | null; capturedAvailability?: string | null;
+    current?: { priceMinor: number | null; currency: string | null; availability: string | null } | null;
+  };
   materials?: string;
   completion: string;
   defects?: string;

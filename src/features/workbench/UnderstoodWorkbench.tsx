@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import type { AgentController, AgentState } from '../agent/controller';
 import { specKey } from '../instruments/controller';
+import { SourceReference } from '../discovery/ui/SourceReference';
 import type { InstrumentSpec } from '../instruments/model';
 import { projectWorkbench, SECTION_LABEL, type AdoptTarget, type WorkbenchItem, type WorkbenchSection } from './projection';
 
@@ -14,11 +15,13 @@ const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'the person', w
  * SecurePay to update its understanding -- it never confirms an Agreement, and the state shown on
  * each row is whatever the backend last returned (never a UI-derived state).
  */
-export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, stillToSettle, notes }: {
+export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onFind, stillToSettle, notes }: {
   state: AgentState;
   controller: AgentController;
   activeSpec: InstrumentSpec | null;
   onOpen: (spec: InstrumentSpec) => void;
+  /** "Find on SecurePay": for someone who does NOT already know who or what to use (knowing a person is Add a person). */
+  onFind: (kind: 'PRODUCT' | 'SERVICE', what?: string) => void;
   /** Server-derived "still worth settling" lines from the latest AGREEMENT_PREVIEW panel, shown read-only. */
   stillToSettle?: string[];
   notes?: string;
@@ -33,7 +36,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
   const adoptAll = async (targets: AdoptTarget[]) => { for (const target of targets) await controller.adopt(target.id, target.targetKind); };
 
   return <section aria-label="What SecurePay understands" aria-busy={context.status === 'loading'} className="space-y-4">
-    {state.source && <p className="text-[0.8rem] text-sand-600">Started from <span className="font-medium text-forest-800">{state.source.sourceTitle}{state.source.sourceOwnerKsNumber ? ` · ${state.source.sourceOwnerKsNumber}` : ''}</span></p>}
+    {state.source && <SourceReference source={{ sourceType: state.source.sourceType, title: state.source.sourceTitle ?? 'Store offer', ownerKs: state.source.sourceOwnerKsNumber, capturedPriceMinor: state.source.capturedPriceMinor, capturedCurrency: state.source.capturedCurrency }} />}
 
     {context.status === 'error' && <div role="alert" className="rounded-xl border border-ember-200 bg-ember-50 px-3.5 py-2.5 text-[0.85rem] text-sand-800">
       {context.error} <button disabled={state.busy} onClick={() => void controller.review()} className="underline disabled:opacity-40">Refresh</button>
@@ -46,7 +49,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
     {sections.map(({ section, items }) => <div key={section}>
       <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">{SECTION_LABEL[section]}</h3>
       <ul className="overflow-hidden rounded-2xl border border-cream-200 bg-white/80 divide-y divide-cream-100 shadow-soft">
-        {items.map(item => <Row key={item.key} item={item} open={!!item.spec && specKey(item.spec) === activeKey} busy={busy} onOpen={onOpen} onUse={() => void adoptAll(item.adopt)} />)}
+        {items.map(item => <Row key={item.key} item={item} open={!!item.spec && specKey(item.spec) === activeKey} busy={busy} onOpen={onOpen} onFind={onFind} onUse={() => void adoptAll(item.adopt)} />)}
       </ul>
     </div>)}
 
@@ -58,6 +61,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
         <Plus className={`h-3.5 w-3.5 transition-transform ${addOpen ? 'rotate-45' : ''}`} aria-hidden="true" /><span>Add a detail</span>
       </button>
       {addOpen && <div id="workbench-adds" className="mt-1 flex flex-wrap gap-2 animate-fade-in-up">
+        <button type="button" onClick={() => { onFind('SERVICE'); setAddOpen(false); }} className="inline-flex min-h-11 items-center rounded-full border border-forest-200 bg-forest-50/70 px-3.5 text-[0.85rem] font-medium text-forest-800 hover:border-forest-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Find on SecurePay</button>
         {workbench.adds.map(add => <button key={add.key} type="button" onClick={() => { onOpen(add.spec); setAddOpen(false); }} aria-expanded={activeKey === specKey(add.spec)}
           className="inline-flex min-h-11 items-center rounded-full border border-cream-300 bg-white/70 px-3.5 text-[0.85rem] text-forest-700 hover:border-forest-300 hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">{add.label}</button>)}
       </div>}
@@ -79,7 +83,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
   </section>;
 }
 
-function Row({ item, open, busy, onOpen, onUse }: { item: WorkbenchItem; open: boolean; busy: boolean; onOpen: (spec: InstrumentSpec) => void; onUse: () => void }) {
+function Row({ item, open, busy, onOpen, onFind, onUse }: { item: WorkbenchItem; open: boolean; busy: boolean; onOpen: (spec: InstrumentSpec) => void; onFind: (kind: 'PRODUCT' | 'SERVICE', what?: string) => void; onUse: () => void }) {
   const candidate = item.state === 'CANDIDATE';
   const body = <>
     <span className="min-w-0 flex-1 text-left">
@@ -100,6 +104,8 @@ function Row({ item, open, busy, onOpen, onUse }: { item: WorkbenchItem; open: b
           {body}<ChevronRight aria-hidden="true" className={`h-4 w-4 shrink-0 text-sand-400 transition-transform ${open ? 'rotate-90' : ''}`} />
         </button>
       : <div className="flex min-h-[3.25rem] flex-1 items-center gap-2 px-4 py-2.5">{body}</div>}
+    {item.find && <button type="button" onClick={() => onFind(item.find!.kind, item.find!.what)} aria-label={`See ${item.find.what} on SecurePay`}
+      className={`shrink-0 px-3.5 text-[0.8rem] font-medium text-forest-700 hover:bg-forest-50 ${FOCUS}`}>See on SecurePay</button>}
     {candidate && item.adopt.length > 0 && <button type="button" disabled={busy} onClick={onUse} aria-label={`Use this: ${item.value}`}
       className={`shrink-0 px-3.5 text-[0.8rem] font-medium text-forest-700 hover:bg-forest-50 disabled:opacity-40 ${FOCUS}`}>Use this</button>}
   </li>;

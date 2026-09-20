@@ -91,7 +91,7 @@ function validatePublicOfferView(offer: unknown): asserts offer is PublicOfferVi
  * all, e.g. an opaque asset id — `new URL()` throws and the ref is never treated as one) resolves to an
  * empty `url`, and the caller's existing "No photos available" empty state covers it unmodified.
  */
-function media(refs: string[], trustedOrigin: string | null) {
+export function media(refs: string[], trustedOrigin: string | null) {
   return refs.map((ref, i) => {
     let url = '';
     if (trustedOrigin) {

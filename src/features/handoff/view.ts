@@ -23,6 +23,8 @@ function sourceView(reviewedSource: ReviewedSourceDto | null): CanonicalAgreemen
     priceLine: formatMoney(reviewedSource.capturedCurrency, reviewedSource.capturedPriceMinor),
     status: reviewedSource.sourceStatus === 'CHANGED' || reviewedSource.sourceStatus === 'UNAVAILABLE' ? reviewedSource.sourceStatus : 'CURRENT',
     statusLabel,
+    capturedPriceMinor: reviewedSource.capturedPriceMinor, capturedCurrency: reviewedSource.capturedCurrency, capturedAvailability: reviewedSource.capturedAvailabilityState,
+    current: reviewedSource.current ? { priceMinor: reviewedSource.current.capturedPriceMinor, currency: reviewedSource.current.capturedCurrency, availability: reviewedSource.current.capturedAvailabilityState } : null,
   };
 }
 

@@ -178,7 +178,7 @@ test('PROVIDER_RESULTS/PRICE_CONTEXT component data parses into the DISCOVERY sh
 
   const priceContext = api.agentComponentView({
     type: 'PRICE_CONTEXT',
-    data: { category: 'roofing sheets', location: 'Nyeri', lowMinor: 50000, highMinor: 90000, currency: 'KES', sampleSize: 4 },
+    data: { category: 'roofing sheets', location: 'Nyeri', unit: 'listing', lowMinor: 50000, highMinor: 90000, medianMinor: 70000, currency: 'KES', sampleSize: 4, sourceType: 'LIVE_LISTINGS', asOf: '2026-09-20T08:00:00Z' },
   });
   assert.equal(priceContext.type, 'DISCOVERY');
   assert.equal(priceContext.title, 'Price context');
@@ -514,4 +514,11 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
     assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
     assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
   }
+});
+
+test('retry wording is truthful for each pending operation: message, Use this, amount', () => {
+  assert.equal(api.retryLabel({ kind: 'turn', body: { message: 'x' } }), 'Retry message');
+  assert.equal(api.retryLabel({ kind: 'adopt', body: { targetId: 'a', targetKind: 'ENTITY' } }), 'Retry Use this');
+  assert.equal(api.retryLabel({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', amount: '1' } }), 'Retry amount');
+  assert.equal(api.retryLabel(null), 'Retry message');
 });

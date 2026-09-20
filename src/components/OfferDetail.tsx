@@ -40,20 +40,14 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
           </div>
         )}
 
-        {/* Media */}
-        <div className="rounded-2xl border border-cream-200 bg-cream-100 h-48 flex items-center justify-center overflow-hidden">
-          {offer.media.length > 0 && offer.media[0].url ? (
+        {/* Media: only when the offer has real, trusted media. Text-first offers get one quiet caption, not an empty photo panel. */}
+        {offer.media.length > 0 && offer.media[0].url ? (
+          <div className="rounded-2xl border border-cream-200 bg-cream-100 h-48 overflow-hidden">
             <img src={offer.media[0].url} alt={offer.title} className="w-full h-full object-cover" />
-          ) : (
-            <div className="text-center">
-              <Store className="w-8 h-8 text-sand-300 mx-auto mb-2" />
-              <p className="text-[0.78rem] text-sand-400">No photos available</p>
-              {offer.media.length > 0 && offer.media[0].isExample && (
-                <p className="text-[0.68rem] text-sand-400 mt-1">Previous work example</p>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="px-1 text-[0.75rem] text-sand-400">No photos available{offer.media.length > 0 && offer.media[0].isExample ? ' · Previous work example' : ''}</p>
+        )}
 
         {/* Price */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
@@ -64,7 +58,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
               {offer.priceUnit && <div className="text-[0.72rem] text-sand-500 mt-0.5">{offer.priceUnit}</div>}
             </div>
             <div className="text-right">
-              <div className="text-[0.68rem] text-sand-400">{offer.priceType.replace(/_/g, ' ')}</div>
+              {offer.priceType !== 'fixed' && <div className="text-[0.68rem] text-sand-400">{offer.priceType.replace(/_/g, ' ')}</div>}
               <div className="text-[0.72rem] text-sand-500 mt-0.5">{offer.availability}</div>
             </div>
           </div>
@@ -85,8 +79,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
             </div>
           ) : (
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-forest-500" />
+              <div className="mb-1">
                 <span className="text-[0.825rem] font-medium text-forest-800">{offer.storeName}</span>
               </div>
               <p className="text-[0.78rem] text-sand-600">Store-owned offer. {offer.storeName} is the actual seller and contracting counterparty.</p>
