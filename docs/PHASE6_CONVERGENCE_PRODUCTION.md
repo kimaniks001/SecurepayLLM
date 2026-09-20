@@ -318,6 +318,7 @@ No world is **blocked**.
   `src/components/AgreementMoneyHandoff.tsx`, `src/components/AgreementVersionCard.tsx`,
   `src/components/OfferComparisonView.tsx` (confirmed dead code); new
   `tests/phase6-convergence.test.mjs`; new `docs/PHASE6_CONVERGENCE_PRODUCTION.md` (this document).
+- Commit: `3034d0e` — "Phase 6: Final Convergence & Production"
 - Tests: see Tests (R) above — 418/418 passing, up from a 406/0-failing baseline.
-- PR: to be opened as draft/open, unmerged — programme controller performs final review and merge.
+- PR: #26 — opened as draft/open, unmerged — programme controller performs final review and merge.
 - Not deployed; production hosting untouched.
