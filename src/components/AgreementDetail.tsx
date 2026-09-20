@@ -41,6 +41,8 @@ interface AgreementDetailProps {
   viewedVersion?: string;
   onViewCurrent?: () => void;
   onRaiseIssue?: () => void;
+  /** Real path only: the canonical Agreement Review surface, shown from the Support tab/section. */
+  reviewPanel?: React.ReactNode;
   onOpenMoney?: (id: string) => void;
   onOpenReferral?: () => void;
   /**
@@ -102,7 +104,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -197,7 +199,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {tab === 'calendar' && onAddTag && onRemoveTag && (
               <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
             )}
-            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />}
+            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} />}
 
             {showReuse && tab === 'overview' && <AgreementReuse detail={detail} />}
 
@@ -308,7 +310,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           )}
 
           {mobileSection === 'support' && (
-            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} />
+            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} />
           )}
         </div>
       </div>

@@ -14,6 +14,8 @@ import { ReconfirmPanel, ownStanding } from '../amendments/ReconfirmPanel';
 import { createAmendmentsController } from '../amendments/controller';
 import { createReconfirmController } from '../amendments/reconfirm';
 import { ProgressPanel } from '../execution/ProgressPanel';
+import { ReviewPanel } from '../review/ReviewPanel';
+import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
@@ -27,6 +29,7 @@ type Gateway = Pick<AgreementGateway,
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
+  review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
 };
 
 type AgentAskGateway = Pick<AgentGateway, 'switchAccessGrant'>;
@@ -270,6 +273,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
+          reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}

@@ -16,6 +16,7 @@ import { createMoneyAuthorityGateway } from './money-authority';
 import { createMoneySessionGateway } from './money-session';
 import { createPaymentIntentGateway } from './payment-intent';
 import { createPaymentReleaseGateway } from './payment-release';
+import { createAgreementReviewGateway } from './agreement-review';
 import { createMoneyOperationsGateway } from './money-operations';
 import { createCurrencyCapabilityGateway } from './currency-capability';
 import { createFxApplicationGateway } from './fx-application';
@@ -38,7 +39,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     circle: createCircleGateway(http),
     master: createMasterGateway(http), marketNetwork: createMarketNetworkGateway(http), referral: createReferralGateway(http), subscription: createSubscriptionGateway(http),
     settlementDestinations: createSettlementDestinationGateway(http), financialPartners: createFinancialPartnerGateway(http), moneyAuthority: createMoneyAuthorityGateway(http),
-    moneySession: createMoneySessionGateway(http), paymentIntent: createPaymentIntentGateway(http), paymentRelease: createPaymentReleaseGateway(http), moneyOperations: createMoneyOperationsGateway(http),
+    moneySession: createMoneySessionGateway(http), paymentIntent: createPaymentIntentGateway(http), paymentRelease: createPaymentReleaseGateway(http), agreementReview: createAgreementReviewGateway(http), moneyOperations: createMoneyOperationsGateway(http),
     currencyCapability: createCurrencyCapabilityGateway(http), fxApplication: createFxApplicationGateway(http),
     regulatedAccounts: createRegulatedAccountsGateway(http),
     businessCurrencyCapability: createBusinessCurrencyCapabilityGateway(http), businessFxApplication: createBusinessFxApplicationGateway(http),
