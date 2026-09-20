@@ -34,6 +34,8 @@ export interface WorkbenchItem {
   /** Candidate facts in this row that the person may explicitly "Use" (real adopt endpoint). */
   adopt: AdoptTarget[];
   spec: InstrumentSpec | null;
+  /** WHAT only: a real ITEM/SERVICE the person named can be looked for on SecurePay (a product, or someone to do it). */
+  find?: { kind: 'PRODUCT' | 'SERVICE'; what: string };
   /** WHO only: a named person with no KS Number understood yet. Candidate understanding, not a participant. */
   identityUnresolved?: boolean;
 }
@@ -115,6 +117,7 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     items.push({
       key: `what:${entity.id}`, section: 'what', value: entity.type === 'CONCEPT' && purpose ? purpose : entity.name, details: [], state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null,
+      find: entity.type === 'ITEM' || entity.type === 'SERVICE' ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name } : undefined,
     });
   }
 

@@ -1,6 +1,7 @@
 import { ArrowLeft, Store, MapPin, BadgeCheck } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
-import { OfferCard } from './OfferCard';
+import { ResultCard } from '../features/discovery/ui/ResultCard';
+import { resultFromStoreOffer } from '../features/discovery/result';
 
 interface StoreProfileViewProps {
   store: StoreIdentity;
@@ -50,7 +51,7 @@ export function StoreProfileView({ store, offers, onBack, onOpenOffer }: StorePr
         <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offers from this store</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {publishedOffers.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} onOpen={onOpenOffer} />
+            <ResultCard key={offer.id} offer={resultFromStoreOffer(offer)} onOpen={() => onOpenOffer(offer.id)} />
           ))}
         </div>
 

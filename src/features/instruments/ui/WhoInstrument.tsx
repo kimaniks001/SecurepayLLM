@@ -18,8 +18,8 @@ const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
  * formation path only recognises KS + 9 digits, so a number such as KS003 could never be attached. What
  * the person types there is kept, and nothing is sent.
  */
-export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBackToConversation }: {
-  spec: WhoSpec; draft: Extract<InstrumentDraft, { kind: 'who' }>; onChange: (draft: InstrumentDraft) => void; disabled: boolean; onSubmit: () => void; onBackToConversation: () => void;
+export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBackToConversation, onFind }: {
+  spec: WhoSpec; draft: Extract<InstrumentDraft, { kind: 'who' }>; onChange: (draft: InstrumentDraft) => void; disabled: boolean; onSubmit: () => void; onBackToConversation: () => void; onFind: () => void;
 }) {
   const [ksOpen, setKsOpen] = useState(draft.ks !== '');
   const parsed = parsePersonName(draft.name, spec.takenNames);
@@ -30,6 +30,11 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
   const typedKs = draft.ks.trim();
   const shape = typedKs ? ksShape(typedKs) : null;
   return <form onSubmit={event => { event.preventDefault(); onSubmit(); }} className="space-y-4">
+    {/* Two different paths, told apart at a glance: I KNOW the person (add them here) / I need to FIND someone (SecurePay's Store). */}
+    <div role="group" aria-label="How do you want to add them?" className="grid grid-cols-2 gap-2">
+      <button type="button" aria-pressed="true" className={`min-h-11 rounded-xl border border-forest-500 bg-forest-50 px-3 text-[0.88rem] font-medium text-forest-800 ${FOCUS}`}>I know who</button>
+      <button type="button" aria-pressed="false" onClick={onFind} disabled={disabled} className={`min-h-11 rounded-xl border border-cream-300 bg-white px-3 text-[0.88rem] text-sand-600 hover:border-forest-300 disabled:opacity-40 ${FOCUS}`}>Find on SecurePay</button>
+    </div>
     <Field label="Name" htmlFor="instrument-name" hint="Just a name — this doesn’t identify or invite anyone.">
       <input id="instrument-name" data-autofocus value={draft.name} onChange={event => onChange({ ...draft, name: event.target.value })} disabled={disabled}
         maxLength={31} autoComplete="off" autoCapitalize="words" placeholder="For example, John" aria-invalid={!!problem} aria-describedby="instrument-name-note" className={INPUT} />

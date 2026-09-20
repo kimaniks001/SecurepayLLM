@@ -259,7 +259,7 @@ test('G. No Store component/feature file references cart, checkout, or a payment
   const files = [
     'src/features/store/StoreExperience.tsx', 'src/features/store/controller.ts', 'src/features/store/view.ts',
     'src/components/StoreHome.tsx', 'src/components/StoreProfileView.tsx', 'src/components/OfferDetail.tsx',
-    'src/components/OfferCard.tsx', 'src/components/StoreManagementHome.tsx', 'src/components/OfferBuilderView.tsx',
+    'src/features/discovery/ui/ResultCard.tsx', 'src/components/StoreManagementHome.tsx', 'src/components/OfferBuilderView.tsx',
     'src/components/OfferToTradeHandoff.tsx', 'src/components/SecureLinkShareSheet.tsx',
     'src/api/securepay/store/index.ts', 'src/api/securepay/store/adapters.ts', 'src/api/securepay/store/dto.ts',
   ];
@@ -517,7 +517,9 @@ export const markup = [
   React.createElement(StoreManagementHome, { store: getStoreById('store-keyman'), offers: demoOffers.filter(o => o.storeId === 'store-keyman'), activity: demoStoreActivity, enquiries: demoEnquiries, onBack: noop, onCreateOffer: noop }),
   React.createElement(OfferToTradeHandoff, { offer: demoOffers[0], onBack: noop, onProceed: noop }),
 ].map(renderToStaticMarkup);`;
-  const touched = /src\/components\/(StoreHome|StoreManagementHome|OfferToTradeHandoff)\.tsx$/;
+  // UI Phase 2: StoreHome now renders the shared ResultCard (Bolt's OfferCard was retired), so it is no longer
+  // baselined against Bolt; it was already only field-checked below, never byte-compared.
+  const touched = /src\/components\/(StoreManagementHome|OfferToTradeHandoff)\.tsx$/;
   async function render(baseline) {
     const result = await build({
       stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic',

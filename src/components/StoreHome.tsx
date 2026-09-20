@@ -1,6 +1,7 @@
 import { Search, ShoppingBag, Store, Plus, MessageCircle } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
-import { OfferCard } from './OfferCard';
+import { ResultCard } from '../features/discovery/ui/ResultCard';
+import { resultFromStoreOffer } from '../features/discovery/result';
 
 interface StoreHomeProps {
   onOpenOffer: (id: string) => void;
@@ -30,7 +31,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1 className="font-display text-xl text-forest-800 font-medium">Store</h1>
-          <p className="text-[0.85rem] text-sand-500 mt-0.5">Discover offers from trusted businesses. Every offer can become your own agreement.</p>
+          <p className="text-[0.85rem] text-sand-500 mt-0.5">What sellers have published on SecurePay. Any offer can become the start of your own agreement.</p>
         </div>
 
         {/* Search */}
@@ -40,7 +41,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search offers, services, businesses..."
+            placeholder="Search by a word or a place…" aria-label="Search the Store"
             className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
           />
         </div>
@@ -81,7 +82,8 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             </div>
           ) : offers.length === 0 ? (
             <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
-              <p className="text-[0.875rem] text-sand-600">No offers found for "{query}".</p>
+              <p role="status" className="text-[0.9rem] leading-relaxed text-sand-700">{query.trim() ? `Nothing matching “${query.trim()}” is published on SecurePay yet.` : 'Nothing is published on SecurePay right now.'}</p>
+              {query.trim() && <p className="mt-1 text-[0.78rem] text-sand-500">Search looks for these words in an offer’s title or description, or in the seller’s place. One plain word works best.</p>}
               <button onClick={onStartConversation} className="mt-2 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700">
                 Tell SecurePay what you need
               </button>
@@ -89,7 +91,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {offers.map((offer: StoreOffer) => (
-                <OfferCard key={offer.id} offer={offer} onOpen={onOpenOffer} />
+                <ResultCard key={offer.id} offer={resultFromStoreOffer(offer)} onOpen={() => onOpenOffer(offer.id)} />
               ))}
             </div>
           )}

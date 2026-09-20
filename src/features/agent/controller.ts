@@ -40,6 +40,19 @@ export function errorText(error: unknown): string {
   }
   return 'SecurePay could not complete this step. Please try again.';
 }
+/**
+ * Why linking a chosen Store listing to the conversation did not work -- in terms of the LISTING, not a chat
+ * turn. Selecting a source is an idempotent replace on the backend, so trying again is always safe.
+ */
+export function sourceErrorText(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 404) return 'That listing may have been unpublished or removed, so SecurePay couldn’t find it.';
+    if (error.status === 401 || error.status === 403) return 'SecurePay couldn’t allow this just now.';
+    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay couldn’t reach the Store just now. Trying again is safe.';
+    return error.message;
+  }
+  return 'SecurePay couldn’t link this listing just now. Trying again is safe.';
+}
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
 export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource'>, id = () => crypto.randomUUID()) {
   let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null };
@@ -202,7 +215,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
         });
         update({ source: selection });
       } catch (error) {
-        update({ offerSelectionFailure: { fact, error: errorText(error) } });
+        update({ offerSelectionFailure: { fact, error: sourceErrorText(error) } });
         return;
       }
     }

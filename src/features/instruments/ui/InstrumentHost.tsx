@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { specKey, type InstrumentController } from '../controller';
 import { canonicalRole } from '../../../api/securepay/agent/roles';
 import { formatMoney, FORMATION_CURRENCY, parseAmount, parsePersonName, parsePlace, sameAmount, statementFor, type InstrumentDraft, type InstrumentSpec } from '../model';
 import { FOCUS, PrimaryButton, QuietButton } from './atoms';
-import { useIsDesktop, useKeyboardInset } from './hooks';
+import { SurfaceMount, SurfaceShell } from './SurfaceShell';
+import { useReturnFocus, useSheetEscape, useSurfaceKeys } from './surfaceHooks';
 import { WhoInstrument } from './WhoInstrument';
 import { CalendarInstrument } from './CalendarInstrument';
 import { MoneyInstrument } from './MoneyInstrument';
@@ -37,44 +37,28 @@ function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: stri
  * returned to whatever invoked it. Desktop: an anchored panel in the UNDERSTOOD column (the
  * conversation stays fully visible beside it). Mobile: a bottom sheet that rides above the keyboard.
  */
-export function InstrumentHost({ controller, agentBusy, agentUncertain, onBackToConversation, panelSlot }: {
+export function InstrumentHost({ controller, agentBusy, agentUncertain, onBackToConversation, onFind, panelSlot }: {
   controller: InstrumentController; agentBusy: boolean;
   /** An earlier step's delivery is unresolved (it may or may not have been applied): nothing different is sent over it. */
-  agentUncertain: boolean; onBackToConversation: () => void;
+  agentUncertain: boolean; onBackToConversation: () => void; onFind: () => void;
   /** Desktop: where the anchored panel is portalled (top of the UNDERSTOOD column). */
   panelSlot: HTMLElement | null;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const desktop = useIsDesktop();
-  const returnFocus = useRef<HTMLElement | null>(null);
-  const wasActive = useRef(false);
   const active = state.active;
-
   // Remember what invoked the instrument (before focus moves into it) and hand focus back on close.
-  useLayoutEffect(() => {
-    if (active && !wasActive.current) returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (!active && wasActive.current) {
-      const target = returnFocus.current;
-      returnFocus.current = null;
-      if (target && document.contains(target) && !target.hasAttribute('disabled')) target.focus();
-    }
-    wasActive.current = !!active;
-  }, [active]);
-
+  useReturnFocus(!!active);
   if (!active || !state.draft) return null;
-  const surface = <Surface key={specKey(active)} controller={controller} state={state} agentBusy={agentBusy} agentUncertain={agentUncertain} onBackToConversation={onBackToConversation} variant={desktop ? 'panel' : 'sheet'} />;
-  if (!desktop) return surface;
-  return panelSlot ? createPortal(surface, panelSlot) : null;
+  return <SurfaceMount panelSlot={panelSlot}>{variant => <Surface key={specKey(active)} controller={controller} state={state} agentBusy={agentBusy} agentUncertain={agentUncertain} onBackToConversation={onBackToConversation} onFind={onFind} variant={variant} />}</SurfaceMount>;
 }
 
-function Surface({ controller, state, agentBusy, agentUncertain, onBackToConversation, variant }: {
+function Surface({ controller, state, agentBusy, agentUncertain, onBackToConversation, onFind, variant }: {
   controller: InstrumentController; state: ReturnType<InstrumentController['getSnapshot']>; agentBusy: boolean; agentUncertain: boolean;
-  onBackToConversation: () => void; variant: 'panel' | 'sheet';
+  onBackToConversation: () => void; onFind: () => void; variant: 'panel' | 'sheet';
 }) {
   const spec = state.active!; const draft = state.draft!;
   const root = useRef<HTMLDivElement>(null);
-  const keyboardInset = useKeyboardInset(variant === 'sheet');
-  const sending = state.phase === 'sending';
+    const sending = state.phase === 'sending';
   // After a failed delivery the earlier statement may already be applied, so the choice is frozen: Retry (same turn) or Close.
   const locked = sending || state.phase === 'failed';
   const blocked = agentBusy || agentUncertain;
@@ -88,21 +72,14 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
     el?.focus({ preventScroll: variant === 'panel' });
   }, [variant, state.openCount]);
 
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') { event.stopPropagation(); if (!sending) controller.cancel(); return; }
-    if (variant === 'sheet' && event.key === 'Tab' && root.current) {
-      const focusables = [...root.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex="0"]')].filter(el => el.tabIndex >= 0);
-      if (focusables.length === 0) return;
-      const first = focusables[0]; const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    }
-  };
+  const escape = () => { if (!sending) controller.cancel(); };
+  const onKeyDown = useSurfaceKeys(root, variant, escape);
+  useSheetEscape(variant, escape);
   const setDraft = (next: InstrumentDraft) => controller.setDraft(next);
   const submit = () => { if (primary.ready && !blocked && state.phase !== 'failed') void controller.submit(); };
 
   let body: ReactNode = null;
-  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} />;
+  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} onFind={onFind} />;
   else if (spec.kind === 'when' && draft.kind === 'when') body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
   else if (spec.kind === 'money' && draft.kind === 'money') body = <MoneyInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
   else if (spec.kind === 'where' && draft.kind === 'where') body = <WhereInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
@@ -133,16 +110,5 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
     </div>
   </>;
 
-  if (variant === 'panel') {
-    return <div ref={root} role="region" aria-labelledby="instrument-title" onKeyDown={onKeyDown}
-      className="rounded-2xl border border-forest-200 bg-white shadow-lifted animate-fade-in-up">{content}</div>;
-  }
-  return <div className="fixed inset-0 z-40">
-    <div aria-hidden="true" className="absolute inset-0 bg-forest-900/30 animate-fade-in" onClick={() => { if (!sending) controller.cancel(); }} />
-    <div ref={root} role="dialog" aria-modal="true" aria-labelledby="instrument-title" onKeyDown={onKeyDown}
-      style={{ bottom: keyboardInset }} className="absolute inset-x-0 max-h-[88dvh] overflow-y-auto overscroll-contain rounded-t-3xl bg-white shadow-lifted animate-fade-in-up pb-[env(safe-area-inset-bottom)]">
-      <div aria-hidden="true" className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-cream-400" />
-      {content}
-    </div>
-  </div>;
+  return <SurfaceShell variant={variant} titleId="instrument-title" root={root} onKeyDown={onKeyDown} onBackdrop={() => { if (!sending) controller.cancel(); }}>{content}</SurfaceShell>;
 }

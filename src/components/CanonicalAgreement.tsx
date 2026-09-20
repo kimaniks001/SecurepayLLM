@@ -1,6 +1,7 @@
 import { FileText, AlertCircle, AlertTriangle } from 'lucide-react';
 import type { CanonicalAgreementResponse } from '../types';
 import { ChoiceButtons } from './ChoiceButtons';
+import { SourceReference } from '../features/discovery/ui/SourceReference';
 
 interface CanonicalAgreementCardProps {
   data: CanonicalAgreementResponse;
@@ -65,11 +66,10 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
               is NOT: an accepted offer, Agreement authority, participant authority, or payment
               authority. */}
           {data.source && (
-            <Section label="Started from">
-              <div className="text-[0.875rem] text-forest-800">{data.source.title}{data.source.ownerKsNumber ? ` · ${data.source.ownerKsNumber}` : ''}</div>
-              <div className="text-[0.78rem] text-sand-500">Proposed price: {data.source.priceLine}</div>
-              <div className={`mt-1 text-[0.7rem] font-medium uppercase tracking-wide ${data.source.status === 'CURRENT' ? 'text-forest-600' : 'text-ember-600'}`}>Source status: {data.source.statusLabel}</div>
-            </Section>
+            <SourceReference source={{
+              title: data.source.title, ownerKs: data.source.ownerKsNumber, capturedPriceMinor: data.source.capturedPriceMinor ?? null, capturedCurrency: data.source.capturedCurrency ?? null,
+              status: data.source.status, current: data.source.current ?? null, capturedAvailability: data.source.capturedAvailability ?? null,
+            }} />
           )}
 
           {data.materials && (

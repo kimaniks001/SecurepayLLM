@@ -178,7 +178,7 @@ test('PROVIDER_RESULTS/PRICE_CONTEXT component data parses into the DISCOVERY sh
 
   const priceContext = api.agentComponentView({
     type: 'PRICE_CONTEXT',
-    data: { category: 'roofing sheets', location: 'Nyeri', lowMinor: 50000, highMinor: 90000, currency: 'KES', sampleSize: 4 },
+    data: { category: 'roofing sheets', location: 'Nyeri', unit: 'listing', lowMinor: 50000, highMinor: 90000, medianMinor: 70000, currency: 'KES', sampleSize: 4, sourceType: 'LIVE_LISTINGS', asOf: '2026-09-20T08:00:00Z' },
   });
   assert.equal(priceContext.type, 'DISCOVERY');
   assert.equal(priceContext.title, 'Price context');
