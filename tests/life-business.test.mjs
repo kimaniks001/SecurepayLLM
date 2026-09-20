@@ -379,15 +379,13 @@ test('L2. A successful password reset does not retain the new password, confirm 
   controller.setNewPassword('NewPass123!');
   controller.setConfirmPassword('NewPass123!');
   await controller.resetPassword();
-  assert.equal(controller.getSnapshot().step, 'done');
-  // The success screen's own "Go to sign in" action calls reset() before navigating away (see
-  // AgentExperience.tsx) -- confirm that reset from the 'done' step also clears everything.
-  controller.reset();
   const cleared = controller.getSnapshot();
+  assert.equal(cleared.step, 'done');
   assert.equal(cleared.newPassword, '');
   assert.equal(cleared.confirmPassword, '');
   assert.equal(cleared.otpCode, '');
   assert.equal(cleared.recoveryToken, null);
+  assert.equal(cleared.verified, false, 'verification state must be cleared once the reset has succeeded');
 });
 
 test('L3. AgentExperience clears Recovery state unconditionally on every navigation, not only when explicitly entering Recovery -- so leaving mid-flow also clears it', async () => {
