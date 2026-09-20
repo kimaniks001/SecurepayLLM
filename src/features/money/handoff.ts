@@ -8,6 +8,8 @@ export interface MoneyHandoff {
   title: string;
   /** Display label only ("version 2"); never used as authority. */
   versionLabel: string | null;
+  /** The version id the source screen was showing. In memory only; used solely to decide whether `versionLabel` is still true after Money re-reads. */
+  currentVersionId: string | null;
 }
 
 let pending: MoneyHandoff | null = null;
@@ -27,4 +29,18 @@ export function contextLine(handoff: Pick<MoneyHandoff, 'title' | 'versionLabel'
 export function openMoneyFor(handoff: MoneyHandoff): void {
   setMoneyHandoff(handoff);
   if (typeof window !== 'undefined') window.location.hash = '#/money';
+}
+
+export const HANDOFF_CHANGED_NOTICE = 'The Agreement changed after you opened Money. Money is showing the latest financial information SecurePay can read.';
+
+/**
+ * After Money re-reads the Agreement summary: the handoff's version label is shown ONLY if the source screen's version id equals the fresh
+ * current version id. Otherwise the fresh title is used, the old label is dropped and a calm notice is returned. If either side can't
+ * establish a version, the label is not guessed at either.
+ */
+export function resolveHandoffContext(handoff: MoneyHandoff, fresh: { title: string; currentAgreementVersionId: string | null | undefined }): { context: string; notice: string | null } {
+  const sameVersion = !!handoff.currentVersionId && !!fresh.currentAgreementVersionId && handoff.currentVersionId === fresh.currentAgreementVersionId;
+  if (sameVersion) return { context: contextLine(handoff), notice: null };
+  const changed = !!handoff.currentVersionId && !!fresh.currentAgreementVersionId;
+  return { context: fresh.title, notice: changed ? HANDOFF_CHANGED_NOTICE : null };
 }

@@ -7,7 +7,7 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import { Button } from '../../components/dna/Button';
 import { MoneyValue } from '../../components/dna/MoneyValue';
 import { moneyText, parseMinorUnits, AMOUNT_PROBLEM } from './amount';
-import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY } from './attempt';
+import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 
 function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
@@ -53,7 +53,9 @@ export function FxConversionSection({ regulatedAccountsGateway, fxApplicationGat
     // One logical conversion = one key + one exact request: a retry after an uncertain outcome re-sends the SAME request.
     const request = { sourceAccountMappingId: sourceId, targetAccountMappingId: targetId, operation, amountMinor: parsed.minor };
     try {
-      setResult(await fxApplicationGateway.create(request, attempts.keyFor(JSON.stringify(request))));
+      const attempt = attempts.keyFor(JSON.stringify(request));
+      if (!attempt.ok) { setError(UNRESOLVED_ATTEMPT); setLoading(false); return; }
+      setResult(await fxApplicationGateway.create(request, attempt.key));
       attempts.settle(); setUncertain(false);
     } catch (cause) {
       if (isUncertainFinancialError(cause)) { setUncertain(true); setError(`${UNCERTAIN_MONEY} Trying again sends the same request, so it can’t be recorded twice.`); }
@@ -90,8 +92,8 @@ export function FxConversionSection({ regulatedAccountsGateway, fxApplicationGat
               </select>
             </div>
             <div className="flex gap-2 text-xs">
-              <button onClick={() => setOperation('SELL')} className={`rounded-full px-3 py-1 ${operation === 'SELL' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Sell</button>
-              <button onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
+              <button disabled={uncertain} onClick={() => setOperation('SELL')} className={`rounded-full px-3 py-1 ${operation === 'SELL' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Sell</button>
+              <button disabled={uncertain} onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
             </div>
             <input value={amount} disabled={uncertain} onChange={e => setAmount(e.target.value)} placeholder="Amount" inputMode="decimal" autoComplete="off" aria-label="Amount" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
             {/* Phase 3 Money World (Section 18), corrected by the deep-review pass: FxApplicationResponse

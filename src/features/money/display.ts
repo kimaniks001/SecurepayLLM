@@ -97,3 +97,16 @@ const PHASE: Readonly<Record<string, string>> = {
   COMPENSATED: 'This release was reversed and compensated.',
 };
 export const settlementPhaseWords = (phase: string) => PHASE[phase] ?? 'SecurePay returned a settlement status this screen can’t describe yet.';
+
+// ---- Release instruction version scope. A release instruction is immutable and bound to the Agreement version it was created for; the
+// instruction list is Agreement-WIDE history. Never guess: if the current version can't be established the instruction is neutral history.
+export type InstructionScope = 'current' | 'earlier' | 'unknown';
+export function instructionScope(instructionVersion: string | null | undefined, currentVersionId: string | null | undefined): InstructionScope {
+  if (!currentVersionId || !instructionVersion) return 'unknown';
+  return instructionVersion === currentVersionId ? 'current' : 'earlier';
+}
+export const INSTRUCTION_SCOPE_WORDS: Readonly<Record<InstructionScope, string>> = {
+  current: 'Current Agreement version',
+  earlier: 'Earlier Agreement version',
+  unknown: 'Release history',
+};

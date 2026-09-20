@@ -33,10 +33,10 @@ import type { BusinessFxApplicationGateway } from '../../api/securepay/business-
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { PaymentReadyPanel, FundingPanel, ActivityPanel, ReleasePanel } from './AgreementMoneyPanels';
-import { peekMoneyHandoff, clearMoneyHandoff, contextLine, type MoneyHandoff } from './handoff';
+import { peekMoneyHandoff, clearMoneyHandoff, resolveHandoffContext, type MoneyHandoff } from './handoff';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
-import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY } from './attempt';
+import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
 import { FxConversionSection } from './FxConversionSection';
@@ -305,6 +305,9 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
   const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
   const [context, setContext] = useState<string | null>(null);
+  const [contextNotice, setContextNotice] = useState<string | null>(null);
+  // The current version id from a FRESH read at selection time (never from the cached picker list). null = couldn't be established.
+  const [freshVersionId, setFreshVersionId] = useState<string | null>(null);
   const [positions, setPositions] = useState<AgreementFundedAuthorityStatusResponse[] | null>(null);
   const [positionsUnknown, setPositionsUnknown] = useState(false);
   const [selectedObligationId, setSelectedObligationId] = useState<string | null>(null);
@@ -328,7 +331,15 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
     catch { setPositions(null); setPositionsUnknown(true); return null; }
   };
 
-  const selectAgreement = async (agreement: CurrentUserAgreementSummaryResponse, label?: string | null) => {
+  const selectAgreement = async (picked: CurrentUserAgreementSummaryResponse, label?: string | null) => {
+    // The picker list can be stale (an amendment may have made a newer version current). Re-read the summary now; if that fails the current
+    // version is simply not established, and version-dependent labels fall back to neutral wording rather than guessing.
+    let agreement = picked;
+    setFreshVersionId(null);
+    try {
+      const fresh = (await agreementGateway.currentUserAgreements()).items.find(a => a.agreementId === picked.agreementId);
+      if (fresh) { agreement = fresh; setFreshVersionId(fresh.currentAgreementVersionId ?? null); }
+    } catch { /* version stays unestablished */ }
     setSelectedAgreement(agreement);
     setContext(label ?? agreement.title);
     setPositions(null); setSelectedObligationId(null); setHistory(null); setHistoryUnknown(false);
@@ -351,7 +362,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
       const items = await loadAgreements();
       if (!live || !items) return;
       const match = items.find(a => a.agreementId === handoff.agreementId);
-      if (match) await selectAgreement(match, contextLine(handoff));
+      if (match) { const resolved = resolveHandoffContext(handoff, { title: match.title, currentAgreementVersionId: match.currentAgreementVersionId }); setContextNotice(resolved.notice); await selectAgreement(match, resolved.context); }
       else setError('SecurePay couldn’t find that Agreement among the ones you can see. Choose one below.');
     })();
     return () => { live = false; };
@@ -389,11 +400,12 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
       ) : (
         <div className="space-y-3">
           <Button variant="ghost" onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); setContext(null); if (!agreements) void loadAgreements(); }} className="text-xs">← Choose a different Agreement</Button>
+          {contextNotice && <StatusNotice tone="warning">{contextNotice}</StatusNotice>}
           <div className="text-sm text-forest-800 font-medium" data-testid="money-context">{context ?? selectedAgreement.title} <span className="text-xs text-sand-500">({selectedAgreement.currency})</span></div>
 
           <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />
 
-          <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} agreedAmountMinor={selectedAgreement.proposedAmountMinor} agreementCurrency={selectedAgreement.currency} />
+          <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.proposedAmountMinor} agreementCurrency={selectedAgreement.currency} />
           <FundingPanel gateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
 
           <div className="space-y-2">
@@ -433,7 +445,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
           </div>
 
           <ActivityPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} />
-          <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} />
+          <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} currentVersionId={freshVersionId} />
         </div>
       )}
     </SectionCard>
@@ -445,7 +457,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
  * Ready to progress (remainingFundedMinor), Progressed (exercisedOrSettledMinor), Returned to funder(s) (releasedTotalMinor). "Returned" is not a
  * settlement; "Progressed" is never "Settled" while providerSettlementCertified is false. Payment Release is a separate lifecycle (see ReleasePanel).
  */
-function AgreementMoneyPositionCard({ position, loading, onRefresh, history, historyUnknown, onLoadHistory }: {
+export function AgreementMoneyPositionCard({ position, loading, onRefresh, history, historyUnknown, onLoadHistory }: {
   position: AgreementFundedAuthorityStatusResponse;
   loading: boolean;
   onRefresh: () => void;
@@ -490,8 +502,10 @@ function AgreementMoneyPositionCard({ position, loading, onRefresh, history, his
           {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
         </div>
         <div className="text-xs text-sand-600">
-          <MoneyValue amount={money(progressed, currency)} size="sm" /> {position.providerSettlementCertified ? 'Progressed and certified as settled by the provider' : 'Progressed within SecurePay'}
-          {!position.providerSettlementCertified && <span className="block text-sand-500">The provider hasn’t certified settlement, so this is not shown as settled.</span>}
+          <MoneyValue amount={money(progressed, currency)} size="sm" /> Progressed within SecurePay
+          {/* providerSettlementCertified is a certification/capability gate (isInternalTransferCertified), NOT proof that this progressed amount was settled
+              by a provider or bank. It is deliberately never turned into settlement language for the amount. */}
+          <span className="block text-sand-500">SecurePay doesn’t show a bank or provider settlement for this progressed amount here.</span>
         </div>
         <div className="text-xs text-sand-600"><MoneyValue amount={money(returned, currency)} size="sm" /> Returned to the funder(s)<span className="block text-sand-500">Returning unused money is not a settlement.</span></div>
         <div className="text-xs text-sand-500">{position.closed ? 'Closed' : 'Open'}</div>
@@ -557,8 +571,11 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
     const request = { destinationType: 'PRIMARY_SETTLEMENT' as const, currency: currency.toUpperCase(), accountKind, bankCode: accountKind === 'BANK' ? bankCode : null, accountNumber, beneficiaryName };
     const signature = `${mode}:${JSON.stringify(request)}`;
     try {
-      if (mode === 'register') setCurrent(await gateway.register(request, attempts.main.keyFor(signature)));
-      else await gateway.replace(request, attempts.main.keyFor(signature), attempts.verification.keyFor(signature));
+      const main = attempts.main.keyFor(signature);
+      const verify = attempts.verification.keyFor(signature);
+      if (!main.ok || !verify.ok) { setError(UNRESOLVED_ATTEMPT); setLoading(false); return; }
+      if (mode === 'register') setCurrent(await gateway.register(request, main.key));
+      else await gateway.replace(request, main.key, verify.key);
       attempts.main.settle(); attempts.verification.settle(); setUncertain(false);
       setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode(''); setCurrency('');
       await load();
@@ -571,7 +588,7 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   return (
     <SectionCard title="Where your money goes" description="The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
       {error && <ErrorBanner message={error} />}
-      <Button variant="secondary" onClick={() => void load()} disabled={loading}>Show my settlement destination</Button>
+      <Button variant="secondary" onClick={() => void load()} disabled={loading || uncertain}>Show my settlement destination</Button>
       {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet.</p>}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
@@ -592,20 +609,22 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
       ) : (
         <div className="space-y-2 rounded-xl border border-cream-200 p-3">
           <div className="flex gap-2 text-xs">
-            <button onClick={() => setAccountKind('BANK')} className={`rounded-full px-3 py-1 ${accountKind === 'BANK' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Bank</button>
-            <button onClick={() => setAccountKind('MOBILE_MONEY')} className={`rounded-full px-3 py-1 ${accountKind === 'MOBILE_MONEY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Mobile money</button>
+            <button disabled={uncertain} onClick={() => setAccountKind('BANK')} className={`rounded-full px-3 py-1 ${accountKind === 'BANK' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Bank</button>
+            <button disabled={uncertain} onClick={() => setAccountKind('MOBILE_MONEY')} className={`rounded-full px-3 py-1 ${accountKind === 'MOBILE_MONEY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Mobile money</button>
           </div>
           {accountKind === 'BANK' && (
-            <input value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+            <input disabled={uncertain} value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           )}
-          <input value={currency} onChange={e => setCurrency(e.target.value)} placeholder="Currency (for example KES)" maxLength={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-          <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-          <input value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input disabled={uncertain} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="Currency (for example KES)" maxLength={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input disabled={uncertain} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input disabled={uncertain} value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
             <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName || !/^[A-Za-z]{3}$/.test(currency)}>
               {uncertain ? 'Try the same request again' : current ? 'Replace' : 'Register'}
             </Button>
-            <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            {uncertain
+              ? <p className="text-xs text-sand-600 self-center">This request is kept exactly as sent until SecurePay confirms the outcome.</p>
+              : <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>}
           </div>
         </div>
       )}

@@ -260,7 +260,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           viewedVersion={state.selectedStatus === 'change_requested' ? 'a previous version' : undefined}
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}
           onRaiseIssue={undefined}
-          onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null })}
+          onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
@@ -270,7 +270,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
-          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null })} />}
+          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
           peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}
@@ -285,7 +285,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
       <MoneyDoorway
         title={context?.overview.title ?? 'This Agreement'}
         versionLabel={context?.currentVersion ? `version ${context.currentVersion.versionNumber}` : null}
-        onOpen={() => openMoneyFor({ agreementId: state.selectedAgreementId ?? '', title: context?.overview.title ?? 'This Agreement', versionLabel: context?.currentVersion ? `version ${context.currentVersion.versionNumber}` : null })}
+        onOpen={() => openMoneyFor({ agreementId: state.selectedAgreementId ?? '', title: context?.overview.title ?? 'This Agreement', versionLabel: context?.currentVersion ? `version ${context.currentVersion.versionNumber}` : null, currentVersionId: context?.currentVersion?.versionId ?? null })}
         onBack={() => controller.backFromMoney()}
         canOpen={!!state.selectedAgreementId}
       />

@@ -10,7 +10,7 @@ import type { AgreementMoneyStatusResponse, AgreementMoneyRecordResponse } from 
 import type { AgreementFundingAuthorityResponse, AgreementFundingOptionResponse, AgreementPaymentIntentSummaryResponse } from '../../api/securepay/payment-intent/dto';
 import type { ReleaseAuthorityResponse, ReleaseInstructionResponse } from '../../api/securepay/payment-release';
 import { moneyText, minorFromString } from './amount';
-import { fundingReasonWords, intentWords, IN_FLIGHT_INTENT, paymentReadyFacts, reasonWords, recordWords, releaseReasonWords, settlementPhaseWords } from './display';
+import { INSTRUCTION_SCOPE_WORDS, instructionScope, fundingReasonWords, intentWords, IN_FLIGHT_INTENT, paymentReadyFacts, reasonWords, recordWords, releaseReasonWords, settlementPhaseWords } from './display';
 
 /** Every panel reads independently and says so when it can't: an unread thing is UNKNOWN, never zero, none or pending. */
 type Read<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
@@ -44,12 +44,13 @@ const Loading = ({ text }: { text: string }) => <p role="status" className="text
 
 /**
  * Amount authority (each figure has ONE source and is never mixed):
- *  - "Agreed amount"  = the Agreement row's proposedAmountMinor (what the parties proposed);
+ *  - "Agreement summary amount" = the Agreement summary row's proposedAmountMinor. It is a read-model value, NOT proven to be the current canonical
+ *    version amount (an externally applied amendment can leave the row behind), so it is never called "agreed" or "current";
  *  - "Evaluated for Payment Ready" = money-status.evaluatedAmountMinor (what SecurePay evaluated readiness against).
  * If both are present in the same currency and differ, that is SURFACED, not reconciled here.
  */
-export function PaymentReadyPanel({ gateway, agreementId, agreedAmountMinor, agreementCurrency }: {
-  gateway: MoneyGateway; agreementId: string; agreedAmountMinor: string | null; agreementCurrency: string;
+export function PaymentReadyPanel({ gateway, agreementId, summaryAmountMinor, agreementCurrency }: {
+  gateway: MoneyGateway; agreementId: string; summaryAmountMinor: string | null; agreementCurrency: string;
 }) {
   const [state, refresh] = useRead<AgreementMoneyStatusResponse>(() => gateway.status(agreementId), agreementId);
   return (
@@ -59,8 +60,8 @@ export function PaymentReadyPanel({ gateway, agreementId, agreedAmountMinor, agr
       {state.status === 'ready' && (() => {
         const s = state.data;
         const facts = paymentReadyFacts(s.paymentReadyStatus, s.paymentReady);
-        const agreed = minorFromString(agreedAmountMinor);
-        const mismatch = agreed !== null && s.evaluatedCurrency === agreementCurrency && String(s.evaluatedAmountMinor) !== String(agreed);
+        const summary = minorFromString(summaryAmountMinor);
+        const mismatch = summary !== null && s.evaluatedCurrency === agreementCurrency && String(s.evaluatedAmountMinor) !== String(summary);
         return (
           <div className="space-y-2 text-sm text-sand-700">
             <p className="font-medium text-forest-800">{facts.headline}</p>
@@ -69,10 +70,10 @@ export function PaymentReadyPanel({ gateway, agreementId, agreedAmountMinor, agr
               <ul className="list-disc pl-5 space-y-1">{s.outstandingReasons.map((r, i) => <li key={`${r.gateCode}-${r.reasonCode}-${i}`}>{reasonWords(r.reasonCode)}</li>)}</ul>
             )}
             <dl className="text-xs text-sand-600 space-y-0.5">
-              {agreedAmountMinor !== null && <div>Agreed amount: <MoneyValue amount={moneyText(agreed, agreementCurrency)} size="sm" /></div>}
+              {summaryAmountMinor !== null && <div>Agreement summary amount: <MoneyValue amount={moneyText(summary, agreementCurrency)} size="sm" /></div>}
               <div>Evaluated for Payment Ready: <MoneyValue amount={moneyText(s.evaluatedAmountMinor, s.evaluatedCurrency)} size="sm" /></div>
             </dl>
-            {mismatch && <Unknown text="The agreed amount and the amount SecurePay evaluated for Payment Ready are different. SecurePay’s evaluation is the one that counts for readiness; nothing has been changed." />}
+            {mismatch && <Unknown text="The Agreement summary amount and the amount SecurePay evaluated for Payment Ready are different. SecurePay is using the evaluated amount for this readiness result. This screen does not reconcile the two." />}
           </div>
         );
       })()}
@@ -141,11 +142,14 @@ export function ActivityPanel({ gateway, agreementId }: { gateway: MoneyGateway;
   );
 }
 
-function SettlementRow({ gateway, agreementId, instruction }: { gateway: PaymentReleaseGateway; agreementId: string; instruction: ReleaseInstructionResponse }) {
+export function SettlementRow({ gateway, agreementId, instruction, currentVersionId }: { gateway: PaymentReleaseGateway; agreementId: string; instruction: ReleaseInstructionResponse; currentVersionId: string | null | undefined }) {
+  const scope = instructionScope(instruction.agreementVersion, currentVersionId);
   const [state, refresh] = useRead<ReleaseSettlementStatusResponse>(() => gateway.settlementStatus(agreementId, instruction.instructionId), instruction.instructionId);
   return (
-    <li className="rounded-xl border border-cream-200 p-3 text-sm text-sand-700 space-y-1">
+    <li className={`rounded-xl border p-3 text-sm text-sand-700 space-y-1 ${scope === 'current' ? 'border-forest-200' : 'border-cream-200 bg-cream-50'}`} data-scope={scope}>
+      <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">{INSTRUCTION_SCOPE_WORDS[scope]}</div>
       <div className="font-medium text-forest-800">Release instruction {instruction.sequence}</div>
+      {scope === 'earlier' && <div className="text-xs text-sand-600">Created for an earlier version of this Agreement. It is history, not the current release state.</div>}
       {instruction.settlementDestinationMaskedDisplay && <div className="text-xs text-sand-600">To {instruction.settlementDestinationMaskedDisplay}</div>}
       {state.status === 'loading' && <Loading text="Checking settlement status…" />}
       {state.status === 'error' && <Unknown text="Settlement status couldn’t be confirmed. Nothing is assumed either way." />}
@@ -160,19 +164,20 @@ function SettlementRow({ gateway, agreementId, instruction }: { gateway: Payment
   );
 }
 
-export function ReleasePanel({ gateway, agreementId }: { gateway: PaymentReleaseGateway; agreementId: string }) {
+export function ReleasePanel({ gateway, agreementId, currentVersionId }: { gateway: PaymentReleaseGateway; agreementId: string; currentVersionId: string | null | undefined }) {
   const [authority, refreshAuthority] = useRead<ReleaseAuthorityResponse>(() => gateway.releaseAuthority(agreementId), agreementId);
   const [instructions, refreshInstructions] = useRead<ReleaseInstructionResponse[]>(() => gateway.instructions(agreementId), agreementId);
   return (
     <Panel title="Release and settlement" description="Releasing money to a recipient is a different lifecycle from funding. An instruction is not reserved, sent or settled." onRefresh={() => { refreshAuthority(); refreshInstructions(); }}>
       {authority.status === 'loading' && <Loading text="Checking release authority…" />}
       {authority.status === 'error' && <Unknown text="Release authority couldn’t be loaded. That doesn’t mean release is allowed or blocked." />}
-      {authority.status === 'ready' && <p className="text-sm text-sand-700">{releaseReasonWords(authority.data.reasonCode)}</p>}
+      {authority.status === 'ready' && <div><p className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Current release authority</p><p className="text-sm text-sand-700">{releaseReasonWords(authority.data.reasonCode)}</p></div>}
+      {instructions.status === 'ready' && instructions.data.length > 0 && <p className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Release instructions on record (all versions)</p>}
       {instructions.status === 'loading' && <Loading text="Loading release instructions…" />}
       {instructions.status === 'error' && <Unknown text="Release instructions couldn’t be loaded." />}
       {instructions.status === 'ready' && (instructions.data.length === 0
         ? <p className="text-sm text-sand-600">SecurePay shows no release instruction for this Agreement.</p>
-        : <ul className="space-y-2">{instructions.data.map(i => <SettlementRow key={i.instructionId} gateway={gateway} agreementId={agreementId} instruction={i} />)}</ul>)}
+        : <ul className="space-y-2">{instructions.data.map(i => <SettlementRow key={i.instructionId} gateway={gateway} agreementId={agreementId} instruction={i} currentVersionId={currentVersionId} />)}</ul>)}
       <p className="text-xs text-sand-500">Requesting, reserving or executing a release from here is temporarily unavailable until SecurePay can show that it is safely bound to the current Agreement version.</p>
     </Panel>
   );

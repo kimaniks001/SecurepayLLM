@@ -118,7 +118,7 @@ test('Section 6: progressed money is never labelled as a Settled status, only ev
   // shown as a status -- never as a literal customer-facing status label like "Status: Settled".
   assert.doesNotMatch(experience, /Status:\s*['"`{]*\s*Settled/i);
   assert.match(experience, /providerSettlementCertified/);
-  assert.match(experience, /hasn’t certified settlement, so this is not shown as settled/);
+  assert.match(experience, /doesn’t show a bank or provider settlement for this progressed amount/);
 });
 
 test('Section 1: the UI supports more than one Agreement Money position per Agreement', () => {

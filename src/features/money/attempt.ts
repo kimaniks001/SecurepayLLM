@@ -5,18 +5,21 @@ export const isUncertainFinancialError = (error: unknown) => error instanceof Ap
 export const UNCERTAIN_MONEY = 'SecurePay is not yet sure whether that request was recorded.';
 
 /**
- * One LOGICAL financial command = one idempotency key + one exact request. A retry of an unresolved attempt re-sends the SAME key and the
- * SAME request; a genuinely new request (different signature) gets a fresh key only once the previous attempt is settled. The key lives in
- * memory only.
+ * One LOGICAL financial command = one idempotency key + one exact request. The invariant lives HERE, below every UI:
+ * while an attempt is unresolved (a key was issued and `settle()` has not been called), `keyFor` returns that attempt's key ONLY for the
+ * identical signature. A different signature is REFUSED -- it never replaces the pending attempt and never receives another key.
+ * Only `settle()` (a definite outcome: success or a definite rejection) releases the attempt. The key lives in memory only.
  */
+export type AttemptKey = { ok: true; key: string } | { ok: false; reason: 'different-request-while-unresolved' };
+export const UNRESOLVED_ATTEMPT = 'An earlier request is still unresolved. Try that exact request again before making a different one.';
+
 export function createAttemptStore(newKey: () => string = () => crypto.randomUUID()) {
   let current: { signature: string; key: string } | null = null;
   return {
-    /** The key for this exact request: the pending attempt's key if the signature matches, else a fresh one. */
-    keyFor(signature: string): string {
-      if (current && current.signature === signature) return current.key;
+    keyFor(signature: string): AttemptKey {
+      if (current) return current.signature === signature ? { ok: true, key: current.key } : { ok: false, reason: 'different-request-while-unresolved' };
       current = { signature, key: newKey() };
-      return current.key;
+      return { ok: true, key: current.key };
     },
     /** Definite outcome (success or a definite rejection): the attempt is over. */
     settle() { current = null; },
