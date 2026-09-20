@@ -24,6 +24,7 @@ import { createBusinessFxApplicationGateway } from './business-fx-application';
 import { createProjectGateway } from './projects';
 import { createVisionBoardGateway } from './visionboard';
 import { createSettingsGateway } from './settings';
+import { createNotificationsGateway } from './notifications';
 import { createBusinessGateway } from './business';
 import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
@@ -43,6 +44,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     projects: createProjectGateway(http),
     visionBoard: createVisionBoardGateway(http),
     settings: createSettingsGateway(http),
+    notifications: createNotificationsGateway(http),
     business: createBusinessGateway(http),
     authorization: createAuthorizationGateway(http),
     developer: createDeveloperGateway(http),

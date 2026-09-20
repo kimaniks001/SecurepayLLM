@@ -340,8 +340,9 @@ export const markup = [
 // SignedInHome's canonical SecurePay brand mark (README.txt-approved: docs/CODEX_TASK_BRAND_VISUAL_CONSTITUTION.md)
 // is an explicitly approved correction to the locked Bolt experience, so this no longer asserts
 // byte-identical markup against the Bolt baseline (the old AgentIcon-as-logo glyph is intentionally
-// gone) — it instead asserts every non-brand-mark part of Bolt's fixture markup is untouched.
-test('SignedInHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap', async () => {
+// gone) — it instead asserts every non-brand-mark part of Bolt's fixture markup is untouched. Phase 6
+// convergence additionally re-locks the headline copy itself and adds the Fair Trade affordance.
+test('SignedInHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap and locked copy correction', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -357,18 +358,23 @@ export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { o
   }
   const current = await render(false);
   const baseline = await render(true);
-  assert.notEqual(current, baseline, 'expected the canonical brand mark swap to change SignedInHome markup');
+  assert.notEqual(current, baseline, 'expected the canonical brand mark swap and locked copy correction to change SignedInHome markup');
   // The old Bolt AgentIcon-as-logo glyph (a circle+shoulders SVG path) must be gone from the real component...
   assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   // ...and the Bolt baseline fixture must still have it, proving the diff is really about the icon.
   assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   // The canonical mark image must be present in its place.
   assert.match(current, /<img[^>]*alt="SecurePay"/);
-  // Everything else — greeting, subheading, headline, conversation input — must be untouched.
+  // The old paraphrased headline must be gone from current, but still present in the untouched
+  // Bolt baseline (proving the diff is really the locked-copy fix).
+  assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
+  assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
+  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
+  assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
+  // Everything else — greeting, subheading, conversation input — must be untouched.
   for (const text of [
     'Welcome back, James',
     'SecurePay remembers your agreements, people and activity',
-    'What are you trying to make happen?',
     'Ask SecurePay anything...',
     'What did Peter agree to?',
   ]) {

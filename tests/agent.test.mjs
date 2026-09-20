@@ -428,18 +428,16 @@ test('touched locked components retain byte-identical fixture markup against Bol
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ConversationWorkspace } from './src/components/ConversationWorkspace';
-import { ContextPanel } from './src/components/ContextPanel';
 import { AgreementPreviewCard } from './src/components/AgreementPreview';
 const understanding = Object.fromEntries(['job','scope','location','people','price','timing','materials'].map(key => [key, { label:key, value:'', state:'unknown' }]));
 const noop = () => {};
 export const markup = [
  React.createElement(ConversationWorkspace, { turns:[], understanding, isThinking:false, onSend:noop }),
- React.createElement(ContextPanel, { lastRichResponses:[], understanding, selectedProviderId:null, onSelectProvider:noop, panelTitle:'Understanding', panelMode:'understanding' }),
  React.createElement(AgreementPreviewCard, { data:{ type:'AGREEMENT_PREVIEW', title:'Tiling', what:['Tile bathroom'], who:[{name:'Peter',role:'provider'}], money:{amount:'KES 100',note:'candidate'}, when:'Tomorrow', stillToSettle:['Scope'] } })
 ].map(renderToStaticMarkup);`;
-  const touched = /src\/components\/(ConversationWorkspace|ContextPanel|AgreementPreview)\.tsx$/;
+  const touched = /src\/components\/(ConversationWorkspace|AgreementPreview)\.tsx$/;
   async function render(baseline) {
-    const result = await build({ stdin:{ contents:entry, resolveDir:process.cwd() }, bundle:true, write:false, format:'cjs', platform:'node', jsx:'automatic', plugins: baseline ? [{ name:'bolt', setup(builder) { builder.onLoad({filter:touched}, args => ({contents:execFileSync('git',['show',`bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`],{encoding:'utf8'}), loader:'tsx'})); } }] : [] });
+    const result = await build({ stdin:{ contents:entry, resolveDir:process.cwd() }, bundle:true, write:false, format:'cjs', platform:'node', jsx:'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name:'bolt', setup(builder) { builder.onLoad({filter:touched}, args => ({contents:execFileSync('git',['show',`bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`],{encoding:'utf8'}), loader:'tsx'})); } }] : [] });
     const mod = {exports:{}};
     new Function('require','module','exports',result.outputFiles[0].text)(createRequire(import.meta.url),mod,mod.exports);
     return mod.exports.markup;
@@ -447,11 +445,44 @@ export const markup = [
   assert.deepEqual(await render(false), await render(true));
 });
 
+// Phase 6 convergence -- ContextPanel's empty-state icon was a second, independently hand-drawn
+// instance of the same generic circle+shoulders silhouette as the old AgentIcon (found by fresh
+// archaeology; not previously called out in any phase doc). Now checked separately from the
+// byte-identical set above, exactly like SignedOutHome/SignedInHome's own brand-mark tests below.
+test('ContextPanel empty state retains byte-identical fixture markup against Bolt outside the canonical brand mark swap', async () => {
+  const entry = `
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ContextPanel } from './src/components/ContextPanel';
+const understanding = Object.fromEntries(['job','scope','location','people','price','timing','materials'].map(key => [key, { label:key, value:'', state:'unknown' }]));
+const noop = () => {};
+export const markup = renderToStaticMarkup(React.createElement(ContextPanel, { lastRichResponses: [], understanding, selectedProviderId: null, onSelectProvider: noop, panelTitle: 'What SecurePay understands', panelMode: 'understanding' }));`;
+  const touched = /src\/components\/ContextPanel\.tsx$/;
+  async function render(baseline) {
+    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
+    const mod = { exports: {} };
+    new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+    return mod.exports.markup;
+  }
+  const current = await render(false);
+  const baseline = await render(true);
+  assert.notEqual(current, baseline, "expected the canonical brand mark swap to change ContextPanel's empty-state markup");
+  assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(current, /<img[^>]*src="data:image\/png/);
+  for (const text of ['As you talk, relevant people, prices, and details will appear here.']) {
+    assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
+    assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
+  }
+});
+
 // SignedOutHome's canonical SecurePay brand mark (README.txt-approved: docs/CODEX_TASK_BRAND_VISUAL_CONSTITUTION.md)
 // is an explicitly approved correction to the locked Bolt experience, so it is checked separately from
 // the byte-identical set above: the old AgentIcon-as-logo glyph must be gone and the canonical asset
-// must be in its place, while the surrounding headline/subheading/input/example-prompts stay untouched.
-test('SignedOutHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap', async () => {
+// must be in its place, while the surrounding input/example-prompts stay untouched. Phase 6 convergence
+// additionally re-locks the headline/supporting-text copy itself (task doctrine: exact locked text,
+// not a paraphrase) and adds the quiet Fair Trade affordance beneath the input.
+test('SignedOutHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap and locked copy correction', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -467,15 +498,19 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
   }
   const current = await render(false);
   const baseline = await render(true);
-  assert.notEqual(current, baseline, 'expected the canonical brand mark swap to change SignedOutHome markup');
+  assert.notEqual(current, baseline, 'expected the canonical brand mark swap and locked copy correction to change SignedOutHome markup');
   assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   assert.match(current, /<img[^>]*alt="SecurePay by KEYMAN/);
-  for (const text of [
-    'What are you trying to make happen?',
-    'Tell SecurePay what you need',
-    'I need someone to tile my bathroom',
-  ]) {
+  // The old paraphrased headline/supporting text must be gone from current, but is expected to
+  // still exist in the untouched Bolt baseline (proving the diff is really the locked-copy fix).
+  assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
+  assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
+  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
+  assert.ok(current.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'), 'expected the exact locked supporting text');
+  assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
+  assert.ok(!current.includes('Fair trader score') && !/\d+\/12/.test(current), 'must never grade the person with a fair trade score');
+  for (const text of ['I need someone to tile my bathroom']) {
     assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
     assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
   }

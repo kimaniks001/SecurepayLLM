@@ -135,7 +135,7 @@ function ResponseRenderer({
     case 'MESSAGE':
       return (
         <div className="animate-quiet-in" style={{ animationDelay: staggerDelay }}>
-          <MessageBubble text={response.text} sender="agent" agentState="understood" />
+          <MessageBubble text={response.text} sender="agent" />
         </div>
       );
 

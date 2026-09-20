@@ -7,6 +7,19 @@ export default {
         serif: ['"Fraunces"', 'Georgia', 'serif'],
         sans: ['"Inter"', 'system-ui', 'sans-serif'],
       },
+      backgroundImage: {
+        /**
+         * Phase 6 final correction -- the active KS001 conversation's own environmental surface.
+         * Two low-alpha forest-toned radial gradients, layered over the plain `bg-cream-50` base
+         * color a caller applies alongside this class (never baked in here -- a background-image
+         * value list only accepts <image> layers, never a bare color; an earlier version that
+         * appended one directly caused the whole declaration to be silently invalid and dropped).
+         * Gives "green light living in the surface" (slight dimensional depth, quiet layering)
+         * without becoming a green page, a bright mint app, or a decorative SaaS gradient. Verified
+         * via direct visual inspection -- see docs/PHASE6_CONVERGENCE_PRODUCTION.md.
+         */
+        'ks001-surface': 'radial-gradient(circle at 12% -15%, rgba(58,115,85,0.09), transparent 58%), radial-gradient(circle at 105% 115%, rgba(93,148,117,0.08), transparent 62%)',
+      },
       colors: {
         cream: {
           50: '#fdfcf8',

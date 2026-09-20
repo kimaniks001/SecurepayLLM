@@ -22,9 +22,21 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
 }
 
 /**
- * Phase 5 -- Settings: exactly the five real fields `TraderSettingsController` supports
- * (notification channels, marketing opt-in, profile visibility). Settings ≠ Account: this screen
- * never shows KSNumber, identity status, Business membership, or authority -- see AccountExperience.
+ * Phase 5 -- Settings: the five real fields `TraderSettingsController` supports (notification
+ * channels, marketing opt-in, profile visibility). Settings ≠ Account: this screen never shows
+ * KSNumber, identity status, Business membership, or authority -- see AccountExperience.
+ *
+ * Phase 6 final correction: archaeology (grep across all of SecurePayAPI's production Java) found
+ * `TraderSettings.notifyEmail/notifySms/notifyPush` have zero consumers anywhere outside their own
+ * settings module -- no notification-delivery code path reads them. The real, live-consumed
+ * channel/category delivery preferences are `NotificationPreferences`
+ * (`NotificationChannelRoutingPolicy` reads `whatsappEnabled`/`smsEnabled`/`emailEnabled` directly),
+ * which live in Notifications. Presenting both side by side as if they were the same control would
+ * let a person see contradictory-seeming "SMS: on" here and "SMS: off" there with no way to know
+ * which one is real. These three toggles are therefore no longer rendered here -- the backend
+ * fields/endpoint are untouched (no contract change), and `save()` simply persists whatever values
+ * were already loaded. Marketing opt-in and profile visibility have no such colliding second control
+ * surface, so they stay.
  */
 export function SettingsExperience({ controller, onNavigate }: {
   controller: SettingsController;
@@ -51,11 +63,11 @@ export function SettingsExperience({ controller, onNavigate }: {
             <Surface>
               <SurfaceBody>
                 <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Notifications</div>
-                <div className="divide-y divide-cream-100">
-                  <Toggle label="Email" checked={state.draft.notifyEmail} onChange={v => controller.setDraft({ notifyEmail: v })} />
-                  <Toggle label="SMS" checked={state.draft.notifySms} onChange={v => controller.setDraft({ notifySms: v })} />
-                  <Toggle label="Push" checked={state.draft.notifyPush} onChange={v => controller.setDraft({ notifyPush: v })} />
-                </div>
+                <p className="text-[0.78rem] text-sand-600">
+                  WhatsApp, SMS, email and category delivery for SecurePay events are controlled in one
+                  place:{' '}
+                  <button onClick={() => onNavigate('notifications')} className="underline text-forest-700 font-medium">Notifications</button>.
+                </p>
               </SurfaceBody>
             </Surface>
 

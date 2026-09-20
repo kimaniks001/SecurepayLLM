@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
+import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
 import { RecentActivity } from './RecentActivity';
@@ -54,6 +56,7 @@ export function SignedInHome({
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
 }: SignedInHomeProps) {
+  const [fairTradeOpen, setFairTradeOpen] = useState(false);
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Left: conversation entry */}
@@ -72,13 +75,16 @@ export function SignedInHome({
               <img src={securepayMark} alt="SecurePay" className="w-14 h-14" />
             </div>
             <h1 className="font-display text-2xl md:text-3xl text-forest-800 font-medium leading-tight text-balance animate-fade-in-up">
-              What are you trying to make happen?
+              Tell SecurePay what you're trying to make happen.
             </h1>
             <p className="mt-3 text-[0.9rem] text-sand-600 leading-relaxed max-w-lg mx-auto animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
               {subheading}
             </p>
             <div className="mt-6 max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <ConversationInput onSend={onStart} placeholder="Ask SecurePay anything..." />
+            </div>
+            <div className="mt-3 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+              <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
               {suggestedPrompts.map((prompt) => (
@@ -128,6 +134,7 @@ export function SignedInHome({
           <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
         </div>
       </div>
+      {fairTradeOpen && <FairTradePrinciplesPanel onClose={() => setFairTradeOpen(false)} />}
     </div>
   );
 }

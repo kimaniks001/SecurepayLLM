@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import type { AgentResponse, Understanding, Provider, StoreProduct } from '../types';
 import { ProviderCard } from './ProviderCard';
 import { PriceContextCard } from './PriceContextCard';
@@ -233,10 +234,7 @@ export function ContextPanel({
       {!contextContent && richResponses.length === 0 && panelMode === 'understanding' && (
         <div className="flex flex-col items-center justify-center py-12 text-center animate-quiet-in">
           <div className="w-12 h-12 rounded-full bg-cream-100 flex items-center justify-center mb-3">
-            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="text-sand-400">
-              <circle cx="16" cy="11" r="5.5" fill="currentColor" opacity="0.6" />
-              <path d="M6 27c0-5.5 4.5-10 10-10s10 4.5 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
-            </svg>
+            <img src={securepayMark} alt="" className="w-6 h-6 opacity-50" />
           </div>
           <p className="text-[0.825rem] text-sand-400 max-w-[200px] leading-relaxed">
             As you talk, relevant people, prices, and details will appear here.
