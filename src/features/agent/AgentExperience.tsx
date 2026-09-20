@@ -3,7 +3,7 @@ import { SignedOutHome } from '../../components/SignedOutHome';
 import { ConversationWorkspace } from '../../components/ConversationWorkspace';
 import { ContextPanel } from '../../components/ContextPanel';
 import { NavBar } from '../../components/NavBar';
-import { AgentIcon } from '../../components/AgentIcon';
+import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
 import { AgentUnderstoodCard } from '../../components/AgentUnderstoodCard';
@@ -43,6 +43,9 @@ import { createAccountController } from '../account/controller';
 import { SettingsExperience } from '../settings/SettingsExperience';
 import { createSettingsController } from '../settings/controller';
 import type { SettingsGateway } from '../../api/securepay/settings';
+import { NotificationsExperience } from '../notifications/NotificationsExperience';
+import { createNotificationsController } from '../notifications/controller';
+import type { NotificationsGateway } from '../../api/securepay/notifications';
 import { RecoveryExperience } from '../recovery/RecoveryExperience';
 import { createRecoveryController } from '../recovery/controller';
 import { BusinessExperience } from '../business/BusinessExperience';
@@ -69,11 +72,12 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  notificationsGateway: NotificationsGateway;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
@@ -110,8 +114,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [recoveryView, setRecoveryView] = useState(false);
   const [businessView, setBusinessView] = useState(false);
   const [developerView, setDeveloperView] = useState(false);
+  const [notificationsView, setNotificationsView] = useState(false);
   const [accountController] = useState(() => createAccountController({ circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll }));
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
+  const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));
   const [businessController] = useState(() => createBusinessController({ business: businessGateway, authorization: authorizationGateway }));
   const [developerController] = useState(() => createDeveloperController(developerGateway));
@@ -147,7 +153,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     setNotice(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
-    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false);
+    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false);
     // Final correction -- sensitive/one-time state must not survive leaving its own screen. Both
     // calls are no-ops (harmless re-render of an unmounted screen) except at the exact moment of
     // actually leaving Recovery or Developer; entering Recovery still separately calls reset() below
@@ -194,6 +200,15 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       setNotice('Sign in through "Continue with this" to view your account.');
       return;
     }
+    // Notifications is the canonical in-app attention centre -- private and authenticated-only,
+    // exactly like Account/Settings/Business/Developer above.
+    if (view === 'notifications') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false);
+      if (sessionState.status === 'signed-in') { setNotificationsView(true); return; }
+      setHome(true);
+      setNotice('Sign in through "Continue with this" to view your notifications.');
+      return;
+    }
     if (view === 'recovery') {
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false); setHome(false);
       recoveryController.reset();
@@ -218,6 +233,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     }
     setWorkspaceAgreementId(null);
     setNotice('This area is not available yet. You can keep talking with SecurePay.');
+  };
+  /** A Notification with a real `agreementId` opens that Agreement directly in the Workspace --
+   * the same real mechanism WorkspaceExperience's own controller uses internally, not a new one.
+   * Never routes on `actionKey`, which no real backend event producer populates today (task
+   * section 20 -- see the notifications gateway's own doc comment on this). */
+  const openAgreementFromNotification = (agreementId: string) => {
+    setNotificationsView(false);
+    setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
+    setWorkspaceAgreementId(agreementId);
+    setWorkspace(true);
   };
   /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
    * Agreement in scope so PlugExperience can also offer real attribution, not just the general help menu. */
@@ -323,6 +348,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     return <DeveloperExperience controller={developerController} onNavigate={navigateTo} />;
   }
 
+  if (notificationsView && sessionState.status === 'signed-in') {
+    return <NotificationsExperience controller={notificationsController} onNavigate={navigateTo} onOpenAgreement={openAgreementFromNotification} />;
+  }
+
   if (recoveryView) {
     // 'signed-in' is deliberate here, not 'signed-out': navigateTo's own fallback for that view,
     // when the session is not actually signed in yet, quietly returns to Home with no notice --
@@ -417,9 +446,13 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       </div>
       <div className="flex-1 flex overflow-hidden">
       <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50`}>
+        {/* Task doctrine (KS001 identity): the person is talking to KS001, not "SecurePay" --
+            SecurePay is the system/brand (see NavBar's top-left brand), KS001 is who is in this
+            conversation. Reuses the one real, canonical SecurePay mark asset -- no generic
+            silhouette, no separately-drawn avatar. */}
         <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
-          <AgentIcon state={state.busy ? 'thinking' : 'listening'} size={28} />
-          <div><div className="font-display text-sm text-forest-800">SecurePay</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
+          <img src={securepayMark} alt="" className={`w-7 h-7 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <div><div className="font-display text-sm text-forest-800">KS001</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
         </div>
         <div className="flex-1 overflow-hidden">
           <ConversationWorkspace turns={[]} understandingContent={context} isThinking={state.busy} inputDisabled={state.busy || !!state.pending}

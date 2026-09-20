@@ -51,6 +51,11 @@ export function SettingsExperience({ controller, onNavigate }: {
             <Surface>
               <SurfaceBody>
                 <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Notifications</div>
+                <p className="text-[0.72rem] text-sand-500 -mt-0.5 mb-1">
+                  These are your general account channels. WhatsApp and per-category delivery (Agreements,
+                  Money, Reviews, Security, Community, Support) are managed separately in{' '}
+                  <button onClick={() => onNavigate('notifications')} className="underline text-forest-700">Notifications</button>.
+                </p>
                 <div className="divide-y divide-cream-100">
                   <Toggle label="Email" checked={state.draft.notifyEmail} onChange={v => controller.setDraft({ notifyEmail: v })} />
                   <Toggle label="SMS" checked={state.draft.notifySms} onChange={v => controller.setDraft({ notifySms: v })} />

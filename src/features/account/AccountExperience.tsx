@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { ShieldCheck, LogOut, Briefcase, Settings as SettingsIcon, Code2, FolderOpen, Sparkles } from 'lucide-react';
+import { ShieldCheck, LogOut, Briefcase, Settings as SettingsIcon, Code2, FolderOpen, Sparkles, Bell } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
@@ -53,6 +53,7 @@ export function AccountExperience({ controller, onNavigate }: {
         <Surface>
           <SurfaceBody>
             <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onNavigate('notifications')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Bell className="w-4 h-4 text-forest-500" /> Notifications</button>
               <button onClick={() => onNavigate('settings')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><SettingsIcon className="w-4 h-4 text-forest-500" /> Settings</button>
               <button onClick={() => onNavigate('projects')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><FolderOpen className="w-4 h-4 text-forest-500" /> Projects</button>
               <button onClick={() => onNavigate('vision-board')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Sparkles className="w-4 h-4 text-forest-500" /> Vision Board</button>

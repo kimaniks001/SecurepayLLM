@@ -159,3 +159,118 @@ test('H. The three confirmed-orphaned Bolt components removed in Phase 6 (Agreem
     assert.deepEqual(hits, [], `${name}.tsx should not exist -- it was confirmed unreferenced anywhere and removed`);
   }
 });
+
+// ─── I-P. Final Phase 6 Product Pass: Home / KS001 / Fair Trade / Notifications / WhatsApp ─────
+
+test('I1. The KS001 conversation identity header names KS001, not "SecurePay" or a generic assistant label, and no longer uses the retired AgentIcon component', async () => {
+  const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /import\s*\{\s*AgentIcon\s*\}/, 'AgentExperience must not import the retired generic-avatar AgentIcon');
+  const headerBlock = contents.slice(contents.indexOf('hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b'), contents.indexOf('hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b') + 400);
+  assert.match(headerBlock, />KS001</, 'the conversation header must name the person\'s conversation partner KS001');
+  assert.doesNotMatch(headerBlock, />SecurePay</, 'the conversation header must not relabel KS001 as SecurePay');
+});
+
+test('I2. MessageBubble no longer imports the retired generic-avatar AgentIcon and instead reuses the canonical SecurePay mark asset', async () => {
+  const contents = await readFile('src/components/MessageBubble.tsx', 'utf8');
+  assert.doesNotMatch(contents, /AgentIcon/, 'MessageBubble must not reference the retired AgentIcon');
+  assert.match(contents, /securepay-mark-green\.png/, 'MessageBubble must reuse the one canonical SecurePay mark asset');
+});
+
+test('I3. ContextPanel\'s empty state no longer hand-draws a generic silhouette and instead reuses the canonical SecurePay mark asset', async () => {
+  const contents = await readFile('src/components/ContextPanel.tsx', 'utf8');
+  assert.doesNotMatch(contents, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/, 'the hand-drawn generic silhouette path must be gone');
+  assert.match(contents, /securepay-mark-green\.png/, 'ContextPanel must reuse the one canonical SecurePay mark asset');
+});
+
+test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the SecurePay wordmark, and exposes a quiet Notifications entry', async () => {
+  const contents = await readFile('src/components/NavBar.tsx', 'utf8');
+  assert.match(contents, /securepay-mark-green\.png/, 'top-left brand must include the canonical icon alongside the wordmark');
+  assert.match(contents, /securepay-wordmark-horizontal\.png/, 'top-left brand must keep the SecurePay wordmark');
+  assert.match(contents, /onNavigate\('notifications'\)/, 'NavBar must expose a route to Notifications');
+  assert.doesNotMatch(contents, />\s*\d+\s*<\/(span|div)>/, 'the Notifications entry must not render a numeric badge count');
+});
+
+test('J. The Home hero (SignedOutHome) uses the exact locked headline and supporting text, and a Fair Trade affordance beneath the input that never grades the person', async () => {
+  const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
+  assert.match(contents, /Tell SecurePay what you're trying to make happen\./, 'exact locked headline');
+  assert.match(contents, /It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed\./, 'exact locked supporting text');
+  assert.doesNotMatch(contents, /What are you trying to make happen\?/, 'the old paraphrased headline must be gone');
+  assert.match(contents, /FairTradeAffordance/, 'must render the Fair Trade affordance');
+});
+
+test('J2. The Fair Trade principles panel reproduces the real, authoritative 12 principles verbatim -- in canonical order, with no invented/grading content', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/fairTradePrinciplesData';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const { FAIR_TRADE_PRINCIPLES } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  assert.equal(FAIR_TRADE_PRINCIPLES.length, 12, 'must be exactly the 12 Principles of Fair Trade, no more, no fewer');
+  FAIR_TRADE_PRINCIPLES.forEach((p, i) => assert.equal(p.number, i + 1, 'principles must stay in their canonical numbered order'));
+  assert.equal(FAIR_TRADE_PRINCIPLES[0].title, 'To Protect Trust');
+  assert.equal(FAIR_TRADE_PRINCIPLES[11].title, 'To Honour Good');
+  // Strip comments before scanning rendered code -- this file's own doc comments name the forbidden
+  // "10/12"/"fair trader score" patterns as examples of what NOT to build, which would otherwise
+  // false-positive against a naive scan of the raw file text.
+  const rawContents = await readFile('src/components/FairTradePrinciples.tsx', 'utf8');
+  const codeOnly = rawContents.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(codeOnly, /\d+\s*\/\s*12/, 'principles must never be presented as a score out of 12');
+  assert.doesNotMatch(codeOnly, /fair trader score/i, 'principles must never be presented as a "fair trader score"');
+});
+
+test('K. The Notifications gateway calls the real, verified NotificationController contract exactly -- self-scoped paths, correct methods, auth:required throughout', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/api/securepay/notifications';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const calls = [];
+  const http = { request: async (reqPath, options = {}) => { calls.push({ path: reqPath, method: options.method ?? 'GET', auth: options.auth, body: options.body }); return {}; } };
+  const gateway = api.createNotificationsGateway(http);
+  await gateway.list();
+  await gateway.list({ category: 'AGREEMENTS', unreadOnly: true, page: 1, size: 10 });
+  await gateway.get('n1');
+  await gateway.markRead('n1');
+  await gateway.resolve('n1', 'DISMISSED');
+  await gateway.getPreferences();
+  await gateway.updatePreferences({ whatsappEnabled: true, smsEnabled: false, emailEnabled: false, agreementsCategoryEnabled: true, moneyCategoryEnabled: true, reviewsCategoryEnabled: true, securityCategoryEnabled: true, communityCategoryEnabled: true, supportCategoryEnabled: true });
+  assert.ok(calls.every(c => c.auth === 'required'), 'every notifications call must be self-scoped (auth:required), matching NotificationController');
+  assert.equal(calls[0].path, '/api/v1/notifications/me');
+  assert.match(calls[1].path, /^\/api\/v1\/notifications\/me\?category=AGREEMENTS&unreadOnly=true&page=1&size=10$/);
+  assert.equal(calls[2].path, '/api/v1/notifications/me/n1');
+  assert.deepEqual([calls[3].path, calls[3].method], ['/api/v1/notifications/me/n1/read', 'POST']);
+  assert.deepEqual([calls[4].path, calls[4].method, calls[4].body], ['/api/v1/notifications/me/n1/resolve', 'POST', { resolutionAction: 'DISMISSED' }]);
+  assert.equal(calls[5].path, '/api/v1/notifications/me/preferences');
+  assert.deepEqual([calls[6].path, calls[6].method], ['/api/v1/notifications/me/preferences', 'PUT']);
+  assert.deepEqual(Object.keys(calls[6].body).sort(), ['agreementsCategoryEnabled', 'communityCategoryEnabled', 'emailEnabled', 'moneyCategoryEnabled', 'reviewsCategoryEnabled', 'securityCategoryEnabled', 'smsEnabled', 'supportCategoryEnabled', 'whatsappEnabled'].sort(), 'preferences update must send exactly the real backend fields, nothing invented');
+});
+
+test('L. Notification deep-linking never invents an actionKey-to-route mapping -- only the real, present agreementId field is used to open an Agreement', async () => {
+  const contents = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /notification\.actionKey/, 'must never branch UI routing on actionKey, which no real backend event producer populates today');
+  assert.match(contents, /notification\.agreementId/, 'must route using the real, present agreementId field');
+});
+
+test('M. Notification preferences are never force-enabled by the frontend -- savePreferences sends exactly the person\'s own draft values, unmodified', async () => {
+  const bundle = await build({ stdin: { contents: `export * from './src/features/notifications/controller';`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
+  const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const preferences = { whatsappEnabled: false, smsEnabled: false, emailEnabled: false, agreementsCategoryEnabled: true, moneyCategoryEnabled: true, reviewsCategoryEnabled: true, securityCategoryEnabled: true, communityCategoryEnabled: true, supportCategoryEnabled: true, saved: true };
+  const sentBodies = [];
+  const gateway = {
+    getPreferences: async () => preferences,
+    updatePreferences: async body => { sentBodies.push(body); return { ...preferences, ...body, saved: true }; },
+  };
+  const controller = api.createNotificationsController(gateway);
+  await controller.loadPreferences();
+  await controller.savePreferences();
+  assert.equal(sentBodies[0].whatsappEnabled, false, 'a person who left WhatsApp off must never have it silently turned on');
+});
+
+test('N. Settings and Notifications never present contradictory channel toggles -- Settings mentions WhatsApp only to point elsewhere, never as a checkbox bound to its own TraderSettings draft', async () => {
+  const settingsContents = await readFile('src/features/settings/SettingsExperience.tsx', 'utf8');
+  assert.doesNotMatch(settingsContents, /checked=\{state\.draft\.whatsapp/i, 'Settings (TraderSettings) must not bind a WhatsApp checkbox to its own draft -- that toggle lives only in Notifications preferences');
+  assert.match(settingsContents, /onNavigate\('notifications'\)/, 'Settings must point to Notifications for WhatsApp/category delivery preferences, not silently omit the relationship');
+});
+
+test('O. No fabricated support ticket/queue/SLA/human-agent-availability state appears anywhere in the Notifications frontend', async () => {
+  const contents = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /ticket|queue|SLA|agent availab/i, 'must not fabricate support-desk concepts the real API does not expose');
+});
+
+test('P. The Notifications screen never puts an identifier in a URL query string that could leak in access logs -- category/unreadOnly/page/size are the only query parameters used, and Agreement/notification ids stay in the path', async () => {
+  const contents = await readFile('src/api/securepay/notifications/index.ts', 'utf8');
+  assert.doesNotMatch(contents, /URLSearchParams.*(?:notificationId|agreementId|identityId)/, 'no identifier may be placed in a query string');
+});
