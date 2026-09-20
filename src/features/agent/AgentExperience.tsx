@@ -40,6 +40,10 @@ import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
+import { SupportExperience, type HelpNav } from '../support/SupportExperience';
+import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
+import { setDetailTabHint } from '../support/tabHint';
+import { openMoneyFor } from '../money/handoff';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { StoreExperience } from '../store/StoreExperience';
 import { CommunityExperience } from '../community/CommunityExperience';
@@ -154,6 +158,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   const [businessView, setBusinessView] = useState(false);
   const [developerView, setDeveloperView] = useState(false);
   const [notificationsView, setNotificationsView] = useState(false);
+  // Help & Support. A context is pending when Help was opened from the Money route (which sits outside this shell); it is held in memory only.
+  const [helpContext, setHelpContext] = useState<SupportContext | null>(() => peekSupportContext());
+  const [supportView, setSupportView] = useState(() => peekSupportContext() !== null && session.getSnapshot().status === 'signed-in');
+  useEffect(() => { clearSupportContext(); }, []);
   // Session-clearing correction: the backend already revoked this session the moment a password
   // change succeeds (verified in controller.ts's own doc comment) -- the frontend must reflect that
   // immediately, not wait for a subsequent request to fail. session.clear() is the one real session
@@ -197,7 +205,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setNotice(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
-    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false);
+    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); // a scoped Help context never outlives its screen
     // Final correction -- sensitive/one-time state must not survive leaving its own screen. Both
     // calls are no-ops (harmless re-render of an unmounted screen) except at the exact moment of
     // actually leaving Recovery or Developer; entering Recovery still separately calls reset() below
@@ -251,6 +259,12 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
       if (sessionState.status === 'signed-in') { setNotificationsView(true); return; }
       setHome(true);
       setNotice('Sign in through "Review this" to view your notifications.');
+      return;
+    }
+    // Help & Support is reachable signed in or out ("Trouble signing in" must work signed out); its own content is scoped by what the person can read as themselves.
+    if (view === 'support') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false); setHome(false);
+      setSupportView(true);
       return;
     }
     if (view === 'recovery') {
@@ -403,9 +417,30 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     return <RecoveryExperience controller={recoveryController} onNavigate={navigateTo} onSignIn={() => navigateTo('signed-in')} />;
   }
 
+  if (supportView) {
+    const signedIn = sessionState.status === 'signed-in';
+    const leaveSupport = () => { setSupportView(false); setHelpContext(null); };
+    const openAgreement = (agreementId: string) => { leaveSupport(); openAgreementFromNotification(agreementId); };
+    const helpNav: HelpNav = {
+      openAgreement,
+      openAgreementReviews: (agreementId, reviewCaseId) => { setDetailTabHint({ agreementId, tab: 'support', reviewCaseId }); openAgreement(agreementId); },
+      openMoney: handoff => { leaveSupport(); openMoneyFor(handoff); },
+      askAgent: () => { setHelpContext(null); if (signedIn) navigateTo('signed-in'); else { setSupportView(false); setHome(false); setWorkspace(false); } },
+      recovery: () => { setHelpContext(null); navigateTo('recovery'); },
+      notifications: () => { setHelpContext(null); navigateTo('notifications'); },
+      account: () => { setHelpContext(null); navigateTo('account'); },
+      agreements: () => { setHelpContext(null); navigateTo('agreements'); },
+      money: () => { leaveSupport(); window.location.hash = '#/money'; },
+      store: () => { setHelpContext(null); navigateTo('store'); },
+      community: () => { setHelpContext(null); navigateTo('community'); },
+    };
+    return <SupportExperience ctx={helpContext} signedIn={signedIn} agreementGateway={agreementGateway} reviewGateway={agreementReviewGateway} moneyGateway={moneyGateway} nav={helpNav} navigate={navigateTo} onBack={helpContext ? () => openAgreement(helpContext.agreementId) : signedIn ? () => { leaveSupport(); navigateTo('signed-in'); } : leaveSupport} />;
+  }
+
   if (workspace && sessionState.status === 'signed-in') {
     const workspaceGateway = { ...agreementGateway, money: moneyGateway, review: agreementReviewGateway };
     return <WorkspaceExperience
+      onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
       agentGateway={gateway}
       agentController={controller}

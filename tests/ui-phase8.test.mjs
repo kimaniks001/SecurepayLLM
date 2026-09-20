@@ -206,7 +206,7 @@ test('release authority and funding authority copy are separate bounded vocabula
 
 test('panels read independently and never fabricate zero/none: unknown is first-class', async () => {
   const s = await src('src/features/money/AgreementMoneyPanels.tsx');
-  for (const line of ['Payment readiness couldn’t be loaded', 'Settlement status couldn’t be confirmed', 'Money activity couldn’t be loaded', 'Release authority couldn’t be loaded', 'Payments couldn’t be loaded', 'Funding authority couldn’t be loaded']) assert.ok(s.includes(line), line);
+  for (const line of ['Payment readiness couldn’t be loaded', 'SETTLEMENT_UNCONFIRMED', 'Money activity couldn’t be loaded', 'Release authority couldn’t be loaded', 'Payments couldn’t be loaded', 'Funding authority couldn’t be loaded']) assert.ok(s.includes(line), line);
   // each panel has its own useRead; one failing read cannot blank another
   assert.ok((s.match(/useRead</g) ?? []).length >= 8);
   const gw = { status: () => new Promise(() => {}), records: () => new Promise(() => {}), fundingAuthority: () => new Promise(() => {}), listIntents: () => new Promise(() => {}), fundingOptions: () => new Promise(() => {}), releaseAuthority: () => new Promise(() => {}), instructions: () => new Promise(() => {}) };

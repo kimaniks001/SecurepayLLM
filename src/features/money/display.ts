@@ -93,8 +93,8 @@ const PHASE: Readonly<Record<string, string>> = {
   INSTRUCTION_CREATED: 'A release instruction exists. Nothing has been reserved yet.',
   RESERVED: 'Funds are reserved for this release. Nothing has been sent yet.',
   SETTLED: 'SecurePay recorded an execution for this release. SecurePay doesn’t report bank or provider settlement confirmation here, so this isn’t shown as settled.',
-  HELD_EXCEPTION: 'This release is held because of an exception.',
-  COMPENSATED: 'This release was reversed and compensated.',
+  HELD_EXCEPTION: 'SecurePay’s settlement read shows this release as held. That is a settlement state, separate from any exception details.',
+  COMPENSATED: 'SecurePay records this release as compensated: it did not complete. That does not say money was restored to the Agreement’s original spending authority.',
 };
 export const settlementPhaseWords = (phase: string) => PHASE[phase] ?? 'SecurePay returned a settlement status this screen can’t describe yet.';
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ShieldCheck, LogOut, Briefcase, Settings as SettingsIcon, Code2, FolderOpen, Sparkles, Bell, KeyRound } from 'lucide-react';
+import { ShieldCheck, LogOut, Briefcase, Settings as SettingsIcon, Code2, FolderOpen, Sparkles, Bell, KeyRound, LifeBuoy } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
@@ -169,6 +169,7 @@ export function AccountExperience({ controller, onNavigate }: {
               <button onClick={() => onNavigate('vision-board')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Sparkles className="w-4 h-4 text-forest-500" /> Vision Board</button>
               <button onClick={() => onNavigate('business')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Briefcase className="w-4 h-4 text-forest-500" /> Business</button>
               <button onClick={() => onNavigate('developer')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><Code2 className="w-4 h-4 text-forest-500" /> Developer / Connect</button>
+              <button onClick={() => onNavigate('support')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><LifeBuoy className="w-4 h-4 text-forest-600" /> Help &amp; Support</button>
             </div>
           </SurfaceBody>
         </Surface>

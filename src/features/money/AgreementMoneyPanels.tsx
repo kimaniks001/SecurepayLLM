@@ -5,7 +5,8 @@ import { MoneyValue } from '../../components/dna/MoneyValue';
 import { Button } from '../../components/dna/Button';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
-import type { PaymentReleaseGateway, ReleaseSettlementStatusResponse } from '../../api/securepay/payment-release';
+import type { PaymentReleaseGateway, ReleaseExceptionResponse, ReleaseSettlementStatusResponse } from '../../api/securepay/payment-release';
+import { COMPENSATION_NOT_RESTORED, COMPENSATION_WORDS, EXCEPTION_MEANING, NO_EXCEPTION_RETURNED, SETTLEMENT_UNCONFIRMED, exceptionHeading, exceptionReason, recordedOn, requiredActionWords } from '../support/display';
 import type { AgreementMoneyStatusResponse, AgreementMoneyRecordResponse } from '../../api/securepay/agreements/dto';
 import type { AgreementFundingAuthorityResponse, AgreementFundingOptionResponse, AgreementPaymentIntentSummaryResponse } from '../../api/securepay/payment-intent/dto';
 import type { ReleaseAuthorityResponse, ReleaseInstructionResponse } from '../../api/securepay/payment-release';
@@ -142,29 +143,58 @@ export function ActivityPanel({ gateway, agreementId }: { gateway: MoneyGateway;
   );
 }
 
-export function SettlementRow({ gateway, agreementId, instruction, currentVersionId }: { gateway: PaymentReleaseGateway; agreementId: string; instruction: ReleaseInstructionResponse; currentVersionId: string | null | undefined }) {
-  const scope = instructionScope(instruction.agreementVersion, currentVersionId);
+export function SettlementRow({ gateway, agreementId, instruction, currentVersionId, onGetHelp }: { gateway: PaymentReleaseGateway; agreementId: string; instruction: ReleaseInstructionResponse; currentVersionId: string | null | undefined; onGetHelp?: (exception: ReleaseExceptionResponse) => void }) {
   const [state, refresh] = useRead<ReleaseSettlementStatusResponse>(() => gateway.settlementStatus(agreementId, instruction.instructionId), instruction.instructionId);
+  return <SettlementRowView instruction={instruction} scope={instructionScope(instruction.agreementVersion, currentVersionId)} state={state} onRefresh={refresh} onGetHelp={onGetHelp} />;
+}
+
+/**
+ * Settlement truth and exception truth are separate blocks. A refresh (or a failed read) never leaves an earlier exception on screen as if it were fresh:
+ * the read state resets to loading/unavailable and the exception block only ever renders from a READY read.
+ */
+export function SettlementRowView({ instruction, scope, state, onRefresh, onGetHelp }: {
+  instruction: ReleaseInstructionResponse; scope: 'current' | 'earlier' | 'unknown';
+  state: Read<ReleaseSettlementStatusResponse>; onRefresh: () => void; onGetHelp?: (exception: ReleaseExceptionResponse) => void;
+}) {
   return (
-    <li className={`rounded-xl border p-3 text-sm text-sand-700 space-y-1 ${scope === 'current' ? 'border-forest-200' : 'border-cream-200 bg-cream-50'}`} data-scope={scope}>
+    <li className={`rounded-xl border p-3 text-sm text-sand-700 space-y-2 ${scope === 'current' ? 'border-forest-200' : 'border-cream-200 bg-cream-50'}`} data-scope={scope}>
       <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">{INSTRUCTION_SCOPE_WORDS[scope]}</div>
       <div className="font-medium text-forest-800">Release instruction {instruction.sequence}</div>
       {scope === 'earlier' && <div className="text-xs text-sand-600">Created for an earlier version of this Agreement. It is history, not the current release state.</div>}
       {instruction.settlementDestinationMaskedDisplay && <div className="text-xs text-sand-600">To {instruction.settlementDestinationMaskedDisplay}</div>}
       {state.status === 'loading' && <Loading text="Checking settlement status…" />}
-      {state.status === 'error' && <Unknown text="Settlement status couldn’t be confirmed. Nothing is assumed either way." />}
+      {state.status === 'error' && <Unknown text={SETTLEMENT_UNCONFIRMED} />}
       {state.status === 'ready' && (
         <>
-          <div>{settlementPhaseWords(state.data.settlementPhase)}</div>
-          {state.data.exception && <div className="text-xs text-ember-700">{state.data.exception.customerSafeReason ?? 'SecurePay recorded an exception for this release.'}{state.data.exception.requiredAction ? ` ${state.data.exception.requiredAction}` : ''}</div>}
+          <div data-testid="settlement-state"><span className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Settlement</span>{settlementPhaseWords(state.data.settlementPhase)}</div>
+          {state.data.exception
+            ? <ExceptionBlock exception={state.data.exception} onGetHelp={onGetHelp ? () => onGetHelp(state.data.exception!) : undefined} />
+            : <div className="text-xs text-sand-500">{NO_EXCEPTION_RETURNED}</div>}
         </>
       )}
-      <Button variant="ghost" onClick={refresh} className="text-xs">Refresh status</Button>
+      <Button variant="ghost" onClick={onRefresh} className="text-xs">Refresh status</Button>
     </li>
   );
 }
 
-export function ReleasePanel({ gateway, agreementId, currentVersionId }: { gateway: PaymentReleaseGateway; agreementId: string; currentVersionId: string | null | undefined }) {
+/** "SecurePay has recorded this customer-safe exception fact." That is all: it implies no action, no person working on it, and no financial outcome. */
+export function ExceptionBlock({ exception, onGetHelp }: { exception: ReleaseExceptionResponse; onGetHelp?: () => void }) {
+  const action = requiredActionWords(exception.requiredAction);
+  const on = recordedOn(exception.recordedAt);
+  return (
+    <div className="rounded-xl border border-ember-200 bg-white p-3 space-y-2" data-testid="release-exception">
+      <div className="font-medium text-forest-800">{exceptionHeading(exception)}</div>
+      <p>{exceptionReason(exception)}</p>
+      {action && <div><span className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">What is needed</span>{action}</div>}
+      {on && <div className="text-xs text-sand-600">Recorded {on}</div>}
+      {exception.compensatedOutcome && <div><p>{COMPENSATION_WORDS}</p><p className="text-xs text-sand-600">{COMPENSATION_NOT_RESTORED}</p></div>}
+      <p className="text-xs text-sand-500">{EXCEPTION_MEANING}</p>
+      {onGetHelp && <button onClick={onGetHelp} className="text-xs text-forest-700 underline">Get help with this</button>}
+    </div>
+  );
+}
+
+export function ReleasePanel({ gateway, agreementId, currentVersionId, onGetHelp }: { gateway: PaymentReleaseGateway; agreementId: string; currentVersionId: string | null | undefined; onGetHelp?: (exception: ReleaseExceptionResponse) => void }) {
   const [authority, refreshAuthority] = useRead<ReleaseAuthorityResponse>(() => gateway.releaseAuthority(agreementId), agreementId);
   const [instructions, refreshInstructions] = useRead<ReleaseInstructionResponse[]>(() => gateway.instructions(agreementId), agreementId);
   return (
@@ -177,7 +207,7 @@ export function ReleasePanel({ gateway, agreementId, currentVersionId }: { gatew
       {instructions.status === 'error' && <Unknown text="Release instructions couldn’t be loaded." />}
       {instructions.status === 'ready' && (instructions.data.length === 0
         ? <p className="text-sm text-sand-600">SecurePay shows no release instruction for this Agreement.</p>
-        : <ul className="space-y-2">{instructions.data.map(i => <SettlementRow key={i.instructionId} gateway={gateway} agreementId={agreementId} instruction={i} currentVersionId={currentVersionId} />)}</ul>)}
+        : <ul className="space-y-2">{instructions.data.map(i => <SettlementRow key={i.instructionId} gateway={gateway} agreementId={agreementId} instruction={i} currentVersionId={currentVersionId} onGetHelp={onGetHelp} />)}</ul>)}
       <p className="text-xs text-sand-500">Requesting, reserving or executing a release from here is temporarily unavailable until SecurePay can show that it is safely bound to the current Agreement version.</p>
     </Panel>
   );

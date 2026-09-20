@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageCircle, LifeBuoy, Flag, Users, Scale } from 'lucide-react';
+import { MessageCircle, LifeBuoy, Flag, Users, Scale, Wallet } from 'lucide-react';
 
 interface AgreementSupportProps {
   onAskAgent: () => void;
@@ -9,10 +9,16 @@ interface AgreementSupportProps {
   onOpenReferral?: () => void;
   /** Real (non-fixture) path only: the canonical Agreement Review surface. When omitted the fixture 'Raise an issue' row is unchanged. */
   reviewPanel?: React.ReactNode;
+  /** Real path only. Money entry (canonical Money) and Help & Support entry (scoped to this Agreement). */
+  onOpenMoney?: () => void;
+  onOpenHelp?: () => void;
+  /** Real path only: one-shot hint from Help to open the Reviews & issues panel. */
+  initialOpenReviews?: boolean;
 }
 
-export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, reviewPanel }: AgreementSupportProps) {
-  const [showReviews, setShowReviews] = useState(false);
+export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, reviewPanel, onOpenMoney, onOpenHelp, initialOpenReviews = false }: AgreementSupportProps) {
+  const [showReviews, setShowReviews] = useState(initialOpenReviews);
+  const real = !!reviewPanel;
   return (
     <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
       <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-3">Support</div>
@@ -21,10 +27,16 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
         <button onClick={onAskAgent} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
           <MessageCircle className="w-4 h-4 text-forest-600 shrink-0" />
           <div>
-            <div className="text-[0.825rem] font-medium text-forest-800">Ask SecurePay</div>
-            <div className="text-[0.72rem] text-sand-500">Ask about terms, people, changes or history</div>
+            <div className="text-[0.825rem] font-medium text-forest-800">{real ? 'Ask KS001' : 'Ask SecurePay'}</div>
+            <div className="text-[0.72rem] text-sand-500">{real ? 'Ask about this Agreement, its terms, people, progress or history' : 'Ask about terms, people, changes or history'}</div>
           </div>
         </button>
+        {real ? (
+          <div className="rounded-xl border border-cream-200 px-4 py-3">
+            <div className="text-[0.825rem] font-medium text-forest-800">Human support</div>
+            <div className="text-[0.72rem] text-sand-500">Human support requests are not yet available from this screen. SecurePay can still help you inspect the Agreement, Money and formal Review state here.</div>
+          </div>
+        ) : (
         <div className="flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3">
           <LifeBuoy className="w-4 h-4 text-sand-500 shrink-0" />
           <div>
@@ -32,6 +44,7 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
             <div className="text-[0.72rem] text-sand-500">Coming soon</div>
           </div>
         </div>
+        )}
         {reviewPanel ? (
           <>
             <button onClick={() => setShowReviews(v => !v)} aria-expanded={showReviews} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
@@ -42,6 +55,24 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
               </div>
             </button>
             {showReviews && reviewPanel}
+            {onOpenMoney && (
+              <button onClick={onOpenMoney} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
+                <Wallet className="w-4 h-4 text-forest-600 shrink-0" />
+                <div>
+                  <div className="text-[0.825rem] font-medium text-forest-800">Money</div>
+                  <div className="text-[0.72rem] text-sand-500">Funding, Payment Ready, release and settlement truth</div>
+                </div>
+              </button>
+            )}
+            {onOpenHelp && (
+              <button onClick={onOpenHelp} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
+                <LifeBuoy className="w-4 h-4 text-forest-600 shrink-0" />
+                <div>
+                  <div className="text-[0.825rem] font-medium text-forest-800">Help &amp; Support</div>
+                  <div className="text-[0.72rem] text-sand-500">Where SecurePay shows what it knows, and where to go next</div>
+                </div>
+              </button>
+            )}
           </>
         ) : (
         <button
