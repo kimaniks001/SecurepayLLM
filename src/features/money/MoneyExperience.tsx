@@ -442,7 +442,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
 
           <ActivityPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} />
           <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} currentVersionId={freshVersionId}
-            onGetHelp={exception => openSupportFromRoute({ kind: 'money-exception', agreementId: selectedAgreement.agreementId, title: selectedAgreement.title, heading: exceptionHeading(exception), reason: exceptionReason(exception), requiredAction: requiredActionWords(exception.requiredAction), recordedOn: recordedOn(exception.recordedAt) })} />
+            onGetHelp={exception => openSupportFromRoute({ kind: 'money-exception', agreementId: selectedAgreement.agreementId, title: selectedAgreement.title, currentVersionId: freshVersionId, heading: exceptionHeading(exception), reason: exceptionReason(exception), requiredAction: requiredActionWords(exception.requiredAction), recordedOn: recordedOn(exception.recordedAt) })} />
         </div>
       )}
     </SectionCard>

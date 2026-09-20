@@ -423,7 +423,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     const openAgreement = (agreementId: string) => { leaveSupport(); openAgreementFromNotification(agreementId); };
     const helpNav: HelpNav = {
       openAgreement,
-      openAgreementReviews: agreementId => { setDetailTabHint({ agreementId, tab: 'support' }); openAgreement(agreementId); },
+      openAgreementReviews: (agreementId, reviewCaseId) => { setDetailTabHint({ agreementId, tab: 'support', reviewCaseId }); openAgreement(agreementId); },
       openMoney: handoff => { leaveSupport(); openMoneyFor(handoff); },
       askAgent: () => { setHelpContext(null); if (signedIn) navigateTo('signed-in'); else { setSupportView(false); setHome(false); setWorkspace(false); } },
       recovery: () => { setHelpContext(null); navigateTo('recovery'); },

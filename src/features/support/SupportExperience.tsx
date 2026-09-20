@@ -5,10 +5,10 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView } from '../../types';
-import { resolveHandoffContext } from '../money/handoff';
 import { paymentReadyFacts } from '../money/display';
-import { CONTEXT_UNREFRESHED } from '../money/selection';
+import { stateWords, versionScope, VERSION_SCOPE_WORDS } from '../review/display';
 import type { SupportContext } from './context';
+import { resolveHelpLabel, type HelpLabel } from './label';
 
 type Read<T> = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
 function useRead<T>(load: (() => Promise<T>) | null, key: string): Read<T> | null {
@@ -34,7 +34,8 @@ export const HELP_IS_NOT = 'Help & Support is a guide to where SecurePay already
 
 export interface HelpNav {
   openAgreement: (agreementId: string) => void;
-  openAgreementReviews: (agreementId: string) => void;
+  /** With a reviewCaseId, opens the Agreement on Support with THAT exact Review selected (one-shot in-memory hint). */
+  openAgreementReviews: (agreementId: string, reviewCaseId?: string) => void;
   openMoney: (m: { agreementId: string; title: string; versionLabel: string | null; currentVersionId: string | null }) => void;
   askAgent: () => void;
   recovery: () => void;
@@ -45,24 +46,22 @@ export interface HelpNav {
   store: () => void;
   community: () => void;
 }
-export interface HelpLabel { title: string | null; versionLabel: string | null; currentVersionId: string | null; notice: string | null }
 
 /**
  * Help & Support: a routing and TRUTH surface, not a ticket console. Every action goes to the authority that already owns the matter; each states its exact
  * consequence. There is no support-case lifecycle, ticket, assignee or "escalated" state anywhere here -- none exists as a customer contract.
  */
-export function SupportView({ signedIn, ctx, label, reviews, money, nav, onBack, navBar }: {
+export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, nav, onBack, navBar }: {
   signedIn: boolean; ctx: SupportContext | null; label: HelpLabel | null;
-  reviews: Read<{ active: number }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode;
+  reviews: Read<{ active: number }> | null; reviewCase?: Read<{ state: string; agreementVersionId: string }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode;
 }) {
-  const scoped = ctx && ctx.kind !== 'money-exception' ? ctx : null;
   return (
     <div className="min-h-dvh bg-cream-100 pb-16 md:pb-8">
       {navBar}
       <div className="px-4 md:px-8 py-6 space-y-5 max-w-2xl mx-auto w-full" data-testid="help">
         {onBack && <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm text-sand-600 hover:text-forest-700"><ArrowLeft className="w-4 h-4" /> Back</button>}
         <div>
-          <h1 className="font-display text-2xl text-forest-800">{ctx ? `Help with ${label?.title ?? ctx.title}${label?.versionLabel ? ` · ${label.versionLabel}` : ''}` : 'Help & Support'}</h1>
+          <h1 className="font-display text-2xl text-forest-800">{ctx ? (label?.titleConfirmed ? `Help with ${label.title}${label.versionLabel ? ` · ${label.versionLabel}` : ''}` : 'Help with this Agreement') : 'Help & Support'}</h1>
           <p className="mt-2 text-sm text-sand-600">{HELP_IS_NOT}</p>
         </div>
         {label?.notice && <p role="status" className="text-sm text-forest-800">{label.notice}</p>}
@@ -78,10 +77,24 @@ export function SupportView({ signedIn, ctx, label, reviews, money, nav, onBack,
           </section>
         )}
 
-        {(scoped || ctx?.kind === 'money-exception') && signedIn && (
+        {ctx && signedIn && (
           <section className={card}>
             <Label>What SecurePay can show you</Label>
-            {scoped && reviews && (
+            {ctx?.kind === 'review' && reviewCase && (
+              <div data-testid="help-review-fact">
+                <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">From Formal Review</div>
+                {reviewCase.status === 'loading' && <Note>Loading the review…</Note>}
+                {reviewCase.status === 'error' && <Unknown>Formal Review couldn’t be refreshed.</Unknown>}
+                {reviewCase.status === 'ready' && (
+                  <div className="text-sm text-sand-700">
+                    <div className="font-medium text-forest-800">{stateWords(reviewCase.data.state)}</div>
+                    {/* The case's OWN version id (fresh read) against the fresh current Agreement version id; unknown stays neutral. */}
+                    <div>{VERSION_SCOPE_WORDS[versionScope(reviewCase.data.agreementVersionId, label?.currentVersionId)]}</div>
+                  </div>
+                )}
+              </div>
+            )}
+            {ctx?.kind === 'agreement' && reviews && (
               <div>
                 <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">From Formal Review</div>
                 {reviews.status === 'loading' && <Note>Loading reviews…</Note>}
@@ -113,8 +126,10 @@ export function SupportView({ signedIn, ctx, label, reviews, money, nav, onBack,
             {ctx && signedIn && (
               <>
                 <Action title="Open this Agreement" consequence="SecurePay will show the Agreement." onClick={() => nav.openAgreement(ctx.agreementId)} />
-                <Action title={ctx.kind === 'review' ? 'View formal review' : 'Reviews & issues'} consequence="SecurePay will open the Agreement’s Support tab, where formal reviews are shown." onClick={() => nav.openAgreementReviews(ctx.agreementId)} />
-                <Action title="Open Money" consequence="SecurePay will show the latest Money information it can read for this Agreement." onClick={() => nav.openMoney({ agreementId: ctx.agreementId, title: label?.title ?? ctx.title, versionLabel: label?.versionLabel ?? null, currentVersionId: label?.currentVersionId ?? null })} />
+                {ctx.kind === 'review'
+                  ? <Action title="View formal review" consequence="SecurePay will open this review on the Agreement’s Support tab." onClick={() => nav.openAgreementReviews(ctx.agreementId, ctx.reviewCaseId)} />
+                  : <Action title="Reviews & issues" consequence="SecurePay will open the Agreement’s Support tab, where formal reviews are shown." onClick={() => nav.openAgreementReviews(ctx.agreementId)} />}
+                <Action title="Open Money" consequence="SecurePay will show the latest Money information it can read for this Agreement." onClick={() => nav.openMoney({ agreementId: ctx.agreementId, title: label?.title ?? ctx.title, versionLabel: label?.freshVersionLabel ?? null, currentVersionId: label?.currentVersionId ?? null })} />
               </>
             )}
             {!ctx && signedIn && (
@@ -122,7 +137,8 @@ export function SupportView({ signedIn, ctx, label, reviews, money, nav, onBack,
                 <Action title="An Agreement" consequence="SecurePay will show your Agreements; pick one to see its state and Support." onClick={nav.agreements} />
                 <Action title="Money" consequence="SecurePay will show the latest Money information it can read." onClick={nav.money} />
                 <Action title="A formal review" consequence="SecurePay will show your Agreements. Formal reviews live on each one: open it, then Support → Reviews & issues." onClick={nav.agreements} />
-                <Action title="Store or Community" consequence="SecurePay will open the Store." onClick={nav.store} />
+                <Action title="Store" consequence="SecurePay will open the Store." onClick={nav.store} />
+                <Action title="Community" consequence="SecurePay will open Community." onClick={nav.community} />
               </>
             )}
             <Action title="Trouble signing in" consequence="SecurePay will start the real account credential recovery flow." onClick={nav.recovery} />
@@ -159,29 +175,20 @@ function Action({ title, consequence, onClick }: { title: string; consequence: s
   );
 }
 
-/** Container: reads only what the signed-in person can already read AS THEMSELVES (their Agreement, its Reviews, its Money). The staff Support Context API is never called. */
+/** Container: reads only what the signed-in person can already read AS THEMSELVES. The staff Support Context API is never called. */
 export function SupportExperience({ ctx, signedIn, agreementGateway, reviewGateway, moneyGateway, nav, navigate, onBack }: {
   ctx: SupportContext | null; signedIn: boolean;
-  agreementGateway: Pick<AgreementGateway, 'detail'>; reviewGateway: Pick<AgreementReviewGateway, 'list'>; moneyGateway: Pick<MoneyGateway, 'status'>;
+  agreementGateway: Pick<AgreementGateway, 'detail'>; reviewGateway: Pick<AgreementReviewGateway, 'list' | 'detail'>; moneyGateway: Pick<MoneyGateway, 'status'>;
   nav: HelpNav; navigate: (view: AppView) => void; onBack?: () => void;
 }) {
   const agreementId = ctx?.agreementId ?? null;
-  const scoped = !!ctx && ctx.kind !== 'money-exception';
-  const detail = useRead(signedIn && scoped && agreementId ? () => agreementGateway.detail(agreementId) : null, `d:${agreementId}`);
-  const reviews = useRead(signedIn && scoped && agreementId ? async () => ({ active: (await reviewGateway.list({ agreementId, activeOnly: true, size: 50 })).totalElements }) : null, `r:${agreementId}`);
+  // Every contextual Help (agreement, review, money exception) re-reads the EXACT Agreement Detail. Which extra domain summaries load is separate:
+  // Review Help re-reads its exact case; Agreement Help counts active reviews; a Money exception loads neither.
+  const detail = useRead(signedIn && agreementId ? () => agreementGateway.detail(agreementId) : null, `d:${agreementId}`);
+  const reviews = useRead(signedIn && ctx?.kind === 'agreement' && agreementId ? async () => ({ active: (await reviewGateway.list({ agreementId, activeOnly: true, size: 50 })).totalElements }) : null, `r:${agreementId}`);
+  const reviewCase = useRead(signedIn && ctx?.kind === 'review' ? async () => { const c = await reviewGateway.detail(ctx.reviewCaseId, ctx.agreementId); return { state: c.state, agreementVersionId: c.agreementVersionId }; } : null, `rc:${ctx?.kind === 'review' ? ctx.reviewCaseId : ''}`);
   const money = useRead(signedIn && agreementId ? async () => { const st = await moneyGateway.status(agreementId); return { headline: paymentReadyFacts(st.paymentReadyStatus, st.paymentReady).headline }; } : null, `m:${agreementId}`);
-
-  let label: HelpLabel | null = null;
-  if (ctx && ctx.kind !== 'money-exception') {
-    if (detail?.status === 'ready') {
-      const versionId = detail.data.currentVersion?.versionId ?? null;
-      // The source screen's version label survives only if the fresh exact Agreement read still agrees; otherwise the fresh title and a calm notice.
-      const resolved = resolveHandoffContext({ agreementId: ctx.agreementId, title: ctx.title, versionLabel: ctx.versionLabel, currentVersionId: ctx.currentVersionId }, { title: detail.data.overview.title, currentAgreementVersionId: versionId });
-      const same = resolved.context !== detail.data.overview.title;
-      label = { title: detail.data.overview.title, versionLabel: same ? ctx.versionLabel : null, currentVersionId: versionId, notice: resolved.notice ? 'The Agreement changed after you opened Help. Help is showing the latest Agreement SecurePay can read.' : null };
-    } else if (detail?.status === 'error') label = { title: ctx.title, versionLabel: null, currentVersionId: null, notice: CONTEXT_UNREFRESHED };
-    else label = { title: ctx.title, versionLabel: null, currentVersionId: null, notice: null };
-  }
+  const label = ctx ? resolveHelpLabel(ctx, detail) : null;
   const nb = useCallback(() => <NavBar view="signed-in" onNavigate={navigate} />, [navigate]);
-  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} money={money} nav={nav} onBack={onBack} navBar={signedIn ? nb() : undefined} />;
+  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} reviewCase={reviewCase} money={money} nav={nav} onBack={onBack} navBar={signedIn ? nb() : undefined} />;
 }

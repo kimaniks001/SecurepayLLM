@@ -5,8 +5,10 @@
  */
 export type SupportContext =
   | { kind: 'agreement'; agreementId: string; title: string; versionLabel: string | null; currentVersionId: string | null }
-  | { kind: 'review'; agreementId: string; title: string; versionLabel: string | null; currentVersionId: string | null }
-  | { kind: 'money-exception'; agreementId: string; title: string; heading: string; reason: string | null; requiredAction: string | null; recordedOn: string | null };
+  // A Review context names the ACTUAL case (id + the case's own immutable Agreement version), not just the Agreement. Help re-reads the case; it never copies the narrative or evidence.
+  | { kind: 'review'; agreementId: string; title: string; versionLabel: string | null; currentVersionId: string | null; reviewCaseId: string; reviewAgreementVersionId: string }
+  // The exception fields are a bounded SNAPSHOT of what Money showed when Help was opened -- never fresh settlement authority. `currentVersionId` is the source screen's version id.
+  | { kind: 'money-exception'; agreementId: string; title: string; currentVersionId: string | null; heading: string; reason: string | null; requiredAction: string | null; recordedOn: string | null };
 
 let pending: SupportContext | null = null;
 export function setSupportContext(context: SupportContext): void { pending = context; }

@@ -41,7 +41,7 @@ const EVIDENCE_STATES = new Set(['OPENED', 'AWAITING_RESPONSE', 'EVIDENCE_COLLEC
  * evidence metadata) and the two participant commands the repository proves safe -- acknowledge and respond -- are offered. Opening a review, adding
  * evidence and requesting escalation are withheld (see docs/UI_COMPLETION_PHASE9_AGREEMENT_REVIEW.md). Nothing here computes or implies a financial effect.
  */
-export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney, onGetHelp }: {
+export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney, onGetHelp, initialCaseId = null }: {
   gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
   agreementGateway: Pick<AgreementGateway, 'obligations' | 'versions'>;
   agreementId: string;
@@ -49,12 +49,14 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
   currentVersionId: string | null;
   onOpenMoney?: () => void;
   /** Opens Help & Support for this Agreement's formal review (Help is guidance; it doesn't act on the review). */
-  onGetHelp?: () => void;
+  onGetHelp?: (review: { reviewCaseId: string; agreementVersionId: string }) => void;
+  /** One-shot in-memory hint from Help: open this exact case. */
+  initialCaseId?: string | null;
 }) {
   const [cases, refreshCases] = useRead(() => gateway.list({ agreementId, size: 50 }), agreementId);
   const [versions] = useRead(async () => new Map((await agreementGateway.versions(agreementId)).map(v => [v.id, v.versionNumber] as const)), agreementId);
   const [obligations] = useRead(async () => new Map((await agreementGateway.obligations(agreementId)).map(o => [o.id, o.title] as const)), agreementId);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialCaseId);
   const [extra, setExtra] = useState<ReviewCaseSummaryResponse[]>([]);
   const [nextPage, setNextPage] = useState(1);
   const [moreState, setMoreState] = useState<'idle' | 'loading' | 'error'>('idle');
@@ -71,6 +73,10 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
 
   const merged: Read<{ items: ReviewCaseSummaryResponse[]; totalElements: number }> = cases.status === 'ready' ? { ...cases, data: { items: [...cases.data.items, ...extra], totalElements: cases.data.totalElements } } : cases;
   const chosen = merged.status === 'ready' ? merged.data.items.find(c => c.reviewCaseId === selected) ?? null : null;
+  // The exact case is selected by id: if it isn't in the loaded list page (or the list failed) it is read directly, never guessed.
+  if (selected && !chosen && merged.status !== 'loading') {
+    return <ExactCase key={selected} gateway={gateway} reviewCaseId={selected} agreementId={agreementId} lookup={lookup} currentVersionId={currentVersionId} onBack={() => { setSelected(null); refreshCases(); }} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp} />;
+  }
   if (selected && chosen) {
     return <CaseView key={chosen.reviewCaseId} gateway={gateway} summary={chosen} lookup={lookup} currentVersionId={currentVersionId} onBack={() => { setSelected(null); refreshCases(); }} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp} />;
   }
@@ -124,15 +130,28 @@ function CaseRow({ c, lookup, currentVersionId, onOpen }: { c: ReviewCaseSummary
   );
 }
 
+/** Reads the exact case and renders it; the summary is built ONLY from that fresh read. */
+function ExactCase({ gateway, reviewCaseId, agreementId, ...rest }: {
+  gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond'>; reviewCaseId: string; agreementId: string;
+  lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: (review: { reviewCaseId: string; agreementVersionId: string }) => void;
+}) {
+  const [read] = useRead(() => gateway.detail(reviewCaseId, agreementId), reviewCaseId);
+  if (read.status === 'loading') return <p role="status" className="text-sm text-sand-500">Loading the review…</p>;
+  if (read.status === 'error') return <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-2"><Note tone="warn">Formal Review couldn’t be refreshed.</Note><button onClick={rest.onBack} className="text-xs text-forest-700 underline">← All reviews on this Agreement</button></div>;
+  const d = read.data;
+  const summary: ReviewCaseSummaryResponse = { reviewCaseId: d.reviewCaseId, agreementId: d.agreementId, agreementVersionId: d.agreementVersionId, subjectType: d.subjectType, subjectId: d.subjectId, callerRole: d.callerRole, state: d.state, openedAt: d.openedAt, responseDeadlineAt: d.responseDeadlineAt, evidenceDeadlineAt: d.evidenceDeadlineAt, terminalOutcome: d.terminalOutcome, version: d.version };
+  return <CaseView gateway={gateway} summary={summary} {...rest} />;
+}
+
 function CaseView({ gateway, summary, lookup, currentVersionId, onBack, onOpenMoney, onGetHelp }: {
   gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
-  summary: ReviewCaseSummaryResponse; lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: () => void;
+  summary: ReviewCaseSummaryResponse; lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: (review: { reviewCaseId: string; agreementVersionId: string }) => void;
 }) {
   const [detail, refreshDetail] = useRead<ReviewCaseDetailResponse>(() => gateway.detail(summary.reviewCaseId, summary.agreementId), summary.reviewCaseId);
   const [evidence, refreshEvidence] = useRead(async () => (await gateway.evidence(summary.reviewCaseId, summary.agreementId)).items, summary.reviewCaseId);
   const refreshAll = () => { refreshDetail(); refreshEvidence(); };
   return (
-    <CaseDetailView summary={summary} detail={detail} evidence={evidence} lookup={lookup} currentVersionId={currentVersionId} onBack={onBack} onRefresh={refreshAll} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp}
+    <CaseDetailView summary={summary} detail={detail} evidence={evidence} lookup={lookup} currentVersionId={currentVersionId} onBack={onBack} onRefresh={refreshAll} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp ? () => onGetHelp({ reviewCaseId: summary.reviewCaseId, agreementVersionId: summary.agreementVersionId }) : undefined}
       yourPart={<YourPart gateway={gateway} summary={summary} d={detail.status === 'ready' ? detail.data : null} refreshing={detail.status === 'ready' && detail.refreshing} refresh={refreshAll} />} />
   );
 }

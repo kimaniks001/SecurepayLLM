@@ -9,6 +9,8 @@ export * from './src/features/support/display';
 export * from './src/features/support/context';
 export * from './src/features/support/tabHint';
 export { SupportView, HUMAN_SUPPORT_UNAVAILABLE, HELP_IS_NOT } from './src/features/support/SupportExperience';
+export * from './src/features/support/label';
+export { ReviewPanel } from './src/features/review/ReviewPanel';
 export { SettlementRowView, ExceptionBlock } from './src/features/money/AgreementMoneyPanels';
 export { instructionScope } from './src/features/money/display';
 export { AgreementSupport } from './src/components/AgreementSupport';
@@ -114,12 +116,15 @@ test('30. no provider raw data: hostile extra fields are never rendered; custome
 // ---- Help & Support
 const nav = Object.fromEntries(['openAgreement', 'openAgreementReviews', 'openMoney', 'askAgent', 'recovery', 'notifications', 'account', 'agreements', 'money', 'store', 'community'].map(k => [k, () => {}]));
 const help = o => html(m.SupportView, { signedIn: true, ctx: null, label: null, reviews: null, money: null, nav, ...o });
+const L = o => ({ title: 'Bathroom retiling', titleConfirmed: true, versionLabel: null, currentVersionId: null, freshVersionLabel: null, notice: null, ...o });
 const CTX = { kind: 'agreement', agreementId: 'agr-secret', title: 'Bathroom retiling', versionLabel: 'version 2', currentVersionId: 'v2' };
 test('global Help is a router: choices, each with its exact consequence, and no ticket console', () => {
   const t = text(help({}));
   assert.match(t, /What do you need help with\?/);
-  for (const c of ['An Agreement', 'Money', 'A formal review', 'Store or Community', 'Trouble signing in', 'Something else — ask KS001']) assert.match(t, new RegExp(c));
-  assert.equal((t.match(/When you press this,/g) ?? []).length, 6);
+  for (const c of ['An Agreement', 'Money', 'A formal review', 'Store', 'Community', 'Trouble signing in', 'Something else — ask KS001']) assert.match(t, new RegExp(c));
+  assert.equal((t.match(/When you press this,/g) ?? []).length, 7);
+  assert.match(t, /Store When you press this, SecurePay will open the Store\./); assert.match(t, /Community When you press this, SecurePay will open Community\./);
+  assert.doesNotMatch(t, /Store or Community/);
   assert.match(t, /Help & Support is a guide to where SecurePay already shows what it knows\. It isn’t a support ticket/);
 });
 test('signed out: only Trouble signing in and Ask KS001 -- no Agreement/Money assumptions', () => {
@@ -129,7 +134,7 @@ test('signed out: only Trouble signing in and Ask KS001 -- no Agreement/Money as
 });
 test('human support: an explicit limitation, never a button, ticket, number, assignee or status', () => {
   for (const ctx of [null, CTX]) {
-    const h = help({ ctx, label: ctx && { title: ctx.title, versionLabel: 'version 2', currentVersionId: 'v2', notice: null } });
+    const h = help({ ctx, label: ctx && L({ versionLabel: 'version 2', currentVersionId: 'v2' }) });
     const t = text(h).replace(m.HELP_IS_NOT, '').replace('They aren’t support cases and don’t mean anyone is handling something.', '');
     assert.match(t, /Human support requests are not yet available from this screen\. SecurePay can still help you inspect the Agreement, Money and formal Review state here\./);
     assert.doesNotMatch(t, /Coming soon|Request human support|Contact support|Open a ticket|ticket|case number|reference number|Support case|assigned|escalat|under investigation|working on (it|this)|OPEN \/ IN PROGRESS/i);
@@ -137,7 +142,7 @@ test('human support: an explicit limitation, never a button, ticket, number, ass
   }
 });
 test('Agreement -> Help preserves the Agreement context: title + exact version label, each action states its consequence', () => {
-  const t = text(help({ ctx: CTX, label: { title: 'Bathroom retiling', versionLabel: 'version 2', currentVersionId: 'v2', notice: null }, reviews: ready({ active: 1 }), money: ready({ headline: 'Not Payment Ready yet' }) }));
+  const t = text(help({ ctx: CTX, label: L({ versionLabel: 'version 2', currentVersionId: 'v2' }), reviews: ready({ active: 1 }), money: ready({ headline: 'Not Payment Ready yet' }) }));
   assert.match(t, /Help with Bathroom retiling · version 2/);
   assert.match(t, /From Formal Review 1 active formal review on this Agreement\./); assert.match(t, /From Money Not Payment Ready yet/);
   assert.match(t, /Open this Agreement/); assert.match(t, /Reviews & issues/); assert.match(t, /Open Money/);
@@ -145,27 +150,27 @@ test('Agreement -> Help preserves the Agreement context: title + exact version l
   assert.doesNotMatch(help({ ctx: CTX }), /agr-secret/);
 });
 test('an Agreement that changed: the old version label is dropped and a calm notice shown (never an old label as current)', () => {
-  const t = text(help({ ctx: CTX, label: { title: 'Bathroom retiling', versionLabel: null, currentVersionId: 'v3', notice: 'The Agreement changed after you opened Help. Help is showing the latest Agreement SecurePay can read.' } }));
+  const t = text(help({ ctx: CTX, label: L({ currentVersionId: 'v3', notice: m.HELP_CHANGED_NOTICE }) }));
   assert.match(t, /Help with Bathroom retiling(?! ·)/); assert.match(t, /The Agreement changed after you opened Help/); assert.doesNotMatch(t, /version 2/);
 });
 test('43. Help survives domain failures: Agreement + Review load, Money fails -> both shown, Money says so, Help is not blanked', () => {
-  const t = text(help({ ctx: CTX, label: { title: 'Bathroom retiling', versionLabel: null, currentVersionId: null, notice: null }, reviews: ready({ active: 0 }), money: { status: 'error' } }));
+  const t = text(help({ ctx: CTX, label: L({}), reviews: ready({ active: 0 }), money: { status: 'error' } }));
   assert.match(t, /Money couldn’t be loaded\./); assert.match(t, /No active formal reviews on this Agreement\./); assert.match(t, /Open this Agreement/);
   const t2 = text(help({ ctx: CTX, label: null, reviews: { status: 'error' }, money: ready({ headline: 'Payment Ready' }) }));
   assert.match(t2, /Reviews couldn’t be loaded\./); assert.doesNotMatch(t2, /No active formal reviews/);
 });
 test('Review -> Help keeps Formal Review and Human Support distinct', () => {
-  const t = text(help({ ctx: { ...CTX, kind: 'review' }, label: { title: 'Bathroom retiling', versionLabel: 'version 2', currentVersionId: 'v2', notice: null } }));
+  const t = text(help({ ctx: { ...CTX, kind: 'review' }, label: L({ versionLabel: 'version 2', currentVersionId: 'v2' }) }));
   assert.match(t, /Formal Review and Help are different/); assert.match(t, /opening it can’t affect a review, and it doesn’t contact anyone/);
   assert.match(t, /View formal review/);
 });
 test('Money exception -> Help carries only the customer-safe context', () => {
-  const ctx = { kind: 'money-exception', agreementId: 'agr-secret', title: 'Bathroom retiling', heading: 'SecurePay needs attention on this payment', reason: 'Settlement outcome is uncertain and is held for review. Do not resend payment.', requiredAction: m.requiredActionWords('OPERATIONS_REVIEW'), recordedOn: '20 Sept 2026' };
+  const ctx = { kind: 'money-exception', agreementId: 'agr-secret', title: 'Bathroom retiling', currentVersionId: 'v2', heading: 'SecurePay needs attention on this payment', reason: 'Settlement outcome is uncertain and is held for review. Do not resend payment.', requiredAction: m.requiredActionWords('OPERATIONS_REVIEW'), recordedOn: '20 Sept 2026' };
   const h = help({ ctx, label: null, money: ready({ headline: 'Payment Ready' }) });
   const t = text(h);
   assert.match(t, /From Money/); assert.match(t, /SecurePay needs attention on this payment/); assert.match(t, /seeing it here doesn’t mean anyone is working on it/);
   assert.match(t, /Open Money/); noSecrets(h);
-  assert.deepEqual(Object.keys(ctx).sort(), ['agreementId', 'heading', 'kind', 'reason', 'recordedOn', 'requiredAction', 'title']);
+  assert.deepEqual(Object.keys(ctx).sort(), ['agreementId', 'currentVersionId', 'heading', 'kind', 'reason', 'recordedOn', 'requiredAction', 'title']);
   const money = readFileSync('src/features/money/MoneyExperience.tsx', 'utf8');
   const call = money.slice(money.indexOf("openSupportFromRoute({"), money.indexOf("openSupportFromRoute({") + 420);
   assert.doesNotMatch(call, /instructionId|exceptionId|destination|providerPayload|railCode/);
@@ -235,4 +240,112 @@ test('a scoped Help context is cleared on every navigation, so Account -> Help i
   const agent = await src('src/features/agent/AgentExperience.tsx');
   const nav = agent.slice(agent.indexOf('const navigateTo = (view: AppView) => {'), agent.indexOf("if (view === 'store')"));
   assert.match(nav, /setSupportView\(false\); setHelpContext\(null\);/);
+});
+
+// ---- Phase 10 correction: exact Review, exact Agreement for every context, id-based version comparison, split Store/Community
+const REVIEW_CTX = { kind: 'review', agreementId: 'agr-secret', title: 'Bathroom retiling', versionLabel: 'version 2', currentVersionId: 'v2', reviewCaseId: 'rc-secret', reviewAgreementVersionId: 'v1' };
+const MONEY_CTX = { kind: 'money-exception', agreementId: 'agr-secret', title: 'Bathroom retiling', currentVersionId: 'v1', heading: 'SecurePay needs attention on this payment', reason: 'Settlement outcome is uncertain and is held for review. Do not resend payment.', requiredAction: m.requiredActionWords('OPERATIONS_REVIEW'), recordedOn: '20 Sept 2026' };
+const detailOf = (title, versionId, n) => ({ status: 'ready', data: { overview: { title }, currentVersion: versionId ? { versionId, versionNumber: n } : null } });
+const caseFact = (state, agreementVersionId) => ({ status: 'ready', data: { state, agreementVersionId } });
+
+test('Review Help: an earlier-version case stays explicitly Earlier Agreement version and is framed by the REVIEW, not the current Agreement version', () => {
+  const label = m.resolveHelpLabel(REVIEW_CTX, detailOf('Bathroom retiling', 'v2', 2));
+  const h = help({ ctx: REVIEW_CTX, label, reviewCase: caseFact('AWAITING_RESPONSE', 'v1') });
+  const t = text(h);
+  assert.match(t, /From Formal Review Waiting for response Earlier Agreement version/);
+  assert.match(t, /View formal review/); assert.match(t, /When you press this, SecurePay will open this review on the Agreement’s Support tab\./);
+  assert.doesNotMatch(t, /Current Agreement version/);
+  noSecrets(h); assert.doesNotMatch(h, /rc-secret/);
+});
+test('Review Help: a current-version case is labelled current; a Review that changed since the source screen shows the FRESH state', () => {
+  const label = m.resolveHelpLabel(REVIEW_CTX, detailOf('Bathroom retiling', 'v2', 2));
+  const now = text(help({ ctx: REVIEW_CTX, label, reviewCase: caseFact('DECIDED', 'v2') }));
+  assert.match(now, /Review decided Current Agreement version/); assert.doesNotMatch(now, /Waiting for response/);      // fresh state wins over the source screen
+});
+test('Review Help: Review read fails, Agreement read succeeds -> Formal Review not refreshed and Agreement help remains', () => {
+  const label = m.resolveHelpLabel(REVIEW_CTX, detailOf('Bathroom retiling', 'v2', 2));
+  const t = text(help({ ctx: REVIEW_CTX, label, reviewCase: { status: 'error' } }));
+  assert.match(t, /Formal Review couldn’t be refreshed\./); assert.doesNotMatch(t, /Waiting for response|Earlier Agreement version|Current Agreement version/);   // never rebuilt from the source screen
+  assert.match(t, /Help with Bathroom retiling · version 2/); assert.match(t, /Open this Agreement/); assert.match(t, /Open Money/);
+});
+test('Review Help: Agreement read fails, Review read succeeds -> the Review state with NEUTRAL Agreement-version context', () => {
+  const label = m.resolveHelpLabel(REVIEW_CTX, { status: 'error' });
+  const t = text(help({ ctx: REVIEW_CTX, label, reviewCase: caseFact('UNDER_REVIEW', 'v1') }));
+  assert.match(t, /From Formal Review Under review Agreement version context unavailable/);
+  assert.doesNotMatch(t, /Earlier Agreement version|Current Agreement version/);
+  assert.match(t, /This Agreement’s current context couldn’t be refreshed/); assert.match(t, /Help with this Agreement/); assert.doesNotMatch(t, /Help with Bathroom retiling/);
+});
+test('the exact Review is preserved through in-memory hints only: no case id in URL, storage or history', async () => {
+  m.setDetailTabHint({ agreementId: 'a', tab: 'support', reviewCaseId: 'rc-1' });
+  assert.equal(m.peekDetailTabHint().reviewCaseId, 'rc-1'); m.clearDetailTabHint(); assert.equal(m.peekDetailTabHint(), null);
+  const ctxSrc = await src('src/features/support/context.ts');
+  assert.doesNotMatch(ctxSrc, /localStorage|sessionStorage|URLSearchParams|history\.(push|replace)State/);
+  assert.deepEqual([...ctxSrc.matchAll(/location\.hash = ([^;]+);/g)].map(x => x[1]), ["''"]);   // the only hash write returns to the root; it carries no identifier
+  for (const f of ['src/features/support/tabHint.ts', 'src/features/support/label.ts', 'src/features/support/SupportExperience.tsx', 'src/features/review/ReviewPanel.tsx'])
+    assert.doesNotMatch(await src(f), /localStorage|sessionStorage|URLSearchParams|history\.(push|replace)State|location\.(hash|search)\s*=|\?reviewCase/, f);
+  const agent = await src('src/features/agent/AgentExperience.tsx');
+  assert.match(agent, /openAgreementReviews: \(agreementId, reviewCaseId\) => \{ setDetailTabHint\(\{ agreementId, tab: 'support', reviewCaseId \}\)/);
+  const ws = await src('src/features/workspace/WorkspaceExperience.tsx');
+  assert.match(ws, /initialCaseId=\{tabHint\?\.agreementId === boltDetail\.id \? tabHint\.reviewCaseId \?\? null : null\}/);
+  assert.match(ws, /reviewCaseId: review\.reviewCaseId, reviewAgreementVersionId: review\.agreementVersionId/);
+  const panel = await src('src/features/review/ReviewPanel.tsx');
+  assert.match(panel, /useState<string \| null>\(initialCaseId\)/);
+  assert.match(panel, /selected && !chosen && merged\.status !== 'loading'/);   // exact case read even when it isn't in the loaded list page
+});
+test('Review Help returns to the exact case: the hint selects it, and a case outside the loaded page is read directly', () => {
+  // SSR of the panel shows the loading state first (effects don't run); the selection contract is asserted through initial state above.
+  const h = html(m.ReviewPanel, { gateway: {}, agreementGateway: {}, agreementId: 'a', currentVersionId: 'v2', initialCaseId: 'rc-1' });
+  assert.match(text(h), /Loading reviews…/);
+});
+
+test('every contextual Help -- including a Money exception -- re-reads the exact Agreement Detail; the exception is a labelled snapshot', async () => {
+  const s = await src('src/features/support/SupportExperience.tsx');
+  assert.match(s, /const detail = useRead\(signedIn && agreementId \? \(\) => agreementGateway\.detail\(agreementId\) : null/);
+  assert.doesNotMatch(s, /ctx\.kind !== 'money-exception'/);
+  assert.match(s, /reviewGateway\.list\(/);
+  assert.match(s, /ctx\?\.kind === 'agreement' && agreementId/);          // a Money exception does NOT load all Review data
+  assert.match(s, /reviewGateway\.detail\(ctx\.reviewCaseId, ctx\.agreementId\)/);
+  const t = text(help({ ctx: MONEY_CTX, label: L({}), money: ready({ headline: 'Payment Ready' }) }));
+  assert.match(t, /This is what SecurePay showed on the Money screen when you opened Help\. Open Money for the current state/);
+});
+test('Money exception race: Agreement changed before Help opens -> snapshot preserved, fresh title/current version used, Open Money gets fresh context', () => {
+  const label = m.resolveHelpLabel(MONEY_CTX, detailOf('Bathroom retiling (renamed)', 'v3', 3));
+  assert.equal(label.title, 'Bathroom retiling (renamed)'); assert.equal(label.currentVersionId, 'v3'); assert.equal(label.freshVersionLabel, 'version 3'); assert.equal(label.notice, m.HELP_CHANGED_NOTICE);
+  let handed = null;
+  const h = html(m.SupportView, { signedIn: true, ctx: MONEY_CTX, label, reviews: null, money: ready({ headline: 'Payment Ready' }), nav: { ...nav, openMoney: x => { handed = x; } } });
+  const t = text(h);
+  assert.match(t, /Help with Bathroom retiling \(renamed\)/); assert.match(t, /The Agreement changed after you opened Help/);
+  assert.match(t, /SecurePay needs attention on this payment/); assert.match(t, /Settlement outcome is uncertain and is held for review\./);     // snapshot preserved
+  // the handoff Open Money would receive is built from the FRESH read, not the source ctx
+  assert.deepEqual({ title: label.title, versionLabel: label.freshVersionLabel, currentVersionId: label.currentVersionId }, { title: 'Bathroom retiling (renamed)', versionLabel: 'version 3', currentVersionId: 'v3' });
+  assert.equal(handed, null);
+});
+test('Money exception + Agreement Detail fails: the exception stays; the source title/version are NOT presented as newly confirmed', () => {
+  const label = m.resolveHelpLabel(MONEY_CTX, { status: 'error' });
+  assert.equal(label.titleConfirmed, false); assert.equal(label.currentVersionId, null); assert.equal(label.freshVersionLabel, null);
+  const t = text(help({ ctx: MONEY_CTX, label, money: { status: 'error' } }));
+  assert.match(t, /SecurePay needs attention on this payment/); assert.match(t, /Settlement outcome is uncertain/);
+  assert.match(t, /This Agreement’s current context couldn’t be refreshed/); assert.match(t, /Help with this Agreement/); assert.doesNotMatch(t, /Help with Bathroom retiling/);
+  assert.match(t, /Money couldn’t be loaded\./);
+});
+test('version currency is decided by IDS, never by formatted display text', () => {
+  const ctx = { kind: 'agreement', agreementId: 'a', title: 'Villa', versionLabel: 'version 1', currentVersionId: 'v1' };
+  // ids equal, but the fresh TITLE happens to equal the old "title · label" display string -> the label must still be kept
+  const kept = m.resolveHelpLabel(ctx, detailOf('Villa · version 1', 'v1', 1));
+  assert.equal(kept.versionLabel, 'version 1');
+  // ids differ, but the fresh title equals the old display string and the fresh number reads "version 1" -> the label must still be dropped
+  const dropped = m.resolveHelpLabel(ctx, detailOf('Villa · version 1', 'v9', 1));
+  assert.equal(dropped.versionLabel, null); assert.equal(dropped.notice, m.HELP_CHANGED_NOTICE);
+  // a title that merely contains version-like text cannot make an unknown version current
+  assert.equal(m.resolveHelpLabel(ctx, detailOf('Villa version 1', null, undefined)).versionLabel, null);
+  assert.equal(m.resolveHelpLabel({ ...ctx, currentVersionId: null }, detailOf('Villa', 'v1', 1)).versionLabel, null);
+  const src2 = readFileSync('src/features/support/label.ts', 'utf8');
+  assert.match(src2, /sourceId === freshId/); assert.doesNotMatch(src2, /resolveHandoffContext|\.context|!==\s*detail/);
+});
+test('Store and Community are separate factual choices, each with its own consequence and its own action', async () => {
+  const s = await src('src/features/support/SupportExperience.tsx');
+  assert.match(s, /<Action title="Store" consequence="SecurePay will open the Store\." onClick=\{nav\.store\} \/>/);
+  assert.match(s, /<Action title="Community" consequence="SecurePay will open Community\." onClick=\{nav\.community\} \/>/);
+  const agent = await src('src/features/agent/AgentExperience.tsx');
+  assert.match(agent, /store: \(\) => \{ setHelpContext\(null\); navigateTo\('store'\)/); assert.match(agent, /community: \(\) => \{ setHelpContext\(null\); navigateTo\('community'\)/);
 });
