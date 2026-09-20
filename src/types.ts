@@ -675,6 +675,13 @@ export interface AgreementPerson {
   name: string;
   role: string;
   confirmationStatus: 'confirmed_current' | 'joined_not_confirmed' | 'not_joined' | 'set_version';
+  /**
+   * Real-mode only: the plain-words fact SecurePay's participant + confirmation reads establish, and its kind.
+   * When present it is shown INSTEAD of the fixture `confirmationStatus` label. `unknown` means a read failed --
+   * it is never rendered as "not confirmed".
+   */
+  statusText?: string;
+  statusKind?: 'current' | 'needs' | 'waiting' | 'unknown' | 'neutral';
 }
 
 export interface AgreementDocument {

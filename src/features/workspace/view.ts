@@ -1,5 +1,5 @@
 import type {
-  AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
+  AgreementConfirmationResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
   AgreementMoneyRecordResponse, AgreementProblemSummaryResponse, CurrentUserAgreementSummaryResponse,
   MilestoneEffectiveStateResponse, RecentActivityEntryResponse, WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
@@ -223,23 +223,41 @@ export function waitingItemsFromHub(waitingOnOthers: CurrentUserAgreementSummary
 
 // ─── Agreement Detail ─────────────────────────────────────────────────────
 
+/**
+ * Who is on the Agreement and what is true of each of them, from TWO authorities joined by the stable participant id
+ * (never by name, KS Number, role or position):
+ *   - Detail participants: identity (name / KS Number where SecurePay supplies them), role, participantStatus;
+ *   - `/confirmations`: every confirmation with SecurePay's own `confirmationCurrent` flag.
+ * `confirmations === null` means that read FAILED: unknown, which is never shown as "not confirmed".
+ * Currentness is SecurePay's `confirmationCurrent`, never a comparison of version numbers made here.
+ */
+export function peopleView(
+  participants: AgreementDetailResponse['participants'],
+  confirmations: AgreementConfirmationResponse[] | null,
+  currentVersionNumber: number | null,
+): AgreementPerson[] {
+  return participants.map(p => {
+    const identity = p.displayName ? (p.ksNumber ? `${p.displayName} · ${p.ksNumber}` : p.displayName) : (p.ksNumber ?? null);
+    const invited = p.participantStatus === 'INVITED' || p.participantStatus === 'PENDING';
+    const base = { name: identity ?? (invited ? 'Someone invited' : 'Participant'), role: humanizeCode(p.roleCode), confirmationStatus: 'not_joined' as const };
+    if (p.participantStatus === 'CREATOR') return { ...base, statusText: 'Started this Agreement', statusKind: 'neutral' as const };
+    if (invited) return { ...base, statusText: 'Invitation issued · not joined yet', statusKind: 'waiting' as const };
+    if (p.participantStatus !== 'JOINED_UNCONFIRMED' && p.participantStatus !== 'CONFIRMED') return { ...base, statusText: humanizeCode(p.participantStatus), statusKind: 'neutral' as const };
+    if (confirmations === null) return { ...base, statusText: 'Joined · confirmation status couldn’t be loaded', statusKind: 'unknown' as const };
+    const mine = confirmations.filter(c => c.participantId === p.participantId && c.status === 'CONFIRMED');
+    const current = mine.find(c => c.confirmationCurrent);
+    if (current) return { ...base, statusText: `Joined · confirmed version ${current.versionNumber}`, statusKind: 'current' as const };
+    if (mine.length > 0) {
+      const earlier = Math.max(...mine.map(c => c.versionNumber));
+      return { ...base, statusText: `Confirmed version ${earlier} · needs to review ${currentVersionNumber != null ? `version ${currentVersionNumber}` : 'the current version'}`, statusKind: 'needs' as const };
+    }
+    return { ...base, statusText: 'Joined · confirmation still needed', statusKind: 'waiting' as const };
+  });
+}
+
 function displayNameForParticipant(participantId: string, participants: AgreementDetailResponse['participants']): string {
   const match = participants.find(p => p.participantId === participantId);
   return match?.displayName || match?.ksNumber || 'A participant';
-}
-
-function participantConfirmationStatus(
-  p: AgreementDetailResponse['participants'][number],
-  confirmations: AgreementConfirmationStatusResponse[],
-): AgreementPerson['confirmationStatus'] {
-  const match = confirmations.find(c => c.participantId === p.participantId);
-  if (match) {
-    if (match.confirmationCurrent) return 'confirmed_current';
-    return match.confirmedVersionId ? 'joined_not_confirmed' : 'not_joined';
-  }
-  if (p.participantStatus === 'CONFIRMED') return 'confirmed_current';
-  if (p.participantStatus === 'JOINED_UNCONFIRMED' || p.participantStatus === 'CREATOR') return 'joined_not_confirmed';
-  return 'not_joined';
 }
 
 export interface DetailCompletion { completed: boolean; completedAt: string | null }
@@ -252,15 +270,11 @@ export interface DetailCompletion { completed: boolean; completedAt: string | nu
  */
 export function agreementDetailView(
   dto: AgreementDetailResponse,
-  confirmations: AgreementConfirmationStatusResponse[],
+  confirmations: AgreementConfirmationResponse[] | null,
   status: AgreementStatus,
   completion: DetailCompletion,
 ): AgreementDetailType {
-  const people: AgreementPerson[] = dto.participants.map(p => ({
-    name: p.displayName || p.ksNumber || 'Participant',
-    role: p.roleCode,
-    confirmationStatus: participantConfirmationStatus(p, confirmations),
-  }));
+  const people = peopleView(dto.participants, confirmations, dto.currentVersion?.versionNumber ?? null);
   const documents: AgreementDocument[] = dto.documents.map(d => ({
     id: d.evidenceId,
     filename: d.originalFilename || d.description || 'Document',
@@ -275,7 +289,7 @@ export function agreementDetailView(
       version: `v${v.versionNumber}`,
       // Confirmation-status only tracks each participant's standing against the CURRENT version, so a
       // superseded version's confirmers are not knowable from this projection — left empty, not guessed.
-      confirmedBy: isCurrent ? confirmations.filter(c => c.confirmationCurrent).map(c => displayNameForParticipant(c.participantId, dto.participants)) : [],
+      confirmedBy: isCurrent ? (confirmations ?? []).filter(c => c.confirmationCurrent && c.status === 'CONFIRMED').map(c => displayNameForParticipant(c.participantId, dto.participants)) : [],
       isCurrent,
     };
   });

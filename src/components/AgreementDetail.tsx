@@ -64,6 +64,8 @@ interface AgreementDetailProps {
   tags?: TagView[];
   onAddTag?: (label: string) => void;
   onRemoveTag?: (tagId: string) => void;
+  /** Real mode: the Invite action + invitation list, rendered inside the People area. */
+  peopleExtra?: React.ReactNode;
 }
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
@@ -94,7 +96,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -159,7 +161,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           <div className="max-w-2xl mx-auto space-y-4">
             {tab === 'overview' && <AgreementOverview detail={detail} next={next} />}
             {tab === 'terms' && <AgreementTerms detail={detail} />}
-            {tab === 'people' && <AgreementPeople people={detail.people} />}
+            {tab === 'people' && <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
             {tab === 'activity' && <AgreementActivity activity={detail.activity} />}
             {tab === 'changes' && <AgreementChanges changes={detail.changes} versions={detail.versions} />}
@@ -255,7 +257,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
           {mobileSection === 'people-terms' && (
             <>
-              <AgreementPeople people={detail.people} />
+              <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>
               <AgreementTerms detail={detail} />
             </>
           )}

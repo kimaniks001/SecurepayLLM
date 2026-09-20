@@ -96,7 +96,7 @@ export function handoffNoticeView(handoff: HandoffView): NoticeResponse {
   return {
     type: 'NOTICE',
     label: 'Draft Agreement created',
-    text: 'A draft Agreement now exists from this review. It still needs the next Agreement steps — it is not sent, accepted, funded or paid.',
+    text: 'A draft Agreement now exists from this review. Nobody has been invited, and it is not sent, accepted, funded or paid. You can open it to invite someone.',
     tone: 'important',
   };
 }

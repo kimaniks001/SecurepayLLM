@@ -1,0 +1,301 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { build } from 'esbuild';
+// UI Phase 5 -- creator invitation issuance, People, and version-aware confirmation visibility. Gateways are scripted
+// from the contracts read in SecurePayAPI (AgreementInvitationService, AgreementController, AgreementConfirmationService,
+// AgreementDetailProjectionService); the API itself is not run.
+const bundle = await build({ stdin: { contents: `
+export * from './src/features/invitations/controller';
+export { InvitePanel, invitationStatusText } from './src/features/invitations/InvitePanel';
+export { peopleView } from './src/features/workspace/view';
+export { createWorkspaceController } from './src/features/workspace/controller';
+export { AgreementPeople } from './src/components/AgreementPeople';
+export { handoffNoticeView } from './src/features/handoff/view';
+export { ApiError } from './src/api/securepay/http';
+export { createElement } from 'react';
+export { renderToStaticMarkup } from 'react-dom/server';
+`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
+const mod = { exports: {} };
+new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+const api = mod.exports;
+const html = (c, p) => api.renderToStaticMarkup(api.createElement(c, p));
+const text = h => h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+const err = (kind, status, message) => new api.ApiError(kind, message ?? 'x', status ?? null, null);
+const ORIGIN = 'https://app.example';
+
+function setup(over = {}) {
+  const calls = []; let n = 0;
+  const gateway = {
+    propose: async id => { calls.push(['propose', id]); return { id, status: 'PROPOSED' }; },
+    invitations: async id => { calls.push(['invitations', id]); return []; },
+    revokeInvitation: async (id, inv) => { calls.push(['revoke', id, inv]); return {}; },
+    issueInvitation: async (id, body) => { calls.push(['issue', id, body]); return { invitationId: 'inv-1', status: 'ISSUED', invitationToken: 'SECRET+/TOKEN', replayed: false }; },
+    ...over,
+  };
+  const changed = [];
+  return { calls, changed, controller: api.createInviteController(gateway, 'agr-1', ORIGIN, () => changed.push(1), () => `key-${++n}`) };
+}
+const fill = c => { c.open(); c.setRole('SERVICE_PROVIDER'); c.setKs('KS003'); };
+const issues = calls => calls.filter(c => c[0] === 'issue');
+
+// ------------------------------------------------------------ issuance
+test('nothing is issued by opening the panel, the form or Agreement Detail: only an explicit issue() call', async () => {
+  const { controller, calls } = setup();
+  await controller.loadList(); controller.open(); controller.setRole('BUYER'); controller.setKs('KS003');
+  assert.equal(issues(calls).length, 0); assert.equal(calls.some(c => c[0] === 'propose'), false);
+});
+test('issue needs an explicit role and a KS Number; the body is exactly key + role + KS (no identity id, no guessed role)', async () => {
+  const { controller, calls } = setup();
+  controller.open(); await controller.issue(); assert.equal(issues(calls).length, 0);
+  controller.setRole('SERVICE_PROVIDER'); await controller.issue(); assert.equal(issues(calls).length, 0);
+  controller.setKs(' KS 003 '); await controller.issue();
+  assert.deepEqual(issues(calls)[0], ['issue', 'agr-1', { idempotencyKey: 'key-1', roleCode: 'SERVICE_PROVIDER', intendedKsNumber: 'KS003' }]);
+  assert.equal('intendedIdentityId' in issues(calls)[0][2], false);
+});
+test('the role list is the canonical vocabulary, and an unknown word cannot be typed in as a role', () => {
+  const codes = api.INVITE_ROLES.map(r => r.code);
+  assert.ok(codes.includes('SERVICE_PROVIDER') && codes.includes('CLIENT') && codes.includes('BUYER') && codes.includes('SELLER'));
+  assert.equal(new Set(codes).size, codes.length);
+});
+test('success says only that an invitation exists: link from the returned token, no join, no send, no confirmation', async () => {
+  const { controller } = setup(); fill(controller); await controller.issue();
+  const s = controller.getSnapshot();
+  assert.equal(s.phase, 'issued'); assert.equal(s.issued.link, `${ORIGIN}/#/invitation/${encodeURIComponent('SECRET+/TOKEN')}`);
+  assert.equal(s.request, null);
+});
+test('creating an invitation asks the workspace to re-read the Agreement (to show authoritative People), nothing else', async () => {
+  const { controller, changed, calls } = setup(); fill(controller); await controller.issue();
+  assert.equal(changed.length, 1); assert.equal(calls.some(c => c[0] === 'confirm' || c[0] === 'join'), false);
+});
+test('propose is its own explicit step: draft -> proposed, it invites nobody', async () => {
+  const { controller, calls } = setup(); await controller.propose();
+  assert.deepEqual(calls.map(c => c[0]), ['propose']); assert.equal(issues(calls).length, 0);
+});
+
+// ------------------------------------------------------------ idempotency
+test('uncertain create: retry uses the SAME key and SAME body; inputs are locked while it is unresolved', async () => {
+  let first = true;
+  const { controller, calls } = setup({ issueInvitation: async (id, body) => { calls.push(['issue', id, body]); if (first) { first = false; throw err('timeout', null, 't'); } return { invitationId: 'inv-1', status: 'ISSUED', invitationToken: 'T', replayed: false }; } });
+  fill(controller); await controller.issue();
+  assert.equal(controller.getSnapshot().phase, 'uncertain'); assert.match(controller.getSnapshot().error, /couldn.t confirm whether that went through/);
+  controller.setKs('KS999'); controller.setRole('BUYER'); // ignored: the request under retry must not change
+  assert.equal(controller.getSnapshot().ksNumber, 'KS003'); assert.equal(controller.getSnapshot().roleCode, 'SERVICE_PROVIDER');
+  await controller.issue();
+  const sent = issues(calls); assert.equal(sent.length, 2); assert.deepEqual(sent[0][2], sent[1][2]);
+  assert.equal(controller.getSnapshot().phase, 'issued');
+});
+test('5xx and network errors are uncertain; a 4xx is definite and releases the key', async () => {
+  for (const e of [err('network', null), err('http', 503), err('timeout', null)]) {
+    const { controller } = setup({ issueInvitation: async () => { throw e; } }); fill(controller); await controller.issue();
+    assert.equal(controller.getSnapshot().phase, 'uncertain');
+  }
+  const { controller, calls } = setup({ issueInvitation: async (id, b) => { calls.push(['issue', id, b]); throw err('http', 422, 'x'); } });
+  fill(controller); await controller.issue();
+  assert.equal(controller.getSnapshot().phase, 'error'); assert.equal(controller.getSnapshot().request, null);
+  await controller.issue(); assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey); // new explicit attempt -> fresh key
+});
+test('success releases the key; a later invitation gets a fresh one', async () => {
+  const { controller, calls } = setup(); fill(controller); await controller.issue(); controller.reset();
+  fill(controller); await controller.issue();
+  assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
+});
+test('reset/abandon ends the retry sequence and forgets the link', async () => {
+  const { controller, calls } = setup({ issueInvitation: async (id, b) => { calls.push(['issue', id, b]); throw err('timeout', null); } });
+  fill(controller); await controller.issue(); controller.reset();
+  assert.equal(controller.getSnapshot().request, null); assert.equal(controller.getSnapshot().issued, null);
+  fill(controller); await controller.issue();
+  assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
+});
+test('a replay after a lost response has no token: it says the invitation exists and cannot be shown again', async () => {
+  const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true }) });
+  fill(controller); await controller.issue();
+  assert.equal(controller.getSnapshot().phase, 'issued-earlier'); assert.equal(controller.getSnapshot().issued, null);
+});
+
+// ------------------------------------------------------------ permissions and validation
+test('401 / 403 / validation never claim an invitation exists, and expose no raw backend text', async () => {
+  const cases = [[err('http', 401, 'auth'), /session ended.*No invitation was created/], [err('http', 403, 'forbidden'), /can.t invite people to this Agreement\. No invitation was created/], [err('http', 422, 'only creator may issue invitations for now'), /Only the person who created this Agreement/], [err('http', 422, 'agreement cannot issue invitations in status DRAFT'), /isn.t in a state where invitations can be created/], [err('http', 422, 'SELECT secret'), /Check the KS Number and role/]];
+  for (const [e, want] of cases) {
+    const { controller } = setup({ issueInvitation: async () => { throw e; } }); fill(controller); await controller.issue();
+    const s = controller.getSnapshot(); assert.equal(s.phase, 'error'); assert.equal(s.issued, null); assert.match(s.error, want); assert.doesNotMatch(s.error, /SELECT|secret|forbidden/);
+  }
+});
+
+// ------------------------------------------------------------ sharing
+test('the invitation link is never persisted and no delivery is claimed', async () => {
+  for (const f of ['src/features/invitations/controller.ts', 'src/features/invitations/InvitePanel.tsx']) {
+    const src = await readFile(f, 'utf8');
+    assert.doesNotMatch(src, /localStorage|sessionStorage|indexedDB|console\.|document\.cookie/, f);
+    assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), /Resend|Sent to|Delivered|WhatsApp|Notified|Extend|SMS/, f);
+  }
+});
+const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'closed', roleCode: null, ksNumber: '', request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...snapshot }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over }));
+test('the ready state: "Invitation ready", copy is not send, the raw token is not shown, focusable region', () => {
+  const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, ksNumber: '', request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  const out = text(html5);
+  assert.match(out, /Invitation ready/); assert.match(out, /Nothing has been sent, and no one has joined/); assert.match(out, /Copy invitation link/);
+  assert.match(out, /shows this link only now/);
+  assert.doesNotMatch(html5, /RAWTOKEN123/); assert.doesNotMatch(out, /Sent\b|Delivered|Participant added|shared successfully|joined successfully/);
+});
+test('the form says what it does and does not do; labels are real labels', () => {
+  const out = panel({ phase: 'form' });
+  assert.match(out, /Who should take part in this Agreement\?/); assert.match(out, /Their KS Number/); assert.match(out, /Their role in this Agreement/);
+  assert.match(out, /Creating an invitation makes a link you can share\. It doesn.t send anything, and nobody has joined or agreed to anything/);
+  assert.match(out, /Only the account with this KS Number will be able to join/);
+  const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, ksNumber: '', request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  assert.match(markup, /<label[^>]*for="[^"]+-ks"/); assert.match(markup, /<label[^>]*for="[^"]+-role"/); assert.match(markup, /<select/);
+});
+test('a draft offers Propose, not Invite; a non-creator or a non-invitable status sees no invite controls', () => {
+  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /Propose this Agreement/); assert.doesNotMatch(panel({}, { agreementStatus: 'DRAFT' }), /Invite someone/);
+  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /invites nobody and tells nobody/);
+  assert.equal(panel({}, { isCreator: false }), '');
+  for (const status of ['CANCELLED', 'EXPIRED', 'CONFIRMATION_PENDING']) assert.doesNotMatch(panel({}, { agreementStatus: status }), /Invite someone|Propose this/);
+  assert.match(panel({}, { agreementStatus: 'PARTICIPANTS_JOINING' }), /Invite someone/);
+});
+test('the uncertain state is announced and promises no second invitation', () => {
+  const out = panel({ phase: 'uncertain', roleCode: 'BUYER', ksNumber: 'KS003', error: 'SecurePay couldn’t confirm whether that went through.' });
+  assert.match(out, /We.re not sure that went through/); assert.match(out, /can.t create two/); assert.match(out, /Check and try again/);
+});
+test('invitation status words follow SecurePay statuses: opened is not joined, and expiry comes from expiresAt', () => {
+  const inv = o => ({ id: 'i', roleCode: 'BUYER', status: 'ISSUED', issuedAt: '2026-09-01T00:00:00Z', expiresAt: '2030-01-01T00:00:00Z', revokedAt: null, ...o });
+  assert.match(api.invitationStatusText(inv({})), /Not opened yet/);
+  assert.match(api.invitationStatusText(inv({ status: 'VIEWED' })), /Link opened · nobody has joined with it/);
+  assert.doesNotMatch(api.invitationStatusText(inv({ status: 'VIEWED' })), /accepted|seen|delivered/i);
+  assert.match(api.invitationStatusText(inv({ status: 'JOINED' })), /Someone joined with this invitation/);
+  assert.match(api.invitationStatusText(inv({ status: 'REVOKED' })), /Revoked/);
+  assert.equal(api.invitationStatusText(inv({ expiresAt: '2020-01-01T00:00:00Z' })), 'Expired');
+});
+test('the invitation list failing is not "no invitations"', () => {
+  const out = panel({ list: { status: 'error' } });
+  assert.match(out, /couldn.t be loaded/); assert.doesNotMatch(out, /No invitations have been created/);
+  assert.match(panel({ list: { status: 'ready', items: [] } }), /No invitations have been created/);
+});
+test('revoke states its real effect and exists only for usable invitations', () => {
+  const inv = o => ({ id: 'i', roleCode: 'BUYER', status: 'ISSUED', issuedAt: '2026-09-01T00:00:00Z', expiresAt: '2030-01-01T00:00:00Z', revokedAt: null, ...o });
+  const out = panel({ list: { status: 'ready', items: [inv({}), inv({ id: 'j', status: 'REVOKED' }), inv({ id: 'k', status: 'JOINED' })] } });
+  assert.equal((out.match(/Revoke this invitation/g) ?? []).length, 1);
+  assert.match(out, /Revoking stops a link from working\. It doesn.t remove anyone who has already joined/);
+});
+test('revoke calls the real endpoint then re-reads the list', async () => {
+  const { controller, calls } = setup(); await controller.revoke('inv-9');
+  assert.deepEqual(calls.map(c => c[0]), ['revoke', 'invitations']); assert.deepEqual(calls[0], ['revoke', 'agr-1', 'inv-9']);
+});
+
+// ------------------------------------------------------------ People
+const P = (id, status, role = 'SERVICE_PROVIDER', extra = {}) => ({ participantId: id, roleCode: role, participantStatus: status, ksNumber: null, displayName: null, ...extra });
+const C = (participantId, versionNumber, current, extra = {}) => ({ id: `c-${participantId}-${versionNumber}`, agreementVersionId: `v${versionNumber}`, participantId, versionNumber, versionContentHash: 'h', status: 'CONFIRMED', assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: 'x', confirmationCurrent: current, reconfirmationRequired: !current, ...extra });
+const one = (participant, confirmations, current = 3) => api.peopleView([participant], confirmations, current)[0];
+
+test('real identity is shown where SecurePay supplies it, and only that: no internal ids, no invented names', () => {
+  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Wanjiru Traders', ksNumber: 'KS003' }), []).name, 'Wanjiru Traders · KS003');
+  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { ksNumber: 'KS003' }), []).name, 'KS003');
+  assert.equal(one(P('p1', 'INVITED'), []).name, 'Someone invited');
+  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), []).name, 'Participant');
+  assert.doesNotMatch(JSON.stringify(api.peopleView([P('p1', 'INVITED')], [], 1)), /identityId/);
+});
+test('roles come from SecurePay roleCode only, in plain words', () => {
+  assert.equal(one(P('p1', 'INVITED', 'SERVICE_PROVIDER'), []).role, 'Service Provider');
+  assert.equal(one(P('p1', 'CREATOR', 'PROPOSER'), []).role, 'Proposer');
+});
+test('the creator is not asked to confirm: "Started this Agreement", neutral', () => {
+  const c = one(P('p0', 'CREATOR', 'PROPOSER'), []);
+  assert.equal(c.statusText, 'Started this Agreement'); assert.equal(c.statusKind, 'neutral');
+});
+test('invited: the invitation exists, they have not joined', () => {
+  for (const s of ['INVITED', 'PENDING']) assert.equal(one(P('p1', s), []).statusText, 'Invitation issued · not joined yet');
+});
+test('joined but unconfirmed is distinct from confirmed', () => {
+  const p = one(P('p1', 'JOINED_UNCONFIRMED'), []);
+  assert.equal(p.statusText, 'Joined · confirmation still needed'); assert.equal(p.statusKind, 'waiting');
+});
+test('current confirmation is clearly current and names the version', () => {
+  const p = one(P('p1', 'CONFIRMED'), [C('p1', 3, true)]);
+  assert.equal(p.statusText, 'Joined · confirmed version 3'); assert.equal(p.statusKind, 'current');
+});
+test('a stale confirmation is NOT "Confirmed": it names both versions and says review again', () => {
+  const p = one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3);
+  assert.equal(p.statusText, 'Confirmed version 2 · needs to review version 3'); assert.equal(p.statusKind, 'needs');
+  assert.doesNotMatch(p.statusText, /^Confirmed$|Joined · confirmed/);
+});
+test('participantStatus CONFIRMED with no current confirmation is never shown as confirmed-current (the old code did)', () => {
+  assert.notEqual(one(P('p1', 'CONFIRMED'), []).statusKind, 'current');
+  assert.equal(one(P('p1', 'CONFIRMED'), []).statusText, 'Joined · confirmation still needed');
+});
+test('currentness is SecurePay\'s confirmationCurrent flag, not a local version-number comparison', () => {
+  // Same number as the current version but the backend says it is not current -> needs review.
+  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 3, false)], 3).statusKind, 'needs');
+  // A lower number that the backend says IS current -> current.
+  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 1, true)], 3).statusKind, 'current');
+});
+test('one participant confirming never implies the others did; matching is by participantId, not order or name', () => {
+  const ps = [P('pA', 'JOINED_UNCONFIRMED', 'BUYER', { displayName: 'Kamau' }), P('pB', 'JOINED_UNCONFIRMED', 'SELLER', { displayName: 'Kamau' })];
+  const out = api.peopleView(ps, [C('pB', 3, true)], 3);
+  assert.equal(out[0].statusKind, 'waiting'); assert.equal(out[1].statusKind, 'current');
+  const swapped = api.peopleView([...ps].reverse(), [C('pB', 3, true)], 3);
+  assert.equal(swapped[0].statusKind, 'current'); assert.equal(swapped[1].statusKind, 'waiting');
+});
+test('a withdrawn/other-status confirmation does not count', () => {
+  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), [C('p1', 3, true, { status: 'WITHDRAWN' })]).statusKind, 'waiting');
+});
+test('when the confirmations read failed (null) the joined person is UNKNOWN, never "not confirmed"', () => {
+  const p = one(P('p1', 'JOINED_UNCONFIRMED'), null);
+  assert.equal(p.statusKind, 'unknown'); assert.match(p.statusText, /confirmation status couldn.t be loaded/); assert.doesNotMatch(p.statusText, /not confirmed|still needed/i);
+  const c = one(P('p2', 'CONFIRMED'), null); assert.equal(c.statusKind, 'unknown');
+  // People not depending on confirmations keep their truth.
+  assert.equal(one(P('p3', 'INVITED'), null).statusText, 'Invitation issued · not joined yet');
+});
+test('an Agreement change makes an earlier confirmation stale, with no automatic action', async () => {
+  const before = one(P('p1', 'CONFIRMED'), [C('p1', 2, true)], 2);
+  const after = one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3);
+  assert.equal(before.statusKind, 'current'); assert.equal(after.statusKind, 'needs'); assert.match(after.statusText, /needs to review version 3/);
+  const src = await readFile('src/features/invitations/controller.ts', 'utf8');
+  assert.doesNotMatch(src, /confirmVersion|reinvite/i);
+});
+test('People renders the words and an icon (never colour alone), with no scoreboard or percentage', () => {
+  const people = api.peopleView([P('p1', 'CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Kamau' }), P('p2', 'JOINED_UNCONFIRMED'), P('p3', 'INVITED')], [C('p1', 3, true)], 3);
+  const markup = html(api.AgreementPeople, { people });
+  const out = text(markup);
+  assert.match(out, /Kamau/); assert.match(out, /Joined · confirmed version 3/); assert.match(out, /Joined · confirmation still needed/); assert.match(out, /Invitation issued · not joined yet/);
+  assert.match(markup, /<ul[^>]*aria-label="People on this Agreement"/); assert.match(markup, /aria-hidden="true"/);
+  assert.doesNotMatch(out, /%|\d+\/\d+|complete|progress/i);
+});
+
+// ------------------------------------------------------------ workspace partial failure + creator
+const detailDto = { overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'T', purpose: '', description: '', agreementType: 'SERVICE', status: 'PROPOSED', currency: 'KES', proposedAmountMinor: null, createdAt: 'x', updatedAt: 'x', expiresAt: null }, currentVersion: { versionId: 'v3', versionNumber: 3, contentHash: 'h', createdAt: 'x', amendmentReason: null, materialChange: false }, participants: [P('p0', 'CREATOR', 'PROPOSER', { displayName: 'James', ksNumber: 'KS001' }), P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Kamau', ksNumber: 'KS003' })], milestones: [], terms: [], documents: [], activity: [], versionHistory: [], money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 } };
+const summary = (over = {}) => ({ agreementId: 'agr-1', publicReference: 'AGR-1', title: 'T', purpose: '', status: 'PROPOSED', agreementType: 'SERVICE', proposedAmountMinor: null, currency: 'KES', createdAt: 'x', updatedAt: 'x', currentActor: { roleCode: 'PROPOSER', participantStatus: 'CREATOR' }, counterparty: null, nextDeadline: null, attentionRequired: false, nextActions: [], currentAgreementVersionId: 'v3', completion: { completed: false, status: 'X', reasonCodes: [], agreementVersionId: 'v3', completedAt: null }, ...over });
+const hub = items => ({ needsMe: items, waitingOnOthers: [], takingShape: [], active: [], changedReviewRequired: [], completed: [], cancelled: [], expired: [] });
+const tick = () => new Promise(r => setTimeout(r, 0));
+test('workspace: Detail loads, participants survive a failed confirmations read (unknown), and the caller\'s own status is carried from the Hub', async () => {
+  const gateway = { currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }), hub: async () => hub([summary()]), detail: async () => detailDto, confirmations: async () => { throw err('http', 500, 'down'); }, money: { status: async () => { throw err('http', 404, 'x'); }, records: async () => [] } };
+  const c = api.createWorkspaceController(gateway); c.enter(); await tick(); c.openFromHome('agr-1'); await tick();
+  const s = c.getSnapshot();
+  assert.equal(s.detail.status, 'ready'); assert.equal(s.detail.data.confirmations, null); assert.equal(s.selectedActorStatus, 'CREATOR');
+  const people = api.peopleView(s.detail.data.dto.participants, s.detail.data.confirmations, 3);
+  assert.equal(people[1].statusKind, 'unknown'); assert.equal(people[0].statusText, 'Started this Agreement');
+});
+test('workspace: a recipient (not CREATOR) never gets invite controls', async () => {
+  const gateway = { currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }), hub: async () => hub([summary({ currentActor: { roleCode: 'SERVICE_PROVIDER', participantStatus: 'JOINED_UNCONFIRMED' } })]), detail: async () => detailDto, confirmations: async () => [], money: { status: async () => { throw err('http', 404, 'x'); }, records: async () => [] } };
+  const c = api.createWorkspaceController(gateway); c.enter(); await tick(); c.openFromHome('agr-1'); await tick();
+  assert.equal(c.getSnapshot().selectedActorStatus, 'JOINED_UNCONFIRMED');
+});
+test('workspace: reloadDetailQuietly refreshes People without tearing down the view', async () => {
+  let n = 0;
+  const gateway = { currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }), hub: async () => hub([summary()]), detail: async () => { n++; return detailDto; }, confirmations: async () => [], money: { status: async () => { throw err('http', 404, 'x'); }, records: async () => [] } };
+  const c = api.createWorkspaceController(gateway); c.enter(); await tick(); c.openFromHome('agr-1'); await tick();
+  const seen = []; c.subscribe(() => seen.push(c.getSnapshot().detail.status));
+  await c.reloadDetailQuietly();
+  assert.equal(n, 2); assert.ok(seen.every(s => s === 'ready'));
+});
+
+// ------------------------------------------------------------ copy + scope
+test('the draft-created notice says nobody has been invited', () => {
+  const view = api.handoffNoticeView({ status: 'PROGRESSED', progressedAgreementId: 'a', reviewedSource: null });
+  assert.match(view.text, /Nobody has been invited/);
+});
+test('Phase 5 code has no Money, funding or execution affordances', async () => {
+  for (const f of ['src/features/invitations/controller.ts', 'src/features/invitations/InvitePanel.tsx']) {
+    assert.doesNotMatch(await readFile(f, 'utf8'), /Pay now|Fund|STK|Wallet|settle|Payment Ready|escrow|milestone/i, f);
+  }
+});
