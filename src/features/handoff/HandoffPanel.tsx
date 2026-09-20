@@ -11,7 +11,7 @@ import type { IdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView, sourceReferenceView } from './view';
 
-export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void }) {
+export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
   const state = useSyncExternalStore(props.handoff.subscribe, props.handoff.getSnapshot, props.handoff.getSnapshot);
   // Focus follows the moment: when the phase changes the region takes focus, so a keyboard or screen-reader
   // user lands on what is now true rather than on a control that has just disappeared.
@@ -25,7 +25,7 @@ export function HandoffPanel(props: { handoff: HandoffController; identity: Iden
   return <div ref={region} tabIndex={-1} aria-label="Agreement review" className="space-y-3 focus:outline-none"><HandoffBody {...props} /></div>;
 }
 
-function HandoffBody({ handoff, identity, onDone }: { handoff: HandoffController; identity: IdentityController; onDone: () => void }) {
+function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
   const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
 
@@ -139,7 +139,10 @@ function HandoffBody({ handoff, identity, onDone }: { handoff: HandoffController
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
-        <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Back to the conversation', value: 'done' }] }} onChoice={leave} />
+        <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [
+          ...(onOpenAgreement && state.handoff.progressedAgreementId ? [{ label: 'Open this Agreement', value: 'open' }] : []),
+          { label: 'Back to the conversation', value: 'done' },
+        ] }} onChoice={value => { if (value === 'open' && onOpenAgreement && state.handoff?.progressedAgreementId) { const id = state.handoff.progressedAgreementId; handoff.reset(); identity.reset(); onOpenAgreement(id); } else leave(); }} />
       </div>
     );
   }

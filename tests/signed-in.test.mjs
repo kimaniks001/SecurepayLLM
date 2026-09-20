@@ -172,7 +172,7 @@ test('Agreement Detail is composed from the real backend detail projection; empt
     versionHistory: [{ versionId: 'v-1', versionNumber: 2, contentHash: 'hash', createdAt: '2026-09-05T00:00:00Z', amendmentReason: null, materialChange: false }],
     money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 },
   };
-  const confirmations = [{ participantId: 'p-1', identityId: 'i-1', roleCode: 'CUSTOMER', participantStatus: 'CONFIRMED', confirmedVersionId: 'v-1', confirmedVersionNumber: 2, currentVersionId: 'v-1', currentVersionNumber: 2, confirmationCurrent: true, reconfirmationRequired: false }];
+  const confirmations = [{ id: 'c-1', agreementVersionId: 'v-1', participantId: 'p-1', versionNumber: 2, versionContentHash: 'hash', status: 'CONFIRMED', assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: '2026-09-05T00:00:00Z', confirmationCurrent: true, reconfirmationRequired: false }];
   const view = api.agreementDetailView(dto, confirmations, 'active', { completed: false, completedAt: null });
   assert.equal(view.id, 'agr-1');
   assert.equal(view.version, 'v2');
@@ -219,7 +219,7 @@ test('unavailable/empty Detail sections never receive demo values — missing ve
 
 // ─── Confirmation-status must fail closed (regression for PR #7 review) ─────────────────────────────
 
-test('a failed confirmation-status read fails Agreement Detail closed instead of rendering an empty-but-authoritative confirmation list', async () => {
+test('a failed confirmations read keeps the participants and leaves their confirmation UNKNOWN (null), never "nobody confirmed"', async () => {
   const detailDto = {
     overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile', description: '', agreementType: 'SERVICE', status: 'PARTICIPANTS_JOINING', currency: 'KES', proposedAmountMinor: '680000', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-10T00:00:00Z', expiresAt: null },
     currentVersion: { versionId: 'v-1', versionNumber: 1, contentHash: 'hash', createdAt: '2026-09-01T00:00:00Z', amendmentReason: null, materialChange: false },
@@ -232,7 +232,7 @@ test('a failed confirmation-status read fails Agreement Detail closed instead of
     currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
     hub: async () => hub({ needsMe: [needsMeItem] }),
     detail: async () => detailDto,
-    confirmationStatus: async () => { throw new api.ApiError('http', 'confirmation status unavailable', 500, 'INTERNAL_ERROR'); },
+    confirmations: async () => { throw new api.ApiError('http', 'confirmation status unavailable', 500, 'INTERNAL_ERROR'); },
     money: { status: async () => { throw new api.ApiError('http', 'no evaluation', 404, 'PAYMENT_READY_EVALUATION_NOT_FOUND'); }, records: async () => [] },
   };
   const controller = api.createWorkspaceController(gateway);
@@ -241,13 +241,12 @@ test('a failed confirmation-status read fails Agreement Detail closed instead of
   controller.openFromHome('agr-1');
   await new Promise(resolve => setTimeout(resolve, 0));
   const state = controller.getSnapshot();
-  assert.equal(state.detail.status, 'error');
-  // The failure must never be silently swallowed into an empty confirmations array that then renders
-  // as though every participant's confirmation state were authoritatively known.
-  assert.notEqual(state.detail.status, 'ready');
+  assert.equal(state.detail.status, 'ready'); // Detail itself loaded
+  assert.equal(state.detail.data.confirmations, null); // unknown, not an empty list
+  assert.equal(state.detail.data.dto.participants.length, 1);
 });
 
-test('a successful confirmation-status read still renders real per-participant confirmation state', async () => {
+test('a successful confirmations read still renders real per-participant confirmation state', async () => {
   const detailDto = {
     overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile', description: '', agreementType: 'SERVICE', status: 'PARTICIPANTS_JOINING', currency: 'KES', proposedAmountMinor: '680000', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-10T00:00:00Z', expiresAt: null },
     currentVersion: { versionId: 'v-1', versionNumber: 1, contentHash: 'hash', createdAt: '2026-09-01T00:00:00Z', amendmentReason: null, materialChange: false },
@@ -260,7 +259,7 @@ test('a successful confirmation-status read still renders real per-participant c
     currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
     hub: async () => hub({ needsMe: [needsMeItem] }),
     detail: async () => detailDto,
-    confirmationStatus: async () => [{ participantId: 'p-1', identityId: 'i-1', roleCode: 'CUSTOMER', participantStatus: 'CONFIRMED', confirmedVersionId: 'v-1', confirmedVersionNumber: 1, currentVersionId: 'v-1', currentVersionNumber: 1, confirmationCurrent: true, reconfirmationRequired: false }],
+    confirmations: async () => [{ id: 'c-1', agreementVersionId: 'v-1', participantId: 'p-1', versionNumber: 1, versionContentHash: 'hash', status: 'CONFIRMED', assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: 'x', confirmationCurrent: true, reconfirmationRequired: false }],
     money: { status: async () => { throw new api.ApiError('http', 'no evaluation', 404, 'PAYMENT_READY_EVALUATION_NOT_FOUND'); }, records: async () => [] },
   };
   const controller = api.createWorkspaceController(gateway);

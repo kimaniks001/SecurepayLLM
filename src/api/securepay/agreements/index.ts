@@ -7,6 +7,9 @@ export interface HubDto {
   changedReviewRequired: CurrentUserAgreementSummaryResponse[]; completed: CurrentUserAgreementSummaryResponse[];
   cancelled: CurrentUserAgreementSummaryResponse[]; expired: CurrentUserAgreementSummaryResponse[];
 }
+/** `invitationToken` is null on an idempotent REPLAY: SecurePay returns the existing invitation but never the raw token again. */
+export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean }
+export interface AgreementInvitationDto { id: string; roleCode: string; status: string; issuedAt: string; expiresAt: string; revokedAt: string | null }
 export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
 export function createAgreementGateway(http: HttpClient) {
@@ -31,7 +34,15 @@ export function createAgreementGateway(http: HttpClient) {
     // reconfirmationRequired. Used only to render real "who confirmed the current version" and this
     // caller's own stale-review state — never to derive Agreement or Money authority.
     confirmationStatus: (id: string) => http.request<AgreementConfirmationStatusResponse[]>(`${agreement(id)}/confirmation-status`, { auth: 'required' }),
-    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<{ invitationId: string; status: string; invitationToken: string; replayed: boolean }>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    // Draft -> Proposed (creator only, idempotent if already PROPOSED). Invitations can only be issued from PROPOSED onward.
+    propose: (id: string) => http.request<{ id: string; status: string }>(`${agreement(id)}/propose`, { method: 'POST', auth: 'required' }),
+    // Real shape: List<AgreementInvitationResponse> -- id, roleCode, status (ISSUED|VIEWED|JOINED|REVOKED|EXPIRED), issuedAt, expiresAt, revokedAt. No target, no token.
+    invitations: (id: string) => http.request<AgreementInvitationDto[]>(`${agreement(id)}/invitations`, { auth: 'required' }),
+    revokeInvitation: (id: string, invitationId: string) => http.request<AgreementInvitationDto>(`${agreement(id)}/invitations/${segment(invitationId)}/revoke`, { method: 'POST', auth: 'required' }),
+    // Every confirmation on the Agreement (all participants), each flagged confirmationCurrent against the CURRENT version.
+    // (`confirmation-status` above returns ONLY the caller's own row.)
+    confirmations: (id: string) => http.request<AgreementConfirmationResponse[]>(`${agreement(id)}/confirmations`, { auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,

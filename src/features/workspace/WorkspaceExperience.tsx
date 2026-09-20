@@ -7,6 +7,8 @@ import { MoneyWorkspace } from '../../components/MoneyWorkspace';
 import { MoneyUnavailableState } from '../../components/MoneyUnavailableState';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
+import { InvitePanel } from '../invitations/InvitePanel';
+import { createInviteController } from '../invitations/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
@@ -15,7 +17,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -69,6 +71,13 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
+  // One invite controller per selected Agreement; its in-memory state (incl. an unshared link) survives quiet refreshes.
+  const [invites] = useState(() => new Map<string, ReturnType<typeof createInviteController>>());
+  const inviteFor = (agreementId: string) => {
+    let c = invites.get(agreementId);
+    if (!c) { c = createInviteController(gateway, agreementId, window.location.origin, () => void controller.reloadDetailQuietly()); invites.set(agreementId, c); }
+    return c;
+  };
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const agentState = useSyncExternalStore(
     agentController?.subscribe ?? (() => () => {}),
@@ -225,6 +234,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
+          peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}
         />
       );
     }

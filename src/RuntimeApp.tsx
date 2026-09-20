@@ -9,13 +9,14 @@ import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
 import { createSessionStore, withSessionRefresh } from './api/securepay/session';
+import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
 
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
-const agreementGateway = api ? withSessionRefresh(api.agreements, ['join', 'versions', 'version', 'confirmVersion', 'currentUserAgreements', 'currentUserActions', 'hub', 'home', 'detail', 'confirmationStatus', 'attributePlug', 'plugAttribution', 'referralStatus'], session, api.auth) : undefined;
+const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, ['status', 'records'], session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;

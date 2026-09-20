@@ -1,6 +1,6 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
-  AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationStatusResponse,
+  AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationResponse,
   AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementProblemSummaryResponse,
   CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
   PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse, WorkspaceNextActionResponse,
@@ -27,7 +27,8 @@ export type WorkspaceView = 'home' | 'hub' | 'detail' | 'money';
 
 export interface DetailData {
   dto: AgreementDetailResponse;
-  confirmations: AgreementConfirmationStatusResponse[];
+  /** null = the confirmations read FAILED (unknown), never an empty list, so a failure can't render as "nobody confirmed". */
+  confirmations: AgreementConfirmationResponse[] | null;
   /**
    * Best-effort Phase 3 enrichments -- a failure to load these must never fail the whole Detail
    * view (they are additive; core Agreement truth above is what fails closed). Default to empty.
@@ -79,6 +80,8 @@ export interface WorkspaceState {
    * refreshDetail(), matching the existing selectedStatus/selectedCompletion behaviour.
    */
   selectedAgreementNextActions: WorkspaceNextActionResponse[];
+  /** The caller's OWN participant status on the selected Agreement, from the Hub summary (`CREATOR` = they created it). */
+  selectedActorStatus: string | null;
   detail: RemoteState<DetailData>;
   money: RemoteState<MoneyLoad>;
 }
@@ -88,12 +91,12 @@ const initial: WorkspaceState = {
   hub: { status: 'idle' },
   myCalendarEvents: [],
   homeExtras: { problems: [], recentActivity: [], moneyByCurrency: [] },
-  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [],
+  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], selectedActorStatus: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmationStatus' | 'milestoneEffectiveStates'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -139,12 +142,11 @@ export function createWorkspaceController(gateway: Gateway) {
   }
 
   async function loadDetailData(agreementId: string): Promise<DetailData> {
-    // Core Agreement truth: a confirmation-status failure must never be silently treated as "no
-    // participant has confirmed anything" — that would render an apparently authoritative
-    // confirmation state from a read that never actually succeeded. This fails closed.
+    // Detail is the core Agreement truth and fails closed. Confirmations are read separately: if that read fails the
+    // participants still render and their confirmation state is UNKNOWN (null) -- never "nobody confirmed".
     const [dto, confirmations] = await Promise.all([
       gateway.detail(agreementId),
-      gateway.confirmationStatus(agreementId),
+      bestEffort<AgreementConfirmationResponse[] | null>(() => gateway.confirmations(agreementId), null),
     ]);
     // Phase 3 enrichments: additive only, never allowed to fail Detail closed.
     const [milestoneStates, events, conflicts, tags] = await Promise.all([
@@ -161,7 +163,7 @@ export function createWorkspaceController(gateway: Gateway) {
     const completion: DetailCompletion = { completed: !!summary.completion?.completed, completedAt: summary.completion?.completedAt ?? null };
     update({
       view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion,
-      selectedAgreementNextActions: summary.nextActions, detail: { status: 'loading' },
+      selectedAgreementNextActions: summary.nextActions, selectedActorStatus: summary.currentActor?.participantStatus ?? null, detail: { status: 'loading' },
     });
     try {
       const data = await loadDetailData(summary.agreementId);
@@ -189,6 +191,12 @@ export function createWorkspaceController(gateway: Gateway) {
     /** From Signed-in Home or the Agreement Hub: both render the same authoritative Hub buckets. */
     openFromHome(agreementId: string) { openById(agreementId); },
     openFromHub(agreementId: string) { openById(agreementId); },
+
+    /** Re-reads Detail WITHOUT the loading state (so an open Invite panel isn't torn down) -- used after invite/propose. */
+    async reloadDetailQuietly() {
+      if (!state.selectedAgreementId) return;
+      try { update({ detail: { status: 'ready', data: await loadDetailData(state.selectedAgreementId) } }); } catch { /* the current view stays; a refresh can be requested */ }
+    },
 
     /** Re-reads the same selected Agreement's Detail projection fresh (e.g. after a changed-version notice). */
     async refreshDetail() {
@@ -227,8 +235,8 @@ export function createWorkspaceController(gateway: Gateway) {
       } catch { /* same as addTag -- organizational only, never blocks Agreement state. */ }
     },
 
-    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], detail: { status: 'idle' } }); },
-    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], detail: { status: 'idle' } }); },
+    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], selectedActorStatus: null, detail: { status: 'idle' } }); },
+    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedAgreementNextActions: [], selectedActorStatus: null, detail: { status: 'idle' } }); },
 
     /** Money is always entered for one selected Agreement and always re-reads status/records/actions fresh. */
     async openMoney(agreementId: string) {
