@@ -45,7 +45,7 @@ Range with each endpoint carrying its currency, "Median" only when more than two
 
 ## I. Service location
 
-Place text only. It is used as the Store `location` filter and displayed as the seller's own words. There is no map, pin, distance or "nearest" (the backend has none). GPS/map remains a later phase needing a backend fact.
+Place text only — **seller-written text, shown as plain text (no map-pin icon)**. It is used as the Store `location` filter and displayed as the seller's own words. There is no map, pin, distance or "nearest" (the backend has none). GPS/map remains a later phase needing a backend fact.
 
 ## J. Discovery instrument architecture
 
@@ -65,9 +65,25 @@ Two paths, told apart at a glance and never merged: **I know who** (Add a person
 
 A separate epistemic section from "what SecurePay understands": the latest turn's discoveries open; earlier turns collapse under "Earlier in this conversation · N". One restrained line: *"From this conversation, shown from current listings. SecurePay doesn't rank or choose for you."* Started-from provenance lives in UNDERSTOOD, not here.
 
-## M. Store result design
+## M. Store result design — text-first, image-ready
 
-Text-first, no image slot unless the offer has **real media on the one trusted origin**: small-caps kind, a display-serif title, seller · KS reference, price in large tabular figures, availability as a *word plus a neutral dot* (never a colour-coded preference), the seller's place. The whole card opens the offer (one stretched real button); "Compare" is a separate always-visible checkbox (no hover-only actions). No rating, verified badge, discount, stock claim or fabricated image.
+**Discovery is text-first and works without imagery** — a Store must never depend on photography. **Genuine trusted offer imagery appears where real media exists** and materially helps; it is *secondary* to the title, seller · KS reference, price, availability and place, and it **never affects ordering or ranking** (results keep the backend's order — a test proves neither a photo nor a price reorders them).
+
+- **Layout:** small-caps kind, display-serif title (long titles/seller names wrap, no truncation), seller · KS reference, price in large tabular figures (never wraps mid-amount), availability as a word plus a status dot, the seller's place, then — only if a real trusted photo exists — the photo. With no trusted media there is **no element at all** (no empty box, no placeholder); an image that fails to load collapses away.
+- **Photo accessibility:** `alt="Photo of <offer title>, published by <seller>"`, built only from facts already known — no generated description (the API carries no alt text/caption). `loading="lazy"`.
+- **Place:** the seller's own written place text, plain — **no map-pin icon** (the earlier `MapPin` was removed), no distance, "nearby", "nearest" or kilometres. There is no map.
+- **Availability colour:** the familiar status colour **is kept** and states *the listing's own fact*: open → green, limited → amber, unconfirmed → hollow, closed → muted; the word always accompanies it. **Colour never means one seller or result is better than another**; no card styling, order or status colour implies "recommended", "best", "top" or a quality ranking (tests assert the status treatment and the absence of ranking copy).
+- No rating, "verified", badge, discount, stock claim, avatar, logo or fabricated/stock image.
+
+## M2. Media truth
+
+**UI capability now:** displays a *genuine, trusted* offer photo (card, detail, Store page); meaningful accessible name; absent/untrusted/broken media simply collapses; **no fake images anywhere** (test scans the discovery sources for stock/placeholder imagery); the existing **fail-closed trusted-origin rule is unchanged** — a media ref renders only if it parses as an absolute URL whose origin exactly equals the configured SecurePayAPI origin; an opaque asset id, a foreign domain or a plain-`http` look-alike is never rendered, and there is no client-side proxy or arbitrary-URL loading.
+
+**What the backend actually supplies/enforces today** (read from `StoreService`/`StoreController`): an offer has `mediaRefs` — client-supplied strings, "media references only (e.g. already-uploaded photo URLs/asset ids)", **at most 20 per offer, each at most 2000 characters, blanks dropped and values stripped**, list order preserved. That is *all* that is enforced. The Store **profile has no logo/avatar/image field** (`tagline, about, locationLabel, heroHeadline, storefrontPreset, storefrontTheme`). The Agent's discovery tools return **no media at all**.
+
+**Not supported by the backend (no UI can make it so):** an authoritative Store logo/business-identity image; any upload endpoint, durable storage or **media resolver/serving contract** (so an opaque asset id can never be rendered — kept non-renderable); server enforcement of **image format, file size, pixel dimensions or processing target**; a per-image alt text/caption; media removal/replacement lifecycle; upload ownership/authority.
+
+**Proposed backend requirement (not implemented; nothing here pretends to enforce it):** one optional publisher-supplied Store logo; offer images limited by an explicit server-enforced contract — allowed formats (e.g. JPEG/PNG/WebP), maximum file size, maximum dimensions with server-side processing to a display size, a small maximum image count (the current 20 is a ceiling, not a design), a single logo; owner-only upload/replace/remove; a SecurePay-controlled serving origin that the UI can trust (so refs become resolvable ids, not arbitrary URLs); an optional publisher-written alt/caption. Media stays **publisher-supplied** content (participants are responsible for what they publish), never SecurePay-created imagery. Until a real logo field exists, Store identity keeps its restrained text treatment (name · KS reference · place).
 
 ## N. Provider result design
 
@@ -75,7 +91,7 @@ Name, KS reference, place, *"Published a service: …"*, *"Shown because a servi
 
 ## O. Source selection (Use this)
 
-"Use this" = **select this real Store offer as this conversation's commercial source** (`selectCommercialSource`, `STORE_LISTING`, real offer id + owner KS), then return to the conversation. Copy under the button: *"Starts your conversation from this listing. Nothing is bought, joined or agreed."* The source-derived price is submitted as a **candidate** only (existing `useOffer`). Unavailable/unpriced/closed cases: a closed offer's button is disabled with the seller's own state; an Agent listing (no id) has no Use this and leads to the seller's Store. Success closes the finder; UNDERSTOOD shows **Started from**.
+"Use this" = **select this real Store offer as this conversation's commercial source** (`selectCommercialSource`, `STORE_LISTING`, real offer id + owner KS), then return to the conversation. Copy under the button: *"Starts your conversation from this listing. Nothing is bought, joined or agreed."* The source-derived price is submitted as a **candidate** only (existing `useOffer`). **Explicit outcome (no inference).** `AgentController.useOffer()` / `retryOfferSelection()` return a typed result — `{status:'selected', source, amount:'submitted'|'none'|'failed'} | {status:'failed', error} | {status:'busy'} | {status:'no-source'}` — and `continueOfferWithoutSource()` returns `'continued'|'busy'|'nothing'`. `DiscoveryController` acts on that result only; it no longer reads Agent state afterwards, so an *already-selected* same source plus a *busy* Agent can never be mistaken for a fresh success (`busy`: nothing selected, nothing submitted, nothing claimed). The candidate amount is submitted only after the source is selected. Unavailable/unpriced/closed cases: a closed offer's button is disabled with the seller's own state; an Agent listing (no id) has no Use this and leads to the seller's Store. Success closes the finder; UNDERSTOOD shows **Started from**.
 
 **Failure:** calm, recoverable, source-specific wording (`sourceErrorText`: "couldn't reach the Store just now. Trying again is safe" / "may have been unpublished"), with **Try again** and **Continue without this listing** and the consequence stated plainly — *"the conversation then won't be attributed to this listing, though its price stays as a suggestion you can review."* Nothing from the offer is submitted while selection has failed (test-enforced). The same note appears in the conversation when the finder is closed.
 
@@ -111,6 +127,15 @@ Reachability was **proved from the production bundle** (esbuild metafile): `Prov
 8. A source-derived amount is appended as a candidate next to the person's own figure (external-fact endpoints don't supersede), so two "KES 4,000" rows can appear.
 9. `ACTION_CONFIRMATION` (conflicts) is still not rendered anywhere (pre-existing).
 
+## V0. What was verified, and how
+
+| Kind | What |
+|---|---|
+| **Executed locally** | full test suite (23 files, 545 tests), `tsc --noEmit`, `eslint .`, `vite build` |
+| **Browser, against a scripted local mock** (built from the inspected contracts; a temporary local image on the API's own origin stood in for genuine media; none of it committed) | desktop, 375px and 320px: results with a genuine photo and without, a long title, a long seller name, availability states (unconfirmed / available), plain place text (no pin, measured), photo detail, source failure → Try again → *Started from*, successful Use this; and the Phase 2 journeys below |
+| **Tested against SecurePayAPI** | **nothing** — the API was read, never run or called |
+| **Not verified** | any real image from a real SecurePayAPI Store; a physical on-screen keyboard; any screen reader; CHANGED/UNAVAILABLE through a live handoff; GitHub CI (none exists for this PR) |
+
 ## V. Desktop verification (real production app, Chrome, 1440px)
 
 Against a **scripted local mock** whose data and shapes follow the inspected contracts (Store DTOs, tool outputs, selectCommercialSource) — the mock certifies layout and interaction, **not** the backend. Journeys exercised: **I** long natural intent → WHAT row "See on SecurePay" → honest empty state with one-word retries → "shoes" → real result → detail; **H** forced source failure → calm state → (BUILD-side note) Try again → *Started from*; **C/D-shaped** provider results → *Found on SecurePay* → "See what they publish" → the seller's real offers → compare two services; **E** price context with two listings; **F/unsupported** empty vs unsupported; unknown component ("newtype") with the message intact; **G** standalone Store → offer → Use this → conversation with *Started from* and a *Suggested* price. Fixes found by this: source failure used *turn* wording; "Services's" possessive; median wording; an empty photo panel; a stacked, ambiguous Found section (now grouped).
@@ -125,8 +150,8 @@ Sheet: `role=dialog aria-modal`, labelled by the screen heading, focus trap, Esc
 
 ## Y. Tests / build
 
-`tests/ui-phase2.test.mjs` — **31 tests**: money precision; strict payloads (real contract shapes; extra invented fields, malformed, unknown, unsupported vs empty); no fabricated metadata; profile/comparison/price context (currency, precision, sample size, thin data, no "market price"); store result mapping/trusted media/unpriced/closed; the search sends **only** the real parameters; empty/failed/stale/retry; Store-with-ids; compare cap; **Use this** = real `selectCommercialSource` (STORE_LISTING, real id + owner KS), candidate amount, failure/retry/continue-without, busy claims nothing; SourceReference CURRENT/CHANGED/UNAVAILABLE; workbench entry points; every discovery screen rendered as a real sheet; the "still to check" line; one shared surface shell; fixture components unreachable from production. Existing tests updated for intentional changes: a price-context fixture aligned to the real contract, `StoreHome` no longer baselined against Bolt, `OfferCard` removed from a doctrine-scan list.
-Full suite: **23 files, 535 tests, 0 failures**. `tsc --noEmit`, `eslint .`, `vite build`: clean.
+`tests/ui-phase2.test.mjs` — **41 tests** (10 added in the correction pass: explicit `useOffer` results incl. success/failure/retry/busy/already-selected-plus-busy, discovery reacting to results, no map pin, real trusted photo with a meaningful accessible name, no empty photo shell for missing/untrusted media, status colour without ranking, photos/price not reordering results, the media trust rule): money precision; strict payloads (real contract shapes; extra invented fields, malformed, unknown, unsupported vs empty); no fabricated metadata; profile/comparison/price context (currency, precision, sample size, thin data, no "market price"); store result mapping/trusted media/unpriced/closed; the search sends **only** the real parameters; empty/failed/stale/retry; Store-with-ids; compare cap; **Use this** = real `selectCommercialSource` (STORE_LISTING, real id + owner KS), candidate amount, failure/retry/continue-without, busy claims nothing; SourceReference CURRENT/CHANGED/UNAVAILABLE; workbench entry points; every discovery screen rendered as a real sheet; the "still to check" line; one shared surface shell; fixture components unreachable from production. Existing tests updated for intentional changes: a price-context fixture aligned to the real contract, `StoreHome` no longer baselined against Bolt, `OfferCard` removed from a doctrine-scan list.
+Full suite: **23 files, 545 tests, 0 failures**. `tsc --noEmit`, `eslint .`, `vite build`: clean. **These were run locally.** There are no GitHub Actions/check runs on this PR, so **nothing here has been certified by CI**.
 
 ## Z. Recommendations for Phase 3
 
@@ -135,3 +160,4 @@ Full suite: **23 files, 535 tests, 0 failures**. `tsc --noEmit`, `eslint .`, `vi
 3. Community/Opportunity discovery on the same controller/`ResultOffer`.
 4. Location/GPS once a backend fact exists.
 5. Retire the fixture app and its locked components; render `ACTION_CONFIRMATION` conflicts.
+6. Media (backend, separate from Phase 3 UI work): a Store logo field, a media serving/resolver contract and server-enforced format/size/dimension/count limits (see M2).

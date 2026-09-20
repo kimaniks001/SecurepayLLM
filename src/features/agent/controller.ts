@@ -28,6 +28,24 @@ export interface AgentState {
    */
   offerSelectionFailure: { fact: OfferFact; error: string } | null;
 }
+/**
+ * The outcome of ONE attempted "Use this" / retry, returned by the operation itself so no caller ever has to
+ * infer it from a state snapshot (a source that was ALREADY selected earlier must never be mistaken for a
+ * fresh success).
+ *  - selected   : `selectCommercialSource` succeeded THIS time. `amount` says what happened to the source-derived
+ *                 price afterwards: 'submitted' (as a CANDIDATE), 'none' (the offer had no price), or 'failed'
+ *                 (the source is selected but the candidate amount did not reach SecurePay -- the conversation
+ *                 shows its own retry; the source is never rolled back or re-selected).
+ *  - failed     : selection failed; NOTHING derived from the offer was submitted; `offerSelectionFailure` holds it
+ *                 for Retry / Continue without this source.
+ *  - busy       : the Agent was already working; NOTHING happened (no selection, no amount).
+ *  - no-source  : the offer carried no real source pointer (id + owner KS), so no source was selected.
+ */
+export type SourceSelectionResult =
+  | { status: 'selected'; source: SelectedCommercialSourceDto; amount: 'submitted' | 'none' | 'failed' }
+  | { status: 'failed'; error: string }
+  | { status: 'busy' }
+  | { status: 'no-source' };
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 404) return 'This conversation or candidate could not be found. You can retry or start a new conversation.';
@@ -182,60 +200,68 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * this offer is submitted to the conversation. Ordinary free-text conversation is unaffected --
      * it never goes through this method at all.
      */
-    async useOffer(fact: OfferFact) {
-      if (state.busy || state.pending) return;
-      await attemptOfferSelection(fact);
+    async useOffer(fact: OfferFact): Promise<SourceSelectionResult> {
+      if (state.busy || state.pending) return { status: 'busy' };
+      return attemptOfferSelection(fact);
     },
     /** Section 5 -- re-attempts the exact same "Use this" the person already chose. */
-    async retryOfferSelection() {
+    async retryOfferSelection(): Promise<SourceSelectionResult> {
       const failure = state.offerSelectionFailure;
-      if (!failure || state.busy || state.pending) return;
-      await attemptOfferSelection(failure.fact);
+      if (state.busy || state.pending) return { status: 'busy' };
+      if (!failure) return { status: 'no-source' };
+      return attemptOfferSelection(failure.fact);
     },
     /**
      * Section 5 -- the explicit, visible choice to proceed without the Store source: clears any
      * provenance so the eventual Agreement is understood as DIRECT, never silently attributed to a
      * Store offer that was never actually confirmed.
      */
-    async continueOfferWithoutSource() {
+    async continueOfferWithoutSource(): Promise<'continued' | 'busy' | 'nothing'> {
       const failure = state.offerSelectionFailure;
-      if (!failure || state.busy || state.pending) return;
+      if (state.busy || state.pending) return 'busy';
+      if (!failure) return 'nothing';
       update({ offerSelectionFailure: null, source: null });
       await submitOfferFact(failure.fact);
+      return 'continued';
     },
   };
 
-  async function attemptOfferSelection(fact: OfferFact) {
+  async function attemptOfferSelection(fact: OfferFact): Promise<SourceSelectionResult> {
     update({ offerSelectionFailure: null });
-    if (fact.sourceId && fact.sourceOwnerKsNumber) {
-      try {
-        const conversationId = await ensureConversationId();
-        const selection = await gateway.selectCommercialSource(conversationId, {
-          sourceType: 'STORE_LISTING', sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
-        });
-        update({ source: selection });
-      } catch (error) {
-        update({ offerSelectionFailure: { fact, error: sourceErrorText(error) } });
-        return;
-      }
+    if (!(fact.sourceId && fact.sourceOwnerKsNumber)) { await submitOfferFact(fact); return { status: 'no-source' }; }
+    let selection: SelectedCommercialSourceDto;
+    try {
+      const conversationId = await ensureConversationId();
+      selection = await gateway.selectCommercialSource(conversationId, {
+        sourceType: 'STORE_LISTING', sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+      });
+    } catch (error) {
+      const message = sourceErrorText(error);
+      update({ offerSelectionFailure: { fact, error: message } });
+      return { status: 'failed', error: message };
     }
-    await submitOfferFact(fact);
+    update({ source: selection });
+    // Only AFTER the source is really selected may the offer's price become a candidate fact.
+    const amount = fact.amount ? ((await submitOfferFact(fact)) ? 'submitted' : 'failed') : (await submitOfferFact(fact), 'none');
+    return { status: 'selected', source: selection, amount };
   }
 
-  async function submitOfferFact(fact: OfferFact) {
+  /** Returns whether the offer's amount (if any) / conversation seed reached SecurePay. */
+  async function submitOfferFact(fact: OfferFact): Promise<boolean> {
     if (fact.amount) {
-      await run({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', sourceDescription: fact.sourceDescription, amount: fact.amount, currency: fact.currency } });
-      return;
+      return run({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', sourceDescription: fact.sourceDescription, amount: fact.amount, currency: fact.currency } });
     }
-    if (state.conversationId) return;
+    if (state.conversationId) return true;
     update({ busy: true, error: null });
     try {
       const conversation = await gateway.createConversation();
       if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
       update({ conversationId: conversation.conversationId });
       await readContext();
+      return true;
     } catch (error) {
       update({ error: errorText(error) });
+      return false;
     } finally { update({ busy: false }); }
   }
 }

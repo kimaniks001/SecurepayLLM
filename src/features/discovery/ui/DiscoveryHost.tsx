@@ -6,6 +6,7 @@ import { MAX_COMPARE, type DiscoveryController, type DiscoveryQuery, type Discov
 import { compareRows, isClosed, type ResultOffer } from '../result';
 import { FactCompare } from './FactCompare';
 import { ResultCard } from './ResultCard';
+import { OfferPhoto } from './OfferPhoto';
 import { SourceFailureNote } from './SourceReference';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white';
@@ -177,7 +178,7 @@ function Detail({ offer, state, controller }: { offer: ResultOffer; state: Extra
       <p className="text-[0.85rem] text-sand-700">{offer.availabilityLabel}{offer.quantity !== null ? ` · ${offer.quantity} listed` : ''}</p>
     </div>
     {offer.description && <p className="whitespace-pre-line break-words text-[0.92rem] leading-relaxed text-sand-700">{offer.description}</p>}
-    {offer.mediaUrl && <img src={offer.mediaUrl} alt="" className="h-40 w-full rounded-xl object-cover" />}
+    {offer.mediaUrl && <OfferPhoto url={offer.mediaUrl} title={offer.title} seller={offer.ownerName} className="h-40" />}
     {offer.updatedAt && <p className="text-[0.75rem] text-sand-400">Listing updated {new Date(offer.updatedAt).toISOString().slice(0, 10)}</p>}
     {state.phase === 'source-failed' && <SourceFailureNote busy={false} error={state.error} onRetry={() => void controller.retrySource()} onContinueWithout={() => void controller.continueWithoutSource()} />}
     {state.phase !== 'source-failed' && <div className="space-y-2 border-t border-cream-100 pt-3">

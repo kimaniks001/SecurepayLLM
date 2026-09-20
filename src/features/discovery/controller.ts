@@ -38,7 +38,8 @@ export type DiscoveryState =
 export const MAX_COMPARE = 3;
 export const emptyQuery = (kind: DiscoveryQuery['kind'] = 'SERVICE'): DiscoveryQuery => ({ kind, what: '', place: '' });
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
-type AgentSide = Pick<AgentController, 'getSnapshot' | 'useOffer' | 'retryOfferSelection' | 'continueOfferWithoutSource'>;
+type AgentSide = Pick<AgentController, 'useOffer' | 'retryOfferSelection' | 'continueOfferWithoutSource'>;
+/** `selected` only ever means THIS attempt's `selectCommercialSource` succeeded (the Agent said so) -- never "a source is already there". */
 export type UseResult = 'selected' | 'failed' | 'busy' | 'unavailable';
 
 export function createDiscoveryController(gateway: Gateway, agent: AgentSide, trustedMediaOrigin: string | null = null) {
@@ -73,12 +74,6 @@ export function createDiscoveryController(gateway: Gateway, agent: AgentSide, tr
       set({ phase: 'failed', query, error: failureText(error), failure: { retry: { type: 'store', ownerKs, ownerName } } });
     }
   }
-  const snapshotSource = (offer: ResultOffer) => {
-    const snap = agent.getSnapshot();
-    if (snap.offerSelectionFailure) return { ok: false as const, error: snap.offerSelectionFailure.error };
-    return snap.source?.sourceId === offer.offerId ? { ok: true as const } : null;
-  };
-
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -126,32 +121,36 @@ export function createDiscoveryController(gateway: Gateway, agent: AgentSide, tr
       const query = 'query' in state ? state.query : emptyQuery();
       set({ phase: 'source-selecting', query, offer, back });
       const decimal = offer.priceMinor === null ? null : minorToDecimal(offer.priceMinor);
-      await agent.useOffer({
+      const result = await agent.useOffer({
         amount: decimal ?? undefined, currency: decimal ? offer.currency : undefined,
         sourceDescription: `Offer: ${offer.title} — ${offer.ownerName} — offer ${offer.offerId}`,
         sourceId: offer.offerId, sourceOwnerKsNumber: offer.ownerKs,
       });
-      const outcome = snapshotSource(offer);
-      if (outcome?.ok) { set({ phase: 'closed' }); return 'selected'; }
-      if (outcome && !outcome.ok) { set({ phase: 'source-failed', query, offer, back, error: outcome.error }); return 'failed'; }
-      set({ phase: 'detail', query, offer, back });          // the Agent was busy: nothing happened, nothing is claimed
-      return 'busy';
+      // The outcome comes from the operation itself; nothing is inferred from the Agent's current state.
+      switch (result.status) {
+        case 'selected': set({ phase: 'closed' }); return 'selected';
+        case 'failed': set({ phase: 'source-failed', query, offer, back, error: result.error }); return 'failed';
+        case 'busy': set({ phase: 'detail', query, offer, back }); return 'busy';   // nothing happened, nothing is claimed
+        case 'no-source': set({ phase: 'detail', query, offer, back }); return 'unavailable';
+      }
     },
     async retrySource(): Promise<UseResult> {
       if (state.phase !== 'source-failed') return 'unavailable';
       const { offer, back, query } = state;
       set({ phase: 'source-selecting', query, offer, back });
-      await agent.retryOfferSelection();
-      const outcome = snapshotSource(offer);
-      if (outcome?.ok) { set({ phase: 'closed' }); return 'selected'; }
-      set({ phase: 'source-failed', query, offer, back, error: outcome && !outcome.ok ? outcome.error : 'SecurePay could not link this listing.' });
-      return 'failed';
+      const result = await agent.retryOfferSelection();
+      switch (result.status) {
+        case 'selected': set({ phase: 'closed' }); return 'selected';
+        case 'failed': set({ phase: 'source-failed', query, offer, back, error: result.error }); return 'failed';
+        case 'busy': set({ phase: 'source-failed', query, offer, back, error: 'SecurePay is still working on something. Try again in a moment.' }); return 'busy';
+        case 'no-source': set({ phase: 'detail', query, offer, back }); return 'unavailable';
+      }
     },
     /** The explicit, visible choice: proceed without attributing the conversation to this listing. */
     async continueWithoutSource() {
       if (state.phase !== 'source-failed') return;
-      await agent.continueOfferWithoutSource();
-      set({ phase: 'closed' });
+      // Only close once the Agent actually carried on; if it was busy nothing happened and the choice stays open.
+      if ((await agent.continueOfferWithoutSource()) === 'continued') set({ phase: 'closed' });
     },
   };
 }

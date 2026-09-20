@@ -13,6 +13,7 @@ export * from './src/api/securepay/agent/adapters';
 export * from './src/features/agent/controller';
 export { ApiError } from './src/api/securepay/http';
 export { ResultCard } from './src/features/discovery/ui/ResultCard';
+export { OfferPhoto } from './src/features/discovery/ui/OfferPhoto';
 export { FactCompare } from './src/features/discovery/ui/FactCompare';
 export { PriceContext } from './src/features/discovery/ui/PriceContext';
 export { FoundOnSecurePay } from './src/features/discovery/ui/FoundOnSecurePay';
@@ -238,10 +239,73 @@ test('Source failure: calm recoverable state; nothing from the offer is submitte
   await other.d.use(other.d.getSnapshot().offer); await other.d.continueWithoutSource();
   assert.equal(other.d.getSnapshot().phase, 'closed'); assert.equal(other.agent.getSnapshot().source, null); assert.equal(other.agent.getSnapshot().offerSelectionFailure, null);
 });
-test('Use this while the Agent is busy claims nothing', async () => {
-  const { agent, d } = rig(); await d.search({ kind: 'PRODUCT', what: 'shoes', place: '' }); d.openDetail(d.getSnapshot().results[0]);
-  const original = agent.useOffer; agent.useOffer = async () => {};       // useOffer ignores the call when busy
-  assert.equal(await d.use(d.getSnapshot().offer), 'busy'); assert.equal(d.getSnapshot().phase, 'detail'); agent.useOffer = original;
+// ---- explicit useOffer() outcome: no inference from stale/existing state ----------------------------------------
+const offerFact = (over = {}) => ({ amount: '4000', currency: 'KES', sourceDescription: 'Offer: Leather shoes', sourceId: 'o-1', sourceOwnerKsNumber: 'KS003', ...over });
+const gate = () => { let open; const promise = new Promise(r => { open = r; }); return { promise, open }; };
+test('useOffer returns an explicit typed outcome: fresh success carries the real source and what became of the amount', async () => {
+  const { a, agent } = rig();
+  const result = await agent.useOffer(offerFact());
+  assert.equal(result.status, 'selected'); assert.equal(result.source.sourceId, 'o-1'); assert.equal(result.amount, 'submitted');
+  assert.deepEqual(a.calls.map(c => c[0]), ['select', 'amount']);                    // the amount is submitted only AFTER the source is selected
+  const unpriced = rig(); const r2 = await unpriced.agent.useOffer(offerFact({ amount: undefined, currency: undefined }));
+  assert.equal(r2.status, 'selected'); assert.equal(r2.amount, 'none');
+  const noPointer = rig(); assert.equal((await noPointer.agent.useOffer(offerFact({ sourceId: undefined }))).status, 'no-source'); assert.equal(noPointer.a.calls.some(c => c[0] === 'select'), false);
+});
+test('useOffer failure: explicit "failed" with the reason; NOTHING derived from the offer is submitted; the failure is held for Retry / Continue without', async () => {
+  const { a, agent } = rig({}, { selectCommercialSource: async () => { throw new api.ApiError('network', 'down'); } });
+  const result = await agent.useOffer(offerFact());
+  assert.equal(result.status, 'failed'); assert.match(result.error, /couldn.t reach the Store/);
+  assert.equal(a.calls.some(c => c[0] === 'amount'), false); assert.equal(agent.getSnapshot().source, null);
+  assert.equal(agent.getSnapshot().offerSelectionFailure.fact.sourceId, 'o-1');
+});
+test('useOffer retry: explicit outcome again; success then submits the candidate amount; a retry with nothing to retry says so', async () => {
+  let failing = true;
+  const { a, agent } = rig({}, { selectCommercialSource: async (id, body) => { a.calls.push(['select', body]); if (failing) throw new api.ApiError('network', 'down'); return { sourceType: 'STORE_LISTING', sourceId: body.sourceId, sourceTitle: 'Leather shoes', sourceOwnerKsNumber: 'KS003', contextReference: '#', capturedPriceMinor: 400000, capturedCurrency: 'KES', selectedAt: 't' }; } });
+  assert.equal((await agent.retryOfferSelection()).status, 'no-source');            // nothing failed yet
+  assert.equal((await agent.useOffer(offerFact())).status, 'failed');
+  assert.equal((await agent.retryOfferSelection()).status, 'failed'); assert.equal(a.calls.some(c => c[0] === 'amount'), false);
+  failing = false;
+  const ok = await agent.retryOfferSelection();
+  assert.equal(ok.status, 'selected'); assert.equal(ok.amount, 'submitted'); assert.equal(agent.getSnapshot().offerSelectionFailure, null);
+});
+test('useOffer while the Agent is busy: explicit "busy", nothing selected, nothing submitted', async () => {
+  const hold = gate();
+  const { a, agent } = rig({}, { submitTurn: async () => { await hold.promise; return { message: 'ok', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] }; } });
+  const turn = agent.send('hello');                                                  // the Agent is now working
+  await new Promise(r => setTimeout(r, 0));
+  assert.equal(agent.getSnapshot().busy, true);
+  assert.deepEqual(await agent.useOffer(offerFact()), { status: 'busy' });
+  assert.deepEqual(await agent.retryOfferSelection(), { status: 'busy' });
+  assert.equal(await agent.continueOfferWithoutSource(), 'busy');
+  assert.equal(a.calls.some(c => c[0] === 'select' || c[0] === 'amount'), false);
+  hold.open(); await turn;
+});
+test('an ALREADY-selected same source + a busy Agent is never mistaken for a fresh success (the discovery layer trusts the result, not state)', async () => {
+  const hold = gate(); let hold2 = false;
+  const { a, agent, d } = rig({}, { submitTurn: async () => { if (hold2) await hold.promise; return { message: 'ok', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] }; } });
+  await d.search({ kind: 'PRODUCT', what: 'shoes', place: '' }); d.openDetail(d.getSnapshot().results[0]);
+  assert.equal(await d.use(d.getSnapshot().offer), 'selected');                        // o-1 really selected once
+  assert.equal(agent.getSnapshot().source.sourceId, 'o-1');
+  const selects = a.calls.filter(c => c[0] === 'select').length; const amounts = a.calls.filter(c => c[0] === 'amount').length;
+  hold2 = true; const turn = agent.send('another message'); await new Promise(r => setTimeout(r, 0));
+  d.open(); await d.search({ kind: 'PRODUCT', what: 'shoes', place: '' }); d.openDetail(d.getSnapshot().results[0]);
+  assert.equal(await d.use(d.getSnapshot().offer), 'busy');                            // same source is still in state, yet this attempt did nothing
+  assert.equal(d.getSnapshot().phase, 'detail');
+  assert.equal(a.calls.filter(c => c[0] === 'select').length, selects); assert.equal(a.calls.filter(c => c[0] === 'amount').length, amounts);
+  hold.open(); await turn;
+});
+test('discovery reacts to the explicit result: selected closes, failed shows the reason, retry re-asks, continue-without is explicit and only closes when it really happened', async () => {
+  let failing = true;
+  const { a, agent, d } = rig({}, { selectCommercialSource: async (id, body) => { a.calls.push(['select', body]); if (failing) throw new api.ApiError('network', 'down'); return { sourceType: 'STORE_LISTING', sourceId: body.sourceId, sourceTitle: 'Leather shoes', sourceOwnerKsNumber: 'KS003', contextReference: '#', capturedPriceMinor: 400000, capturedCurrency: 'KES', selectedAt: 't' }; } });
+  await d.search({ kind: 'PRODUCT', what: 'shoes', place: '' }); d.openDetail(d.getSnapshot().results[0]);
+  assert.equal(await d.use(d.getSnapshot().offer), 'failed');
+  assert.match(d.getSnapshot().error, /couldn.t reach the Store/); assert.equal(a.calls.some(c => c[0] === 'amount'), false);
+  failing = false; assert.equal(await d.retrySource(), 'selected'); assert.equal(d.getSnapshot().phase, 'closed');
+  assert.equal(a.calls.filter(c => c[0] === 'amount').length, 1);
+  const other = rig({}, { selectCommercialSource: async () => { throw new api.ApiError('network', 'down'); } });
+  await other.d.search({ kind: 'PRODUCT', what: 'shoes', place: '' }); other.d.openDetail(other.d.getSnapshot().results[0]);
+  await other.d.use(other.d.getSnapshot().offer); await other.d.continueWithoutSource();
+  assert.equal(other.d.getSnapshot().phase, 'closed'); assert.equal(other.agent.getSnapshot().source, null);
 });
 
 // ---------------------------------------------------------------- SOURCE REFERENCE / CHANGED / UNAVAILABLE
@@ -350,4 +414,50 @@ test('fixture-era discovery components (invented avatars/ratings/images/maps) ar
     assert.equal(paths.some(p => new RegExp(`/${name}\\.tsx$`).test(p)), false, `${name} must not be reachable from production`);
   for (const name of ['DiscoveryHost', 'FoundOnSecurePay', 'ResultCard', 'PriceContext', 'FactCompare', 'SourceReference'])
     assert.ok(paths.some(p => new RegExp(`/${name}\\.tsx$`).test(p)), `${name} must be in the production bundle`);
+});
+
+
+// ---------------------------------------------------------------- MEDIA, PLACE AND STATUS TREATMENT
+const cardFor = (over = {}, media = null) => api.resultsFromSearch([searchRow({}, { mediaRefs: media ? [media] : [], ...over })], 'https://api.securepay.test')[0];
+test('place is plain seller-written text: no map pin, no distance/nearby/nearest/km language on any result surface', async () => {
+  const out = html(api.ResultCard, { offer: cardFor(), onOpen() {} });
+  assert.match(text(out), /Westlands/); assert.doesNotMatch(out, /lucide-map-pin|<svg/i);
+  assert.doesNotMatch(text(out), /nearby|nearest|\bkm\b|kilomet|away|distance/i);
+  for (const f of ['src/features/discovery/ui/ResultCard.tsx', 'src/features/discovery/ui/DiscoveryHost.tsx', 'src/features/discovery/ui/FoundOnSecurePay.tsx', 'src/features/discovery/result.ts']) {
+    const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    assert.doesNotMatch(src, /MapPin|map-pin|\bnearby\b|\bnearest\b/i, f);
+  }
+});
+test('genuine trusted media renders with a meaningful accessible name built only from known facts; no fake image exists anywhere', async () => {
+  const withPhoto = html(api.ResultCard, { offer: cardFor({}, 'https://api.securepay.test/media/shoes.jpg'), onOpen() {} });
+  assert.match(withPhoto, /<img[^>]+src="https:\/\/api\.securepay\.test\/media\/shoes\.jpg"/);
+  assert.match(withPhoto, /alt="Photo of Leather shoes, published by Wanjiru Traders"/);
+  assert.doesNotMatch(withPhoto, /alt=""/);
+  const direct = html(api.OfferPhoto, { url: 'https://api.securepay.test/m.jpg', title: 'Handbag', seller: 'Bata' });
+  assert.match(direct, /alt="Photo of Handbag, published by Bata"/); assert.match(direct, /loading="lazy"/);
+  for (const f of ['src/features/discovery/ui/ResultCard.tsx', 'src/features/discovery/ui/OfferPhoto.tsx', 'src/features/discovery/ui/DiscoveryHost.tsx', 'src/features/discovery/result.ts']) {
+    const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    assert.doesNotMatch(src, /unsplash|picsum|placeholder\.|stock|data:image|\/assets\//i, f);          // no stock/placeholder imagery
+  }
+  assert.match(await readFile('src/features/discovery/ui/OfferPhoto.tsx', 'utf8'), /onError=/);          // a broken image collapses away
+});
+test('missing or untrusted media leaves NO photo element and no empty shell', () => {
+  for (const media of [null, 'https://evil.example/x.jpg', 'opaque-asset-id-123', 'http://api.securepay.test/plain.jpg']) {
+    const offer = cardFor({}, media); assert.equal(offer.mediaUrl, null, String(media));
+    const out = html(api.ResultCard, { offer, onOpen() {} });
+    assert.doesNotMatch(out, /<img/); assert.doesNotMatch(out, /h-28|h-40|object-cover/);
+  }
+});
+test('status colour states the listing\'s own fact and never a ranking; order is the backend\'s and photos do not affect it', () => {
+  const dot = state => html(api.ResultCard, { offer: cardFor({ availabilityState: state }), onOpen() {} });
+  assert.match(dot('AVAILABLE'), /bg-forest-500/); assert.match(dot('LOW_AVAILABILITY'), /bg-ember-400/); assert.match(dot('UNAVAILABLE'), /bg-sand-300/);
+  assert.match(dot('NEEDS_CONFIRMATION'), /border-sand-400/);
+  for (const state of ['AVAILABLE', 'LOW_AVAILABILITY', 'UNAVAILABLE', 'NEEDS_CONFIRMATION']) assert.doesNotMatch(text(dot(state)), /recommended|best|top choice|winner|#1|preferred|popular|trusted/i);
+  const rows = [searchRow({}, { id: 'a', title: 'No photo' }), searchRow({}, { id: 'b', title: 'Has photo', mediaRefs: ['https://api.securepay.test/p.jpg'] }), searchRow({}, { id: 'c', title: 'Cheap', priceMinor: 100 })];
+  assert.deepEqual(api.resultsFromSearch(rows, 'https://api.securepay.test').map(r => r.title), ['No photo', 'Has photo', 'Cheap']);   // neither imagery nor price reorders
+});
+test('media contract in the frontend: only the one trusted origin renders; refs are opaque and never proxied', async () => {
+  const adapters = await readFile('src/api/securepay/store/adapters.ts', 'utf8');
+  assert.match(adapters, /new URL\(ref\)\.origin === trustedOrigin/);
+  for (const f of ['src/features/discovery/result.ts', 'src/features/discovery/ui/OfferPhoto.tsx']) assert.doesNotMatch(await readFile(f, 'utf8'), /fetch\(|proxy|createObjectURL/, f);
 });
