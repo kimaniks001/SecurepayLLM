@@ -15,32 +15,33 @@ export interface BusinessState {
   inviteError: string | null;
   memberActionBusy: boolean;
   memberActionError: string | null;
-  roleAssignmentInput: { subjectIdentityId: string; roleCode: string };
-  roleAssignmentBusy: boolean;
-  roleAssignmentError: string | null;
-  /** Session-local only -- the protectedActionId a role-assignment initiate just returned, so the
-   * person can hand it to whoever must approve it. There is no backend listing endpoint for pending
-   * protected actions (confirmed absent), so this is never presented as a durable "approvals inbox." */
-  lastInitiatedProtectedActionId: string | null;
 }
 
 /**
- * Phase 5 -- Business Home. Reuses the real `BusinessOrganizationController` +
- * `AuthorizationController` engines directly -- no second membership/authority model. Membership
- * status alone is never treated as full authority: `authoritySummary` is the one real source for
- * "what can I actually do here," shown separately from the plain member list, which carries no
- * role/permission field at all (see `BusinessOrganizationMemberResponse`'s own narrow shape).
+ * Phase 5 final correction -- role assignment beyond an Organization's founding admin was removed
+ * from this controller entirely. `OrganizationAuthorityManagementService#initiateRoleAssignment`
+ * calls `actorProvider.rejectUntrustedActorSubstitution(command.subjectIdentityId())`, which requires
+ * the requested subject identity to equal the AUTHENTICATED actor's own identity id (confirmed by
+ * reading `AuthenticatedActorProvider#rejectUntrustedActorSubstitution` directly on current
+ * `SecurePayAPI main`) -- an admin cannot use this endpoint to assign a role to a different member.
+ * The prior version of this screen let a person type someone else's identity id and a role code and
+ * called this endpoint, advertising a flow the backend rejects. See
+ * docs/PHASE5_LIFE_BUSINESS_WORLD.md section E for the full correction.
+ *
+ * Reuses the real `BusinessOrganizationController` + `AuthorizationController` engines directly --
+ * no second membership/authority model. Membership status alone is never treated as full authority:
+ * `authoritySummary` is the one real source for "what can I actually do here," shown separately from
+ * the plain member list, which carries no role/permission field at all (see
+ * `BusinessOrganizationMemberResponse`'s own narrow shape).
  */
 export function createBusinessController(gateway: {
   business: Pick<BusinessGateway, 'get' | 'activate' | 'members' | 'inviteMember' | 'removeMember'>;
-  authorization: Pick<AuthorizationGateway, 'authoritySummary' | 'initiateRoleAssignment'>;
+  authorization: Pick<AuthorizationGateway, 'authoritySummary'>;
 }) {
   let state: BusinessState = {
     businessKsNumber: '', organization: idle(), members: idle(), authority: idle(),
     inviteKsInput: '', inviteBusy: false, inviteError: null,
     memberActionBusy: false, memberActionError: null,
-    roleAssignmentInput: { subjectIdentityId: '', roleCode: '' }, roleAssignmentBusy: false, roleAssignmentError: null,
-    lastInitiatedProtectedActionId: null,
   };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<BusinessState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
@@ -118,27 +119,6 @@ export function createBusinessController(gateway: {
       }
     },
 
-    setRoleAssignmentInput(patch: Partial<BusinessState['roleAssignmentInput']>) {
-      update({ roleAssignmentInput: { ...state.roleAssignmentInput, ...patch }, roleAssignmentError: null });
-    },
-
-    /**
-     * Real maker-checker: this only INITIATES the assignment, returning a protectedActionId a
-     * DIFFERENT authorised actor must separately approve before it takes effect. This screen never
-     * claims the role is granted the moment this call succeeds.
-     */
-    async initiateRoleAssignment() {
-      const organizationId = state.organization.data?.organizationId;
-      const { subjectIdentityId, roleCode } = state.roleAssignmentInput;
-      if (!organizationId || !subjectIdentityId.trim() || !roleCode.trim() || state.roleAssignmentBusy) return;
-      update({ roleAssignmentBusy: true, roleAssignmentError: null, lastInitiatedProtectedActionId: null });
-      try {
-        const result = await gateway.authorization.initiateRoleAssignment(organizationId, subjectIdentityId.trim(), roleCode.trim());
-        update({ roleAssignmentBusy: false, lastInitiatedProtectedActionId: result.protectedActionId, roleAssignmentInput: { subjectIdentityId: '', roleCode: '' } });
-      } catch (error) {
-        update({ roleAssignmentBusy: false, roleAssignmentError: errorText(error) });
-      }
-    },
   };
 }
 export type BusinessController = ReturnType<typeof createBusinessController>;

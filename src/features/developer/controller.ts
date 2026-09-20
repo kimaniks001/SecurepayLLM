@@ -46,10 +46,14 @@ const initial: DeveloperState = {
 
 /**
  * Phase 5 -- Developer/Connect. Covers exactly the part of the Developer Platform a signed-in KS
- * Business owner/administrator can reach with their ordinary session. Sandbox simulation and hosted
- * Money-session creation are deliberately NOT wired here -- both authenticate the caller as an
- * APPLICATION (client-id/secret), not a signed-in KS person, a structurally different mechanism this
- * web app cannot perform. See docs/PHASE5_LIFE_BUSINESS_WORLD.md section G.
+ * person can reach with their ordinary session, and only when that session's own KS Number is the
+ * Business KS identity itself (`DeveloperPlatformAuthorization.requireOwnerOrInternalActor` checks
+ * `actorKsNumber() == ownerBusinessKsNumber` -- Organization RBAC admin/membership is never
+ * consulted, confirmed directly against current `SecurePayAPI main`; a Business admin acting from a
+ * personal KS session does not qualify). Sandbox simulation and hosted Money-session creation are
+ * deliberately NOT wired here -- both authenticate the caller as an APPLICATION (client-id/secret),
+ * not a signed-in KS person, a structurally different mechanism this web app cannot perform. See
+ * docs/PHASE5_LIFE_BUSINESS_WORLD.md section G.
  */
 export function createDeveloperController(gateway: Pick<DeveloperGateway,
   'registerApplication' | 'getApplication' | 'integrationCheck' | 'suspendApplication' | 'reactivateApplication' | 'revokeApplication' |
@@ -64,6 +68,16 @@ export function createDeveloperController(gateway: Pick<DeveloperGateway,
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+
+    /**
+     * Final correction -- a one-time secret from the backend ("shown exactly once, never
+     * retrievable again") must not keep re-rendering from React state after the person navigates
+     * away and back within the same app session. Called when leaving the Developer destination;
+     * does not touch `application`/`integrationCheck`/form inputs, only the three secret values.
+     */
+    clearSensitiveTransientState() {
+      update({ issuedCredential: null, issuedWebhook: null, issuedSecureCode: null });
+    },
 
     setRegisterForm(patch: Partial<DeveloperState['registerForm']>) { update({ registerForm: { ...state.registerForm, ...patch } }); },
 
@@ -80,7 +94,9 @@ export function createDeveloperController(gateway: Pick<DeveloperGateway,
     },
 
     async openApplication(applicationId: string) {
-      update({ application: { status: 'loading', data: null, error: null }, integrationCheck: idle() });
+      // Switching which application is open must never leave a previous application's one-time
+      // secret visible against the newly-opened one.
+      update({ application: { status: 'loading', data: null, error: null }, integrationCheck: idle(), issuedCredential: null, issuedWebhook: null, issuedSecureCode: null });
       try {
         const application = await gateway.getApplication(applicationId);
         update({ application: { status: 'ready', data: application, error: null } });
@@ -109,7 +125,12 @@ export function createDeveloperController(gateway: Pick<DeveloperGateway,
         const application = action === 'suspend' ? await gateway.suspendApplication(applicationId)
           : action === 'reactivate' ? await gateway.reactivateApplication(applicationId)
           : await gateway.revokeApplication(applicationId);
-        update({ lifecycleBusy: false, application: { status: 'ready', data: application, error: null } });
+        update({
+          lifecycleBusy: false, application: { status: 'ready', data: application, error: null },
+          // A revoked application's previously-displayed secrets are no longer meaningfully valid;
+          // continuing to show them would be misleading.
+          ...(action === 'revoke' ? { issuedCredential: null, issuedWebhook: null, issuedSecureCode: null } : {}),
+        });
       } catch (error) {
         update({ lifecycleBusy: false, lifecycleError: errorText(error) });
       }

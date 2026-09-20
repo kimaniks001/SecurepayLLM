@@ -148,6 +148,12 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
     setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false);
+    // Final correction -- sensitive/one-time state must not survive leaving its own screen. Both
+    // calls are no-ops (harmless re-render of an unmounted screen) except at the exact moment of
+    // actually leaving Recovery or Developer; entering Recovery still separately calls reset() below
+    // for clarity, redundantly but harmlessly. See docs/PHASE5_LIFE_BUSINESS_WORLD.md sections G/K.
+    recoveryController.reset();
+    developerController.clearSensitiveTransientState();
     if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }

@@ -64,8 +64,8 @@ export function AccountExperience({ controller, onNavigate }: {
 
         <Surface>
           <SurfaceBody>
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">A Business you administer</div>
-            <p className="text-[0.78rem] text-sand-600 mb-2">SecurePay does not yet list every Business you belong to automatically — enter one you administer to check it here.</p>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Open a Business</div>
+            <p className="text-[0.78rem] text-sand-600 mb-2">SecurePay does not yet list every Business you belong to automatically — enter one to look it up. Being able to read its name does not by itself mean you have any authority for it; SecurePay confirms that separately, below.</p>
             <div className="flex gap-2">
               <input value={state.businessKsInput} onChange={e => controller.setBusinessKsInput(e.target.value)} placeholder="Business KS Number" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
               <Button variant="secondary" onClick={() => void controller.checkBusiness()} disabled={!state.businessKsInput.trim() || state.business.status === 'loading'} className="px-4">Check</Button>
@@ -76,15 +76,23 @@ export function AccountExperience({ controller, onNavigate }: {
               <div className="mt-3 rounded-xl bg-cream-50 border border-cream-200 px-3 py-2.5">
                 <div className="text-[0.82rem] text-forest-800">{state.business.data.businessKsNumber}</div>
                 <div className="text-[0.7rem] text-sand-500 mt-0.5">Organization activated {new Date(state.business.data.activatedAt).toLocaleDateString()}</div>
-                {state.authority.status === 'ready' && state.authority.data && (
-                  <div className="mt-2 pt-2 border-t border-cream-200">
-                    <div className="text-[0.68rem] text-sand-500 uppercase tracking-wide mb-1">What you can do here</div>
-                    {state.authority.data.permissions.length === 0
-                      ? <p className="text-[0.75rem] text-sand-500">No permissions are currently granted to you for this Business.</p>
-                      : <div className="flex flex-wrap gap-1.5">{state.authority.data.permissions.map(p => <span key={p} className="text-[0.68rem] text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">{p.replace(/_/g, ' ').toLowerCase()}</span>)}</div>}
-                  </div>
-                )}
-                <button onClick={() => onNavigate('business')} className="text-[0.78rem] text-forest-700 underline mt-2">Open Business Home</button>
+                <div className="mt-2 pt-2 border-t border-cream-200">
+                  {/* Fail-closed: reading this organization's name is not proof of authority for it --
+                      that is confirmed only by a successful authoritySummary read, shown below. A
+                      failed authority read is never presented as "no permissions"; those are
+                      different facts (see BusinessExperience's identical distinction). */}
+                  {state.authority.status === 'loading' && <p role="status" className="text-[0.75rem] text-sand-500">Confirming your authority for this Business…</p>}
+                  {state.authority.status === 'error' && <StatusNotice tone="warning" icon={false}>SecurePay could not confirm your authority for that Business. {state.authority.error}</StatusNotice>}
+                  {state.authority.status === 'ready' && state.authority.data && (
+                    <>
+                      <div className="text-[0.68rem] text-sand-500 uppercase tracking-wide mb-1">Your authority for this Business</div>
+                      {state.authority.data.permissions.length === 0
+                        ? <p className="text-[0.75rem] text-sand-500">Confirmed: no permissions are currently granted to you for this Business.</p>
+                        : <div className="flex flex-wrap gap-1.5">{state.authority.data.permissions.map(p => <span key={p} className="text-[0.68rem] text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-2 py-0.5">{p.replace(/_/g, ' ').toLowerCase()}</span>)}</div>}
+                    </>
+                  )}
+                </div>
+                {state.authority.status === 'ready' && <button onClick={() => onNavigate('business')} className="text-[0.78rem] text-forest-700 underline mt-2">Open Business Home</button>}
               </div>
             )}
           </SurfaceBody>

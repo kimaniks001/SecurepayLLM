@@ -62,7 +62,12 @@ export function createAccountController(gateway: {
       update({ business: { status: 'loading', data: null, error: null }, authority: idle() });
       try {
         const organization = await gateway.business.get(businessKsNumber);
-        update({ business: { status: 'ready', data: organization, error: null } });
+        // Correction: reading this organization's name is not proof of authority for it --
+        // `requireLink` (the backend behind this read) performs no authorization check of its own
+        // (confirmed by reading BusinessAdministrationService directly). authoritySummary is
+        // therefore checked immediately and unconditionally, before this Business is ever presented
+        // as one the person administers -- see AccountExperience's fail-closed rendering.
+        update({ business: { status: 'ready', data: organization, error: null }, authority: { status: 'loading', data: null, error: null } });
         try {
           const summary = await gateway.authorization.authoritySummary(organization.organizationId);
           update({ authority: { status: 'ready', data: summary, error: null } });

@@ -12,8 +12,11 @@ import type { BusinessController } from './controller';
  * Phase 5 -- Business Home: which Business you're acting for, who can act, and what they can
  * actually do. Reuses the real Organization/RBAC engine directly -- membership status is never
  * treated as equivalent to full authority (see the "What members can do" section, sourced only from
- * `authoritySummary`, never inferred from membership alone). Role assignment beyond the founding
- * admin is real maker-checker: initiating one never claims the role is granted immediately.
+ * `authoritySummary`, never inferred from membership alone).
+ *
+ * Final correction: this screen no longer implies the signed-in person's identity is replaced while
+ * acting for a Business, and no longer offers a member-to-member role-assignment form the backend
+ * rejects -- see docs/PHASE5_LIFE_BUSINESS_WORLD.md sections E/F for exactly why.
  */
 export function BusinessExperience({ controller, onNavigate }: {
   controller: BusinessController;
@@ -29,7 +32,7 @@ export function BusinessExperience({ controller, onNavigate }: {
         <button onClick={() => onNavigate('account')} className="flex items-center gap-1.5 text-sand-500 hover:text-forest-600 text-[0.8rem]">
           <ArrowLeft className="w-3.5 h-3.5" /> Account
         </button>
-        <PageHeader title="Business" description="Acting for a Business is not the same as acting personally. Every action below happens as this Business, never your personal identity." />
+        <PageHeader title="Business" description="You are signed in as yourself. Actions on this page are scoped to the selected Business and only succeed where SecurePay confirms your authority for that Business." />
 
         <Surface>
           <SurfaceBody>
@@ -38,7 +41,7 @@ export function BusinessExperience({ controller, onNavigate }: {
               <input value={state.businessKsNumber} onChange={e => controller.setBusinessKsNumber(e.target.value)} placeholder="Business KS Number" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
               <Button variant="secondary" onClick={() => void controller.load(state.businessKsNumber.trim())} disabled={!state.businessKsNumber.trim() || state.organization.status === 'loading'} className="px-4">Open</Button>
             </div>
-            <p className="text-[0.72rem] text-sand-500 mt-2">Not activated yet? <button onClick={() => void controller.activate(state.businessKsNumber.trim())} disabled={!state.businessKsNumber.trim()} className="text-forest-700 underline disabled:opacity-40 disabled:no-underline">Activate this Business KS Number</button> — only the Business's own owner (or an authorised internal actor) can do this.</p>
+            <p className="text-[0.72rem] text-sand-500 mt-2">Not activated yet? <button onClick={() => void controller.activate(state.businessKsNumber.trim())} disabled={!state.businessKsNumber.trim()} className="text-forest-700 underline disabled:opacity-40 disabled:no-underline">Activate this Business KS Number</button> — activation currently requires signing in as the Business KS identity itself, or an authorised internal actor. Signing in as a personal identity that administers this Business through Organization membership is not the same thing and will not succeed here.</p>
             {state.organization.status === 'error' && <StatusNotice tone="warning" icon={false} className="mt-2">{state.organization.error}</StatusNotice>}
           </SurfaceBody>
         </Surface>
@@ -93,26 +96,22 @@ export function BusinessExperience({ controller, onNavigate }: {
                     <Button onClick={() => void controller.inviteMember()} disabled={!state.inviteKsInput.trim() || state.inviteBusy} className="px-4">{state.inviteBusy ? 'Inviting…' : 'Invite'}</Button>
                   </div>
                   {state.inviteError && <StatusNotice tone="warning" icon={false} className="mt-2">{state.inviteError}</StatusNotice>}
-                  <p className="text-[0.68rem] text-sand-400 mt-2">An invited person becomes a member only once they accept — and membership alone grants no permission until a role is separately assigned and approved (below).</p>
+                  <p className="text-[0.68rem] text-sand-400 mt-2">An invited person becomes a member only once they accept — and membership alone grants no permission. See "Role management" below for the current state of assigning one.</p>
                 </div>
               </SurfaceBody>
             </Surface>
 
             <Surface>
               <SurfaceBody>
-                <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Assign a role (maker-checker)</div>
-                <p className="text-[0.78rem] text-sand-600 mb-2">Assigning a role beyond the first admin always requires a second, different person to approve it before it takes effect — you cannot approve your own request.</p>
-                <input value={state.roleAssignmentInput.subjectIdentityId} onChange={e => controller.setRoleAssignmentInput({ subjectIdentityId: e.target.value })} placeholder="Member's identity id" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] mb-2" />
-                <input value={state.roleAssignmentInput.roleCode} onChange={e => controller.setRoleAssignmentInput({ roleCode: e.target.value })} placeholder="Role code (e.g. ORGANIZATION_ADMIN)" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] mb-2" />
-                {state.roleAssignmentError && <StatusNotice tone="warning" icon={false} className="mb-2">{state.roleAssignmentError}</StatusNotice>}
-                <Button variant="secondary" onClick={() => void controller.initiateRoleAssignment()} disabled={!state.roleAssignmentInput.subjectIdentityId.trim() || !state.roleAssignmentInput.roleCode.trim() || state.roleAssignmentBusy} className="w-full py-2.5">
-                  {state.roleAssignmentBusy ? 'Requesting…' : 'Request this role assignment'}
-                </Button>
-                {state.lastInitiatedProtectedActionId && (
-                  <StatusNotice tone="info" className="mt-2">
-                    Requested. Share this reference with whoever will approve it: <span className="font-medium">{state.lastInitiatedProtectedActionId}</span>. SecurePay does not yet show a list of requests waiting for your approval — approval happens by reference, not from an inbox here.
-                  </StatusNotice>
-                )}
+                <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Role management</div>
+                <p className="text-[0.78rem] text-sand-600">
+                  SecurePay's backend has real maker-checker role-assignment authority for
+                  Organizations. The current participant-facing contract does not yet support an
+                  administrator assigning a role to a <em>different</em> Business member from this
+                  screen — the underlying endpoint only accepts a request for the signed-in person's
+                  own identity, and there is no backend listing of role-assignment requests waiting
+                  for approval. Assigning roles to other members is not available here yet.
+                </p>
               </SurfaceBody>
             </Surface>
           </>

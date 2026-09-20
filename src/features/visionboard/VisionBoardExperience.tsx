@@ -100,8 +100,10 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
  * plans, guidance, methods, templates). This is not a shared workspace, not a Project, and not an
  * Agreement -- no Share, Invite, Members, or Collaborators appears anywhere below, because none of
  * those exist on the backend for a Vision Board. Deliberately no Project link either: the backend
- * keeps these two domains structurally isolated from each other (see
- * docs/PHASE5_LIFE_BUSINESS_WORLD.md).
+ * forbids Project and Vision Board's own internal domain code from directly depending on each
+ * other, but its own doctrine comment explicitly leaves room for a future feature to link them
+ * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
+ * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
 export function VisionBoardExperience({ controller, documentGateway, defaultOwnerKsNumber, onNavigate }: {
   controller: VisionBoardController;

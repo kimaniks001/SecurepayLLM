@@ -19,10 +19,19 @@ function CheckRow({ label, ok }: { label: string; ok: boolean }) {
 
 /**
  * Phase 5 -- Developer/Connect: the real part of the Developer Platform reachable from a signed-in
- * KS Business owner/administrator's own session (application, credential, webhook, and SecureCode
- * management). Sandbox simulation and hosted Money-session creation happen from the developer's own
- * backend using the credential issued here -- they authenticate as an application, not a signed-in
- * person, so no working "simulate" button is offered inside this web app; see the notice below.
+ * KS person's own session (application, credential, webhook, and SecureCode management).
+ *
+ * Final correction: `DeveloperPlatformAuthorization.requireOwnerOrInternalActor` requires the
+ * authenticated actor's OWN `actorKsNumber()` to exactly equal `ownerBusinessKsNumber` (confirmed by
+ * reading it directly on current `SecurePayAPI main`) -- Organization RBAC admin/membership is never
+ * consulted. A person who administers a Business through Organization membership does NOT thereby
+ * gain Developer application ownership for it; only signing in as that Business KS identity itself
+ * (or a trusted internal actor) does. This screen states that requirement explicitly rather than
+ * implying "Business admin" is sufficient.
+ *
+ * Sandbox simulation and hosted Money-session creation happen from the developer's own backend using
+ * the credential issued here -- they authenticate as an application, not a signed-in person, so no
+ * working "simulate" button is offered inside this web app; see the notice below.
  */
 export function DeveloperExperience({ controller, onNavigate }: {
   controller: DeveloperController;
@@ -44,8 +53,9 @@ export function DeveloperExperience({ controller, onNavigate }: {
           <Surface>
             <SurfaceBody>
               <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Register an application</div>
+              <p className="text-[0.72rem] text-sand-500 mb-2">The signed-in actor must currently be that Business KS identity itself (or a trusted internal actor) — an Organization admin acting from a personal KS session cannot register or manage a Business's applications yet. If that's not who you're signed in as, SecurePay will fail this closed rather than let it through.</p>
               <input value={state.registerForm.name} onChange={e => controller.setRegisterForm({ name: e.target.value })} placeholder="Application name" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] mb-2" />
-              <input value={state.registerForm.ownerBusinessKsNumber} onChange={e => controller.setRegisterForm({ ownerBusinessKsNumber: e.target.value })} placeholder="Owning Business KS Number" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] mb-2" />
+              <input value={state.registerForm.ownerBusinessKsNumber} onChange={e => controller.setRegisterForm({ ownerBusinessKsNumber: e.target.value })} placeholder="Owning Business KS Number (must match the identity you're signed in as)" className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem] mb-2" />
               <div className="flex gap-2 mb-2">
                 {(['SANDBOX', 'PRODUCTION'] as const).map(env => (
                   <button key={env} onClick={() => controller.setRegisterForm({ environment: env })} className={`flex-1 rounded-lg border px-3 py-2 text-[0.8rem] capitalize ${state.registerForm.environment === env ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}>{env.toLowerCase()}</button>

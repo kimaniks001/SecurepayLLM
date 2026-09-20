@@ -28,7 +28,7 @@ frontend wiring; and Help has no customer-facing backend surface to build agains
 | **Help** | **No customer-facing backend surface exists.** `SupportContextController` (`/api/v1/support/context/{traderKsNumber}`) requires an `X-Outreach-Case-Ref` header — it is a staff/Outreach-tool read, not something this customer webapp can or should call. KS001 (the Agent) already provides contextual help via the existing `AgentScope`/proactive-guidance machinery from Phase 5B. No new Help destination was built — see J. |
 | **Recovery** | **Backend exists, frontend was completely missing.** `AuthenticationController`'s `/recovery/request`, `/recovery/verify`, `/recovery/reset`, plus `/logout-all` and `/password` (in-session change) — none were wired anywhere in this codebase before this phase. |
 
-**Authority-sensitive findings surfaced during archaeology** (see M for the full audit): `requestRecovery` is deliberately enumeration-resistant (always returns a token, whether or not the KS Number exists); `resetPassword` revokes every session/refresh-token/MFA/recovery-challenge and returns no session of its own; `BusinessOrganizationMemberResponse` carries no role/permission field at all (membership status ≠ authority); role assignment beyond an Organization's founding admin is real maker-checker (`initiateRoleAssignment` → a *different* actor must `approve`), but **no GET listing endpoint for pending protected actions exists anywhere in the contract** — a durable "approvals inbox" cannot be built from this alone; `DeveloperSandboxController`/`DeveloperMoneySessionController` authenticate as an application, not a person.
+**Authority-sensitive findings surfaced during archaeology** (see M for the full audit): `requestRecovery` is deliberately enumeration-resistant (always returns a token, whether or not the KS Number exists); `resetPassword` revokes every session/refresh-token/MFA/recovery-challenge and returns no session of its own; `BusinessOrganizationMemberResponse` carries no role/permission field at all (membership status ≠ authority); role assignment beyond an Organization's founding admin is real maker-checker machinery, but **`initiateRoleAssignment` rejects any `subjectIdentityId` other than the authenticated actor's own** (`rejectUntrustedActorSubstitution`, confirmed directly against current `main`) — an admin cannot use it to assign a role to a *different* member — and separately **no GET listing endpoint for pending protected actions exists anywhere in the contract**, so even self-assignment has no durable "approvals inbox" to build against; `BusinessAdministrationService.requireLink` (the read behind `GET .../organization`) performs no authorization check of its own, so a successful read is never proof of administering that Business; `DeveloperPlatformAuthorization.requireOwnerOrInternalActor` requires the caller's own `actorKsNumber()` to literally equal the Business KS Number — Organization RBAC admin/membership is never consulted, so Business Home authority does not carry over to Developer application ownership; `DeveloperSandboxController`/`DeveloperMoneySessionController` authenticate as an application, not a person.
 
 ## B. Life & Business mental model
 
@@ -39,15 +39,19 @@ a Project" promotion — is only half-real. **Corrected by this phase's archaeol
   organizational folder (never shared, never a source of Agreement authority) that groups Agreements
   and shows their combined, backend-computed state distribution and money facts — never invented
   percentages or a summed cross-currency total.
-- **Vision Board is NOT a life-aspiration board and has no path to Project.** It is a private KS
-  *operating memory* — ideas, plans, guidance, document templates, with usage policies controlling
+- **Vision Board is NOT a life-aspiration board, and has no path to Project today.** It is a private
+  KS *operating memory* — ideas, plans, guidance, document templates, with usage policies controlling
   how the Agent may draw on them (proactively, by reference, or only when explicitly named) — plus a
   conversational document-drafting capability (quotations/invoices/receipts, backed by real Funded
-  Authority truth). The backend keeps Project and Vision Board **structurally isolated from each
-  other** by an explicit architecture-doctrine rule (`projectAndVisionBoardDomainsNeverReachIntoEach
-  OthersPrivateSurface`, confirmed present in `ArchitectureDoctrineTest`) — this is a deliberate
-  boundary, not a gap to close. "Make this a Vision item into a Project" is not fictional-but-missing;
-  it is architecturally prevented by design.
+  Authority truth). **Corrected by this pass** (the original wording overstated this): the backend's
+  `projectAndVisionBoardDomainsNeverReachIntoEachOthersPrivateSurface` doctrine rule (confirmed
+  present in `ArchitectureDoctrineTest`) forbids the two domains' own internal service/persistence
+  code from directly depending on each other — but its own comment explicitly says "a future feature
+  that lets a KS link the two must go through each domain's own authorized owner-scoped API, never a
+  direct dependency edge." A bridge is not fictional-but-missing, and it is not architecturally
+  forbidden outright either — it simply does not exist today, and would have to be built as a proper,
+  separately-authorized feature composing both domains' public APIs, never a shortcut through their
+  internals. This pass does not build one.
 - **Business defines acting capacity, layered on top of both.** A Business KS Number can own Projects
   and a Vision Board exactly like a Personal KS Number (both take an explicit owner KS Number), and
   separately has its own Organization/membership/authority engine governing who may act for it.
@@ -119,23 +123,48 @@ OrganizationController` (activate/get/members/invite/accept/remove) bridging a B
 - **Members** — status only (`BusinessOrganizationMemberResponse` carries no role field at all); an
   explicit note that this list never shows what a member is authorised to do. Invite/remove wired to
   the real endpoints; removal suspends (never deletes) membership.
-- **Role assignment (maker-checker)** — initiating one returns a `protectedActionId` a *different*
-  authorised actor must separately approve; the screen never claims the role takes effect immediately,
-  and honestly discloses that no backend listing endpoint exists for pending approvals (session-local
-  reference only, not a durable inbox).
+
+**Corrected by this pass — role assignment**: the original version of this screen let an admin type a
+*different* member's identity id and a role code, then called `initiateRoleAssignment`, presenting it
+as a working maker-checker admin flow. Direct review of current `SecurePayAPI main` found this cannot
+work: `OrganizationAuthorityManagementService.initiateRoleAssignment` calls `actorProvider
+.rejectUntrustedActorSubstitution(command.subjectIdentityId())`, and that method (confirmed by reading
+`AuthenticatedActorProvider` directly) throws unless the supplied `subjectIdentityId` equals the
+*authenticated actor's own* identity id — an admin cannot use this endpoint to assign a role to a
+different member at all today. The interactive form was removed and replaced with a truthful
+capability note: the backend has real maker-checker role-assignment machinery, but the current
+participant-facing contract does not yet support cross-member assignment, and separately, no backend
+endpoint lists pending protected actions awaiting approval — a complete admin role-management journey
+cannot be built from what exists today. Neither gap was worked around; both are disclosed.
 
 ## F. Acting capacity
 
-Personal vs. Business is enforced structurally, not just visually: every Project/Vision Board/
+**Corrected by this pass**: the original wording ("every action below happens as this Business, never
+your personal identity") overstated what the backend does. The actual model, confirmed by reading
+`BusinessAdministrationService`/`AuthorizationEnforcer` directly: **the authenticated person remains
+the actor for every call, always.** A Business is a *resource/organizational scope* that call is
+checked against — never a second identity the session "becomes." There is no token, header, or session
+state anywhere that substitutes a Business identity for the signed-in person's own. Business Home's
+copy now says exactly this: "You are signed in as yourself. Actions on this page are scoped to the
+selected Business and only succeed where SecurePay confirms your authority for that Business."
+
+Separately, activation (`BusinessAdministrationService.activateOrganization`) is stricter than
+"owner or administrator": `requireOwnerOrInternalActor` requires the authenticated actor's own
+`actorKsNumber()` to literally equal the Business KS Number being activated, or a trusted internal
+actor — Organization RBAC admin/membership is not consulted at all for activation. The prior wording
+("only the Business's own owner... can do this") risked being read as "an Organization admin can do
+this" — corrected to state the exact requirement: signing in as the Business KS identity itself.
+
+Personal vs. Business remains enforced structurally, not just visually: every Project/Vision Board/
 Business call takes an explicit owner/Business KS Number as data, never an implicit "current app
 mode." There is **no general Business-switching mechanism anywhere in the backend** (confirmed
-absent — Agreements/Money/Store already take explicit KS Numbers per-flow) — Section 23's "acting
-capacity indicator" is therefore the existing pattern itself (you always see and choose which KS
-Number a given screen is scoped to), not a new global switcher, which would have to be either fake or
-would misrepresent a capability the backend doesn't have. `AuthoritySummaryResponse` is the one real
-source of "what can I do for this Business," always caller-resolved server-side. No screen in this
-phase infers authority from URL/location — the "What you can do here" section on Business Home is the
-explicit antidote to that failure mode, re-fetched from the backend every time the screen opens.
+absent — Agreements/Money/Store already take explicit KS Numbers per-flow), and this phase does not
+invent one, nor any "Business mode" language implying a session-wide identity change. `Authority
+SummaryResponse` is the one real source of "what can I do for this Business," always caller-resolved
+server-side. No screen in this phase infers authority from URL/location — the "What you can do here"
+section on Business Home is the explicit antidote to that failure mode, re-fetched from the backend
+every time the screen opens, and (corrected by this pass, see H) never rendered as proof of authority
+until that specific read succeeds.
 
 ## G. Developer / Connect
 
@@ -157,20 +186,48 @@ screen discloses this directly rather than faking a "Simulate" button: sandbox s
 Money-session creation genuinely happen from the developer's own backend, authenticated with the
 credential this screen issues.
 
+**Corrected by this pass — ownership is stricter than "owner/administrator."** The original doc and
+UI copy described this destination as reachable by "a signed-in Business owner/administrator."
+Direct reading of `DeveloperPlatformAuthorization.requireOwnerOrInternalActor` on current
+`SecurePayAPI main` found it requires the authenticated actor's own `actorKsNumber()` to *exactly
+equal* `ownerBusinessKsNumber` (or a trusted internal actor) — Organization RBAC admin/membership is
+never consulted. A person who administers a Business through Organization membership (i.e., has real
+`authoritySummary` permissions for it) does **not** thereby gain Developer application ownership for
+it. This phase does not bridge the two: no Developer screen reads or reacts to `authoritySummary`,
+and none infers application ownership from Business membership. The registration form now states the
+real requirement explicitly ("the signed-in actor must currently be that Business KS identity
+itself") and lets the backend fail closed otherwise, rather than implying Business admin status is
+sufficient.
+
 ## H. Account / Identity
 
 **What changed**: a new **Account** destination (`src/features/account/`) replacing the `NavBar`'s
 placeholder "Account → Home" routing. Identity is shown via the same real, self-scoped `/circle/me`
 read Circle already uses (KS Number given prominence, identity lifecycle status humanised via the
 existing `circleVerificationStatusLabel`, never presented as "professional verification" — Section 39
-doctrine unchanged). A Business membership is a separate, explicit lookup: **there is no backend
-index of "which Businesses do I belong to"** (confirmed absent), so the person names a Business KS
-Number they administer, exactly mirroring Projects'/Vision Board's own established convention — not
-fabricated as an auto-discovered list. Security section adds real, previously-unwired `logout-all`
-(sign out everywhere) and a link into the new Recovery flow. `/api/v1/identities/**` was deliberately
-**not** adopted for this screen: its authorization boundary was not independently verifiable from the
+doctrine unchanged). A Business lookup is a separate, explicit read: **there is no backend index of
+"which Businesses do I belong to"** (confirmed absent), so the person names a Business KS Number,
+exactly mirroring Projects'/Vision Board's own established convention — not fabricated as an
+auto-discovered list. Security section adds real, previously-unwired `logout-all` (sign out
+everywhere) and a link into the new Recovery flow. `/api/v1/identities/**` was deliberately **not**
+adopted for this screen: its authorization boundary was not independently verifiable from the
 controller alone, and `/circle/me` already gives an equivalent, already-proven-safe self-scoped read
 — reusing a verified-safe capability was preferred over introducing a new, unverified one.
+
+**Corrected by this pass — Business lookup fail-closed.** The original section was headed "A Business
+you administer" and rendered the organization card as soon as `business.get(businessKsNumber)`
+succeeded, with the authority read shown only as an *additional* nested detail. Direct reading of
+`BusinessAdministrationService.requireLink` (the method behind `GET .../organization`) found it
+performs **no authorization check of its own** — it is a plain repository lookup by KS Number, so a
+successful read proves only that the Business is activated, never that the caller administers it.
+Fixed: the section is now headed "Open a Business" until authority is confirmed, `authoritySummary`
+is requested immediately and unconditionally once the organization read succeeds, and the screen
+distinguishes three states rather than one — checking, confirmed (with or without permissions), and
+failed. A failed authority read now shows "SecurePay could not confirm your authority for that
+Business" and does **not** show the organization as one the person can act for; only once
+`authoritySummary` itself succeeds does the heading change to "Your authority for this Business" and
+the "Open Business Home" link appear. Reading an organization's name is documented explicitly as not
+being proof of administering it.
 
 ## I. Settings
 
@@ -210,39 +267,58 @@ while signed out ("Trouble signing in? Recover your account") without touching t
 Real, backend-verified links wired or confirmed this phase: Account → Settings/Business/Developer/
 Projects/Vision Board/Recovery (all real navigation, no fabricated association); Projects → Vision
 Board (pre-existing, unchanged); the caller's own KS Number now flows automatically from Account's
-identity read into Projects' owner field. **Confirmed NOT to exist, and correctly not built**: Vision
-↔ Project (architecturally isolated, see B); a "which Businesses do I belong to" index (Account's
-Business lookup is explicit-KS, not auto-discovered); a durable Business role-assignment approvals
-inbox (no listing endpoint). KS001's own context-awareness (Project/Vision/Business/Agreement scope)
-was verified as already real from Phase 5B's `AgentScope` work — no change was needed or made to it
-this phase.
+identity read into Projects' owner field; Account's Business lookup now requires a successful
+`authoritySummary` read before presenting a Business as one the person can act for (see H). **Confirmed
+NOT to exist, and correctly not built**: a Vision ↔ Project link (no direct-dependency bridge exists
+today; the backend's own doctrine leaves room for one to be built later through each domain's public
+API, but this pass builds none — see B); a "which Businesses do I belong to" index (Account's Business
+lookup is explicit-KS, not auto-discovered); a durable Business role-assignment approvals inbox (no
+listing endpoint, and the initiation endpoint itself only accepts the caller's own identity as
+subject — see E); a Business-membership → Developer-application-ownership bridge (see G). KS001's own
+context-awareness (Project/Vision/Business/Agreement scope) was verified as already real from Phase
+5B's `AgentScope` work — no change was needed or made to it this phase.
 
 ## M. Authority audit
 
-- **Project ≠ Agreement**: confirmed unchanged — Project write methods never touch Agreement
-  confirm/join/fund/exercise/release (grep-verified, see Tests).
-- **Vision ≠ Project**: confirmed via the backend's own structural doctrine rule; no cross-domain
-  field or call exists in either domain's DTOs or gateways (grep-verified).
-- **Project cannot mutate Agreement authority / Vision cannot create authority**: unchanged from
-  existing doctrine; nothing in this phase touched either write path.
-- **Business membership ≠ universal Business authority**: `BusinessOrganizationMemberResponse` has no
-  role field; Business Home's own permission list is sourced only from `authoritySummary`, never
-  inferred from membership status (grep-verified — no client-constructed permissions array exists).
-- **UI context ≠ acting authority**: every Business/Project/Vision Board call carries an explicit KS
-  Number as data; no screen presence implies authority.
-- **Recovery ≠ Business authority restoration**: `resetRecoveryPassword`'s request/response carry no
+- **The authenticated actor remains the authenticated actor on Business Home**: no code path
+  substitutes a Business identity for the signed-in person's own; a Business is resource/organization
+  scope the call is checked against, never a second actor. Confirmed by reading
+  `BusinessAdministrationService`/`AuthorizationEnforcer` directly, and by the corrected copy (F).
+- **Selected Business scopes resource/organization context; it does not replace actor identity**: see
+  F — corrected this pass from language that implied the opposite.
+- **Business activation does not infer organisation-admin authority**: `requireOwnerOrInternalActor`
+  requires `actorKsNumber() == businessKsNumber` (or a trusted internal actor); Organization
+  membership/admin status is never consulted, and the frontend copy now says so exactly (F).
+- **Current member role assignment is not falsely advertised**: the interactive "assign a role to
+  another member" form was removed this pass after confirming `rejectUntrustedActorSubstitution`
+  rejects any subject other than the caller's own identity; replaced with a truthful capability note
+  (E).
+- **Developer ownership is not inferred from organization membership/admin**: no Developer screen
+  reads or reacts to `authoritySummary`; ownership is checked only by the backend's own
+  `actorKsNumber() == ownerBusinessKsNumber` rule, and the frontend states this requirement rather
+  than implying Business admin status is sufficient (G).
+- **Account's Business read is not treated as authority proof**: `business.get()` succeeding is no
+  longer sufficient to present a Business as one the person administers; only a successful
+  `authoritySummary` read does that, and a failed authority read fails closed with a neutral message
+  rather than silently showing the organization as "yours" (H).
+- **Vision ≠ Project and no bridge was created**: confirmed — no cross-domain field or call exists in
+  either domain's DTOs or gateways (grep-verified); the doctrine wording describing why was corrected
+  this pass to state precisely what is and isn't forbidden (B, D).
+- **Recovery never restores unrelated authority**: `resetRecoveryPassword`'s request/response carry no
   role/permission/organization field (grep-verified); the success copy states explicitly that
-  Business/delegated/Agreement authority is unaffected.
-- **Developer access ≠ arbitrary API permission**: every credential is scoped (`DeveloperApiScope`);
-  no credential/secret is ever hardcoded (grep-verified) — every secret shown comes from a live
-  response field, shown exactly once, matching the backend's own one-time-disclosure contract.
-- **Help/support context remains privacy-bounded**: no customer-facing code path to the staff-only
-  support-context endpoint was built.
-- **Personal Money ≠ Business Money**: untouched — this phase built no new financial aggregation of
-  any kind; Business's own money capability (Phase 3's `businessCurrencyCapability`/
-  `businessFxApplication`) was not modified.
+  Business/delegated/Agreement authority is unaffected. Unchanged this pass except for the transient-
+  state hygiene fix (see K).
+- **Developer secrets are ephemeral**: `issuedCredential`/`issuedWebhook`/`issuedSecureCode` are now
+  cleared on leaving Developer and never persisted to storage (see the Developer secret-hygiene
+  correction below, section corresponding to the task's "Developer secret hygiene").
+- **No backend permission was widened**: this pass removed a client-side flow (role assignment for
+  another member) rather than adding one; no new scope, permission, or actor-substitution path was
+  introduced anywhere.
+- **No Agreement/Money authority changed**: untouched — no mutating Agreement/Money call's arguments
+  changed anywhere in this pass; the only functional changes were the role-assignment removal, the
+  Account/Business copy and fail-closed fixes, and the two transient-state clears.
 - **No frontend status/progress/financial metric was invented**: no health/readiness/completeness/
-  rank/rating score exists anywhere in the five new feature files (grep-verified).
+  rank/rating score exists anywhere in the feature files touched this pass (grep-verified, re-checked).
 
 ## N. Desktop verification
 
@@ -288,11 +364,33 @@ Account fix and the five new `AppView` destinations; no fixture-data import into
 
 ## Q. Deferred backend/product gaps
 
-- **Vision Board → Project**: not a gap — architecturally prevented by an explicit backend doctrine
-  rule (see B, D). Documented as intentional, not fixed.
-- **Business role-assignment approvals inbox**: no backend GET endpoint lists pending protected
-  actions. A future backend phase could add one narrowly-scoped to "protected actions awaiting my
-  approval"; this pass correctly did not fabricate a client-side substitute.
+- **Participant/admin role-management contract mismatch**: the backend's own maker-checker role-
+  assignment endpoint (`initiateRoleAssignment`) only accepts the caller's own identity as subject
+  (`rejectUntrustedActorSubstitution`) — an Organization admin cannot use it to assign a role to a
+  *different* member. This is a genuine contract gap for the "admin manages member roles" product
+  story, not a frontend limitation; a future backend phase would need either a distinct
+  admin-initiates-on-behalf-of-another-identity endpoint or a documented product decision that role
+  assignment is self-service-only (e.g., invited members claim their own role after some other
+  verification). This pass does not guess which; it discloses the mismatch and removes the UI that
+  advertised the unsupported flow.
+- **No pending protected-action inbox**: no backend GET endpoint lists protected actions awaiting a
+  given actor's approval, independent of the subject-identity restriction above. Needed for any
+  maker-checker journey (role assignment or otherwise) to be genuinely usable end-to-end.
+- **No Organization-RBAC bridge into Developer application ownership**: `DeveloperPlatformAuthorization
+  .requireOwnerOrInternalActor` checks only `actorKsNumber() == ownerBusinessKsNumber`; a real
+  Organization admin (confirmed via `authoritySummary`) has no path to Developer application
+  ownership today. If the product intends admins to manage a Business's developer applications, a
+  future backend phase would need to consult the Organization/RBAC engine here too.
+- **Business organization GET authority-hardening gap**: `BusinessAdministrationService.requireLink`
+  (behind `GET /api/v1/business/{ks}/organization`) performs no authorization check of its own — any
+  authenticated caller can read organization metadata (id, KS Number, activation date) for *any*
+  Business KS Number, not just ones they administer. This is a backend-hardening observation, not
+  something this frontend PR fixes; the frontend's own correction (H) is to never treat that read as
+  proof of authority, regardless of whether the backend later tightens it.
+- **No Vision → Project API bridge today**: the backend's cross-domain isolation rule forbids direct
+  dependency between the two domains' internals but explicitly permits a future feature built through
+  each domain's own authorized owner-scoped API (see B, D) — no such feature exists yet, and this pass
+  does not build one.
 - **"Which Businesses do I belong to" auto-discovery**: no backend index exists; Account's explicit-
   KS-entry pattern is the honest mechanism available today, matching Projects'/Vision Board's own
   established convention.
