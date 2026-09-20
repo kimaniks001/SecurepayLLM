@@ -9,7 +9,7 @@ export interface AgentResponseDto {
   suggestedActions: { id: string; label: string; payload: Record<string, string> }[];
 }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string> }
-export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId: string; qualifiers: Record<string, string>; state: string; confidence: number }
+export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number }
 export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[] }
 export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }

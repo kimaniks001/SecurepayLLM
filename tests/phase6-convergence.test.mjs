@@ -302,8 +302,9 @@ test('Q2. The active KS001 conversation surface uses the restrained green atmosp
 
 test('Q3. The desktop understanding panel title is always exactly "What SecurePay understands", never a backend-supplied per-turn panel title', async () => {
   const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.match(contents, /panelTitle="What SecurePay understands"/, 'the panel title must be the exact, hardcoded product-doctrine string');
-  assert.doesNotMatch(contents, /panelTitle=\{panel\?\.title/, 'must never let a backend panel.title override the product title');
+  // UI Phase 1: the fixture ContextPanel was replaced by the production workbench pane; the title is still a hardcoded literal.
+  assert.match(contents, /<h2[^>]*>What SecurePay understands<\/h2>/, 'the panel title must be the exact, hardcoded product-doctrine string');
+  assert.doesNotMatch(contents, /panelTitle=\{panel\?\.title|<h2[^>]*>\{panel/, 'must never let a backend panel.title override the product title');
 });
 
 test('Q4. No generic avatar (AgentIcon or a hand-drawn silhouette) is reintroduced anywhere in real production KS001 surfaces', async () => {

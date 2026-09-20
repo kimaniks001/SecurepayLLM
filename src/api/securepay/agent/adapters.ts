@@ -1,4 +1,5 @@
 import { discoveryView, type DiscoveryView } from './discovery';
+import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
 import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, ComponentDto, HandoffDto, HandoffStatus, ReviewedSourceDto, TradeContextDto } from './dto';
@@ -10,7 +11,7 @@ export interface PreviewView {
 }
 export interface AgreementWorkspaceComponentView { type: 'AGREEMENT_WORKSPACE'; workspace: AgentAgreementWorkspaceViewDto }
 export interface AgreementsHomeComponentView { type: 'AGREEMENTS_HOME'; home: AgentAgreementsHomeViewDto }
-export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView;
+export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView | InstrumentPromptView | UnavailableInputView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
@@ -86,6 +87,9 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
     const home = agreementsHomeView(data);
     return home ? { type: 'AGREEMENTS_HOME', home } : null;
   }
+  // Phase 1: the safe, model-proposable input affordances (PERSON_PICKER, DATE_PICKER, AMOUNT_INPUT, ...).
+  const instrument = instrumentComponentView(component);
+  if (instrument) return instrument;
   return discoveryView(component);
 }
 export function agentResponseView(dto: AgentResponseDto) {
@@ -101,20 +105,29 @@ export function agentResponseView(dto: AgentResponseDto) {
   };
 }
 
-/** Retain IDs, qualifiers/provenance and the original state; unknown state is never confirmed. */
+/**
+ * Retain IDs, qualifiers/provenance and the original state; unknown state is never confirmed.
+ *
+ * The backend serialises with `default-property-inclusion: non_null`, so a relationship with no
+ * object entity (every ROLE, PAYMENT_CONDITION and CONDITION the Agent produces) OMITS
+ * `objectEntityId`. Requiring it to be a string rejected every real Trade Context that held one.
+ */
 export function tradeContextView(dto: TradeContextDto) {
   const stringMap = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value) && Object.values(value).every(item => typeof item === 'string');
   if (!dto || typeof dto.conversationId !== 'string' || !Number.isSafeInteger(dto.version)
     || !Array.isArray(dto.entities) || !Array.isArray(dto.relationships)
     || dto.entities.some(entity => !entity || typeof entity.id !== 'string' || typeof entity.type !== 'string' || typeof entity.name !== 'string' || typeof entity.state !== 'string' || !stringMap(entity.attributes))
-    || dto.relationships.some(relation => !relation || typeof relation.id !== 'string' || typeof relation.kind !== 'string' || typeof relation.subjectEntityId !== 'string' || typeof relation.objectEntityId !== 'string' || typeof relation.state !== 'string' || !stringMap(relation.qualifiers))) {
+    || dto.relationships.some(relation => !relation || typeof relation.id !== 'string' || typeof relation.kind !== 'string' || typeof relation.subjectEntityId !== 'string' || (relation.objectEntityId != null && typeof relation.objectEntityId !== 'string') || typeof relation.state !== 'string' || !stringMap(relation.qualifiers))) {
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Trade Context. Please refresh.');
   }
   const facts = [
     ...dto.entities.map(entity => ({ id: entity.id, targetKind: 'ENTITY' as const, label: entity.type, value: entity.name, state: entity.state, provenance: entity.attributes })),
-    ...dto.relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId, objectId: relation.objectEntityId }, state: relation.state, provenance: relation.qualifiers })),
+    ...dto.relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId, objectId: relation.objectEntityId ?? null }, state: relation.state, provenance: relation.qualifiers })),
   ];
+  // Phase 1: the raw (already validated) records are retained for the workbench projection, which
+  // needs entity types, relationship kinds and qualifiers -- not the flattened `facts` list.
   return { conversationId: dto.conversationId, version: dto.version, facts,
+    entities: dto.entities, relationships: dto.relationships.map(relation => ({ ...relation, objectEntityId: relation.objectEntityId ?? null })),
     candidates: facts.filter(fact => fact.state === 'CANDIDATE'),
     confirmed: facts.filter(fact => fact.state === 'CONFIRMED'),
   };

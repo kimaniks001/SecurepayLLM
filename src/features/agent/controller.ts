@@ -34,7 +34,8 @@ export function errorText(error: unknown): string {
     if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request. Your message is still here.';
     if (error.status === 409) return 'The source or request has changed. Refresh what SecurePay understands before continuing.';
     if (error.status === 410) return 'This reference has expired. Refresh what SecurePay understands.';
-    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay is unavailable and could not complete this step. Please retry when you are ready.';
+    // CLIENT FAILURE != PROOF OF NON-DELIVERY: a timeout/network error/5xx can happen AFTER SecurePay committed the step.
+    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay could not confirm whether this step completed. Your message is kept — retry to check; the same step is never applied twice.';
     return error.message;
   }
   return 'SecurePay could not complete this step. Please try again.';
@@ -46,14 +47,18 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
     if (!state.conversationId) return;
-    update({ context: { status: 'loading', data: null, error: null } });
+    update({ context: { status: 'loading', data: state.context.data, error: null } });
     try {
       const data = tradeContextView(await gateway.readContext(state.conversationId));
       update({ context: { status: 'ready', data, error: null } });
     } catch (error) { update({ context: { status: 'error', data: null, error: errorText(error) } }); }
   }
-  async function run(pending: Pending) {
-    update({ busy: true, pending, error: null, context: { status: 'loading', data: null, error: null } });
+  async function run(pending: Pending): Promise<boolean> {
+    const contextBefore = state.context;
+    // Phase 1: the last-known Trade Context stays visible while it is being re-read (`data` is
+    // retained), so UNDERSTOOD never blanks between turns. `status` still says 'loading' -- it is
+    // never presented as fresh -- and a FAILED read still clears it (never stale-as-current).
+    update({ busy: true, pending, error: null, context: { status: 'loading', data: state.context.data, error: null } });
     try {
       let conversationId = state.conversationId;
       if (!conversationId) {
@@ -73,8 +78,11 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       // A failed GET never causes an already completed POST to be repeated.
       update({ pending: null });
       await readContext();
+      return true;
     } catch (error) {
-      update({ error: errorText(error), context: { status: 'error', data: null, error: 'Refresh to see the current Trade Context.' } });
+      // The request itself failed, so SecurePay's understanding is exactly what it was: keep showing it.
+      update({ error: errorText(error), context: contextBefore });
+      return false;
     } finally { update({ busy: false }); }
   }
   /**
@@ -103,6 +111,29 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       await run({ kind: 'turn', body: { message: text.trim(), clientTurnId } });
     },
     async retry() { if (!state.busy && state.pending) await run(state.pending); },
+    /**
+     * Phase 1 Interaction Instruments. An instrument finishes by saying ONE ordinary sentence to
+     * the real Agent -- exactly the authority of the person typing it. It appears in the
+     * transcript like any turn (the conversation stays the single record of what was said) and
+     * goes through the same clientTurnId / retry / no-auto-repeat rules as `send`.
+     *
+     * DELIVERY CAN BE UNCERTAIN. If the request fails, SecurePay may still have committed the turn
+     * (timeout, dropped response). The transcript entry is therefore NEVER removed, the same
+     * clientTurnId is kept for `retry()` (the backend replays an already-processed turn instead of
+     * applying it twice), and while that earlier step is unresolved (`pending` set) no different
+     * statement is sent.
+     * Resolves with the Trade Context read back AFTER the turn, so a caller can check that the
+     * backend really recorded what was said instead of assuming it.
+     */
+    async sendStatement(text: string): Promise<{ ok: true; context: ContextView | null } | { ok: false; error: string }> {
+      const statement = text.trim();
+      if (state.busy || state.pending || !statement) return { ok: false, error: 'SecurePay is still working on the previous step.' };
+      const clientTurnId = id();
+      update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: statement }] });
+      const ok = await run({ kind: 'turn', body: { message: statement, clientTurnId } });
+      if (!ok) return { ok: false, error: state.error ?? 'SecurePay could not complete this step.' };
+      return { ok: true, context: state.context.status === 'ready' ? state.context.data : null };
+    },
     async review() {
       if (state.busy) return;
       update({ busy: true });

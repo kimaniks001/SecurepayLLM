@@ -3,8 +3,8 @@ import type { AgentController, AgentState } from './controller';
 
 export function TradeContext({ state, controller, expanded, onToggle }: { state: AgentState; controller: AgentController; expanded: boolean; onToggle: () => void }) {
   const { context } = state;
-  const entityName = (id: string) => {
-    const value = context.data?.facts.find(fact => fact.targetKind === 'ENTITY' && fact.id === id)?.value;
+  const entityName = (id: string | null) => {
+    const value = id === null ? undefined : context.data?.facts.find(fact => fact.targetKind === 'ENTITY' && fact.id === id)?.value;
     return typeof value === 'string' ? value : id;
   };
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">

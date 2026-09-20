@@ -1,7 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { SignedOutHome } from '../../components/SignedOutHome';
-import { ConversationWorkspace } from '../../components/ConversationWorkspace';
-import { ContextPanel } from '../../components/ContextPanel';
 import { NavBar } from '../../components/NavBar';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { MessageBubble } from '../../components/MessageBubble';
@@ -11,6 +9,7 @@ import { AgentAgreementsHomeCard } from '../../components/AgentAgreementsHomeCar
 import { UnderstoodTruthSections } from '../../components/UnderstoodTruthSections';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { AgentComponentView } from '../../api/securepay/agent/adapters';
+import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
@@ -23,7 +22,14 @@ import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
 import { createAgentController } from './controller';
-import { TradeContext } from './TradeContext';
+import { ConversationSurface } from '../conversation/ConversationSurface';
+import { createInstrumentController } from '../instruments/controller';
+import { InstrumentHost } from '../instruments/ui/InstrumentHost';
+import { InstrumentPrompt } from '../instruments/ui/InstrumentPrompt';
+import type { InstrumentSpec } from '../instruments/model';
+import { UnderstoodWorkbench } from '../workbench/UnderstoodWorkbench';
+import { projectWorkbench, specForPrompt, type PromptResolution } from '../workbench/projection';
+import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
@@ -57,7 +63,7 @@ import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
 
-function RichResponse({ component, onReview }: { component: AgentComponentView; onReview: () => void }) {
+function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
   // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
@@ -66,6 +72,14 @@ function RichResponse({ component, onReview }: { component: AgentComponentView; 
   // signed-in Home conversation itself, not only from inside Agreement Workspace.
   if (component.type === 'AGREEMENT_WORKSPACE') return <AgentUnderstoodCard workspace={component.workspace} />;
   if (component.type === 'AGREEMENTS_HOME') return <AgentAgreementsHomeCard home={component.home} />;
+  // Phase 1: a model-proposed input affordance is an invitation to open ONE instrument -- live only
+  // on the newest agent turn (an older prompt is stale), and never an action by itself.
+  if (component.type === 'INSTRUMENT_PROMPT') {
+    if (!live || !onPrompt) return null;
+    const resolved = resolvePrompt?.(component);
+    return resolved && 'note' in resolved ? <InstrumentPrompt note={resolved.note} /> : <InstrumentPrompt prompt={component} onOpen={() => onPrompt(component)} />;
+  }
+  if (component.type === 'UNAVAILABLE_INPUT') return live ? <InstrumentPrompt unavailable={component.input} /> : null;
   return <div className="rounded-2xl border border-cream-200 bg-white shadow-card overflow-hidden">
     <div className="px-4 py-3 text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">{component.title}</div>
     <dl className="px-4 pb-4 space-y-2">{component.rows.map((row, i) => <div key={i} className="break-words"><dt className="text-[0.7rem] text-sand-500">{row.label}</dt><dd className="text-[0.875rem] text-forest-800">{row.value}</dd></div>)}</dl>
@@ -90,9 +104,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  // Phase 1 Interaction Instruments: bound to the CURRENT conversation controller, so a new
+  // conversation always starts with a fresh, closed instrument.
+  const instruments = useMemo(() => createInstrumentController(controller), [controller]);
+  const instrumentState = useSyncExternalStore(instruments.subscribe, instruments.getSnapshot);
+  const [panelSlot, setPanelSlot] = useState<HTMLElement | null>(null);
+  const [composerFocusKey, setComposerFocusKey] = useState(0);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
-  const [expanded, setExpanded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const [workspace, setWorkspace] = useState(false);
@@ -144,17 +163,12 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionState.status]);
-  const reviewing = () => { setExpanded(true); void controller.review(); };
-  // Phase 2 Human Core (Section 9/10): the moment a fact first settles into Trade Context, open
-  // "What SecurePay understands" on its own -- the person should see understanding take shape,
-  // not have to discover and click a collapsed accordion to find out something happened.
-  const hasFacts = (state.context.data?.facts.length ?? 0) > 0;
-  useEffect(() => { if (hasFacts) setExpanded(true); }, [hasFacts]);
+  const reviewing = () => { void controller.review(); };
   const startNewConversation = () => {
+    instruments.cancel();
     setController(createAgentController(gateway));
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
-    setExpanded(false);
     setNotice(null);
   };
 
@@ -276,7 +290,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         initialOfferRoute={storeOfferRoute}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
-        onUseOffer={fact => { setStore(false); setHome(false); setExpanded(true); void controller.useOffer(fact); }}
+        onUseOffer={fact => { setStore(false); setHome(false); void controller.useOffer(fact); }}
       />
     );
   }
@@ -390,7 +404,6 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     />;
   }
 
-  const context = <TradeContext state={state} controller={controller} expanded={expanded} onToggle={() => setExpanded(value => !value)} />;
   const lastResponse = [...state.turns].reverse().find(turn => turn.sender === 'agent');
   const panel = lastResponse?.sender === 'agent' ? lastResponse.response.panel : null;
   // Final Phase 3 completion pass, Section 9 -- structured artifacts (AGREEMENT_WORKSPACE/
@@ -411,12 +424,24 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
     : [];
   const hasUnseenUnderstood = (structuredComponents.length > 0 || foundOnSecurePayComponents.length > 0)
     && lastResponse?.id !== lastSeenStructuredTurnId;
+  // Phase 1: UNDERSTOOD is a workbench over the REAL Trade Context. The Agent's AGREEMENT_PREVIEW
+  // restates the same what/who/money/when, so it is no longer drawn as a second card (in BUILD or
+  // here) -- only its server-derived "still worth settling" lines and disclaimer are kept. If Trade
+  // Context could not be read at all, the preview remains as a fallback so nothing is lost.
+  const workbenchModel = projectWorkbench(state.context.data);
+  const preview = panel?.components.find((c): c is PreviewView => c.type === 'AGREEMENT_PREVIEW');
+  const panelRest = (panel?.components ?? []).filter(c => c.type !== 'AGREEMENT_PREVIEW' && c.type !== 'INSTRUMENT_PROMPT' && c.type !== 'UNAVAILABLE_INPUT');
+  const openInstrument = (spec: InstrumentSpec) => instruments.open(spec);
   const understoodContent = (
     <UnderstoodTruthSections
       confirmed={structuredComponents.length > 0
         ? <div className="space-y-3">{structuredComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
         : null}
-      stillToDecide={<>{context}{panel && <div className="space-y-3 mt-3">{panel.components.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}</>}
+      stillToDecide={<div className="space-y-3">
+        <UnderstoodWorkbench state={state} controller={controller} activeSpec={instrumentState.active} onOpen={openInstrument} stillToSettle={preview?.stillToSettle} notes={preview?.disclaimer} />
+        {workbenchModel.empty && preview && <RichResponse component={preview} onReview={reviewing} />}
+        {panelRest.length > 0 && <div className="space-y-3">{panelRest.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
+      </div>}
       foundOnSecurePay={foundOnSecurePayComponents.length > 0
         ? <div className="space-y-3">{foundOnSecurePayComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
         : undefined}
@@ -479,21 +504,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
           <img src={securepayMark} alt="" className={`w-7 h-7 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <div><div className="font-display text-sm text-forest-800">KS001</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
         </div>
+        {/* Mobile: what SecurePay understands is one tap away, never a second copy of the desktop panel. */}
+        {workbenchModel.items.length > 0 && <button onClick={openUnderstood} className="md:hidden mx-4 mt-3 flex min-h-11 items-center justify-between rounded-xl border border-cream-200 bg-white/80 px-3.5 text-left text-[0.85rem] text-forest-700 shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+          <span>What SecurePay understands <span className="text-sand-500">· {workbenchModel.items.length}</span></span><span aria-hidden="true" className="text-sand-400">›</span>
+        </button>}
         <div className="flex-1 overflow-hidden">
-          <ConversationWorkspace turns={[]} understandingContent={context} isThinking={state.busy} inputDisabled={state.busy || !!state.pending}
-            onSend={text => void controller.send(text)} selectedProviderId={null} onSelectProvider={noop} onPhotoUpload={noop} onPhotoSkip={noop} onDateSelect={noop} onChoice={noop}
-            conversationContent={[
-              ...state.turns.map(turn => <div key={turn.id} className="space-y-3">
-                {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
-                  <MessageBubble text={turn.response.message.text} sender="agent" />
-                  {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY').map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}
-                </>}
-              </div>),
-              handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} />
-              </div>,
-            ]}
-            statusContent={<div className="space-y-3">
+          <ConversationSurface
+            tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
+            thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
+            disabled={state.busy || !!state.pending} onSend={text => void controller.send(text)} composerFocusKey={composerFocusKey}
+            status={<div className="space-y-3">
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
@@ -504,21 +524,37 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
                   <button disabled={state.busy} onClick={() => void controller.continueOfferWithoutSource()} className="text-sand-500 underline disabled:opacity-40">Continue without this source</button>
                 </div>
               </StatusNotice>}
-              {state.error && <StatusNotice tone="warning">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
+              {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
               </StatusNotice>}
-              <div className="flex flex-wrap gap-3 text-sm text-forest-700">
-                <button disabled={state.busy} onClick={reviewing} className="underline disabled:opacity-40">Review what we have</button>
+              <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
+                <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Review what we have</button>
                 <button
                   disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'}
                   onClick={() => { if (state.conversationId) void handoffController.start(state.conversationId); }}
-                  className="underline disabled:opacity-40"
+                  className="min-h-11 underline disabled:opacity-40"
                 >
                   Continue with this
                 </button>
-                <button disabled={state.busy} onClick={startNewConversation} className="text-sand-500 underline disabled:opacity-40">Start new conversation</button>
+                <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
-            </div>} />
+            </div>}>
+            {[
+              ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
+                {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
+                  <MessageBubble text={turn.response.message.text} sender="agent" />
+                  {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY' && component.type !== 'AGREEMENT_PREVIEW')
+                    .map((component, i) => <RichResponse key={i} component={component} onReview={reviewing}
+                      live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
+                      resolvePrompt={prompt => specForPrompt(prompt, workbenchModel)}
+                      onPrompt={prompt => { const resolved = specForPrompt(prompt, workbenchModel); if ('spec' in resolved) instruments.open(resolved.spec); }} />)}
+                </>}
+              </div>),
+              handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} />
+              </div>,
+            ]}
+          </ConversationSurface>
         </div>
       </div>
       <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-50 bg-ks001-surface min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
@@ -528,11 +564,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
               understands" -- KS001 talks with the person, SecurePay maintains the structured
               understanding. A backend-supplied `panel.title` (a per-turn contextual heading) must
               never replace this; it simply isn't surfaced as the panel's own title. */}
-          <ContextPanel lastRichResponses={[]} selectedProviderId={null} onSelectProvider={noop} panelTitle="What SecurePay understands" panelMode="understanding"
-            contextContent={understoodContent} />
+          <div className="px-5 py-3 border-b border-cream-200/60"><h2 className="font-display text-sm text-forest-800">What SecurePay understands</h2></div>
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
+            <div ref={setPanelSlot} />
+            {understoodContent}
+          </div>
         </div>
       </div>
       </div>
     </>}
+    <InstrumentHost controller={instruments} agentBusy={state.busy} agentUncertain={!!state.pending} panelSlot={panelSlot}
+      onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }} />
   </div>;
 }
