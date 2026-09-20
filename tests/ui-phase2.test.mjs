@@ -310,7 +310,9 @@ test('discovery reacts to the explicit result: selected closes, failed shows the
 
 // ---------------------------------------------------------------- SOURCE REFERENCE / CHANGED / UNAVAILABLE
 test('SourceReference: provenance not endorsement; CHANGED shows "Selected earlier" vs "Current listing"; UNAVAILABLE is calm', () => {
-  const base = { title: 'Leather shoes', ownerKs: 'KS003', capturedPriceMinor: 400000, capturedCurrency: 'KES' };
+  const base = { sourceType: 'STORE_LISTING', title: 'Leather shoes', ownerKs: 'KS003', capturedPriceMinor: 400000, capturedCurrency: 'KES' };
+  // Phase 3: an absent sourceType is never assumed to be the Store.
+  assert.doesNotMatch(html(api.SourceReference, { source: { ...base, sourceType: undefined } }), /SecurePay Store/);
   const fresh = html(api.SourceReference, { source: base });
   assert.match(fresh, /Started from/); assert.match(fresh, /SecurePay Store · Leather shoes/); assert.match(fresh, /Listed at KES 4,000 when chosen/); assert.doesNotMatch(fresh, /recommended|trusted|verified/i);
   const changed = html(api.SourceReference, { source: { ...base, status: 'CHANGED', current: { priceMinor: 450000, currency: 'KES', availability: 'LOW_AVAILABILITY' }, capturedAvailability: 'AVAILABLE' } });

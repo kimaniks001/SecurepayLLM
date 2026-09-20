@@ -214,7 +214,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setVisionBoard(false);
       if (sessionState.status === 'signed-in') { setProjects(true); return; }
       setHome(true);
-      setNotice('Sign in through "Continue with this" to view your Projects.');
+      setNotice('Sign in through "Review this" to view your Projects.');
       return;
     }
     // Final Completion Phase 5B -- the Vision Board is a private, authenticated-only KS operating
@@ -224,7 +224,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false);
       if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
       setHome(true);
-      setNotice('Sign in through "Continue with this" to view your Vision Board.');
+      setNotice('Sign in through "Review this" to view your Vision Board.');
       return;
     }
     // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly
@@ -240,7 +240,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
         return;
       }
       setHome(true);
-      setNotice('Sign in through "Continue with this" to view your account.');
+      setNotice('Sign in through "Review this" to view your account.');
       return;
     }
     // Notifications is the canonical in-app attention centre -- private and authenticated-only,
@@ -249,7 +249,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false);
       if (sessionState.status === 'signed-in') { setNotificationsView(true); return; }
       setHome(true);
-      setNotice('Sign in through "Continue with this" to view your notifications.');
+      setNotice('Sign in through "Review this" to view your notifications.');
       return;
     }
     if (view === 'recovery') {
@@ -271,7 +271,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       }
       setWorkspaceAgreementId(null);
       setHome(true);
-      if (view !== 'signed-in') setNotice('Sign in through "Continue with this" to view your agreements.');
+      if (view !== 'signed-in') setNotice('Sign in through "Review this" to view your agreements.');
       return;
     }
     setWorkspaceAgreementId(null);
@@ -547,13 +547,13 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}
               <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
-                <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Review what we have</button>
+                <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
                 <button
                   disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'}
                   onClick={() => { if (state.conversationId) void handoffController.start(state.conversationId); }}
                   className="min-h-11 underline disabled:opacity-40"
                 >
-                  Continue with this
+                  Review this
                 </button>
                 <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>

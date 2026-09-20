@@ -20,6 +20,7 @@ export interface SourceView {
   current?: { priceMinor: number | null; currency: string | null; availability: string | null } | null;
   capturedAvailability?: string | null;
 }
+const availabilityText = (value: string) => { const words = value.toLowerCase().replace(/_/g, ' '); return words.charAt(0).toUpperCase() + words.slice(1); };
 export function SourceReference({ source, action }: { source: SourceView; action?: ReactNode }) {
   const captured = formatMinor(source.capturedPriceMinor, source.capturedCurrency ?? '');
   const changed = source.status === 'CHANGED' && source.current;
@@ -32,8 +33,8 @@ export function SourceReference({ source, action }: { source: SourceView; action
     {changed && <div role="status" className="mt-1.5 space-y-1 text-[0.85rem] text-sand-700">
       <p>This listing has changed since you chose it.</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-        <dt className="text-sand-500">Selected earlier</dt><dd>{captured ?? 'No price listed'}{source.capturedAvailability ? ` · ${source.capturedAvailability}` : ''}</dd>
-        <dt className="text-sand-500">Current listing</dt><dd>{nowPrice ?? 'No price listed'}{source.current!.availability ? ` · ${source.current!.availability}` : ''}</dd>
+        <dt className="text-sand-500">Selected earlier</dt><dd>{captured ?? 'No price listed'}{source.capturedAvailability ? ` · ${availabilityText(source.capturedAvailability)}` : ''}</dd>
+        <dt className="text-sand-500">Current listing</dt><dd>{nowPrice ?? 'No price listed'}{source.current!.availability ? ` · ${availabilityText(source.current!.availability)}` : ''}</dd>
       </dl>
     </div>}
     {action && <div className="mt-2">{action}</div>}

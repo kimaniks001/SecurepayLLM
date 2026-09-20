@@ -19,10 +19,10 @@ export function secureAuthView(identity: IdentityState): SecureAuthResponse {
   }
   return {
     type: 'SECURE_AUTH',
-    title: 'You are ready to set this securely',
+    title: 'Sign in to review this',
     identityName: '',
     identityKsn: '',
-    reason: 'Verifying who you are keeps this secure. This is identity only — it does not join, confirm, or accept any Agreement on its own.',
+    reason: 'Signing in only proves who you are, so SecurePay can show you the full review. It does not create, join, confirm or accept anything.',
     fields: [
       { label: 'KS Number', placeholder: 'KS-000000', type: 'text' },
       { label: 'Password', placeholder: 'Password', type: 'password' },
