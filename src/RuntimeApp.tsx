@@ -9,6 +9,7 @@ import { parseInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
 import { createSessionStore, withSessionRefresh } from './api/securepay/session';
+import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
 
@@ -17,24 +18,25 @@ let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
-const moneyGateway = api ? withSessionRefresh(api.money, ['status', 'records'], session, api.auth) : undefined;
+const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;
 const masterGateway = api ? withSessionRefresh(api.master, ['designateSelf', 'createRequest', 'proposeCost', 'accept', 'decline', 'submitOpinion'], session, api.auth) : undefined;
 const marketNetworkGateway = api ? withSessionRefresh(api.marketNetwork, ['createRequest', 'myRequests', 'cancelRequest', 'candidates', 'selection', 'selectCandidate', 'relationship', 'openRelationship', 'relationshipLifecycle'], session, api.auth) : undefined;
 const referralGateway = api ? withSessionRefresh(api.referral, ['myCode', 'redeem', 'myHistory', 'myLifetimeShare'], session, api.auth) : undefined;
 const subscriptionGateway = api ? withSessionRefresh(api.subscription, ['myStatus', 'selectPlan', 'activationAgreement', 'establishActivationAgreement', 'confirmActivationAgreement', 'prepareCurrentBillingCycle', 'activationFundingStatus', 'prepareVerificationFunding', 'initiateVerificationTransfer', 'prepareReserveFunding', 'establishReviewReserve'], session, api.auth) : undefined;
-const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, ['list', 'open', 'status', 'fund', 'exercise', 'release', 'transactions'], session, api.auth) : undefined;
-const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, ['list'], session, api.auth) : undefined;
-const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, ['current', 'history', 'verificationStatus', 'register', 'replace'], session, api.auth) : undefined;
-const moneySessionGateway = api ? withSessionRefresh(api.moneySession, ['create', 'resolve', 'redeem'], session, api.auth) : undefined;
-const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, ['fundingAuthority', 'fundingOptions', 'createQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'], session, api.auth) : undefined;
-const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, ['summary'], session, api.auth) : undefined;
-const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, ['list', 'activate'], session, api.auth) : undefined;
-const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, ['create', 'get', 'list', 'capability'], session, api.auth) : undefined;
-const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, ['listMine'], session, api.auth) : undefined;
-const businessCurrencyCapabilityGateway = api ? withSessionRefresh(api.businessCurrencyCapability, ['list', 'activate'], session, api.auth) : undefined;
-const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxApplication, ['create', 'get', 'list'], session, api.auth) : undefined;
+const moneyAuthorityGateway = api ? withSessionRefresh(api.moneyAuthority, MONEY_AUTHENTICATED_METHODS.moneyAuthority, session, api.auth) : undefined;
+const financialPartnerGateway = api ? withSessionRefresh(api.financialPartners, MONEY_AUTHENTICATED_METHODS.financialPartners, session, api.auth) : undefined;
+const settlementDestinationGateway = api ? withSessionRefresh(api.settlementDestinations, MONEY_AUTHENTICATED_METHODS.settlementDestinations, session, api.auth) : undefined;
+const moneySessionGateway = api ? withSessionRefresh(api.moneySession, MONEY_AUTHENTICATED_METHODS.moneySession, session, api.auth) : undefined;
+const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, MONEY_AUTHENTICATED_METHODS.paymentIntent, session, api.auth) : undefined;
+const paymentReleaseGateway = api ? withSessionRefresh(api.paymentRelease, MONEY_AUTHENTICATED_METHODS.paymentRelease, session, api.auth) : undefined;
+const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, MONEY_AUTHENTICATED_METHODS.moneyOperations, session, api.auth) : undefined;
+const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, MONEY_AUTHENTICATED_METHODS.currencyCapability, session, api.auth) : undefined;
+const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, MONEY_AUTHENTICATED_METHODS.fxApplication, session, api.auth) : undefined;
+const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, MONEY_AUTHENTICATED_METHODS.regulatedAccounts, session, api.auth) : undefined;
+const businessCurrencyCapabilityGateway = api ? withSessionRefresh(api.businessCurrencyCapability, MONEY_AUTHENTICATED_METHODS.businessCurrencyCapability, session, api.auth) : undefined;
+const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxApplication, MONEY_AUTHENTICATED_METHODS.businessFxApplication, session, api.auth) : undefined;
 const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list', 'get', 'update', 'archive', 'restore', 'addAgreement', 'removeAgreement', 'agreements', 'summary', 'calendar'], session, api.auth) : undefined;
 const visionBoardGateway = api ? withSessionRefresh(api.visionBoard, ['shelves', 'items', 'get', 'create', 'update', 'lock', 'unlock', 'supersede', 'generateQuotation', 'generateInvoice', 'generateReceipt'], session, api.auth) : undefined;
 const settingsGateway = api ? withSessionRefresh(api.settings, ['get', 'update'], session, api.auth) : undefined;
@@ -169,8 +171,8 @@ export default function RuntimeApp() {
       : <Unavailable />;
   }
   if (moneyRoute) {
-    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneySessionGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, moneySession: moneySessionGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+    return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneyGateway && paymentReleaseGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway
+      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
   }
   return api && agentGateway && agreementGateway && moneyGateway && storeGateway && circleGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway

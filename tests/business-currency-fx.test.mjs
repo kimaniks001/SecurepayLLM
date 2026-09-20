@@ -27,7 +27,8 @@ test('bindBusinessCurrencyCapabilityGateway lets the existing AgreementCurrencyA
 
 test('the business FX application gateway never accepts a client-supplied rate or settlement outcome', () => {
   assert.match(businessFxGateway, /\/api\/v1\/business\/\$\{segment\(businessKsNumber\)\}\/fx-applications/);
-  assert.match(businessFxGateway, /freshIdempotencyKey\(\)/);
+  assert.match(businessFxGateway, /idempotencyKey: string/);
+  assert.doesNotMatch(businessFxGateway, /freshIdempotencyKey/);
   assert.doesNotMatch(fxDto, /exchangeRate|settledAmount|rateApplied/i);
 });
 

@@ -5,10 +5,6 @@ import type {
   SettlementVerificationStatusResponse,
 } from './dto';
 
-function freshIdempotencyKey(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random()}`;
-}
-
 /**
  * Final Completion Phase 2, Section 7 — the customer-facing self-service surface
  * (MySettlementDestinationController). The authenticated identity's own KSNumber, regulated
@@ -24,16 +20,16 @@ export function createSettlementDestinationGateway(http: HttpClient) {
       http.request<SettlementDestinationResponse[]>(`/api/v1/me/settlement-destinations/history?currency=${segment(currency)}`, { auth: 'required' }),
     verificationStatus: (destinationId: string) =>
       http.request<SettlementVerificationStatusResponse>(`/api/v1/me/settlement-destinations/${segment(destinationId)}/verification-status`, { auth: 'required' }),
-    register: (request: RegisterMySettlementDestinationRequest) =>
+    register: (request: RegisterMySettlementDestinationRequest, idempotencyKey: string) =>
       http.request<SettlementDestinationResponse>('/api/v1/me/settlement-destinations', {
-        method: 'POST', auth: 'required', body: request, headers: { 'Idempotency-Key': freshIdempotencyKey() },
+        method: 'POST', auth: 'required', body: request, headers: { 'Idempotency-Key': idempotencyKey },
       }),
-    replace: (request: RegisterMySettlementDestinationRequest) =>
+    replace: (request: RegisterMySettlementDestinationRequest, idempotencyKey: string, verificationIdempotencyKey: string) =>
       http.request<unknown>('/api/v1/me/settlement-destinations/replace', {
         method: 'POST',
         auth: 'required',
         body: request,
-        headers: { 'Idempotency-Key': freshIdempotencyKey(), 'Verification-Idempotency-Key': freshIdempotencyKey() },
+        headers: { 'Idempotency-Key': idempotencyKey, 'Verification-Idempotency-Key': verificationIdempotencyKey },
       }),
   };
 }

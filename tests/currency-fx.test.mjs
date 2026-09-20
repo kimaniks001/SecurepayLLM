@@ -22,7 +22,8 @@ test('Currency/FX convergence: the currency capability gateway is a thin, real w
 
 test('the FX application gateway never accepts a client-supplied rate or settlement outcome', () => {
   assert.match(fxGateway, /\/api\/v1\/fx-applications/);
-  assert.match(fxGateway, /freshIdempotencyKey\(\)/);
+  assert.match(fxGateway, /idempotencyKey: string/);
+  assert.doesNotMatch(fxGateway, /freshIdempotencyKey/);
   assert.doesNotMatch(fxDto, /exchangeRate|settledAmount|rateApplied/i);
 });
 

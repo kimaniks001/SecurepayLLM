@@ -20,17 +20,18 @@ test('Final Completion Phase 2 completion pass, Section 1: every Agreement Money
 });
 
 test('exercise never accepts a client-supplied beneficiary -- the request carries only an amount', () => {
-  const start = moneyAuthorityGateway.indexOf('exercise: (agreementId: string, obligationId: string, amountMinor: number)');
+  const start = moneyAuthorityGateway.indexOf('exercise: (agreementId: string, obligationId: string, amountMinor: number, idempotencyKey: string)');
   assert.ok(start >= 0, 'exercise must take only agreementId/obligationId/amountMinor, never a beneficiary parameter');
   assert.doesNotMatch(moneyAuthorityGateway, /beneficiaryKsNumber|beneficiaryIdentityId/);
 });
 
-test('Agreement Money mutating calls always carry a fresh Idempotency-Key, never a fixed/reused one', () => {
+test('Agreement Money mutating calls carry a CALLER-SUPPLIED Idempotency-Key -- the gateway never mints a fresh key for a retry', () => {
   for (const name of ['fund:', 'exercise:', 'release:']) {
     const start = moneyAuthorityGateway.indexOf(name);
     assert.ok(start >= 0, `${name} must exist in the gateway`);
     const block = moneyAuthorityGateway.slice(start, start + 400);
-    assert.match(block, /Idempotency-Key['"]?:\s*freshIdempotencyKey\(\)/);
+    assert.match(block, /Idempotency-Key['"]?:\s*idempotencyKey/);
+    assert.doesNotMatch(moneyAuthorityGateway, /freshIdempotencyKey/);
   }
 });
 
@@ -106,8 +107,10 @@ test('Section 3: customer-facing state language matches the programme-controller
 });
 
 test('Section 4: release wording accounts for multi-payer ownership, never "Release remaining to me"', () => {
-  assert.match(experience, /Release unused money/);
+  // Phase 8: the command is withheld; the wording that remains is "Returned to the funder(s)" and never "Release remaining to me".
+  assert.match(experience, /Returned to the funder\(s\)/);
   assert.doesNotMatch(experience, /Release remaining to me/);
+  assert.doesNotMatch(experience, /Release unused money/);
 });
 
 test('Section 6: progressed money is never labelled as a Settled status, only ever disclosed as pending certified transfer', () => {
@@ -115,12 +118,12 @@ test('Section 6: progressed money is never labelled as a Settled status, only ev
   // shown as a status -- never as a literal customer-facing status label like "Status: Settled".
   assert.doesNotMatch(experience, /Status:\s*['"`{]*\s*Settled/i);
   assert.match(experience, /providerSettlementCertified/);
-  assert.match(experience, /pending certified bank transfer/);
+  assert.match(experience, /hasn’t certified settlement, so this is not shown as settled/);
 });
 
 test('Section 1: the UI supports more than one Agreement Money position per Agreement', () => {
   assert.match(experience, /positions\.length > 1/);
-  assert.match(experience, /Choose a different Agreement Money position/);
+  assert.match(experience, /Choose a different position/);
 });
 
 test('Agreement Money has no free-form authority-id, max-amount, or beneficiary-KS-number input field', () => {
@@ -158,7 +161,8 @@ test('no financial figure is a hardcoded literal total in the Money experience c
 
 test('Section 9/10: the hosted page reuses the same session API a real embedded surface would, never a second authority system', () => {
   assert.match(hostedExperience, /gateway\.resolve\(token\)/);
-  assert.match(hostedExperience, /gateway\.redeem\(token\)/);
+  // Phase 8: redeem is withheld (it progresses funded money and isn't provably atomic vs a version change).
+  assert.doesNotMatch(hostedExperience, /gateway\.redeem/);
   assert.match(hostedExperience, /embedded/i);
 });
 
@@ -185,17 +189,9 @@ test('deep-review correction: a non-established position never describes its pro
   assert.doesNotMatch(block, /proposedAmountMinor[^}]*\}\s*protected/);
 });
 
-test('deep-review correction: open() never claims money was funded/protected; release() never implies a generic balance', () => {
-  const openStart = experience.indexOf('authorityGateway.open(a, o)');
-  assert.ok(openStart >= 0);
-  const openBlock = experience.slice(openStart, openStart + 200);
-  assert.doesNotMatch(openBlock, /This money is now protected/);
-  assert.match(openBlock, /ready/i);
-
-  const releaseStart = experience.indexOf('authorityGateway.release(a, o)');
-  assert.ok(releaseStart >= 0);
-  const releaseBlock = experience.slice(releaseStart, releaseStart + 300);
-  assert.match(releaseBlock, /funder/i);
+test('deep-review correction: no funded-authority command is wired in the Money experience; returned money never implies a generic balance', () => {
+  assert.doesNotMatch(experience, /authorityGateway\.(open|fund|exercise|release)\(/);
+  assert.match(experience, /Returned to the funder\(s\)/);
 });
 
 // Final Phase 3 semantics correction: a valid backend number must not be given a financial meaning
@@ -205,16 +201,13 @@ test('final Phase 3 correction: Money Home never claims the Agreement Money aggr
   assert.doesNotMatch(experience, /what you have/i);
 });
 
-test('final Phase 3 correction: the authorised ceiling is never labelled "protected"; funded money is', () => {
+test('final Phase 3 correction: the authorised ceiling is never labelled "funded"/"protected"; funded money is "Funded"', () => {
   const authMaxLine = experience.indexOf('MoneyValue amount={money(authorisedMax, currency)}');
   assert.ok(authMaxLine >= 0);
-  const authMaxBlock = experience.slice(authMaxLine, authMaxLine + 120);
-  assert.doesNotMatch(authMaxBlock, /protected/i);
-
+  assert.doesNotMatch(experience.slice(authMaxLine, authMaxLine + 200), /protected|Funded /i);
   const fundedLine = experience.indexOf('MoneyValue amount={money(funded, currency)}');
   assert.ok(fundedLine >= 0);
-  const fundedBlock = experience.slice(fundedLine, fundedLine + 120);
-  assert.match(fundedBlock, /protected/i);
+  assert.match(experience.slice(fundedLine, fundedLine + 120), /Funded/);
 });
 
 test('final Phase 3 correction: remainingFundedMinor is never presented as a generic available/personal balance', () => {
@@ -229,14 +222,12 @@ test('final Phase 3 correction: no authorisedMax-minus-fundedTotal derived categ
   assert.doesNotMatch(experience, /notYetFunded/);
 });
 
-test('final Phase 3 correction: the non-established CTA never claims open() protects money', () => {
+test('final Phase 3 correction: the non-established position never offers or claims a command, and a proposal is not funded money', () => {
   const start = experience.indexOf('!position.established');
-  assert.ok(start >= 0);
   const end = experience.indexOf('const authorisedMax', start);
-  assert.ok(end > start);
   const block = experience.slice(start, end);
-  assert.doesNotMatch(block, /Protect this money/);
-  assert.match(block, /onProtect/);
+  assert.doesNotMatch(block, /onProtect|Protect this money|Set up Agreement Money<\/Button>/);
+  assert.match(block, /temporarily unavailable/);
 });
 
 test('final Phase 3 correction: Money Home attention requires a verified money-specific backend action code, never a proposedAmountMinor proxy', () => {
