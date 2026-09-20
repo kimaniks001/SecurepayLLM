@@ -23,6 +23,10 @@ import { createBusinessCurrencyCapabilityGateway } from './business-currency-cap
 import { createBusinessFxApplicationGateway } from './business-fx-application';
 import { createProjectGateway } from './projects';
 import { createVisionBoardGateway } from './visionboard';
+import { createSettingsGateway } from './settings';
+import { createBusinessGateway } from './business';
+import { createAuthorizationGateway } from './authorization';
+import { createDeveloperGateway } from './developer';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -38,5 +42,9 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     businessCurrencyCapability: createBusinessCurrencyCapabilityGateway(http), businessFxApplication: createBusinessFxApplicationGateway(http),
     projects: createProjectGateway(http),
     visionBoard: createVisionBoardGateway(http),
+    settings: createSettingsGateway(http),
+    business: createBusinessGateway(http),
+    authorization: createAuthorizationGateway(http),
+    developer: createDeveloperGateway(http),
   };
 }
