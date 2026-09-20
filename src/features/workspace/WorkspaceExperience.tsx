@@ -13,6 +13,8 @@ import { ChangesPanel } from '../amendments/ChangesPanel';
 import { ReconfirmPanel, ownStanding } from '../amendments/ReconfirmPanel';
 import { createAmendmentsController } from '../amendments/controller';
 import { createReconfirmController } from '../amendments/reconfirm';
+import { ProgressPanel } from '../execution/ProgressPanel';
+import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
@@ -21,7 +23,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -79,6 +81,21 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   const [invites] = useState(() => new Map<string, ReturnType<typeof createInviteController>>());
   const [amendmentControllers] = useState(() => new Map<string, ReturnType<typeof createAmendmentsController>>());
   const [reconfirmControllers] = useState(() => new Map<string, ReturnType<typeof createReconfirmController>>());
+  const [executionControllers] = useState(() => new Map<string, ReturnType<typeof createExecutionController>>());
+  const executionFor = (agreementId: string) => {
+    let c = executionControllers.get(agreementId);
+    if (!c) {
+      const detailNow = () => { const d = controller.getSnapshot().detail; return d.status === 'ready' ? d.data : null; };
+      c = createExecutionController(
+        gateway, agreementId,
+        () => detailNow()?.dto.currentVersion?.versionId ?? null,
+        () => { const rows = detailNow()?.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; },
+        async () => { await Promise.all([controller.reloadDetailQuietly(), controller.refreshSummary()]); },
+      );
+      executionControllers.set(agreementId, c);
+    }
+    return c;
+  };
   const amendmentsFor = (agreementId: string) => {
     let c = amendmentControllers.get(agreementId);
     if (!c) {
@@ -208,7 +225,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
     else if (state.selectedStatus && state.selectedCompletion) {
       const { dto, confirmations, milestoneStates, events, conflicts, tags } = state.detail.data;
       const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
-      const progress = agreementProgressView(dto, milestoneStates);
+      const progress = agreementProgressView(dto, milestoneStates ?? []);
       const calendarEvents = agreementCalendarView(events);
       const eventTitleById = new Map(events.map(e => [e.id, e.title]));
       const conflictViews = conflicts.map(c => ({
@@ -253,6 +270,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
+          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => void controller.openMoney(boltDetail.id)} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
           peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}

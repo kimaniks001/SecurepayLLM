@@ -9,6 +9,10 @@ export interface HubDto {
 }
 /** `invitationToken` is null on an idempotent REPLAY: SecurePay returns the existing invitation but never the raw token again. */
 export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean }
+export interface ObligationDto { id: string; publicReference: string; agreementId: string; agreementVersionId: string; obligationType: string; title: string; description: string | null; responsibleParticipantId: string; beneficiaryParticipantId: string | null; currency: string | null; amountMinor: number | null; status: string; createdAt: string }
+export interface ObligationCompletionStatusDto { eligible: boolean; currentStatus: string; unmetRequirements: string[]; satisfiedRequirements: string[]; evidenceIds: string[]; explanationCodes: string[] }
+export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string }
+export interface NextActionDto { participantId: string; agreementId: string; currentAgreementVersionId: string; actionType: string; targetObligationId: string | null; targetMilestoneId: string | null; actionReason: string; prerequisiteStatus: string | null; deadline: string | null; urgency: string; requiredEvidenceTypes: string[]; blockedByObligationIds: string[]; supportingEvidenceIds: string[] }
 export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
 export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
 export interface AmendmentDiffDto { amendmentId: string; sourceVersionId: string; changes: AmendmentFieldChangeDto[] }
@@ -46,6 +50,20 @@ export function createAgreementGateway(http: HttpClient) {
     // Every confirmation on the Agreement (all participants), each flagged confirmationCurrent against the CURRENT version.
     // (`confirmation-status` above returns ONLY the caller's own row.)
     confirmations: (id: string) => http.request<AgreementConfirmationResponse[]>(`${agreement(id)}/confirmations`, { auth: 'required' }),
+    // Execution (Phase 7). Verified against AgreementObligationController / ObligationService / EvidenceService (read-only).
+    // NOTE: `obligations` returns EVERY obligation of the Agreement across ALL versions; scope by `agreementVersionId`.
+    obligations: (id: string) => http.request<ObligationDto[]>(`${agreement(id)}/obligations`, { auth: 'required' }),
+    obligationCompletionStatus: (id: string, obligationId: string) => http.request<ObligationCompletionStatusDto>(`${agreement(id)}/obligations/${segment(obligationId)}/completion-status`, { auth: 'required' }),
+    // The server's own "participant not responsible" check compares the responsible participant with ITSELF (never fails), so
+    // callers MUST gate on the participant's own START_OBLIGATION next action.
+    startObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/start`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // The server checks no participant at all for completion; it only requires the completion requirements to be met.
+    completeObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/complete`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Narrow evidence RECORD list (no filename, uploader, size, hash or object reference). There is no upload or retrieval API.
+    obligationEvidence: (id: string, obligationId: string) => http.request<EvidenceDto[]>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { auth: 'required' }),
+    // Records a review decision. It does NOT change the evidence's status (nothing in the backend ever moves it past SUBMITTED).
+    reviewEvidence: (id: string, evidenceId: string, body: { idempotencyKey: string; decision: 'APPROVED' | 'REJECTED'; reason?: string; reviewerParticipantId?: string }) => http.request<EvidenceDto>(`${agreement(id)}/evidence/${segment(evidenceId)}/review`, { method: 'POST', body, auth: 'required' }),
+    myNextActions: (id: string) => http.request<{ actions: NextActionDto[] }>(`${agreement(id)}/participants/me/next-actions`, { auth: 'required' }),
     // Amendments. Real shapes verified against AgreementController / AgreementAmendmentService (read-only).
     // Listing works ONLY while the Agreement allows amendments (PARTICIPANTS_JOINING | CONFIRMATION_PENDING); otherwise 422.
     amendments: (id: string) => http.request<AgreementAmendmentDto[]>(`${agreement(id)}/amendments`, { auth: 'required' }),

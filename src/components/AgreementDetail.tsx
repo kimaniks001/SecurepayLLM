@@ -68,6 +68,8 @@ interface AgreementDetailProps {
   peopleExtra?: React.ReactNode;
   /** Real mode: replaces the fixture Changes content with versions + proposed changes. */
   changesPanel?: React.ReactNode;
+  /** Real mode: replaces the fixture Progress content (which infers a root milestone and status locally) with SecurePay's own execution reads. */
+  progressPanel?: React.ReactNode;
   /** Real mode: something the caller should see before the tabs (e.g. a version that needs their review). */
   topExtra?: React.ReactNode;
 }
@@ -100,7 +102,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, topExtra }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>('overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -185,7 +187,8 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
                 )}
               </>
             )}
-            {tab === 'progress' && structure && (
+            {tab === 'progress' && progressPanel}
+            {tab === 'progress' && !progressPanel && structure && (
               <>
                 <MilestoneProgress milestones={structure.milestones} isSimple={structure.isSimple} rootMilestone={structure.rootMilestone} />
                 <ActionList actions={structure.actions} />
@@ -292,7 +295,8 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             </>
           )}
 
-          {mobileSection === 'progress' && structure && (
+          {mobileSection === 'progress' && progressPanel}
+          {mobileSection === 'progress' && !progressPanel && structure && (
             <>
               <MilestoneProgress milestones={structure.milestones} isSimple={structure.isSimple} rootMilestone={structure.rootMilestone} />
               <ActionList actions={structure.actions} />

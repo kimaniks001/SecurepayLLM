@@ -13,6 +13,8 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'join', 'versions', 'version', 'confirmVersion',
   // Creator invitations
   'propose', 'issueInvitation', 'invitations', 'revokeInvitation',
+  // Execution (obligations, completion status, start, complete, evidence list + review, next actions)
+  'obligations', 'obligationCompletionStatus', 'startObligation', 'completeObligation', 'obligationEvidence', 'reviewEvidence', 'myNextActions',
   // Amendments (list, structured diff, apply / reject / withdraw)
   'amendments', 'amendmentDiff', 'applyAmendment', 'rejectAmendment', 'withdrawAmendment',
   // Plug / referral attribution
