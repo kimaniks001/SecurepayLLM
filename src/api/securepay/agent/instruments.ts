@@ -21,13 +21,13 @@ export interface InstrumentHints { label?: string; role?: string; currency?: str
 export interface InstrumentPromptView { type: 'INSTRUMENT_PROMPT'; instrument: InstrumentPromptKind; hints: InstrumentHints }
 /**
  * Inputs the backend cannot honestly support yet, rendered as an honest note: PHOTO_UPLOAD / DOCUMENT_UPLOAD
- * (no durable pre-Agreement upload) and DATE_RANGE_PICKER (formation keeps ONE `deadline.value`; a second
+ * (no durable pre-Agreement upload), KSNUMBER_PICKER (no participant-safe KS check/attach) and DATE_RANGE_PICKER (formation keeps ONE `deadline.value`; a second
  * date overwrites the first, so start and end cannot both be represented). The bridge still PARSES them.
  */
-export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' }
+export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' | 'ks-number' }
 
 const KIND: Record<string, InstrumentPromptKind> = {
-  PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when',
+  PERSON_PICKER: 'who', DATE_PICKER: 'when',
   AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where',
 };
 
@@ -46,6 +46,8 @@ export function isRealIsoDate(value: string): boolean {
 
 export function instrumentComponentView(component: ComponentDto): InstrumentPromptView | UnavailableInputView | null {
   if (component.type === 'PHOTO_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'photo' };
+  // KS resolution is unavailable (identity endpoint not participant-safe; KS formats disagree): an honest note, never a control.
+  if (component.type === 'KSNUMBER_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'ks-number' };
   if (component.type === 'DATE_RANGE_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'date-range' };
   if (component.type === 'DOCUMENT_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'document' };
   const instrument = KIND[component.type];

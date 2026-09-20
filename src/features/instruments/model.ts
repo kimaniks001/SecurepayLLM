@@ -1,3 +1,5 @@
+import { canonicalRole } from '../../api/securepay/agent/roles';
+
 /**
  * SecurePay INTERACTION INSTRUMENTS -- the single grammar for every contextual control summoned by
  * the conversation (an Agent-proposed PERSON_PICKER / DATE_PICKER / AMOUNT_INPUT ...) or by a row of
@@ -26,8 +28,13 @@ export type InstrumentKind = 'who' | 'when' | 'money' | 'where';
 /** Where the instrument was summoned from -- affects only presentation and focus return. */
 export type InstrumentOrigin = 'understood' | 'agent' | 'add';
 
-/** WHO: KSFinder. Production cannot resolve or link a KS Number yet (see ksformat.ts); the spec still carries context. */
-export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; entityName?: string; role?: string }
+/**
+ * WHO = ADD A PERSON: a first-name + role statement ("John is the seller.") the real interpreter can
+ * represent. It is NOT identity resolution -- no KS Number is checked or attached (see ksformat.ts),
+ * no participant is created, no invitation exists. `takenNames`: people SecurePay already holds; those
+ * rows are changed in conversation, never re-added or "corrected" from here.
+ */
+export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[] }
 /** WHEN: a FIRST date only. Formation files it as `deadline.value` (ISO) and cannot supersede it. */
 export interface WhenSpec { kind: 'when'; origin: InstrumentOrigin; hintDate?: string }
 /** MONEY: KES only -- the interpreter forces `value.currency = KES` for every amount it recognises. */
@@ -37,7 +44,7 @@ export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin }
 export type InstrumentSpec = WhoSpec | WhenSpec | MoneySpec | WhereSpec;
 
 export type InstrumentDraft =
-  | { kind: 'who'; ks: string; role: string }
+  | { kind: 'who'; name: string; role: string; ks: string }
   | { kind: 'when'; date: string | null }
   | { kind: 'money'; amount: string; currency: string }
   | { kind: 'where'; place: string };
@@ -46,7 +53,7 @@ export const FORMATION_CURRENCY = 'KES';
 
 export function emptyDraft(spec: InstrumentSpec): InstrumentDraft {
   switch (spec.kind) {
-    case 'who': return { kind: 'who', ks: '', role: spec.role ?? '' };
+    case 'who': return { kind: 'who', name: '', role: spec.role ?? '', ks: '' };
     case 'when': return { kind: 'when', date: null };
     case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: FORMATION_CURRENCY };
     case 'where': return { kind: 'where', place: '' };
@@ -138,14 +145,25 @@ export function monthGrid(year: number, month0: number): (MonthCell | null)[][] 
  * "Kilimani, Nairobi" would record just "Kilimani", "Kilimani Road" just "Kilimani", "westlands" nothing.
  * Words on its name stoplist are never taken as names.
  */
-const PLACE_STOPWORDS = new Set(['I', 'The', 'This', 'That', 'My', 'Our', 'We', 'You', 'He', 'She', 'They', 'It', 'A', 'An', 'Is', 'Are', 'Was', 'Were', 'For', 'And', 'But', 'So', 'If', 'When', 'Then', 'There', 'Another', 'Different', 'Second', 'More', 'Other', 'Same', 'By', 'Way', 'Also', 'However', 'Actually', 'Please', 'Once', 'After', 'Before', 'During', 'Since', 'While', 'Because', 'Though', 'Although', 'Kes', 'Kshs', 'Ksh', 'Shs', 'Bob', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', ...MONTHS, 'Contribution', 'Contributing', 'Buying', 'Building', 'Selling', 'Paying', 'Hiring', 'Collecting', 'Funeral', 'Wedding', 'Forming', 'Setting', 'Making', 'Purchase', 'Purchasing', 'Rent', 'Church', 'Chama', 'Securepay']);
+const NAME_STOPWORDS = new Set(['I', 'The', 'This', 'That', 'My', 'Our', 'We', 'You', 'He', 'She', 'They', 'It', 'A', 'An', 'Is', 'Are', 'Was', 'Were', 'For', 'And', 'But', 'So', 'If', 'When', 'Then', 'There', 'Another', 'Different', 'Second', 'More', 'Other', 'Same', 'By', 'Way', 'Also', 'However', 'Actually', 'Please', 'Once', 'After', 'Before', 'During', 'Since', 'While', 'Because', 'Though', 'Although', 'Kes', 'Kshs', 'Ksh', 'Shs', 'Bob', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', ...MONTHS, 'Contribution', 'Contributing', 'Buying', 'Building', 'Selling', 'Paying', 'Hiring', 'Collecting', 'Funeral', 'Wedding', 'Forming', 'Setting', 'Making', 'Purchase', 'Purchasing', 'Rent', 'Church', 'Chama', 'Securepay']);
 export function parsePlace(raw: string): { ok: true; value: string } | { ok: false; reason: 'empty' | 'one-word' | 'reserved' } {
   const trimmed = raw.replace(/\s+/g, ' ').trim();
   if (!trimmed) return { ok: false, reason: 'empty' };
   const value = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
   if (!/^[A-Z][a-z]{1,30}$/.test(value)) return { ok: false, reason: 'one-word' };
-  if (PLACE_STOPWORDS.has(value)) return { ok: false, reason: 'reserved' };
+  if (NAME_STOPWORDS.has(value)) return { ok: false, reason: 'reserved' };
   return { ok: true, value };
+}
+
+/**
+ * A person's name as `NAME_IS_THE_ROLE` reads it: `<Capitalised single word> is the <lowercase word>`.
+ * Same one-word/stoplist rules as places; a name SecurePay already holds is refused (correcting or
+ * re-role-ing an existing person cannot be proven safe from here -- that stays conversation).
+ */
+export function parsePersonName(raw: string, taken: readonly string[] = []): { ok: true; value: string } | { ok: false; reason: 'empty' | 'one-word' | 'reserved' | 'taken' } {
+  const parsed = parsePlace(raw);
+  if (!parsed.ok) return parsed;
+  return taken.some(name => name.toLowerCase() === parsed.value.toLowerCase()) ? { ok: false, reason: 'taken' } : parsed;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -154,7 +172,12 @@ export function parsePlace(raw: string): { ok: true; value: string } | { ok: fal
 // ---------------------------------------------------------------------------------------------
 
 export function statementFor(spec: InstrumentSpec, draft: InstrumentDraft, ctx: { previousAmount?: string; previousCurrency?: string } = {}): string | null {
-  if (spec.kind === 'who') return null; // production cannot link a KS Number: there is never a statement to send
+  if (spec.kind === 'who' && draft.kind === 'who') {
+    // "<Name> is the <role>." -> NAME_IS_THE_ROLE -> entity.<name>.role -> a canonical ROLE relationship.
+    // A KS Number is never part of the statement: it cannot be attached (KS formats disagree).
+    const name = parsePersonName(draft.name, spec.takenNames);
+    return name.ok && canonicalRole(draft.role) ? `${name.value} is the ${draft.role.trim().toLowerCase()}.` : null;
+  }
   if (spec.kind === 'when' && draft.kind === 'when') {
     // "D Month YYYY" is the one date shape the interpreter reads; it stores the ISO date as `deadline.value`.
     return draft.date && fromIso(draft.date) ? `The date is ${longDate(draft.date)}.` : null;

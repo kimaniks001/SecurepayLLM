@@ -34,7 +34,8 @@ export function errorText(error: unknown): string {
     if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request. Your message is still here.';
     if (error.status === 409) return 'The source or request has changed. Refresh what SecurePay understands before continuing.';
     if (error.status === 410) return 'This reference has expired. Refresh what SecurePay understands.';
-    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay is unavailable and could not complete this step. Please retry when you are ready.';
+    // CLIENT FAILURE != PROOF OF NON-DELIVERY: a timeout/network error/5xx can happen AFTER SecurePay committed the step.
+    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay could not confirm whether this step completed. Your message is kept — retry to check; the same step is never applied twice.';
     return error.message;
   }
   return 'SecurePay could not complete this step. Please try again.';
@@ -115,6 +116,12 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * the real Agent -- exactly the authority of the person typing it. It appears in the
      * transcript like any turn (the conversation stays the single record of what was said) and
      * goes through the same clientTurnId / retry / no-auto-repeat rules as `send`.
+     *
+     * DELIVERY CAN BE UNCERTAIN. If the request fails, SecurePay may still have committed the turn
+     * (timeout, dropped response). The transcript entry is therefore NEVER removed, the same
+     * clientTurnId is kept for `retry()` (the backend replays an already-processed turn instead of
+     * applying it twice), and while that earlier step is unresolved (`pending` set) no different
+     * statement is sent.
      * Resolves with the Trade Context read back AFTER the turn, so a caller can check that the
      * backend really recorded what was said instead of assuming it.
      */
@@ -126,17 +133,6 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       const ok = await run({ kind: 'turn', body: { message: statement, clientTurnId } });
       if (!ok) return { ok: false, error: state.error ?? 'SecurePay could not complete this step.' };
       return { ok: true, context: state.context.status === 'ready' ? state.context.data : null };
-    },
-    /**
-     * Drops a turn that FAILED before SecurePay received it (its `pending` is still set) together
-     * with its transcript bubble -- used when the person cancels an instrument instead of retrying.
-     * A turn SecurePay already answered is never removed: that would rewrite history.
-     */
-    discardFailedTurn() {
-      const failed = state.pending;
-      if (state.busy || !failed || failed.kind !== 'turn') return;
-      const turns = state.turns.filter(turn => !(turn.sender === 'user' && turn.id === failed.body.clientTurnId));
-      update({ turns, pending: null, error: null });
     },
     async review() {
       if (state.busy) return;

@@ -12,7 +12,8 @@ Verified against SecurePayAPI `main` @ `75a490bc` and SecurepayLLM `main` @ `884
 
 | Capability | API support | API authority / limit | Agent can request? | Frontend component existed? | Production adapter (before) | Production action real? | Experience (before) | Phase 1 decision | Later / backend gap |
 |---|---|---|---|---|---|---|---|---|---|
-| Person / KS pick (`PERSON_PICKER`, `KSNUMBER_PICKER`) | Enum + model-proposable; `data` is an undocumented loose bag | Presentation only; model may not supply people | Yes (safe set) | Bolt `PersonPicker` fixture only | **Dropped** (unknown type → null) | No | Not reachable | **KSFinder architecture kept; identity resolution and linking OFF** (see §4) | **BACKEND GAP** — see KS rows below |
+| Person (`PERSON_PICKER`) | Enum + model-proposable; `data` is an undocumented loose bag | Presentation only; model may not supply people. Formation reads `<Name> is the <role>` (`NAME_IS_THE_ROLE`, one capitalised word, stoplist) into a PERSON + canonical ROLE; no supersession for an existing person | Yes (safe set) | Bolt `PersonPicker` fixture only | **Dropped** (unknown type → null) | No | Not reachable | **ADD A PERSON** (name + role → `John is the seller.`), first-add only; read-back of the same entity + canonical role. No identity claim, no participant, no invitation | Re-roling an existing person = **BACKEND GAP** (supersession) |
+| KS Number picker (`KSNUMBER_PICKER`) | Enum + model-proposable | No participant-safe check/attach path exists (see KS rows) | Yes | none | Dropped | No | Not reachable | **Honest unavailable note, no control** | **BACKEND GAP** |
 | KS identity lookup | `GET /api/v1/identities/by-ksnumber/{ks}` | Returns the **full identity record** (internal id, sequence, timestamps, status); no authz visible in controller (Phase42 GAP-24). Dropping fields in the browser is a *UI-safe projection*, **not** a *safe transport/API projection* | n/a | none | none | — | none | **NOT CALLED by production.** No re-archaeology found a participant-safe compatible endpoint (Store public view answers only for traders and proves nothing about registration) | **BACKEND GAP** — participant-safe KS projection |
 | KS Number format | Platform: `^KS[0-9]{3,}$`, canonical `KS001…KS003` (`KsNumberParser`/formatter). Formation: `KSNumberFormatPolicy` = `KS` + **exactly 9 digits**; `RuleBasedAgreementInterpreter.KS_NUMBER_TOKEN` = `KS\s?[0-9]{9}`; attaches only when exactly **one** entity is mentioned | A real platform KS (KS003) is a valid identity but **cannot be attached** to Trade Context by `"KS003 is the seller."` | — | — | — | — | — | No workaround: no zero-padding, no frontend-only association | **BACKEND GAP** — aligned KS format/link path |
 | Date (`DATE_PICKER`) | Enum + proposable; `POST …/external-facts/date` | External-evidence endpoint: CANDIDATE only, **no supersession**, no user-stated source kind. Formation reads only `D Month YYYY` (`NATURAL_DATE`) and stores an ISO `deadline.value`; a differing second date is appended, never superseded (no correction flag) | Yes | Bolt `DatePicker` with **hard-coded Oct 2026** | Dropped | Gateway had `submitDate`, never used | Not reachable | **Calendar instrument for a FIRST single date only**; sentence proven against the real grammar (§7) | Structured user-stated fact endpoint + date supersession (**BACKEND GAP**) |
@@ -45,7 +46,7 @@ Verified against SecurePayAPI `main` @ `75a490bc` and SecurepayLLM `main` @ `884
 - **`ui/InstrumentHost.tsx`** — one presentation, two forms: desktop = anchored panel **portalled into the top of the UNDERSTOOD column** (conversation stays fully visible); mobile = bottom sheet (`dvh`, safe-area, rides above the keyboard via `visualViewport`, focus trap, backdrop, sticky actions). Escape cancels; focus returns to the invoker.
 - **`ui/WhoInstrument | CalendarInstrument | MoneyInstrument | WhereInstrument`** — the four instruments (WHO in its bounded state); **`ui/InstrumentPrompt`** — the in-chat face of an Agent proposal.
 
-Lifecycle: `open → edit → submit (one statement) → read back → close`; on failure `Retry` (re-sends the same turn/`clientTurnId`, never duplicates) or `Cancel` (withdraws the unsent turn). Extending later = add an `InstrumentKind`, a `statementFor` branch, an `isRecorded` check and a body component.
+Lifecycle: `open → edit → submit (one statement) → read back → close`. If delivery fails, the state is **uncertain, not "unsent"** (§4a): the choice freezes, `Retry` re-sends the *same* turn (`clientTurnId`), `Check what SecurePay understands` re-reads Trade Context and closes only if the fact is proven, and `Close` closes the instrument without touching the transcript.
 
 Agent bridge: `api/securepay/agent/instruments.ts` maps the eight proposable component types → `INSTRUMENT_PROMPT` / `UNAVAILABLE_INPUT`. The type is the whole instruction; only optional hints (`label`, `role`, `currency`, ISO `date`) are read, strictly validated; malformed/unknown components are ignored while the message survives.
 
@@ -55,7 +56,7 @@ Agent bridge: `api/securepay/agent/instruments.ts` maps the eight proposable com
 
 | Row | Actionable? |
 |---|---|
-| WHO (person/org) | KSFinder architecture: opens the bounded, honest "can't check or attach a KS Number from here yet" state (no linking in Phase 1) |
+| WHO (person/org) | **Read-only** when recorded (re-roling can't be proven safe). New people are **added** through "Add a detail → Person" |
 | WHEN | Only a **first** date, via the calendar; a recorded date is read-only |
 | MONEY | Amount editor **only** for a plain **KES** amount+currency fact; contribution plans/recurring/non-KES stay read-only |
 | WHERE | Only a **first** single-word place; a recorded place is read-only |
@@ -63,24 +64,35 @@ Agent bridge: `api/securepay/agent/instruments.ts` maps the eight proposable com
 
 State shown on a row is the backend's, verbatim (`CANDIDATE` → "Suggested" + the real **Use this** adopt; `CONFIRMED` is never labelled "Confirmed" in this surface). The Agent's `AGREEMENT_PREVIEW` no longer renders a third copy of the same facts — its "still worth settling" lines and disclaimer are kept; it remains as a fallback only if Trade Context is unreadable.
 
-## 4. KSFinder — safety decision
+## 4. WHO: Add a person, and the KS Number route
 
-**KS format finding (from source).** Platform identity accepts `^KS[0-9]{3,}$` and issues `KS001, KS002, KS003…`. The formation path (`KSNumberFormatPolicy`, `RuleBasedAgreementInterpreter.KS_NUMBER_TOKEN`) accepts **exactly `KS` + 9 digits**, and attaches it only when exactly one entity has been mentioned. So KS003 can exist and be looked up, but `"KS003 is the seller."` is not read as an identity by formation. Backend's own doctrine adds that *"a KS Number/contact lookup is not available before authentication"*.
+**Two separate concepts** (no dead-end control): **A. Add a person** and **B. find/resolve by KS Number**.
 
-**Transport finding.** `GET /api/v1/identities/by-ksnumber/{ks}` returns internal identity UUID, sequence number, status and timestamps, with no visible authorization. Dropping those fields *in the browser* is a **UI-safe projection**; it is **not** a **safe transport/API projection**. The earlier version of this PR called that endpoint and called the result participant-safe; that was wrong and has been removed. **Production no longer calls it at all** (test-enforced: no source file mentions `api/v1/identities`).
+**A. Add a person (production-enabled).** Name + role → ONE ordinary statement in the exact shape the real interpreter reads: `John is the seller.` (`NAME_IS_THE_ROLE` → `entity.<name>.role` → a PERSON with a canonical ROLE). Accepted: a **first-name single word** (`[A-Z][a-z]{1,30}`, not on the interpreter's name stoplist), a name SecurePay does not already hold, and a role from the closed vocabulary (`roles.ts`, mirroring `RoleVocabulary`; "service provider" is absent because the backend would file it as `OTHER`; contractor/supplier map to `SERVICE_PROVIDER`). **Read-back:** the SAME PERSON entity (named exactly as entered) must hold a ROLE whose canonical role is the chosen word's. Candidate vs confirmed does not change what was recorded. It claims **no** identity resolution, creates **no** participant, attaches **no** KS Number and issues **no** invitation. An existing person is read-only (correction/re-role has no supersession) and is changed in conversation.
 
-**Decision.** The KSFinder instrument architecture is retained, but resolution and linking are **off**. Opening it (from WHO "Add", an unresolved person row, or an Agent `KSNUMBER_PICKER`) shows the typed number kept in the field, a plain statement that SecurePay can't check it or attach it to this conversation from here yet, and **Back to the conversation**. It never sends anything, never pads a number, never stores an association in frontend state, never claims a match. A number typed and then set aside is kept for when it is reopened. **BACKEND GAP:** a participant-safe KS projection endpoint, and one KS format across identity and formation.
+**B. KS Number route (unavailable, honestly).** *KS format finding (from source):* platform identity accepts `^KS[0-9]{3,}$` (KS001…KS003); formation (`KSNumberFormatPolicy`, `KS_NUMBER_TOKEN`) accepts **exactly `KS` + 9 digits** and attaches only when exactly one entity is mentioned, so `"KS003 is the seller."` is not read as an identity. *Transport finding:* `GET /api/v1/identities/by-ksnumber/{ks}` returns the full identity record (internal UUID, sequence, status, timestamps), with no visible authorization; dropping fields in the browser is a **UI-safe projection**, not a **safe transport/API projection**. **Production never calls it** (test-enforced). The Agent's `KSNUMBER_PICKER` renders a plain note, not a control. Inside *Add a person*, a secondary "I have a KS Number" disclosure keeps whatever is typed, says SecurePay can't check or attach it from here yet, sends nothing and never gates the primary action. No padding, no frontend-only association. **BACKEND GAP:** a participant-safe KS projection and one KS format across identity and formation.
 
-**WHO read-back is still implemented and tested** (`isWhoLinked`) so that a future enablement cannot succeed loosely: the *intended entity* must carry the selected KS, a ROLE relationship must have *that same entity* as subject, and the role must be the **canonical** role of the chosen word. Tested: correct KS + role; correct KS + wrong role; wrong KS + right role elsewhere; same role on another entity; unresolved identity; candidate vs confirmed does not change linkage.
+`isWhoLinked` (KS + same-entity role + canonical role) remains implemented and tested for a future KS-linked path but is **not reachable** in production.
 
-**Role vocabulary.** Labels ≠ backend semantics. UI roles are now only words with a known canonical outcome (`roles.ts`, mirroring `RoleVocabulary`); "service provider" (would be `OTHER`) was removed; contractor/supplier map to `SERVICE_PROVIDER`.
+## 4a. Uncertain delivery (client failure ≠ proof of non-delivery)
+
+A timeout, dropped response or 5xx can happen **after** SecurePay committed a turn. Therefore:
+- A failed statement is **never erased** from the transcript; the same `clientTurnId` is kept, so `Retry` replays the same turn (the backend deduplicates by `clientTurnId`) and the step is applied at most once.
+- The message says SecurePay *could not confirm whether the step completed* (not "failed").
+- While an earlier step is unresolved (`pending`), **no different statement is sent**: the instrument's choice is frozen (Retry / Check / Close only) and other instruments show "An earlier step hasn't been confirmed yet".
+- `Check what SecurePay understands` re-reads Trade Context; the instrument closes only if the exact fact is proven, otherwise it stays retryable.
+- `Close` closes the instrument only. `discardFailedTurn()` was **removed**; a test asserts it no longer exists.
+- Regression tests model "POST committed / response lost" with a server that commits then throws a timeout, and assert: transcript kept, same `clientTurnId` retried, applied once, a different statement not sent, Close doesn't erase.
+
+## 4b. Contextual instruments, not an implied form
+
+UNDERSTOOD lists only what SecurePay holds. It no longer shows Who/When/Where/Amount chips just because those sections are absent. One quiet **"Add a detail"** control reveals only the instruments that could really record something *now* (Person always; Date/Place/Amount only while none is recorded). Nothing says a field is required or missing, and an empty context shows just the invitation to talk. Instruments otherwise open from an Agent-proposed component or a row that can safely be refined (today: a plain KES amount). An Agent prompt whose instrument can't record anything gets an honest note instead of a control.
 
 ## 5. Registered / unregistered participants
 
-Production **does not check registration** (§4), so it neither shows "registered" nor "not registered" for a typed KS Number, and never creates or implies a person.
+Production **does not check registration** (§4B), so it never shows "registered/not registered" for a typed KS Number and never creates or implies a participant.
+- A person added by name + role is shown as **John · Seller · KS Number not set · Suggested/…** — the backend's state, verbatim: a named person with a role, not a verified identity.
 - A typed KS Number is kept and explained; nothing is sent.
-- "John is the seller" (said in conversation) is shown as **John · Seller · KS Number not set · Suggested** — candidate understanding, not a participant.
-- The "Registered / not registered / inactive" states designed for the first version were removed with the lookup; they return only when a participant-safe projection exists.
 
 ## 6. Invitation authority boundary
 
@@ -151,19 +163,27 @@ Formation has no durable upload; `photo-observations` requires an already-upload
 Verified by screenshots (first pass, before the correction): normal conversation; actionable UNDERSTOOD; instrument anchored in the right column; real-clock calendar with today dotted; statement appears → UNDERSTOOD updates → instrument closes; amount correction; **backend failure → draft kept → Retry succeeds with the same turn**; long reply opens at its first line; sending follows the new message and the thinking indicator; scrolling up while KS001 thinks is respected and **"New reply ↓"** appears; tapping it returns to the latest.
 Bugs found *by* this verification and fixed: amount prefill appended instead of replaced; Enter didn't submit the amount form; a failed turn blanked UNDERSTOOD; "still replying" shown during failure; duplicate disclaimer; "not Friday" quoted as a correction.
 
-## 18. Mobile verification
+## 18. Mobile verification (final, after the corrections)
 
-Real app in same-origin iframes at **375px and 320px** (real media queries). Verified (first pass): BUILD/UNDERSTOOD tabs + "What SecurePay understands · N" strip; Agent prompt chip; calendar bottom sheet; UNDERSTOOD tab with unresolved John row; sheet at 320px; no horizontal scrolling. **Not re-run after the correction:** the mobile sheet layouts for the changed instruments (the components share the same host, but I did not re-screenshot them at 375/320). **Not verified:** a physical on-screen keyboard (the `visualViewport` lift is implemented but only reviewed, not exercised); screen-reader behaviour (labels/roles are asserted in tests, not run through VoiceOver/NVDA).
+Real production app in same-origin iframes at **375px and 320px** (real media queries), against a scripted local mock that now commits a turn and then drops the response. Verified visually / by DOM measurement:
+- normal conversation and **auto-follow** (reply and thinking follow; a long reply opens at its first line);
+- **deliberate history reading + "New reply ↓"** at 375 — this found the pill was clipped by the taller mobile composer; it is now anchored to the scroll region;
+- BUILD ↔ UNDERSTOOD tabs and the "What SecurePay understands · N" strip;
+- **Add a detail → Person**: sheet, focus lands in Name, primary disabled until name + role are valid; "I have a KS Number" **unavailable state** with the typed KS kept; person then appears as a read-only row;
+- calendar sheet at 375 and 320 (40px day cells, sticky actions, no time field), amount sheet (KES-only, value selected on focus, an unchanged amount is not submittable), place;
+- **failure/retry**: "could not confirm whether this step completed", choice frozen, Retry (BUILD banner) replays the same turn with no duplicate bubble, and "Check what SecurePay understands" proved the place and closed the instrument;
+- **no horizontal overflow** (document and sheet `scrollWidth ≤ clientWidth`) at 375 and 320.
+
+**Limits, stated plainly:** the sheet's keyboard lift (`visualViewport`) was reviewed and its layout checked with tooling, but a physical/on-screen keyboard was **not** exercised; **no screen reader** (VoiceOver/NVDA/TalkBack) was run — roles/labels are asserted in tests only. At 320px the *existing* SignedOutHome composer sits partly behind the bottom nav; that pre-dates this work and was not changed.
 
 ## 19. Accessibility
 
-Sheet: `role=dialog`, `aria-modal`, labelled, focus trap, Escape, backdrop cancel, initial focus on the working field, focus returns to the invoker. Panel: labelled region. Calendar: `grid` with roving tabindex, arrows/Home/End/PageUp/PageDown, day buttons named with the full date (and "today"), `aria-pressed`. Rows are buttons with `aria-expanded` and descriptive names; state uses text ("Suggested"), not colour alone; ≥44px targets; visible focus rings; conversation is an `aria-live` log; errors are `role=alert`. `prefers-reduced-motion` respected for the jump scroll.
+Sheet: `role=dialog`, `aria-modal`, labelled, focus trap, Escape (closes the instrument only), backdrop close, initial focus on the working field, focus returns to the invoker. Panel: labelled region. Calendar: `grid` with roving tabindex, arrows/Home/End/PageUp/PageDown, day buttons named with the full date (and "today"), `aria-pressed`. Rows are buttons with `aria-expanded` and descriptive names; state uses text ("Suggested"), not colour alone; ≥44px targets; visible focus rings; conversation is an `aria-live` log; errors are `role=alert`. `prefers-reduced-motion` respected for the jump scroll.
 
 ## 20. Test results
 
-`tests/ui-phase1.test.mjs` — **45 tests**, now including **contract tests** built from the *inspected backend rules* (a port of `EXPLICIT_KES_AMOUNT`, `AMOUNT_NOT_AMOUNT_CORRECTION`, `EXPLICIT_CORRECTION`, `NATURAL_DATE`, `PLACE_PREPOSITION`, `KS_NUMBER_TOKEN`, the name stoplist, and the adapter's `flat.put` overwrite; SecurePayAPI is neither modified nor run): KS format incompatibility and no false association; amount + currency (KES→KES ok, KES→USD never closes, same amount wrong currency not recorded); single natural date → one ISO candidate; time cannot be certified (removed); date range cannot be represented (deferred); the real place grammar (old sentence proven *not* a place) and place replacement conflict; WHO association/role read-back (six negative + positive cases incl. the previously wrong buyer/seller fixture); role vocabulary; production never references the identity endpoint.
-Two earlier existing-test updates stand (`phase6-convergence` Q3; controller keeps last-known context while re-reading, and now also after a *failed request* — a failed context *read* still clears it).
-Full suite: 22 files, **496 tests, 0 failures**. `tsc --noEmit`, `eslint .`, `vite build`: clean.
+`tests/ui-phase1.test.mjs` — **53 tests**, including contract tests built from the inspected backend rules (a port of the real interpreter regexes; SecurePayAPI neither modified nor run): KS format incompatibility; **add-a-person** grammar (`John is the seller.` → a named person with a role and nothing else), taken/stoplisted/unknown-role refusals, same-entity + canonical-role read-back (right person/wrong role, role on another entity, PLACE named like a person, candidate vs confirmed); KS route has no send path; amount + currency; single date; time/date-range deferred; real place grammar; **uncertain delivery** (commit-then-lose, same `clientTurnId`, no different statement while unresolved, Close never erases, `discardFailedTurn` gone); contextual "Add a detail" presentation (no chips by default).
+Full suite: 22 files, **504 tests, 0 failures**. `tsc --noEmit`, `eslint .`, `vite build`: clean.
 
 ## 21. Recommendations for Phase 2
 

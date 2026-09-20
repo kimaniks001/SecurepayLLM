@@ -1,5 +1,4 @@
 import type { ContextView } from '../agent/controller';
-import { KNOWN_ROLES } from '../../api/securepay/agent/instruments';
 import { formatMoney, fromIso, longDate, parseAmount, FORMATION_CURRENCY, type InstrumentSpec } from '../instruments/model';
 import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 
@@ -12,13 +11,14 @@ import type { InstrumentPromptView } from '../../api/securepay/agent/instruments
  * only for facts SecurePay really holds; the `adds` list is merely the set of instruments that could
  * genuinely be opened (each backed by a real path), shown as quiet invitations.
  *
- * A row is directly actionable only when a SAFE, real path exists for it:
- *  - WHO   -> KSFinder (participant-safe identity read + a statement to the Agent)
- *  - WHEN  -> Calendar (a statement to the Agent)
- *  - MONEY -> Amount editor, only for a plain amount+currency fact
- *  - WHERE -> a named place (a statement; there is no geocoder or map behind it)
- * Everything else (WHAT, responsibilities, conditions, rules, contribution plans...) stays
- * conversational and is shown read-only. Nothing in this file assigns or infers Agreement,
+ * A row is directly actionable only when a SAFE, real path exists for it -- and today that is only
+ * a plain KES amount (an amount correction the backend supersedes). People, dates and places that are
+ * already recorded cannot be replaced or re-roled through formation (no supersession / correction
+ * flag), so those rows are read-only and are changed in conversation. New details can be ADDED (a
+ * first person/role, date, place or amount) through `adds`, which are contextual possibilities and
+ * never a list of missing fields. There is no identity resolution anywhere here: no KS Number is
+ * checked or attached (the identity endpoint is not participant-safe and the KS formats disagree).
+ * Everything else (WHAT, responsibilities, conditions, rules, contribution plans...) is read-only. Nothing in this file assigns or infers Agreement,
  * participant, confirmation or Money state.
  */
 export type WorkbenchSection = 'what' | 'who' | 'when' | 'where' | 'money' | 'other';
@@ -72,14 +72,12 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     const roles = relationsOf(entity.id).filter(r => r.kind === 'ROLE');
     const details: string[] = [];
     const adopt: AdoptTarget[] = [];
-    let roleForSpec: string | undefined;
     for (const role of roles) {
       usedRelationshipIds.add(role.id);
       const code = role.qualifiers.role ?? '';
       if (code === 'DELIVERY_LOCATION') continue;
       const label = humanize(code || 'OTHER');
       details.push(code === 'OTHER' && role.qualifiers.descriptor ? role.qualifiers.descriptor : label);
-      if (KNOWN_ROLES.includes(label.toLowerCase() as typeof KNOWN_ROLES[number]) && code !== 'PROVIDER_CANDIDATE') roleForSpec = label.toLowerCase();
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
     for (const duty of relationsOf(entity.id).filter(r => r.kind === 'RESPONSIBILITY')) {
@@ -90,7 +88,7 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     items.push({
       key: `who:${entity.id}`, section: 'who', value: entity.name, details, state: entity.state, adopt,
       identityUnresolved: !ks,
-      spec: { kind: 'who', origin: 'understood', entityName: ks ? undefined : entity.name, role: roleForSpec },
+      spec: null, // re-roling an existing person cannot be proven safe from here; changed in conversation
     });
   }
 
@@ -186,9 +184,10 @@ export function projectWorkbench(context: ContextView | null): Workbench {
   const has = (section: WorkbenchSection) => items.some(item => item.section === section);
   const hasDeadline = relationships.some(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string') || entities.some(e => e.type === 'DATE' || e.type === 'DATE_RANGE');
   const adds: WorkbenchAdd[] = [];
-  if (!has('who')) adds.push({ key: 'who', label: 'Who', spec: { kind: 'who', origin: 'add' } });
-  if (!hasDeadline) adds.push({ key: 'when', label: 'When', spec: { kind: 'when', origin: 'add' } });
-  if (!has('where')) adds.push({ key: 'where', label: 'Where', spec: { kind: 'where', origin: 'add' } });
+  const takenNames = entities.filter(e => e.type === 'PERSON' || e.type === 'ORGANIZATION').map(e => e.name);
+  adds.push({ key: 'who', label: 'Person', spec: { kind: 'who', origin: 'add', takenNames } });
+  if (!hasDeadline) adds.push({ key: 'when', label: 'Date', spec: { kind: 'when', origin: 'add' } });
+  if (!has('where')) adds.push({ key: 'where', label: 'Place', spec: { kind: 'where', origin: 'add' } });
   if (!has('money')) adds.push({ key: 'money', label: 'Amount', spec: { kind: 'money', origin: 'add' } });
   return { items, adds, empty: items.length === 0 };
 }
@@ -203,8 +202,8 @@ export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench
   const items = (section: WorkbenchSection) => workbench.items.filter(item => item.section === section);
   switch (prompt.instrument) {
     case 'who': {
-      const spec = items('who').find(item => item.identityUnresolved)?.spec;
-      return { spec: spec?.kind === 'who' ? { ...spec, origin: 'agent', role: spec.role ?? prompt.hints.role } : { kind: 'who', origin: 'agent', role: prompt.hints.role } };
+      const add = workbench.adds.find(a => a.key === 'who')?.spec;
+      return { spec: { kind: 'who', origin: 'agent', role: prompt.hints.role, takenNames: add?.kind === 'who' ? add.takenNames : [] } };
     }
     case 'when':
       return workbench.adds.some(a => a.key === 'when') ? { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } } : { note: 'SecurePay already holds a date and can’t replace it from here. Tell KS001 if it has changed.' };

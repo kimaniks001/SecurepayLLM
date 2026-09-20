@@ -1,6 +1,6 @@
 import type { ContextView } from '../agent/controller';
 import { canonicalRole } from '../../api/securepay/agent/roles';
-import { FORMATION_CURRENCY, fromIso, sameAmount, type InstrumentDraft, type InstrumentSpec } from './model';
+import { FORMATION_CURRENCY, fromIso, parsePersonName, sameAmount, type InstrumentDraft, type InstrumentSpec } from './model';
 
 /**
  * "Did the real Trade Context prove the EXACT meaning the person selected?" -- never HTTP 200, never a
@@ -13,7 +13,19 @@ import { FORMATION_CURRENCY, fromIso, sameAmount, type InstrumentDraft, type Ins
 const activeDates = (context: ContextView) => context.relationships.filter(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string');
 
 /**
- * WHO: the intended entity carries the selected KS Number, AND a ROLE relationship has THAT SAME entity as
+ * ADD A PERSON: the SAME entity (a PERSON named exactly as entered) has a ROLE relationship whose canonical
+ * role is the chosen word's. Claims nothing about identity: no KS Number, participant or invitation.
+ */
+export function isPersonAdded(context: ContextView, who: { name: string; role: string }): boolean {
+  const canonical = canonicalRole(who.role);
+  if (!canonical || !who.name) return false;
+  return context.entities
+    .filter(e => e.type === 'PERSON' && e.name === who.name.trim())
+    .some(e => context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === e.id && r.qualifiers.role === canonical));
+}
+
+/**
+ * KS-LINKED WHO (NOT reachable in production today -- KS resolution is unavailable, see ksformat.ts): the intended entity carries the selected KS Number, AND a ROLE relationship has THAT SAME entity as
  * subject, AND that role is the canonical role of the word the person picked (never a label match).
  */
 export function isWhoLinked(context: ContextView, who: { ks: string; role: string; entityName?: string }): boolean {
@@ -32,7 +44,10 @@ export function isRecorded(spec: InstrumentSpec, draft: InstrumentDraft, context
       && typeof r.qualifiers.amount === 'string' && sameAmount(r.qualifiers.amount, draft.amount)
       && (r.qualifiers.currency ?? '').toUpperCase() === draft.currency);
   }
-  if (spec.kind === 'who' && draft.kind === 'who') return isWhoLinked(context, { ks: draft.ks, role: draft.role, entityName: spec.entityName });
+  if (spec.kind === 'who' && draft.kind === 'who') {
+    const name = parsePersonName(draft.name, spec.takenNames);
+    return name.ok && isPersonAdded(context, { name: name.value, role: draft.role });
+  }
   if (spec.kind === 'when' && draft.kind === 'when') {
     // Formation stores the ISO date. Exactly that one date must be the active deadline: a stale, different one still present is NOT resolved.
     if (!draft.date || !fromIso(draft.date)) return false;

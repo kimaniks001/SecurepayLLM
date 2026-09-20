@@ -1,5 +1,5 @@
 /**
- * KS Number FORMATS -- and why the KSFinder cannot resolve or link one in Phase 1.
+ * KS Number FORMATS -- and why KS Number resolution and linking is unavailable in Phase 1.
  *
  *  - Platform identity (`KsNumberParser`, identity API): `^KS[0-9]{3,}$`, canonical `KS001`, `KS002`, `KS003` ...
  *  - Formation / Trade Context (`KSNumberFormatPolicy`, `RuleBasedAgreementInterpreter.KS_NUMBER_TOKEN`):

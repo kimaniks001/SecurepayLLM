@@ -524,7 +524,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
                   <button disabled={state.busy} onClick={() => void controller.continueOfferWithoutSource()} className="text-sand-500 underline disabled:opacity-40">Continue without this source</button>
                 </div>
               </StatusNotice>}
-              {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.pending?.kind === 'turn' && 'SecurePay could not complete your turn. '}{state.error}
+              {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">Retry {state.pending?.kind === 'adopt' ? 'Use this' : 'turn'}</button>
               </StatusNotice>}
               <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
@@ -573,7 +573,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, store
       </div>
       </div>
     </>}
-    <InstrumentHost controller={instruments} agentBusy={state.busy || !!state.pending} panelSlot={panelSlot}
+    <InstrumentHost controller={instruments} agentBusy={state.busy} agentUncertain={!!state.pending} panelSlot={panelSlot}
       onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }} />
   </div>;
 }

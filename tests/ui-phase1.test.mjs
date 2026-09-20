@@ -17,6 +17,7 @@ export * from './src/api/securepay/agent/roles';
 export * from './src/api/securepay/agent/instruments';
 export * from './src/api/securepay/agent/adapters';
 export * from './src/features/agent/controller';
+export { ApiError } from './src/api/securepay/http';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
@@ -77,6 +78,7 @@ const B = (() => {
   const NATURAL_DATE = /\b([0-9]{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+([0-9]{4})\b/g;
   const PLACE_PREPOSITION = /\b(?:in|at)\s+([A-Z][a-z]{1,30})(?!['’]s)\b/g;
   const KS_NUMBER_TOKEN = /\bKS\s?([0-9]{9})\b/i;
+  const NAME_IS_THE_ROLE = /\b([A-Z][a-z]{1,30})\s+is\s+the\s+([a-z]+)\b/g;
   const MONTHS = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
   const STOP = new Set(['I','The','This','That','My','Our','We','You','He','She','They','It','A','An','Is','Are','Was','Were','For','And','But','So','If','When','Then','There','Kes','Kshs','Ksh','Shs','Bob','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','January','February','March','April','May','June','July','August','September','October','November','December','Rent','Church','Chama','Securepay']);
   const maskRejected = text => { const m = AMOUNT_NOT_AMOUNT.exec(text); if (!m) return text; const rej = /not\s+(?:kes|kshs?|ksh|shs?)?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i.exec(m[0]); const at = m.index + rej.index + rej[0].length - rej[1].length; return text.slice(0, at) + '#'.repeat(rej[1].length) + text.slice(at + rej[1].length); };
@@ -96,6 +98,8 @@ const B = (() => {
       }
       const p = new RegExp(PLACE_PREPOSITION.source, 'g');
       while ((m = p.exec(text))) if (!STOP.has(m[1])) facts.push({ key: 'entity.place', value: m[1], type: 'PLACE' });
+      const r = new RegExp(NAME_IS_THE_ROLE.source, 'g');
+      while ((m = r.exec(text))) facts.push({ key: 'entity.role', name: m[1], value: m[2] });
       const ks = KS_NUMBER_TOKEN.exec(text); if (ks) facts.push({ key: 'ks', value: `KS${ks[1]}` });
       return facts;
     },
@@ -113,17 +117,60 @@ test('KS format finding: platform accepts KS+3 digits, formation accepts only KS
   assert.equal(api.ksShape('ks 003'), 'platform-only'); assert.equal(api.ksShape('KS123456789'), 'formation-compatible');
   for (const bad of ['', 'KS', 'KS12', 'K003', 'KS000', '003']) assert.equal(api.ksShape(bad), 'malformed', bad);
 });
-test('WHO / KSFinder: no statement can ever be produced, so nothing is sent and no association is claimed; no padding exists in source', async () => {
-  for (const spec of [{ kind: 'who', origin: 'add' }, { kind: 'who', origin: 'understood', entityName: 'John', role: 'seller' }]) assert.equal(stmt(spec, { kind: 'who', ks: 'KS003', role: 'seller' }), null);
-  for (const f of ['src/api/securepay/agent/ksformat.ts', 'src/features/instruments/ui/WhoInstrument.tsx', 'src/features/instruments/model.ts']) assert.doesNotMatch(await readFile(f, 'utf8'), /padStart\(9|padEnd\(9|KS0{6}/, f);
+test('ADD PERSON contract: "<Name> is the <role>." is read by the real grammar as a named person with that role -- and only that', () => {
+  const sentence = stmt({ kind: 'who', origin: 'add', takenNames: [] }, { kind: 'who', name: 'john', role: 'Seller', ks: '' });
+  assert.equal(sentence, 'John is the seller.');
+  assert.deepEqual(B.extract(sentence), [{ key: 'entity.role', name: 'John', value: 'seller' }]);   // no ks fact, no place, no amount, no date
+  assert.equal(api.canonicalRole('seller'), 'SELLER');
+  assert.equal(stmt({ kind: 'who', origin: 'add' }, { kind: 'who', name: 'Peter', role: 'contractor', ks: '' }), 'Peter is the contractor.'); // SERVICE_PROVIDER
 });
-test('WHO / KSFinder: typed KS is preserved when the person goes back to the conversation', () => {
-  const { agent } = fakeAgent({ result: () => ({ ok: true, context: null }) });
-  const ic = api.createInstrumentController(agent); const spec = { kind: 'who', origin: 'add' };
-  ic.open(spec); ic.setDraft({ kind: 'who', ks: 'KS003', role: '' }); ic.cancel();
+test('ADD PERSON: only what the grammar and RoleVocabulary can represent is accepted; taken names and unknown roles produce nothing', () => {
+  const spec = { kind: 'who', origin: 'add', takenNames: ['John'] };
+  assert.equal(stmt(spec, { kind: 'who', name: 'Mary Anne', role: 'seller', ks: '' }), null);       // one first name only
+  assert.equal(stmt(spec, { kind: 'who', name: 'Friday', role: 'seller', ks: '' }), null);          // stoplisted word
+  assert.equal(stmt(spec, { kind: 'who', name: 'john', role: 'buyer', ks: '' }), null);             // already held: re-roling is conversation
+  assert.equal(stmt(spec, { kind: 'who', name: 'Mary', role: 'service provider', ks: '' }), null);   // backend would file it as OTHER
+  assert.equal(stmt(spec, { kind: 'who', name: 'Mary', role: '', ks: '' }), null);
+  assert.equal(api.parsePersonName('John', ['john']).reason, 'taken');
+});
+test('ADD PERSON claims no identity: a typed KS Number never enters the statement, is never sent, and is kept when the instrument is closed', () => {
+  const spec = { kind: 'who', origin: 'add', takenNames: [] };
+  assert.equal(stmt(spec, { kind: 'who', name: 'John', role: 'seller', ks: 'KS003' }), 'John is the seller.');
+  assert.equal(stmt(spec, { kind: 'who', name: '', role: 'seller', ks: 'KS003' }), null);          // KS alone can never be sent
+  const { agent, calls } = fakeAgent({ result: () => ({ ok: true, context: null }) });
+  const ic = api.createInstrumentController(agent);
+  ic.open(spec); ic.setDraft({ kind: 'who', name: '', role: '', ks: 'KS003' }); ic.cancel();
   assert.equal(ic.getSnapshot().active, null);
-  ic.open(spec); assert.equal(ic.getSnapshot().draft.ks, 'KS003');
+  ic.open(spec); assert.equal(ic.getSnapshot().draft.ks, 'KS003'); assert.deepEqual(calls, []);
 });
+test('ADD PERSON read-back: the SAME PERSON entity must hold the canonical ROLE; nothing weaker closes it', () => {
+  const c = ctx([ent('j', 'PERSON', 'John', 'CONFIRMED'), ent('m', 'PERSON', 'Mary', 'CONFIRMED'), ent('p', 'PLACE', 'Anna')],
+    [rel('r1', 'ROLE', 'j', { role: 'SELLER', descriptor: 'seller' }), rel('r2', 'ROLE', 'm', { role: 'BUYER' }), rel('r3', 'ROLE', 'p', { role: 'SELLER' })]);
+  const spec = { kind: 'who', origin: 'add', takenNames: [] };
+  const rec = (name, role) => api.isRecorded(spec, { kind: 'who', name, role, ks: '' }, c);
+  assert.equal(rec('John', 'seller'), true);
+  assert.equal(rec('John', 'buyer'), false);      // right person, wrong role (the buyer is Mary)
+  assert.equal(rec('Mary', 'seller'), false);     // the seller role exists, but on another entity
+  assert.equal(rec('Anna', 'seller'), false);     // a PLACE named Anna is not a person
+  assert.equal(rec('Zed', 'seller'), false);      // not present
+  const candidate = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], [rel('r', 'ROLE', 'j', { role: 'SELLER' }, 'CANDIDATE')]);
+  assert.equal(api.isRecorded(spec, { kind: 'who', name: 'John', role: 'seller', ks: '' }, candidate), true);
+  assert.equal(api.isRecorded(spec, { kind: 'who', name: 'John', role: 'seller', ks: '' }, ctx([ent('j', 'PERSON', 'John')], [])), false);
+});
+test('KS route: the Agent KSNUMBER_PICKER is an honest note (no control); PERSON_PICKER opens Add person', () => {
+  assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'ks-number' });
+  assert.deepEqual(api.agentComponentView({ type: 'PERSON_PICKER', data: { role: 'seller' } }), { type: 'INSTRUMENT_PROMPT', instrument: 'who', hints: { role: 'seller' } });
+  const html = api.renderToStaticMarkup(api.createElement(api.InstrumentPrompt, { unavailable: 'ks-number' }));
+  assert.doesNotMatch(html, /<button|<input/); assert.match(html, /can.t check a KS Number/);
+  const spec = api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'who', hints: { role: 'seller' } }, api.projectWorkbench(null)).spec;
+  assert.equal(spec.kind, 'who'); assert.equal(spec.role, 'seller');
+});
+test('existing people are read-only rows (re-roling cannot be proven safe); "Add" can still add another person', () => {
+  const wb = api.projectWorkbench(ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], [rel('r', 'ROLE', 'j', { role: 'SELLER' }, 'CANDIDATE')]));
+  assert.equal(wb.items[0].spec, null);
+  const add = wb.adds.find(a => a.key === 'who'); assert.deepEqual(add.spec.takenNames, ['John']);
+});
+
 test('roles: UI vocabulary maps to real backend canonical roles; "service provider" is NOT offered (backend would file it as OTHER)', () => {
   assert.equal(api.KNOWN_ROLES.includes('service provider'), false);
   assert.deepEqual([api.canonicalRole('contractor'), api.canonicalRole('supplier'), api.canonicalRole('Seller'), api.canonicalRole('service provider')], ['SERVICE_PROVIDER', 'SERVICE_PROVIDER', 'SELLER', null]);
@@ -284,19 +331,20 @@ test('where: only a FIRST place is offered; a recorded place is read-only and co
 
 // ---------------------------------------------------------------- AGENT COMPONENT BRIDGE
 test('bridge: each safe model-proposable component parses; unsupported ones become honest UNAVAILABLE notes', () => {
-  const kinds = { PERSON_PICKER: 'who', KSNUMBER_PICKER: 'who', DATE_PICKER: 'when', AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where' };
+  const kinds = { PERSON_PICKER: 'who', DATE_PICKER: 'when', AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where' };
   for (const [type, instrument] of Object.entries(kinds)) assert.deepEqual(api.agentComponentView({ type, data: {} }), { type: 'INSTRUMENT_PROMPT', instrument, hints: {} }, type);
   assert.deepEqual(api.agentComponentView({ type: 'PHOTO_UPLOAD', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'photo' });
   assert.deepEqual(api.agentComponentView({ type: 'DOCUMENT_UPLOAD', data: { anything: 'x' } }), { type: 'UNAVAILABLE_INPUT', input: 'document' });
   assert.deepEqual(api.agentComponentView({ type: 'DATE_RANGE_PICKER', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'date-range' });
+  assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'ks-number' });
 });
 test('bridge: hints are optional and strictly validated; nothing else from the payload is trusted', () => {
   const v = api.agentComponentView({ type: 'AMOUNT_INPUT', data: { currency: 'kes', label: 'How much?', date: '2026-02-30', role: 'emperor', people: [{ name: 'Fabricated' }], url: 'https://evil' } });
   assert.deepEqual(v, { type: 'INSTRUMENT_PROMPT', instrument: 'money', hints: { label: 'How much?', currency: 'KES' } });
   assert.equal(JSON.stringify(v).includes('Fabricated'), false);
   assert.deepEqual(api.agentComponentView({ type: 'DATE_PICKER', data: { date: '2026-10-02', label: 'https://x.y' } }).hints, { date: '2026-10-02' });
-  assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: { role: 'Seller' } }).hints, { role: 'seller' });
-  assert.deepEqual(api.agentComponentView({ type: 'KSNUMBER_PICKER', data: { role: 'service provider' } }).hints, {});
+  assert.deepEqual(api.agentComponentView({ type: 'PERSON_PICKER', data: { role: 'Seller' } }).hints, { role: 'seller' });
+  assert.deepEqual(api.agentComponentView({ type: 'PERSON_PICKER', data: { role: 'service provider' } }).hints, {});
 });
 test('bridge: malformed and unknown components are ignored without throwing and the Agent message survives', () => {
   for (const c of [{ type: 'DATE_PICKER', data: null }, { type: 'DATE_PICKER', data: [] }, { type: 'DATE_PICKER' }, { type: 'FROM_THE_FUTURE', data: {} }, null]) assert.equal(api.agentComponentView(c), null);
@@ -329,16 +377,16 @@ test('workbench: rows are exactly what the backend holds, with an instrument ONL
   const who = by('who:'); assert.equal(who.length, 2);
   const john = who.find(i => i.value === 'John'); const anna = who.find(i => i.value === 'Anna');
   assert.equal(john.identityUnresolved, true); assert.deepEqual(john.details, ['Seller']); assert.equal(john.state, 'CANDIDATE');
-  assert.equal(john.spec.entityName, 'John'); assert.equal(john.spec.role, 'seller');
+  assert.equal(john.spec, null);                 // an existing person is changed in conversation, never through a dead-end control
   assert.equal(anna.identityUnresolved, false); assert.equal(anna.state, 'CONFIRMED');
   assert.equal(by('when:')[0].value, 'Friday, 25 September 2026'); assert.equal(by('when:')[0].spec, null);
   assert.equal(by('money:')[0].value, 'KES 20,000'); assert.equal(by('money:')[0].spec.amount, '20000');
   assert.equal(wb.items.some(i => i.section === 'where'), false);
-  assert.deepEqual(wb.adds.map(a => a.key), ['where']);
+  assert.deepEqual(wb.adds.map(a => a.key), ['who', 'where']);   // contextual possibilities: another person, a first place -- no date/amount (held)
 });
 test('workbench: not a five-field form -- empty has no rows; complex money stays conversational; non-money facts are shown', () => {
   const empty = api.projectWorkbench(null);
-  assert.equal(empty.empty, true); assert.deepEqual(empty.adds.map(a => a.key), ['who', 'when', 'where', 'money']);
+  assert.equal(empty.empty, true); assert.deepEqual(empty.adds.map(a => a.label), ['Person', 'Date', 'Place', 'Amount']);
   const plan = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'contribution'), ent('p', 'PERSON', 'Chama')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '20000', appliesTo: 'each member', frequency: 'monthly' }), rel('q', 'AUTHORITY_RULE', 'c', { rule: 'two of three sign', domain: 'DECISION_QUORUM' })]));
   const money = plan.items.find(i => i.section === 'money');
   assert.equal(money.spec, null); assert.deepEqual(money.details, ['each member', 'monthly']);
@@ -347,13 +395,13 @@ test('workbench: not a five-field form -- empty has no rows; complex money stays
 test('workbench: "being considered" stays a candidate and is shown as such', () => {
   const wb = api.projectWorkbench(ctx([ent('p', 'PERSON', 'Peter', 'CANDIDATE')], [rel('r', 'ROLE', 'p', { role: 'PROVIDER_CANDIDATE', status: 'CONSIDERED' }, 'CANDIDATE')]));
   const peter = wb.items[0];
-  assert.deepEqual(peter.details, ['Being considered']); assert.equal(peter.state, 'CANDIDATE'); assert.equal(peter.spec.role, undefined);
+  assert.deepEqual(peter.details, ['Being considered']); assert.equal(peter.state, 'CANDIDATE'); assert.equal(peter.spec, null);
   assert.deepEqual(peter.adopt.map(a => a.targetKind).sort(), ['ENTITY', 'RELATIONSHIP']);
 });
 test('workbench render: only actionable rows are buttons; candidates say "Suggested"; the word "Confirmed" is never used', () => {
   const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data: golden(), error: null }, source: null, offerSelectionFailure: null };
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {}, stillToSettle: ['Where the house is'] }));
-  assert.match(html, /aria-label="Money: KES 20,000\. Change the amount"/); assert.match(html, /aria-label="Who: John\. Change who"/);
+  assert.match(html, /aria-label="Money: KES 20,000\. Change the amount"/); assert.doesNotMatch(html, /aria-label="Who:/);
   assert.doesNotMatch(html, /aria-label="When:/); assert.doesNotMatch(html, /aria-label="What:/);
   assert.match(html, /Friday, 25 September 2026/); assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
   assert.doesNotMatch(html, /Confirmed/); assert.match(html, /Where the house is/); assert.match(html, /Not an Agreement/);
@@ -379,7 +427,6 @@ function fakeAgent({ result, retryOutcome } = {}) {
     getSnapshot: () => snapshot,
     sendStatement: async text => { calls.push(['statement', text]); return result(); },
     retry: async () => { calls.push(['retry']); Object.assign(snapshot, retryOutcome()); },
-    discardFailedTurn: () => calls.push(['discard']),
     review: async () => { calls.push(['review']); },
   } };
 }
@@ -406,22 +453,39 @@ test('instrument lifecycle: sent-but-not-recorded stays open with the draft inta
   ic2.open(moneySpec); ic2.setDraft({ kind: 'money', amount: '5000', currency: 'KES' }); await ic2.submit();
   assert.equal(ic2.getSnapshot().phase, 'unrecorded');
 });
-test('instrument lifecycle: backend failure preserves the choice; Retry re-sends the SAME turn; Cancel withdraws the unsent turn', async () => {
+test('instrument lifecycle: an uncertain delivery freezes the choice; Retry is the SAME turn; Close never rewrites history', async () => {
   const good = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '5000', currency: 'KES' })]);
-  const fa = fakeAgent({ result: () => ({ ok: false, error: 'SecurePay is unavailable' }), retryOutcome: () => ({ pending: null, error: null, context: { status: 'ready', data: good, error: null } }) });
+  const fa = fakeAgent({ result: () => ({ ok: false, error: 'SecurePay could not confirm whether this step completed.' }), retryOutcome: () => ({ pending: null, error: null, context: { status: 'ready', data: good, error: null } }) });
   const ic = api.createInstrumentController(fa.agent);
   ic.open(moneySpec); ic.setDraft({ kind: 'money', amount: '5000', currency: 'KES' });
   await ic.submit();
   assert.equal(ic.getSnapshot().phase, 'failed'); assert.equal(ic.getSnapshot().draft.amount, '5000');
+  ic.setDraft({ kind: 'money', amount: '9999', currency: 'KES' });          // a DIFFERENT statement over an unresolved one: refused
+  assert.equal(ic.getSnapshot().draft.amount, '5000');
   await ic.retry();
-  assert.equal(fa.calls.filter(c => c[0] === 'statement').length, 1);      // retry is agent.retry, not a second statement
+  assert.equal(fa.calls.filter(c => c[0] === 'statement').length, 1);      // retry is agent.retry (same clientTurnId), never a second statement
   assert.deepEqual(fa.calls.at(-1), ['retry']); assert.equal(ic.getSnapshot().active, null);
   const fb = fakeAgent({ result: () => ({ ok: false, error: 'down' }) });
   const ic2 = api.createInstrumentController(fb.agent);
   ic2.open(moneySpec); ic2.setDraft({ kind: 'money', amount: '5000', currency: 'KES' }); await ic2.submit();
   ic2.cancel();
-  assert.deepEqual(fb.calls.at(-1), ['discard']); assert.equal(ic2.getSnapshot().active, null);
+  assert.equal(ic2.getSnapshot().active, null);
+  assert.equal(fb.calls.some(c => c[0] === 'discard'), false);
 });
+test('instrument lifecycle: "check what SecurePay understands" closes a failed delivery ONLY if the fact is proven; otherwise it stays retryable', async () => {
+  const good = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '5000', currency: 'KES' })]);
+  const stale = ctx([ent('c', 'CONCEPT', 'value')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '4000', currency: 'KES' })]);
+  for (const [data, closes] of [[good, true], [stale, false]]) {
+    const fa = fakeAgent({ result: () => ({ ok: false, error: 'x' }) });
+    const ic = api.createInstrumentController(fa.agent);
+    ic.open(moneySpec); ic.setDraft({ kind: 'money', amount: '5000', currency: 'KES' }); await ic.submit();
+    fa.snapshot.context = { status: 'ready', data, error: null };
+    await ic.recheck();
+    assert.equal(ic.getSnapshot().active === null, closes);
+    if (!closes) assert.equal(ic.getSnapshot().phase, 'failed');
+  }
+});
+
 test('instrument lifecycle: state lives in the controller (survives a re-render/tab switch); re-opening keeps the draft; escape hatch never sends', () => {
   const { agent, calls } = fakeAgent({ result: () => ({ ok: true, context: null }) });
   const ic = api.createInstrumentController(agent);
@@ -448,22 +512,62 @@ test('agent controller: a statement is an ordinary turn (same endpoint, clientTu
   assert.deepEqual(calls, [['turn', { message: 'The amount is KES 5.', clientTurnId: 'id-1' }]]);
   assert.equal(controller.getSnapshot().turns[0].sender, 'user');
 });
-test('agent controller: a FAILED turn keeps the last-known understanding and can be discarded without touching answered history', async () => {
-  let fail = false;
-  const { controller } = agentSetup({ submitTurn: async () => { if (fail) throw new Error('offline'); return { message: 'ok', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] }; } });
-  await controller.send('hello');
-  const before = controller.getSnapshot().context.data;
-  assert.ok(before);
-  fail = true;
-  const failed = await controller.sendStatement('The location is Kilimani.');
-  assert.equal(failed.ok, false);
-  assert.equal(controller.getSnapshot().context.data, before);            // not blanked
-  assert.equal(controller.getSnapshot().turns.length, 3);
-  controller.discardFailedTurn();
-  assert.equal(controller.getSnapshot().turns.length, 2); assert.equal(controller.getSnapshot().pending, null);
-  controller.discardFailedTurn();                                          // nothing pending: never removes answered history
-  assert.equal(controller.getSnapshot().turns.length, 2);
+// A backend that COMMITS a turn and then loses the response, deduplicating by clientTurnId like AgentConversationService.replayIfAlreadyProcessed.
+function lossyServer({ lose = 1 } = {}) {
+  const committed = new Map(); const log = []; let lost = 0;
+  const reply = { message: 'ok', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] };
+  return { committed, log, gateway: {
+    submitTurn: async (id, body) => {
+      log.push(body.clientTurnId);
+      if (!committed.has(body.clientTurnId)) committed.set(body.clientTurnId, body.message);   // the turn is applied ...
+      if (lost < lose) { lost += 1; throw new api.ApiError('timeout', 'SecurePay request timed out'); } // ... but the response never arrives
+      return reply;
+    } } };
+}
+test('uncertain delivery: POST committed + response lost -> transcript kept, same clientTurnId retried, applied exactly once', async () => {
+  const server = lossyServer();
+  const { controller } = agentSetup({ ...server.gateway });
+  const result = await controller.sendStatement('The place is in Kilimani.');
+  assert.equal(result.ok, false);
+  assert.match(result.error, /could not confirm whether this step completed/);          // not "failed": delivery is UNCERTAIN
+  let snap = controller.getSnapshot();
+  assert.equal(snap.turns.length, 1); assert.equal(snap.turns[0].text, 'The place is in Kilimani.'); // never erased
+  assert.equal(snap.pending.body.clientTurnId, server.log[0]);
+  await controller.retry();
+  snap = controller.getSnapshot();
+  assert.deepEqual(server.log, [server.log[0], server.log[0]]);                          // SAME identity both times
+  assert.equal(server.committed.size, 1);                                                // committed once
+  assert.equal(snap.pending, null); assert.equal(snap.turns.length, 2);                  // user turn + the (replayed) reply
 });
+test('uncertain delivery: a DIFFERENT statement is not sent over an unresolved one; instrument Close does not erase the uncertain turn', async () => {
+  const server = lossyServer();
+  const { controller } = agentSetup({ ...server.gateway });
+  const ic = api.createInstrumentController(controller);
+  ic.open({ kind: 'where', origin: 'add' }); ic.setDraft({ kind: 'where', place: 'Kilimani' });
+  await ic.submit();
+  assert.equal(ic.getSnapshot().phase, 'failed');
+  const blocked = await controller.sendStatement('The place is in Westlands.');
+  assert.equal(blocked.ok, false); assert.equal(server.log.length, 1);                   // nothing new reached the server
+  ic.cancel();
+  assert.equal(ic.getSnapshot().active, null);
+  assert.equal(controller.getSnapshot().turns.length, 1); assert.ok(controller.getSnapshot().pending);   // history and pending identity intact
+  assert.equal(typeof controller.discardFailedTurn, 'undefined');                        // the unsafe capability no longer exists
+  await controller.retry();
+  assert.equal(server.committed.size, 1);
+});
+test('uncertain delivery: a definite 4xx also keeps the transcript; ordinary send() behaves the same', async () => {
+  const { controller } = agentSetup({ submitTurn: async () => { throw new api.ApiError('http', 'no', 409); } });
+  await controller.send('hello');
+  assert.equal(controller.getSnapshot().turns.length, 1); assert.ok(controller.getSnapshot().pending);
+});
+test('add-a-detail presentation: an empty context shows NO Person/Date/Place/Amount chips by default -- one quiet "Add a detail" control', () => {
+  const state = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null };
+  const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {} }));
+  assert.match(html, /Add a detail/); assert.match(html, /aria-expanded="false"/);
+  for (const chip of ['Person', 'Date', 'Place', 'Amount']) assert.doesNotMatch(html, new RegExp(`>${chip}<`), chip);
+  assert.doesNotMatch(html, /Start with|not set|required|missing/i);
+});
+
 test('agent gateway: production never calls the identity record endpoint; external-fact paths remain for external evidence', async () => {
   const { readdir } = await import('node:fs/promises');
   const walk = async dir => (await Promise.all((await readdir(dir, { withFileTypes: true })).map(e => e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]))).flat();

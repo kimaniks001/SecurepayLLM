@@ -82,8 +82,10 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   };
   const jump = () => { pinnedToReplyStart.current = false; dispatch({ type: 'jump' }); scrollToBottom(true); };
 
-  return <div className="relative flex flex-col h-full">
-    <div ref={scroller} onScroll={onScroll} className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 overscroll-contain" data-following={follow.following}>
+  return <div className="flex flex-col h-full">
+    {/* The pill is anchored to the scroll region (not the composer, whose height varies on phones). */}
+    <div className="relative flex-1 min-h-0">
+    <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 overscroll-contain" data-following={follow.following}>
       <div ref={content} className="space-y-4">
         <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with KS001" className="space-y-4">
           {children}
@@ -92,11 +94,12 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
         {status}
       </div>
     </div>
-    {follow.unread && <div className="pointer-events-none absolute inset-x-0 bottom-[4.75rem] flex justify-center px-4">
+    {follow.unread && <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-4">
       <button onClick={jump} className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-forest-700 text-cream-50 shadow-lifted px-3.5 py-1.5 text-[0.8rem] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 animate-fade-in-up">
         New reply <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
       </button>
     </div>}
+    </div>
     <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} />
   </div>;
 }

@@ -24,7 +24,7 @@ export interface InstrumentState {
   /** Bumps on every open so views can (re)apply initial focus deliberately, not on every render. */
   openCount: number;
 }
-export type InstrumentAgent = Pick<AgentController, 'sendStatement' | 'retry' | 'discardFailedTurn' | 'review' | 'getSnapshot'>;
+export type InstrumentAgent = Pick<AgentController, 'sendStatement' | 'retry' | 'review' | 'getSnapshot'>;
 
 /** Identity of "which fact this instrument is settling" -- origin (where it was summoned from) is presentation only. */
 export const specKey = (spec: InstrumentSpec): string => JSON.stringify({ ...spec, origin: undefined });
@@ -55,19 +55,21 @@ export function createInstrumentController(agent: InstrumentAgent) {
       if (state.phase === 'sending') return;
       // Re-opening the SAME instrument for the same fact keeps what the person had already entered.
       if (state.active && specKey(state.active) === specKey(spec)) { update({ openCount: state.openCount + 1 }); return; }
-      if (state.phase === 'failed') agent.discardFailedTurn();
       update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1 });
     },
     setDraft(draft: InstrumentDraft) {
       if (!state.active || state.phase === 'sending') return;
-      // Changing the input after a failure means "say something different": the unsent turn is withdrawn first.
-      if (state.phase === 'failed') agent.discardFailedTurn();
+      // After a failed delivery the earlier statement may already have been applied: the choice is frozen
+      // until it is retried (same turn) or the instrument is closed. A DIFFERENT statement is never sent over it.
+      if (state.phase === 'failed') return;
       update({ draft, phase: 'editing', error: null });
     },
-    /** Cancel never sends anything. A turn that never reached SecurePay is withdrawn with it. */
+    /**
+     * Cancel closes the INSTRUMENT only. It never sends anything and never rewrites conversation history:
+     * a statement whose delivery is uncertain stays in the transcript with its Retry.
+     */
     cancel() {
       if (state.phase === 'sending') return;
-      if (state.phase === 'failed') agent.discardFailedTurn();
       if (state.active && state.draft?.kind === 'who' && state.draft.ks.trim()) parked.set(specKey(state.active), state.draft);
       close();
     },
@@ -93,13 +95,23 @@ export function createInstrumentController(agent: InstrumentAgent) {
       if (snapshot.pending || snapshot.error) { update({ phase: 'failed', error: snapshot.error ?? 'SecurePay could not complete this step.' }); return; }
       settle(active, draft, snapshot.context.status === 'ready' ? snapshot.context.data : null);
     },
-    /** For 'unrecorded' with an unreadable context: ask SecurePay for its current understanding and re-check. */
+    /**
+     * Ask SecurePay for its CURRENT understanding and re-check. Used for 'unrecorded' and for 'failed'
+     * (uncertain delivery): if the fact is proven, the instrument closes; a failed delivery is otherwise
+     * left exactly as it was -- still retryable with the same turn identity, never rewritten.
+     */
     async recheck() {
-      const { active, draft } = state;
+      const { active, draft, phase } = state;
       if (!active || !draft) return;
       await agent.review();
       const snapshot = agent.getSnapshot();
-      settle(active, draft, snapshot.context.status === 'ready' ? snapshot.context.data : null);
+      const context = snapshot.context.status === 'ready' ? snapshot.context.data : null;
+      if (phase === 'failed') {
+        if (context && isRecorded(active, draft, context)) close();
+        else update({ error: 'SecurePay\u2019s understanding does not show this step yet. It may still be processing \u2014 retry to check the same step.' });
+        return;
+      }
+      settle(active, draft, context);
     },
   };
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import type { AgentController, AgentState } from '../agent/controller';
 import { specKey } from '../instruments/controller';
@@ -5,7 +6,7 @@ import type { InstrumentSpec } from '../instruments/model';
 import { projectWorkbench, SECTION_LABEL, type AdoptTarget, type WorkbenchItem, type WorkbenchSection } from './projection';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-inset';
-const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'who', when: 'the date', money: 'the amount', where: 'the place' };
+const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'the person', when: 'the date', money: 'the amount', where: 'the place' };
 
 /**
  * "What SecurePay understands", as a workbench. Rows are only what the backend's Trade Context
@@ -23,6 +24,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
   notes?: string;
 }) {
   const { context } = state;
+  const [addOpen, setAddOpen] = useState(false);
   const workbench = projectWorkbench(context.data);
   const activeKey = activeSpec ? specKey(activeSpec) : null;
   const busy = state.busy || !!state.pending;
@@ -48,14 +50,17 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, sti
       </ul>
     </div>)}
 
+    {/* Contextual possibilities, never implied missing fields: nothing here says a person, date, place or
+        amount is REQUIRED -- one quiet control reveals what could be added, and only what really can be. */}
     {workbench.adds.length > 0 && <div>
-      <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-400">{workbench.empty ? 'Start with' : 'Add'}</h3>
-      <div className="flex flex-wrap gap-2">
-        {workbench.adds.map(add => <button key={add.key} type="button" onClick={() => onOpen(add.spec)} aria-expanded={activeKey === specKey(add.spec)}
-          className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border border-cream-300 bg-white/70 px-3.5 text-[0.85rem] text-forest-700 hover:border-forest-300 hover:bg-forest-50 ${FOCUS.replace('focus-visible:ring-inset', '')}`}>
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" /><span>{add.label}</span>
-        </button>)}
-      </div>
+      <button type="button" onClick={() => setAddOpen(open => !open)} aria-expanded={addOpen} aria-controls="workbench-adds"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-1 text-[0.85rem] text-forest-700 hover:text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+        <Plus className={`h-3.5 w-3.5 transition-transform ${addOpen ? 'rotate-45' : ''}`} aria-hidden="true" /><span>Add a detail</span>
+      </button>
+      {addOpen && <div id="workbench-adds" className="mt-1 flex flex-wrap gap-2 animate-fade-in-up">
+        {workbench.adds.map(add => <button key={add.key} type="button" onClick={() => { onOpen(add.spec); setAddOpen(false); }} aria-expanded={activeKey === specKey(add.spec)}
+          className="inline-flex min-h-11 items-center rounded-full border border-cream-300 bg-white/70 px-3.5 text-[0.85rem] text-forest-700 hover:border-forest-300 hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">{add.label}</button>)}
+      </div>}
     </div>}
 
     {stillToSettle && stillToSettle.length > 0 && <div>
