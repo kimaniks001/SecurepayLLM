@@ -74,7 +74,9 @@ export function createRecoveryController(gateway: Pick<AuthGateway, 'requestReco
       update({ busy: true, error: null });
       try {
         await gateway.resetRecoveryPassword({ recoveryToken: state.recoveryToken, newPassword: state.newPassword });
-        update({ busy: false, step: 'done' });
+        // The recovery token, OTP proof and password material have served their purpose. Clear them
+        // immediately on success rather than retaining secrets until the person later navigates away.
+        update({ busy: false, step: 'done', recoveryToken: null, otpCode: '', newPassword: '', confirmPassword: '', verified: false, error: null });
       } catch (error) {
         update({ busy: false, error: errorText(error) });
       }
