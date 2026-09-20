@@ -106,21 +106,22 @@ test('Changes shows Versions and Proposed changes as separate concepts, with the
   const out = text(panel({ list: { status: 'ready', items: [am()] } }));
   assert.match(out, /Versions/); assert.match(out, /Proposed changes/); assert.match(out, /Version 1 · Current version/);
   assert.match(out, /Proposed change/); assert.match(out, /Proposed against version 1/); assert.match(out, /Reason: Extra work requested/);
-  assert.match(out, /Apply change/); assert.match(out, /Applying creates a new Agreement version/);
-  assert.match(out, /Reject proposed change/); assert.match(out, /Rejecting keeps the current Agreement as it is/); assert.match(out, /Withdraw my proposal/);
+  assert.match(out, /can.t safely apply it from this screen yet/); assert.doesNotMatch(out, /Apply change|Applying creates/);
+  assert.match(out, /Reject proposed change/); assert.match(out, /Rejecting keeps the current Agreement as it is/); assert.match(out, /Withdraw proposal/); assert.doesNotMatch(out, /Withdraw my proposal|my proposal/);
+  assert.match(out, /Only the person who proposed it can withdraw it; SecurePay will check that authority/);
   assert.doesNotMatch(out, /requested by|Requested by|proposed by [A-Z]/i);
   assert.doesNotMatch(out, /Accept change|Edit Agreement|Save changes|Update Agreement|updated contract/i);
 });
 test('a proposal against an older version is shown as stale and offers NO Apply (competing proposals: the other one was applied)', () => {
   const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'first', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'first', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
   const out = text(panel({ list: { status: 'ready', items: [am({ id: 'B', sourceVersionId: 'v1', status: 'PROPOSED' }), am({ id: 'A', status: 'APPLIED', appliedVersionId: 'v2' })] } }, d));
-  assert.match(out, /moved on since this was proposed \(it was made against version 1\), so it can no longer be applied/);
-  assert.equal((out.match(/Apply change/g) ?? []).length, 0);
+  assert.match(out, /moved on since this was proposed \(it was made against version 1\), so this proposal no longer matches the current version/);
+  assert.equal((out.match(/Apply change/g) ?? []).length, 0); assert.doesNotMatch(out, /can.t safely apply it from this screen yet/); // stale: no misleading "reviewable" line
   assert.match(out, /Applying it created version 2/); assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/); assert.match(out, /SecurePay marked this a material change/);
 });
 test('the applied / rejected / withdrawn / superseded proposals offer no actions', () => {
   const out = text(panel({ list: { status: 'ready', items: ['APPLIED', 'REJECTED', 'WITHDRAWN', 'SUPERSEDED'].map((s, i) => am({ id: `x${i}`, status: s })) } }));
-  assert.doesNotMatch(out, /Apply change|Reject proposed change|Withdraw my proposal/);
+  assert.doesNotMatch(out, /Apply change|Reject proposed change|Withdraw proposal/);
 });
 test('Detail works while amendment history fails: "couldn\'t be loaded", never "no changes"; and it is honest when it can\'t be read at all', () => {
   const bad = text(panel({ list: { status: 'error' } }));
@@ -222,7 +223,7 @@ test('reject/withdraw answer 200 with the UNCHANGED amendment when it is no long
 });
 test('withdraw: WITHDRAWN only from the returned status; a non-proposer gets SecurePay\'s refusal in plain words', async () => {
   const ok = setup(); await ok.controller.load('PARTICIPANTS_JOINING'); await ok.controller.withdraw('am-1');
-  assert.match(ok.controller.getSnapshot().notices['am-1'].text, /Your proposal was withdrawn\. The current Agreement stays as it is/);
+  assert.match(ok.controller.getSnapshot().notices['am-1'].text, /This proposal was withdrawn\. The current Agreement stays as it is/);
   const no = setup({ withdrawAmendment: async () => { throw err('http', 422, 'only proposer may withdraw'); } }); await no.controller.load('PARTICIPANTS_JOINING'); await no.controller.withdraw('am-1');
   assert.match(no.controller.getSnapshot().notices['am-1'].text, /Only the person who proposed this change can withdraw it\. Nothing was changed/);
 });
@@ -320,7 +321,7 @@ test('confirm 401 / 403: nothing confirmed, version kept, no automatic retry', a
 const panelStub = (rc, extra = {}) => html(api.ReconfirmPanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'idle', version: null, confirmation: null, changed: false, error: null, ...rc }), open() {}, confirm() {}, reset() {} }, amendments: { subscribe: () => () => {}, getSnapshot: () => ({ list: { status: 'idle' }, diffs: {}, busy: null, notices: {}, applied: null, ...extra }), load() {}, loadDiff() {} }, detail: detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Extra work', materialChange: true } }), standing: standing() });
 test('the review prompt names both versions, says nothing was confirmed for them, and offers Review version N (not Accept)', () => {
   const out = text(panelStub({}));
-  assert.match(out, /Version 2 needs your review/); assert.match(out, /You confirmed version 1\. That confirmation doesn.t cover version 2, and nothing has been confirmed for you/);
+  assert.match(out, /Version 2 needs your review/); assert.match(out, /You confirmed version 1\. That confirmation doesn.t cover version 2\. You haven.t confirmed version 2 yet\./); assert.doesNotMatch(out, /nothing has been confirmed for you/);
   assert.match(out, /Review version 2/); assert.match(out, /Reason for the change: Extra work/); assert.match(out, /SecurePay marked this a material change/);
   assert.doesNotMatch(out, /Accept|Agree again|Sign/);
 });
@@ -342,4 +343,83 @@ test('no Money / execution affordances and no editable-document language in Phas
     const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     assert.doesNotMatch(src, /Pay now|Fund\b|STK|Wallet|\bsettlement\b|escrow|Edit Agreement|Save changes|Accept change|dangerouslySetInnerHTML|JSON\.stringify/i, f);
   }
+});
+
+// ------------------------------------------------------------ Phase 6 correction: action-specific recovery, no Apply
+const uncertainPanel = (action, calls) => html(api.ChangesPanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ list: { status: 'ready', items: [am()] }, diffs: {}, busy: null, notices: { 'am-1': { kind: 'uncertain', action, text: 'SecurePay couldn’t confirm whether that went through.' } }, applied: null }), load() {}, loadDiff() {}, apply: () => calls.push('apply'), reject: () => calls.push('reject'), withdraw: () => calls.push('withdraw'), checkApply: () => calls.push('checkApply'), checkTerminal: (id, a) => calls.push(['checkTerminal', a]) }, detail: detail(), agreementStatus: 'PARTICIPANTS_JOINING' });
+test('uncertain Reject renders Reject recovery only: no Apply control of any kind', () => {
+  const out = text(uncertainPanel('reject', []));
+  assert.match(out, /Check what happened/); assert.match(out, /Try rejecting again/);
+  assert.doesNotMatch(out, /Try applying again|Apply change|applying|applied/i); assert.doesNotMatch(out, /Try withdrawing again/);
+});
+test('uncertain Withdraw renders Withdraw recovery only: no Apply control of any kind', () => {
+  const out = text(uncertainPanel('withdraw', []));
+  assert.match(out, /Check what happened/); assert.match(out, /Try withdrawing again/);
+  assert.doesNotMatch(out, /Try applying again|Apply change|applying|applied/i); assert.doesNotMatch(out, /Try rejecting again/);
+});
+test('the production panel wires no Apply mutation at all (source-level guard while the backend gap remains)', async () => {
+  const src = (await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  assert.doesNotMatch(src, /controller\.apply\(|controller\.checkApply\(|Try applying again|Apply change/);
+  const rc = (await readFile('src/features/amendments/ReconfirmPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  assert.doesNotMatch(rc, /\.apply\(|checkApply/);
+  const ws = (await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8'));
+  assert.doesNotMatch(ws, /\.applyAmendment\(|amendmentsFor\([^)]*\)\.apply\(|\.checkApply\(/); // the Pick<> type may name it; no call site may
+  // The typed gateway method and the controller's own tested behaviour remain (archaeology), but nothing customer-facing calls them.
+  assert.match(await readFile('src/api/securepay/agreements/index.ts', 'utf8'), /applyAmendment:/);
+});
+test('a PROPOSED amendment can be inspected, and shows the calm limitation rather than an Apply', () => {
+  const out = text(panel({ list: { status: 'ready', items: [am()] }, diffs: { 'am-1': { status: 'ready', diff: backendDiff(source, { proposed_amount_minor: 4500050 }) } } }));
+  assert.match(out, /See what.s proposed/); assert.match(out, /This proposed change can be reviewed here, but SecurePay can.t safely apply it from this screen yet/);
+  assert.doesNotMatch(out, /inconsisten|read model|Agreement row|diverg/i); // no backend jargon in customer copy
+});
+test('an amendment ALREADY applied elsewhere is still shown: status, created version, version history, no actions', () => {
+  const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Extra work', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Extra work', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
+  const out = text(panel({ list: { status: 'ready', items: [am({ status: 'APPLIED', appliedVersionId: 'v2' })] } }, d));
+  assert.match(out, /Applied/); assert.match(out, /Applying it created version 2/); assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/);
+  assert.doesNotMatch(out, /Reject proposed change|Withdraw proposal/);
+});
+test('withdraw never claims ownership: neutral copy, no inference from the current session', async () => {
+  const src = (await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  assert.doesNotMatch(src, /my proposal|Withdraw my|your proposal/i);
+});
+
+// Controller: uncertain reject / withdraw settle ONLY from the re-read amendment status and never touch apply.
+const terminalCase = async (action, statusAfter, readFails = false) => {
+  const calls = [];
+  const gw = { amendments: async () => { calls.push('amendments'); if (readFails && calls.filter(c => c === 'amendments').length > 1) throw err('network', null); return [am({ status: statusAfter })]; }, amendmentDiff: async () => ({}), applyAmendment: async () => { calls.push('APPLY-CALLED'); return ver(2); }, rejectAmendment: async () => { calls.push('reject'); throw err('timeout', null); }, withdrawAmendment: async () => { calls.push('withdraw'); throw err('timeout', null); }, version: async () => ver(2) };
+  const c = api.createAmendmentsController(gw, 'agr-1', () => 'v1', () => {}, () => 'k');
+  await c.load('PARTICIPANTS_JOINING'); await (action === 'reject' ? c.reject('am-1') : c.withdraw('am-1'));
+  return { c, calls };
+};
+test('uncertain Reject: the re-read settles it -- REJECTED proves success; another status is reported as it is; still PROPOSED stays unresolved; a failed read stays uncertain', async () => {
+  const proven = await terminalCase('reject', 'REJECTED'); assert.equal(proven.c.getSnapshot().notices['am-1'].kind, 'done'); assert.match(proven.c.getSnapshot().notices['am-1'].text, /was rejected\. The current Agreement stays as it is/);
+  const other = await terminalCase('reject', 'APPLIED'); assert.equal(other.c.getSnapshot().notices['am-1'].kind, 'info'); assert.match(other.c.getSnapshot().notices['am-1'].text, /this proposal is applied/); assert.doesNotMatch(other.c.getSnapshot().notices['am-1'].text, /was rejected/);
+  const still = await terminalCase('reject', 'PROPOSED'); const n = still.c.getSnapshot().notices['am-1']; assert.equal(n.kind, 'uncertain'); assert.equal(n.action, 'reject'); assert.match(n.text, /still shows this proposal as proposed, so it hasn.t been rejected\. You can try rejecting again/);
+  const dark = await terminalCase('reject', 'PROPOSED', true); assert.equal(dark.c.getSnapshot().notices['am-1'].kind, 'uncertain'); assert.match(dark.c.getSnapshot().notices['am-1'].text, /couldn.t be reached to check/);
+  for (const r of [proven, other, still, dark]) assert.equal(r.calls.includes('APPLY-CALLED'), false);
+});
+test('uncertain Withdraw: the same, from the re-read status only', async () => {
+  const proven = await terminalCase('withdraw', 'WITHDRAWN'); assert.equal(proven.c.getSnapshot().notices['am-1'].kind, 'done'); assert.match(proven.c.getSnapshot().notices['am-1'].text, /was withdrawn\. The current Agreement stays as it is/);
+  const other = await terminalCase('withdraw', 'REJECTED'); assert.match(other.c.getSnapshot().notices['am-1'].text, /this proposal is rejected/); assert.doesNotMatch(other.c.getSnapshot().notices['am-1'].text, /was withdrawn/);
+  const still = await terminalCase('withdraw', 'PROPOSED'); assert.equal(still.c.getSnapshot().notices['am-1'].action, 'withdraw'); assert.match(still.c.getSnapshot().notices['am-1'].text, /You can try withdrawing again/);
+  for (const r of [proven, other, still]) assert.equal(r.calls.includes('APPLY-CALLED'), false);
+});
+test('checkTerminal re-reads and settles without ever calling checkApply or apply; the UI action goes to it', async () => {
+  const calls = [];
+  const html2 = uncertainPanel('reject', calls);
+  assert.match(text(html2), /Check what happened/);
+  // The rendered button is bound to checkTerminal(id, action), never checkApply: assert on the source wiring.
+  const src = await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8');
+  assert.match(src, /controller\.checkTerminal\(a\.id, notice\.action as 'reject' \| 'withdraw'\)/);
+  let applied = false;
+  const gw = { amendments: async () => [am({ status: 'REJECTED' })], amendmentDiff: async () => ({}), applyAmendment: async () => { applied = true; return ver(2); }, rejectAmendment: async () => am(), withdrawAmendment: async () => am(), version: async () => ver(2) };
+  const c = api.createAmendmentsController(gw, 'agr-1', () => 'v1'); await c.load('PARTICIPANTS_JOINING'); await c.checkTerminal('am-1', 'reject');
+  assert.equal(c.getSnapshot().notices['am-1'].kind, 'done'); assert.equal(applied, false);
+});
+test('Apply uncertainty keeps its own recovery (controller behaviour is unchanged, though no production control invokes it)', async () => {
+  let first = true;
+  const { controller, calls } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); if (first) { first = false; throw err('timeout', null); } return ver(2); } });
+  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1');
+  assert.equal(controller.getSnapshot().notices['am-1'].action, 'apply'); assert.equal(controller.getSnapshot().notices['am-1'].kind, 'uncertain');
+  await controller.checkApply('am-1'); assert.equal(controller.getSnapshot().notices['am-1'].action, 'apply');
 });

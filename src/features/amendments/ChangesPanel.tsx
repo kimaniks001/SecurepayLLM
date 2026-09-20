@@ -6,7 +6,6 @@ import type { AmendmentsController, Notice } from './controller';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
 const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disabled:opacity-40`;
-const PRIMARY = `${BTN} bg-forest-700 text-cream-50 hover:bg-forest-800`;
 const SECONDARY = `${BTN} border border-cream-300 bg-white text-forest-700 hover:border-forest-300`;
 const dateOf = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
 
@@ -51,7 +50,7 @@ export function ChangesPanel({ controller, detail, agreementStatus }: { controll
       </div>
       <p className="text-[0.8rem] text-sand-600">Proposed against {proposedAgainst != null ? `version ${proposedAgainst}` : 'an earlier version'} · {dateOf(a.createdAt)}</p>
       {a.status === 'APPLIED' && <p className="text-[0.8rem] text-forest-800">{created != null ? `Applying it created version ${created}.` : 'Applying it created a new version.'}</p>}
-      {stale && <p role="status" className="mt-1.5 rounded-xl border border-ember-200 bg-ember-50 px-3 py-2 text-[0.82rem] text-sand-800">The Agreement has moved on since this was proposed{proposedAgainst != null ? ` (it was made against version ${proposedAgainst})` : ''}, so it can no longer be applied.</p>}
+      {stale && <p role="status" className="mt-1.5 rounded-xl border border-ember-200 bg-ember-50 px-3 py-2 text-[0.82rem] text-sand-800">The Agreement has moved on since this was proposed{proposedAgainst != null ? ` (it was made against version ${proposedAgainst})` : ''}, so this proposal no longer matches the current version.</p>}
       {a.reason && <p className="mt-1.5 break-words text-[0.85rem] text-sand-800"><span className="text-sand-600">Reason: </span>{a.reason}</p>}
 
       <button type="button" className={`${SECONDARY} mt-2`} aria-expanded={!!open[a.id]} onClick={() => { setOpen(o => ({ ...o, [a.id]: !o[a.id] })); void controller.loadDiff(a.id); }}>{open[a.id] ? 'Hide what’s proposed' : 'See what’s proposed'}</button>
@@ -72,17 +71,22 @@ export function ChangesPanel({ controller, detail, agreementStatus }: { controll
       </div>}
 
       {proposed && <div className="mt-3 space-y-2 border-t border-cream-100 pt-3">
-        {!stale && <div><button type="button" className={PRIMARY} disabled={anyBusy} onClick={() => void controller.apply(a.id)}>{busy === 'apply' ? 'Applying…' : 'Apply change'}</button><p className="mt-1 text-[0.75rem] text-sand-600">Applying creates a new Agreement version. The current version stays in the history.</p></div>}
+        {/* No Apply here: applying currently updates the current VERSION but not the Agreement's own fields, so SecurePay's views
+            could disagree about the current Agreement. The action is withheld, not hidden behind a disabled button. */}
+        {!stale && <p className="text-[0.82rem] leading-snug text-sand-800">This proposed change can be reviewed here, but SecurePay can’t safely apply it from this screen yet.</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void controller.reject(a.id)}>{busy === 'reject' ? 'Rejecting…' : 'Reject proposed change'}</button>
-          <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void controller.withdraw(a.id)}>{busy === 'withdraw' ? 'Withdrawing…' : 'Withdraw my proposal'}</button>
+          <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void controller.withdraw(a.id)}>{busy === 'withdraw' ? 'Withdrawing…' : 'Withdraw proposal'}</button>
         </div>
-        <p className="text-[0.75rem] text-sand-600">Rejecting keeps the current Agreement as it is. Only the person who proposed a change can withdraw it.</p>
+        <p className="text-[0.75rem] text-sand-600">Rejecting keeps the current Agreement as it is. Only the person who proposed it can withdraw it; SecurePay will check that authority.</p>
       </div>}
       {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}>
         <p>{notice.text}</p>
-        {notice.kind === 'uncertain' && proposed && <button type="button" className={`${SECONDARY} mt-1.5`} disabled={anyBusy} onClick={() => void controller.checkApply(a.id)}>Check what happened</button>}
-        {notice.kind === 'uncertain' && proposed && <button type="button" className={`${PRIMARY} ml-2 mt-1.5`} disabled={anyBusy || stale} onClick={() => void controller.apply(a.id)}>Try applying again</button>}
+        {/* Recovery is ALWAYS the uncertain operation's own -- reject/withdraw never offer anything about applying. */}
+        {notice.kind === 'uncertain' && proposed && (notice.action === 'reject' || notice.action === 'withdraw') && <div className="mt-1.5 flex flex-wrap gap-2">
+          <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void controller.checkTerminal(a.id, notice.action as 'reject' | 'withdraw')}>Check what happened</button>
+          <button type="button" className={SECONDARY} disabled={anyBusy} onClick={() => void (notice.action === 'reject' ? controller.reject(a.id) : controller.withdraw(a.id))}>{notice.action === 'reject' ? 'Try rejecting again' : 'Try withdrawing again'}</button>
+        </div>}
       </div>}
     </li>;
   };

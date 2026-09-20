@@ -8,7 +8,8 @@ export const isAmendable = (status: string) => (AMENDABLE_STATUSES as readonly s
 export type AmendmentAction = 'apply' | 'reject' | 'withdraw';
 export type ListState = { status: 'idle' } | { status: 'loading' } | { status: 'unavailable'; agreementStatus: string } | { status: 'error' } | { status: 'ready'; items: AgreementAmendmentDto[] };
 export type DiffState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; diff: AmendmentDiffDto };
-export interface Notice { kind: 'done' | 'info' | 'uncertain' | 'error'; text: string }
+/** `action` records WHICH operation a notice is about, so recovery is always that operation's own (never another's). */
+export interface Notice { kind: 'done' | 'info' | 'uncertain' | 'error'; text: string; action?: AmendmentAction }
 export interface AmendmentsState {
   list: ListState;
   diffs: Record<string, DiffState>;
@@ -26,6 +27,11 @@ export const UNCERTAIN = 'SecurePay couldn’t confirm whether that went through
 type Gateway = Pick<AgreementGateway, 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'version'>;
 
 /**
+ * NOTE (Phase 6): `apply`/`checkApply` are NOT wired to any production control. Applying an amendment creates a new current
+ * version but leaves the Agreement row's title/amount/etc. unchanged, so different SecurePay views would disagree about the
+ * current Agreement; the UI therefore withholds the action until SecurePay converges them. They stay typed and tested so the
+ * backend behaviour (and the uncertainty rules) are understood.
+ *
  * Amendment review and the three consequences on a PROPOSED amendment, each its own explicit action:
  *   apply  = SecurePay creates a NEW current Agreement version (the old one is kept as history);
  *   reject = SecurePay marks the proposal REJECTED (the Agreement is untouched);
@@ -94,7 +100,7 @@ export function createAmendmentsController(gateway: Gateway, agreementId: string
         onAgreementChanged(); await readList();
       } catch (error) {
         update({ busy: null });
-        if (isUncertain(error)) { notice(amendmentId, { kind: 'uncertain', text: `We’re not sure whether the change was applied. ${UNCERTAIN}` }); return; }
+        if (isUncertain(error)) { notice(amendmentId, { kind: 'uncertain', action: 'apply', text: `We’re not sure whether the change was applied. ${UNCERTAIN}` }); return; }
         if (error instanceof ApiError && error.status === 401) { applyKeys.delete(amendmentId); notice(amendmentId, { kind: 'error', text: 'Your session ended before SecurePay could act on this. Nothing was applied. Sign in again, then try again.' }); return; }
         if (error instanceof ApiError && error.status === 403) { applyKeys.delete(amendmentId); notice(amendmentId, { kind: 'error', text: 'This account can’t apply changes to this Agreement. Nothing was applied.' }); return; }
         // 422 / 409 cover "stale source version", "not applicable" (which is ALSO what a replay of an applied amendment says),
@@ -117,13 +123,29 @@ export function createAmendmentsController(gateway: Gateway, agreementId: string
       if (state.busy) return;
       const items = await readList();
       if (await settleApplied(amendmentId, items)) return;
-      notice(amendmentId, { kind: 'uncertain', text: items ? 'SecurePay doesn’t show this change as applied yet. You can try again — it uses the same request, so it can’t create two versions.' : 'SecurePay couldn’t be reached to check. Try again in a moment.' });
+      notice(amendmentId, { kind: 'uncertain', action: 'apply', text: items ? 'SecurePay doesn’t show this change as applied yet. You can try again — it uses the same request, so it can’t create two versions.' : 'SecurePay couldn’t be reached to check. Try again in a moment.' });
     },
 
     async reject(amendmentId: string) { await terminal(amendmentId, 'reject'); },
     async withdraw(amendmentId: string) { await terminal(amendmentId, 'withdraw'); },
+    /** After an uncertain reject/withdraw: re-read the amendment and settle ONLY from the status SecurePay returns. Never touches apply. */
+    async checkTerminal(amendmentId: string, action: 'reject' | 'withdraw') {
+      if (state.busy) return;
+      settleTerminal(amendmentId, action, await readList());
+    },
     reset() { applyKeys.clear(); inflight = null; update({ ...initial }); },
   };
+
+  /** The proof of a reject/withdraw is the amendment's own status. PROPOSED = it did not happen (yet); no list = still unknown. */
+  function settleTerminal(amendmentId: string, action: 'reject' | 'withdraw', items: AgreementAmendmentDto[] | null) {
+    const want = action === 'reject' ? 'REJECTED' : 'WITHDRAWN';
+    const a = items?.find(x => x.id === amendmentId);
+    const verb = action === 'reject' ? 'rejecting' : 'withdrawing';
+    if (a?.status === want) notice(amendmentId, { kind: 'done', text: action === 'reject' ? 'This proposed change was rejected. The current Agreement stays as it is.' : 'This proposal was withdrawn. The current Agreement stays as it is.' });
+    else if (a && a.status !== 'PROPOSED') notice(amendmentId, { kind: 'info', text: `Nothing was changed by that attempt: this proposal is ${a.status.toLowerCase()}.` });
+    else if (a) notice(amendmentId, { kind: 'uncertain', action, text: `${UNCERTAIN} SecurePay still shows this proposal as proposed, so it hasn’t been ${want.toLowerCase()}. You can try ${verb} again.` });
+    else notice(amendmentId, { kind: 'uncertain', action, text: `${UNCERTAIN} SecurePay couldn’t be reached to check.` });
+  }
 
   async function terminal(amendmentId: string, action: 'reject' | 'withdraw') {
     if (state.busy) return;
@@ -133,11 +155,11 @@ export function createAmendmentsController(gateway: Gateway, agreementId: string
       const result = await (action === 'reject' ? gateway.rejectAmendment(agreementId, amendmentId) : gateway.withdrawAmendment(agreementId, amendmentId));
       update({ busy: null });
       // A 200 is NOT proof: SecurePay answers 200 with the unchanged amendment when it is no longer PROPOSED.
-      if (result.status === want) notice(amendmentId, { kind: 'done', text: action === 'reject' ? 'This proposed change was rejected. The current Agreement stays as it is.' : 'Your proposal was withdrawn. The current Agreement stays as it is.' });
+      if (result.status === want) notice(amendmentId, { kind: 'done', text: action === 'reject' ? 'This proposed change was rejected. The current Agreement stays as it is.' : 'This proposal was withdrawn. The current Agreement stays as it is.' });
       else notice(amendmentId, { kind: 'info', text: `Nothing was changed: this proposal is already ${result.status.toLowerCase()}.` });
     } catch (error) {
       update({ busy: null });
-      if (isUncertain(error)) notice(amendmentId, { kind: 'uncertain', text: `${UNCERTAIN} The list shows what SecurePay has.` });
+      if (isUncertain(error)) { settleTerminal(amendmentId, action, await readList()); return; }
       else if (error instanceof ApiError && error.status === 401) notice(amendmentId, { kind: 'error', text: 'Your session ended before SecurePay could act on this. Nothing was changed.' });
       else if (error instanceof ApiError && error.status === 403) notice(amendmentId, { kind: 'error', text: 'This account can’t do that on this Agreement. Nothing was changed.' });
       else if (action === 'withdraw' && error instanceof ApiError && error.kind === 'http' && /only proposer/i.test(error.message)) notice(amendmentId, { kind: 'error', text: 'Only the person who proposed this change can withdraw it. Nothing was changed.' });
