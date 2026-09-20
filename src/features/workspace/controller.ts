@@ -1,6 +1,6 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
-  AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationResponse,
+  AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse,
   AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementProblemSummaryResponse,
   CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
   PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse, WorkspaceNextActionResponse,
@@ -29,6 +29,8 @@ export interface DetailData {
   dto: AgreementDetailResponse;
   /** null = the confirmations read FAILED (unknown), never an empty list, so a failure can't render as "nobody confirmed". */
   confirmations: AgreementConfirmationResponse[] | null;
+  /** The caller's OWN standing (`confirmation-status` returns only the caller's row). null = the read failed (unknown). */
+  myConfirmation: AgreementConfirmationStatusResponse[] | null;
   /**
    * Best-effort Phase 3 enrichments -- a failure to load these must never fail the whole Detail
    * view (they are additive; core Agreement truth above is what fails closed). Default to empty.
@@ -96,7 +98,7 @@ const initial: WorkspaceState = {
 };
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -144,9 +146,10 @@ export function createWorkspaceController(gateway: Gateway) {
   async function loadDetailData(agreementId: string): Promise<DetailData> {
     // Detail is the core Agreement truth and fails closed. Confirmations are read separately: if that read fails the
     // participants still render and their confirmation state is UNKNOWN (null) -- never "nobody confirmed".
-    const [dto, confirmations] = await Promise.all([
+    const [dto, confirmations, myConfirmation] = await Promise.all([
       gateway.detail(agreementId),
       bestEffort<AgreementConfirmationResponse[] | null>(() => gateway.confirmations(agreementId), null),
+      bestEffort<AgreementConfirmationStatusResponse[] | null>(() => gateway.confirmationStatus(agreementId), null),
     ]);
     // Phase 3 enrichments: additive only, never allowed to fail Detail closed.
     const [milestoneStates, events, conflicts, tags] = await Promise.all([
@@ -155,7 +158,7 @@ export function createWorkspaceController(gateway: Gateway) {
       bestEffort(() => gateway.calendarConflicts(agreementId), []),
       bestEffort(() => gateway.tagsForAgreement(agreementId), []),
     ]);
-    return { dto, confirmations, milestoneStates, events, conflicts, tags };
+    return { dto, confirmations, myConfirmation, milestoneStates, events, conflicts, tags };
   }
 
   async function openDetail(summary: CurrentUserAgreementSummaryResponse, origin: StatusOrigin) {

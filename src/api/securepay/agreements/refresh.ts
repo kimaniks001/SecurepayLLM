@@ -13,6 +13,8 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'join', 'versions', 'version', 'confirmVersion',
   // Creator invitations
   'propose', 'issueInvitation', 'invitations', 'revokeInvitation',
+  // Amendments (list, structured diff, apply / reject / withdraw)
+  'amendments', 'amendmentDiff', 'applyAmendment', 'rejectAmendment', 'withdrawAmendment',
   // Plug / referral attribution
   'attributePlug', 'plugAttribution', 'referralStatus',
   // Living Agreement enrichments

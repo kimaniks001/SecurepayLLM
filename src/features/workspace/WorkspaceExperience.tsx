@@ -9,6 +9,10 @@ import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { InvitePanel } from '../invitations/InvitePanel';
 import { createInviteController } from '../invitations/controller';
+import { ChangesPanel } from '../amendments/ChangesPanel';
+import { ReconfirmPanel, ownStanding } from '../amendments/ReconfirmPanel';
+import { createAmendmentsController } from '../amendments/controller';
+import { createReconfirmController } from '../amendments/reconfirm';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
@@ -17,7 +21,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -73,6 +77,21 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
   const [controller] = useState(() => createWorkspaceController(gateway));
   // One invite controller per selected Agreement; its in-memory state (incl. an unshared link) survives quiet refreshes.
   const [invites] = useState(() => new Map<string, ReturnType<typeof createInviteController>>());
+  const [amendmentControllers] = useState(() => new Map<string, ReturnType<typeof createAmendmentsController>>());
+  const [reconfirmControllers] = useState(() => new Map<string, ReturnType<typeof createReconfirmController>>());
+  const amendmentsFor = (agreementId: string) => {
+    let c = amendmentControllers.get(agreementId);
+    if (!c) {
+      c = createAmendmentsController(gateway, agreementId, () => { const d = controller.getSnapshot().detail; return d.status === 'ready' ? d.data.dto.currentVersion?.versionId ?? null : null; }, () => controller.reloadDetailQuietly());
+      amendmentControllers.set(agreementId, c);
+    }
+    return c;
+  };
+  const reconfirmFor = (agreementId: string) => {
+    let c = reconfirmControllers.get(agreementId);
+    if (!c) { c = createReconfirmController(gateway, agreementId, () => void controller.reloadDetailQuietly()); reconfirmControllers.set(agreementId, c); }
+    return c;
+  };
   const inviteFor = (agreementId: string) => {
     let c = invites.get(agreementId);
     if (!c) { c = createInviteController(gateway, agreementId, window.location.origin, () => void controller.reloadDetailQuietly()); invites.set(agreementId, c); }
@@ -234,6 +253,8 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
+          changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
+          topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
           peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}
         />
       );
