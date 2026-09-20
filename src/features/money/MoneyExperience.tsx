@@ -24,7 +24,6 @@ import type {
   SettlementDestinationResponse,
   SettlementVerificationStatusResponse,
 } from '../../api/securepay/settlement-destinations';
-import type { MoneySessionGateway } from '../../api/securepay/money-session';
 import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
 import type { CurrencyCapabilityGateway } from '../../api/securepay/currency-capability';
 import type { FxApplicationGateway } from '../../api/securepay/fx-application';
@@ -33,16 +32,21 @@ import type { BusinessCurrencyCapabilityGateway } from '../../api/securepay/busi
 import type { BusinessFxApplicationGateway } from '../../api/securepay/business-fx-application';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
-import { PaymentIntentFundingSection } from './PaymentIntentFunding';
+import { PaymentReadyPanel, FundingPanel, ActivityPanel, ReleasePanel } from './AgreementMoneyPanels';
+import { peekMoneyHandoff, clearMoneyHandoff, type MoneyHandoff } from './handoff';
+import type { MoneyGateway } from '../../api/securepay/money';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
+import { createAttemptStore, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
+import { resolveSelection, type SelectionTarget } from './selection';
+import { readSettlementScope, submitDestination, type ScopeRead, type CurrentRead, type HistoryRead } from './settlementDestination';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
 import { FxConversionSection } from './FxConversionSection';
 import { BusinessCurrencyCapabilitySection } from './BusinessCurrencyCapabilitySection';
 import { BusinessFxConversionSection } from './BusinessFxConversionSection';
+import { moneyText } from './amount';
 
-function money(minor: number, currency: string) {
-  return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
-}
+function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -52,9 +56,9 @@ function errorText(error: unknown) {
 /** Final Completion Phase 2 completion pass, Section 7 -- a reversal never rewrites the original Progressed entry; it appears as its own, later, distinct line. */
 function transactionLabel(type: AgreementMoneyTransactionResponse['type']): string {
   switch (type) {
-    case 'FUNDED': return 'Protected';
+    case 'FUNDED': return 'Funded';
     case 'PROGRESSED': return 'Progressed';
-    case 'RELEASED': return 'Returned';
+    case 'RELEASED': return 'Returned to funder(s)';
     case 'REQUESTED': return 'Reversal requested for';
     case 'RECOVERY_PENDING': return 'Reversal recovery pending for';
     case 'RECOVERY_COMPLETED': return 'Reversal recovered for';
@@ -67,7 +71,8 @@ export interface MoneyGateways {
   financialPartners: FinancialPartnerGateway;
   settlementDestinations: SettlementDestinationGateway;
   agreements: AgreementGateway;
-  moneySession: MoneySessionGateway;
+  money: MoneyGateway;
+  paymentRelease: PaymentReleaseGateway;
   paymentIntent: PaymentIntentGateway;
   currencyCapability: CurrencyCapabilityGateway;
   fxApplication: FxApplicationGateway;
@@ -86,6 +91,9 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const [jumpAgreement, setJumpAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
+  // Agreement -> Money handoff is in memory only (never in the URL). Peeked here, cleared after mount, so a refresh opens Money Home.
+  const [handoff] = useState<MoneyHandoff | null>(() => peekMoneyHandoff());
+  useEffect(() => { clearMoneyHandoff(); }, []);
 
   if (sessionState.status !== 'signed-in') {
     const data = secureAuthView(identityState);
@@ -134,10 +142,12 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
         <AgreementMoneySection
           authorityGateway={gateways.moneyAuthority}
           agreementGateway={gateways.agreements}
-          sessionGateway={gateways.moneySession}
+          moneyGateway={gateways.money}
+          paymentReleaseGateway={gateways.paymentRelease}
           paymentIntentGateway={gateways.paymentIntent}
           currencyCapabilityGateway={gateways.currencyCapability}
           initialAgreement={jumpAgreement}
+          handoff={handoff}
         />
         <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
         <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
@@ -278,154 +288,103 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 /**
- * Agreement Money (customer-facing name; "Funded Authority" is the internal/API term -- see
- * AgreementFundedAuthorityOrchestrationService). Final Completion Phase 2 completion pass,
- * Section 1: an Agreement is not permanently one Agreement Money position -- every MONETARY
- * obligation gets its own independent position, listed here and acted on individually. Section 2:
- * a 409 while progressing may honestly mean the caller is not this position's payer or a valid
- * delegate; it is shown as-is, never silently retried or hidden. Section 6: providerSettlementCertified
- * is always false in this environment, so progressed money is always described as "Progressed
- * within SecurePay," never "Settled."
+ * Agreement Money. Everything here is READ. Funding, opening/funding/progressing/returning a position, and hosted links are withheld: SecurePay gates those
+ * commands behind an environment check no read exposes and does not make them conditional on the current Agreement version, so this screen can't prove that
+ * pressing one is authorised, recoverable, or bound to the version the person is looking at (docs/UI_COMPLETION_PHASE8_MONEY.md).
+ * Amount authority: a position's figures are the backend's per-obligation position; the Agreement summary amount and Payment Ready's evaluated amount
+ * are separate, labelled sources and are never summed or reconciled here.
  */
-function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGateway, paymentIntentGateway, currencyCapabilityGateway, initialAgreement }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGateway, paymentReleaseGateway, paymentIntentGateway, currencyCapabilityGateway, initialAgreement, handoff }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
-  sessionGateway: MoneySessionGateway;
+  moneyGateway: MoneyGateway;
+  paymentReleaseGateway: PaymentReleaseGateway;
   paymentIntentGateway: PaymentIntentGateway;
   currencyCapabilityGateway: CurrencyCapabilityGateway;
-  /** Phase 3 Money Home (Section 11) -- a "Needs your attention" item there jumps straight into
-   * this exact Agreement's own position, instead of making the person re-find it in the picker. */
   initialAgreement?: CurrentUserAgreementSummaryResponse | null;
+  handoff?: MoneyHandoff | null;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
-  const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
+  const [selectedAgreement, setSelectedAgreement] = useState<SelectionTarget | null>(null);
+  const [context, setContext] = useState<string | null>(null);
+  const [contextNotice, setContextNotice] = useState<string | null>(null);
+  // The current version id from a FRESH read at selection time (never from the cached picker list). null = couldn't be established.
+  const [freshVersionId, setFreshVersionId] = useState<string | null>(null);
   const [positions, setPositions] = useState<AgreementFundedAuthorityStatusResponse[] | null>(null);
+  const [positionsUnknown, setPositionsUnknown] = useState(false);
   const [selectedObligationId, setSelectedObligationId] = useState<string | null>(null);
-  const [fundAmount, setFundAmount] = useState('');
-  const [progressAmount, setProgressAmount] = useState('');
   const [history, setHistory] = useState<AgreementMoneyTransactionResponse[] | null>(null);
-  const [shareableLink, setShareableLink] = useState<string | null>(null);
+  const [historyUnknown, setHistoryUnknown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const selectedPosition = positions?.find(p => p.obligationId === selectedObligationId) ?? null;
 
   const loadAgreements = async () => {
     setLoading(true); setError(null);
-    try { setAgreements((await agreementGateway.currentUserAgreements()).items); }
-    catch (cause) { setError(errorText(cause)); }
+    try { const items = (await agreementGateway.currentUserAgreements()).items; setAgreements(items); return items; }
+    catch (cause) { setError(errorText(cause)); return null; }
     finally { setLoading(false); }
   };
 
-  const selectAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
-    setSelectedAgreement(agreement);
-    setPositions(null);
-    setSelectedObligationId(null);
-    setHistory(null);
-    setShareableLink(null);
-    setSuccessMessage(null);
-    setLoading(true); setError(null);
-    try {
-      const list = await authorityGateway.list(agreement.agreementId);
-      setPositions(list.positions);
-      if (list.positions.length === 1) setSelectedObligationId(list.positions[0].obligationId);
-    } catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
+  const readPositions = async (agreementId: string) => {
+    setPositionsUnknown(false);
+    try { const list = await authorityGateway.list(agreementId); setPositions(list.positions); return list.positions; }
+    catch { setPositions(null); setPositionsUnknown(true); return null; }
   };
+
+  /**
+   * Selecting an Agreement ALWAYS re-reads it by id (`GET /agreements/{id}/detail`): an exact, authorised read that returns the current version. The paginated
+   * `/me/agreements` list is only the picker's source -- it is never searched to establish a version or to decide an Agreement "can't be found" (an Agreement can
+   * be fully accessible yet off page 1). If the exact read fails, nothing is claimed about access; version-dependent presentation fails closed (neutral wording).
+   */
+  const selectAgreement = async (target: SelectionTarget, source?: MoneyHandoff | null) => {
+    setFreshVersionId(null); setContextNotice(null);
+    const { chosen, label, notice, versionId } = await resolveSelection(agreementGateway, target, source);
+    setFreshVersionId(versionId);
+    setSelectedAgreement(chosen); setContext(label); setContextNotice(notice);
+    setPositions(null); setSelectedObligationId(null); setHistory(null); setHistoryUnknown(false);
+    setLoading(true); setError(null);
+    const list = await readPositions(chosen.agreementId);
+    if (list && list.length === 1) setSelectedObligationId(list[0].obligationId);
+    setLoading(false);
+  };
+  const pick = (a: CurrentUserAgreementSummaryResponse) => selectAgreement({ agreementId: a.agreementId, title: a.title, currency: a.currency, summaryAmountMinor: a.proposedAmountMinor });
 
   useEffect(() => {
-    if (initialAgreement) void selectAgreement(initialAgreement);
+    if (initialAgreement) void pick(initialAgreement);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAgreement?.agreementId]);
 
-  const refreshPositions = async () => {
-    if (!selectedAgreement) return;
-    setLoading(true); setError(null);
-    try { setPositions((await authorityGateway.list(selectedAgreement.agreementId)).positions); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
-
-  const withObligation = async (action: (agreementId: string, obligationId: string) => Promise<void>) => {
-    if (!selectedAgreement || !selectedObligationId) return;
-    setLoading(true); setError(null); setSuccessMessage(null);
-    try { await action(selectedAgreement.agreementId, selectedObligationId); await refreshPositions(); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
-
-  // Phase 3 Money World (Section 32): a successful money action explains what changed, in terms of
-  // the Agreement it belongs to -- never just "Success." The amount/currency named here is always
-  // the one the person just submitted or that the backend's own release response returned, never a
-  // recomputed total.
-  const protect = () => withObligation(async (a, o) => {
-    // Final Phase 3 correction (Sections 12/18): open() establishes the Agreement Money authority
-    // (the authorised ceiling) for this obligation -- it does not itself move or fund any money.
-    // The success message must describe that exact transition, never imply money moved.
-    await authorityGateway.open(a, o);
-    setSuccessMessage(`Agreement Money is ready for funding for ${selectedAgreement?.title ?? 'this Agreement'}.`);
-  });
-  const fund = () => withObligation(async (a, o) => {
-    if (!fundAmount) return;
-    const amountMinor = Math.round(Number(fundAmount) * 100);
-    const currency = selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '';
-    await authorityGateway.fund(a, o, amountMinor);
-    setFundAmount('');
-    setSuccessMessage(`${money(amountMinor, currency)} is now protected for ${selectedAgreement?.title ?? 'this Agreement'}.`);
-  });
-  const progress = () => withObligation(async (a, o) => {
-    if (!progressAmount) return;
-    const amountMinor = Math.round(Number(progressAmount) * 100);
-    const currency = selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '';
-    await authorityGateway.exercise(a, o, amountMinor);
-    setProgressAmount('');
-    setSuccessMessage(`${money(amountMinor, currency)} has been progressed within SecurePay for ${selectedAgreement?.title ?? 'this Agreement'}.`);
-  });
-  const releaseUnused = () => withObligation(async (a, o) => {
-    // Deep-review correction (Section 18): release() returns unexercised funded money to the
-    // rightful funder(s) and closes that lifecycle -- it must never read as if the money simply
-    // became generic available balance.
-    const response = await authorityGateway.release(a, o);
-    setSuccessMessage(`${money(response.releasedTotalMinor, selectedPosition?.currency ?? selectedPosition?.proposedCurrency ?? '')} has been released back to the funder(s) for ${selectedAgreement?.title ?? 'this Agreement'}.`);
-  });
+  // Opening from an Agreement: the in-memory handoff names the Agreement; the exact Detail read verifies access and the current version. The picker list is loaded
+  // only as a convenience for "choose a different Agreement".
+  useEffect(() => {
+    if (!handoff) return;
+    void selectAgreement({ agreementId: handoff.agreementId, title: handoff.title, currency: null, summaryAmountMinor: null }, handoff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff?.agreementId]);
 
   const loadHistory = async () => {
     if (!selectedAgreement || !selectedObligationId) return;
-    setLoading(true); setError(null);
+    setLoading(true); setHistoryUnknown(false);
     try { setHistory(await authorityGateway.transactions(selectedAgreement.agreementId, selectedObligationId)); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
-
-  const getShareableLink = async () => {
-    if (!selectedAgreement || !selectedObligationId || !selectedPosition?.remainingFundedMinor) return;
-    setLoading(true); setError(null);
-    try {
-      const created = await sessionGateway.create({
-        agreementId: selectedAgreement.agreementId,
-        obligationId: selectedObligationId,
-        purpose: 'EXERCISE',
-        amountMinorCap: selectedPosition.remainingFundedMinor,
-      });
-      setShareableLink(`${window.location.origin}/#/money-session/${created.token}`);
-    } catch (cause) { setError(errorText(cause)); }
+    catch { setHistory(null); setHistoryUnknown(true); }
     finally { setLoading(false); }
   };
 
   return (
-    <SectionCard title="Agreement Money" description="Money already authorised under one of your own Agreements. Nothing here is calculated by this screen.">
+    <SectionCard title="Agreement Money" description="What SecurePay says about one of your Agreements’ money. Nothing here is calculated by this screen.">
       {error && <ErrorBanner message={error} />}
-      {!agreements ? (
+      {!agreements && !selectedAgreement ? (
         <Button variant="secondary" onClick={() => void loadAgreements()} disabled={loading}>Show my Agreements</Button>
       ) : selectedAgreement === null ? (
-        agreements.length === 0 ? (
+        agreements && agreements.length === 0 ? (
           <p className="text-sm text-sand-600">You have no Agreements yet.</p>
         ) : (
           <ul className="space-y-2">
-            {agreements.map(agreement => (
+            {agreements?.map(agreement => (
               <li key={agreement.agreementId}>
-                <button onClick={() => void selectAgreement(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                <button onClick={() => void pick(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
                   <div className="font-medium text-forest-800">{agreement.title}</div>
                   <div className="text-xs text-sand-600">{agreement.purpose}{agreement.counterparty?.ksNumber ? ` · ${agreement.counterparty.ksNumber}` : ''}</div>
                 </button>
@@ -435,67 +394,53 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
         )
       ) : (
         <div className="space-y-3">
-          <Button variant="ghost" onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); }} className="text-xs">← Choose a different Agreement</Button>
-          <div className="text-sm text-forest-800 font-medium">{selectedAgreement.title} <span className="text-xs text-sand-500">({selectedAgreement.currency})</span></div>
+          <Button variant="ghost" onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); setContext(null); if (!agreements) void loadAgreements(); }} className="text-xs">← Choose a different Agreement</Button>
+          {contextNotice && <StatusNotice tone="warning">{contextNotice}</StatusNotice>}
+          <div className="text-sm text-forest-800 font-medium" data-testid="money-context">{context ?? selectedAgreement.title} {selectedAgreement.currency && <span className="text-xs text-sand-500">({selectedAgreement.currency})</span>}</div>
 
-          <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />
+          {selectedAgreement.currency && <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />}
 
-          <PaymentIntentFundingSection
-            agreementId={selectedAgreement.agreementId}
-            gateway={paymentIntentGateway}
-            onFunded={() => void refreshPositions()}
-          />
-          {/* Phase 3 Money World (Section 5/7): two distinct, non-duplicate steps -- above brings new
-              money into this Agreement from a real payment method; below allocates money that is
-              already available to a specific position. Explained once, here, so it never reads as
-              two competing "add money" mechanisms. */}
-          <p className="text-xs text-sand-500">Once money is brought in above, protect and progress it against a specific position below.</p>
+          <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.summaryAmountMinor} agreementCurrency={selectedAgreement.currency ?? ''} />
+          <FundingPanel gateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
 
-          {positions && positions.length === 0 && <p className="text-sm text-sand-600">This Agreement has no Agreement Money yet.</p>}
+          <div className="space-y-2">
+            <p className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Agreement Money positions</p>
+            {loading && positions === null && !positionsUnknown && <p role="status" className="text-sm text-sand-500">Loading Agreement Money…</p>}
+            {positionsUnknown && <ErrorBanner message="Agreement Money positions couldn’t be loaded. That doesn’t mean there are none." />}
+            {positions && positions.length === 0 && <p className="text-sm text-sand-600">SecurePay shows no Agreement Money for this Agreement yet.</p>}
+            {positions && positions.length > 1 && selectedObligationId === null && (
+              <ul className="space-y-2">
+                {positions.map(p => (
+                  <li key={p.obligationId ?? 'none'}>
+                    <button onClick={() => setSelectedObligationId(p.obligationId)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                      <div className="font-medium text-forest-800">{p.obligationTitle ?? 'Untitled'}</div>
+                      <div className="text-xs text-sand-600">
+                        {p.established
+                          ? <><MoneyValue amount={money(p.authorisedMaxAmountMinor ?? 0, p.currency ?? '')} size="sm" /> Authorised maximum</>
+                          : <><MoneyValue amount={money(p.proposedAmountMinor ?? 0, p.proposedCurrency ?? '')} size="sm" /> Proposed</>}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {positions && positions.length > 1 && selectedObligationId !== null && (
+              <Button variant="ghost" onClick={() => setSelectedObligationId(null)} className="text-xs">← Choose a different position</Button>
+            )}
+            {selectedPosition && (
+              <AgreementMoneyPositionCard
+                position={selectedPosition}
+                loading={loading}
+                onRefresh={() => void readPositions(selectedAgreement.agreementId)}
+                history={history}
+                historyUnknown={historyUnknown}
+                onLoadHistory={() => void loadHistory()}
+              />
+            )}
+          </div>
 
-          {positions && positions.length > 1 && selectedObligationId === null && (
-            <ul className="space-y-2">
-              {positions.map(p => (
-                <li key={p.obligationId ?? 'none'}>
-                  <button onClick={() => setSelectedObligationId(p.obligationId)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
-                    <div className="font-medium text-forest-800">{p.obligationTitle ?? 'Untitled'}</div>
-                    {/* Final Phase 3 correction (Section 22): neither a proposed amount nor an
-                        authorised ceiling is protected (funded) money -- label each honestly. */}
-                    <div className="text-xs text-sand-600">
-                      {p.established
-                        ? <><MoneyValue amount={money(p.authorisedMaxAmountMinor ?? 0, p.currency ?? '')} size="sm" /> Authorised maximum</>
-                        : <><MoneyValue amount={money(p.proposedAmountMinor ?? 0, p.proposedCurrency ?? '')} size="sm" /> Proposed</>}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {positions && positions.length > 1 && selectedObligationId !== null && (
-            <Button variant="ghost" onClick={() => setSelectedObligationId(null)} className="text-xs">← Choose a different Agreement Money position</Button>
-          )}
-
-          {selectedPosition && (
-            <AgreementMoneyPositionCard
-              position={selectedPosition}
-              loading={loading}
-              fundAmount={fundAmount}
-              progressAmount={progressAmount}
-              onFundAmountChange={setFundAmount}
-              onProgressAmountChange={setProgressAmount}
-              onProtect={() => void protect()}
-              onFund={() => void fund()}
-              onProgress={() => void progress()}
-              onReleaseUnused={() => void releaseUnused()}
-              onRefresh={() => void refreshPositions()}
-              history={history}
-              onLoadHistory={() => void loadHistory()}
-              shareableLink={shareableLink}
-              onGetShareableLink={() => void getShareableLink()}
-              successMessage={successMessage}
-            />
-          )}
+          <ActivityPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} />
+          <ReleasePanel gateway={paymentReleaseGateway} agreementId={selectedAgreement.agreementId} currentVersionId={freshVersionId} />
         </div>
       )}
     </SectionCard>
@@ -503,35 +448,17 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, sessionGate
 }
 
 /**
- * Customer state language (Section 3, corrected by the final Phase 3 semantics pass): "Authorised
- * maximum" (the ceiling -- never itself funded/moved money, never labelled "protected"),
- * "Funded / protected" (fundedTotalMinor -- money actually funded so far), "Ready to progress"
- * (remainingFundedMinor -- funded, not yet progressed or released), "Progressed" (exercisedOrSettledMinor),
- * "Released" (releasedTotalMinor, back to the funder(s)). Never "Settled" while
- * providerSettlementCertified is false. A previous, separate derived figure (the gap between the
- * authorised ceiling and what had actually been funded) was a frontend-invented financial category
- * and has been removed outright, not relabelled.
+ * Distinct money states, each a direct backend field and never a client sum: Authorised maximum (a ceiling, not money), Funded (fundedTotalMinor),
+ * Ready to progress (remainingFundedMinor), Progressed (exercisedOrSettledMinor), Returned to funder(s) (releasedTotalMinor). "Returned" is not a
+ * settlement; "Progressed" is never "Settled": providerSettlementCertified is a certification gate, not transaction-specific settlement evidence in either boolean state. Payment Release is a separate lifecycle (see ReleasePanel).
  */
-function AgreementMoneyPositionCard({
-  position, loading, fundAmount, progressAmount, onFundAmountChange, onProgressAmountChange,
-  onProtect, onFund, onProgress, onReleaseUnused, onRefresh, history, onLoadHistory, shareableLink, onGetShareableLink, successMessage,
-}: {
+export function AgreementMoneyPositionCard({ position, loading, onRefresh, history, historyUnknown, onLoadHistory }: {
   position: AgreementFundedAuthorityStatusResponse;
   loading: boolean;
-  fundAmount: string;
-  progressAmount: string;
-  onFundAmountChange: (value: string) => void;
-  onProgressAmountChange: (value: string) => void;
-  onProtect: () => void;
-  onFund: () => void;
-  onProgress: () => void;
-  onReleaseUnused: () => void;
   onRefresh: () => void;
   history: AgreementMoneyTransactionResponse[] | null;
+  historyUnknown: boolean;
   onLoadHistory: () => void;
-  shareableLink: string | null;
-  onGetShareableLink: () => void;
-  successMessage: string | null;
 }) {
   const currency = position.currency ?? position.proposedCurrency ?? '';
 
@@ -539,96 +466,56 @@ function AgreementMoneyPositionCard({
     return (
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
-        {/* Deep-review correction (Section 19): a proposed amount is not yet protected money --
-            it must never carry the same "protected" word as an established position's real total. */}
         {position.proposedAmountMinor != null && <p>Proposed: <MoneyValue amount={money(position.proposedAmountMinor, currency)} size="sm" /></p>}
-        <p className="text-xs text-sand-600">Not yet protected{position.reasonCode ? ` (${position.reasonCode})` : ''}.</p>
-        {/* Final Phase 3 correction (Section 12): open() only establishes the Agreement Money
-            authority for this obligation -- it does not fund or protect any money -- so the CTA
-            must not claim it will "protect this money." */}
-        <Button onClick={onProtect} disabled={loading}>Set up Agreement Money</Button>
+        <p className="text-xs text-sand-600">No Agreement Money is set up for this yet. A proposed amount isn’t money that has been funded.</p>
+        <p className="text-xs text-sand-500">Setting up Agreement Money from here is temporarily unavailable until SecurePay can show it is safely bound to the current Agreement version.</p>
       </div>
     );
   }
 
-  /*
-   * Final Phase 3 correction (Sections 6/7/11): every figure below is a direct backend field, with
-   * no third, client-derived financial category. `authorisedMaxAmountMinor` is only an authorised
-   * ceiling -- it has never itself moved and is never labelled "protected." `fundedTotalMinor` is
-   * the money that has actually been funded, so "protected" (matching this codebase's own
-   * transaction-history label, FUNDED -> "Protected") attaches there instead. The previous derived
-   * figure (authorisedMax - fundedTotal, labelled as if it were its own protected state) has been
-   * removed outright -- it was a frontend-invented financial category the backend does not establish.
-   */
-  const authorisedMax = position.authorisedMaxAmountMinor ?? 0;
+  const authorisedMax = position.authorisedMaxAmountMinor;
   const funded = position.fundedTotalMinor ?? 0;
   const readyToProgress = position.remainingFundedMinor ?? 0;
   const progressed = position.exercisedOrSettledMinor ?? 0;
-  const released = position.releasedTotalMinor ?? 0;
+  const returned = position.releasedTotalMinor ?? 0;
 
   return (
     <div className="space-y-3">
-      {successMessage && <StatusNotice tone="success" icon={false}>{successMessage}</StatusNotice>}
       <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-2">
         <div className="font-medium text-forest-800">{position.obligationTitle}</div>
         <div>
-          <p><MoneyValue amount={money(authorisedMax, currency)} size="md" /></p>
-          <p className="text-xs text-sand-500">Authorised maximum for this obligation</p>
+          <p>{authorisedMax != null ? <MoneyValue amount={money(authorisedMax, currency)} size="md" /> : 'Not shown'}</p>
+          <p className="text-xs text-sand-500">Authorised maximum for this obligation. A ceiling, not money that has moved.</p>
         </div>
-        {funded > 0 && (
-          <div className="pl-3 border-l-2 border-cream-300">
-            <div><MoneyValue amount={money(funded, currency)} size="sm" /> Funded / protected</div>
-            <div className="text-xs text-sand-500">Actually funded into this position so far</div>
-          </div>
-        )}
-        {readyToProgress > 0 && (
-          <div className="pl-3 border-l-2 border-forest-300">
-            <div><MoneyValue amount={money(readyToProgress, currency)} size="sm" /> <span className="text-forest-700 font-medium">Ready to progress</span></div>
-            <div className="text-xs text-sand-500">Funded, not yet progressed or released</div>
-            {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
-          </div>
-        )}
-        {progressed > 0 && (
-          <div className="text-xs text-sand-600">
-            <MoneyValue amount={money(progressed, currency)} size="sm" /> Progressed within SecurePay
-            {!position.providerSettlementCertified && ' (pending certified bank transfer -- never shown as Settled)'}
-          </div>
-        )}
-        {released > 0 && <div className="text-xs text-sand-600"><MoneyValue amount={money(released, currency)} size="sm" /> Released back to the funder(s)</div>}
+        <div className="pl-3 border-l-2 border-cream-300">
+          <div><MoneyValue amount={money(funded, currency)} size="sm" /> Funded</div>
+          <div className="text-xs text-sand-500">Funded into this position so far</div>
+        </div>
+        <div className="pl-3 border-l-2 border-forest-300">
+          <div><MoneyValue amount={money(readyToProgress, currency)} size="sm" /> Ready to progress</div>
+          <div className="text-xs text-sand-500">Funded and not yet progressed or returned</div>
+          {position.beneficiaryMaskedKsNumber && <div className="text-xs text-sand-600">{position.obligationDescription} → {position.beneficiaryMaskedKsNumber}</div>}
+        </div>
+        <div className="text-xs text-sand-600">
+          <MoneyValue amount={money(progressed, currency)} size="sm" /> Progressed within SecurePay
+          {/* providerSettlementCertified is a certification/capability gate (isInternalTransferCertified), NOT proof that this progressed amount was settled
+              by a provider or bank. It is deliberately never turned into settlement language for the amount. */}
+          <span className="block text-sand-500">SecurePay doesn’t show a bank or provider settlement for this progressed amount here.</span>
+        </div>
+        <div className="text-xs text-sand-600"><MoneyValue amount={money(returned, currency)} size="sm" /> Returned to the funder(s)<span className="block text-sand-500">Returning unused money is not a settlement.</span></div>
         <div className="text-xs text-sand-500">{position.closed ? 'Closed' : 'Open'}</div>
       </div>
-      {!position.closed && (
-        <>
-          <div className="flex gap-2">
-            <input value={fundAmount} onChange={e => onFundAmountChange(e.target.value)} placeholder="Amount to protect" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <Button onClick={onFund} disabled={loading || !fundAmount}>Add money</Button>
-          </div>
-          <div className="flex gap-2">
-            <input value={progressAmount} onChange={e => onProgressAmountChange(e.target.value)} placeholder="Amount to progress" type="number" className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-            <Button onClick={onProgress} disabled={loading || !progressAmount}>Progress to {position.beneficiaryMaskedKsNumber ?? 'beneficiary'}</Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={onReleaseUnused} disabled={loading}>Release unused money</Button>
-            {readyToProgress > 0 && (
-              <Button variant="secondary" onClick={onGetShareableLink} disabled={loading}>Get a shareable link</Button>
-            )}
-          </div>
-        </>
-      )}
-      {shareableLink && (
-        <p className="text-xs text-sand-600 break-all">Hosted link (opens the same real progress action): {shareableLink}</p>
-      )}
+      <p className="text-xs text-sand-500">Funding, progressing or returning unused money from here is temporarily unavailable until SecurePay can show that it is safely bound to the current Agreement version. Nothing above was changed by this screen.</p>
       <div className="flex gap-3">
         <Button variant="ghost" onClick={onRefresh} disabled={loading} className="text-xs">Refresh</Button>
         <Button variant="ghost" onClick={onLoadHistory} disabled={loading} className="text-xs">What happened</Button>
       </div>
+      {historyUnknown && <ErrorBanner message="What happened couldn’t be loaded. That doesn’t mean nothing did." />}
       {history && (
-        history.length === 0 ? <p className="text-xs text-sand-600">Nothing has happened yet.</p> : (
+        history.length === 0 ? <p className="text-xs text-sand-600">SecurePay shows nothing has happened here yet.</p> : (
           <ul className="text-xs text-sand-600 space-y-1">
             {history.map(entry => (
-              <li key={entry.eventId}>
-                {new Date(entry.occurredAt).toLocaleString()} — {transactionLabel(entry.type)} {money(entry.amountMinor, entry.currency)}
-              </li>
+              <li key={entry.eventId}>{new Date(entry.occurredAt).toLocaleString()} — {transactionLabel(entry.type)} {money(entry.amountMinor, entry.currency)}</li>
             ))}
           </ul>
         )
@@ -639,28 +526,38 @@ function AgreementMoneyPositionCard({
 
 /** Settlement destination: self-service register/replace via the caller's own KS-derived identity (Final Completion Phase 2, Section 7). */
 function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinationGateway }) {
-  const [current, setCurrent] = useState<SettlementDestinationResponse | null>(null);
-  const [history, setHistory] = useState<SettlementDestinationResponse[] | null>(null);
+  // null = not read yet. Current and history are independent facts (see settlementDestination.ts).
+  const [currentRead, setCurrentRead] = useState<CurrentRead | null>(null);
+  const [historyRead, setHistoryRead] = useState<HistoryRead | null>(null);
+  const current: SettlementDestinationResponse | null = currentRead?.state === 'found' ? currentRead.value : null;
   const [verification, setVerification] = useState<SettlementVerificationStatusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [accountKind, setAccountKind] = useState<ExternalDestinationAccountKind>('BANK');
   const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [beneficiaryName, setBeneficiaryName] = useState('');
+  // ONE explicit settlement currency drives current, history, register, replace and the post-success reload. Visible default KES; never a transport default.
+  const [currency, setCurrency] = useState('KES');
+  const currencyValid = /^[A-Za-z]{3}$/.test(currency);
+  const scope = currency.toUpperCase();
+  // One logical register/replace = one key (two for replace) + one exact request; a retry after an uncertain outcome re-sends the SAME keys.
+  const [attempts] = useState(() => ({ main: createAttemptStore(), verification: createAttemptStore() }));
+  const [uncertain, setUncertain] = useState(false);
 
+  const applyScope = (read: ScopeRead) => { setCurrentRead(read.current); setHistoryRead(read.history); };
   const load = async () => {
-    setLoading(true); setError(null); setNotFound(false); setVerification(null);
-    try {
-      const [currentDestination, destinationHistory] = await Promise.all([gateway.current(), gateway.history()]);
-      setCurrent(currentDestination);
-      setHistory(destinationHistory);
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 404) { setCurrent(null); setHistory([]); setNotFound(true); }
-      else setError(errorText(cause));
-    } finally { setLoading(false); }
+    if (!currencyValid) return;
+    setLoading(true); setError(null); setVerification(null);
+    applyScope(await readSettlementScope(gateway, scope));
+    setLoading(false);
+  };
+  /** Changing the currency changes the scope: facts read for the previous currency are cleared, never shown beside a different currency's form. */
+  const changeCurrency = (value: string) => {
+    if (uncertain) return; // the currency is part of the exact unresolved request
+    setCurrency(value.slice(0, 3));
+    setCurrentRead(null); setHistoryRead(null); setVerification(null); setError(null); setShowForm(false);
   };
   const checkVerification = async () => {
     if (!current) return;
@@ -670,23 +567,29 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
     finally { setLoading(false); }
   };
   const submit = async (mode: 'register' | 'replace') => {
-    if (!accountNumber || !beneficiaryName) return;
+    if (!accountNumber || !beneficiaryName || !currencyValid) return;
     setLoading(true); setError(null);
-    try {
-      const request = { destinationType: 'PRIMARY_SETTLEMENT' as const, currency: 'KES', accountKind, bankCode: accountKind === 'BANK' ? bankCode : null, accountNumber, beneficiaryName };
-      if (mode === 'register') setCurrent(await gateway.register(request));
-      else await gateway.replace(request);
-      setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode('');
-      await load();
-    } catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
+    const outcome = await submitDestination(gateway, attempts, mode, { accountKind, bankCode, accountNumber, beneficiaryName, currency });
+    if (outcome.kind === 'refused') setError(UNRESOLVED_ATTEMPT);
+    else if (outcome.kind === 'uncertain') { setUncertain(true); setError(`${UNCERTAIN_MONEY} Trying again sends the same request, so it can’t be recorded twice.`); }
+    else if (outcome.kind === 'rejected') { setUncertain(false); setError(errorText(outcome.error)); }
+    else {
+      setUncertain(false); setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode(''); setVerification(null);
+      applyScope(outcome.scope);
+    }
+    setLoading(false);
   };
 
   return (
     <SectionCard title="Where your money goes" description="The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
       {error && <ErrorBanner message={error} />}
-      <Button variant="secondary" onClick={() => void load()} disabled={loading}>Show my settlement destination</Button>
-      {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet.</p>}
+      <label className="block text-xs text-sand-600">Settlement currency
+        <input disabled={uncertain} value={currency} onChange={e => changeCurrency(e.target.value)} maxLength={3} autoComplete="off" aria-label="Settlement currency" className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-sm uppercase" />
+      </label>
+      {!currencyValid && <p className="text-xs text-sand-500">Enter a three-letter currency, for example KES or USD.</p>}
+      <Button variant="secondary" onClick={() => void load()} disabled={loading || uncertain || !currencyValid}>Show my {scope} settlement destination</Button>
+      {currentRead?.state === 'absent' && <p className="text-sm text-sand-600">No current {scope} settlement destination is registered.</p>}
+      {currentRead?.state === 'unavailable' && <ErrorBanner message="Current settlement destination couldn’t be confirmed." />}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
           <div className="font-medium text-forest-800">{current.maskedDestinationDisplay}</div>
@@ -695,30 +598,34 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
         </div>
       )}
       {verification && <div className="text-xs text-sand-600">Latest verification: {verification.verificationStatus} (<MoneyValue amount={money(verification.amountMinor, verification.currency)} size="sm" />)</div>}
-      {history && history.length > 0 && (
+      {historyRead?.state === 'unavailable' && <ErrorBanner message="Settlement destination history couldn’t be loaded." />}
+      {historyRead?.state === 'loaded' && historyRead.items.length > 0 && (
         <details className="text-xs text-sand-600">
-          <summary className="cursor-pointer">History ({history.length})</summary>
-          <ul className="mt-2 space-y-1">{history.map(item => <li key={item.destinationId}>{item.maskedDestinationDisplay} — {item.destinationStatus}</li>)}</ul>
+          <summary className="cursor-pointer">History ({historyRead.items.length})</summary>
+          <ul className="mt-2 space-y-1">{historyRead.items.map(item => <li key={item.destinationId}>{item.maskedDestinationDisplay} — {item.destinationStatus}</li>)}</ul>
         </details>
       )}
+      {currentRead?.state === 'unavailable' && <p className="text-xs text-sand-500">Registering or replacing a destination isn’t offered until the current one can be confirmed.</p>}
       {!showForm ? (
-        <Button variant="ghost" onClick={() => setShowForm(true)} className="text-xs">{current ? 'Replace destination' : 'Register a destination'}</Button>
+        (currentRead?.state === 'found' || currentRead?.state === 'absent') && <Button variant="ghost" onClick={() => setShowForm(true)} className="text-xs">{current ? 'Replace destination' : 'Register a destination'}</Button>
       ) : (
         <div className="space-y-2 rounded-xl border border-cream-200 p-3">
           <div className="flex gap-2 text-xs">
-            <button onClick={() => setAccountKind('BANK')} className={`rounded-full px-3 py-1 ${accountKind === 'BANK' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Bank</button>
-            <button onClick={() => setAccountKind('MOBILE_MONEY')} className={`rounded-full px-3 py-1 ${accountKind === 'MOBILE_MONEY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Mobile money</button>
+            <button disabled={uncertain} onClick={() => setAccountKind('BANK')} className={`rounded-full px-3 py-1 ${accountKind === 'BANK' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Bank</button>
+            <button disabled={uncertain} onClick={() => setAccountKind('MOBILE_MONEY')} className={`rounded-full px-3 py-1 ${accountKind === 'MOBILE_MONEY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Mobile money</button>
           </div>
           {accountKind === 'BANK' && (
-            <input value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+            <input disabled={uncertain} value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           )}
-          <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
-          <input value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input disabled={uncertain} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+          <input disabled={uncertain} value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
-            <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName}>
-              {current ? 'Replace' : 'Register'}
+            <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName || !currencyValid}>
+              {uncertain ? 'Try the same request again' : current ? 'Replace' : 'Register'}
             </Button>
-            <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            {uncertain
+              ? <p className="text-xs text-sand-600 self-center">This request is kept exactly as sent until SecurePay confirms the outcome.</p>
+              : <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>}
           </div>
         </div>
       )}

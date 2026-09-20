@@ -45,8 +45,9 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
   const locked = state.phase === 'uncertain' || busy; // the request being retried must not change under it
 
   const copyLink = async () => {
-    if (!state.issued) return;
-    try { await navigator.clipboard.writeText(state.issued.link); setCopy('copied'); } catch { setCopy('failed'); }
+    const link = state.issued?.link;
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); setCopy('copied'); } catch { setCopy('failed'); }
   };
 
   const list = state.list.status === 'ready' ? state.list.items : null;

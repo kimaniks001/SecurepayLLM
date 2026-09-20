@@ -61,12 +61,12 @@ export function BusinessCurrencyCapabilitySection({ gateway, onChanged }: { gate
       <SurfaceHeader title="Business currencies" description="A Business KS is not tied to one currency either. KES is its default; an authorized Business actor can activate others as the business needs them." />
       <SurfaceBody>
         {error && <StatusNotice tone="warning">{error}</StatusNotice>}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input
             value={businessKsNumber}
             onChange={e => setBusinessKsNumber(e.target.value)}
             placeholder="Business KS Number"
-            className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm"
+            className="min-w-0 flex-1 basis-40 rounded-xl border border-cream-200 px-3 py-2 text-sm"
           />
           <Button variant="secondary" onClick={() => void load()} disabled={loading || !businessKsNumber.trim()}>
             {loading ? 'Loading…' : 'Show currencies'}

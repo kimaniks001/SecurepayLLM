@@ -11,11 +11,9 @@ import type { MoneySessionGateway, MoneySessionViewResponse } from '../../api/se
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { notifyEmbedParent, resolveEmbedOrigin } from './embedContract';
+import { moneyText } from './amount';
 
-function money(minor: number | null, currency: string) {
-  if (minor == null) return '';
-  return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
-}
+function money(minor: number | null, currency: string) { return moneyText(minor, currency); }
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -46,7 +44,6 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const [view, setView] = useState<MoneySessionViewResponse | null>(null);
-  const [result, setResult] = useState<unknown>(null);
   const [cancelled, setCancelled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +54,7 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
   );
 
   useEffect(() => {
-    if (sessionState.status !== 'signed-in' || view || result) return;
+    if (sessionState.status !== 'signed-in' || view) return;
     setLoading(true); setError(null);
     gateway.resolve(token)
       .then(setView)
@@ -69,19 +66,6 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
   useEffect(() => {
     if (embedOrigin) notifyEmbedParent(embedOrigin, { type: 'securepay:ready', sessionId: token });
   }, [embedOrigin, token]);
-
-  const redeem = async () => {
-    setLoading(true); setError(null);
-    try {
-      const outcome = await gateway.redeem(token);
-      setResult(outcome);
-      notifyEmbedParent(embedOrigin, { type: 'securepay:completed', sessionId: token });
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const cancel = () => {
     setCancelled(true);
@@ -130,11 +114,6 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
             <p className="font-medium text-forest-800">Cancelled.</p>
             <p>Nothing was progressed.</p>
           </div>
-        ) : result ? (
-          <div className="text-sm text-sand-700 space-y-2">
-            <p className="font-medium text-forest-800">Done.</p>
-            <p>This link has now been used and cannot be used again.</p>
-          </div>
         ) : view ? (
           <>
             <div>
@@ -161,7 +140,9 @@ export function HostedMoneySessionExperience({ token, gateway, auth, session }: 
               <p className="text-xs text-sand-500">Progressed within SecurePay -- bank transfer pending certified execution, never shown as Settled.</p>
             )}
             <p className="text-sm text-sand-600">This link only ever does this one bounded action, and only once.</p>
-            <Button onClick={() => void redeem()} disabled={loading} className="w-full">Confirm</Button>
+            {/* WITHHELD: redeeming a link progresses funded Agreement Money. SecurePay gates that command by an environment guard no read
+                exposes and does not make it atomic against a concurrent Agreement version change, so it isn't offered here. */}
+            <p className="text-sm text-sand-700">Confirming this from a link is temporarily unavailable until SecurePay can show that this action can be safely carried out and bound to the current Agreement version. Nothing has been progressed.</p>
             {embedOrigin && (
               <Button variant="secondary" onClick={cancel} disabled={loading} className="w-full">Cancel</Button>
             )}

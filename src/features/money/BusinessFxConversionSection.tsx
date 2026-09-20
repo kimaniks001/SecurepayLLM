@@ -6,10 +6,10 @@ import { Surface, SurfaceHeader, SurfaceBody } from '../../components/dna/Surfac
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { Button } from '../../components/dna/Button';
 import { MoneyValue } from '../../components/dna/MoneyValue';
+import { moneyText, parseMinorUnits, AMOUNT_PROBLEM } from './amount';
+import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 
-function money(minor: number, currency: string) {
-  return `${currency} ${(minor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
-}
+function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -49,15 +49,23 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
     finally { setLoading(false); }
   };
 
+  const [attempts] = useState(() => createAttemptStore());
+  const [uncertain, setUncertain] = useState(false);
   const submit = async () => {
     if (!loadedFor || !sourceId || !targetId || !amount) return;
+    const parsed = parseMinorUnits(amount);
+    if (!parsed.ok) { setError(AMOUNT_PROBLEM[parsed.reason]); return; }
     setLoading(true); setError(null); setResult(null);
+    const request = { sourceAccountMappingId: sourceId, targetAccountMappingId: targetId, operation, amountMinor: parsed.minor };
     try {
-      setResult(await fxApplicationGateway.create(loadedFor, {
-        sourceAccountMappingId: sourceId, targetAccountMappingId: targetId, operation,
-        amountMinor: Math.round(Number(amount) * 100),
-      }));
-    } catch (cause) { setError(errorText(cause)); }
+      const attempt = attempts.keyFor(JSON.stringify([loadedFor, request]));
+      if (!attempt.ok) { setError(UNRESOLVED_ATTEMPT); setLoading(false); return; }
+      setResult(await fxApplicationGateway.create(loadedFor, request, attempt.key));
+      attempts.settle(); setUncertain(false);
+    } catch (cause) {
+      if (isUncertainFinancialError(cause)) { setUncertain(true); setError(`${UNCERTAIN_MONEY} Trying again sends the same request, so it can’t be recorded twice.`); }
+      else { attempts.settle(); setUncertain(false); setError(errorText(cause)); }
+    }
     finally { setLoading(false); }
   };
 
@@ -67,12 +75,12 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
       <SurfaceBody>
         {error && <StatusNotice tone="warning">{error}</StatusNotice>}
         {!positions ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               value={businessKsNumber}
               onChange={e => setBusinessKsNumber(e.target.value)}
               placeholder="Business KS Number"
-              className="flex-1 rounded-xl border border-cream-200 px-3 py-2 text-sm"
+              className="min-w-0 flex-1 basis-40 rounded-xl border border-cream-200 px-3 py-2 text-sm"
             />
             <Button variant="secondary" onClick={() => void load()} disabled={loading || !businessKsNumber.trim()}>
               {loading ? 'Loading…' : 'Show active positions'}
@@ -95,24 +103,24 @@ export function BusinessFxConversionSection({ capabilityGateway, fxApplicationGa
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <select value={sourceId} onChange={e => setSourceId(e.target.value)} className="rounded-xl border border-cream-200 px-3 py-2 text-sm">
+              <select value={sourceId} disabled={uncertain} onChange={e => setSourceId(e.target.value)} className="rounded-xl border border-cream-200 px-3 py-2 text-sm">
                 <option value="">From</option>
                 {positions.map(p => <option key={p.currency} value={p.regulatedAccountMappingId ?? ''}>{p.currency}</option>)}
               </select>
-              <select value={targetId} onChange={e => setTargetId(e.target.value)} className="rounded-xl border border-cream-200 px-3 py-2 text-sm">
+              <select value={targetId} disabled={uncertain} onChange={e => setTargetId(e.target.value)} className="rounded-xl border border-cream-200 px-3 py-2 text-sm">
                 <option value="">To</option>
                 {positions.map(p => <option key={p.currency} value={p.regulatedAccountMappingId ?? ''}>{p.currency}</option>)}
               </select>
             </div>
             <div className="flex gap-2 text-xs">
-              <button onClick={() => setOperation('SELL')} className={`rounded-full px-3 py-1 ${operation === 'SELL' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Sell</button>
-              <button onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
+              <button disabled={uncertain} onClick={() => setOperation('SELL')} className={`rounded-full px-3 py-1 ${operation === 'SELL' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Sell</button>
+              <button disabled={uncertain} onClick={() => setOperation('BUY')} className={`rounded-full px-3 py-1 ${operation === 'BUY' ? 'bg-forest-700 text-white' : 'bg-cream-100 text-sand-700'}`}>Buy</button>
             </div>
-            <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount" type="number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
+            <input value={amount} disabled={uncertain} onChange={e => setAmount(e.target.value)} placeholder="Amount" inputMode="decimal" autoComplete="off" aria-label="Amount" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
             {/* Deep-review correction: the original wording claimed the rate is "set when the
                 provider approves the application," which overstates what this contract proves. */}
             <p className="text-xs text-sand-500">SecurePay does not show a rate before you apply. The confirmed rate will come from the provider when it becomes available.</p>
-            <Button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount}>Convert</Button>
+            <Button onClick={() => void submit()} disabled={loading || !sourceId || !targetId || !amount}>{uncertain ? 'Try the same request again' : 'Convert'}</Button>
           </>
         )}
       </SurfaceBody>

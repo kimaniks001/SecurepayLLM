@@ -30,7 +30,8 @@ export function ReconfirmPanel({ controller, amendments, detail, standing }: { c
   const produced = am.list.status === 'ready' && current ? am.list.items.find(a => a.appliedVersionId === current.versionId) ?? null : null;
   useEffect(() => { if (standing) void amendments.load(detail.overview.status); }, [amendments, standing, detail.overview.status]);
   useEffect(() => { if (produced) void amendments.loadDiff(produced.id); }, [amendments, produced?.id]);
-  const diff = produced && am.diffs[produced.id]?.status === 'ready' ? trustedDiff((am.diffs[produced.id] as { diff: never }).diff, detail.overview.currency || null) : null;
+  const producedDiff = produced ? am.diffs[produced.id] : undefined;
+  const diff = producedDiff?.status === 'ready' ? trustedDiff(producedDiff.diff, detail.overview.currency || null) : null;
   const diffTried = !!produced && (am.diffs[produced.id]?.status === 'ready' || am.diffs[produced.id]?.status === 'error');
   const number = standing?.currentVersionNumber ?? null;
   const first = standing?.confirmedVersionNumber == null;

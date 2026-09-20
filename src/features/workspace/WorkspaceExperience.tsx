@@ -3,8 +3,8 @@ import { NavBar } from '../../components/NavBar';
 import { SignedInHome } from '../../components/SignedInHome';
 import { AgreementHub } from '../../components/AgreementHub';
 import { AgreementDetail } from '../../components/AgreementDetail';
-import { MoneyWorkspace } from '../../components/MoneyWorkspace';
-import { MoneyUnavailableState } from '../../components/MoneyUnavailableState';
+import { MoneyDoorway } from '../money/MoneyDoorway';
+import { openMoneyFor } from '../money/handoff';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { InvitePanel } from '../invitations/InvitePanel';
@@ -23,7 +23,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
@@ -260,7 +260,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           viewedVersion={state.selectedStatus === 'change_requested' ? 'a previous version' : undefined}
           onViewCurrent={state.selectedStatus === 'change_requested' ? () => void controller.refreshDetail() : undefined}
           onRaiseIssue={undefined}
-          onOpenMoney={() => void controller.openMoney(boltDetail.id)}
+          onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
           progress={progress}
@@ -270,7 +270,7 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
           tags={tagViews}
           onAddTag={label => void controller.addTag(label)}
           onRemoveTag={tagId => void controller.removeTag(tagId)}
-          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => void controller.openMoney(boltDetail.id)} />}
+          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
           peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}
@@ -278,28 +278,18 @@ export function WorkspaceExperience({ gateway, agentGateway, agentController, in
       );
     }
   } else {
-    if (state.money.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.money.error))} onChoice={() => controller.backFromMoney()} /></div>;
-    else if (state.money.status !== 'ready') body = <LoadingNotice text="Loading Money…" />;
-    else if (state.money.data.kind === 'unavailable') {
-      body = <div className="p-6"><MoneyUnavailableState message={state.money.data.message} onViewAgreement={() => controller.backFromMoney()} /></div>;
-    } else {
-      const context = state.detail.status === 'ready' ? state.detail.data.dto : null;
-      const { readiness, outstandingReasons, records, fundActionAvailable } = state.money.data;
-      const detail = moneyDetailView({
-        agreementId: state.selectedAgreementId ?? '',
-        agreementTitle: context?.overview.title ?? 'This agreement',
-        agreementVersion: context?.currentVersion ? `v${context.currentVersion.versionNumber}` : '—',
-        currency: context?.overview.currency ?? '', amountMinor: context?.overview.proposedAmountMinor ?? null,
-        readiness, outstandingReasons, moneyRecordCount: records.length, records, fundActionAvailable,
-      });
-      body = (
-        <MoneyWorkspace
-          detail={detail}
-          onBack={() => controller.backFromMoney()}
-          fundingFlowEnabled={false}
-        />
-      );
-    }
+    // Phase 8: one Money experience. This view is only a doorway; the canonical Money screen (#/money) owns funding authority, Payment Ready,
+    // money records, release and settlement truth. Nothing is duplicated or decided here.
+    const context = state.detail.status === 'ready' ? state.detail.data.dto : null;
+    body = (
+      <MoneyDoorway
+        title={context?.overview.title ?? 'This Agreement'}
+        versionLabel={context?.currentVersion ? `version ${context.currentVersion.versionNumber}` : null}
+        onOpen={() => openMoneyFor({ agreementId: state.selectedAgreementId ?? '', title: context?.overview.title ?? 'This Agreement', versionLabel: context?.currentVersion ? `version ${context.currentVersion.versionNumber}` : null, currentVersionId: context?.currentVersion?.versionId ?? null })}
+        onBack={() => controller.backFromMoney()}
+        canOpen={!!state.selectedAgreementId}
+      />
+    );
   }
 
   return (

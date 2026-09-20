@@ -7,12 +7,6 @@ import type {
   AgreementMoneyTransactionResponse,
 } from './dto';
 
-function freshIdempotencyKey(): string {
-  // A request-safety key only (so a retried click can never double-post) -- never a financial
-  // reference or receipt number; the backend alone decides the real journalId/exerciseEventId.
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random()}`;
-}
-
 /**
  * Final Completion Phase 2 completion pass — Section 1: an Agreement is not permanently one
  * "Agreement Money" position. `list` enumerates every MONETARY obligation's own independent
@@ -20,6 +14,12 @@ function freshIdempotencyKey(): string {
  * authorised maximum, currency and beneficiary from that obligation's own persisted definition,
  * and requires the caller be that obligation's own authorised payer (open/fund/release) or a
  * bounded delegate (exercise) before doing anything (see AgreementFundedAuthorityOrchestrationService).
+ */
+/**
+ * NOTE: in production the fund / exercise / release / open commands are NOT wired to any control (see docs/UI_COMPLETION_PHASE8_MONEY.md): the backend
+ * gates them by an environment guard no read exposes and does not make them atomic against a concurrent version change. Idempotency keys are
+ * caller-supplied so no code path can mint a fresh key for a retry. An idempotency key is a request-safety key only -- never a financial
+ * reference or receipt number.
  */
 export function createMoneyAuthorityGateway(http: HttpClient) {
   const base = (agreementId: string, obligationId: string) =>
@@ -31,17 +31,17 @@ export function createMoneyAuthorityGateway(http: HttpClient) {
       http.request<AgreementFundedAuthorityStatusResponse>(base(agreementId, obligationId), { auth: 'required' }),
     open: (agreementId: string, obligationId: string) =>
       http.request<AgreementFundedAuthorityStatusResponse>(base(agreementId, obligationId), { method: 'POST', auth: 'required' }),
-    fund: (agreementId: string, obligationId: string, amountMinor: number) =>
+    fund: (agreementId: string, obligationId: string, amountMinor: number, idempotencyKey: string) =>
       http.request<AgreementFundedAuthorityStatusResponse>(`${base(agreementId, obligationId)}/fund`, {
-        method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': freshIdempotencyKey() },
+        method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': idempotencyKey },
       }),
-    exercise: (agreementId: string, obligationId: string, amountMinor: number) =>
+    exercise: (agreementId: string, obligationId: string, amountMinor: number, idempotencyKey: string) =>
       http.request<AgreementFundedAuthorityExerciseResponse>(`${base(agreementId, obligationId)}/exercise`, {
-        method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': freshIdempotencyKey() },
+        method: 'POST', auth: 'required', body: { amountMinor }, headers: { 'Idempotency-Key': idempotencyKey },
       }),
-    release: (agreementId: string, obligationId: string) =>
+    release: (agreementId: string, obligationId: string, idempotencyKey: string) =>
       http.request<AgreementFundedAuthorityReleaseResponse>(`${base(agreementId, obligationId)}/release`, {
-        method: 'POST', auth: 'required', headers: { 'Idempotency-Key': freshIdempotencyKey() },
+        method: 'POST', auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
       }),
     transactions: (agreementId: string, obligationId: string) =>
       http.request<AgreementMoneyTransactionResponse[]>(`${base(agreementId, obligationId)}/transactions`, { auth: 'required' }),
