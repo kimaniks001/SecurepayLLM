@@ -362,6 +362,20 @@ language; Developer's exclusion of the application-authenticated endpoints and a
 hardcoded secret; no local-only durable association; no invented score/ranking metric; the NavBar
 Account fix and the five new `AppView` destinations; no fixture-data import into any new route.
 
+**Final correction pass** — baseline (this branch, before the correction) — `npm run typecheck`/`lint`
+clean, `node --test tests/*.mjs` 388 passed / 0 failed, `npm run build` succeeds. After the
+correction — `npm run typecheck`/`lint` clean, `node --test tests/*.mjs` **406 passed** (388 + 18 new
+focused tests in `tests/life-business.test.mjs`), **0 failed** — no previously-passing test broken.
+`npm run build` succeeds. The 18 new tests cover: the removed role-assignment form and its backing
+state (D2, F2); the corrected acting-capacity/activation/Developer-ownership copy, including that no
+Developer file reads `authoritySummary` and no file implies a global "Business mode" (J1–J5); Developer
+one-time-secret hygiene — clearing on leaving Developer, on opening a different application, and on
+revocation, with suspend/reactivate explicitly proven *not* to clear a still-valid secret, plus no
+storage/URL reference at all (K1–K6); Recovery's sensitive state clearing on every navigation away,
+including after a successful reset (L1–L4); Account's fail-closed Business-authority rendering and its
+controller's immediate, unconditional `authoritySummary` request (M1–M2); and the corrected Vision/
+Project doctrine wording (N).
+
 ## Q. Deferred backend/product gaps
 
 - **Participant/admin role-management contract mismatch**: the backend's own maker-checker role-
@@ -418,6 +432,9 @@ Account fix and the five new `AppView` destinations; no fixture-data import into
   `src/api/securepay/index.ts`, `src/api/securepay/auth/index.ts`, `src/components/NavBar.tsx`,
   `src/features/agent/AgentExperience.tsx`, `src/features/projects/ProjectsExperience.tsx`,
   `src/features/visionboard/VisionBoardExperience.tsx`, `src/types.ts`.
-- Commit: `df8b1ab` — "Phase 5: Life & Business World -- Account, Settings, Recovery, Business, Developer/Connect"
-- Tests: see Tests (P) above — 388/388 passing, up from a 368/0-failing baseline.
-- PR: #25 — opened as draft/open, unmerged — programme controller performs final review and merge.
+- Commits: `df8b1ab` — "Phase 5: Life & Business World -- Account, Settings, Recovery, Business,
+  Developer/Connect"; `0c30dbe` — doc git-report finalization; `8916305` — "Phase 5 final correction:
+  Business/Developer authority truth + secret hygiene" (this pass).
+- Tests: see Tests (P) above — 406/406 passing, up from a 368/0-failing baseline.
+- PR: #25 — updated in place, still draft/open, unmerged — programme controller performs final review
+  and merge.
