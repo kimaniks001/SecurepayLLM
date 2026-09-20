@@ -33,10 +33,12 @@ import type { BusinessFxApplicationGateway } from '../../api/securepay/business-
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { PaymentReadyPanel, FundingPanel, ActivityPanel, ReleasePanel } from './AgreementMoneyPanels';
-import { peekMoneyHandoff, clearMoneyHandoff, resolveHandoffContext, type MoneyHandoff } from './handoff';
+import { peekMoneyHandoff, clearMoneyHandoff, type MoneyHandoff } from './handoff';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
-import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
+import { createAttemptStore, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
+import { resolveSelection, type SelectionTarget } from './selection';
+import { readSettlementScope, submitDestination, type ScopeRead } from './settlementDestination';
 import { CurrencyCapabilitySection } from './CurrencyCapabilitySection';
 import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivationPrompt';
 import { FxConversionSection } from './FxConversionSection';
@@ -289,7 +291,7 @@ function ErrorBanner({ message }: { message: string }) {
  * Agreement Money. Everything here is READ. Funding, opening/funding/progressing/returning a position, and hosted links are withheld: SecurePay gates those
  * commands behind an environment check no read exposes and does not make them conditional on the current Agreement version, so this screen can't prove that
  * pressing one is authorised, recoverable, or bound to the version the person is looking at (docs/UI_COMPLETION_PHASE8_MONEY.md).
- * Amount authority: a position's figures are the backend's per-obligation position; the Agreement's agreed amount and Payment Ready's evaluated amount
+ * Amount authority: a position's figures are the backend's per-obligation position; the Agreement summary amount and Payment Ready's evaluated amount
  * are separate, labelled sources and are never summed or reconciled here.
  */
 function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGateway, paymentReleaseGateway, paymentIntentGateway, currencyCapabilityGateway, initialAgreement, handoff }: {
@@ -303,7 +305,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
   handoff?: MoneyHandoff | null;
 }) {
   const [agreements, setAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
-  const [selectedAgreement, setSelectedAgreement] = useState<CurrentUserAgreementSummaryResponse | null>(null);
+  const [selectedAgreement, setSelectedAgreement] = useState<SelectionTarget | null>(null);
   const [context, setContext] = useState<string | null>(null);
   const [contextNotice, setContextNotice] = useState<string | null>(null);
   // The current version id from a FRESH read at selection time (never from the cached picker list). null = couldn't be established.
@@ -331,41 +333,34 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
     catch { setPositions(null); setPositionsUnknown(true); return null; }
   };
 
-  const selectAgreement = async (picked: CurrentUserAgreementSummaryResponse, label?: string | null) => {
-    // The picker list can be stale (an amendment may have made a newer version current). Re-read the summary now; if that fails the current
-    // version is simply not established, and version-dependent labels fall back to neutral wording rather than guessing.
-    let agreement = picked;
-    setFreshVersionId(null);
-    try {
-      const fresh = (await agreementGateway.currentUserAgreements()).items.find(a => a.agreementId === picked.agreementId);
-      if (fresh) { agreement = fresh; setFreshVersionId(fresh.currentAgreementVersionId ?? null); }
-    } catch { /* version stays unestablished */ }
-    setSelectedAgreement(agreement);
-    setContext(label ?? agreement.title);
+  /**
+   * Selecting an Agreement ALWAYS re-reads it by id (`GET /agreements/{id}/detail`): an exact, authorised read that returns the current version. The paginated
+   * `/me/agreements` list is only the picker's source -- it is never searched to establish a version or to decide an Agreement "can't be found" (an Agreement can
+   * be fully accessible yet off page 1). If the exact read fails, nothing is claimed about access; version-dependent presentation fails closed (neutral wording).
+   */
+  const selectAgreement = async (target: SelectionTarget, source?: MoneyHandoff | null) => {
+    setFreshVersionId(null); setContextNotice(null);
+    const { chosen, label, notice, versionId } = await resolveSelection(agreementGateway, target, source);
+    setFreshVersionId(versionId);
+    setSelectedAgreement(chosen); setContext(label); setContextNotice(notice);
     setPositions(null); setSelectedObligationId(null); setHistory(null); setHistoryUnknown(false);
     setLoading(true); setError(null);
-    const list = await readPositions(agreement.agreementId);
+    const list = await readPositions(chosen.agreementId);
     if (list && list.length === 1) setSelectedObligationId(list[0].obligationId);
     setLoading(false);
   };
+  const pick = (a: CurrentUserAgreementSummaryResponse) => selectAgreement({ agreementId: a.agreementId, title: a.title, currency: a.currency, summaryAmountMinor: a.proposedAmountMinor });
 
   useEffect(() => {
-    if (initialAgreement) void selectAgreement(initialAgreement);
+    if (initialAgreement) void pick(initialAgreement);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAgreement?.agreementId]);
 
-  // Opening from an Agreement: find that Agreement among the person's own and open on it with its context. If it can't be found, say so and show the picker.
+  // Opening from an Agreement: the in-memory handoff names the Agreement; the exact Detail read verifies access and the current version. The picker list is loaded
+  // only as a convenience for "choose a different Agreement".
   useEffect(() => {
     if (!handoff) return;
-    let live = true;
-    void (async () => {
-      const items = await loadAgreements();
-      if (!live || !items) return;
-      const match = items.find(a => a.agreementId === handoff.agreementId);
-      if (match) { const resolved = resolveHandoffContext(handoff, { title: match.title, currentAgreementVersionId: match.currentAgreementVersionId }); setContextNotice(resolved.notice); await selectAgreement(match, resolved.context); }
-      else setError('SecurePay couldn’t find that Agreement among the ones you can see. Choose one below.');
-    })();
-    return () => { live = false; };
+    void selectAgreement({ agreementId: handoff.agreementId, title: handoff.title, currency: null, summaryAmountMinor: null }, handoff);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff?.agreementId]);
 
@@ -389,7 +384,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
           <ul className="space-y-2">
             {agreements?.map(agreement => (
               <li key={agreement.agreementId}>
-                <button onClick={() => void selectAgreement(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
+                <button onClick={() => void pick(agreement)} className="w-full text-left rounded-xl border border-cream-200 p-3 hover:border-forest-200 hover:bg-cream-50">
                   <div className="font-medium text-forest-800">{agreement.title}</div>
                   <div className="text-xs text-sand-600">{agreement.purpose}{agreement.counterparty?.ksNumber ? ` · ${agreement.counterparty.ksNumber}` : ''}</div>
                 </button>
@@ -401,11 +396,11 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
         <div className="space-y-3">
           <Button variant="ghost" onClick={() => { setSelectedAgreement(null); setPositions(null); setSelectedObligationId(null); setContext(null); if (!agreements) void loadAgreements(); }} className="text-xs">← Choose a different Agreement</Button>
           {contextNotice && <StatusNotice tone="warning">{contextNotice}</StatusNotice>}
-          <div className="text-sm text-forest-800 font-medium" data-testid="money-context">{context ?? selectedAgreement.title} <span className="text-xs text-sand-500">({selectedAgreement.currency})</span></div>
+          <div className="text-sm text-forest-800 font-medium" data-testid="money-context">{context ?? selectedAgreement.title} {selectedAgreement.currency && <span className="text-xs text-sand-500">({selectedAgreement.currency})</span>}</div>
 
-          <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />
+          {selectedAgreement.currency && <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />}
 
-          <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.proposedAmountMinor} agreementCurrency={selectedAgreement.currency} />
+          <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.summaryAmountMinor} agreementCurrency={selectedAgreement.currency ?? ''} />
           <FundingPanel gateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
 
           <div className="space-y-2">
@@ -455,7 +450,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
 /**
  * Distinct money states, each a direct backend field and never a client sum: Authorised maximum (a ceiling, not money), Funded (fundedTotalMinor),
  * Ready to progress (remainingFundedMinor), Progressed (exercisedOrSettledMinor), Returned to funder(s) (releasedTotalMinor). "Returned" is not a
- * settlement; "Progressed" is never "Settled" while providerSettlementCertified is false. Payment Release is a separate lifecycle (see ReleasePanel).
+ * settlement; "Progressed" is never "Settled": providerSettlementCertified is a certification gate, not transaction-specific settlement evidence in either boolean state. Payment Release is a separate lifecycle (see ReleasePanel).
  */
 export function AgreementMoneyPositionCard({ position, loading, onRefresh, history, historyUnknown, onLoadHistory }: {
   position: AgreementFundedAuthorityStatusResponse;
@@ -542,21 +537,27 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [beneficiaryName, setBeneficiaryName] = useState('');
-  const [currency, setCurrency] = useState('');
+  // ONE explicit settlement currency drives current, history, register, replace and the post-success reload. Visible default KES; never a transport default.
+  const [currency, setCurrency] = useState('KES');
+  const currencyValid = /^[A-Za-z]{3}$/.test(currency);
+  const scope = currency.toUpperCase();
   // One logical register/replace = one key (two for replace) + one exact request; a retry after an uncertain outcome re-sends the SAME keys.
   const [attempts] = useState(() => ({ main: createAttemptStore(), verification: createAttemptStore() }));
   const [uncertain, setUncertain] = useState(false);
 
+  const applyScope = (read: ScopeRead) => { setCurrent(read.current); setHistory(read.history); setNotFound(read.notFound); };
   const load = async () => {
+    if (!currencyValid) return;
     setLoading(true); setError(null); setNotFound(false); setVerification(null);
-    try {
-      const [currentDestination, destinationHistory] = await Promise.all([gateway.current(), gateway.history()]);
-      setCurrent(currentDestination);
-      setHistory(destinationHistory);
-    } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 404) { setCurrent(null); setHistory([]); setNotFound(true); }
-      else setError(errorText(cause));
-    } finally { setLoading(false); }
+    try { applyScope(await readSettlementScope(gateway, scope)); }
+    catch (cause) { setError(errorText(cause)); }
+    finally { setLoading(false); }
+  };
+  /** Changing the currency changes the scope: facts read for the previous currency are cleared, never shown beside a different currency's form. */
+  const changeCurrency = (value: string) => {
+    if (uncertain) return; // the currency is part of the exact unresolved request
+    setCurrency(value.slice(0, 3));
+    setCurrent(null); setHistory(null); setVerification(null); setNotFound(false); setError(null); setShowForm(false);
   };
   const checkVerification = async () => {
     if (!current) return;
@@ -566,30 +567,28 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
     finally { setLoading(false); }
   };
   const submit = async (mode: 'register' | 'replace') => {
-    if (!accountNumber || !beneficiaryName || !/^[A-Za-z]{3}$/.test(currency)) return;
+    if (!accountNumber || !beneficiaryName || !currencyValid) return;
     setLoading(true); setError(null);
-    const request = { destinationType: 'PRIMARY_SETTLEMENT' as const, currency: currency.toUpperCase(), accountKind, bankCode: accountKind === 'BANK' ? bankCode : null, accountNumber, beneficiaryName };
-    const signature = `${mode}:${JSON.stringify(request)}`;
-    try {
-      const main = attempts.main.keyFor(signature);
-      const verify = attempts.verification.keyFor(signature);
-      if (!main.ok || !verify.ok) { setError(UNRESOLVED_ATTEMPT); setLoading(false); return; }
-      if (mode === 'register') setCurrent(await gateway.register(request, main.key));
-      else await gateway.replace(request, main.key, verify.key);
-      attempts.main.settle(); attempts.verification.settle(); setUncertain(false);
-      setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode(''); setCurrency('');
-      await load();
-    } catch (cause) {
-      if (isUncertainFinancialError(cause)) { setUncertain(true); setError(`${UNCERTAIN_MONEY} Trying again sends the same request, so it can’t be recorded twice.`); }
-      else { attempts.main.settle(); attempts.verification.settle(); setUncertain(false); setError(errorText(cause)); }
-    } finally { setLoading(false); }
+    const outcome = await submitDestination(gateway, attempts, mode, { accountKind, bankCode, accountNumber, beneficiaryName, currency });
+    if (outcome.kind === 'refused') setError(UNRESOLVED_ATTEMPT);
+    else if (outcome.kind === 'uncertain') { setUncertain(true); setError(`${UNCERTAIN_MONEY} Trying again sends the same request, so it can’t be recorded twice.`); }
+    else if (outcome.kind === 'rejected') { setUncertain(false); setError(errorText(outcome.error)); }
+    else {
+      setUncertain(false); setShowForm(false); setAccountNumber(''); setBeneficiaryName(''); setBankCode(''); setVerification(null);
+      if (outcome.scope) applyScope(outcome.scope); else setError('Your destination was saved, but SecurePay couldn’t refresh it just now. Use “Show my settlement destination” to check.');
+    }
+    setLoading(false);
   };
 
   return (
     <SectionCard title="Where your money goes" description="The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
       {error && <ErrorBanner message={error} />}
-      <Button variant="secondary" onClick={() => void load()} disabled={loading || uncertain}>Show my settlement destination</Button>
-      {notFound && <p className="text-sm text-sand-600">No settlement destination is registered yet.</p>}
+      <label className="block text-xs text-sand-600">Settlement currency
+        <input disabled={uncertain} value={currency} onChange={e => changeCurrency(e.target.value)} maxLength={3} autoComplete="off" aria-label="Settlement currency" className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-sm uppercase" />
+      </label>
+      {!currencyValid && <p className="text-xs text-sand-500">Enter a three-letter currency, for example KES or USD.</p>}
+      <Button variant="secondary" onClick={() => void load()} disabled={loading || uncertain || !currencyValid}>Show my {scope} settlement destination</Button>
+      {notFound && <p className="text-sm text-sand-600">No {scope} settlement destination is registered yet.</p>}
       {current && (
         <div className="rounded-xl bg-cream-50 p-3 text-sm text-sand-700 space-y-1">
           <div className="font-medium text-forest-800">{current.maskedDestinationDisplay}</div>
@@ -615,11 +614,10 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
           {accountKind === 'BANK' && (
             <input disabled={uncertain} value={bankCode} onChange={e => setBankCode(e.target.value)} placeholder="Bank code" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           )}
-          <input disabled={uncertain} value={currency} onChange={e => setCurrency(e.target.value)} placeholder="Currency (for example KES)" maxLength={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <input disabled={uncertain} value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <input disabled={uncertain} value={beneficiaryName} onChange={e => setBeneficiaryName(e.target.value)} placeholder="Name on the account" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-sm" />
           <div className="flex gap-2">
-            <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName || !/^[A-Za-z]{3}$/.test(currency)}>
+            <Button onClick={() => void submit(current ? 'replace' : 'register')} disabled={loading || !accountNumber || !beneficiaryName || !currencyValid}>
               {uncertain ? 'Try the same request again' : current ? 'Replace' : 'Register'}
             </Button>
             {uncertain

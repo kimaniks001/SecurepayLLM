@@ -14,9 +14,9 @@ import type {
  */
 export function createSettlementDestinationGateway(http: HttpClient) {
   return {
-    current: (currency = 'KES') =>
+    current: (currency: string) =>
       http.request<SettlementDestinationResponse>(`/api/v1/me/settlement-destinations/current?currency=${segment(currency)}`, { auth: 'required' }),
-    history: (currency = 'KES') =>
+    history: (currency: string) =>
       http.request<SettlementDestinationResponse[]>(`/api/v1/me/settlement-destinations/history?currency=${segment(currency)}`, { auth: 'required' }),
     verificationStatus: (destinationId: string) =>
       http.request<SettlementVerificationStatusResponse>(`/api/v1/me/settlement-destinations/${segment(destinationId)}/verification-status`, { auth: 'required' }),

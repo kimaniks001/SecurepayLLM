@@ -10,6 +10,8 @@ export * from './src/features/money/amount';
 export * from './src/features/money/attempt';
 export * from './src/features/money/display';
 export * from './src/features/money/handoff';
+export * from './src/features/money/selection';
+export * from './src/features/money/settlementDestination';
 export { MONEY_AUTHENTICATED_METHODS } from './src/api/securepay/money-refresh';
 export { MoneyDoorway } from './src/features/money/MoneyDoorway';
 export { AgreementMoneyPositionCard } from './src/features/money/MoneyExperience';
@@ -100,7 +102,7 @@ test('every attempt-store caller refuses to send when keyFor is refused', async 
     assert.match(s, /if \(!attempt\.ok\) \{ setError\(UNRESOLVED_ATTEMPT\)/, f);
   }
   const exp = await src('src/features/money/MoneyExperience.tsx');
-  assert.match(exp, /if \(!main\.ok \|\| !verify\.ok\) \{ setError\(UNRESOLVED_ATTEMPT\)/);
+  assert.match(await src('src/features/money/settlementDestination.ts'), /if \(!main\.ok \|\| !verify\.ok\) return \{ kind: 'refused' \}/);
 });
 
 test('while uncertain, EVERY request-defining control is frozen (personal FX, Business FX, settlement destination)', async () => {
@@ -121,7 +123,8 @@ test('while uncertain, EVERY request-defining control is frozen (personal FX, Bu
   }
   // no normal Cancel path that abandons an unresolved attempt, and no reloading `current` (which flips register/replace)
   assert.match(form, /uncertain\s*\n?\s*\? <p[^>]*>This request is kept exactly as sent[\s\S]{0,120}: <Button variant="ghost" onClick=\{\(\) => setShowForm\(false\)\}>Cancel/);
-  assert.match(form, /disabled=\{loading \|\| uncertain\}>Show my settlement destination/);
+  assert.match(form, /disabled=\{loading \|\| uncertain \|\| !currencyValid\}>Show my \{scope\} settlement destination/);
+  assert.match(form, /if \(uncertain\) return; \/\/ the currency is part of the exact unresolved request/);
 });
 
 test('gateways never mint keys: every Money mutation takes a caller-supplied Idempotency-Key', async () => {
@@ -244,7 +247,8 @@ test('hosted Money: redeem is withheld and says nothing was progressed; no raw i
 
 test('settlement-destination register/replace use stable keys per logical attempt, and no hardcoded currency', async () => {
   const exp = await src('src/features/money/MoneyExperience.tsx');
-  assert.match(exp, /attempts\.main\.keyFor\(signature\)/);
+  const mod = await src('src/features/money/settlementDestination.ts');
+  assert.match(mod, /attempts\.main\.keyFor\(signature\)/);
   assert.match(exp, /Try the same request again/);
   assert.doesNotMatch(exp, /currency: 'KES'/);
 });
@@ -289,7 +293,92 @@ test('release instructions are classified current vs earlier by Agreement versio
 
 test('the selected Agreement is re-read at selection time; the release scope never uses the cached picker list', async () => {
   const exp = await src('src/features/money/MoneyExperience.tsx');
-  assert.match(exp, /setFreshVersionId\(fresh\.currentAgreementVersionId \?\? null\)/);
+  assert.match(exp, /setFreshVersionId\(versionId\)/);
   assert.match(exp, /currentVersionId=\{freshVersionId\}/);
   assert.doesNotMatch(exp, /currentVersionId=\{selectedAgreement\.currentAgreementVersionId\}/);
+});
+
+// ---- Exact Agreement read (not a page-1 search)
+const agr = (id, versionId, title = 'Kitchen renovation') => ({ overview: { agreementId: id, title, currency: 'KES', proposedAmountMinor: '100000' }, currentVersion: versionId ? { versionId, versionNumber: 2 } : null });
+const handoffOf = (id, versionId) => ({ agreementId: id, title: 'Kitchen renovation', versionLabel: 'version 1', currentVersionId: versionId });
+
+test('an Agreement outside the first 20 /me/agreements results still opens: the exact Detail read establishes the current version', async () => {
+  const calls = [];
+  const gateway = { detail: async id => { calls.push(['detail', id]); return agr(id, 'v2'); }, currentUserAgreements: async () => { calls.push(['list']); return { items: Array.from({ length: 20 }, (_, i) => ({ agreementId: `other-${i}` })) }; } };
+  const r = await m.resolveSelection(gateway, { agreementId: 'agr-21st', title: 'Kitchen renovation', currency: null, summaryAmountMinor: null }, handoffOf('agr-21st', 'v2'));
+  assert.deepEqual(calls, [['detail', 'agr-21st']]); // the paginated list is never consulted
+  assert.equal(r.versionId, 'v2');
+  assert.equal(r.label, 'Kitchen renovation · version 1'); // source version matches the exact current version
+  assert.equal(r.notice, null);
+  assert.equal(r.chosen.currency, 'KES');
+  assert.match(m.instructionScope('v2', r.versionId), /current/);
+  assert.match(m.instructionScope('v1', r.versionId), /earlier/);
+});
+
+test('handoff: exact Detail shows a newer version -> old label dropped and the calm notice shown', async () => {
+  const r = await m.resolveSelection({ detail: async id => agr(id, 'v3', 'Kitchen renovation') }, { agreementId: 'a', title: 'Kitchen renovation', currency: null, summaryAmountMinor: null }, handoffOf('a', 'v1'));
+  assert.equal(r.label, 'Kitchen renovation');
+  assert.equal(r.versionId, 'v3');
+  assert.equal(r.notice, 'The Agreement changed after you opened Money. Money is showing the latest financial information SecurePay can read.');
+});
+
+test('exact Detail read failing never claims the Agreement is inaccessible and fails closed on version-dependent presentation', async () => {
+  const r = await m.resolveSelection({ detail: async () => { throw new m.ApiError('network', 'x', null, null); } }, { agreementId: 'a', title: 'Kitchen renovation', currency: null, summaryAmountMinor: null }, handoffOf('a', 'v1'));
+  assert.equal(r.versionId, null);
+  assert.equal(r.label, 'Kitchen renovation'); // no version label
+  assert.equal(r.notice, m.CONTEXT_UNREFRESHED);
+  assert.doesNotMatch(r.notice, /find|inaccessible|not found|can’t see/i);
+  assert.equal(m.instructionScope('v1', r.versionId), 'unknown'); // neutral release-history labelling
+});
+
+test('the Money Agreement selection never searches the paginated list to establish a version or existence', async () => {
+  const exp = await src('src/features/money/MoneyExperience.tsx');
+  assert.doesNotMatch(exp, /\.items\.find\(/);
+  assert.doesNotMatch(exp, /couldn’t find that Agreement/);
+  assert.match(exp, /resolveSelection\(agreementGateway/);
+  assert.match(await src('src/features/money/selection.ts'), /gateway\.detail\(target\.agreementId\)/);
+});
+
+// ---- Settlement destination: one explicit currency for reads AND writes
+const recorder = (over = {}) => { const calls = []; const dest = { destinationId: 'd', maskedDestinationDisplay: '****1', destinationStatus: 'ACTIVE', verificationStatus: 'VERIFIED' };
+  return { calls, gateway: { current: async c => { calls.push(['current', c]); return dest; }, history: async c => { calls.push(['history', c]); return [dest]; },
+    register: async (r, k) => { calls.push(['register', r.currency, k]); if (over.register) return over.register(); return dest; },
+    replace: async (r, k, v) => { calls.push(['replace', r.currency, k, v]); if (over.replace) return over.replace(); return {}; } } }; };
+const form = c => ({ accountKind: 'BANK', bankCode: '01', accountNumber: '123', beneficiaryName: 'W', currency: c });
+const stores = () => { let n = 0; const mk = () => m.createAttemptStore(() => `k${++n}`); return { main: mk(), verification: mk() }; };
+
+test('settlement destination reads are explicitly currency-scoped: KES -> KES, USD -> USD', async () => {
+  const r = recorder();
+  await m.readSettlementScope(r.gateway, 'kes'); await m.readSettlementScope(r.gateway, 'usd');
+  assert.deepEqual(r.calls, [['current', 'KES'], ['history', 'KES'], ['current', 'USD'], ['history', 'USD']]);
+});
+
+test('a USD register success reloads USD (never silently KES)', async () => {
+  const r = recorder(); const out = await m.submitDestination(r.gateway, stores(), 'register', form('usd'));
+  assert.equal(out.kind, 'ok'); assert.equal(out.currency, 'USD');
+  assert.deepEqual(r.calls.map(c => c.slice(0, 2)), [['register', 'USD'], ['current', 'USD'], ['history', 'USD']]);
+  assert.ok(!r.calls.some(c => c[1] === 'KES'));
+});
+
+test('USD replace: replace key and verification key stay tied to that exact USD request, across an uncertain retry', async () => {
+  const r = recorder({ replace: () => { throw new m.ApiError('network', 'x', null, null); } }); const s = stores();
+  assert.equal((await m.submitDestination(r.gateway, s, 'replace', form('usd'))).kind, 'uncertain');
+  assert.equal((await m.submitDestination(r.gateway, s, 'replace', form('usd'))).kind, 'uncertain');
+  const sends = r.calls.filter(c => c[0] === 'replace');
+  assert.deepEqual(sends[0], ['replace', 'USD', 'k1', 'k2']);
+  assert.deepEqual(sends[1], sends[0]); // same currency, same request, same two keys
+  // a different currency while unresolved is refused: nothing is sent
+  assert.equal((await m.submitDestination(r.gateway, s, 'replace', form('kes'))).kind, 'refused');
+  assert.equal(r.calls.filter(c => c[0] === 'replace').length, 2);
+});
+
+test('settlement destination: no silent current()/history() default call remains in production, and the currency control is one explicit context', async () => {
+  const exp = await src('src/features/money/MoneyExperience.tsx');
+  const mod = await src('src/features/money/settlementDestination.ts');
+  for (const code of [exp, mod]) { assert.doesNotMatch(code, /\.current\(\)|\.history\(\)/); }
+  const gw = await src('src/api/securepay/settlement-destinations/index.ts');
+  assert.doesNotMatch(gw, /currency = 'KES'/); // no invisible transport default
+  assert.match(exp, /aria-label="Settlement currency"/);
+  assert.match(exp, /useState\('KES'\)/); // a visible default only
+  assert.match(exp, /const changeCurrency[\s\S]{0,400}setCurrent\(null\); setHistory\(null\); setVerification\(null\)/);
 });
