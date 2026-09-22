@@ -1,5 +1,5 @@
 import type { ContextView } from '../agent/controller';
-import { formatMoney, fromIso, longDate, parseAmount, FORMATION_CURRENCY, type InstrumentSpec } from '../instruments/model';
+import { formatMoney, formatTime12h, fromIso, isValidTime, longDate, parseAmount, type InstrumentSpec } from '../instruments/model';
 import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 
 /**
@@ -11,15 +11,18 @@ import type { InstrumentPromptView } from '../../api/securepay/agent/instruments
  * only for facts SecurePay really holds; the `adds` list is merely the set of instruments that could
  * genuinely be opened (each backed by a real path), shown as quiet invitations.
  *
- * A row is directly actionable only when a SAFE, real path exists for it -- and today that is only
- * a plain KES amount (an amount correction the backend supersedes). People, dates and places that are
- * already recorded cannot be replaced or re-roled through formation (no supersession / correction
- * flag), so those rows are read-only and are changed in conversation. New details can be ADDED (a
- * first person/role, date, place or amount) through `adds`, which are contextual possibilities and
- * never a list of missing fields. There is no identity resolution anywhere here: no KS Number is
- * checked or attached (the identity endpoint is not participant-safe and the KS formats disagree).
- * Everything else (WHAT, responsibilities, conditions, rules, contribution plans...) is read-only. Nothing in this file assigns or infers Agreement,
- * participant, confirmation or Money state.
+ * Phase 4 of the Agent/Trade-Context Convergence -- CAPABILITY CONVERGENCE: a row is directly
+ * actionable wherever a real, precise structured-input target exists (the row's own entity/relationship
+ * id, via SecurePay's `/structured-inputs` endpoint). An already-recorded PERSON/ORGANIZATION's role can
+ * be corrected in place (`ASSIGN_ROLE`, `targetEntityId`); an amount row can be edited in place
+ * (`SET_AMOUNT`, `targetRelationshipId`); a real DATE/DATE_RANGE entity can be corrected in place
+ * (`SET_DATE`/`SET_DATE_RANGE`, `targetEntityId`); a PLACE can be corrected in place (`SET_LOCATION`,
+ * `targetEntityId`). An identity-resolved WHO row's KS Number itself is never editable as plain text here
+ * (identity stays a server-verified, separate action) -- only its role. A legacy CONDITION-relationship-
+ * based date fact (from an external-fact/quotation source, never a real DATE entity) has no matching
+ * structured-input target and remains read-only, changed in conversation. New details can be ADDED (a
+ * first person/role, date, place or amount) through `adds`. Nothing in this file assigns or infers
+ * Agreement, participant, confirmation, identity or Money authority.
  */
 export type WorkbenchSection = 'what' | 'who' | 'when' | 'where' | 'money' | 'other';
 export interface AdoptTarget { id: string; targetKind: 'ENTITY' | 'RELATIONSHIP' }
@@ -53,6 +56,30 @@ const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerC
 const INTERNAL_KEYS = new Set(['status', 'domain']);
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
 
+/**
+ * Generic, non-domain-specific attribute keys never shown/offered as an ordinary descriptive detail
+ * (Phase 4 review correction, Section 7/12) -- the SAME identity/authority reservation the backend enforces
+ * (`ReservedTradeContextAttributeKeys`), plus this workbench's own known internal/legacy bookkeeping keys.
+ * Everything else an entity's `attributes` carries is, by construction, an ORDINARY bounded descriptive
+ * detail (a shoe's `size`, a painter's `finish`, a parcel's `area`, ...) -- there is deliberately no
+ * per-concept allowlist: genericity comes from EXCLUDING the known non-descriptive keys, never from
+ * enumerating the descriptive ones.
+ */
+const RESERVED_DETAIL_KEYS = new Set([
+  'ksnumber', 'canonicalksnumber', 'identityid', 'identitytype', 'identitystatus', 'identityresolved',
+  'verifiedidentity', 'participanteligible', 'eligible', 'consented', 'accepted', 'authenticated', 'authority',
+  'purposesubject', 'purposetype', 'status', 'domain', 'latitude', 'longitude', 'coordinatesource',
+  'date', 'time', 'startdate', 'enddate',
+]);
+const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
+
+/** The generic, server-projected descriptive-detail fields for an entity -- never a per-concept list. */
+function describeEntityDetails(attributes: Record<string, string>): { key: string; label: string; value: string }[] {
+  return Object.entries(attributes)
+    .filter(([key, value]) => !isReservedDetailKey(key) && value.trim() !== '')
+    .map(([key, value]) => ({ key, label: humanize(key), value }));
+}
+
 function describeQualifiers(q: Record<string, string>): string {
   return Object.entries(q).filter(([key, value]) => !INTERNAL_KEYS.has(key) && value.trim() !== '').map(([, value]) => value).join(' · ');
 }
@@ -71,8 +98,13 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     if (entity.type !== 'PERSON' && entity.type !== 'ORGANIZATION') continue;
     shownEntityIds.add(entity.id);
     const ks = entity.attributes.ksnumber && isKs(entity.attributes.ksnumber) ? entity.attributes.ksnumber.toUpperCase() : (isKs(entity.name) ? entity.name.toUpperCase() : null);
+    // A real, server-verified identity association (identityResolved=true), never merely "the name looks
+    // like a KS Number" -- this decides both whether the KS Number itself is visibly shown (Phase 4 final
+    // closeout, Section 2) and whether re-binding a second identity is ever offered (Section 4).
+    const identityResolved = entity.attributes.identityResolved === 'true' && !!ks;
     const roles = relationsOf(entity.id).filter(r => r.kind === 'ROLE');
     const details: string[] = [];
+    if (identityResolved) details.push(ks!); // "Maua Shoes / KS003 / Seller" -- KS Number visible, never an internal id
     const adopt: AdoptTarget[] = [];
     for (const role of roles) {
       usedRelationshipIds.add(role.id);
@@ -90,7 +122,15 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     items.push({
       key: `who:${entity.id}`, section: 'who', value: entity.name, details, state: entity.state, adopt,
       identityUnresolved: !ks,
-      spec: null, // re-roling an existing person cannot be proven safe from here; changed in conversation
+      // A still-CANDIDATE person/organization's role can be corrected in place (ASSIGN_ROLE); if their
+      // identity is not yet resolved, the SAME target also lets the Who instrument bind a real KS Number
+      // to this exact entity (existingTradeEntityId) -- never as plain text, always server-verified. A
+      // CONFIRMED row is read-only here, changed only in conversation. `identityResolved` on the spec
+      // tells the instrument this entity already has a verified identity, so it must never offer to bind a
+      // SECOND, different one (Phase 4 final closeout, Section 4).
+      spec: entity.state === 'CANDIDATE'
+        ? { kind: 'who', origin: 'understood', targetEntityId: entity.id, currentName: entity.name, takenNames: [], identityResolved }
+        : null,
     });
   }
 
@@ -99,13 +139,19 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     if (entity.type !== 'PLACE') continue;
     shownEntityIds.add(entity.id);
     const details: string[] = [];
+    // A quiet, truthful indication that real GPS accompanies this place -- never a fake map or reverse
+    // geocode (Phase 4 final closeout, Section 6).
+    if (entity.attributes.coordinateSource === 'USER_SHARED') details.push('GPS shared');
     const adopt: AdoptTarget[] = entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [];
     for (const role of relationsOf(entity.id).filter(r => r.kind === 'ROLE')) {
       usedRelationshipIds.add(role.id);
       details.push(humanize(role.qualifiers.role ?? 'OTHER'));
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
-    items.push({ key: `where:${entity.id}`, section: 'where', value: entity.name, details, state: entity.state, adopt, spec: null });
+    items.push({
+      key: `where:${entity.id}`, section: 'where', value: entity.name, details, state: entity.state, adopt,
+      spec: entity.state === 'CANDIDATE' ? { kind: 'where', origin: 'understood', targetEntityId: entity.id, currentPlace: entity.name } : null,
+    });
   }
 
   // --- WHAT --------------------------------------------------------------------------------------
@@ -114,9 +160,19 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     const isWhat = entity.type === 'SERVICE' || entity.type === 'ITEM' || (entity.type === 'CONCEPT' && !!purpose);
     if (!isWhat) continue;
     shownEntityIds.add(entity.id);
+    // Generic, bounded descriptive details (a shoe's size, a painter's finish, a parcel's area, ...) --
+    // whatever this entity's own attributes actually hold, never a hard-coded "known concept" list (Phase
+    // 4 review correction, Section 12).
+    const detailFields = describeEntityDetails(entity.attributes);
     items.push({
-      key: `what:${entity.id}`, section: 'what', value: entity.type === 'CONCEPT' && purpose ? purpose : entity.name, details: [], state: entity.state,
-      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null,
+      key: `what:${entity.id}`, section: 'what', value: entity.type === 'CONCEPT' && purpose ? purpose : entity.name,
+      details: detailFields.map(field => `${field.label}: ${field.value}`), state: entity.state,
+      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
+      // Editable in place via the generic CORRECT_ENTITY_DETAIL editor -- only when there is at least one
+      // ordinary detail to correct and the row is still a revisable CANDIDATE.
+      spec: entity.state === 'CANDIDATE' && detailFields.length > 0
+        ? { kind: 'detail', origin: 'understood', targetEntityId: entity.id, entityName: entity.name, fields: detailFields }
+        : null,
       find: entity.type === 'ITEM' || entity.type === 'SERVICE' ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name } : undefined,
     });
   }
@@ -125,10 +181,26 @@ export function projectWorkbench(context: ContextView | null): Workbench {
   for (const entity of entities) {
     if (entity.type !== 'DATE' && entity.type !== 'DATE_RANGE' && entity.type !== 'RECURRENCE') continue;
     shownEntityIds.add(entity.id);
+    // A real DATE/DATE_RANGE entity (Phase 4's own structured-input convention) can be corrected in
+    // place (SET_DATE/SET_DATE_RANGE, targetEntityId). RECURRENCE has no matching structured-input
+    // action yet and stays read-only, changed in conversation.
+    const editable = entity.type === 'DATE'
+      ? { kind: 'when' as const, origin: 'understood' as const, targetEntityId: entity.id, currentDate: entity.attributes.date, currentTime: entity.attributes.time }
+      : entity.type === 'DATE_RANGE'
+        ? { kind: 'when' as const, origin: 'understood' as const, mode: 'range' as const, targetEntityId: entity.id, currentDate: entity.attributes.startDate, currentEndDate: entity.attributes.endDate }
+        : null;
+    const rangeLabel = entity.type === 'DATE_RANGE' && entity.attributes.startDate && entity.attributes.endDate
+      ? `${longDate(entity.attributes.startDate)} to ${longDate(entity.attributes.endDate)}` : entity.name;
+    // Human-friendly presentation only -- the canonical date/time attributes underneath are unchanged and
+    // no timezone is invented (Phase 4 final closeout, Section 5). DATE_RANGE presentation is unchanged.
+    const dateLabel = entity.type === 'DATE' && fromIso(entity.attributes.date ?? '') ? longDate(entity.attributes.date!) : entity.name;
+    const timeDetail = entity.type === 'DATE' && entity.attributes.time && isValidTime(entity.attributes.time)
+      ? [formatTime12h(entity.attributes.time)] : [];
     items.push({
-      key: `when:${entity.id}`, section: 'when', value: entity.name, details: entity.type === 'RECURRENCE' ? ['Repeats'] : [], state: entity.state,
+      key: `when:${entity.id}`, section: 'when', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.type === 'DATE' ? dateLabel : entity.name,
+      details: entity.type === 'RECURRENCE' ? ['Repeats'] : timeDetail, state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
-      spec: null, // a recorded date cannot be replaced through formation, so it is never offered for editing
+      spec: entity.state === 'CANDIDATE' ? editable : null,
     });
   }
   for (const relation of relationships) {
@@ -140,6 +212,8 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       const text = q.date ?? q.startDate ?? '';
       items.push({
         key: `when:${relation.id}`, section: 'when', value: fromIso(text) ? longDate(text) : text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
+        // A legacy CONDITION-relationship-based date (from an external-fact/quotation source) has no
+        // matching structured-input target -- unlike a real DATE entity above, it stays read-only.
         spec: null,
       });
     } else if (relation.kind === 'PAYMENT_CONDITION' && q.amount) {
@@ -152,8 +226,12 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       items.push({
         key: `money:${relation.id}`, section: 'money',
         value: parsed.ok ? formatMoney(parsed.value, currency) : `${currency} ${q.amount}`.trim(), details: extras, state: relation.state, adopt,
-        // Editable only as a plain KES amount: the interpreter files every figure as KES, so any other currency could not be read back.
-        spec: plain && parsed.ok && currency === FORMATION_CURRENCY ? { kind: 'money', origin: 'understood', amount: parsed.value } : null,
+        // Editable as any real currency now (Phase 4 removes the old KES-only assumption) -- only when
+        // the row is a plain amount+currency pair the person could unambiguously re-type; a row already
+        // carrying other qualifiers (recurring, appliesTo, ...) stays read-only, changed in conversation.
+        spec: plain && parsed.ok && relation.state === 'CANDIDATE'
+          ? { kind: 'money', origin: 'understood', amount: parsed.value, currency: currency || undefined, targetRelationshipId: relation.id }
+          : null,
       });
     }
   }
@@ -182,8 +260,9 @@ export function projectWorkbench(context: ContextView | null): Workbench {
 
   items.sort((a, b) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section));
 
-  // An instrument is offered only where the real formation path can represent AND read back the result:
-  // a first date, a first place, a first amount. A recorded one can only be changed in conversation.
+  // "Add" is offered only for a FIRST date/place/amount -- a deliberate simplicity choice (avoiding an
+  // ambiguous pile of unrelated dates/places), not a backend limitation: an existing CANDIDATE row of any
+  // of these already has its own real, precise edit control above (targetEntityId/targetRelationshipId).
   const has = (section: WorkbenchSection) => items.some(item => item.section === section);
   const hasDeadline = relationships.some(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string') || entities.some(e => e.type === 'DATE' || e.type === 'DATE_RANGE');
   const adds: WorkbenchAdd[] = [];
@@ -208,15 +287,27 @@ export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench
       const add = workbench.adds.find(a => a.key === 'who')?.spec;
       return { spec: { kind: 'who', origin: 'agent', role: prompt.hints.role, takenNames: add?.kind === 'who' ? add.takenNames : [] } };
     }
-    case 'when':
-      return workbench.adds.some(a => a.key === 'when') ? { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } } : { note: 'SecurePay already holds a date and can’t replace it from here. Tell KS001 if it has changed.' };
+    case 'when': {
+      // A DATE_RANGE_PICKER proposal always opens a fresh range selection -- ranges are additive (a
+      // second, distinct period), never assumed to replace an existing single date (Phase 4 review
+      // correction, Section 14/26).
+      if (prompt.hints.mode === 'range') return { spec: { kind: 'when', origin: 'agent', mode: 'range' } };
+      if (workbench.adds.some(a => a.key === 'when')) return { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } };
+      const when = items('when');
+      const editable = when.length === 1 ? when[0].spec : null;
+      return editable?.kind === 'when' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds a date here. Open it from UNDERSTOOD to correct it, or tell KS001 if it has changed.' };
+    }
     case 'money': {
       const money = items('money');
       if (money.length === 0) return { spec: { kind: 'money', origin: 'agent' } };
       const editable = money.length === 1 ? money[0].spec : null;
-      return editable?.kind === 'money' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds an amount that can’t be changed here (Kenya shillings only). Tell KS001 in the conversation.' };
+      return editable?.kind === 'money' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds an amount here. Open it from UNDERSTOOD to correct it, or tell KS001 in the conversation.' };
     }
-    case 'where':
-      return workbench.adds.some(a => a.key === 'where') ? { spec: { kind: 'where', origin: 'agent' } } : { note: 'SecurePay already holds a place and can’t replace it from here. Tell KS001 if it has changed.' };
+    case 'where': {
+      if (workbench.adds.some(a => a.key === 'where')) return { spec: { kind: 'where', origin: 'agent' } };
+      const where = items('where');
+      const editable = where.length === 1 ? where[0].spec : null;
+      return editable?.kind === 'where' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds a place here. Open it from UNDERSTOOD to correct it, or tell KS001 if it has changed.' };
+    }
   }
 }

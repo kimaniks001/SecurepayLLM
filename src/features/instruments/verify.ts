@@ -1,6 +1,6 @@
 import type { ContextView } from '../agent/controller';
 import { canonicalRole } from '../../api/securepay/agent/roles';
-import { FORMATION_CURRENCY, fromIso, parsePersonName, sameAmount, type InstrumentDraft, type InstrumentSpec } from './model';
+import { fromIso, parsePersonName, sameAmount, type InstrumentDraft, type InstrumentSpec } from './model';
 
 /**
  * "Did the real Trade Context prove the EXACT meaning the person selected?" -- never HTTP 200, never a
@@ -10,54 +10,93 @@ import { FORMATION_CURRENCY, fromIso, parsePersonName, sameAmount, type Instrume
  * state (CANDIDATE vs CONFIRMED) never changes what it MEANS, so it is deliberately ignored here:
  * whether a fact is adopted is the person's separate, explicit "Use this".
  */
-const activeDates = (context: ContextView) => context.relationships.filter(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string');
 
 /**
- * ADD A PERSON: the SAME entity (a PERSON named exactly as entered) has a ROLE relationship whose canonical
- * role is the chosen word's. Claims nothing about identity: no KS Number, participant or invitation.
+ * ADD A PERSON/ORGANIZATION: the SAME entity (of the chosen type, named exactly as entered) has a ROLE
+ * relationship whose canonical role is the chosen word's. Claims nothing about identity: no KS Number,
+ * participant or invitation. `participantType` defaults to PERSON for callers that never offered a choice.
  */
-export function isPersonAdded(context: ContextView, who: { name: string; role: string }): boolean {
+export function isPersonAdded(context: ContextView, who: { name: string; role: string; participantType?: 'PERSON' | 'ORGANIZATION' }): boolean {
   const canonical = canonicalRole(who.role);
   if (!canonical || !who.name) return false;
+  const type = who.participantType ?? 'PERSON';
   return context.entities
-    .filter(e => e.type === 'PERSON' && e.name === who.name.trim())
+    .filter(e => e.type === type && e.name === who.name.trim())
     .some(e => context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === e.id && r.qualifiers.role === canonical));
 }
 
+/** An EXISTING entity (by id -- a role correction, not a name match) has a ROLE relationship whose
+ *  canonical role is the chosen word's. Used for ASSIGN_ROLE edits on an already-recorded person. */
+export function isRoleAssigned(context: ContextView, entityId: string, role: string): boolean {
+  const canonical = canonicalRole(role);
+  return !!canonical && context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === entityId && r.qualifiers.role === canonical);
+}
+
 /**
- * KS-LINKED WHO (NOT reachable in production today -- KS resolution is unavailable, see ksformat.ts): the intended entity carries the selected KS Number, AND a ROLE relationship has THAT SAME entity as
- * subject, AND that role is the canonical role of the word the person picked (never a label match).
+ * KS-LINKED WHO: the intended entity carries the selected KS Number, AND a ROLE relationship has THAT SAME
+ * entity as subject, AND that role is the canonical role of the word the person picked (never a label
+ * match). Verifies the real, server-verified `/identity-selections` association (Phase 4, Part C).
  */
 export function isWhoLinked(context: ContextView, who: { ks: string; role: string; entityName?: string }): boolean {
   const canonical = canonicalRole(who.role);
-  if (!canonical || !who.ks) return false;
+  if (!who.ks) return false;
   const ks = who.ks.toUpperCase();
-  return context.entities
-    .filter(e => (e.type === 'PERSON' || e.type === 'ORGANIZATION') && (e.attributes.ksnumber ?? '').toUpperCase() === ks && (!who.entityName || e.name === who.entityName))
-    .some(e => context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === e.id && r.qualifiers.role === canonical));
+  const entities = context.entities.filter(e => (e.type === 'PERSON' || e.type === 'ORGANIZATION') && (e.attributes.ksnumber ?? '').toUpperCase() === ks && (!who.entityName || e.name === who.entityName));
+  if (!canonical) return entities.length > 0; // no role requested -- resolution/association alone is what is being verified
+  return entities.some(e => context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === e.id && r.qualifiers.role === canonical));
 }
 
 export function isRecorded(spec: InstrumentSpec, draft: InstrumentDraft, context: ContextView): boolean {
   if (spec.kind === 'money' && draft.kind === 'money') {
     // amount AND currency: KES 4,000 is not USD 4,000.
-    return draft.currency === FORMATION_CURRENCY && context.relationships.some(r => r.kind === 'PAYMENT_CONDITION'
+    return context.relationships.some(r => r.kind === 'PAYMENT_CONDITION'
       && typeof r.qualifiers.amount === 'string' && sameAmount(r.qualifiers.amount, draft.amount)
-      && (r.qualifiers.currency ?? '').toUpperCase() === draft.currency);
+      && (r.qualifiers.currency ?? '').toUpperCase() === draft.currency.toUpperCase());
   }
   if (spec.kind === 'who' && draft.kind === 'who') {
+    if (draft.ks.trim()) return isWhoLinked(context, { ks: draft.ks, role: draft.role });
+    if (spec.targetEntityId) return isRoleAssigned(context, spec.targetEntityId, draft.role);
     const name = parsePersonName(draft.name, spec.takenNames);
-    return name.ok && isPersonAdded(context, { name: name.value, role: draft.role });
+    return name.ok && isPersonAdded(context, { name: name.value, role: draft.role, participantType: draft.participantType });
   }
   if (spec.kind === 'when' && draft.kind === 'when') {
-    // Formation stores the ISO date. Exactly that one date must be the active deadline: a stale, different one still present is NOT resolved.
+    if (spec.mode === 'range') {
+      if (!draft.date || !draft.endDate || !fromIso(draft.date) || !fromIso(draft.endDate)) return false;
+      return context.entities.some(e => e.type === 'DATE_RANGE' && e.attributes.startDate === draft.date && e.attributes.endDate === draft.endDate);
+    }
     if (!draft.date || !fromIso(draft.date)) return false;
-    const dates = activeDates(context).map(r => r.qualifiers.date);
-    return dates.length > 0 && dates.every(d => d === draft.date);
+    // Exact readback: an instrument may not close merely because the date matches if a specific time was
+    // also selected -- the time must match too (Phase 4 review correction, Section 14).
+    return context.entities.some(e => e.type === 'DATE' && e.attributes.date === draft.date && (!draft.time || e.attributes.time === draft.time));
   }
   if (spec.kind === 'where' && draft.kind === 'where') {
-    // One active PLACE, and it is the selected one -- an older, different place still active is a conflict, not a success.
-    const places = context.entities.filter(e => e.type === 'PLACE');
-    return places.length > 0 && places.every(e => e.name.toLowerCase() === draft.place.trim().toLowerCase());
+    const hasCoordinates = draft.latitude != null && draft.longitude != null;
+    const trimmed = draft.place.trim();
+    if (!trimmed && hasCoordinates) {
+      // GPS-only readback: the exact coordinates SecurePay was sent, never a fabricated place name
+      // (Phase 4 review correction, Section 10/27).
+      return context.entities.some(e => e.type === 'PLACE'
+        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude)
+        && e.attributes.coordinateSource === 'USER_SHARED');
+    }
+    const lowered = trimmed.toLowerCase();
+    if (trimmed && hasCoordinates) {
+      // Named place AND GPS deliberately supplied together: success requires BOTH the correct place text
+      // AND the exact supplied coordinates -- an instrument must never close merely because the place text
+      // survived while the GPS was lost in transit (Phase 4 final closeout, Section 6).
+      return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === lowered
+        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude)
+        && e.attributes.coordinateSource === 'USER_SHARED');
+    }
+    return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === lowered);
+  }
+  if (spec.kind === 'detail' && draft.kind === 'detail') {
+    // Every field the person actually changed (and only those) must read back exactly.
+    return spec.fields.every(field => {
+      const next = (draft.values[field.key] ?? '').trim();
+      if (!next || next === field.value) return true; // unchanged -- nothing new to verify for this key
+      return context.entities.some(e => e.id === spec.targetEntityId && e.attributes[field.key] === next);
+    });
   }
   return false;
 }

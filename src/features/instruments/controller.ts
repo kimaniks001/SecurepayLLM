@@ -1,6 +1,13 @@
 import type { AgentController, ContextView } from '../agent/controller';
-import { emptyDraft, statementFor, type InstrumentDraft, type InstrumentSpec } from './model';
+import type { KsIdentitySelectionResult } from '../../api/securepay/agent/dto';
+import { normalizeKs } from '../../api/securepay/agent/ksformat';
+import { emptyDraft, structuredInputFor, type InstrumentDraft, type InstrumentSpec, type WhoSpec } from './model';
 import { isRecorded } from './verify';
+
+/** A pure lookup's real, server-verified result -- held so the person can see who a KS Number belongs to
+ *  BEFORE explicitly choosing to add them (Phase 4 final closeout, Section 3: pure lookup, then an explicit
+ *  second action, never a one-step "lookup that quietly also associates"). */
+export interface ResolvedKsIdentity { canonicalKsNumber: string; displayName: string; participantType: 'PERSON' | 'ORGANIZATION' }
 
 /**
  * One instrument at a time. State lives HERE (not in a component) so that:
@@ -10,10 +17,14 @@ import { isRecorded } from './verify';
  *
  * phases:
  *   editing    -- the person is choosing/typing.
- *   sending    -- the statement is with SecurePay.
+ *   sending    -- the structured action (or KS identity selection) is with SecurePay.
  *   failed     -- SecurePay did not receive it. Draft preserved. Retry / Cancel.
  *   unrecorded -- SecurePay received it but Trade Context does not (yet) show it. Draft preserved.
  *                 Never closed as a success.
+ *
+ * Phase 4 of the Agent/Trade-Context Convergence -- LOCKED PRINCIPLE: an instrument finishes with an
+ * EXPLICIT structured action (`structuredInputFor` -> `/structured-inputs`, or, for a real KS Number,
+ * `/identity-selections`) -- never a fabricated chat sentence sent through the conversational path.
  */
 export type InstrumentPhase = 'editing' | 'sending' | 'failed' | 'unrecorded';
 export interface InstrumentState {
@@ -23,21 +34,42 @@ export interface InstrumentState {
   error: string | null;
   /** Bumps on every open so views can (re)apply initial focus deliberately, not on every render. */
   openCount: number;
+  /** The SAME client-controlled idempotency id across a submit and its own retry -- a network retry can
+   *  never duplicate the action (see AgentController#submitStructuredInput/#selectKsIdentity). Fresh on
+   *  every new submit attempt, never on a retry of a failed one. */
+  clientActionId: string | null;
+  /** Set only by a successful PURE lookup for the CURRENT typed KS Number; cleared the instant the typed
+   *  KS Number changes (Phase 4 final closeout, Section 3). Its presence is what turns the primary action
+   *  from "Check KS003" into an explicit "Add {name} as {role}" association. */
+  resolvedKsIdentity: ResolvedKsIdentity | null;
 }
-export type InstrumentAgent = Pick<AgentController, 'sendStatement' | 'retry' | 'review' | 'getSnapshot'>;
+export type InstrumentAgent = Pick<AgentController, 'submitStructuredInput' | 'selectKsIdentity' | 'review' | 'getSnapshot'>;
 
 /** Identity of "which fact this instrument is settling" -- origin (where it was summoned from) is presentation only. */
 export const specKey = (spec: InstrumentSpec): string => JSON.stringify({ ...spec, origin: undefined });
 
-const IDLE: InstrumentState = { active: null, draft: null, phase: 'editing', error: null, openCount: 0 };
+const IDLE: InstrumentState = { active: null, draft: null, phase: 'editing', error: null, openCount: 0, clientActionId: null, resolvedKsIdentity: null };
 
-export function createInstrumentController(agent: InstrumentAgent) {
+/** Precise, honest wording for every ordinary KS identity lookup outcome -- never a generic failure. */
+function ksIdentityErrorText(status: KsIdentitySelectionResult['status']): string | null {
+  switch (status) {
+    case 'MALFORMED_KS_NUMBER': return 'That doesn’t look like a KS Number — it should be KS followed by at least three digits, like KS003.';
+    case 'NOT_FOUND': return 'SecurePay doesn’t recognize that KS Number.';
+    case 'NOT_AVAILABLE': return 'That KS Number can’t be used right now.';
+    case 'NOT_PARTICIPANT_ELIGIBLE': return 'That KS Number can’t be added as a trade participant.';
+    case 'UNSUPPORTED': return 'SecurePay can’t check KS Numbers right now.';
+    default: return null; // RESOLVED / ASSOCIATED / ALREADY_ASSOCIATED are successes, not errors
+  }
+}
+
+export function createInstrumentController(agent: InstrumentAgent, id: () => string = () => crypto.randomUUID()) {
   let state: InstrumentState = IDLE;
   // A typed KS Number is never lost when the person goes back to the conversation.
   const parked = new Map<string, InstrumentDraft>();
   const listeners = new Set<() => void>();
   const update = (patch: Partial<InstrumentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
-  const close = () => update({ active: null, draft: null, phase: 'editing', error: null });
+  const close = () => update({ active: null, draft: null, phase: 'editing', error: null, clientActionId: null, resolvedKsIdentity: null });
+  const currentVersion = (): number => { const snapshot = agent.getSnapshot(); return snapshot.context.status === 'ready' ? snapshot.context.data!.version : 0; };
 
   function settle(spec: InstrumentSpec, draft: InstrumentDraft, context: ContextView | null) {
     if (!context) {
@@ -48,6 +80,59 @@ export function createInstrumentController(agent: InstrumentAgent) {
     update({ phase: 'unrecorded', error: 'SecurePay heard you, but its understanding does not show this yet. You can adjust it and try again, or tell KS001 directly.' });
   }
 
+  async function submitStructured(spec: InstrumentSpec, draft: InstrumentDraft) {
+    const body = structuredInputFor(spec, draft);
+    if (!body) return;
+    const clientActionId = state.clientActionId ?? id();
+    update({ phase: 'sending', error: null, clientActionId });
+    const outcome = await agent.submitStructuredInput({ ...body, expectedTradeContextVersion: currentVersion(), clientActionId });
+    if (!outcome.ok) {
+      // A stale version is a normal concurrency outcome, not a failure: SecurePay's own understanding
+      // moved on. The draft is kept; the person deliberately retries against the (now refreshed) version.
+      update(outcome.stale ? { phase: 'editing', error: outcome.error } : { phase: 'failed', error: outcome.error });
+      return;
+    }
+    settle(spec, draft, outcome.context);
+  }
+
+  /**
+   * Phase 4 final closeout, Section 3 -- TWO explicit steps, never one step that silently also associates:
+   *
+   *  1. PURE LOOKUP (no `expectedTradeContextVersion`): confirms who the typed KS Number belongs to. Stores
+   *     the result in `resolvedKsIdentity`; the instrument stays open, nothing is added to Trade Context.
+   *  2. EXPLICIT ASSOCIATION (`expectedTradeContextVersion` supplied): only once `resolvedKsIdentity`
+   *     already matches the CURRENT typed KS Number -- i.e. only after the person has seen who it resolves
+   *     to and pressed the primary button a SECOND time ("Add {name} as {role}").
+   *
+   * A changed KS Number always clears `resolvedKsIdentity` (see `setDraft`), so this can never silently
+   * associate a DIFFERENT identity than the one actually shown to the person.
+   */
+  async function submitIdentitySelection(spec: WhoSpec, draft: Extract<InstrumentDraft, { kind: 'who' }>) {
+    const canonical = normalizeKs(draft.ks);
+    const alreadyResolvedForThisKs = state.resolvedKsIdentity?.canonicalKsNumber === canonical;
+    const clientActionId = state.clientActionId ?? id();
+    update({ phase: 'sending', error: null, clientActionId });
+    const outcome = await agent.selectKsIdentity({
+      ksNumber: draft.ks.trim(), expectedTradeContextVersion: alreadyResolvedForThisKs ? currentVersion() : undefined,
+      clientActionId, role: draft.role.trim() || undefined, existingTradeEntityId: spec.targetEntityId,
+    });
+    if (!outcome.ok) {
+      update(outcome.stale ? { phase: 'editing', error: outcome.error } : { phase: 'failed', error: outcome.error });
+      return;
+    }
+    const errorText = ksIdentityErrorText(outcome.result.status);
+    if (errorText) { update({ phase: 'editing', error: errorText, resolvedKsIdentity: null }); return; }
+    if (!alreadyResolvedForThisKs) {
+      const { canonicalKsNumber, displayName, participantType } = outcome.result;
+      update({
+        phase: 'editing', error: null,
+        resolvedKsIdentity: canonicalKsNumber && displayName && participantType ? { canonicalKsNumber, displayName, participantType } : null,
+      });
+      return;
+    }
+    settle(spec, draft, outcome.context);
+  }
+
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -55,18 +140,30 @@ export function createInstrumentController(agent: InstrumentAgent) {
       if (state.phase === 'sending') return;
       // Re-opening the SAME instrument for the same fact keeps what the person had already entered.
       if (state.active && specKey(state.active) === specKey(spec)) { update({ openCount: state.openCount + 1 }); return; }
-      update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1 });
+      // A parked draft's KS Number is never trusted as still-resolved across a park/resume cycle -- a
+      // fresh lookup always re-confirms it (Phase 4 final closeout, Section 3).
+      update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1, clientActionId: null, resolvedKsIdentity: null });
     },
     setDraft(draft: InstrumentDraft) {
       if (!state.active || state.phase === 'sending') return;
-      // After a failed delivery the earlier statement may already have been applied: the choice is frozen
-      // until it is retried (same turn) or the instrument is closed. A DIFFERENT statement is never sent over it.
+      // After a failed delivery the earlier action may already have been applied: the choice is frozen
+      // until it is retried (same clientActionId) or the instrument is closed. A DIFFERENT action is never sent over it.
       if (state.phase === 'failed') return;
-      update({ draft, phase: 'editing', error: null });
+      // A changed KS Number invalidates any earlier lookup; an unchanged one (e.g. only the role changed)
+      // keeps it, so the person does not need to re-check the same identity twice.
+      const resolvedKsIdentity = draft.kind === 'who' && state.resolvedKsIdentity && normalizeKs(draft.ks) === state.resolvedKsIdentity.canonicalKsNumber
+        ? state.resolvedKsIdentity : null;
+      // clientActionId doctrine (Phase 4 final closeout, Section 7): the SAME semantic payload retried
+      // reuses the SAME id (that path never calls setDraft -- see `retry()`/an unchanged resubmit after a
+      // stale-version outcome); a genuinely EDITED draft always gets a NEW one on its next submit. The only
+      // moment setDraft ever runs with a non-null clientActionId already held is exactly this "returned to
+      // editing after stale/lookup, then the person changed something" case, so clearing it here
+      // unconditionally is correct -- it is already null in every ordinary keystroke-while-composing case.
+      update({ draft, phase: 'editing', error: null, resolvedKsIdentity, clientActionId: null });
     },
     /**
-     * Cancel closes the INSTRUMENT only. It never sends anything and never rewrites conversation history:
-     * a statement whose delivery is uncertain stays in the transcript with its Retry.
+     * Cancel closes the INSTRUMENT only. It never sends anything: an action whose delivery is uncertain
+     * stays as its own 'failed'/'unrecorded' state with its own Retry, never silently discarded here.
      */
     cancel() {
       if (state.phase === 'sending') return;
@@ -76,29 +173,20 @@ export function createInstrumentController(agent: InstrumentAgent) {
     async submit() {
       const { active, draft, phase } = state;
       if (!active || !draft || phase === 'sending') return;
-      const statement = statementFor(active, draft, {
-        previousAmount: active.kind === 'money' ? active.amount : undefined,
-      });
-      if (!statement) return;
-      update({ phase: 'sending', error: null });
-      const result = await agent.sendStatement(statement);
-      if (!result.ok) { update({ phase: 'failed', error: result.error }); return; }
-      settle(active, draft, result.context);
+      if (active.kind === 'who' && draft.kind === 'who' && draft.ks.trim()) { await submitIdentitySelection(active, draft); return; }
+      await submitStructured(active, draft);
     },
-    /** Re-sends the SAME turn (same clientTurnId, so a turn SecurePay already processed is never duplicated). */
+    /** Re-sends the SAME action (same clientActionId, so an action SecurePay already applied is never duplicated). */
     async retry() {
       const { active, draft, phase } = state;
       if (!active || !draft || phase !== 'failed') return;
-      update({ phase: 'sending', error: null });
-      await agent.retry();
-      const snapshot = agent.getSnapshot();
-      if (snapshot.pending || snapshot.error) { update({ phase: 'failed', error: snapshot.error ?? 'SecurePay could not complete this step.' }); return; }
-      settle(active, draft, snapshot.context.status === 'ready' ? snapshot.context.data : null);
+      if (active.kind === 'who' && draft.kind === 'who' && draft.ks.trim()) { await submitIdentitySelection(active, draft); return; }
+      await submitStructured(active, draft);
     },
     /**
      * Ask SecurePay for its CURRENT understanding and re-check. Used for 'unrecorded' and for 'failed'
      * (uncertain delivery): if the fact is proven, the instrument closes; a failed delivery is otherwise
-     * left exactly as it was -- still retryable with the same turn identity, never rewritten.
+     * left exactly as it was -- still retryable with the same action identity, never rewritten.
      */
     async recheck() {
       const { active, draft, phase } = state;
@@ -108,7 +196,7 @@ export function createInstrumentController(agent: InstrumentAgent) {
       const context = snapshot.context.status === 'ready' ? snapshot.context.data : null;
       if (phase === 'failed') {
         if (context && isRecorded(active, draft, context)) close();
-        else update({ error: 'SecurePay\u2019s understanding does not show this step yet. It may still be processing \u2014 retry to check the same step.' });
+        else update({ error: 'SecurePay’s understanding does not show this step yet. It may still be processing — retry to check the same step.' });
         return;
       }
       settle(active, draft, context);

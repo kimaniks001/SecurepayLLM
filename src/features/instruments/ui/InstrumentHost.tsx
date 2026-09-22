@@ -1,8 +1,9 @@
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { specKey, type InstrumentController } from '../controller';
+import { specKey, type InstrumentController, type ResolvedKsIdentity } from '../controller';
 import { canonicalRole } from '../../../api/securepay/agent/roles';
-import { formatMoney, FORMATION_CURRENCY, parseAmount, parsePersonName, parsePlace, sameAmount, statementFor, type InstrumentDraft, type InstrumentSpec } from '../model';
+import { isValidKsNumber, normalizeKs } from '../../../api/securepay/agent/ksformat';
+import { formatMoney, MAX_DETAIL_VALUE_LENGTH, parseAmount, parsePersonName, parsePlace, sameAmount, structuredInputFor, type InstrumentDraft, type InstrumentSpec } from '../model';
 import { FOCUS, PrimaryButton, QuietButton } from './atoms';
 import { SurfaceMount, SurfaceShell } from './SurfaceShell';
 import { useReturnFocus, useSheetEscape, useSurfaceKeys } from './surfaceHooks';
@@ -10,26 +11,71 @@ import { WhoInstrument } from './WhoInstrument';
 import { CalendarInstrument } from './CalendarInstrument';
 import { MoneyInstrument } from './MoneyInstrument';
 import { WhereInstrument } from './WhereInstrument';
+import { DetailInstrument } from './DetailInstrument';
 
 function titleFor(spec: InstrumentSpec, draft: InstrumentDraft | null): string {
   switch (spec.kind) {
     case 'who': { const role = (draft?.kind === 'who' && draft.role) || spec.role; return role ? `Add the ${role}` : 'Add a person'; }
-    case 'when': return 'When?';
+    case 'when': return spec.mode === 'range' ? 'Which dates?' : 'When?';
     case 'money': return spec.amount ? 'Change the amount' : 'How much?';
     case 'where': return 'Where?';
+    case 'detail': return `Correct ${spec.entityName}`;
   }
 }
 /** The primary action's label and readiness for the current draft -- `null` label means "no primary yet". */
-function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: string | null; ready: boolean } {
+function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft, resolvedKsIdentity: ResolvedKsIdentity | null): { label: string | null; ready: boolean } {
   if (spec.kind === 'who' && draft.kind === 'who') {
+    const typedKs = draft.ks.trim();
+    if (typedKs) {
+      // Two explicit steps (Phase 4 final closeout, Section 3): "Check KS003" performs a pure lookup only;
+      // once resolved, the SAME button becomes an explicit "Add {name} as {role}" association -- never one
+      // step that silently also associates.
+      const resolved = resolvedKsIdentity?.canonicalKsNumber === normalizeKs(typedKs) ? resolvedKsIdentity : null;
+      if (resolved) return { label: `Add ${resolved.displayName}${draft.role ? ` as ${draft.role}` : ''}`, ready: true };
+      return { label: `Check ${normalizeKs(typedKs)}`, ready: isValidKsNumber(typedKs) };
+    }
     const name = parsePersonName(draft.name, spec.takenNames);
     return { label: name.ok ? `Add ${name.value}${draft.role ? ` as ${draft.role}` : ''}` : 'Add person', ready: name.ok && !!canonicalRole(draft.role) };
   }
-  if (spec.kind === 'when' && draft.kind === 'when') return { label: 'Use this date', ready: !!draft.date };
-  // (an unchanged amount is not a change, so it is not submittable)
-  if (spec.kind === 'money' && draft.kind === 'money') { const parsed = parseAmount(draft.amount); return { label: parsed.ok ? `Use ${formatMoney(parsed.value, FORMATION_CURRENCY)}` : 'Use this amount', ready: parsed.ok && !(spec.amount && sameAmount(spec.amount, parsed.value)) }; }
-  if (spec.kind === 'where' && draft.kind === 'where') return { label: 'Use this place', ready: parsePlace(draft.place).ok };
+  if (spec.kind === 'when' && draft.kind === 'when') {
+    if (spec.mode === 'range') {
+      const ready = !!draft.date && !!draft.endDate && draft.date <= draft.endDate;
+      return { label: 'Use these dates', ready };
+    }
+    return { label: 'Use this date', ready: !!draft.date };
+  }
+  if (spec.kind === 'money' && draft.kind === 'money') {
+    const parsed = parseAmount(draft.amount);
+    // (an unchanged amount is not a change, so it is not submittable)
+    const unchanged = spec.amount && parsed.ok && sameAmount(spec.amount, parsed.value) && (spec.currency ?? draft.currency) === draft.currency;
+    return { label: parsed.ok ? `Use ${formatMoney(parsed.value, draft.currency)}` : 'Use this amount', ready: parsed.ok && !unchanged };
+  }
+  if (spec.kind === 'where' && draft.kind === 'where') {
+    // GPS-only is legitimate (Phase 4 review correction, Section 10/27): coordinates alone are enough to
+    // submit, even with no typed place text.
+    const hasCoordinates = draft.latitude != null && draft.longitude != null;
+    return { label: 'Use this place', ready: parsePlace(draft.place).ok || (draft.place.trim() === '' && hasCoordinates) };
+  }
+  if (spec.kind === 'detail' && draft.kind === 'detail') {
+    const changed = spec.fields.some(field => {
+      const next = (draft.values[field.key] ?? '').trim();
+      return next && next.length <= MAX_DETAIL_VALUE_LENGTH && next !== field.value;
+    });
+    return { label: 'Save this detail', ready: changed };
+  }
   return { label: null, ready: false };
+}
+
+/** An honest, non-fabricated description of what pressing the primary button actually does -- an
+ *  explicit structured action to SecurePay, never a chat sentence. */
+function actionPreview(spec: InstrumentSpec, draft: InstrumentDraft, resolvedKsIdentity: ResolvedKsIdentity | null): string | null {
+  if (spec.kind === 'who' && draft.kind === 'who' && draft.ks.trim()) {
+    const resolved = resolvedKsIdentity?.canonicalKsNumber === normalizeKs(draft.ks) ? resolvedKsIdentity : null;
+    if (resolved) return `Adds ${resolved.displayName} as a candidate participant${draft.role ? ` (${draft.role})` : ''} — nothing is agreed or paid.`;
+    return `Sends ${normalizeKs(draft.ks)} to SecurePay to check who it belongs to. This confirms an identity — it doesn’t add or accept anyone yet.`;
+  }
+  const body = structuredInputFor(spec, draft);
+  return body ? 'This updates what SecurePay understands directly — nothing is agreed or paid.' : null;
 }
 
 /**
@@ -59,11 +105,11 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
   const spec = state.active!; const draft = state.draft!;
   const root = useRef<HTMLDivElement>(null);
     const sending = state.phase === 'sending';
-  // After a failed delivery the earlier statement may already be applied, so the choice is frozen: Retry (same turn) or Close.
+  // After a failed delivery the earlier action may already be applied, so the choice is frozen: Retry (same action) or Close.
   const locked = sending || state.phase === 'failed';
   const blocked = agentBusy || agentUncertain;
-  const primary = primaryFor(spec, draft);
-  const statement = statementFor(spec, draft, { previousAmount: spec.kind === 'money' ? spec.amount : undefined });
+  const primary = primaryFor(spec, draft, state.resolvedKsIdentity);
+  const preview = actionPreview(spec, draft, state.resolvedKsIdentity);
   const title = titleFor(spec, draft);
 
   // Deliberate initial focus: the field the person will type into, or the calendar's one tab stop.
@@ -79,10 +125,11 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
   const submit = () => { if (primary.ready && !blocked && state.phase !== 'failed') void controller.submit(); };
 
   let body: ReactNode = null;
-  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} onFind={onFind} />;
+  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} onFind={onFind} resolvedKsIdentity={state.resolvedKsIdentity} />;
   else if (spec.kind === 'when' && draft.kind === 'when') body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
   else if (spec.kind === 'money' && draft.kind === 'money') body = <MoneyInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
   else if (spec.kind === 'where' && draft.kind === 'where') body = <WhereInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
+  else if (spec.kind === 'detail' && draft.kind === 'detail') body = <DetailInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
 
   const content = <>
     <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-1">
@@ -100,9 +147,10 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
           <QuietButton onClick={() => controller.cancel()}>Close</QuietButton>
         </div>
       </div>}
+      {state.phase === 'editing' && state.error && <p role="alert" className="text-[0.82rem] text-ember-700">{state.error}</p>}
       {state.phase === 'editing' && agentUncertain && <p role="status" className="text-[0.8rem] text-sand-500">An earlier step hasn’t been confirmed yet. Retry it in the conversation before sending anything new.</p>}
       {state.phase === 'editing' && !agentUncertain && agentBusy && <p role="status" className="text-[0.8rem] text-sand-500">KS001 is still replying — you can choose now and send when it finishes.</p>}
-      {primary.label && statement && state.phase !== 'failed' && <p className="text-[0.78rem] leading-snug text-sand-500">Tells KS001: “{statement}” This updates what SecurePay understands — nothing is agreed or paid.</p>}
+      {primary.label && preview && state.phase !== 'failed' && <p className="text-[0.78rem] leading-snug text-sand-500">{preview}</p>}
       <div className="flex items-center justify-between gap-2">
         {state.phase !== 'failed' && <QuietButton onClick={() => controller.cancel()} disabled={sending}>Cancel</QuietButton>}
         {primary.label && state.phase !== 'failed' && <PrimaryButton onClick={submit} disabled={!primary.ready || blocked} busy={sending}>{sending ? 'Sending…' : primary.label}</PrimaryButton>}
