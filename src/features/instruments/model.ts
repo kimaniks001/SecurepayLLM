@@ -278,7 +278,11 @@ export function structuredInputFor(spec: InstrumentSpec, draft: InstrumentDraft)
   if (spec.kind === 'detail' && draft.kind === 'detail') {
     // Only keys that actually changed from their server-projected original value, and only keys this
     // entity already carries -- the UI never invents a new attribute key (Phase 4 review correction,
-    // Section 6/13).
+    // Section 6/13). This loop only ever iterates spec.fields (itself built from the entity's OWN current
+    // attributes -- see projection.ts's describeEntityDetails), so it is structurally impossible for this
+    // action to submit a key the entity did not already have -- exactly the "correction of an EXISTING
+    // detail, never an attribute-creation surface" rule the backend's UserStructuredInputApplier now also
+    // enforces server-side (Phase 4 final closeout, server-boundary hardening).
     const attributeChanges: Record<string, string> = {};
     for (const field of spec.fields) {
       const next = (draft.values[field.key] ?? '').trim();
