@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -48,6 +48,17 @@ export function createAgentGateway(http: HttpClient) {
     // old, stale handoff; mints a brand new one bound to a freshly re-captured source selection.
     useCurrentSource: (id: string, clientActionId?: string) =>
       http.request<HandoffDto>(`${handoff(id)}/use-current-source`, { method: 'POST', body: { clientActionId }, auth: 'required' }),
+    // Phase 4 of the Agent/Trade-Context Convergence -- the second legitimate Trade Context write path:
+    // an EXPLICIT UI ACTION (an instrument submission or a direct UNDERSTOOD edit), never a fabricated
+    // chat sentence. Idempotent on the caller-supplied clientActionId, exactly like every other
+    // idempotency-keyed command in this codebase.
+    submitStructuredInput: (id: string, body: StructuredInputRequest) =>
+      http.request<StructuredInputResult>(`${conversation(id)}/structured-inputs`, { method: 'POST', body, auth: 'none' }),
+    // Phase 4, Part C -- the Who instrument's "I have their KS Number" trusted-user-action path. Omitting
+    // expectedTradeContextVersion performs a PURE lookup (a preview, no Trade Context effect); supplying
+    // it also binds the resolved identity as a CANDIDATE participant.
+    selectKsIdentity: (id: string, body: KsIdentitySelectionRequest) =>
+      http.request<KsIdentitySelectionResult>(`${conversation(id)}/identity-selections`, { method: 'POST', body, auth: 'none' }),
   };
 }
 export type AgentGateway = ReturnType<typeof createAgentGateway>;

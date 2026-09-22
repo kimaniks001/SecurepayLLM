@@ -1,4 +1,5 @@
 import { canonicalRole } from '../../api/securepay/agent/roles';
+import type { StructuredInputRequest } from '../../api/securepay/agent/dto';
 
 /**
  * SecurePay INTERACTION INSTRUMENTS -- the single grammar for every contextual control summoned by
@@ -8,19 +9,19 @@ import { canonicalRole } from '../../api/securepay/agent/roles';
  * An instrument is NOT a card and NOT a form. It is a short-lived, cancelable, single-purpose
  * control that knows which fact it is helping settle (`InstrumentSpec`), holds the person's
  * in-progress input (`draft`) OUTSIDE the component tree so it survives BUILD/UNDERSTOOD switching
- * and recoverable failures, and finishes by saying ONE thing to the real Agent (`statementFor`).
+ * and recoverable failures, and finishes with ONE explicit structured action to SecurePay
+ * (`structuredInputFor`) -- never a fabricated chat sentence.
  *
  * Doctrine that this file makes structural rather than conventional:
  *
- *  - An instrument can only ever produce a STATEMENT -- the same authority as the person typing the
- *    sentence. It cannot create an Agreement, join, confirm, invite, fund or release anything.
+ *  - Phase 4's LOCKED PRINCIPLE: a UI selection is an explicit, user-originated STRUCTURED action, not
+ *    fake conversation. It is not "the person typing a sentence" -- it is validated and applied by
+ *    SecurePay's own `/structured-inputs` (or, for KS identity, `/identity-selections`) endpoint,
+ *    through the SAME Trade Context engine every conversational mutation already uses.
  *  - Direct edit != confirmation. Whether the resulting fact is CANDIDATE or CONFIRMED is decided by
  *    the backend and read back from Trade Context; nothing here sets or assumes a state.
  *  - Money is decimal STRINGS end to end. `Number` is used only for calendar arithmetic on days.
- *  - AN INSTRUMENT MAY CLOSE ONLY WHEN TRADE CONTEXT PROVES THE EXACT MEANING SELECTED (see verify.ts),
- *    and it is offered ONLY where the real formation path (RuleBasedAgreementInterpreter ->
- *    LegacyFactTradeContextAdapter) can represent and read back that meaning. Where it cannot, the
- *    instrument is deliberately not offered -- see docs/UI_COMPLETION_PHASE1_CONVERSATIONAL_WORKBENCH.md.
+ *  - AN INSTRUMENT MAY CLOSE ONLY WHEN TRADE CONTEXT PROVES THE EXACT MEANING SELECTED (see verify.ts).
  */
 
 export type InstrumentKind = 'who' | 'when' | 'money' | 'where';
@@ -29,34 +30,41 @@ export type InstrumentKind = 'who' | 'when' | 'money' | 'where';
 export type InstrumentOrigin = 'understood' | 'agent' | 'add';
 
 /**
- * WHO = ADD A PERSON: a first-name + role statement ("John is the seller.") the real interpreter can
- * represent. It is NOT identity resolution -- no KS Number is checked or attached (see ksformat.ts),
- * no participant is created, no invitation exists. `takenNames`: people SecurePay already holds; those
- * rows are changed in conversation, never re-added or "corrected" from here.
+ * WHO = ADD A PERSON/ORGANIZATION, with an optional role -- OR, if a real KS Number is supplied, an
+ * exact, server-verified identity selection (see ksformat.ts / the Who instrument). `targetEntityId`,
+ * when present, names an existing CANDIDATE entity this instrument is correcting (its role, or binding
+ * it to a resolved identity) rather than adding a new one. `takenNames`: people SecurePay already
+ * holds, used only to avoid an obviously duplicate NEW name.
  */
-export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[] }
-/** WHEN: a FIRST date only. Formation files it as `deadline.value` (ISO) and cannot supersede it. */
-export interface WhenSpec { kind: 'when'; origin: InstrumentOrigin; hintDate?: string }
-/** MONEY: KES only -- the interpreter forces `value.currency = KES` for every amount it recognises. */
-export interface MoneySpec { kind: 'money'; origin: InstrumentOrigin; amount?: string }
-/** WHERE: a FIRST single-word place only. Formation creates one PLACE entity per name and never replaces it. */
-export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin }
+export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[]; targetEntityId?: string; currentName?: string }
+/** WHEN: a date, optionally timed. `targetEntityId` (a real DATE entity) means "correct this one in place." */
+export interface WhenSpec { kind: 'when'; origin: InstrumentOrigin; hintDate?: string; targetEntityId?: string; currentDate?: string; currentTime?: string }
+/**
+ * MONEY: a decimal amount with an explicit currency (never hard-coded). `targetRelationshipId` (an
+ * existing PAYMENT_CONDITION row from UNDERSTOOD) means "edit this exact row in place"; without it, a
+ * brand-new amount is recorded as its own candidate fact.
+ */
+export interface MoneySpec { kind: 'money'; origin: InstrumentOrigin; amount?: string; currency?: string; targetRelationshipId?: string }
+/** WHERE: bounded, free, multi-word place text -- never restricted to one capitalized word. `targetEntityId` means "correct this PLACE in place." */
+export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin; targetEntityId?: string; currentPlace?: string }
 export type InstrumentSpec = WhoSpec | WhenSpec | MoneySpec | WhereSpec;
 
 export type InstrumentDraft =
   | { kind: 'who'; name: string; role: string; ks: string }
-  | { kind: 'when'; date: string | null }
+  | { kind: 'when'; date: string | null; time: string }
   | { kind: 'money'; amount: string; currency: string }
-  | { kind: 'where'; place: string };
+  | { kind: 'where'; place: string; latitude: number | null; longitude: number | null };
 
-export const FORMATION_CURRENCY = 'KES';
+/** A sensible default shown in the currency field -- never an enforced/only-supported currency. The
+ *  backend validates the real ISO-4217 code the person actually confirms (java.util.Currency). */
+export const DEFAULT_CURRENCY = 'KES';
 
 export function emptyDraft(spec: InstrumentSpec): InstrumentDraft {
   switch (spec.kind) {
     case 'who': return { kind: 'who', name: '', role: spec.role ?? '', ks: '' };
-    case 'when': return { kind: 'when', date: null };
-    case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: FORMATION_CURRENCY };
-    case 'where': return { kind: 'where', place: '' };
+    case 'when': return { kind: 'when', date: null, time: spec.currentTime ?? '' };
+    case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: spec.currency ?? DEFAULT_CURRENCY };
+    case 'where': return { kind: 'where', place: spec.currentPlace ?? '', latitude: null, longitude: null };
   }
 }
 
@@ -86,6 +94,8 @@ export const sameAmount = (a: string, b: string): boolean => {
   const left = parseAmount(a); const right = parseAmount(b);
   return left.ok && right.ok && left.value === right.value;
 };
+/** A bounded, well-formed ISO-4217-SHAPED code (three uppercase letters). The real currency-exists check
+ *  is the backend's (`java.util.Currency`) -- this is only "is this even a plausible code to submit." */
 export const isCurrencyCode = (value: string): boolean => /^[A-Z]{3}$/.test(value);
 
 // ---------------------------------------------------------------------------------------------
@@ -124,6 +134,8 @@ export const longDate = (iso: string): string => {
   const p = fromIso(iso);
   return p ? `${WEEKDAYS[weekdayOf(iso)]}, ${p.day} ${MONTHS[p.month0]} ${p.year}` : iso;
 };
+/** A plain 24h `HH:mm` check -- the backend validates the real ISO-8601 time; this only bounds the shape. */
+export const isValidTime = (raw: string): boolean => /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.trim());
 export interface MonthCell { iso: string; day: number }
 /** Monday-first weeks, `null` padding, so a month renders as complete rows of seven. */
 export function monthGrid(year: number, month0: number): (MonthCell | null)[][] {
@@ -134,64 +146,77 @@ export function monthGrid(year: number, month0: number): (MonthCell | null)[][] 
   return Array.from({ length: cells.length / 7 }, (_, row) => cells.slice(row * 7, row * 7 + 7));
 }
 
-/** Local 24h and weekday helpers intentionally absent: SecurePay formation stores a bare ISO date, nothing else. */
-
 // ---------------------------------------------------------------------------------------------
-// Places -- mirrors RuleBasedAgreementInterpreter.PLACE_PREPOSITION and NAME_STOPWORDS.
+// Names and places -- bounded, free text. Phase 4 removes the old single-capitalized-word grammar
+// restriction (an artifact of the retired free-text interpreter, not a real backend limit): the real
+// structured-input endpoint accepts any bounded name/place string, validated server-side.
 // ---------------------------------------------------------------------------------------------
 
-/**
- * The formation parser reads a place ONLY as `(in|at) <Capitalised single word>` (`[A-Z][a-z]{1,30}`);
- * "Kilimani, Nairobi" would record just "Kilimani", "Kilimani Road" just "Kilimani", "westlands" nothing.
- * Words on its name stoplist are never taken as names.
- */
-const NAME_STOPWORDS = new Set(['I', 'The', 'This', 'That', 'My', 'Our', 'We', 'You', 'He', 'She', 'They', 'It', 'A', 'An', 'Is', 'Are', 'Was', 'Were', 'For', 'And', 'But', 'So', 'If', 'When', 'Then', 'There', 'Another', 'Different', 'Second', 'More', 'Other', 'Same', 'By', 'Way', 'Also', 'However', 'Actually', 'Please', 'Once', 'After', 'Before', 'During', 'Since', 'While', 'Because', 'Though', 'Although', 'Kes', 'Kshs', 'Ksh', 'Shs', 'Bob', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', ...MONTHS, 'Contribution', 'Contributing', 'Buying', 'Building', 'Selling', 'Paying', 'Hiring', 'Collecting', 'Funeral', 'Wedding', 'Forming', 'Setting', 'Making', 'Purchase', 'Purchasing', 'Rent', 'Church', 'Chama', 'Securepay']);
-export function parsePlace(raw: string): { ok: true; value: string } | { ok: false; reason: 'empty' | 'one-word' | 'reserved' } {
+const MAX_NAME_LENGTH = 200;
+const MAX_PLACE_LENGTH = 300;
+
+export function parsePlace(raw: string): { ok: true; value: string } | { ok: false; reason: 'empty' | 'too-long' } {
   const trimmed = raw.replace(/\s+/g, ' ').trim();
   if (!trimmed) return { ok: false, reason: 'empty' };
-  const value = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-  if (!/^[A-Z][a-z]{1,30}$/.test(value)) return { ok: false, reason: 'one-word' };
-  if (NAME_STOPWORDS.has(value)) return { ok: false, reason: 'reserved' };
-  return { ok: true, value };
+  if (trimmed.length > MAX_PLACE_LENGTH) return { ok: false, reason: 'too-long' };
+  return { ok: true, value: trimmed };
 }
 
 /**
- * A person's name as `NAME_IS_THE_ROLE` reads it: `<Capitalised single word> is the <lowercase word>`.
- * Same one-word/stoplist rules as places; a name SecurePay already holds is refused (correcting or
- * re-role-ing an existing person cannot be proven safe from here -- that stays conversation).
+ * A person/organization's name as bounded free text -- a name SecurePay already holds (`taken`) is
+ * refused here: correcting or re-role-ing an EXISTING person is a separate `targetEntityId`-carrying
+ * action (`ASSIGN_ROLE`/`CORRECT_ENTITY_DETAIL`), never a second "add" of the same name.
  */
-export function parsePersonName(raw: string, taken: readonly string[] = []): { ok: true; value: string } | { ok: false; reason: 'empty' | 'one-word' | 'reserved' | 'taken' } {
-  const parsed = parsePlace(raw);
-  if (!parsed.ok) return parsed;
-  return taken.some(name => name.toLowerCase() === parsed.value.toLowerCase()) ? { ok: false, reason: 'taken' } : parsed;
+export function parsePersonName(raw: string, taken: readonly string[] = []): { ok: true; value: string } | { ok: false; reason: 'empty' | 'too-long' | 'taken' } {
+  const trimmed = raw.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return { ok: false, reason: 'empty' };
+  if (trimmed.length > MAX_NAME_LENGTH) return { ok: false, reason: 'too-long' };
+  return taken.some(name => name.toLowerCase() === trimmed.toLowerCase()) ? { ok: false, reason: 'taken' } : { ok: true, value: trimmed };
 }
 
 // ---------------------------------------------------------------------------------------------
-// Statements -- the ONLY thing an instrument ever sends. Ordinary conversational sentences chosen
-// to match the grammar the real formation interpreter recognises (proved in tests/ui-phase1.test.mjs).
+// Structured inputs -- the ONE thing an instrument ever sends (besides a KS identity selection, which
+// is its own separate, trusted-user-action endpoint -- see the Who instrument). Never a chat sentence.
 // ---------------------------------------------------------------------------------------------
 
-export function statementFor(spec: InstrumentSpec, draft: InstrumentDraft, ctx: { previousAmount?: string; previousCurrency?: string } = {}): string | null {
+type StructuredInputBody = Omit<StructuredInputRequest, 'expectedTradeContextVersion' | 'clientActionId'>;
+
+/**
+ * Builds the exact, closed-vocabulary body SecurePay's `/structured-inputs` endpoint expects for this
+ * instrument's current draft, or `null` if nothing submittable is selected yet. `expectedTradeContextVersion`
+ * and `clientActionId` are added by the instruments controller (the caller), which owns idempotency.
+ */
+export function structuredInputFor(spec: InstrumentSpec, draft: InstrumentDraft): StructuredInputBody | null {
   if (spec.kind === 'who' && draft.kind === 'who') {
-    // "<Name> is the <role>." -> NAME_IS_THE_ROLE -> entity.<name>.role -> a canonical ROLE relationship.
-    // A KS Number is never part of the statement: it cannot be attached (KS formats disagree).
+    if (!canonicalRole(draft.role)) return null;
+    // Editing an existing candidate only ever corrects its role -- the name is irrelevant to this action.
+    if (spec.targetEntityId) return { type: 'ASSIGN_ROLE', targetEntityId: spec.targetEntityId, roleFreeText: draft.role.trim() };
     const name = parsePersonName(draft.name, spec.takenNames);
-    return name.ok && canonicalRole(draft.role) ? `${name.value} is the ${draft.role.trim().toLowerCase()}.` : null;
+    if (!name.ok) return null;
+    return { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'PERSON', name: name.value, roleFreeText: draft.role.trim() || undefined };
   }
   if (spec.kind === 'when' && draft.kind === 'when') {
-    // "D Month YYYY" is the one date shape the interpreter reads; it stores the ISO date as `deadline.value`.
-    return draft.date && fromIso(draft.date) ? `The date is ${longDate(draft.date)}.` : null;
+    if (!draft.date || !fromIso(draft.date)) return null;
+    if (draft.time && !isValidTime(draft.time)) return null;
+    return { type: 'SET_DATE', targetEntityId: spec.targetEntityId, isoDate: draft.date, isoTime: draft.time || undefined };
   }
   if (spec.kind === 'money' && draft.kind === 'money') {
     const parsed = parseAmount(draft.amount);
-    if (!parsed.ok || draft.currency !== FORMATION_CURRENCY) return null; // the interpreter would file any figure as KES
-    const next = formatMoney(parsed.value, FORMATION_CURRENCY);
-    const changed = !!ctx.previousAmount && (!sameAmount(ctx.previousAmount, parsed.value) || (ctx.previousCurrency ?? FORMATION_CURRENCY) !== FORMATION_CURRENCY);
-    return changed ? `Correction: the amount is ${next}, not ${formatMoney(ctx.previousAmount!, ctx.previousCurrency ?? FORMATION_CURRENCY)}.` : `The amount is ${next}.`;
+    if (!parsed.ok || !isCurrencyCode(draft.currency)) return null;
+    // With a real UNDERSTOOD row to edit, target it exactly; otherwise SecurePay records a new,
+    // context-wide amount (no WHAT entity required yet) -- never the unrelated external-fact/quotation
+    // intake, which would misrepresent this as coming from an external source.
+    return spec.targetRelationshipId
+      ? { type: 'SET_AMOUNT', targetRelationshipId: spec.targetRelationshipId, amount: parsed.value, currency: draft.currency }
+      : { type: 'SET_AMOUNT', amount: parsed.value, currency: draft.currency };
   }
   if (spec.kind === 'where' && draft.kind === 'where') {
     const place = parsePlace(draft.place);
-    return place.ok ? `The place is in ${place.value}.` : null;
+    if (!place.ok) return null;
+    return {
+      type: 'SET_LOCATION', targetEntityId: spec.targetEntityId, placeText: place.value,
+      latitude: draft.latitude ?? undefined, longitude: draft.longitude ?? undefined,
+    };
   }
   return null;
 }

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { addDays, addMonths, fromIso, longDate, monthGrid, MONTHS, toIso, todayIso, weekdayOf, type InstrumentDraft, type WhenSpec } from '../model';
-import { FOCUS } from './atoms';
+import { addDays, addMonths, fromIso, isValidTime, longDate, monthGrid, MONTHS, toIso, todayIso, weekdayOf, type InstrumentDraft, type WhenSpec } from '../model';
+import { Field, FOCUS, INPUT } from './atoms';
 
 const HEADS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /**
- * A real calendar for ONE date: the visible month comes from the person's own clock or an
- * Agent-provided ISO hint -- never from a constant. Nothing is pre-selected. There is no time field
- * and no range: SecurePay formation stores a single ISO date and nothing else, so anything more
- * could be selected here but not read back (see verify.ts / the Phase 1 doc).
+ * A real calendar for ONE date, with an optional time (Phase 4 of the Agent/Trade-Context Convergence).
+ * The visible month comes from the person's own clock or an Agent-provided ISO hint -- never from a
+ * constant. Nothing is pre-selected. No timezone is invented: a typed time is sent exactly as entered
+ * (the browser's own local wall-clock reading), never silently converted.
  *
  * Keyboard: arrows move by day/week, Home/End by week edge, PageUp/PageDown by month,
  * Enter/Space selects. One tab stop for the whole grid (roving tabindex).
@@ -95,5 +95,10 @@ export function CalendarInstrument({ spec, draft, onChange, disabled, today = to
       </div>
     </div>
     <p role="status" className="min-h-[1.25rem] text-[0.85rem] text-forest-700">{draft.date ? longDate(draft.date) : 'Choose a day.'}</p>
+    <Field label="Time (optional)" htmlFor="instrument-time" hint="Your device’s own local time, kept exactly as entered.">
+      <input id="instrument-time" type="time" value={draft.time} disabled={disabled}
+        onChange={event => onChange({ ...draft, time: event.target.value })} className={`${INPUT} w-32`} />
+    </Field>
+    {draft.time && !isValidTime(draft.time) && <p role="alert" className="text-[0.82rem] text-ember-700">Enter a time as HH:MM.</p>}
   </div>;
 }

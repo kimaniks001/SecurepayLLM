@@ -48,6 +48,54 @@ export interface HandoffDto {
 }
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }
 
+// Phase 4 of the Agent/Trade-Context Convergence -- CAPABILITY CONVERGENCE. The SECOND legitimate Trade
+// Context write path: an EXPLICIT UI ACTION (an instrument submission or a direct UNDERSTOOD edit), never a
+// fabricated chat sentence. Mirrors ke.securepay.core.api.agent.controller.AgentApiModels.StructuredInputRequest
+// exactly -- a closed, typed vocabulary (`type`), not a raw mutation shape.
+export type StructuredInputType =
+  | 'ADD_PARTICIPANT_CANDIDATE' | 'CORRECT_ENTITY_DETAIL' | 'ASSIGN_ROLE' | 'SET_AMOUNT' | 'SET_DATE'
+  | 'SET_DATE_RANGE' | 'SET_LOCATION';
+export interface StructuredInputRequest {
+  type: StructuredInputType;
+  expectedTradeContextVersion: number;
+  clientActionId: string;
+  participantType?: 'PERSON' | 'ORGANIZATION';
+  name?: string;
+  roleFreeText?: string;
+  targetEntityId?: string;
+  targetRelationshipId?: string;
+  attributeChanges?: Record<string, string>;
+  amount?: string;
+  currency?: string;
+  isoDate?: string;
+  isoTime?: string;
+  isoStartDate?: string;
+  isoEndDate?: string;
+  placeText?: string;
+  latitude?: number;
+  longitude?: number;
+}
+export type StructuredInputStatus = 'APPLIED' | 'ALREADY_APPLIED';
+export interface StructuredInputResult {
+  status: StructuredInputStatus; affectedEntityId: string | null; entitiesApplied: number;
+  relationshipsApplied: number; conflicts: string[]; tradeContextVersion: number;
+}
+
+// Phase 4, Part C -- the Who instrument's "I have their KS Number" trusted-user-action path. Mirrors
+// AgentApiModels.KsIdentitySelectionRequest/Result exactly.
+export interface KsIdentitySelectionRequest {
+  ksNumber: string; expectedTradeContextVersion?: number; clientActionId?: string; role?: string;
+  existingTradeEntityId?: string;
+}
+export type KsIdentitySelectionStatus =
+  | 'RESOLVED' | 'ASSOCIATED' | 'ALREADY_ASSOCIATED' | 'NOT_FOUND' | 'NOT_AVAILABLE' | 'NOT_PARTICIPANT_ELIGIBLE'
+  | 'UNSUPPORTED' | 'MALFORMED_KS_NUMBER';
+export interface KsIdentitySelectionResult {
+  status: KsIdentitySelectionStatus; canonicalKsNumber: string | null; displayName: string | null;
+  participantType: 'PERSON' | 'ORGANIZATION' | null; entityId: string | null; entityCreated: boolean | null;
+  roleApplied: boolean | null; tradeContextVersion: number | null;
+}
+
 // Phase 3 Living Agreements -- SecurePay Agent wired into an existing, already-established Agreement.
 export interface AgentAgreementMilestoneFactDto { title: string; effectiveState: string; waitingReason: string | null }
 export interface AgentAgreementMoneyPositionFactDto { currency: string; fundedTotalMinor: number; exercisedOrSettledMinor: number; remainingFundedMinor: number }

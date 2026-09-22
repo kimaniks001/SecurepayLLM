@@ -21,14 +21,17 @@ export interface InstrumentHints { label?: string; role?: string; currency?: str
 export interface InstrumentPromptView { type: 'INSTRUMENT_PROMPT'; instrument: InstrumentPromptKind; hints: InstrumentHints }
 /**
  * Inputs the backend cannot honestly support yet, rendered as an honest note: PHOTO_UPLOAD / DOCUMENT_UPLOAD
- * (no durable pre-Agreement upload), KSNUMBER_PICKER (no participant-safe KS check/attach) and DATE_RANGE_PICKER (formation keeps ONE `deadline.value`; a second
- * date overwrites the first, so start and end cannot both be represented). The bridge still PARSES them.
+ * (no durable pre-Agreement media/blob storage exists) and DATE_RANGE_PICKER (the UI's own date-range editor
+ * is not yet wired, though the backend's SET_DATE_RANGE structured action is real). The bridge still PARSES
+ * them. KSNUMBER_PICKER is now real (Phase 4 of the Agent/Trade-Context Convergence, Part C): it opens the
+ * Who instrument, whose "I have a KS Number" path performs a real, server-verified identity lookup.
  */
-export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' | 'ks-number' }
+export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' }
 
 const KIND: Record<string, InstrumentPromptKind> = {
   PERSON_PICKER: 'who', DATE_PICKER: 'when',
   AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where',
+  KSNUMBER_PICKER: 'who',
 };
 
 const text = (value: unknown, max = 120): string | undefined => {
@@ -46,8 +49,6 @@ export function isRealIsoDate(value: string): boolean {
 
 export function instrumentComponentView(component: ComponentDto): InstrumentPromptView | UnavailableInputView | null {
   if (component.type === 'PHOTO_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'photo' };
-  // KS resolution is unavailable (identity endpoint not participant-safe; KS formats disagree): an honest note, never a control.
-  if (component.type === 'KSNUMBER_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'ks-number' };
   if (component.type === 'DATE_RANGE_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'date-range' };
   if (component.type === 'DOCUMENT_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'document' };
   const instrument = KIND[component.type];

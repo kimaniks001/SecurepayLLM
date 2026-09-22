@@ -1,20 +1,20 @@
 /**
- * KS Number FORMATS -- and why KS Number resolution and linking is unavailable in Phase 1.
+ * KS Number FORMAT -- the real platform identity shape.
  *
- *  - Platform identity (`KsNumberParser`, identity API): `^KS[0-9]{3,}$`, canonical `KS001`, `KS002`, `KS003` ...
- *  - Formation / Trade Context (`KSNumberFormatPolicy`, `RuleBasedAgreementInterpreter.KS_NUMBER_TOKEN`):
- *    exactly `KS` + 9 digits, and only attached when exactly ONE entity has been mentioned.
+ * Platform identity (`KsNumberParser`, `KsNumber.parse`): `^KS[0-9]{3,}$` with a strictly positive
+ * sequence number (KS000 is rejected -- a zero sequence never exists), canonical `KS001`, `KS002`,
+ * `KS003` ... This is the ONLY format the Who instrument's "I have a KS Number" path uses (via
+ * SecurePay's real `/identity-selections` endpoint, Phase 4 of the Agent/Trade-Context Convergence,
+ * Part C).
  *
- * So a real platform number such as KS003 has no format the formation path recognises, and this UI
- * must not invent one (no zero-padding, no frontend-only association). Nothing here talks to any API:
- * the identity record endpoint returns internal ids/timestamps, so it is not a participant-safe transport.
+ * The legacy formation-only shape (`KSNumberFormatPolicy` / `RuleBasedAgreementInterpreter.KS_NUMBER_TOKEN`
+ * -- exactly `KS` + 9 digits) belonged to the retired free-text interpreter path and is never used here:
+ * do not zero-pad, do not invent a second format, and never route a KS Number through that legacy policy.
  */
 export const PLATFORM_KS = /^KS[0-9]{3,}$/;
-export const FORMATION_KS = /^KS[0-9]{9}$/;
 export const normalizeKs = (raw: string): string => raw.replace(/\s+/g, '').toUpperCase();
-export type KsShape = 'malformed' | 'platform-only' | 'formation-compatible';
-export function ksShape(raw: string): KsShape {
+/** The full real rule: the shape above, AND a strictly positive sequence (KS000 is not a real KS Number). */
+export const isValidKsNumber = (raw: string): boolean => {
   const value = normalizeKs(raw);
-  if (!PLATFORM_KS.test(value) || Number(value.slice(2)) <= 0) return 'malformed';
-  return FORMATION_KS.test(value) ? 'formation-compatible' : 'platform-only';
-}
+  return PLATFORM_KS.test(value) && Number(value.slice(2)) > 0;
+};

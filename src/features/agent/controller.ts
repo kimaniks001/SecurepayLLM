@@ -1,6 +1,6 @@
 import type { AgentGateway } from '../../api/securepay/agent';
 import { agentResponseView, tradeContextView } from '../../api/securepay/agent/adapters';
-import type { AdoptFactRequest, ExternalFactRequest, SelectedCommercialSourceDto, TurnRequest } from '../../api/securepay/agent/dto';
+import type { AdoptFactRequest, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 
 export type ContextView = ReturnType<typeof tradeContextView>;
@@ -75,8 +75,24 @@ export function sourceErrorText(error: unknown): string {
   }
   return 'SecurePay couldn’t link this listing just now. Trying again is safe.';
 }
+/**
+ * Phase 4 of the Agent/Trade-Context Convergence -- PART V, STALE / CONCURRENT EDIT UX: a version race is
+ * normal, never a generic failure. `stale: true` means SecurePay's own understanding moved on between
+ * reading it and submitting this action; the caller's draft is NEVER discarded here, and Trade Context is
+ * always refreshed so a deliberate retry can succeed against the CURRENT version.
+ */
+export type StructuredInputOutcome =
+  | { ok: true; result: StructuredInputResult; context: ContextView | null }
+  | { ok: false; stale: true; error: string; context: ContextView | null }
+  | { ok: false; stale: false; error: string };
+export type KsIdentitySelectionOutcome =
+  | { ok: true; result: KsIdentitySelectionResult; context: ContextView | null }
+  | { ok: false; stale: true; error: string; context: ContextView | null }
+  | { ok: false; stale: false; error: string };
+const isStaleVersionError = (error: unknown): boolean => error instanceof ApiError && error.code === 'AGENT_STRUCTURED_INPUT_STALE_VERSION';
+
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource'>, id = () => crypto.randomUUID()) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
   let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -178,6 +194,53 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (state.busy || state.pending || state.context.status !== 'ready') return;
       if (!state.context.data?.candidates.some(fact => fact.id === targetId && fact.targetKind === targetKind)) return;
       await run({ kind: 'adopt', body: { targetId, targetKind, clientTurnId: id() } });
+    },
+    /**
+     * Phase 4 of the Agent/Trade-Context Convergence -- the SECOND legitimate Trade Context write path:
+     * an EXPLICIT UI ACTION (an instrument submission or a direct UNDERSTOOD edit). Deliberately NOT
+     * routed through `run()`/`pending` (that machinery is turn/adopt/amount-shaped and assumes a single
+     * "the current pending thing"); the caller (the instruments controller) already owns its own
+     * draft/retry state and supplies a STABLE `clientActionId` it reuses across a retry itself, so a
+     * network retry can never duplicate the action. Never appends a conversational turn -- a calendar
+     * click or a money edit is not something the person "said."
+     */
+    async submitStructuredInput(body: Omit<StructuredInputRequest, 'clientActionId'> & { clientActionId: string }): Promise<StructuredInputOutcome> {
+      if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
+      update({ busy: true, error: null });
+      try {
+        const conversationId = await ensureConversationId();
+        const result = await gateway.submitStructuredInput(conversationId, body);
+        await readContext();
+        return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
+      } catch (error) {
+        if (isStaleVersionError(error)) {
+          await readContext();
+          return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
+        }
+        return { ok: false, stale: false, error: errorText(error) };
+      } finally { update({ busy: false }); }
+    },
+    /**
+     * Phase 4, Part C -- the Who instrument's "I have their KS Number" trusted-user-action path.
+     * Omitting `expectedTradeContextVersion` performs a PURE lookup (a preview: "Maua Shoes / KS003 /
+     * Business" before the person confirms it) with no Trade Context effect; supplying it also binds the
+     * resolved identity. Never a fabricated chat turn.
+     */
+    async selectKsIdentity(body: KsIdentitySelectionRequest): Promise<KsIdentitySelectionOutcome> {
+      if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
+      update({ busy: true, error: null });
+      try {
+        const conversationId = await ensureConversationId();
+        const result = await gateway.selectKsIdentity(conversationId, body);
+        if (body.expectedTradeContextVersion !== undefined) await readContext();
+        return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
+      } catch (error) {
+        if (isStaleVersionError(error)) {
+          await readContext();
+          return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
+        }
+        return { ok: false, stale: false, error: errorText(error) };
+      } finally { update({ busy: false }); }
     },
     /**
      * The Store "Use this" -> Trade Taking Shape convergence (task section 5). If the Offer carries a
