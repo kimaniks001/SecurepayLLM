@@ -17,19 +17,20 @@ export { KNOWN_ROLES };
  * person, sets a date/amount, or uploads anything.
  */
 export type InstrumentPromptKind = 'who' | 'when' | 'money' | 'where';
-export interface InstrumentHints { label?: string; role?: string; currency?: string; date?: string }
+export interface InstrumentHints { label?: string; role?: string; currency?: string; date?: string; mode?: 'range' }
 export interface InstrumentPromptView { type: 'INSTRUMENT_PROMPT'; instrument: InstrumentPromptKind; hints: InstrumentHints }
 /**
  * Inputs the backend cannot honestly support yet, rendered as an honest note: PHOTO_UPLOAD / DOCUMENT_UPLOAD
- * (no durable pre-Agreement media/blob storage exists) and DATE_RANGE_PICKER (the UI's own date-range editor
- * is not yet wired, though the backend's SET_DATE_RANGE structured action is real). The bridge still PARSES
- * them. KSNUMBER_PICKER is now real (Phase 4 of the Agent/Trade-Context Convergence, Part C): it opens the
- * Who instrument, whose "I have a KS Number" path performs a real, server-verified identity lookup.
+ * (no durable pre-Agreement media/blob storage exists). The bridge still PARSES them. KSNUMBER_PICKER is
+ * real (Phase 4 of the Agent/Trade-Context Convergence, Part C): it opens the Who instrument, whose "I have
+ * a KS Number" path performs a real, server-verified identity lookup. DATE_RANGE_PICKER is ALSO now real
+ * (Phase 4 review correction, Section 14): it opens the SAME "when" instrument in range mode, backed by the
+ * real `SET_DATE_RANGE` structured action -- it is no longer treated as an external blocker.
  */
-export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' | 'date-range' }
+export interface UnavailableInputView { type: 'UNAVAILABLE_INPUT'; input: 'photo' | 'document' }
 
 const KIND: Record<string, InstrumentPromptKind> = {
-  PERSON_PICKER: 'who', DATE_PICKER: 'when',
+  PERSON_PICKER: 'who', DATE_PICKER: 'when', DATE_RANGE_PICKER: 'when',
   AMOUNT_INPUT: 'money', LOCATION_PICKER: 'where',
   KSNUMBER_PICKER: 'who',
 };
@@ -49,7 +50,6 @@ export function isRealIsoDate(value: string): boolean {
 
 export function instrumentComponentView(component: ComponentDto): InstrumentPromptView | UnavailableInputView | null {
   if (component.type === 'PHOTO_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'photo' };
-  if (component.type === 'DATE_RANGE_PICKER') return { type: 'UNAVAILABLE_INPUT', input: 'date-range' };
   if (component.type === 'DOCUMENT_UPLOAD') return { type: 'UNAVAILABLE_INPUT', input: 'document' };
   const instrument = KIND[component.type];
   if (!instrument || typeof component.data !== 'object' || component.data === null || Array.isArray(component.data)) return null;
@@ -63,5 +63,6 @@ export function instrumentComponentView(component: ComponentDto): InstrumentProm
   if (currency && /^[A-Z]{3}$/.test(currency)) hints.currency = currency;
   const date = text(data.date, 10) ?? text(data.month, 10);
   if (date && isRealIsoDate(date)) hints.date = date;
+  if (component.type === 'DATE_RANGE_PICKER') hints.mode = 'range';
   return { type: 'INSTRUMENT_PROMPT', instrument, hints };
 }

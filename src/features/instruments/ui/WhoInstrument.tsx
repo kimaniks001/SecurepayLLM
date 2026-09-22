@@ -40,9 +40,21 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
     {editingExisting
       ? <p className="text-[0.85rem] text-sand-600">Correcting <span className="font-medium text-forest-800">{spec.currentName}</span>’s role. Their name isn’t changed here.</p>
       : <>
-        <Field label="Name" htmlFor="instrument-name" hint="Just a name — this doesn’t identify or invite anyone.">
+        <div role="group" aria-label="Kind" className="grid grid-cols-2 gap-2">
+          <button type="button" aria-pressed={draft.participantType === 'PERSON'} disabled={disabled || !!typedKs}
+            onClick={() => onChange({ ...draft, participantType: 'PERSON' })}
+            className={`min-h-11 rounded-xl border px-3 text-[0.88rem] font-medium disabled:opacity-40 ${FOCUS} ${draft.participantType === 'PERSON' ? 'border-forest-500 bg-forest-50 text-forest-800' : 'border-cream-300 bg-white text-sand-600 hover:border-forest-300'}`}>
+            A person
+          </button>
+          <button type="button" aria-pressed={draft.participantType === 'ORGANIZATION'} disabled={disabled || !!typedKs}
+            onClick={() => onChange({ ...draft, participantType: 'ORGANIZATION' })}
+            className={`min-h-11 rounded-xl border px-3 text-[0.88rem] font-medium disabled:opacity-40 ${FOCUS} ${draft.participantType === 'ORGANIZATION' ? 'border-forest-500 bg-forest-50 text-forest-800' : 'border-cream-300 bg-white text-sand-600 hover:border-forest-300'}`}>
+            A business
+          </button>
+        </div>
+        <Field label={draft.participantType === 'ORGANIZATION' ? 'Business name' : 'Name'} htmlFor="instrument-name" hint="Just a name — this doesn’t identify or invite anyone.">
           <input id="instrument-name" data-autofocus value={draft.name} onChange={event => onChange({ ...draft, name: event.target.value })} disabled={disabled || !!typedKs}
-            maxLength={200} autoComplete="off" autoCapitalize="words" placeholder="For example, John" aria-invalid={!!problem} aria-describedby="instrument-name-note" className={INPUT} />
+            maxLength={200} autoComplete="off" autoCapitalize="words" placeholder={draft.participantType === 'ORGANIZATION' ? 'For example, Maua Shoes' : 'For example, John'} aria-invalid={!!problem} aria-describedby="instrument-name-note" className={INPUT} />
         </Field>
         <p id="instrument-name-note" role="status" className="min-h-[1.25rem] text-[0.82rem] text-ember-700">{problem}</p>
       </>}

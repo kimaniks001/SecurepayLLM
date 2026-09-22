@@ -56,6 +56,30 @@ const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerC
 const INTERNAL_KEYS = new Set(['status', 'domain']);
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
 
+/**
+ * Generic, non-domain-specific attribute keys never shown/offered as an ordinary descriptive detail
+ * (Phase 4 review correction, Section 7/12) -- the SAME identity/authority reservation the backend enforces
+ * (`ReservedTradeContextAttributeKeys`), plus this workbench's own known internal/legacy bookkeeping keys.
+ * Everything else an entity's `attributes` carries is, by construction, an ORDINARY bounded descriptive
+ * detail (a shoe's `size`, a painter's `finish`, a parcel's `area`, ...) -- there is deliberately no
+ * per-concept allowlist: genericity comes from EXCLUDING the known non-descriptive keys, never from
+ * enumerating the descriptive ones.
+ */
+const RESERVED_DETAIL_KEYS = new Set([
+  'ksnumber', 'canonicalksnumber', 'identityid', 'identitytype', 'identitystatus', 'identityresolved',
+  'verifiedidentity', 'participanteligible', 'eligible', 'consented', 'accepted', 'authenticated', 'authority',
+  'purposesubject', 'purposetype', 'status', 'domain', 'latitude', 'longitude', 'coordinatesource',
+  'date', 'time', 'startdate', 'enddate',
+]);
+const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
+
+/** The generic, server-projected descriptive-detail fields for an entity -- never a per-concept list. */
+function describeEntityDetails(attributes: Record<string, string>): { key: string; label: string; value: string }[] {
+  return Object.entries(attributes)
+    .filter(([key, value]) => !isReservedDetailKey(key) && value.trim() !== '')
+    .map(([key, value]) => ({ key, label: humanize(key), value }));
+}
+
 function describeQualifiers(q: Record<string, string>): string {
   return Object.entries(q).filter(([key, value]) => !INTERNAL_KEYS.has(key) && value.trim() !== '').map(([, value]) => value).join(' · ');
 }
@@ -124,9 +148,19 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     const isWhat = entity.type === 'SERVICE' || entity.type === 'ITEM' || (entity.type === 'CONCEPT' && !!purpose);
     if (!isWhat) continue;
     shownEntityIds.add(entity.id);
+    // Generic, bounded descriptive details (a shoe's size, a painter's finish, a parcel's area, ...) --
+    // whatever this entity's own attributes actually hold, never a hard-coded "known concept" list (Phase
+    // 4 review correction, Section 12).
+    const detailFields = describeEntityDetails(entity.attributes);
     items.push({
-      key: `what:${entity.id}`, section: 'what', value: entity.type === 'CONCEPT' && purpose ? purpose : entity.name, details: [], state: entity.state,
-      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null,
+      key: `what:${entity.id}`, section: 'what', value: entity.type === 'CONCEPT' && purpose ? purpose : entity.name,
+      details: detailFields.map(field => `${field.label}: ${field.value}`), state: entity.state,
+      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
+      // Editable in place via the generic CORRECT_ENTITY_DETAIL editor -- only when there is at least one
+      // ordinary detail to correct and the row is still a revisable CANDIDATE.
+      spec: entity.state === 'CANDIDATE' && detailFields.length > 0
+        ? { kind: 'detail', origin: 'understood', targetEntityId: entity.id, entityName: entity.name, fields: detailFields }
+        : null,
       find: entity.type === 'ITEM' || entity.type === 'SERVICE' ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name } : undefined,
     });
   }
@@ -137,12 +171,17 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     shownEntityIds.add(entity.id);
     // A real DATE/DATE_RANGE entity (Phase 4's own structured-input convention) can be corrected in
     // place (SET_DATE/SET_DATE_RANGE, targetEntityId). RECURRENCE has no matching structured-input
-        // action yet and stays read-only, changed in conversation.
+    // action yet and stays read-only, changed in conversation.
     const editable = entity.type === 'DATE'
       ? { kind: 'when' as const, origin: 'understood' as const, targetEntityId: entity.id, currentDate: entity.attributes.date, currentTime: entity.attributes.time }
-      : null;
+      : entity.type === 'DATE_RANGE'
+        ? { kind: 'when' as const, origin: 'understood' as const, mode: 'range' as const, targetEntityId: entity.id, currentDate: entity.attributes.startDate, currentEndDate: entity.attributes.endDate }
+        : null;
+    const rangeLabel = entity.type === 'DATE_RANGE' && entity.attributes.startDate && entity.attributes.endDate
+      ? `${longDate(entity.attributes.startDate)} to ${longDate(entity.attributes.endDate)}` : entity.name;
     items.push({
-      key: `when:${entity.id}`, section: 'when', value: entity.name, details: entity.type === 'RECURRENCE' ? ['Repeats'] : [], state: entity.state,
+      key: `when:${entity.id}`, section: 'when', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.name,
+      details: entity.type === 'RECURRENCE' ? ['Repeats'] : [], state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
       spec: entity.state === 'CANDIDATE' ? editable : null,
     });
@@ -232,6 +271,10 @@ export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench
       return { spec: { kind: 'who', origin: 'agent', role: prompt.hints.role, takenNames: add?.kind === 'who' ? add.takenNames : [] } };
     }
     case 'when': {
+      // A DATE_RANGE_PICKER proposal always opens a fresh range selection -- ranges are additive (a
+      // second, distinct period), never assumed to replace an existing single date (Phase 4 review
+      // correction, Section 14/26).
+      if (prompt.hints.mode === 'range') return { spec: { kind: 'when', origin: 'agent', mode: 'range' } };
       if (workbench.adds.some(a => a.key === 'when')) return { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } };
       const when = items('when');
       const editable = when.length === 1 ? when[0].spec : null;

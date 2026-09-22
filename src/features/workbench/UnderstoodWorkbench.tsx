@@ -7,7 +7,7 @@ import type { InstrumentSpec } from '../instruments/model';
 import { projectWorkbench, SECTION_LABEL, type AdoptTarget, type WorkbenchItem, type WorkbenchSection } from './projection';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-inset';
-const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'the person', when: 'the date', money: 'the amount', where: 'the place' };
+const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'the person', when: 'the date', money: 'the amount', where: 'the place', detail: 'this detail' };
 
 /**
  * "What SecurePay understands", as a workbench. Rows are only what the backend's Trade Context

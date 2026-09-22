@@ -12,14 +12,16 @@ import { fromIso, parsePersonName, sameAmount, type InstrumentDraft, type Instru
  */
 
 /**
- * ADD A PERSON: the SAME entity (a PERSON named exactly as entered) has a ROLE relationship whose canonical
- * role is the chosen word's. Claims nothing about identity: no KS Number, participant or invitation.
+ * ADD A PERSON/ORGANIZATION: the SAME entity (of the chosen type, named exactly as entered) has a ROLE
+ * relationship whose canonical role is the chosen word's. Claims nothing about identity: no KS Number,
+ * participant or invitation. `participantType` defaults to PERSON for callers that never offered a choice.
  */
-export function isPersonAdded(context: ContextView, who: { name: string; role: string }): boolean {
+export function isPersonAdded(context: ContextView, who: { name: string; role: string; participantType?: 'PERSON' | 'ORGANIZATION' }): boolean {
   const canonical = canonicalRole(who.role);
   if (!canonical || !who.name) return false;
+  const type = who.participantType ?? 'PERSON';
   return context.entities
-    .filter(e => e.type === 'PERSON' && e.name === who.name.trim())
+    .filter(e => e.type === type && e.name === who.name.trim())
     .some(e => context.relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === e.id && r.qualifiers.role === canonical));
 }
 
@@ -55,15 +57,37 @@ export function isRecorded(spec: InstrumentSpec, draft: InstrumentDraft, context
     if (draft.ks.trim()) return isWhoLinked(context, { ks: draft.ks, role: draft.role });
     if (spec.targetEntityId) return isRoleAssigned(context, spec.targetEntityId, draft.role);
     const name = parsePersonName(draft.name, spec.takenNames);
-    return name.ok && isPersonAdded(context, { name: name.value, role: draft.role });
+    return name.ok && isPersonAdded(context, { name: name.value, role: draft.role, participantType: draft.participantType });
   }
   if (spec.kind === 'when' && draft.kind === 'when') {
+    if (spec.mode === 'range') {
+      if (!draft.date || !draft.endDate || !fromIso(draft.date) || !fromIso(draft.endDate)) return false;
+      return context.entities.some(e => e.type === 'DATE_RANGE' && e.attributes.startDate === draft.date && e.attributes.endDate === draft.endDate);
+    }
     if (!draft.date || !fromIso(draft.date)) return false;
-    return context.entities.some(e => (e.type === 'DATE' || e.type === 'DATE_RANGE') && e.attributes.date === draft.date);
+    // Exact readback: an instrument may not close merely because the date matches if a specific time was
+    // also selected -- the time must match too (Phase 4 review correction, Section 14).
+    return context.entities.some(e => e.type === 'DATE' && e.attributes.date === draft.date && (!draft.time || e.attributes.time === draft.time));
   }
   if (spec.kind === 'where' && draft.kind === 'where') {
-    const trimmed = draft.place.trim().toLowerCase();
-    return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === trimmed);
+    const hasCoordinates = draft.latitude != null && draft.longitude != null;
+    const trimmed = draft.place.trim();
+    if (!trimmed && hasCoordinates) {
+      // GPS-only readback: the exact coordinates SecurePay was sent, never a fabricated place name
+      // (Phase 4 review correction, Section 10/27).
+      return context.entities.some(e => e.type === 'PLACE'
+        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude));
+    }
+    const lowered = trimmed.toLowerCase();
+    return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === lowered);
+  }
+  if (spec.kind === 'detail' && draft.kind === 'detail') {
+    // Every field the person actually changed (and only those) must read back exactly.
+    return spec.fields.every(field => {
+      const next = (draft.values[field.key] ?? '').trim();
+      if (!next || next === field.value) return true; // unchanged -- nothing new to verify for this key
+      return context.entities.some(e => e.id === spec.targetEntityId && e.attributes[field.key] === next);
+    });
   }
   return false;
 }

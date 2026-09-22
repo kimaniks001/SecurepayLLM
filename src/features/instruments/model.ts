@@ -24,7 +24,7 @@ import type { StructuredInputRequest } from '../../api/securepay/agent/dto';
  *  - AN INSTRUMENT MAY CLOSE ONLY WHEN TRADE CONTEXT PROVES THE EXACT MEANING SELECTED (see verify.ts).
  */
 
-export type InstrumentKind = 'who' | 'when' | 'money' | 'where';
+export type InstrumentKind = 'who' | 'when' | 'money' | 'where' | 'detail';
 
 /** Where the instrument was summoned from -- affects only presentation and focus return. */
 export type InstrumentOrigin = 'understood' | 'agent' | 'add';
@@ -37,23 +37,42 @@ export type InstrumentOrigin = 'understood' | 'agent' | 'add';
  * holds, used only to avoid an obviously duplicate NEW name.
  */
 export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[]; targetEntityId?: string; currentName?: string }
-/** WHEN: a date, optionally timed. `targetEntityId` (a real DATE entity) means "correct this one in place." */
-export interface WhenSpec { kind: 'when'; origin: InstrumentOrigin; hintDate?: string; targetEntityId?: string; currentDate?: string; currentTime?: string }
+/**
+ * WHEN: a single date, optionally timed -- OR, when `mode === 'range'`, a start/end date pair (the real
+ * `SET_DATE_RANGE` structured action). `targetEntityId` (a real DATE/DATE_RANGE entity) means "correct
+ * this one in place"; `currentEndDate` only applies in range mode.
+ */
+export interface WhenSpec {
+  kind: 'when'; origin: InstrumentOrigin; mode?: 'date' | 'range'; hintDate?: string; targetEntityId?: string;
+  currentDate?: string; currentTime?: string; currentEndDate?: string;
+}
 /**
  * MONEY: a decimal amount with an explicit currency (never hard-coded). `targetRelationshipId` (an
  * existing PAYMENT_CONDITION row from UNDERSTOOD) means "edit this exact row in place"; without it, a
  * brand-new amount is recorded as its own candidate fact.
  */
 export interface MoneySpec { kind: 'money'; origin: InstrumentOrigin; amount?: string; currency?: string; targetRelationshipId?: string }
-/** WHERE: bounded, free, multi-word place text -- never restricted to one capitalized word. `targetEntityId` means "correct this PLACE in place." */
+/** WHERE: bounded, free, multi-word place text -- never restricted to one capitalized word -- OR user-shared
+ *  GPS coordinates alone (no place text required). `targetEntityId` means "correct this PLACE in place." */
 export interface WhereSpec { kind: 'where'; origin: InstrumentOrigin; targetEntityId?: string; currentPlace?: string }
-export type InstrumentSpec = WhoSpec | WhenSpec | MoneySpec | WhereSpec;
+/**
+ * DETAIL -- the UNDERSTOOD workbench's own GENERIC, bounded descriptive-detail editor (Phase 4 review
+ * correction, Section 13). Works identically for any entity's own ordinary attributes (a shoe's `size`, a
+ * painter's `finish`, a parcel's `area`, ...) with zero per-concept code: `fields` are SERVER-PROJECTED --
+ * read directly off the entity Trade Context already holds -- never invented or guessed by the UI. Editing
+ * only ever changes the value of a key that already exists on this entity; the UI never introduces a new
+ * attribute key SecurePay has not already shown it.
+ */
+export interface DetailField { key: string; label: string; value: string }
+export interface DetailSpec { kind: 'detail'; origin: InstrumentOrigin; targetEntityId: string; entityName: string; fields: DetailField[] }
+export type InstrumentSpec = WhoSpec | WhenSpec | MoneySpec | WhereSpec | DetailSpec;
 
 export type InstrumentDraft =
-  | { kind: 'who'; name: string; role: string; ks: string }
-  | { kind: 'when'; date: string | null; time: string }
+  | { kind: 'who'; name: string; role: string; ks: string; participantType: 'PERSON' | 'ORGANIZATION' }
+  | { kind: 'when'; date: string | null; time: string; endDate: string | null }
   | { kind: 'money'; amount: string; currency: string }
-  | { kind: 'where'; place: string; latitude: number | null; longitude: number | null };
+  | { kind: 'where'; place: string; latitude: number | null; longitude: number | null }
+  | { kind: 'detail'; values: Record<string, string> };
 
 /** A sensible default shown in the currency field -- never an enforced/only-supported currency. The
  *  backend validates the real ISO-4217 code the person actually confirms (java.util.Currency). */
@@ -61,10 +80,11 @@ export const DEFAULT_CURRENCY = 'KES';
 
 export function emptyDraft(spec: InstrumentSpec): InstrumentDraft {
   switch (spec.kind) {
-    case 'who': return { kind: 'who', name: '', role: spec.role ?? '', ks: '' };
-    case 'when': return { kind: 'when', date: null, time: spec.currentTime ?? '' };
+    case 'who': return { kind: 'who', name: '', role: spec.role ?? '', ks: '', participantType: 'PERSON' };
+    case 'when': return { kind: 'when', date: spec.currentDate ?? null, time: spec.currentTime ?? '', endDate: spec.currentEndDate ?? null };
     case 'money': return { kind: 'money', amount: spec.amount ?? '', currency: spec.currency ?? DEFAULT_CURRENCY };
     case 'where': return { kind: 'where', place: spec.currentPlace ?? '', latitude: null, longitude: null };
+    case 'detail': return { kind: 'detail', values: Object.fromEntries(spec.fields.map(field => [field.key, field.value])) };
   }
 }
 
@@ -154,6 +174,10 @@ export function monthGrid(year: number, month0: number): (MonthCell | null)[][] 
 
 const MAX_NAME_LENGTH = 200;
 const MAX_PLACE_LENGTH = 300;
+/** Same bound as the backend's own generic entity-attribute value length (`TradeContextMutationApplier
+ *  .MAX_VALUE_LENGTH` = 500) -- a plain descriptive detail (size, finish, colour, area, ...) is always
+ *  short text. */
+export const MAX_DETAIL_VALUE_LENGTH = 500;
 
 export function parsePlace(raw: string): { ok: true; value: string } | { ok: false; reason: 'empty' | 'too-long' } {
   const trimmed = raw.replace(/\s+/g, ' ').trim();
@@ -193,9 +217,16 @@ export function structuredInputFor(spec: InstrumentSpec, draft: InstrumentDraft)
     if (spec.targetEntityId) return { type: 'ASSIGN_ROLE', targetEntityId: spec.targetEntityId, roleFreeText: draft.role.trim() };
     const name = parsePersonName(draft.name, spec.takenNames);
     if (!name.ok) return null;
-    return { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'PERSON', name: name.value, roleFreeText: draft.role.trim() || undefined };
+    // A plain candidate name may be a person OR an organization/business -- the person's own explicit
+    // choice, never hard-coded (Phase 4 review correction, Section 15A).
+    return { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: draft.participantType, name: name.value, roleFreeText: draft.role.trim() || undefined };
   }
   if (spec.kind === 'when' && draft.kind === 'when') {
+    if (spec.mode === 'range') {
+      if (!draft.date || !fromIso(draft.date) || !draft.endDate || !fromIso(draft.endDate)) return null;
+      if (draft.date > draft.endDate) return null;
+      return { type: 'SET_DATE_RANGE', targetEntityId: spec.targetEntityId, isoStartDate: draft.date, isoEndDate: draft.endDate };
+    }
     if (!draft.date || !fromIso(draft.date)) return null;
     if (draft.time && !isValidTime(draft.time)) return null;
     return { type: 'SET_DATE', targetEntityId: spec.targetEntityId, isoDate: draft.date, isoTime: draft.time || undefined };
@@ -211,12 +242,37 @@ export function structuredInputFor(spec: InstrumentSpec, draft: InstrumentDraft)
       : { type: 'SET_AMOUNT', amount: parsed.value, currency: draft.currency };
   }
   if (spec.kind === 'where' && draft.kind === 'where') {
+    // GPS-only is legitimate (Phase 4 review correction, Section 10/27): a person who shares their
+    // current location without typing a name for it. placeText may be blank ONLY when coordinates are
+    // present -- SecurePay itself creates a truthful "Shared location" entity, never a fabricated address.
+    const hasCoordinates = draft.latitude != null && draft.longitude != null;
     const place = parsePlace(draft.place);
-    if (!place.ok) return null;
-    return {
-      type: 'SET_LOCATION', targetEntityId: spec.targetEntityId, placeText: place.value,
-      latitude: draft.latitude ?? undefined, longitude: draft.longitude ?? undefined,
-    };
+    if (place.ok) {
+      return {
+        type: 'SET_LOCATION', targetEntityId: spec.targetEntityId, placeText: place.value,
+        latitude: draft.latitude ?? undefined, longitude: draft.longitude ?? undefined,
+      };
+    }
+    if (place.reason === 'empty' && hasCoordinates) {
+      return {
+        type: 'SET_LOCATION', targetEntityId: spec.targetEntityId, placeText: '',
+        latitude: draft.latitude ?? undefined, longitude: draft.longitude ?? undefined,
+      };
+    }
+    return null;
+  }
+  if (spec.kind === 'detail' && draft.kind === 'detail') {
+    // Only keys that actually changed from their server-projected original value, and only keys this
+    // entity already carries -- the UI never invents a new attribute key (Phase 4 review correction,
+    // Section 6/13).
+    const attributeChanges: Record<string, string> = {};
+    for (const field of spec.fields) {
+      const next = (draft.values[field.key] ?? '').trim();
+      if (!next || next.length > MAX_DETAIL_VALUE_LENGTH) continue;
+      if (next !== field.value) attributeChanges[field.key] = next;
+    }
+    if (Object.keys(attributeChanges).length === 0) return null;
+    return { type: 'CORRECT_ENTITY_DETAIL', targetEntityId: spec.targetEntityId, attributeChanges };
   }
   return null;
 }

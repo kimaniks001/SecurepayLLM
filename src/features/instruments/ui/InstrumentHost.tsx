@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { specKey, type InstrumentController } from '../controller';
 import { canonicalRole } from '../../../api/securepay/agent/roles';
 import { isValidKsNumber, normalizeKs } from '../../../api/securepay/agent/ksformat';
-import { formatMoney, parseAmount, parsePersonName, parsePlace, sameAmount, structuredInputFor, type InstrumentDraft, type InstrumentSpec } from '../model';
+import { formatMoney, MAX_DETAIL_VALUE_LENGTH, parseAmount, parsePersonName, parsePlace, sameAmount, structuredInputFor, type InstrumentDraft, type InstrumentSpec } from '../model';
 import { FOCUS, PrimaryButton, QuietButton } from './atoms';
 import { SurfaceMount, SurfaceShell } from './SurfaceShell';
 import { useReturnFocus, useSheetEscape, useSurfaceKeys } from './surfaceHooks';
@@ -11,13 +11,15 @@ import { WhoInstrument } from './WhoInstrument';
 import { CalendarInstrument } from './CalendarInstrument';
 import { MoneyInstrument } from './MoneyInstrument';
 import { WhereInstrument } from './WhereInstrument';
+import { DetailInstrument } from './DetailInstrument';
 
 function titleFor(spec: InstrumentSpec, draft: InstrumentDraft | null): string {
   switch (spec.kind) {
     case 'who': { const role = (draft?.kind === 'who' && draft.role) || spec.role; return role ? `Add the ${role}` : 'Add a person'; }
-    case 'when': return 'When?';
+    case 'when': return spec.mode === 'range' ? 'Which dates?' : 'When?';
     case 'money': return spec.amount ? 'Change the amount' : 'How much?';
     case 'where': return 'Where?';
+    case 'detail': return `Correct ${spec.entityName}`;
   }
 }
 /** The primary action's label and readiness for the current draft -- `null` label means "no primary yet". */
@@ -28,14 +30,32 @@ function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: stri
     const name = parsePersonName(draft.name, spec.takenNames);
     return { label: name.ok ? `Add ${name.value}${draft.role ? ` as ${draft.role}` : ''}` : 'Add person', ready: name.ok && !!canonicalRole(draft.role) };
   }
-  if (spec.kind === 'when' && draft.kind === 'when') return { label: 'Use this date', ready: !!draft.date };
+  if (spec.kind === 'when' && draft.kind === 'when') {
+    if (spec.mode === 'range') {
+      const ready = !!draft.date && !!draft.endDate && draft.date <= draft.endDate;
+      return { label: 'Use these dates', ready };
+    }
+    return { label: 'Use this date', ready: !!draft.date };
+  }
   if (spec.kind === 'money' && draft.kind === 'money') {
     const parsed = parseAmount(draft.amount);
     // (an unchanged amount is not a change, so it is not submittable)
     const unchanged = spec.amount && parsed.ok && sameAmount(spec.amount, parsed.value) && (spec.currency ?? draft.currency) === draft.currency;
     return { label: parsed.ok ? `Use ${formatMoney(parsed.value, draft.currency)}` : 'Use this amount', ready: parsed.ok && !unchanged };
   }
-  if (spec.kind === 'where' && draft.kind === 'where') return { label: 'Use this place', ready: parsePlace(draft.place).ok };
+  if (spec.kind === 'where' && draft.kind === 'where') {
+    // GPS-only is legitimate (Phase 4 review correction, Section 10/27): coordinates alone are enough to
+    // submit, even with no typed place text.
+    const hasCoordinates = draft.latitude != null && draft.longitude != null;
+    return { label: 'Use this place', ready: parsePlace(draft.place).ok || (draft.place.trim() === '' && hasCoordinates) };
+  }
+  if (spec.kind === 'detail' && draft.kind === 'detail') {
+    const changed = spec.fields.some(field => {
+      const next = (draft.values[field.key] ?? '').trim();
+      return next && next.length <= MAX_DETAIL_VALUE_LENGTH && next !== field.value;
+    });
+    return { label: 'Save this detail', ready: changed };
+  }
   return { label: null, ready: false };
 }
 
@@ -100,6 +120,7 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
   else if (spec.kind === 'when' && draft.kind === 'when') body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
   else if (spec.kind === 'money' && draft.kind === 'money') body = <MoneyInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
   else if (spec.kind === 'where' && draft.kind === 'where') body = <WhereInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
+  else if (spec.kind === 'detail' && draft.kind === 'detail') body = <DetailInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
 
   const content = <>
     <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-1">

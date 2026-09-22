@@ -78,11 +78,18 @@ test('KS format: only the real platform shape (KS + 3-or-more digits, positive s
 });
 test('ADD PERSON: a bounded, multi-word name and a known role produce ADD_PARTICIPANT_CANDIDATE -- never a chat sentence', () => {
   const spec = { kind: 'who', origin: 'add', takenNames: [] };
-  const body = api.structuredInputFor(spec, { kind: 'who', name: 'Ray Otieno', role: 'Seller', ks: '' });
+  const body = api.structuredInputFor(spec, { kind: 'who', name: 'Ray Otieno', role: 'Seller', ks: '', participantType: 'PERSON' });
   assert.deepEqual(body, { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'PERSON', name: 'Ray Otieno', roleFreeText: 'Seller' });
   assert.equal(api.canonicalRole('seller'), 'SELLER');
-  assert.deepEqual(api.structuredInputFor(spec, { kind: 'who', name: 'Peter', role: 'contractor', ks: '' }),
+  assert.deepEqual(api.structuredInputFor(spec, { kind: 'who', name: 'Peter', role: 'contractor', ks: '', participantType: 'PERSON' }),
     { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'PERSON', name: 'Peter', roleFreeText: 'contractor' }); // SERVICE_PROVIDER
+});
+test('ADD PERSON/ORGANIZATION: the person\'s own explicit choice decides participantType -- never hard-coded PERSON (Phase 4 review correction, Section 15A)', () => {
+  const spec = { kind: 'who', origin: 'add', takenNames: [] };
+  assert.deepEqual(api.structuredInputFor(spec, { kind: 'who', name: 'Maua Shoes', role: 'seller', ks: '', participantType: 'ORGANIZATION' }),
+    { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'ORGANIZATION', name: 'Maua Shoes', roleFreeText: 'seller' });
+  assert.deepEqual(api.structuredInputFor(spec, { kind: 'who', name: 'Ray', role: 'seller', ks: '', participantType: 'PERSON' }),
+    { type: 'ADD_PARTICIPANT_CANDIDATE', participantType: 'PERSON', name: 'Ray', roleFreeText: 'seller' });
 });
 test('ADD PERSON: only a real name and a real role produce a structured action; taken names and unknown roles produce nothing', () => {
   const spec = { kind: 'who', origin: 'add', takenNames: ['John'] };
@@ -242,6 +249,44 @@ test('date: a real DATE entity is directly editable in UNDERSTOOD; a legacy COND
   const legacy = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'c', { date: '2026-09-25' }, 'CANDIDATE')]));
   assert.equal(legacy.items.find(i => i.section === 'when').spec, null);
 });
+test('date: an instrument may not close merely because the date matches if a specific time was also selected -- exact readback (Phase 4 review correction, Section 14)', () => {
+  const timed = ctx([ent('d', 'DATE', 'Friday', 'CANDIDATE', { date: '2026-09-25', time: '15:00' })], []);
+  const spec = { kind: 'when' };
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25', time: '15:00' }, timed), true);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25', time: '16:00' }, timed), false); // date matches, time doesn't
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25', time: '' }, timed), true); // no time was selected -- date alone is enough
+});
+
+// ---------------------------------------------------------------- DATE RANGE (Phase 4 review correction, Section 14/26 -- no longer an external blocker)
+test('DATE RANGE structured action: a fresh range creates SET_DATE_RANGE with no target; start must not be after end', () => {
+  const spec = { kind: 'when', origin: 'agent', mode: 'range' };
+  assert.deepEqual(api.structuredInputFor(spec, { kind: 'when', date: '2026-10-02', endDate: '2026-10-05', time: '' }),
+    { type: 'SET_DATE_RANGE', targetEntityId: undefined, isoStartDate: '2026-10-02', isoEndDate: '2026-10-05' });
+  assert.equal(api.structuredInputFor(spec, { kind: 'when', date: '2026-10-05', endDate: '2026-10-02', time: '' }), null); // start after end
+  assert.equal(api.structuredInputFor(spec, { kind: 'when', date: '2026-10-02', endDate: null, time: '' }), null); // end not chosen yet
+});
+test('DATE RANGE: an existing DATE_RANGE entity is corrected in place', () => {
+  const spec = { kind: 'when', origin: 'understood', mode: 'range', targetEntityId: 'range-1' };
+  assert.deepEqual(api.structuredInputFor(spec, { kind: 'when', date: '2026-10-03', endDate: '2026-10-06', time: '' }),
+    { type: 'SET_DATE_RANGE', targetEntityId: 'range-1', isoStartDate: '2026-10-03', isoEndDate: '2026-10-06' });
+});
+test('DATE RANGE read-back: a real DATE_RANGE entity carrying the exact start/end dates closes the instrument', () => {
+  const range = ctx([ent('r', 'DATE_RANGE', '2026-10-02 to 2026-10-05', 'CANDIDATE', { startDate: '2026-10-02', endDate: '2026-10-05' })], []);
+  const spec = { kind: 'when', mode: 'range' };
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-10-02', endDate: '2026-10-05', time: '' }, range), true);
+  assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-10-02', endDate: '2026-10-06', time: '' }, range), false);
+});
+test('DATE RANGE: a real DATE_RANGE entity is directly editable in UNDERSTOOD, shown as a real date range and never confused with a single DATE row', () => {
+  const wb = api.projectWorkbench(ctx([ent('r', 'DATE_RANGE', 'x', 'CANDIDATE', { startDate: '2026-10-02', endDate: '2026-10-05' })], []));
+  const row = wb.items.find(i => i.section === 'when');
+  assert.equal(row.spec.kind, 'when'); assert.equal(row.spec.mode, 'range'); assert.equal(row.spec.targetEntityId, 'r');
+  assert.equal(row.spec.currentDate, '2026-10-02'); assert.equal(row.spec.currentEndDate, '2026-10-05');
+  assert.match(row.value, /2026/); // a real human-readable range label, not a raw id
+});
+test('DATE RANGE prompt: an Agent-proposed DATE_RANGE_PICKER always opens a fresh range selection via the SAME "when" instrument', () => {
+  const resolved = api.specForPrompt({ type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: { mode: 'range' } }, api.projectWorkbench(null));
+  assert.equal(resolved.spec.kind, 'when'); assert.equal(resolved.spec.mode, 'range');
+});
 
 // ---------------------------------------------------------------- WHERE (bounded free text)
 test('WHERE: bounded, free, multi-word place text is accepted -- never restricted to one capitalized word', () => {
@@ -267,10 +312,68 @@ test('where read-back: exactly the selected place text', () => {
   assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Westlands' }, one), false);
   assert.equal(api.isRecorded(spec, { kind: 'where', place: 'Kilimani' }, ctx([], [])), false);
 });
+test('GPS-only: coordinates alone (no typed place text) are a legitimate submission -- never blocked and never a fabricated address (Phase 4 review correction, Section 10/27)', () => {
+  const spec = { kind: 'where', origin: 'add' };
+  const body = api.structuredInputFor(spec, { kind: 'where', place: '', latitude: -1.283, longitude: 36.817 });
+  assert.deepEqual(body, { type: 'SET_LOCATION', targetEntityId: undefined, placeText: '', latitude: -1.283, longitude: 36.817 });
+  // No coordinates AND no place text -- genuinely nothing to submit.
+  assert.equal(api.structuredInputFor(spec, { kind: 'where', place: '', latitude: null, longitude: null }), null);
+});
+test('GPS-only read-back: the real PLACE entity SecurePay created carries the exact shared coordinates -- a generic "Shared location" label, never a fabricated address', () => {
+  const shared = ctx([ent('p', 'PLACE', 'Shared location', 'CANDIDATE', { latitude: '-1.283', longitude: '36.817', coordinateSource: 'USER_SHARED' })], []);
+  const spec = { kind: 'where' };
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: '', latitude: -1.283, longitude: 36.817 }, shared), true);
+  assert.equal(api.isRecorded(spec, { kind: 'where', place: '', latitude: -1.3, longitude: 36.817 }, shared), false); // different coordinates
+});
 test('where: an existing CANDIDATE place is directly editable in UNDERSTOOD (SET_LOCATION, targetEntityId)', () => {
   const placed = api.projectWorkbench(ctx([ent('w', 'PLACE', 'Westlands', 'CANDIDATE')], []));
   const row = placed.items.find(i => i.section === 'where');
   assert.equal(row.spec.kind, 'where'); assert.equal(row.spec.targetEntityId, 'w'); assert.equal(row.spec.currentPlace, 'Westlands');
+});
+
+// ---------------------------------------------------------------- WHAT: generic descriptive details
+// Phase 4 review correction, Sections 5/12/13/25 -- "examples are not the API." The shoe/size=43 fixture
+// below is a TEST FIXTURE, not SecurePay's ontology; the SAME generic mechanism is proven again on a
+// completely unrelated domain (a painter's finish) with zero per-concept code, proving the capability is
+// "an arbitrary trade entity may carry bounded descriptive detail," never "shoes have sizes."
+test('WHAT: a generic descriptive detail (fixture: a shoe\'s own size) is projected as a human-readable row detail, never an empty details list', () => {
+  const wb = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe', 'CANDIDATE', { size: '43', color: 'black' })], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.details.sort(), ['Color: black', 'Size: 43']);
+});
+test('WHAT: the generic detail editor edits ONLY the changed key, using CORRECT_ENTITY_DETAIL -- fixture: shoe size 43 -> 44', () => {
+  const wb = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe', 'CANDIDATE', { size: '43', color: 'black' })], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.equal(row.spec.kind, 'detail'); assert.equal(row.spec.targetEntityId, 'shoe'); assert.equal(row.spec.entityName, 'shoe');
+  const draft = api.emptyDraft(row.spec);
+  assert.deepEqual(draft, { kind: 'detail', values: { size: '43', color: 'black' } });
+  const changed = { ...draft, values: { ...draft.values, size: '44' } };
+  assert.deepEqual(api.structuredInputFor(row.spec, changed), { type: 'CORRECT_ENTITY_DETAIL', targetEntityId: 'shoe', attributeChanges: { size: '44' } });
+  assert.equal(api.structuredInputFor(row.spec, draft), null); // nothing changed -- nothing to submit
+});
+test('WHAT: the SAME generic mechanism works identically for a completely unrelated, non-retail domain -- fixture: a painter\'s finish, matte -> satin (Section 25, no painter-specific field)', () => {
+  const wb = api.projectWorkbench(ctx([ent('painter', 'SERVICE', 'painter', 'CANDIDATE', { finish: 'matte' })], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.details, ['Finish: matte']);
+  const draft = api.emptyDraft(row.spec);
+  const changed = { ...draft, values: { ...draft.values, finish: 'satin' } };
+  assert.deepEqual(api.structuredInputFor(row.spec, changed), { type: 'CORRECT_ENTITY_DETAIL', targetEntityId: 'painter', attributeChanges: { finish: 'satin' } });
+});
+test('WHAT: a third, still-different domain (land area) proves there is no hidden "known concept" allowlist', () => {
+  const wb = api.projectWorkbench(ctx([ent('land', 'ITEM', 'land parcel', 'CANDIDATE', { area: '1 acre' })], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.details, ['Area: 1 acre']);
+});
+test('WHAT: reserved/identity/internal keys are never shown or offered as an ordinary descriptive detail', () => {
+  const wb = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe', 'CANDIDATE', { size: '43', ksnumber: 'KS999', status: 'x', _internal: 'y' })], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.details, ['Size: 43']);
+  assert.deepEqual(row.spec.fields.map(f => f.key), ['size']);
+});
+test('WHAT: a WHAT entity with no ordinary details yet has no detail editor (never invents a key to edit)', () => {
+  const wb = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe', 'CANDIDATE', {})], []));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.equal(row.spec, null); assert.deepEqual(row.details, []);
 });
 
 // ---------------------------------------------------------------- AGENT COMPONENT BRIDGE
@@ -279,7 +382,9 @@ test('bridge: each safe model-proposable component parses; unsupported ones beco
   for (const [type, instrument] of Object.entries(kinds)) assert.deepEqual(api.agentComponentView({ type, data: {} }), { type: 'INSTRUMENT_PROMPT', instrument, hints: {} }, type);
   assert.deepEqual(api.agentComponentView({ type: 'PHOTO_UPLOAD', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'photo' });
   assert.deepEqual(api.agentComponentView({ type: 'DOCUMENT_UPLOAD', data: { anything: 'x' } }), { type: 'UNAVAILABLE_INPUT', input: 'document' });
-  assert.deepEqual(api.agentComponentView({ type: 'DATE_RANGE_PICKER', data: {} }), { type: 'UNAVAILABLE_INPUT', input: 'date-range' });
+  // DATE_RANGE_PICKER is now real (Phase 4 review correction, Section 14) -- it is no longer an
+  // "external blocker": it opens the SAME "when" instrument, in range mode.
+  assert.deepEqual(api.agentComponentView({ type: 'DATE_RANGE_PICKER', data: {} }), { type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: { mode: 'range' } });
 });
 test('bridge: hints are optional and strictly validated; nothing else from the payload is trusted', () => {
   const v = api.agentComponentView({ type: 'AMOUNT_INPUT', data: { currency: 'kes', label: 'How much?', date: '2026-02-30', role: 'emperor', people: [{ name: 'Fabricated' }], url: 'https://evil' } });
