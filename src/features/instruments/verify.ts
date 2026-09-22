@@ -76,9 +76,18 @@ export function isRecorded(spec: InstrumentSpec, draft: InstrumentDraft, context
       // GPS-only readback: the exact coordinates SecurePay was sent, never a fabricated place name
       // (Phase 4 review correction, Section 10/27).
       return context.entities.some(e => e.type === 'PLACE'
-        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude));
+        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude)
+        && e.attributes.coordinateSource === 'USER_SHARED');
     }
     const lowered = trimmed.toLowerCase();
+    if (trimmed && hasCoordinates) {
+      // Named place AND GPS deliberately supplied together: success requires BOTH the correct place text
+      // AND the exact supplied coordinates -- an instrument must never close merely because the place text
+      // survived while the GPS was lost in transit (Phase 4 final closeout, Section 6).
+      return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === lowered
+        && e.attributes.latitude === String(draft.latitude) && e.attributes.longitude === String(draft.longitude)
+        && e.attributes.coordinateSource === 'USER_SHARED');
+    }
     return context.entities.some(e => e.type === 'PLACE' && e.name.trim().toLowerCase() === lowered);
   }
   if (spec.kind === 'detail' && draft.kind === 'detail') {

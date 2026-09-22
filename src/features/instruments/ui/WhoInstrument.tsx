@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { KNOWN_ROLES } from '../../../api/securepay/agent/roles';
 import { isValidKsNumber, normalizeKs } from '../../../api/securepay/agent/ksformat';
+import type { ResolvedKsIdentity } from '../controller';
 import { parsePersonName, type InstrumentDraft, type WhoSpec } from '../model';
 import { Field, FOCUS, INPUT } from './atoms';
 
 const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const PARTICIPANT_TYPE_LABEL: Record<'PERSON' | 'ORGANIZATION', string> = { PERSON: 'Person', ORGANIZATION: 'Business' };
 
 /**
  * ADD A PERSON. Two structured paths, never a fabricated chat sentence (Phase 4 of the Agent/
@@ -15,14 +17,19 @@ const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
  *    resolved; a person SecurePay already holds is changed in conversation, not from here.
  *  - "I have a KS Number": an EXACT, server-verified identity lookup via SecurePay's real identity
  *    boundary (`KsNumber.parse`, `KsIdentityQueryService`) -- a trusted user action, structurally
- *    separate from the conversational path, and never a plain-text guess. Resolving a KS Number
- *    confirms who it belongs to; it does not by itself mean acceptance or that the current person IS
- *    that identity.
+ *    separate from the conversational path, and never a plain-text guess. TWO explicit steps (Phase 4
+ *    final closeout, Section 3): resolving a KS Number is a PURE lookup that confirms who it belongs to
+ *    and adds/accepts no one; only a SECOND, explicit press ("Add {name} as {role}") actually associates
+ *    it as a candidate participant.
  */
-export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBackToConversation, onFind }: {
+export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBackToConversation, onFind, resolvedKsIdentity }: {
   spec: WhoSpec; draft: Extract<InstrumentDraft, { kind: 'who' }>; onChange: (draft: InstrumentDraft) => void; disabled: boolean; onSubmit: () => void; onBackToConversation: () => void; onFind: () => void;
+  resolvedKsIdentity: ResolvedKsIdentity | null;
 }) {
   const editingExisting = !!spec.targetEntityId;
+  // A DIFFERENT KS Number may never be bound to an entity that already has a verified one -- replacing a
+  // counterparty is a separate semantic action, not a role correction (Phase 4 final closeout, Section 4).
+  const canBindKs = !spec.identityResolved;
   const [ksOpen, setKsOpen] = useState(draft.ks !== '');
   const parsed = parsePersonName(draft.name, spec.takenNames);
   const problem = editingExisting || draft.name.trim() === '' || parsed.ok ? null
@@ -31,6 +38,7 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
   const typedKs = draft.ks.trim();
   const normalized = typedKs ? normalizeKs(typedKs) : '';
   const malformed = typedKs !== '' && !isValidKsNumber(normalized);
+  const resolved = resolvedKsIdentity?.canonicalKsNumber === normalized ? resolvedKsIdentity : null;
   return <form onSubmit={event => { event.preventDefault(); onSubmit(); }} className="space-y-4">
     {!editingExisting && <div role="group" aria-label="How do you want to add them?" className="grid grid-cols-2 gap-2">
       {/* Two different paths, told apart at a glance: I KNOW the person (add them here) / I need to FIND someone (SecurePay's Store). */}
@@ -38,7 +46,10 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
       <button type="button" aria-pressed="false" onClick={onFind} disabled={disabled} className={`min-h-11 rounded-xl border border-cream-300 bg-white px-3 text-[0.88rem] text-sand-600 hover:border-forest-300 disabled:opacity-40 ${FOCUS}`}>Find on SecurePay</button>
     </div>}
     {editingExisting
-      ? <p className="text-[0.85rem] text-sand-600">Correcting <span className="font-medium text-forest-800">{spec.currentName}</span>’s role. Their name isn’t changed here.</p>
+      ? <p className="text-[0.85rem] text-sand-600">
+          Correcting <span className="font-medium text-forest-800">{spec.currentName}</span>’s role. Their name isn’t changed here.
+          {spec.identityResolved && ' This identity is already verified — it can’t be bound to a different KS Number here.'}
+        </p>
       : <>
         <div role="group" aria-label="Kind" className="grid grid-cols-2 gap-2">
           <button type="button" aria-pressed={draft.participantType === 'PERSON'} disabled={disabled || !!typedKs}
@@ -68,7 +79,7 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
       </div>
     </Field>
 
-    <div className="border-t border-cream-100 pt-3">
+    {canBindKs && <div className="border-t border-cream-100 pt-3">
       <button type="button" aria-expanded={ksOpen} onClick={() => setKsOpen(open => !open)} className={`min-h-11 rounded-lg text-[0.85rem] text-sand-600 underline decoration-cream-400 underline-offset-4 hover:text-forest-700 ${FOCUS}`}>
         I have a KS Number
       </button>
@@ -80,10 +91,15 @@ export function WhoInstrument({ spec, draft, onChange, disabled, onSubmit, onBac
         </Field>
         <div id="instrument-ks-note" role="status" aria-live="polite" className="space-y-1 text-[0.85rem]">
           {malformed && <p className="text-ember-700">A KS Number looks like KS003 — the letters KS and at least three digits.</p>}
-          {!malformed && typedKs && <p className="text-forest-800">SecurePay will check {normalized} directly before adding it.</p>}
+          {!malformed && typedKs && !resolved && <p className="text-forest-800">SecurePay will check {normalized} directly — this only confirms who it belongs to.</p>}
+          {resolved && <p className="rounded-lg bg-forest-50 px-3 py-2 text-forest-800">
+            <span className="block font-medium">{resolved.displayName}</span>
+            <span className="block text-[0.8rem]">{resolved.canonicalKsNumber} · {PARTICIPANT_TYPE_LABEL[resolved.participantType]}</span>
+            <span className="block mt-1 text-[0.78rem] text-sand-600">This confirms who it is. Press the button below to actually add them.</span>
+          </p>}
           <button type="button" onClick={onBackToConversation} className={`min-h-11 rounded-lg text-[0.85rem] text-sand-600 underline decoration-cream-400 underline-offset-4 hover:text-forest-700 ${FOCUS}`}>Back to the conversation</button>
         </div>
       </div>}
-    </div>
+    </div>}
   </form>;
 }

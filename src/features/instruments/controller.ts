@@ -1,7 +1,13 @@
 import type { AgentController, ContextView } from '../agent/controller';
 import type { KsIdentitySelectionResult } from '../../api/securepay/agent/dto';
+import { normalizeKs } from '../../api/securepay/agent/ksformat';
 import { emptyDraft, structuredInputFor, type InstrumentDraft, type InstrumentSpec, type WhoSpec } from './model';
 import { isRecorded } from './verify';
+
+/** A pure lookup's real, server-verified result -- held so the person can see who a KS Number belongs to
+ *  BEFORE explicitly choosing to add them (Phase 4 final closeout, Section 3: pure lookup, then an explicit
+ *  second action, never a one-step "lookup that quietly also associates"). */
+export interface ResolvedKsIdentity { canonicalKsNumber: string; displayName: string; participantType: 'PERSON' | 'ORGANIZATION' }
 
 /**
  * One instrument at a time. State lives HERE (not in a component) so that:
@@ -32,13 +38,17 @@ export interface InstrumentState {
    *  never duplicate the action (see AgentController#submitStructuredInput/#selectKsIdentity). Fresh on
    *  every new submit attempt, never on a retry of a failed one. */
   clientActionId: string | null;
+  /** Set only by a successful PURE lookup for the CURRENT typed KS Number; cleared the instant the typed
+   *  KS Number changes (Phase 4 final closeout, Section 3). Its presence is what turns the primary action
+   *  from "Check KS003" into an explicit "Add {name} as {role}" association. */
+  resolvedKsIdentity: ResolvedKsIdentity | null;
 }
 export type InstrumentAgent = Pick<AgentController, 'submitStructuredInput' | 'selectKsIdentity' | 'review' | 'getSnapshot'>;
 
 /** Identity of "which fact this instrument is settling" -- origin (where it was summoned from) is presentation only. */
 export const specKey = (spec: InstrumentSpec): string => JSON.stringify({ ...spec, origin: undefined });
 
-const IDLE: InstrumentState = { active: null, draft: null, phase: 'editing', error: null, openCount: 0, clientActionId: null };
+const IDLE: InstrumentState = { active: null, draft: null, phase: 'editing', error: null, openCount: 0, clientActionId: null, resolvedKsIdentity: null };
 
 /** Precise, honest wording for every ordinary KS identity lookup outcome -- never a generic failure. */
 function ksIdentityErrorText(status: KsIdentitySelectionResult['status']): string | null {
@@ -58,7 +68,7 @@ export function createInstrumentController(agent: InstrumentAgent, id: () => str
   const parked = new Map<string, InstrumentDraft>();
   const listeners = new Set<() => void>();
   const update = (patch: Partial<InstrumentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
-  const close = () => update({ active: null, draft: null, phase: 'editing', error: null, clientActionId: null });
+  const close = () => update({ active: null, draft: null, phase: 'editing', error: null, clientActionId: null, resolvedKsIdentity: null });
   const currentVersion = (): number => { const snapshot = agent.getSnapshot(); return snapshot.context.status === 'ready' ? snapshot.context.data!.version : 0; };
 
   function settle(spec: InstrumentSpec, draft: InstrumentDraft, context: ContextView | null) {
@@ -85,19 +95,41 @@ export function createInstrumentController(agent: InstrumentAgent, id: () => str
     settle(spec, draft, outcome.context);
   }
 
+  /**
+   * Phase 4 final closeout, Section 3 -- TWO explicit steps, never one step that silently also associates:
+   *
+   *  1. PURE LOOKUP (no `expectedTradeContextVersion`): confirms who the typed KS Number belongs to. Stores
+   *     the result in `resolvedKsIdentity`; the instrument stays open, nothing is added to Trade Context.
+   *  2. EXPLICIT ASSOCIATION (`expectedTradeContextVersion` supplied): only once `resolvedKsIdentity`
+   *     already matches the CURRENT typed KS Number -- i.e. only after the person has seen who it resolves
+   *     to and pressed the primary button a SECOND time ("Add {name} as {role}").
+   *
+   * A changed KS Number always clears `resolvedKsIdentity` (see `setDraft`), so this can never silently
+   * associate a DIFFERENT identity than the one actually shown to the person.
+   */
   async function submitIdentitySelection(spec: WhoSpec, draft: Extract<InstrumentDraft, { kind: 'who' }>) {
+    const canonical = normalizeKs(draft.ks);
+    const alreadyResolvedForThisKs = state.resolvedKsIdentity?.canonicalKsNumber === canonical;
     const clientActionId = state.clientActionId ?? id();
     update({ phase: 'sending', error: null, clientActionId });
     const outcome = await agent.selectKsIdentity({
-      ksNumber: draft.ks.trim(), expectedTradeContextVersion: currentVersion(), clientActionId,
-      role: draft.role.trim() || undefined, existingTradeEntityId: spec.targetEntityId,
+      ksNumber: draft.ks.trim(), expectedTradeContextVersion: alreadyResolvedForThisKs ? currentVersion() : undefined,
+      clientActionId, role: draft.role.trim() || undefined, existingTradeEntityId: spec.targetEntityId,
     });
     if (!outcome.ok) {
       update(outcome.stale ? { phase: 'editing', error: outcome.error } : { phase: 'failed', error: outcome.error });
       return;
     }
     const errorText = ksIdentityErrorText(outcome.result.status);
-    if (errorText) { update({ phase: 'editing', error: errorText }); return; }
+    if (errorText) { update({ phase: 'editing', error: errorText, resolvedKsIdentity: null }); return; }
+    if (!alreadyResolvedForThisKs) {
+      const { canonicalKsNumber, displayName, participantType } = outcome.result;
+      update({
+        phase: 'editing', error: null,
+        resolvedKsIdentity: canonicalKsNumber && displayName && participantType ? { canonicalKsNumber, displayName, participantType } : null,
+      });
+      return;
+    }
     settle(spec, draft, outcome.context);
   }
 
@@ -108,14 +140,26 @@ export function createInstrumentController(agent: InstrumentAgent, id: () => str
       if (state.phase === 'sending') return;
       // Re-opening the SAME instrument for the same fact keeps what the person had already entered.
       if (state.active && specKey(state.active) === specKey(spec)) { update({ openCount: state.openCount + 1 }); return; }
-      update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1, clientActionId: null });
+      // A parked draft's KS Number is never trusted as still-resolved across a park/resume cycle -- a
+      // fresh lookup always re-confirms it (Phase 4 final closeout, Section 3).
+      update({ active: spec, draft: parked.get(specKey(spec)) ?? draft, phase: 'editing', error: null, openCount: state.openCount + 1, clientActionId: null, resolvedKsIdentity: null });
     },
     setDraft(draft: InstrumentDraft) {
       if (!state.active || state.phase === 'sending') return;
       // After a failed delivery the earlier action may already have been applied: the choice is frozen
       // until it is retried (same clientActionId) or the instrument is closed. A DIFFERENT action is never sent over it.
       if (state.phase === 'failed') return;
-      update({ draft, phase: 'editing', error: null });
+      // A changed KS Number invalidates any earlier lookup; an unchanged one (e.g. only the role changed)
+      // keeps it, so the person does not need to re-check the same identity twice.
+      const resolvedKsIdentity = draft.kind === 'who' && state.resolvedKsIdentity && normalizeKs(draft.ks) === state.resolvedKsIdentity.canonicalKsNumber
+        ? state.resolvedKsIdentity : null;
+      // clientActionId doctrine (Phase 4 final closeout, Section 7): the SAME semantic payload retried
+      // reuses the SAME id (that path never calls setDraft -- see `retry()`/an unchanged resubmit after a
+      // stale-version outcome); a genuinely EDITED draft always gets a NEW one on its next submit. The only
+      // moment setDraft ever runs with a non-null clientActionId already held is exactly this "returned to
+      // editing after stale/lookup, then the person changed something" case, so clearing it here
+      // unconditionally is correct -- it is already null in every ordinary keystroke-while-composing case.
+      update({ draft, phase: 'editing', error: null, resolvedKsIdentity, clientActionId: null });
     },
     /**
      * Cancel closes the INSTRUMENT only. It never sends anything: an action whose delivery is uncertain

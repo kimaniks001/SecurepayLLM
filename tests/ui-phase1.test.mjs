@@ -13,6 +13,7 @@ export * from './src/features/workbench/projection';
 export { UnderstoodWorkbench } from './src/features/workbench/UnderstoodWorkbench';
 export { CalendarInstrument } from './src/features/instruments/ui/CalendarInstrument';
 export { InstrumentPrompt } from './src/features/instruments/ui/InstrumentPrompt';
+export { WhoInstrument } from './src/features/instruments/ui/WhoInstrument';
 export * from './src/api/securepay/agent/ksformat';
 export * from './src/api/securepay/agent/roles';
 export * from './src/api/securepay/agent/instruments';
@@ -163,6 +164,30 @@ test('WHO read-back: KS + role must be on the SAME entity and the role must be t
   assert.equal(api.isWhoLinked(kinOnly, { ks: 'KS003', role: '' }), true);         // resolution alone (no role requested) is still proven
 });
 
+// ---------------------------------------------------------------- KS visibility & re-binding (Phase 4 final closeout, Sections 2/4)
+test('WHO: a resolved identity visibly shows its KS Number in UNDERSTOOD, never an internal id -- "Maua Shoes / KS003 / Seller"', () => {
+  const resolved = ctx([ent('e', 'ORGANIZATION', 'Maua Shoes', 'CANDIDATE', { ksnumber: 'KS003', identityResolved: 'true' })],
+    [rel('r', 'ROLE', 'e', { role: 'SELLER' }, 'CANDIDATE')]);
+  const wb = api.projectWorkbench(resolved);
+  const row = wb.items.find(i => i.section === 'who');
+  assert.equal(row.value, 'Maua Shoes');
+  assert.deepEqual(row.details, ['KS003', 'Seller']);
+  assert.doesNotMatch(JSON.stringify(row), /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); // no internal UUID leaked into the row
+});
+test('WHO: a plain candidate with no verified identity shows no KS Number detail', () => {
+  const plain = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], [rel('r', 'ROLE', 'j', { role: 'SELLER' }, 'CANDIDATE')]);
+  const row = api.projectWorkbench(plain).items.find(i => i.section === 'who');
+  assert.deepEqual(row.details, ['Seller']);
+});
+test('WHO spec: identityResolved is carried through so the instrument can refuse to offer re-binding', () => {
+  const resolved = ctx([ent('e', 'ORGANIZATION', 'Maua Shoes', 'CANDIDATE', { ksnumber: 'KS003', identityResolved: 'true' })], []);
+  const row = api.projectWorkbench(resolved).items.find(i => i.section === 'who');
+  assert.equal(row.spec.identityResolved, true);
+  const unresolved = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], []);
+  const unresolvedRow = api.projectWorkbench(unresolved).items.find(i => i.section === 'who');
+  assert.equal(unresolvedRow.spec.identityResolved, false);
+});
+
 // ---------------------------------------------------------------- MONEY (multi-currency)
 test('amount: decimal strings only, comma/space tolerant, precision and zero rules', () => {
   assert.deepEqual(api.parseAmount('4,000'), { ok: true, value: '4000' });
@@ -256,6 +281,17 @@ test('date: an instrument may not close merely because the date matches if a spe
   assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25', time: '16:00' }, timed), false); // date matches, time doesn't
   assert.equal(api.isRecorded(spec, { kind: 'when', date: '2026-09-25', time: '' }, timed), true); // no time was selected -- date alone is enough
 });
+test('date: UNDERSTOOD shows a human-friendly date and 12-hour time, canonical values unchanged underneath (Phase 4 final closeout, Section 5)', () => {
+  assert.equal(api.formatTime12h('15:00'), '3:00 PM');
+  assert.equal(api.formatTime12h('00:05'), '12:05 AM');
+  assert.equal(api.formatTime12h('12:00'), '12:00 PM');
+  assert.equal(api.formatTime12h('09:30'), '9:30 AM');
+  const timed = ctx([ent('d', 'DATE', 'Friday', 'CANDIDATE', { date: '2026-10-02', time: '15:00' })], []);
+  const row = api.projectWorkbench(timed).items.find(i => i.section === 'when');
+  assert.equal(row.value, 'Friday, 2 October 2026');
+  assert.deepEqual(row.details, ['3:00 PM']);
+  assert.equal(row.spec.currentDate, '2026-10-02'); assert.equal(row.spec.currentTime, '15:00'); // canonical values preserved for editing
+});
 
 // ---------------------------------------------------------------- DATE RANGE (Phase 4 review correction, Section 14/26 -- no longer an external blocker)
 test('DATE RANGE structured action: a fresh range creates SET_DATE_RANGE with no target; start must not be after end', () => {
@@ -324,6 +360,21 @@ test('GPS-only read-back: the real PLACE entity SecurePay created carries the ex
   const spec = { kind: 'where' };
   assert.equal(api.isRecorded(spec, { kind: 'where', place: '', latitude: -1.283, longitude: 36.817 }, shared), true);
   assert.equal(api.isRecorded(spec, { kind: 'where', place: '', latitude: -1.3, longitude: 36.817 }, shared), false); // different coordinates
+});
+test('GPS + named place read-back: BOTH the exact place text AND the exact coordinates are required -- never close merely because the place text survived while GPS was lost (Phase 4 final closeout, Section 6)', () => {
+  const both = ctx([ent('p', 'PLACE', 'Two Rivers Mall', 'CANDIDATE', { latitude: '-1.221', longitude: '36.878', coordinateSource: 'USER_SHARED' })], []);
+  const spec = { kind: 'where' };
+  const draft = { kind: 'where', place: 'Two Rivers Mall', latitude: -1.221, longitude: 36.878 };
+  assert.equal(api.isRecorded(spec, draft, both), true);
+  assert.equal(api.isRecorded(spec, { ...draft, latitude: -1.3 }, both), false); // right place, wrong coordinates
+  const placeOnly = ctx([ent('p', 'PLACE', 'Two Rivers Mall', 'CANDIDATE')], []); // GPS never arrived
+  assert.equal(api.isRecorded(spec, draft, placeOnly), false); // place text alone is not enough when GPS was also supplied
+});
+test('WHERE row: a quiet, truthful "GPS shared" indication accompanies a place carrying real user-shared coordinates -- no fake map or reverse geocode', () => {
+  const withGps = api.projectWorkbench(ctx([ent('p', 'PLACE', 'Two Rivers Mall', 'CANDIDATE', { latitude: '-1.221', longitude: '36.878', coordinateSource: 'USER_SHARED' })], []));
+  assert.deepEqual(withGps.items.find(i => i.section === 'where').details, ['GPS shared']);
+  const withoutGps = api.projectWorkbench(ctx([ent('p', 'PLACE', 'Westlands', 'CANDIDATE')], []));
+  assert.deepEqual(withoutGps.items.find(i => i.section === 'where').details, []);
 });
 test('where: an existing CANDIDATE place is directly editable in UNDERSTOOD (SET_LOCATION, targetEntityId)', () => {
   const placed = api.projectWorkbench(ctx([ent('w', 'PLACE', 'Westlands', 'CANDIDATE')], []));
@@ -432,7 +483,8 @@ test('workbench: rows are exactly what the backend holds, with an instrument whe
   assert.equal(john.identityUnresolved, true); assert.deepEqual(john.details, ['Seller']); assert.equal(john.state, 'CANDIDATE');
   assert.equal(john.spec.kind, 'who'); assert.equal(john.spec.targetEntityId, 'john'); // a CANDIDATE person is directly editable
   assert.equal(anna.identityUnresolved, false); assert.equal(anna.state, 'CONFIRMED'); assert.equal(anna.spec, null); // CONFIRMED stays read-only
-  assert.equal(by('when:')[0].value, '2026-09-25'); assert.equal(by('when:')[0].spec.kind, 'when'); // a real CANDIDATE DATE entity is directly editable
+  // Human-friendly presentation (Phase 4 final closeout, Section 5); the canonical isoDate is unchanged underneath.
+  assert.equal(by('when:')[0].value, 'Friday, 25 September 2026'); assert.equal(by('when:')[0].spec.kind, 'when'); // a real CANDIDATE DATE entity is directly editable
   assert.equal(by('money:')[0].value, 'KES 20,000'); assert.equal(by('money:')[0].spec, null); // already CONFIRMED
   assert.equal(wb.items.some(i => i.section === 'where'), false);
   assert.deepEqual(wb.adds.map(a => a.key), ['who', 'where']);   // contextual possibilities: another person, a first place -- no date/amount (held)
@@ -456,7 +508,7 @@ test('workbench render: only actionable rows are buttons; candidates say "Sugges
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {}, stillToSettle: ['Where the house is'] }));
   assert.match(html, /aria-label="Who: John\. Change the person"/);
   assert.doesNotMatch(html, /aria-label="Money:/); assert.doesNotMatch(html, /aria-label="What:/);
-  assert.match(html, /2026-09-25/); assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
+  assert.match(html, /Friday, 25 September 2026/); assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
   assert.doesNotMatch(html, /Confirmed/); assert.match(html, /Where the house is/); assert.match(html, /Not an Agreement/);
 });
 test('workbench render: an open instrument marks its row aria-expanded', () => {
@@ -471,6 +523,23 @@ test('prompt render: a live prompt is one button; photo/document get an honest n
   const u = api.renderToStaticMarkup(api.createElement(api.InstrumentPrompt, { unavailable: 'photo' }));
   assert.doesNotMatch(u, /<button|<input/); assert.match(u, /can.t be added to SecurePay here yet/);
 });
+test('WhoInstrument render: "I have a KS Number" is offered for an unresolved candidate but withheld for an already-resolved one (Phase 4 final closeout, Section 4)', () => {
+  const noop = () => {};
+  const unresolvedSpec = { kind: 'who', origin: 'understood', targetEntityId: 'j', currentName: 'John', identityResolved: false };
+  const unresolvedHtml = api.renderToStaticMarkup(api.createElement(api.WhoInstrument, {
+    spec: unresolvedSpec, draft: { kind: 'who', name: '', role: 'seller', ks: '', participantType: 'PERSON' },
+    onChange: noop, disabled: false, onSubmit: noop, onBackToConversation: noop, onFind: noop, resolvedKsIdentity: null,
+  }));
+  assert.match(unresolvedHtml, /I have a KS Number/);
+
+  const resolvedSpec = { kind: 'who', origin: 'understood', targetEntityId: 'e', currentName: 'Maua Shoes', identityResolved: true };
+  const resolvedHtml = api.renderToStaticMarkup(api.createElement(api.WhoInstrument, {
+    spec: resolvedSpec, draft: { kind: 'who', name: '', role: 'seller', ks: '', participantType: 'ORGANIZATION' },
+    onChange: noop, disabled: false, onSubmit: noop, onBackToConversation: noop, onFind: noop, resolvedKsIdentity: null,
+  }));
+  assert.doesNotMatch(resolvedHtml, /I have a KS Number/);
+  assert.match(resolvedHtml, /already verified/);
+});
 
 // ---------------------------------------------------------------- INSTRUMENT LIFECYCLE
 function fakeAgent({ result, ksResult } = {}) {
@@ -479,7 +548,7 @@ function fakeAgent({ result, ksResult } = {}) {
   return { calls, snapshot, agent: {
     getSnapshot: () => snapshot,
     submitStructuredInput: async body => { calls.push(['structured-input', body]); return result(); },
-    selectKsIdentity: async body => { calls.push(['ks-identity', body]); return ksResult ? ksResult() : result(); },
+    selectKsIdentity: async body => { calls.push(['ks-identity', body]); return ksResult ? ksResult(body) : result(); },
     review: async () => { calls.push(['review']); },
   } };
 }
@@ -516,6 +585,31 @@ test('instrument lifecycle: a stale version keeps the draft and stays "editing" 
   await ic.submit(); // the SAME clientActionId is reused on the deliberate retry
   assert.equal(calls[0][1].clientActionId, calls[1][1].clientActionId);
 });
+test('clientActionId lifecycle (Phase 4 final closeout, Section 7): stale + unchanged resubmit keeps the SAME id; stale + an edited draft gets a NEW one', async () => {
+  let n = 0;
+  const idGen = () => `action-${++n}`;
+  // stale -> unchanged retry -> same id.
+  {
+    const { agent, calls } = fakeAgent({ result: () => ({ ok: false, stale: true, error: 'refreshed', context: null }) });
+    const ic = api.createInstrumentController(agent, idGen);
+    ic.open(moneySpec); ic.setDraft({ kind: 'money', amount: '5000', currency: 'KES' });
+    await ic.submit();
+    await ic.submit(); // no setDraft call in between -- an unchanged resubmit
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0][1].clientActionId, calls[1][1].clientActionId);
+  }
+  // stale -> the person edits the draft before resubmitting -> a NEW id.
+  {
+    const { agent, calls } = fakeAgent({ result: () => ({ ok: false, stale: true, error: 'refreshed', context: null }) });
+    const ic = api.createInstrumentController(agent, idGen);
+    ic.open(moneySpec); ic.setDraft({ kind: 'money', amount: '5000', currency: 'KES' });
+    await ic.submit();
+    ic.setDraft({ kind: 'money', amount: '6000', currency: 'KES' }); // a genuine edit after returning to editing
+    await ic.submit();
+    assert.equal(calls.length, 2);
+    assert.notEqual(calls[0][1].clientActionId, calls[1][1].clientActionId);
+  }
+});
 test('instrument lifecycle: an uncertain delivery freezes the choice; Retry reuses the SAME clientActionId; Close never rewrites history', async () => {
   let attempt = 0;
   const good = ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r1', 'PAYMENT_CONDITION', 'shoe', { amount: '5000', currency: 'KES' })]);
@@ -530,6 +624,19 @@ test('instrument lifecycle: an uncertain delivery freezes the choice; Retry reus
   assert.equal(calls.length, 2);
   assert.equal(calls[0][1].clientActionId, calls[1][1].clientActionId);    // retry reuses the SAME clientActionId, never a fresh one
   assert.equal(ic.getSnapshot().active, null);
+});
+test('clientActionId lifecycle: a frozen failed/uncertain delivery keeps the SAME id across retry() -- proven with a real incrementing id generator', async () => {
+  let n = 0; let attempt = 0;
+  const good = ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r1', 'PAYMENT_CONDITION', 'shoe', { amount: '5000', currency: 'KES' })]);
+  const { agent, calls } = fakeAgent({ result: () => { attempt += 1; return attempt === 1 ? { ok: false, stale: false, error: 'uncertain' } : { ok: true, result: { status: 'APPLIED' }, context: good }; } });
+  const ic = api.createInstrumentController(agent, () => `action-${++n}`);
+  ic.open(moneySpec); ic.setDraft({ kind: 'money', amount: '5000', currency: 'KES' });
+  await ic.submit();
+  assert.equal(ic.getSnapshot().phase, 'failed');
+  ic.setDraft({ kind: 'money', amount: '9999', currency: 'KES' }); // blocked entirely while failed -- never reaches clientActionId reset
+  await ic.retry();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0][1].clientActionId, calls[1][1].clientActionId);
 });
 test('instrument lifecycle: "check what SecurePay understands" closes a failed delivery ONLY if the fact is proven; otherwise it stays retryable', async () => {
   const good = ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r1', 'PAYMENT_CONDITION', 'shoe', { amount: '5000', currency: 'KES' })]);
@@ -556,13 +663,24 @@ test('instrument lifecycle: state lives in the controller (survives a re-render/
 });
 test('instrument lifecycle: a typed KS Number routes to selectKsIdentity, never submitStructuredInput -- and is never lost when the instrument is closed', async () => {
   const good = ctx([ent('e', 'ORGANIZATION', 'Maua Shoes', 'CANDIDATE', { ksnumber: 'KS003', identityResolved: 'true' })], [rel('r', 'ROLE', 'e', { role: 'SELLER' }, 'CANDIDATE')]);
-  const { agent, calls } = fakeAgent({ ksResult: () => ({ ok: true, result: { status: 'ASSOCIATED', canonicalKsNumber: 'KS003', displayName: 'Maua Shoes', participantType: 'ORGANIZATION', entityId: 'e', entityCreated: true, roleApplied: true, tradeContextVersion: 1 }, context: good }) });
+  // Two explicit steps (Phase 4 final closeout, Section 3): a pure lookup (no expectedTradeContextVersion)
+  // returns RESOLVED and associates NOTHING; only a second call carrying expectedTradeContextVersion
+  // associates.
+  const { agent, calls } = fakeAgent({ ksResult: body => body.expectedTradeContextVersion === undefined
+    ? { ok: true, result: { status: 'RESOLVED', canonicalKsNumber: 'KS003', displayName: 'Maua Shoes', participantType: 'ORGANIZATION', entityId: null, entityCreated: null, roleApplied: null, tradeContextVersion: null }, context: null }
+    : { ok: true, result: { status: 'ASSOCIATED', canonicalKsNumber: 'KS003', displayName: 'Maua Shoes', participantType: 'ORGANIZATION', entityId: 'e', entityCreated: true, roleApplied: true, tradeContextVersion: 1 }, context: good } });
   const spec = { kind: 'who', origin: 'add', takenNames: [] };
   const ic = api.createInstrumentController(agent, () => 'who-action-1');
   ic.open(spec); ic.setDraft({ kind: 'who', name: '', role: 'seller', ks: 'KS003' });
   await ic.submit();
   assert.equal(calls.length, 1); assert.equal(calls[0][0], 'ks-identity');
-  assert.deepEqual(calls[0][1], { ksNumber: 'KS003', expectedTradeContextVersion: 0, clientActionId: 'who-action-1', role: 'seller', existingTradeEntityId: undefined });
+  assert.deepEqual(calls[0][1], { ksNumber: 'KS003', expectedTradeContextVersion: undefined, clientActionId: 'who-action-1', role: 'seller', existingTradeEntityId: undefined });
+  assert.equal(ic.getSnapshot().active !== null, true); // pure lookup never closes the instrument
+  assert.deepEqual(ic.getSnapshot().resolvedKsIdentity, { canonicalKsNumber: 'KS003', displayName: 'Maua Shoes', participantType: 'ORGANIZATION' });
+  // The SECOND explicit press actually associates.
+  await ic.submit();
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1][1], { ksNumber: 'KS003', expectedTradeContextVersion: 0, clientActionId: 'who-action-1', role: 'seller', existingTradeEntityId: undefined });
   assert.equal(ic.getSnapshot().active, null); // isWhoLinked proves it against the returned context
   // Cancelling with a typed-but-unsent KS keeps it parked for when the instrument reopens.
   const ic2 = api.createInstrumentController(agent);

@@ -1,5 +1,5 @@
 import type { ContextView } from '../agent/controller';
-import { formatMoney, fromIso, longDate, parseAmount, type InstrumentSpec } from '../instruments/model';
+import { formatMoney, formatTime12h, fromIso, isValidTime, longDate, parseAmount, type InstrumentSpec } from '../instruments/model';
 import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 
 /**
@@ -98,8 +98,13 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     if (entity.type !== 'PERSON' && entity.type !== 'ORGANIZATION') continue;
     shownEntityIds.add(entity.id);
     const ks = entity.attributes.ksnumber && isKs(entity.attributes.ksnumber) ? entity.attributes.ksnumber.toUpperCase() : (isKs(entity.name) ? entity.name.toUpperCase() : null);
+    // A real, server-verified identity association (identityResolved=true), never merely "the name looks
+    // like a KS Number" -- this decides both whether the KS Number itself is visibly shown (Phase 4 final
+    // closeout, Section 2) and whether re-binding a second identity is ever offered (Section 4).
+    const identityResolved = entity.attributes.identityResolved === 'true' && !!ks;
     const roles = relationsOf(entity.id).filter(r => r.kind === 'ROLE');
     const details: string[] = [];
+    if (identityResolved) details.push(ks!); // "Maua Shoes / KS003 / Seller" -- KS Number visible, never an internal id
     const adopt: AdoptTarget[] = [];
     for (const role of roles) {
       usedRelationshipIds.add(role.id);
@@ -120,8 +125,12 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       // A still-CANDIDATE person/organization's role can be corrected in place (ASSIGN_ROLE); if their
       // identity is not yet resolved, the SAME target also lets the Who instrument bind a real KS Number
       // to this exact entity (existingTradeEntityId) -- never as plain text, always server-verified. A
-      // CONFIRMED row is read-only here, changed only in conversation.
-      spec: entity.state === 'CANDIDATE' ? { kind: 'who', origin: 'understood', targetEntityId: entity.id, currentName: entity.name, takenNames: [] } : null,
+      // CONFIRMED row is read-only here, changed only in conversation. `identityResolved` on the spec
+      // tells the instrument this entity already has a verified identity, so it must never offer to bind a
+      // SECOND, different one (Phase 4 final closeout, Section 4).
+      spec: entity.state === 'CANDIDATE'
+        ? { kind: 'who', origin: 'understood', targetEntityId: entity.id, currentName: entity.name, takenNames: [], identityResolved }
+        : null,
     });
   }
 
@@ -130,6 +139,9 @@ export function projectWorkbench(context: ContextView | null): Workbench {
     if (entity.type !== 'PLACE') continue;
     shownEntityIds.add(entity.id);
     const details: string[] = [];
+    // A quiet, truthful indication that real GPS accompanies this place -- never a fake map or reverse
+    // geocode (Phase 4 final closeout, Section 6).
+    if (entity.attributes.coordinateSource === 'USER_SHARED') details.push('GPS shared');
     const adopt: AdoptTarget[] = entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [];
     for (const role of relationsOf(entity.id).filter(r => r.kind === 'ROLE')) {
       usedRelationshipIds.add(role.id);
@@ -179,9 +191,14 @@ export function projectWorkbench(context: ContextView | null): Workbench {
         : null;
     const rangeLabel = entity.type === 'DATE_RANGE' && entity.attributes.startDate && entity.attributes.endDate
       ? `${longDate(entity.attributes.startDate)} to ${longDate(entity.attributes.endDate)}` : entity.name;
+    // Human-friendly presentation only -- the canonical date/time attributes underneath are unchanged and
+    // no timezone is invented (Phase 4 final closeout, Section 5). DATE_RANGE presentation is unchanged.
+    const dateLabel = entity.type === 'DATE' && fromIso(entity.attributes.date ?? '') ? longDate(entity.attributes.date!) : entity.name;
+    const timeDetail = entity.type === 'DATE' && entity.attributes.time && isValidTime(entity.attributes.time)
+      ? [formatTime12h(entity.attributes.time)] : [];
     items.push({
-      key: `when:${entity.id}`, section: 'when', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.name,
-      details: entity.type === 'RECURRENCE' ? ['Repeats'] : [], state: entity.state,
+      key: `when:${entity.id}`, section: 'when', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.type === 'DATE' ? dateLabel : entity.name,
+      details: entity.type === 'RECURRENCE' ? ['Repeats'] : timeDetail, state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
       spec: entity.state === 'CANDIDATE' ? editable : null,
     });

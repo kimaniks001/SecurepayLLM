@@ -5,7 +5,39 @@
 (`fix/agent-trade-context-convergence-phase4`, stacked on Phases 1–3) — the new `/structured-inputs` and
 `/identity-selections` endpoints this PR calls do not exist before that PR merges. Includes a subsequent
 review-correction pass (generic detail display/editing, date-range UI, GPS-only submission, PERSON/
-ORGANIZATION choice) — see "Review correction" below.
+ORGANIZATION choice) and a further final-closeout pass (KS Number visibility, truthful two-step identity
+selection, resolved-identity re-bind refusal, human-friendly date/time, combined place+GPS readback,
+`clientActionId` lifecycle after stale+edit) — see "Final closeout" below.
+
+## Final closeout (this pass)
+
+1. **KS Number visible in UNDERSTOOD** (`projectWorkbench`). A resolved WHO row now shows
+   `Maua Shoes` / `KS003` / `Seller` — the KS Number itself, never an internal identity UUID — driven only by
+   the entity's own `identityResolved=true`/`ksnumber` attributes.
+2. **Truthful, two-step KS action semantics** (`instruments/controller.ts`, Part C). Typing a KS Number and
+   pressing the primary button now performs a PURE lookup only (no `expectedTradeContextVersion`) — the
+   instrument stays open and shows who it resolved to. A SECOND, explicit press ("Add {name} as {role}")
+   performs the actual association. The copy and the real behavior now agree at every step; previously the
+   very first press already associated while the copy claimed otherwise.
+3. **Resolved identity never offers re-binding** (`WhoInstrument.tsx`). `WhoSpec.identityResolved` (from
+   `projectWorkbench`) hides "I have a KS Number" entirely once an entity already carries a verified
+   identity; role editing remains available.
+4. **Human-friendly date/time presentation** (`projectWorkbench`, `formatTime12h`). A DATE row now shows
+   e.g. "Friday, 2 October 2026" / "3:00 PM" — pure string arithmetic, no `Date` object, no timezone
+   conversion, canonical `date`/`time` values unchanged underneath. DATE_RANGE presentation is unchanged.
+5. **GPS readback when place text AND coordinates are both supplied** (`verify.ts`). Success now requires
+   the correct place text AND the exact coordinates AND `coordinateSource=USER_SHARED` together — an
+   instrument can no longer close merely because the place text survived while the GPS was lost in transit.
+   UNDERSTOOD also shows a quiet, truthful "GPS shared" indicator next to a place carrying real coordinates
+   — never a fake map or reverse geocode.
+6. **`clientActionId` lifecycle after stale + edit** (`instruments/controller.ts`). `setDraft` now clears
+   `clientActionId`, so an unchanged resubmit after a stale-version outcome still reuses the same id, but a
+   genuinely edited draft after returning to editing gets a fresh one. A frozen `failed`/`uncertain`
+   delivery is unaffected (`setDraft` is already blocked entirely in that phase).
+
+See `docs/architecture/AGENT_CAPABILITY_CONVERGENCE_PHASE4.md` in the companion SecurePayAPI PR for the
+matching backend item (a centralized user-editable detail key policy rejecting new writes to
+`_`-prefixed/date/time/range/GPS/purpose-bookkeeping keys, while preserving historical values unchanged).
 
 ## What this frontend consumes — and does not define
 
@@ -86,14 +118,14 @@ capability is exposed on the **public Developer API**, and the honest status/blo
 | Generic descriptive details | Yes (`CORRECT_ENTITY_DETAIL`, any bounded attribute) | Yes — generic WHAT-row projection + `DetailInstrument.tsx`, zero per-concept code | Not exposed in this phase | Complete internally/first-party |
 | UNDERSTOOD editing | Yes (structured-input targets) | WHO/WHEN(date)/WHEN(range)/WHERE/MONEY/generic-detail rows all directly editable | Not exposed in this phase | Complete |
 | Plain participant (person/organization) | Yes | Real, explicit PERSON/ORGANIZATION choice (`WhoInstrument.tsx`) | Not exposed in this phase | Complete |
-| KS identity | Yes (`/identity-selections`, Phase 3 port) | Real, exact `KsNumber`-validated lookup + optional association | Not exposed in this phase | Complete |
+| KS identity | Yes (`/identity-selections`, Phase 3 port) | Real, exact `KsNumber`-validated PURE lookup, then an explicit SECOND action to associate; KS Number visible in UNDERSTOOD; re-binding a resolved identity is never offered | Not exposed in this phase | Complete |
 | Store | Yes | Real (`StoreExperience`, discovery, `selectCommercialSource`) — unchanged | Not this phase's concern | Complete (pre-existing) |
 | Money formation value | Yes (bounded decimal grammar, any real ISO-4217 code) | Real; edits target the exact existing row; a brand-new amount uses a real context-wide `SET_AMOUNT` | Not exposed in this phase | Complete |
-| Date | Yes (`SET_DATE`) | Real, with optional time; existing `DATE` entities directly editable, exact readback (date+time both verified) | Not exposed in this phase | Complete |
+| Date | Yes (`SET_DATE`) | Real, with optional time; existing `DATE` entities directly editable, exact readback (date+time both verified); human-friendly presentation ("Friday, 2 October 2026" / "3:00 PM"), canonical values unchanged | Not exposed in this phase | Complete |
 | Time | Yes (`SET_DATE`'s `isoTime`) | `HH:mm` field on the Calendar instrument; no timezone invented | Not exposed in this phase | Complete |
 | Date range | Yes (`SET_DATE_RANGE`) | Real range-picker UI (`CalendarInstrument.tsx` range mode) — completed in the review-correction pass | Not exposed in this phase | Complete |
 | Location text | Yes (`SET_LOCATION`) | Bounded, free, multi-word text | Not exposed in this phase | Complete |
-| GPS | Yes (`SET_LOCATION`'s optional `latitude`/`longitude`) | "Use my current location" via `navigator.geolocation`; GPS-only submission works with no typed place text | Not exposed in this phase | Complete |
+| GPS | Yes (`SET_LOCATION`'s optional `latitude`/`longitude`) | "Use my current location" via `navigator.geolocation`; GPS-only submission works with no typed place text; when a named place AND GPS are both supplied, both must read back exactly; a quiet "GPS shared" indicator shown in UNDERSTOOD | Not exposed in this phase | Complete |
 | Real map / geocoding | GPS/location data only — no geocoding | No real map; no reverse-geocode | No map capability | Blocked — no map/geocoding provider is configured anywhere in this repository; introducing one is a separate provider decision, out of scope here |
 | Photo | No durable pre-agreement media storage | Honest "unavailable" note | Not applicable | Blocked — genuine infrastructure gap on the API side |
 | Document | Same missing capability as Photo | Honest "unavailable" note | Not applicable | Blocked — same infrastructure gap |

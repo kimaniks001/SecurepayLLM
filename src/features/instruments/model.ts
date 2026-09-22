@@ -36,7 +36,10 @@ export type InstrumentOrigin = 'understood' | 'agent' | 'add';
  * it to a resolved identity) rather than adding a new one. `takenNames`: people SecurePay already
  * holds, used only to avoid an obviously duplicate NEW name.
  */
-export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[]; targetEntityId?: string; currentName?: string }
+/** `identityResolved`: this exact target entity already carries a real, server-verified KS Number (Phase 4
+ *  final closeout, Section 4) -- the instrument must never offer to bind it to a DIFFERENT identity; only
+ *  its role remains editable. */
+export interface WhoSpec { kind: 'who'; origin: InstrumentOrigin; role?: string; takenNames?: string[]; targetEntityId?: string; currentName?: string; identityResolved?: boolean }
 /**
  * WHEN: a single date, optionally timed -- OR, when `mode === 'range'`, a start/end date pair (the real
  * `SET_DATE_RANGE` structured action). `targetEntityId` (a real DATE/DATE_RANGE entity) means "correct
@@ -156,6 +159,17 @@ export const longDate = (iso: string): string => {
 };
 /** A plain 24h `HH:mm` check -- the backend validates the real ISO-8601 time; this only bounds the shape. */
 export const isValidTime = (raw: string): boolean => /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.trim());
+/** A human-friendly 12-hour presentation of a validated `HH:mm` string -- pure string arithmetic, never a
+ *  `Date` object, so there is no timezone conversion risk. The canonical `HH:mm` value underneath is never
+ *  altered; this is presentation only (Phase 4 final closeout, Section 5). */
+export function formatTime12h(raw: string): string {
+  if (!isValidTime(raw)) return raw;
+  const [hourText, minute] = raw.trim().split(':');
+  const hour24 = Number(hourText);
+  const period = hour24 < 12 ? 'AM' : 'PM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${minute} ${period}`;
+}
 export interface MonthCell { iso: string; day: number }
 /** Monday-first weeks, `null` padding, so a month renders as complete rows of seven. */
 export function monthGrid(year: number, month0: number): (MonthCell | null)[][] {

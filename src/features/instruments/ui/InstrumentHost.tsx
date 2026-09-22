@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { specKey, type InstrumentController } from '../controller';
+import { specKey, type InstrumentController, type ResolvedKsIdentity } from '../controller';
 import { canonicalRole } from '../../../api/securepay/agent/roles';
 import { isValidKsNumber, normalizeKs } from '../../../api/securepay/agent/ksformat';
 import { formatMoney, MAX_DETAIL_VALUE_LENGTH, parseAmount, parsePersonName, parsePlace, sameAmount, structuredInputFor, type InstrumentDraft, type InstrumentSpec } from '../model';
@@ -23,10 +23,17 @@ function titleFor(spec: InstrumentSpec, draft: InstrumentDraft | null): string {
   }
 }
 /** The primary action's label and readiness for the current draft -- `null` label means "no primary yet". */
-function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: string | null; ready: boolean } {
+function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft, resolvedKsIdentity: ResolvedKsIdentity | null): { label: string | null; ready: boolean } {
   if (spec.kind === 'who' && draft.kind === 'who') {
     const typedKs = draft.ks.trim();
-    if (typedKs) return { label: `Check ${normalizeKs(typedKs)}`, ready: isValidKsNumber(typedKs) };
+    if (typedKs) {
+      // Two explicit steps (Phase 4 final closeout, Section 3): "Check KS003" performs a pure lookup only;
+      // once resolved, the SAME button becomes an explicit "Add {name} as {role}" association -- never one
+      // step that silently also associates.
+      const resolved = resolvedKsIdentity?.canonicalKsNumber === normalizeKs(typedKs) ? resolvedKsIdentity : null;
+      if (resolved) return { label: `Add ${resolved.displayName}${draft.role ? ` as ${draft.role}` : ''}`, ready: true };
+      return { label: `Check ${normalizeKs(typedKs)}`, ready: isValidKsNumber(typedKs) };
+    }
     const name = parsePersonName(draft.name, spec.takenNames);
     return { label: name.ok ? `Add ${name.value}${draft.role ? ` as ${draft.role}` : ''}` : 'Add person', ready: name.ok && !!canonicalRole(draft.role) };
   }
@@ -61,8 +68,10 @@ function primaryFor(spec: InstrumentSpec, draft: InstrumentDraft): { label: stri
 
 /** An honest, non-fabricated description of what pressing the primary button actually does -- an
  *  explicit structured action to SecurePay, never a chat sentence. */
-function actionPreview(spec: InstrumentSpec, draft: InstrumentDraft): string | null {
+function actionPreview(spec: InstrumentSpec, draft: InstrumentDraft, resolvedKsIdentity: ResolvedKsIdentity | null): string | null {
   if (spec.kind === 'who' && draft.kind === 'who' && draft.ks.trim()) {
+    const resolved = resolvedKsIdentity?.canonicalKsNumber === normalizeKs(draft.ks) ? resolvedKsIdentity : null;
+    if (resolved) return `Adds ${resolved.displayName} as a candidate participant${draft.role ? ` (${draft.role})` : ''} — nothing is agreed or paid.`;
     return `Sends ${normalizeKs(draft.ks)} to SecurePay to check who it belongs to. This confirms an identity — it doesn’t add or accept anyone yet.`;
   }
   const body = structuredInputFor(spec, draft);
@@ -99,8 +108,8 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
   // After a failed delivery the earlier action may already be applied, so the choice is frozen: Retry (same action) or Close.
   const locked = sending || state.phase === 'failed';
   const blocked = agentBusy || agentUncertain;
-  const primary = primaryFor(spec, draft);
-  const preview = actionPreview(spec, draft);
+  const primary = primaryFor(spec, draft, state.resolvedKsIdentity);
+  const preview = actionPreview(spec, draft, state.resolvedKsIdentity);
   const title = titleFor(spec, draft);
 
   // Deliberate initial focus: the field the person will type into, or the calendar's one tab stop.
@@ -116,7 +125,7 @@ function Surface({ controller, state, agentBusy, agentUncertain, onBackToConvers
   const submit = () => { if (primary.ready && !blocked && state.phase !== 'failed') void controller.submit(); };
 
   let body: ReactNode = null;
-  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} onFind={onFind} />;
+  if (spec.kind === 'who' && draft.kind === 'who') body = <WhoInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} onBackToConversation={onBackToConversation} onFind={onFind} resolvedKsIdentity={state.resolvedKsIdentity} />;
   else if (spec.kind === 'when' && draft.kind === 'when') body = <CalendarInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} />;
   else if (spec.kind === 'money' && draft.kind === 'money') body = <MoneyInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
   else if (spec.kind === 'where' && draft.kind === 'where') body = <WhereInstrument spec={spec} draft={draft} onChange={setDraft} disabled={locked} onSubmit={submit} />;
