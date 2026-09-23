@@ -331,15 +331,85 @@ test('the handoff review card surfaces the backend source status with Selected e
 });
 
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS
-const ctx = (entities, relationships = []) => api.tradeContextView({ conversationId: 'c', version: 1, entities, relationships });
-const ent = (id, type, name, state = 'CONFIRMED') => ({ id, type, name, state, confidence: 1, attributes: {} });
-const stateWith = (data, source = null) => ({ conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data, error: null }, source, offerSelectionFailure: null });
-test('UNDERSTOOD: a real ITEM/SERVICE gets "See on SecurePay" (kind from the entity, never guessed); "Add a detail" offers Find on SecurePay; an unnamed thing does not', () => {
+const ctx = (entities, relationships = [], discoveryInvitedEntityIds = []) =>
+  api.tradeContextView({ conversationId: 'c', version: 1, entities, relationships, interactionState: { discoveryInvitedEntityIds } });
+const ent = (id, type, name, state = 'CONFIRMED', attributes = {}) => ({ id, type, name, state, confidence: 1, attributes });
+const stateWith = (data, source = null, offeredDiscoveryEntityIds = []) => ({ conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data, error: null }, source, offerSelectionFailure: null, offeredDiscoveryEntityIds });
+// KS001 Upgrade Phase 1, Section 14, hardened by the final integration fix -- "See on SecurePay" is no
+// longer shown merely because an ITEM/SERVICE row exists, and it is NEVER driven by a Trade Context entity
+// attribute -- discovery consent is the backend's own persisted interaction state (never
+// entity.attributes.discoveryInvited, which no longer exists at all -- see AgentConversation#
+// discoveryInvitedEntityIds' own javadoc for why an entity attribute was the wrong shape). Discovery
+// remains a supporting capability, never the default next step for an ordinary row.
+test('UNDERSTOOD: an ordinary ITEM/SERVICE row never shows "See on SecurePay" until discovery is explicitly invited', () => {
   const wb = api.projectWorkbench(ctx([ent('a', 'ITEM', 'shoes'), ent('b', 'SERVICE', 'House painting'), ent('c', 'CONCEPT', 'value')]));
-  assert.deepEqual(wb.items.filter(i => i.section === 'what').map(i => i.find), [{ kind: 'PRODUCT', what: 'shoes' }, { kind: 'SERVICE', what: 'House painting' }]);
+  assert.deepEqual(wb.items.filter(i => i.section === 'what').map(i => i.find), [undefined, undefined]);
   const out = html(api.UnderstoodWorkbench, { state: stateWith(ctx([ent('a', 'ITEM', 'shoes')])), controller: {}, activeSpec: null, onOpen() {}, onFind() {} });
-  assert.match(out, /aria-label="See shoes on SecurePay"/); assert.match(out, /See on SecurePay/);
+  assert.doesNotMatch(out, /See on SecurePay/);
   assert.equal(api.projectWorkbench(ctx([ent('n', 'CONCEPT', 'thing')])).items.some(i => i.find), false);
+});
+test('UNDERSTOOD: "See on SecurePay" appears (kind from the entity, never guessed) once the server reports discovery invited for that EXACT entity', () => {
+  const wb = api.projectWorkbench(ctx(
+    [ent('a', 'ITEM', 'shoes', 'CANDIDATE'), ent('b', 'SERVICE', 'House painting', 'CANDIDATE')],
+    [], ['a', 'b'],
+  ));
+  assert.deepEqual(wb.items.filter(i => i.section === 'what').map(i => i.find), [{ kind: 'PRODUCT', what: 'shoes' }, { kind: 'SERVICE', what: 'House painting' }]);
+  const out = html(api.UnderstoodWorkbench, {
+    state: stateWith(ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE')], [], ['a'])),
+    controller: {}, activeSpec: null, onOpen() {}, onFind() {},
+  });
+  assert.match(out, /aria-label="See shoes on SecurePay"/); assert.match(out, /See on SecurePay/);
+});
+test('UNDERSTOOD: discovery invited for one entity never authorizes "See on SecurePay" for an unrelated one', () => {
+  const wb = api.projectWorkbench(ctx(
+    [ent('a', 'ITEM', 'shoes', 'CANDIDATE'), ent('b', 'SERVICE', 'House painting', 'CANDIDATE')],
+    [], ['a'],
+  ));
+  const rows = wb.items.filter(i => i.section === 'what');
+  assert.deepEqual(rows.find(r => r.key === 'what:a').find, { kind: 'PRODUCT', what: 'shoes' });
+  assert.equal(rows.find(r => r.key === 'what:b').find, undefined);
+});
+test('UNDERSTOOD: a stray discoveryinvited attribute (defence in depth -- the backend never writes this any more) is still never shown as an ordinary descriptive detail', () => {
+  const wb = api.projectWorkbench(ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE', { discoveryInvited: 'true', size: '42' })]));
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.details, ['Size: 42']);
+  // And it never grants "See on SecurePay" by itself either -- only the real interactionState projection does.
+  assert.equal(row.find, undefined);
+});
+
+// ---------------------------------------------------------------- DISCOVERY OFFERED vs INVITED (KS001 Upgrade Phase 1 final integration fix)
+
+test('UNDERSTOOD: KS001 offering discovery for one entity shows a real, explicit accept action ("Look on SecurePay") only for that exact entity, never an unrelated one, and never before it has been offered at all', () => {
+  const wb = api.projectWorkbench(
+    ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE'), ent('b', 'SERVICE', 'House painting', 'CANDIDATE')]),
+    new Set(['a']),
+  );
+  const rows = wb.items.filter(i => i.section === 'what');
+  assert.deepEqual(rows.find(r => r.key === 'what:a').offer, { targetEntityId: 'a' });
+  assert.equal(rows.find(r => r.key === 'what:b').offer, undefined);
+  // Not yet accepted -- the accept action shows, but "See on SecurePay" does not yet.
+  assert.equal(rows.find(r => r.key === 'what:a').find, undefined);
+  // Never offered at all -- no accept action either.
+  const none = api.projectWorkbench(ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE')]));
+  assert.equal(none.items.find(i => i.section === 'what').offer, undefined);
+});
+test('UNDERSTOOD: once a discovery-offered entity is also invited, the row shows the real find action, never the accept action too', () => {
+  const wb = api.projectWorkbench(
+    ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE')], [], ['a']),
+    new Set(['a']),
+  );
+  const row = wb.items.find(i => i.section === 'what');
+  assert.deepEqual(row.find, { kind: 'PRODUCT', what: 'shoes' });
+  assert.equal(row.offer, undefined);
+});
+test('UNDERSTOOD: the "Look on SecurePay" accept action is rendered with the exact target id, never shown by default on an ordinary row', () => {
+  const out = html(api.UnderstoodWorkbench, {
+    state: stateWith(ctx([ent('a', 'ITEM', 'shoes', 'CANDIDATE'), ent('b', 'SERVICE', 'House painting', 'CANDIDATE')]), null, ['a']),
+    controller: {}, activeSpec: null, onOpen() {}, onFind() {},
+  });
+  assert.match(out, /Look on SecurePay/);
+  assert.match(out, /aria-label="Look for shoes on SecurePay"/);
+  assert.doesNotMatch(out, /aria-label="Look for House painting on SecurePay"/);
 });
 test('UNDERSTOOD shows the selected source as provenance ("Started from"), distinct from what SecurePay found', () => {
   const source = { sourceType: 'STORE_LISTING', sourceId: 'o-1', sourceTitle: 'Leather shoes', sourceOwnerKsNumber: 'KS003', contextReference: '#', capturedPriceMinor: 400000, capturedCurrency: 'KES', selectedAt: 't' };

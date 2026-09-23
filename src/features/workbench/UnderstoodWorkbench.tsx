@@ -28,12 +28,15 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
 }) {
   const { context } = state;
   const [addOpen, setAddOpen] = useState(false);
-  const workbench = projectWorkbench(context.data);
+  const workbench = projectWorkbench(context.data, new Set(state.offeredDiscoveryEntityIds));
   const activeKey = activeSpec ? specKey(activeSpec) : null;
   const busy = state.busy || !!state.pending;
   const sections = (['what', 'who', 'when', 'where', 'money', 'other'] as WorkbenchSection[]).map(section => ({ section, items: workbench.items.filter(item => item.section === section) })).filter(group => group.items.length > 0);
 
   const adoptAll = async (targets: AdoptTarget[]) => { for (const target of targets) await controller.adopt(target.id, target.targetKind); };
+  // KS001 Upgrade Phase 1 final integration fix -- the ONLY thing that ever calls requestDiscovery: an
+  // explicit click on the person's own part, never automatic, never inferred from KS001's own prose.
+  const onRequestDiscovery = (targetEntityId: string) => void controller.requestDiscovery(targetEntityId);
 
   return <section aria-label="What SecurePay understands" aria-busy={context.status === 'loading'} className="space-y-4">
     {state.source && <SourceReference source={{ sourceType: state.source.sourceType, title: state.source.sourceTitle ?? 'Store offer', ownerKs: state.source.sourceOwnerKsNumber, capturedPriceMinor: state.source.capturedPriceMinor, capturedCurrency: state.source.capturedCurrency }} />}
@@ -49,7 +52,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
     {sections.map(({ section, items }) => <div key={section}>
       <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">{SECTION_LABEL[section]}</h3>
       <ul className="overflow-hidden rounded-2xl border border-cream-200 bg-white/80 divide-y divide-cream-100 shadow-soft">
-        {items.map(item => <Row key={item.key} item={item} open={!!item.spec && specKey(item.spec) === activeKey} busy={busy} onOpen={onOpen} onFind={onFind} onUse={() => void adoptAll(item.adopt)} />)}
+        {items.map(item => <Row key={item.key} item={item} open={!!item.spec && specKey(item.spec) === activeKey} busy={busy} onOpen={onOpen} onFind={onFind} onUse={() => void adoptAll(item.adopt)} onRequestDiscovery={onRequestDiscovery} />)}
       </ul>
     </div>)}
 
@@ -83,7 +86,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
   </section>;
 }
 
-function Row({ item, open, busy, onOpen, onFind, onUse }: { item: WorkbenchItem; open: boolean; busy: boolean; onOpen: (spec: InstrumentSpec) => void; onFind: (kind: 'PRODUCT' | 'SERVICE', what?: string) => void; onUse: () => void }) {
+function Row({ item, open, busy, onOpen, onFind, onUse, onRequestDiscovery }: { item: WorkbenchItem; open: boolean; busy: boolean; onOpen: (spec: InstrumentSpec) => void; onFind: (kind: 'PRODUCT' | 'SERVICE', what?: string) => void; onUse: () => void; onRequestDiscovery: (targetEntityId: string) => void }) {
   const candidate = item.state === 'CANDIDATE';
   const body = <>
     <span className="min-w-0 flex-1 text-left">
@@ -106,6 +109,11 @@ function Row({ item, open, busy, onOpen, onFind, onUse }: { item: WorkbenchItem;
       : <div className="flex min-h-[3.25rem] flex-1 items-center gap-2 px-4 py-2.5">{body}</div>}
     {item.find && <button type="button" onClick={() => onFind(item.find!.kind, item.find!.what)} aria-label={`See ${item.find.what} on SecurePay`}
       className={`shrink-0 px-3.5 text-[0.8rem] font-medium text-forest-700 hover:bg-forest-50 ${FOCUS}`}>See on SecurePay</button>}
+    {/* KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED becomes a real, explicit accept
+        action, never shown by default on every ITEM/SERVICE row (see projection.ts's own `offer` doctrine:
+        it requires a real DISCOVERY_OFFER this session AND that the person has not already accepted). */}
+    {!item.find && item.offer && <button type="button" onClick={() => onRequestDiscovery(item.offer!.targetEntityId)} aria-label={`Look for ${item.value} on SecurePay`}
+      className={`shrink-0 px-3.5 text-[0.8rem] font-medium text-forest-700 hover:bg-forest-50 ${FOCUS}`}>Look on SecurePay</button>}
     {candidate && item.adopt.length > 0 && <button type="button" disabled={busy} onClick={onUse} aria-label={`Use this: ${item.value}`}
       className={`shrink-0 px-3.5 text-[0.8rem] font-medium text-forest-700 hover:bg-forest-50 disabled:opacity-40 ${FOCUS}`}>Use this</button>}
   </li>;

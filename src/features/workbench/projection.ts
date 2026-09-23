@@ -37,8 +37,14 @@ export interface WorkbenchItem {
   /** Candidate facts in this row that the person may explicitly "Use" (real adopt endpoint). */
   adopt: AdoptTarget[];
   spec: InstrumentSpec | null;
-  /** WHAT only: a real ITEM/SERVICE the person named can be looked for on SecurePay (a product, or someone to do it). */
+  /** WHAT only: a real ITEM/SERVICE the person named can be looked for on SecurePay (a product, or someone
+   *  to do it) -- shown once the person has EXPLICITLY accepted discovery for this exact entity (DISCOVERY
+   *  INVITED, from the server's own interactionState -- see ContextView). */
   find?: { kind: 'PRODUCT' | 'SERVICE'; what: string };
+  /** WHAT only: KS001 has OFFERED to help find this exact entity, but the person has not yet explicitly
+   *  accepted (see AgentState#offeredDiscoveryEntityIds). Clicking the resulting action calls
+   *  `controller.requestDiscovery(targetEntityId)` -- the ONLY thing that ever transitions this to `find`. */
+  offer?: { targetEntityId: string };
   /** WHO only: a named person with no KS Number understood yet. Candidate understanding, not a participant. */
   identityUnresolved?: boolean;
 }
@@ -70,6 +76,12 @@ const RESERVED_DETAIL_KEYS = new Set([
   'verifiedidentity', 'participanteligible', 'eligible', 'consented', 'accepted', 'authenticated', 'authority',
   'purposesubject', 'purposetype', 'status', 'domain', 'latitude', 'longitude', 'coordinatesource',
   'date', 'time', 'startdate', 'enddate',
+  // KS001 Upgrade Phase 1 final integration fix -- retained defensively even though the backend no longer
+  // ever writes this as a Trade Context entity attribute at all: discovery consent moved to the server's
+  // own interactionState projection (see ContextView#interactionState / DiscoveryEligibility's own
+  // javadoc for the full root-cause explanation of why an entity attribute was the wrong shape). If this
+  // key were ever reintroduced by mistake, it must still never render as an ordinary descriptive detail.
+  'discoveryinvited',
 ]);
 const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
 
@@ -84,10 +96,17 @@ function describeQualifiers(q: Record<string, string>): string {
   return Object.entries(q).filter(([key, value]) => !INTERNAL_KEYS.has(key) && value.trim() !== '').map(([, value]) => value).join(' · ');
 }
 
-export function projectWorkbench(context: ContextView | null): Workbench {
+/**
+ * `offeredDiscoveryEntityIds`: session-local DISCOVERY OFFERED state (see {@code AgentState}'s own
+ * javadoc) -- never the authoritative source. `context.interactionState.discoveryInvitedEntityIds` (the
+ * server-owned, persisted DISCOVERY INVITED truth) always takes display priority over it for the SAME
+ * entity: once accepted, a row shows `find` (the real "See on SecurePay" action), never `offer` again.
+ */
+export function projectWorkbench(context: ContextView | null, offeredDiscoveryEntityIds: ReadonlySet<string> = new Set()): Workbench {
   const items: WorkbenchItem[] = [];
   const entities = context?.entities ?? [];
   const relationships = context?.relationships ?? [];
+  const discoveryInvitedEntityIds = new Set(context?.interactionState?.discoveryInvitedEntityIds ?? []);
   const byId = new Map(entities.map(entity => [entity.id, entity]));
   const shownEntityIds = new Set<string>();
   const usedRelationshipIds = new Set<string>();
@@ -173,7 +192,21 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       spec: entity.state === 'CANDIDATE' && detailFields.length > 0
         ? { kind: 'detail', origin: 'understood', targetEntityId: entity.id, entityName: entity.name, fields: detailFields }
         : null,
-      find: entity.type === 'ITEM' || entity.type === 'SERVICE' ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name } : undefined,
+      // KS001 Upgrade Phase 1, Section 14, hardened by the final integration fix -- "See on SecurePay" is
+      // no longer shown merely because a WHAT row exists, and it is NEVER driven by a Trade Context entity
+      // attribute (discovery consent moved to real interaction state -- see AgentConversation#
+      // discoveryInvitedEntityIds' own javadoc). It appears only once the SERVER's own persisted
+      // interactionState reports this exact entity id as DISCOVERY INVITED -- i.e. only after the person
+      // has explicitly accepted (via requestDiscovery). Before that, if KS001 has merely OFFERED to help
+      // find this exact entity (DISCOVERY_OFFER this session, never Trade Context), `offer` lets the
+      // person explicitly accept; an ordinary row with neither gets no discovery affordance at all.
+      find: (entity.type === 'ITEM' || entity.type === 'SERVICE') && discoveryInvitedEntityIds.has(entity.id)
+        ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name }
+        : undefined,
+      offer: (entity.type === 'ITEM' || entity.type === 'SERVICE')
+          && !discoveryInvitedEntityIds.has(entity.id) && offeredDiscoveryEntityIds.has(entity.id)
+        ? { targetEntityId: entity.id }
+        : undefined,
     });
   }
 

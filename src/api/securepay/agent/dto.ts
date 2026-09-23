@@ -10,7 +10,12 @@ export interface AgentResponseDto {
 }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string> }
 export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number }
-export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[] }
+// KS001 Upgrade Phase 1 final integration fix -- bounded, first-party-only conversation INTERACTION/
+// ORCHESTRATION state, deliberately never a Trade Context entity attribute (mirrors
+// AgentApiModels.InteractionStateView exactly). Absent on a legacy response (before this field existed);
+// the adapter treats that the same as an empty list, never an error.
+export interface InteractionStateDto { discoveryInvitedEntityIds: string[] }
+export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[]; interactionState?: InteractionStateDto }
 export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
 export type SourceKind = 'QUOTATION' | 'DOCUMENT_EXTRACTION' | 'PHOTO_OBSERVATION' | 'PROVIDER_PROFILE' | 'STORE_LISTING' | 'LOCATION_RESULT' | 'PREVIOUS_AGREEMENT' | 'COMMUNITY_KNOWLEDGE' | 'PARTNER_INFORMATION' | 'MASTER_OPINION';
@@ -52,9 +57,13 @@ export interface ContinueHandoffRequest { expectedTradeContextVersion: number; e
 // Context write path: an EXPLICIT UI ACTION (an instrument submission or a direct UNDERSTOOD edit), never a
 // fabricated chat sentence. Mirrors ke.securepay.core.api.agent.controller.AgentApiModels.StructuredInputRequest
 // exactly -- a closed, typed vocabulary (`type`), not a raw mutation shape.
+// KS001 Upgrade Phase 1 review correction (item 2) -- REQUEST_DISCOVERY: the preferred, most
+// authority-safe discovery-invitation path -- a genuine, explicit, user-originated action (never a
+// fabricated chat sentence, never the model inferring consent). Mirrors
+// UserStructuredInputAction.RequestDiscovery exactly: only `targetEntityId` is meaningful.
 export type StructuredInputType =
   | 'ADD_PARTICIPANT_CANDIDATE' | 'CORRECT_ENTITY_DETAIL' | 'ASSIGN_ROLE' | 'SET_AMOUNT' | 'SET_DATE'
-  | 'SET_DATE_RANGE' | 'SET_LOCATION';
+  | 'SET_DATE_RANGE' | 'SET_LOCATION' | 'REQUEST_DISCOVERY';
 export interface StructuredInputRequest {
   type: StructuredInputType;
   expectedTradeContextVersion: number;

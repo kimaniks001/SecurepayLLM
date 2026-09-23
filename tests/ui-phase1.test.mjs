@@ -471,6 +471,16 @@ test('trade context: a relationship with NO objectEntityId (backend non_null omi
   assert.equal(view.relationships[0].objectEntityId, null);
   assert.throws(() => api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [{ id: 'r', kind: 'ROLE', subjectEntityId: 'e', objectEntityId: 5, qualifiers: {}, state: 'CONFIRMED' }] }));
 });
+// KS001 Upgrade Phase 1 final integration fix -- bounded discovery interaction state, never a Trade
+// Context attribute.
+test('trade context: interactionState.discoveryInvitedEntityIds is parsed when present, and a legacy/absent/malformed field safely becomes an empty list, never an error', () => {
+  const withState = api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [], interactionState: { discoveryInvitedEntityIds: ['e1', 'e2'] } });
+  assert.deepEqual(withState.interactionState.discoveryInvitedEntityIds, ['e1', 'e2']);
+  const legacy = api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [] });
+  assert.deepEqual(legacy.interactionState.discoveryInvitedEntityIds, []);
+  const malformed = api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [], interactionState: { discoveryInvitedEntityIds: 'not-an-array' } });
+  assert.deepEqual(malformed.interactionState.discoveryInvitedEntityIds, []);
+});
 const golden = () => ctx(
   [ent('s', 'SERVICE', 'House painting'), ent('john', 'PERSON', 'John', 'CANDIDATE'), ent('shoe', 'ITEM', 'shoe'), ent('d', 'DATE', '2026-09-25', 'CANDIDATE', { date: '2026-09-25' }), ent('k', 'PERSON', 'Anna', 'CONFIRMED', { ksnumber: 'KS003' })],
   [rel('r1', 'ROLE', 'john', { role: 'SELLER', descriptor: 'seller' }, 'CANDIDATE'), rel('r2', 'ROLE', 'k', { role: 'BUYER' }), rel('r3', 'PAYMENT_CONDITION', 'shoe', { amount: '20000', currency: 'KES' })]);
@@ -732,6 +742,72 @@ test('agent controller: submitStructuredInput surfaces a stale-version outcome d
   const result = await controller.submitStructuredInput({ type: 'SET_LOCATION', placeText: 'Kilimani', expectedTradeContextVersion: 0, clientActionId: 'a1' });
   assert.equal(result.ok, false); assert.equal(result.stale, true);
   assert.match(result.error, /understands has changed/);
+});
+// KS001 Upgrade Phase 1 review correction (item 2) -- REQUEST_DISCOVERY is now callable from
+// SecurepayLLM, reusing the SAME submitStructuredInput machinery, never a fabricated chat sentence.
+test('agent controller: requestDiscovery sends a REQUEST_DISCOVERY structured input for the exact target, using the current Trade Context version and a fresh clientActionId', async () => {
+  const calls = [];
+  const { controller } = agentSetup({
+    readContext: async () => ({ conversationId: 'c', version: 7, entities: [], relationships: [] }),
+    submitStructuredInput: async (id, body) => { calls.push(body); return { status: 'APPLIED', affectedEntityId: 'e1', entitiesApplied: 1, relationshipsApplied: 0, conflicts: [], tradeContextVersion: 8 }; },
+  });
+  // Establish a real conversation and read a real current Trade Context version first (mirrors how the
+  // instruments controller's own currentVersion() reads state, never a caller-guessed number).
+  await controller.sendStatement('I need my bathroom tiled.');
+  const turnsBefore = controller.getSnapshot().turns.length;
+  const result = await controller.requestDiscovery('e1');
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].type, 'REQUEST_DISCOVERY');
+  assert.equal(calls[0].targetEntityId, 'e1');
+  assert.equal(calls[0].expectedTradeContextVersion, 7);
+  assert.ok(calls[0].clientActionId, 'a fresh clientActionId must be generated');
+  // Never a fabricated chat turn -- the turn count is unchanged by requestDiscovery itself.
+  assert.equal(controller.getSnapshot().turns.length, turnsBefore);
+});
+test('agent controller: requestDiscovery surfaces a stale-version outcome distinctly, exactly like submitStructuredInput', async () => {
+  const { controller } = agentSetup({ submitStructuredInput: async () => { throw new api.ApiError('http', 'stale', 409, 'AGENT_STRUCTURED_INPUT_STALE_VERSION'); } });
+  const result = await controller.requestDiscovery('e1');
+  assert.equal(result.ok, false); assert.equal(result.stale, true);
+  assert.match(result.error, /understands has changed/);
+});
+test('agent controller: requestDiscovery defaults to expectedTradeContextVersion 0 before any context has been read', async () => {
+  const calls = [];
+  const { controller } = agentSetup({ submitStructuredInput: async (id, body) => { calls.push(body); return { status: 'APPLIED', affectedEntityId: 'e1', entitiesApplied: 1, relationshipsApplied: 0, conflicts: [], tradeContextVersion: 1 }; } });
+  await controller.requestDiscovery('e1');
+  assert.equal(calls[0].expectedTradeContextVersion, 0);
+});
+// KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED (a real, server-verified DISCOVERY_OFFER
+// component this turn) is recorded as session-local state, deduplicated across turns, and is NEVER itself
+// DISCOVERY INVITED -- only the persisted, server-owned interactionState (read back via readContext) is that.
+test('agent controller: a DISCOVERY_OFFER component records the target as session-local "offered" state, deduplicated across turns, never as an invitation', async () => {
+  const { controller } = agentSetup({
+    submitTurn: async () => ({
+      message: 'I can help you look for a tiler.', contextUpdates: [],
+      components: [{ type: 'DISCOVERY_OFFER', data: { targetEntityId: 'e1' } }],
+      contextualPanel: null, suggestedActions: [],
+    }),
+  });
+  await controller.sendStatement('Do you know a tiler?');
+  assert.deepEqual(controller.getSnapshot().offeredDiscoveryEntityIds, ['e1']);
+  // A second turn offering the SAME entity again never duplicates it.
+  await controller.sendStatement('Anyone?');
+  assert.deepEqual(controller.getSnapshot().offeredDiscoveryEntityIds, ['e1']);
+  // DISCOVERY OFFERED alone never becomes DISCOVERY INVITED -- the persisted, server-owned interaction
+  // state (read back via the DEFAULT readContext fixture, unrelated to the offer) is untouched by it.
+  assert.deepEqual(controller.getSnapshot().context.data.interactionState.discoveryInvitedEntityIds, []);
+});
+// KS001 Upgrade Phase 1 final integration fix, item F (reload/resume) -- a persisted discovery invitation
+// is visible after re-reading the conversation/context, never dependent on transient frontend state (the
+// offeredDiscoveryEntityIds list above is NOT what this proves -- interactionState, read back from the real
+// server response, is).
+test('agent controller: requestDiscovery success is reflected in the re-read context interactionState, proving it is persisted server state, not transient frontend state', async () => {
+  const { controller } = agentSetup({
+    readContext: async () => ({ conversationId: 'c', version: 2, entities: [], relationships: [], interactionState: { discoveryInvitedEntityIds: ['e1'] } }),
+  });
+  const result = await controller.requestDiscovery('e1');
+  assert.equal(result.ok, true);
+  assert.deepEqual(controller.getSnapshot().context.data.interactionState.discoveryInvitedEntityIds, ['e1']);
 });
 test('agent controller: selectKsIdentity performs a pure lookup with no context refresh when no expectedTradeContextVersion is supplied', async () => {
   const { controller, calls } = agentSetup();

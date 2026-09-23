@@ -27,6 +27,16 @@ export interface AgentState {
    * DIRECT trade that still looks like it came from the Store.
    */
   offerSelectionFailure: { fact: OfferFact; error: string } | null;
+  /**
+   * KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED: every real, server-verified entity
+   * id KS001 has offered to help find so far this session (via a DISCOVERY_OFFER response component).
+   * Session-local presentation state ONLY, never DISCOVERY INVITED -- the person's own explicit
+   * `requestDiscovery` accept is the sole thing that ever grants real eligibility (see {@code
+   * ContextView#interactionState}, the server-owned, persisted truth). Deliberately never cleared once an
+   * id is accepted: `interactionState.discoveryInvitedEntityIds` (persisted, authoritative) simply takes
+   * display priority over this list once it contains the same id.
+   */
+  offeredDiscoveryEntityIds: string[];
 }
 /**
  * The outcome of ONE attempted "Use this" / retry, returned by the operation itself so no caller ever has to
@@ -93,7 +103,7 @@ const isStaleVersionError = (error: unknown): boolean => error instanceof ApiErr
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
 export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null };
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
@@ -120,7 +130,12 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       }
       if (pending.kind === 'turn') {
         const response = agentResponseView(await gateway.submitTurn(conversationId, pending.body));
-        update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
+        // KS001 Upgrade Phase 1 final integration fix -- record DISCOVERY OFFERED (never DISCOVERY
+        // INVITED) for every real, server-verified target this turn offered, deduplicated.
+        const offeredDiscoveryEntityIds = response.offeredDiscoveryEntityIds.length > 0
+          ? Array.from(new Set([...state.offeredDiscoveryEntityIds, ...response.offeredDiscoveryEntityIds]))
+          : state.offeredDiscoveryEntityIds;
+        update({ turns: [...state.turns, { id: id(), sender: 'agent', response }], offeredDiscoveryEntityIds });
       } else if (pending.kind === 'adopt') {
         await gateway.adoptFact(conversationId, pending.body);
       } else {
@@ -150,6 +165,30 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     if (!conversation?.conversationId) throw new ApiError('invalid-response', 'SecurePay did not return a conversation.');
     update({ conversationId: conversation.conversationId });
     return conversation.conversationId;
+  }
+  /**
+   * Phase 4 of the Agent/Trade-Context Convergence -- the SECOND legitimate Trade Context write path,
+   * factored out (KS001 Upgrade Phase 1 review correction, item 2) so both `submitStructuredInput` (the
+   * general-purpose entry point instruments use) and `requestDiscovery` below share the SAME
+   * idempotency, stale-version handling, and error text -- never two drifting implementations of the
+   * same POST. A standalone function (not `this`-based), matching `ensureConversationId`'s own reasoning.
+   */
+  async function doSubmitStructuredInput(
+      body: Omit<StructuredInputRequest, 'clientActionId'> & { clientActionId: string }): Promise<StructuredInputOutcome> {
+    if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
+    update({ busy: true, error: null });
+    try {
+      const conversationId = await ensureConversationId();
+      const result = await gateway.submitStructuredInput(conversationId, body);
+      await readContext();
+      return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
+    } catch (error) {
+      if (isStaleVersionError(error)) {
+        await readContext();
+        return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
+      }
+      return { ok: false, stale: false, error: errorText(error) };
+    } finally { update({ busy: false }); }
   }
   return {
     getSnapshot: () => state,
@@ -204,21 +243,23 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * network retry can never duplicate the action. Never appends a conversational turn -- a calendar
      * click or a money edit is not something the person "said."
      */
-    async submitStructuredInput(body: Omit<StructuredInputRequest, 'clientActionId'> & { clientActionId: string }): Promise<StructuredInputOutcome> {
-      if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
-      update({ busy: true, error: null });
-      try {
-        const conversationId = await ensureConversationId();
-        const result = await gateway.submitStructuredInput(conversationId, body);
-        await readContext();
-        return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
-      } catch (error) {
-        if (isStaleVersionError(error)) {
-          await readContext();
-          return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
-        }
-        return { ok: false, stale: false, error: errorText(error) };
-      } finally { update({ busy: false }); }
+    submitStructuredInput: doSubmitStructuredInput,
+    /**
+     * KS001 Upgrade Phase 1 review correction (item 2) -- the preferred, most authority-safe
+     * discovery-invitation path: a genuine, explicit, user-originated action (the person choosing to
+     * accept KS001's own offer to help find a specific thing), never a fabricated chat sentence and
+     * never the model inferring consent from free text. Reuses the SAME structured-input machinery
+     * (idempotency via a fresh `clientActionId` per call, stale-version handling, error text) every
+     * other UI action already uses -- never a bespoke second write path. `targetEntityId` is the exact
+     * entity (from UNDERSTOOD/Trade Context) discovery is being requested for; the current Trade
+     * Context version is read from state, exactly like the instruments controller's own
+     * `currentVersion()` convention.
+     */
+    async requestDiscovery(targetEntityId: string): Promise<StructuredInputOutcome> {
+      const expectedTradeContextVersion = state.context.status === 'ready' ? state.context.data!.version : 0;
+      return doSubmitStructuredInput({
+        type: 'REQUEST_DISCOVERY', targetEntityId, expectedTradeContextVersion, clientActionId: id(),
+      });
     },
     /**
      * Phase 4, Part C -- the Who instrument's "I have their KS Number" trusted-user-action path.
