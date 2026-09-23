@@ -41,6 +41,10 @@ import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
+import { createSourceController } from '../sources/controller';
+import { AttachSourceMenu } from '../sources/ui/AttachSourceMenu';
+import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
+import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
@@ -127,6 +131,12 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // identityController the handoff flow uses (one sign-in surface, not two), reset alongside it below.
   const [savedBuildController, setSavedBuildController] = useState(() => createSavedBuildController(gateway));
   const savedBuildState = useSyncExternalStore(savedBuildController.subscribe, savedBuildController.getSnapshot);
+  // KS001 Upgrade Phase 3 (Bring what you already have) -- "bring what you already have" into the SAME
+  // canonical BUILD. onSourceApplied refreshes the REAL Trade Context once a source's extraction actually
+  // lands new CANDIDATE facts, so BUILD reflects them without a manual chat turn (Section 30/31).
+  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, () => void controller.review()));
+  const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
+  const [bringPlanOpen, setBringPlanOpen] = useState(false);
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -208,12 +218,21 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   const startNewConversation = () => {
     instruments.cancel();
     discovery.close();
-    setController(createAgentController(gateway));
+    const freshController = createAgentController(gateway);
+    setController(freshController);
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
+    setSourceController(createSourceController(gateway, freshController.ensureConversationId, () => void freshController.review()));
+    setBringPlanOpen(false);
     setNotice(null);
   };
+
+  // KS001 Upgrade Phase 3 -- keeps the visible source list in step with whichever conversation is
+  // actually current (a fresh one, a resumed saved build, or one seeded from a Store offer/AI handoff).
+  useEffect(() => {
+    void sourceController.list(state.conversationId);
+  }, [state.conversationId, sourceController]);
 
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
@@ -536,7 +555,16 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
       {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
           Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
       {sessionState.status === 'signed-in' && <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>}
-      <SignedOutHome disabled={state.busy || !!state.pending} onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }} />
+      <SignedOutHome
+        disabled={state.busy || !!state.pending}
+        onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }}
+        // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions
+        // straight into the SAME conversation experience the free-text composer would, then immediately
+        // opens the relevant source-ingestion path -- never a sign-in wall in front of BUILD.
+        onBringPlan={() => { setHome(false); setBringPlanOpen(true); }}
+        onPickDocument={file => { setHome(false); void sourceController.addUpload('DOCUMENT', file); }}
+        onPickPhoto={file => { setHome(false); void sourceController.addUpload('PHOTO', file); }}
+      />
       {sessionState.status !== 'signed-in' && (
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
       )}
@@ -601,7 +629,17 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}
-              <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-forest-700">
+                {/* KS001 Upgrade Phase 3 (Bring what you already have, Section 40) -- one quiet attach
+                    control (Document / Photo / Paste a plan), never a toolbar jungle. Real bytes only
+                    reach SecurePay once the person actually picks a file -- never a local preview shown as
+                    success (Section 65). */}
+                <AttachSourceMenu
+                  disabled={state.busy || sourcesState.phase === 'submitting'}
+                  onBringPlan={() => setBringPlanOpen(true)}
+                  onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
+                  onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+                />
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
                 <button
                   disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'
@@ -626,6 +664,25 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 </button>
                 <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
+              {bringPlanOpen && (
+                <BringPlanPanel
+                  busy={sourcesState.phase === 'submitting'}
+                  error={sourcesState.phase === 'error' ? sourcesState.error : null}
+                  onClose={() => setBringPlanOpen(false)}
+                  onSubmit={(text, label) => {
+                    void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+                  }}
+                />
+              )}
+              {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
+                  extraction-debug screen. BUILD itself remains the primary structured view. */}
+              <SourcesList
+                sources={sourcesState.sources}
+                busy={sourcesState.phase === 'submitting'}
+                onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
+                onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
+              />
+              {sourcesState.phase === 'error' && !bringPlanOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
             </div>}>

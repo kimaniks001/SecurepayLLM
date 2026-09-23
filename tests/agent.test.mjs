@@ -506,8 +506,13 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
   // still exist in the untouched Bolt baseline (proving the diff is really the locked-copy fix).
   assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
   assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
-  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
-  assert.ok(current.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'), 'expected the exact locked supporting text');
+  // KS001 Upgrade Phase 3 (Section 36) -- this earlier locked headline/supporting text is now
+  // deliberately SUPERSEDED by the new Phase 3 hero copy; the OLD text must be gone from current
+  // (it was already asserted absent above via the "old paraphrased headline" check having been
+  // replaced by yet another generation of copy), and the NEW text must be present.
+  assert.ok(current.includes('Bring the plan. Leave with an agreement.'), 'expected the exact Phase 3 headline');
+  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed.'), 'expected the exact Phase 3 supporting text');
+  assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'), 'expected the exact Phase 3 trust line');
   assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
   assert.ok(!current.includes('Fair trader score') && !/\d+\/12/.test(current), 'must never grade the person with a fair trade score');
   for (const text of ['I need someone to tile my bathroom']) {

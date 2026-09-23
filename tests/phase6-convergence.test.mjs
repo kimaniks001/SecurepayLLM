@@ -190,10 +190,11 @@ test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the S
   assert.doesNotMatch(contents, />\s*\d+\s*<\/(span|div)>/, 'the Notifications entry must not render a numeric badge count');
 });
 
-test('J. The Home hero (SignedOutHome) uses the exact locked headline and supporting text, and a Fair Trade affordance beneath the input that never grades the person', async () => {
+test('J. The Home hero (SignedOutHome) uses the exact KS001 Upgrade Phase 3 headline/supporting/trust copy (deliberately superseding the earlier locked copy -- Section 36), and a Fair Trade affordance beneath the input that never grades the person', async () => {
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(contents, /Tell SecurePay what you're trying to make happen\./, 'exact locked headline');
-  assert.match(contents, /It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed\./, 'exact locked supporting text');
+  assert.match(contents, /Bring the plan\. Leave with an agreement\./, 'exact Phase 3 headline');
+  assert.match(contents, /Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo\. It helps you make the important details clear and shows how the money should follow what was agreed\./, 'exact Phase 3 supporting text');
+  assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./, 'exact Phase 3 trust line');
   assert.doesNotMatch(contents, /What are you trying to make happen\?/, 'the old paraphrased headline must be gone');
   assert.match(contents, /FairTradeAffordance/, 'must render the Fair Trade affordance');
 });
@@ -315,14 +316,13 @@ test('Q4. No generic avatar (AgentIcon or a hand-drawn silhouette) is reintroduc
   }
 });
 
-test('R1. SignedOutHome/SignedInHome still carry the locked Home copy and Fair Trade affordance, untouched by this correction pass', async () => {
-  for (const file of ['src/components/SignedOutHome.tsx', 'src/components/SignedInHome.tsx']) {
-    const contents = await readFile(file, 'utf8');
-    assert.match(contents, /Tell SecurePay what you're trying to make happen\./, `${file} must keep the exact locked headline`);
-    assert.match(contents, /FairTradeAffordance/, `${file} must keep the Fair Trade affordance`);
-  }
+test('R1. SignedInHome keeps the earlier headline as its own conversational-mode label (Section 36 -- "may remain as the conversational mode label, not the hero promise"); SignedOutHome carries the Phase 3 hero copy; both keep the Fair Trade affordance', async () => {
+  const signedIn = await readFile('src/components/SignedInHome.tsx', 'utf8');
+  assert.match(signedIn, /Tell SecurePay what you're trying to make happen\./, 'SignedInHome may keep the earlier phrase as its own mode label');
+  assert.match(signedIn, /FairTradeAffordance/, 'SignedInHome must keep the Fair Trade affordance');
   const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(signedOut, /It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed\./, 'must keep the exact locked supporting text');
+  assert.match(signedOut, /Bring the plan\. Leave with an agreement\./, 'SignedOutHome must carry the Phase 3 hero headline, not only the earlier phrase');
+  assert.match(signedOut, /FairTradeAffordance/, 'SignedOutHome must keep the Fair Trade affordance');
 });
 
 test('S1. Notifications loadMore preserves the active category/unreadOnly filters, appends without duplicating, and never fabricates a total -- hasMore only ever means "the last page was full"', async () => {
