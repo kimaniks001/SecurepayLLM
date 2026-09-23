@@ -2,7 +2,7 @@ import { discoveryView, type DiscoveryView } from './discovery';
 import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, ConversationHistoryEntryDto, ConversationHistoryResponseDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -161,6 +161,22 @@ export function tradeContextView(dto: TradeContextDto) {
     sufficiency: agreementSufficiencyView(dto.sufficiency),
   };
 }
+/**
+ * KS001 Upgrade Phase 2 final acceptance correction (item 1) -- validates the raw history response into
+ * the same ordered HUMAN/KS001 entries the backend emitted (see AgentConversationHistoryProjector's own
+ * javadoc for the ordering/correlation guarantee this trusts). A malformed entry (unrecognised `sender`,
+ * non-string fields) is dropped rather than fabricated -- this is a historical, presentation-only read,
+ * never replayed as a model call and never itself an actionable component. The controller (not this
+ * adapter) turns these into session-local `Turn` presentation objects.
+ */
+export function conversationHistoryView(dto: ConversationHistoryResponseDto) {
+  if (!dto || !Array.isArray(dto.entries)) return [];
+  return dto.entries.filter((entry): entry is ConversationHistoryEntryDto =>
+    !!entry && typeof entry.id === 'string' && (entry.sender === 'HUMAN' || entry.sender === 'KS001')
+    && typeof entry.text === 'string' && typeof entry.occurredAt === 'string');
+}
+export type ConversationHistoryView = ReturnType<typeof conversationHistoryView>;
+
 const handoffStatuses: readonly string[] = ['IDENTITY_REQUIRED', 'NEEDS_RESOLUTION', 'REVIEW_STALE', 'READY_FOR_REVIEW', 'READY_TO_PROGRESS', 'PROGRESSED', 'EXPIRED'];
 const sufficiencyStates: readonly string[] = ['BUILDING', 'REVIEWABLE_WITH_OPEN_ITEMS', 'UNDERSTOOD'];
 

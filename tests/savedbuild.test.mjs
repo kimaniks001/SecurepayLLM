@@ -86,7 +86,7 @@ test('resume: a failed resume (e.g. not-owned) returns null, never a fabricated 
   assert.equal(controller.getSnapshot().phase, 'error');
 });
 
-test('resumeConversation on the Agent controller switches to the SAME conversationId, clears the transcript, and re-reads context -- never creating a new conversation', async () => {
+test('resumeConversation switches to the SAME conversationId and re-reads context -- never creating a new conversation; with no history gateway it falls back to an empty transcript, never blocking resume', async () => {
   const calls = [];
   const gateway = {
     createConversation: async () => { calls.push('createConversation'); return { conversationId: 'should-never-be-used', createdAt: '2026-01-01T00:00:00Z', contextVersion: 0 }; },
@@ -100,4 +100,79 @@ test('resumeConversation on the Agent controller switches to the SAME conversati
   assert.equal(state.context.status, 'ready');
   assert.equal(state.context.data.conversationId, 'existing-conversation-1');
   assert.deepEqual(calls, [['readContext', 'existing-conversation-1']]);
+});
+
+// KS001 Upgrade Phase 2 final acceptance correction (item 1) -- proves the actual fix: resume restores
+// the real, previously-persisted HUMAN/KS001 dialogue (never an apparently empty chat), in reading
+// order, as message-only presentation turns, without ever re-running a model call.
+test('resumeConversation restores the real persisted HUMAN/KS001 dialogue in order as message-only presentation turns', async () => {
+  const calls = [];
+  const gateway = {
+    createConversation: async () => { calls.push('createConversation'); return { conversationId: 'should-never-be-used' }; },
+    conversationHistory: async id => {
+      calls.push(['history', id]);
+      return { entries: [
+        { id: 'h1', sender: 'HUMAN', text: 'I need someone to tile my bathroom.', occurredAt: '2026-01-01T00:00:00Z' },
+        { id: 'h2', sender: 'KS001', text: 'Got it -- bathroom tiling.', occurredAt: '2026-01-01T00:00:01Z' },
+        { id: 'h3', sender: 'HUMAN', text: 'I like Peter.', occurredAt: '2026-01-01T00:00:02Z' },
+      ] };
+    },
+    readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 5, entities: [], relationships: [] }; },
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.resumeConversation('existing-conversation-1');
+  const state = controller.getSnapshot();
+  assert.equal(state.conversationId, 'existing-conversation-1');
+  assert.equal(state.turns.length, 3);
+  assert.equal(state.turns[0].sender, 'user');
+  assert.equal(state.turns[0].text, 'I need someone to tile my bathroom.');
+  assert.equal(state.turns[1].sender, 'agent');
+  assert.equal(state.turns[1].response.message.text, 'Got it -- bathroom tiling.');
+  // Message-only presentation: no components, panel, suggested actions or discovery offers replayed
+  // as live, actionable controls from a historical reply.
+  assert.deepEqual(state.turns[1].response.components, []);
+  assert.equal(state.turns[1].response.panel, null);
+  assert.deepEqual(state.turns[1].response.suggestedActions, []);
+  assert.deepEqual(state.turns[1].response.offeredDiscoveryEntityIds, []);
+  assert.equal(state.turns[2].sender, 'user');
+  assert.equal(state.turns[2].text, 'I like Peter.');
+  // History is read once, then Trade Context is separately, always re-read in full -- never the other order.
+  assert.deepEqual(calls, [['history', 'existing-conversation-1'], ['readContext', 'existing-conversation-1']]);
+});
+
+test('a conversationHistory failure never blocks resume -- Trade Context still loads and the transcript degrades to empty, not a fatal error', async () => {
+  const gateway = {
+    createConversation: async () => ({ conversationId: 'should-never-be-used' }),
+    conversationHistory: async () => { throw new api.ApiError('http', 'unavailable', 503); },
+    readContext: async id => ({ conversationId: id, version: 2, entities: [], relationships: [] }),
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.resumeConversation('existing-conversation-1');
+  const state = controller.getSnapshot();
+  assert.equal(state.conversationId, 'existing-conversation-1');
+  assert.equal(state.turns.length, 0);
+  assert.equal(state.context.status, 'ready');
+  assert.equal(state.error, null);
+});
+
+test('after resuming, a new turn appends onto the restored transcript rather than replacing it, and never opens a second conversation', async () => {
+  const gateway = {
+    createConversation: async () => { throw new Error('must never create a second conversation after resume'); },
+    conversationHistory: async () => ({ entries: [
+      { id: 'h1', sender: 'HUMAN', text: 'I need someone to tile my bathroom.', occurredAt: '2026-01-01T00:00:00Z' },
+    ] }),
+    readContext: async id => ({ conversationId: id, version: 1, entities: [], relationships: [] }),
+    submitTurn: async () => ({ message: 'Noted.', components: [], contextualPanel: null, contextUpdates: [], suggestedActions: [] }),
+  };
+  const controller = api.createAgentController(gateway);
+  await controller.resumeConversation('existing-conversation-1');
+  assert.equal(controller.getSnapshot().turns.length, 1);
+  await controller.send('One more detail');
+  const state = controller.getSnapshot();
+  assert.equal(state.conversationId, 'existing-conversation-1');
+  assert.equal(state.turns.length, 3);
+  assert.equal(state.turns[0].text, 'I need someone to tile my bathroom.');
+  assert.equal(state.turns[1].text, 'One more detail');
+  assert.equal(state.turns[2].sender, 'agent');
+  assert.equal(state.turns[2].response.message.text, 'Noted.');
 });

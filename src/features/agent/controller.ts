@@ -1,7 +1,8 @@
 import type { AgentGateway } from '../../api/securepay/agent';
-import { agentResponseView, tradeContextView } from '../../api/securepay/agent/adapters';
+import { agentResponseView, conversationHistoryView, tradeContextView } from '../../api/securepay/agent/adapters';
 import type { AdoptFactRequest, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
+import type { MessageResponse } from '../../types';
 
 export type ContextView = ReturnType<typeof tradeContextView>;
 export type ResponseView = ReturnType<typeof agentResponseView>;
@@ -100,9 +101,24 @@ export type KsIdentitySelectionOutcome =
   | { ok: false; stale: true; error: string; context: ContextView | null }
   | { ok: false; stale: false; error: string };
 const isStaleVersionError = (error: unknown): boolean => error instanceof ApiError && error.code === 'AGENT_STRUCTURED_INPUT_STALE_VERSION';
+/**
+ * KS001 Upgrade Phase 2 final acceptance correction (item 1) -- a historical KS001 reply, replayed as a
+ * MESSAGE-ONLY presentation object: no components, no contextual panel, no suggested actions, no
+ * offered-discovery ids. This is deliberately the cleanest option the mandate allows ("historical agent
+ * turns may be message-only presentation objects") -- a past turn's buttons/instruments/discovery offers
+ * are never reconstructed as live, actionable controls (they would act on stale state, or duplicate a
+ * decision already made). No model call is made to produce this -- `text` is the real, previously
+ * persisted reply, read back verbatim from `GET .../history`.
+ */
+function historyReplyResponseView(text: string): ResponseView {
+  return {
+    message: { type: 'MESSAGE', text } satisfies MessageResponse,
+    components: [], panel: null, contextUpdates: [], suggestedActions: [], offeredDiscoveryEntityIds: [],
+  };
+}
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
   let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -195,17 +211,30 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     ensureConversationId,
     /**
-     * KS001 Upgrade Phase 2 (Sections 16/17) -- "Continue building": switches this SAME controller onto
-     * an already-existing conversationId (a saved build's own), never creating a clone or a second
-     * conversation. The visible turn transcript is session-local UI state (see `Turn`'s own shape) and is
-     * NOT persisted/re-fetched by any backend endpoint, so it starts empty on resume; the canonical
-     * understanding itself (Trade Context) is never lost -- `readContext` immediately re-reads it in full,
-     * exactly what "no loss of history" means at the Trade Context level (see AgentSavedBuild's own
-     * javadoc: the pointer never copies/mutates Trade Context, so resuming re-opens the real thing).
+     * KS001 Upgrade Phase 2 (Sections 16/17), fixed by the final acceptance correction (item 1) --
+     * "Continue building": switches this SAME controller onto an already-existing conversationId (a
+     * saved build's own), never creating a clone or a second conversation, and now ALSO restores the
+     * real, previously-persisted HUMAN/KS001 dialogue via `GET .../history` -- the person resumes into
+     * what looks like the same conversation they left, not an apparently empty chat. This is a pure
+     * historical read: no model call is repeated, no action is re-executed, and a past KS001 reply is
+     * rendered as a message-only presentation object (see `historyReplyResponseView`) rather than a live
+     * actionable turn. The canonical understanding itself (Trade Context) is separately, always re-read
+     * in full via `readContext` regardless of whether history loads (see AgentSavedBuild's own javadoc:
+     * the pointer never copies/mutates Trade Context, so resuming re-opens the real thing). A history
+     * read failure never blocks resume -- it degrades to an empty transcript (today's prior behaviour),
+     * never a fatal resume error, since the transcript is presentation only.
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
       update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      let turns: Turn[] = [];
+      try {
+        const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
+        turns = entries.map(entry => entry.sender === 'HUMAN'
+          ? { id: entry.id, sender: 'user' as const, text: entry.text }
+          : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
+      } catch { /* presentation-only; Trade Context (read below) remains the canonical understanding */ }
+      update({ turns });
       await readContext();
     },
     async send(text: string) {

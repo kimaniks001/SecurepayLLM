@@ -193,6 +193,13 @@ export interface AgentAgreementsHomeViewDto {
   moneyByCurrency: AgentHomeMoneyByCurrencyFactDto[];
 }
 
+// KS001 Upgrade Phase 2 final acceptance correction (item 1) -- one USER-VISIBLE dialogue entry.
+// Mirrors AgentApiModels.ConversationHistoryEntryView exactly. `sender` is always exactly "HUMAN" or
+// "KS001" -- never chain of thought, tool internals, hidden reasoning, authority metadata or an
+// actionable component, message text only.
+export interface ConversationHistoryEntryDto { id: string; sender: string; text: string; occurredAt: string }
+export interface ConversationHistoryResponseDto { entries: ConversationHistoryEntryDto[] }
+
 // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Mirrors AgentSavedBuildApiModels.
 // SavedBuildResponse exactly. `savedAt` never changes after the first save; `buildUpdatedAt` is the
 // conversation's own real last-activity timestamp -- never confuse the two (see that backend record's

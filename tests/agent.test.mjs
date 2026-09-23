@@ -522,3 +522,24 @@ test('retry wording is truthful for each pending operation: message, Use this, a
   assert.equal(api.retryLabel({ kind: 'external-amount', body: { sourceKind: 'STORE_LISTING', amount: '1' } }), 'Retry amount');
   assert.equal(api.retryLabel(null), 'Retry message');
 });
+
+// KS001 Upgrade Phase 2 final acceptance correction (item 1) -- conversationHistoryView is the ONE place
+// the raw /history response is validated; a malformed entry is dropped, never fabricated.
+test('conversationHistoryView preserves order and drops a malformed entry rather than fabricating it', () => {
+  const entries = api.conversationHistoryView({ entries: [
+    { id: 'h1', sender: 'HUMAN', text: 'Hello', occurredAt: '2026-01-01T00:00:00Z' },
+    { id: 'h2', sender: 'ROBOT', text: 'should be dropped -- unrecognised sender', occurredAt: '2026-01-01T00:00:01Z' },
+    { id: 'h3', sender: 'KS001', text: 'Hi there', occurredAt: '2026-01-01T00:00:02Z' },
+    { id: 'h4', sender: 'HUMAN', text: 42, occurredAt: '2026-01-01T00:00:03Z' },
+  ] });
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0].sender, 'HUMAN');
+  assert.equal(entries[0].text, 'Hello');
+  assert.equal(entries[1].sender, 'KS001');
+  assert.equal(entries[1].text, 'Hi there');
+});
+test('conversationHistoryView returns an empty list, never throwing, on a missing/malformed response', () => {
+  assert.deepEqual(api.conversationHistoryView(null), []);
+  assert.deepEqual(api.conversationHistoryView({}), []);
+  assert.deepEqual(api.conversationHistoryView({ entries: 'nope' }), []);
+});
