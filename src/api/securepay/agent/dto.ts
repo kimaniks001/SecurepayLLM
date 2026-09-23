@@ -10,7 +10,12 @@ export interface AgentResponseDto {
 }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string> }
 export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number }
-export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[] }
+// KS001 Upgrade Phase 1 final integration fix -- bounded, first-party-only conversation INTERACTION/
+// ORCHESTRATION state, deliberately never a Trade Context entity attribute (mirrors
+// AgentApiModels.InteractionStateView exactly). Absent on a legacy response (before this field existed);
+// the adapter treats that the same as an empty list, never an error.
+export interface InteractionStateDto { discoveryInvitedEntityIds: string[] }
+export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[]; interactionState?: InteractionStateDto }
 export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
 export type SourceKind = 'QUOTATION' | 'DOCUMENT_EXTRACTION' | 'PHOTO_OBSERVATION' | 'PROVIDER_PROFILE' | 'STORE_LISTING' | 'LOCATION_RESULT' | 'PREVIOUS_AGREEMENT' | 'COMMUNITY_KNOWLEDGE' | 'PARTNER_INFORMATION' | 'MASTER_OPINION';

@@ -27,6 +27,16 @@ export interface AgentState {
    * DIRECT trade that still looks like it came from the Store.
    */
   offerSelectionFailure: { fact: OfferFact; error: string } | null;
+  /**
+   * KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED: every real, server-verified entity
+   * id KS001 has offered to help find so far this session (via a DISCOVERY_OFFER response component).
+   * Session-local presentation state ONLY, never DISCOVERY INVITED -- the person's own explicit
+   * `requestDiscovery` accept is the sole thing that ever grants real eligibility (see {@code
+   * ContextView#interactionState}, the server-owned, persisted truth). Deliberately never cleared once an
+   * id is accepted: `interactionState.discoveryInvitedEntityIds` (persisted, authoritative) simply takes
+   * display priority over this list once it contains the same id.
+   */
+  offeredDiscoveryEntityIds: string[];
 }
 /**
  * The outcome of ONE attempted "Use this" / retry, returned by the operation itself so no caller ever has to
@@ -93,7 +103,7 @@ const isStaleVersionError = (error: unknown): boolean => error instanceof ApiErr
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
 export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null };
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
@@ -120,7 +130,12 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       }
       if (pending.kind === 'turn') {
         const response = agentResponseView(await gateway.submitTurn(conversationId, pending.body));
-        update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
+        // KS001 Upgrade Phase 1 final integration fix -- record DISCOVERY OFFERED (never DISCOVERY
+        // INVITED) for every real, server-verified target this turn offered, deduplicated.
+        const offeredDiscoveryEntityIds = response.offeredDiscoveryEntityIds.length > 0
+          ? Array.from(new Set([...state.offeredDiscoveryEntityIds, ...response.offeredDiscoveryEntityIds]))
+          : state.offeredDiscoveryEntityIds;
+        update({ turns: [...state.turns, { id: id(), sender: 'agent', response }], offeredDiscoveryEntityIds });
       } else if (pending.kind === 'adopt') {
         await gateway.adoptFact(conversationId, pending.body);
       } else {

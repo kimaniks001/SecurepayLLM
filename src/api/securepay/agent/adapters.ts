@@ -11,7 +11,12 @@ export interface PreviewView {
 }
 export interface AgreementWorkspaceComponentView { type: 'AGREEMENT_WORKSPACE'; workspace: AgentAgreementWorkspaceViewDto }
 export interface AgreementsHomeComponentView { type: 'AGREEMENTS_HOME'; home: AgentAgreementsHomeViewDto }
-export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView | InstrumentPromptView | UnavailableInputView;
+// KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED (KS001 said it can help find this
+// specific, real entity), never DISCOVERY INVITED (the person's own explicit accept -- see
+// AgentState#offeredDiscoveryEntityIds / ContextView#interactionState). The backend already verified
+// targetEntityId names a real, currently active entity before this component ever reached the wire.
+export interface DiscoveryOfferComponentView { type: 'DISCOVERY_OFFER'; targetEntityId: string }
+export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView | DiscoveryOfferComponentView | InstrumentPromptView | UnavailableInputView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
@@ -87,6 +92,11 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
     const home = agreementsHomeView(data);
     return home ? { type: 'AGREEMENTS_HOME', home } : null;
   }
+  if (component.type === 'DISCOVERY_OFFER') {
+    return typeof data.targetEntityId === 'string' && data.targetEntityId.length > 0
+      ? { type: 'DISCOVERY_OFFER', targetEntityId: data.targetEntityId }
+      : null;
+  }
   // Phase 1: the safe, model-proposable input affordances (PERSON_PICKER, DATE_PICKER, AMOUNT_INPUT, ...).
   const instrument = instrumentComponentView(component);
   if (instrument) return instrument;
@@ -95,13 +105,20 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
 export function agentResponseView(dto: AgentResponseDto) {
   if (typeof dto?.message !== 'string') throw new ApiError('invalid-response', 'Agent response is missing its message');
   const components = (values: unknown) => (Array.isArray(values) ? values : []).map(agentComponentView).filter((value): value is AgentComponentView => value !== null);
+  const parsedComponents = components(dto.components ?? []);
   return {
     message: { type: 'MESSAGE', text: dto.message } satisfies MessageResponse,
-    components: components(dto.components ?? []),
+    components: parsedComponents,
     panel: dto.contextualPanel && typeof dto.contextualPanel.title === 'string' ? { title: dto.contextualPanel.title, components: components(dto.contextualPanel.components ?? []) } : null,
     contextUpdates: dto.contextUpdates,
     // Guidance only; never forward these to a consequential endpoint automatically.
     suggestedActions: dto.suggestedActions,
+    // KS001 Upgrade Phase 1 final integration fix -- every real, server-verified DISCOVERY_OFFER this
+    // turn, so the controller can record DISCOVERY OFFERED as session-local state (never DISCOVERY
+    // INVITED -- only the person's own explicit accept ever transitions that).
+    offeredDiscoveryEntityIds: parsedComponents
+      .filter((component): component is DiscoveryOfferComponentView => component.type === 'DISCOVERY_OFFER')
+      .map(component => component.targetEntityId),
   };
 }
 
@@ -124,12 +141,21 @@ export function tradeContextView(dto: TradeContextDto) {
     ...dto.entities.map(entity => ({ id: entity.id, targetKind: 'ENTITY' as const, label: entity.type, value: entity.name, state: entity.state, provenance: entity.attributes })),
     ...dto.relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId, objectId: relation.objectEntityId ?? null }, state: relation.state, provenance: relation.qualifiers })),
   ];
+  // KS001 Upgrade Phase 1 final integration fix -- bounded discovery interaction state (never a Trade
+  // Context attribute). Absent/malformed is treated the same as an empty list (a legacy conversation
+  // persisted before this field existed, or an unrecognized shape), never an error -- this is presentation
+  // state, not a fact SecurePay is asserting.
+  const discoveryInvitedEntityIds = dto.interactionState && Array.isArray(dto.interactionState.discoveryInvitedEntityIds)
+    && dto.interactionState.discoveryInvitedEntityIds.every(id => typeof id === 'string')
+    ? dto.interactionState.discoveryInvitedEntityIds
+    : [];
   // Phase 1: the raw (already validated) records are retained for the workbench projection, which
   // needs entity types, relationship kinds and qualifiers -- not the flattened `facts` list.
   return { conversationId: dto.conversationId, version: dto.version, facts,
     entities: dto.entities, relationships: dto.relationships.map(relation => ({ ...relation, objectEntityId: relation.objectEntityId ?? null })),
     candidates: facts.filter(fact => fact.state === 'CANDIDATE'),
     confirmed: facts.filter(fact => fact.state === 'CONFIRMED'),
+    interactionState: { discoveryInvitedEntityIds },
   };
 }
 const handoffStatuses: readonly string[] = ['IDENTITY_REQUIRED', 'NEEDS_RESOLUTION', 'REVIEW_STALE', 'READY_FOR_REVIEW', 'READY_TO_PROGRESS', 'PROGRESSED', 'EXPIRED'];
