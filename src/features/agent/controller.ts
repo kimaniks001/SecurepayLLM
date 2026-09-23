@@ -272,6 +272,31 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       update({ busy: true });
       try { await readContext(); } finally { update({ busy: false }); }
     },
+    /**
+     * KS001 Upgrade Phase 3 completion correction (item 7) -- called after a source (a pasted plan/
+     * uploaded document/photo) has actually been ingested. Unlike `review()` (a plain Trade Context
+     * refresh), this ALSO re-reads the real conversation history and appends any genuinely NEW KS001
+     * reply -- the server-composed, deterministic continuation `AgentSourceIngestionService` records
+     * (see `SourceIngestionContinuationComposer`'s own javadoc) -- so the person actually sees KS001
+     * react to what was brought in, never only a silent BUILD refresh. Existing turns are never touched
+     * or duplicated (matched by id); a history read failure degrades to the same behaviour `review()`
+     * already has (BUILD itself still refreshes via readContext below).
+     */
+    async refreshAfterSourceIngestion() {
+      if (state.busy || !state.conversationId) return;
+      update({ busy: true });
+      try {
+        try {
+          const entries = conversationHistoryView(await gateway.conversationHistory(state.conversationId));
+          const existingIds = new Set(state.turns.map(turn => turn.id));
+          const newReplies: Turn[] = entries
+            .filter(entry => entry.sender === 'KS001' && !existingIds.has(entry.id))
+            .map(entry => ({ id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) }));
+          if (newReplies.length > 0) update({ turns: [...state.turns, ...newReplies] });
+        } catch { /* presentation-only; the Trade Context refresh below remains the canonical understanding */ }
+        await readContext();
+      } finally { update({ busy: false }); }
+    },
     async adopt(targetId: string, targetKind: AdoptFactRequest['targetKind']) {
       if (state.busy || state.pending || state.context.status !== 'ready') return;
       if (!state.context.data?.candidates.some(fact => fact.id === targetId && fact.targetKind === targetKind)) return;

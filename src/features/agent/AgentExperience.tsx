@@ -134,7 +134,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // KS001 Upgrade Phase 3 (Bring what you already have) -- "bring what you already have" into the SAME
   // canonical BUILD. onSourceApplied refreshes the REAL Trade Context once a source's extraction actually
   // lands new CANDIDATE facts, so BUILD reflects them without a manual chat turn (Section 30/31).
-  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, () => void controller.review()));
+  //
+  // KS001 Upgrade Phase 3 completion correction (item 7) -- refreshAfterSourceIngestion (not the plain
+  // review()) also surfaces KS001's own real, server-composed continuation reply, so the person sees KS001
+  // actually react to what was brought in, never only a silent BUILD refresh.
+  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, () => void controller.refreshAfterSourceIngestion()));
   const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
   const [projectsController] = useState(() => createProjectsController(projectGateway));
@@ -223,7 +227,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
-    setSourceController(createSourceController(gateway, freshController.ensureConversationId, () => void freshController.review()));
+    setSourceController(createSourceController(gateway, freshController.ensureConversationId, () => void freshController.refreshAfterSourceIngestion()));
     setBringPlanOpen(false);
     setNotice(null);
   };
