@@ -7,6 +7,7 @@ import { createRequire } from 'node:module';
 // Use Vite's existing esbuild dependency to run pure TypeScript with Node's built-in test runner.
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/handoff/controller';
+export * from './src/features/handoff/view';
 export * from './src/features/identity/controller';
 export * from './src/features/agent/controller';
 export * from './src/api/securepay/http';
@@ -18,16 +19,17 @@ const digest = 'digest-7';
 const handoffDto = (status, overrides = {}) => ({
   handoffId: 'h1', conversationId: 'c1', status,
   agreementCandidateSummary: { title: 'Tile the bathroom', purpose: null, description: null, agreementType: null, currency: 'KES', amountMinor: 500000, what: ['Tiling'], who: ['Peter'], when: ['Next week'] },
-  unresolvedMatters: [], guidanceNotes: [], tradeContextVersion: 7, candidateDigest: digest, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null,
+  mustResolve: [], stillToDecide: [], guidanceNotes: [], tradeContextVersion: 7, candidateDigest: digest, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null,
   ...overrides,
 });
 const candidateDto = { title: 'Tile the bathroom', purpose: null, description: null, agreementType: null, currency: 'KES', amountMinor: 500000, what: ['Tiling'], who: ['Peter'], when: ['Next week'] };
 // Final Phase 4 Economy Turn 3 (Section 6) -- the /review endpoint now returns the candidate
 // alongside the reviewed commercial source (null for these ordinary DIRECT-handoff fixtures).
-// KS001 Upgrade Phase 2 (Section 10) -- also carries who/when review facts (empty for these fixtures,
+// KS001 Upgrade Phase 2 (Section 10), broadened by the final convergence correction (item 5) -- also
+// carries who/responsibilities/money/when/conditions/authority review facts (empty for these fixtures,
 // which never set up review-fact-bearing Trade Context entities).
-const reviewResponseDto = { agreementCandidateSummary: candidateDto, who: [], when: [], reviewedSource: null };
-const reviewView = { candidate: candidateDto, who: [], when: [], reviewedSource: null };
+const reviewResponseDto = { agreementCandidateSummary: candidateDto, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
+const reviewView = { candidate: candidateDto, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
 
 function setup(overrides = {}) {
   const calls = [];
@@ -130,6 +132,34 @@ test('7. canonical review comes from /review, not the Agent preview', async () =
   assert.equal(calls.filter(call => call[0] === 'reviewHandoff').length, 1);
 });
 
+test('KS001 Upgrade Phase 2 final convergence correction (item 2): mustResolve alone disables Set Up Agreement; stillToDecide never does', async () => {
+  const readyHandoff = { id: 'h1', status: 'READY_TO_PROGRESS', candidate: candidateDto, reviewedSource: null, mustResolve: [], stillToDecide: ['No provider chosen yet'], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: digest }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null };
+  const readyReview = { candidate: candidateDto, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
+  const readyView = api.canonicalAgreementView(readyReview, readyHandoff);
+  assert.equal(readyView.mustSettle.length, 0, 'a decide-later matter must never appear in mustSettle');
+  assert.ok(readyView.worthSettling.some(item => item.label === 'Still to decide' && item.detail === 'No provider chosen yet'));
+
+  const blockedHandoff = { ...readyHandoff, status: 'NEEDS_RESOLUTION', mustResolve: ['Two different active price figures exist for this trade.'], stillToDecide: [] };
+  const blockedView = api.canonicalAgreementView(readyReview, blockedHandoff);
+  assert.equal(blockedView.mustSettle.length, 1);
+  assert.equal(blockedView.mustSettle[0].label, 'Needs your decision');
+  assert.equal(blockedView.mustSettle[0].detail, 'Two different active price figures exist for this trade.');
+});
+
+test('KS001 Upgrade Phase 2 final convergence correction (item 5): candidate facts are visibly suggested, never shown as agreed', async () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', candidate: candidateDto, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: digest }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null };
+  const review = {
+    candidate: candidateDto,
+    who: [{ description: 'Peter (tiler)', confirmed: true }, { description: 'Mary (tiler)', confirmed: false }],
+    responsibilities: [], money: [],
+    when: [{ description: 'startDate=2026-11-01', confirmed: false }],
+    conditions: [], authority: [], reviewedSource: null,
+  };
+  const view = api.canonicalAgreementView(review, handoff);
+  assert.deepEqual(view.parties, [{ name: 'Peter (tiler)', role: 'confirmed' }, { name: 'Mary (tiler)', role: 'suggested' }]);
+  assert.equal(view.completion, 'startDate=2026-11-01 (suggested)');
+});
+
 test('8 & 11. exact tradeContextVersion and candidateDigest are preserved and echoed unchanged to /continue', async () => {
   const { controller, calls } = setup({
     createHandoff: async () => handoffDto('READY_TO_PROGRESS'),
@@ -228,7 +258,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { HandoffPanel } from './src/features/handoff/HandoffPanel';
 const noopController = snapshot => ({ subscribe: () => () => {}, getSnapshot: () => snapshot, reset() {}, refresh() {}, start() {}, createDraft() {}, continueAfterIdentity() {} });
-const handoff = noopController({ phase: 'review-stale', handoff: { id: 'h1', status: 'REVIEW_STALE', candidate: {}, unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 1, expectedCandidateDigest: 'd' }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null }, review: null, error: null });
+const handoff = noopController({ phase: 'review-stale', handoff: { id: 'h1', status: 'REVIEW_STALE', candidate: {}, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 1, expectedCandidateDigest: 'd' }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null }, review: null, error: null });
 const identity = noopController({ phase: 'credentials', busy: false, ksNumber: '', password: '', otp: '', challengeToken: null, error: null });
 export const markup = renderToStaticMarkup(React.createElement(HandoffPanel, { handoff, identity, onDone: () => {} }));
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });

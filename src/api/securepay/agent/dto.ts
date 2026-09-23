@@ -56,19 +56,29 @@ export interface ReviewedSourceDto {
   capturedQuantityAvailable: number | null; capturedDescription: string | null; contextReference: string | null;
   boundAt: string; sourceStatus: string; current: CurrentSourceFactsDto | null;
 }
-// KS001 Upgrade Phase 2 (Section 10) -- `state` is always exactly "CONFIRMED" or "CANDIDATE", never a raw
-// internal code. Mirrors AgentAgreementHandoffApiModels.ReviewFactSummary exactly.
+// KS001 Upgrade Phase 2 (Section 10), broadened by the final convergence correction (item 5) -- `state` is
+// always exactly "CONFIRMED" or "CANDIDATE", never a raw internal code. Mirrors
+// AgentAgreementHandoffApiModels.ReviewFactSummary exactly.
 export interface ReviewFactDto { description: string; state: string }
 export interface AgreementReviewResponseDto {
   agreementCandidateSummary: CandidateDto;
-  who: ReviewFactDto[]; when: ReviewFactDto[];
+  who: ReviewFactDto[]; responsibilities: ReviewFactDto[]; money: ReviewFactDto[]; when: ReviewFactDto[];
+  conditions: ReviewFactDto[]; authority: ReviewFactDto[];
   reviewedSource: ReviewedSourceDto | null;
 }
 export type HandoffStatus = 'IDENTITY_REQUIRED' | 'NEEDS_RESOLUTION' | 'REVIEW_STALE' | 'READY_FOR_REVIEW' | 'READY_TO_PROGRESS' | 'PROGRESSED' | 'EXPIRED';
+// KS001 Upgrade Phase 2 final convergence correction (item 2) -- `description` only, never a raw
+// MaterialMatter code (Section 27). Mirrors AgentAgreementHandoffApiModels.OpenMatterSummary exactly --
+// deliberately a DIFFERENT (narrower) shape from the sufficiency projection's own OpenMatterDto above.
+export interface HandoffOpenMatterDto { description: string }
 export interface HandoffDto {
   handoffId: string; conversationId: string; status: string; agreementCandidateSummary: CandidateDto;
   reviewedSource: ReviewedSourceDto | null;
-  unresolvedMatters: string[]; guidanceNotes: string[]; tradeContextVersion: number;
+  // KS001 Upgrade Phase 2 final convergence correction (item 1/2) -- replaces the former flat
+  // `unresolvedMatters` (which forced every decide-later matter into the same "unresolved" bucket the
+  // frontend then blocked Set on). Only `mustResolve` may ever disable Set Up Agreement.
+  mustResolve: HandoffOpenMatterDto[]; stillToDecide: HandoffOpenMatterDto[];
+  guidanceNotes: string[]; tradeContextVersion: number;
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
 }
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }

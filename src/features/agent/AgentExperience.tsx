@@ -611,11 +611,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 >
                   Review this
                 </button>
-                {/* KS001 Upgrade Phase 2 (Sections 14/15/20) -- a PRIVATE pre-agreement save, never
-                    "Set up Agreement" done twice: this only binds ownership to the SAME conversation, it
-                    never creates a draft Agreement. canSave is always true once a real conversation exists. */}
+                {/* KS001 Upgrade Phase 2 (Sections 14/15/20), final convergence correction (item 8) -- a
+                    PRIVATE pre-agreement save, never "Set up Agreement" done twice: this only binds
+                    ownership to the SAME conversation, it never creates a draft Agreement. Gated on the
+                    server-owned sufficiency.canSave (always true once a real conversation exists, but read
+                    directly rather than assumed, matching "Review this"'s own canReview gate). */}
                 <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || savedBuildState.phase === 'saving'}
+                  disabled={!state.conversationId || state.busy || !!state.pending || savedBuildState.phase === 'saving'
+                    || (state.context.data?.sufficiency && !state.context.data.sufficiency.canSave)}
                   onClick={() => { if (state.conversationId) void savedBuildController.save(state.conversationId); }}
                   className="min-h-11 underline disabled:opacity-40"
                 >

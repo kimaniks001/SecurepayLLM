@@ -72,10 +72,13 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
   if (state.phase === 'adopting') return <p role="status" className="text-sm text-sand-500 px-1">Signing you in to the same review…</p>;
 
   if (state.phase === 'needs-resolution' && state.handoff) {
+    // KS001 Upgrade Phase 2 final convergence correction (item 1/2) -- NEEDS_RESOLUTION now only ever
+    // fires for a genuine BLOCKS_SET matter (see AgentAgreementHandoffStatusResolver), so every entry
+    // shown here is real: `mustResolve`, never the old flat `unresolvedMatters`.
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
-        {state.handoff.unresolvedMatters.map((matter, i) => <p key={i} className="text-[0.8rem] text-sand-600 px-1">{matter}</p>)}
+        {state.handoff.mustResolve.map((matter, i) => <p key={i} className="text-[0.8rem] text-sand-600 px-1">{matter}</p>)}
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Return to conversation', value: 'back' }] }} onChoice={leave} />
       </div>
     );

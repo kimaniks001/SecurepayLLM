@@ -2,7 +2,7 @@ import { discoveryView, type DiscoveryView } from './discovery';
 import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, HandoffDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -216,11 +216,21 @@ export type ReviewedSourceView = ReturnType<typeof reviewedSourceView>;
 export function agreementReviewView(dto: AgreementReviewResponseDto) {
   return {
     candidate: dto.agreementCandidateSummary,
-    // KS001 Upgrade Phase 2 (Section 10) -- confirmed-vs-candidate truth, structurally separate from the
+    // KS001 Upgrade Phase 2 (Section 10), broadened by the final convergence correction (item 5) --
+    // confirmed-vs-candidate truth across every review-worthy fact, structurally separate from the
     // authoritative `candidate` fields (title/amount/currency) that Set Up Agreement actually reads.
-    who: reviewFactsView(dto.who), when: reviewFactsView(dto.when),
+    who: reviewFactsView(dto.who), responsibilities: reviewFactsView(dto.responsibilities),
+    money: reviewFactsView(dto.money), when: reviewFactsView(dto.when),
+    conditions: reviewFactsView(dto.conditions), authority: reviewFactsView(dto.authority),
     reviewedSource: reviewedSourceView(dto.reviewedSource),
   };
+}
+
+function openMatterDescriptions(matters: unknown): string[] {
+  if (!Array.isArray(matters)) return [];
+  return (matters as HandoffOpenMatterDto[])
+    .filter((matter): matter is HandoffOpenMatterDto => !!matter && typeof matter.description === 'string')
+    .map(matter => matter.description);
 }
 
 export function handoffView(dto: HandoffDto) {
@@ -229,7 +239,10 @@ export function handoffView(dto: HandoffDto) {
     status: handoffStatuses.includes(dto.status) ? dto.status as HandoffStatus : 'UNKNOWN' as const,
     candidate: dto.agreementCandidateSummary,
     reviewedSource: reviewedSourceView(dto.reviewedSource),
-    unresolvedMatters: dto.unresolvedMatters, guidanceNotes: dto.guidanceNotes,
+    // KS001 Upgrade Phase 2 final convergence correction (item 1/2) -- mustResolve is the ONLY thing that
+    // may ever disable Set Up Agreement; stillToDecide is always visible, never blocking (Section 8).
+    mustResolve: openMatterDescriptions(dto.mustResolve), stillToDecide: openMatterDescriptions(dto.stillToDecide),
+    guidanceNotes: dto.guidanceNotes,
     reviewSnapshot: { expectedTradeContextVersion: dto.tradeContextVersion, expectedCandidateDigest: dto.candidateDigest },
     expiresAt: dto.expiresAt, progressedAgreementId: dto.progressedAgreementId,
   };
