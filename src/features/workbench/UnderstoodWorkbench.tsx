@@ -31,7 +31,7 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
   const workbench = projectWorkbench(context.data, new Set(state.offeredDiscoveryEntityIds));
   const activeKey = activeSpec ? specKey(activeSpec) : null;
   const busy = state.busy || !!state.pending;
-  const sections = (['what', 'who', 'when', 'where', 'money', 'other'] as WorkbenchSection[]).map(section => ({ section, items: workbench.items.filter(item => item.section === section) })).filter(group => group.items.length > 0);
+  const sections = (['what', 'people', 'responsibilities', 'money', 'timingPlace', 'completion', 'authority', 'other'] as WorkbenchSection[]).map(section => ({ section, items: workbench.items.filter(item => item.section === section) })).filter(group => group.items.length > 0);
 
   const adoptAll = async (targets: AdoptTarget[]) => { for (const target of targets) await controller.adopt(target.id, target.targetKind); };
   // KS001 Upgrade Phase 1 final integration fix -- the ONLY thing that ever calls requestDiscovery: an

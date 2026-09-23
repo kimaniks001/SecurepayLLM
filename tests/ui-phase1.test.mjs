@@ -169,22 +169,22 @@ test('WHO: a resolved identity visibly shows its KS Number in UNDERSTOOD, never 
   const resolved = ctx([ent('e', 'ORGANIZATION', 'Maua Shoes', 'CANDIDATE', { ksnumber: 'KS003', identityResolved: 'true' })],
     [rel('r', 'ROLE', 'e', { role: 'SELLER' }, 'CANDIDATE')]);
   const wb = api.projectWorkbench(resolved);
-  const row = wb.items.find(i => i.section === 'who');
+  const row = wb.items.find(i => i.section === 'people');
   assert.equal(row.value, 'Maua Shoes');
   assert.deepEqual(row.details, ['KS003', 'Seller']);
   assert.doesNotMatch(JSON.stringify(row), /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); // no internal UUID leaked into the row
 });
 test('WHO: a plain candidate with no verified identity shows no KS Number detail', () => {
   const plain = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], [rel('r', 'ROLE', 'j', { role: 'SELLER' }, 'CANDIDATE')]);
-  const row = api.projectWorkbench(plain).items.find(i => i.section === 'who');
+  const row = api.projectWorkbench(plain).items.find(i => i.section === 'people');
   assert.deepEqual(row.details, ['Seller']);
 });
 test('WHO spec: identityResolved is carried through so the instrument can refuse to offer re-binding', () => {
   const resolved = ctx([ent('e', 'ORGANIZATION', 'Maua Shoes', 'CANDIDATE', { ksnumber: 'KS003', identityResolved: 'true' })], []);
-  const row = api.projectWorkbench(resolved).items.find(i => i.section === 'who');
+  const row = api.projectWorkbench(resolved).items.find(i => i.section === 'people');
   assert.equal(row.spec.identityResolved, true);
   const unresolved = ctx([ent('j', 'PERSON', 'John', 'CANDIDATE')], []);
-  const unresolvedRow = api.projectWorkbench(unresolved).items.find(i => i.section === 'who');
+  const unresolvedRow = api.projectWorkbench(unresolved).items.find(i => i.section === 'people');
   assert.equal(unresolvedRow.spec.identityResolved, false);
 });
 
@@ -269,10 +269,10 @@ test('DATE read-back: a real DATE entity carrying the exact ISO date closes the 
 });
 test('date: a real DATE entity is directly editable in UNDERSTOOD; a legacy CONDITION-relationship-based date fact stays read-only', () => {
   const dated = api.projectWorkbench(ctx([ent('d', 'DATE', '2026-09-25', 'CANDIDATE', { date: '2026-09-25' })], []));
-  const row = dated.items.find(i => i.section === 'when');
+  const row = dated.items.find(i => i.section === 'timingPlace');
   assert.equal(row.spec.kind, 'when'); assert.equal(row.spec.targetEntityId, 'd');
   const legacy = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'deadline')], [rel('r', 'CONDITION', 'c', { date: '2026-09-25' }, 'CANDIDATE')]));
-  assert.equal(legacy.items.find(i => i.section === 'when').spec, null);
+  assert.equal(legacy.items.find(i => i.section === 'timingPlace').spec, null);
 });
 test('date: an instrument may not close merely because the date matches if a specific time was also selected -- exact readback (Phase 4 review correction, Section 14)', () => {
   const timed = ctx([ent('d', 'DATE', 'Friday', 'CANDIDATE', { date: '2026-09-25', time: '15:00' })], []);
@@ -287,7 +287,7 @@ test('date: UNDERSTOOD shows a human-friendly date and 12-hour time, canonical v
   assert.equal(api.formatTime12h('12:00'), '12:00 PM');
   assert.equal(api.formatTime12h('09:30'), '9:30 AM');
   const timed = ctx([ent('d', 'DATE', 'Friday', 'CANDIDATE', { date: '2026-10-02', time: '15:00' })], []);
-  const row = api.projectWorkbench(timed).items.find(i => i.section === 'when');
+  const row = api.projectWorkbench(timed).items.find(i => i.section === 'timingPlace');
   assert.equal(row.value, 'Friday, 2 October 2026');
   assert.deepEqual(row.details, ['3:00 PM']);
   assert.equal(row.spec.currentDate, '2026-10-02'); assert.equal(row.spec.currentTime, '15:00'); // canonical values preserved for editing
@@ -314,7 +314,7 @@ test('DATE RANGE read-back: a real DATE_RANGE entity carrying the exact start/en
 });
 test('DATE RANGE: a real DATE_RANGE entity is directly editable in UNDERSTOOD, shown as a real date range and never confused with a single DATE row', () => {
   const wb = api.projectWorkbench(ctx([ent('r', 'DATE_RANGE', 'x', 'CANDIDATE', { startDate: '2026-10-02', endDate: '2026-10-05' })], []));
-  const row = wb.items.find(i => i.section === 'when');
+  const row = wb.items.find(i => i.section === 'timingPlace');
   assert.equal(row.spec.kind, 'when'); assert.equal(row.spec.mode, 'range'); assert.equal(row.spec.targetEntityId, 'r');
   assert.equal(row.spec.currentDate, '2026-10-02'); assert.equal(row.spec.currentEndDate, '2026-10-05');
   assert.match(row.value, /2026/); // a real human-readable range label, not a raw id
@@ -372,13 +372,13 @@ test('GPS + named place read-back: BOTH the exact place text AND the exact coord
 });
 test('WHERE row: a quiet, truthful "GPS shared" indication accompanies a place carrying real user-shared coordinates -- no fake map or reverse geocode', () => {
   const withGps = api.projectWorkbench(ctx([ent('p', 'PLACE', 'Two Rivers Mall', 'CANDIDATE', { latitude: '-1.221', longitude: '36.878', coordinateSource: 'USER_SHARED' })], []));
-  assert.deepEqual(withGps.items.find(i => i.section === 'where').details, ['GPS shared']);
+  assert.deepEqual(withGps.items.find(i => i.section === 'timingPlace').details, ['GPS shared']);
   const withoutGps = api.projectWorkbench(ctx([ent('p', 'PLACE', 'Westlands', 'CANDIDATE')], []));
-  assert.deepEqual(withoutGps.items.find(i => i.section === 'where').details, []);
+  assert.deepEqual(withoutGps.items.find(i => i.section === 'timingPlace').details, []);
 });
 test('where: an existing CANDIDATE place is directly editable in UNDERSTOOD (SET_LOCATION, targetEntityId)', () => {
   const placed = api.projectWorkbench(ctx([ent('w', 'PLACE', 'Westlands', 'CANDIDATE')], []));
-  const row = placed.items.find(i => i.section === 'where');
+  const row = placed.items.find(i => i.section === 'timingPlace');
   assert.equal(row.spec.kind, 'where'); assert.equal(row.spec.targetEntityId, 'w'); assert.equal(row.spec.currentPlace, 'Westlands');
 });
 
@@ -496,7 +496,9 @@ test('workbench: rows are exactly what the backend holds, with an instrument whe
   // Human-friendly presentation (Phase 4 final closeout, Section 5); the canonical isoDate is unchanged underneath.
   assert.equal(by('when:')[0].value, 'Friday, 25 September 2026'); assert.equal(by('when:')[0].spec.kind, 'when'); // a real CANDIDATE DATE entity is directly editable
   assert.equal(by('money:')[0].value, 'KES 20,000'); assert.equal(by('money:')[0].spec, null); // already CONFIRMED
-  assert.equal(wb.items.some(i => i.section === 'where'), false);
+  // No PLACE in this fixture -- checked by key prefix, since TIMING & PLACE (KS001 Upgrade Phase 2 final
+  // acceptance correction item 4) also holds the date row above and would otherwise be true.
+  assert.equal(wb.items.some(i => i.key.startsWith('where:')), false);
   assert.deepEqual(wb.adds.map(a => a.key), ['who', 'where']);   // contextual possibilities: another person, a first place -- no date/amount (held)
 });
 test('workbench: not a five-field form -- empty has no rows; complex money stays conversational; non-money facts are shown', () => {
@@ -505,7 +507,9 @@ test('workbench: not a five-field form -- empty has no rows; complex money stays
   const plan = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'contribution'), ent('p', 'PERSON', 'Chama')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '20000', appliesTo: 'each member', frequency: 'monthly' }), rel('q', 'AUTHORITY_RULE', 'c', { rule: 'two of three sign', domain: 'DECISION_QUORUM' })]));
   const money = plan.items.find(i => i.section === 'money');
   assert.equal(money.spec, null); assert.deepEqual(money.details, ['each member', 'monthly']);
-  assert.ok(plan.items.some(i => i.section === 'other' && i.value === 'two of three sign'));
+  // KS001 Upgrade Phase 2 final acceptance correction (item 4) -- AUTHORITY_RULE now maps to its own
+  // AUTHORITY section (generic ontology mapping), never the "other" catch-all.
+  assert.ok(plan.items.some(i => i.section === 'authority' && i.value === 'two of three sign'));
 });
 test('workbench: "being considered" stays a candidate and is shown as such', () => {
   const wb = api.projectWorkbench(ctx([ent('p', 'PERSON', 'Peter', 'CANDIDATE')], [rel('r', 'ROLE', 'p', { role: 'PROVIDER_CANDIDATE', status: 'CONSIDERED' }, 'CANDIDATE')]));
@@ -513,19 +517,86 @@ test('workbench: "being considered" stays a candidate and is shown as such', () 
   assert.deepEqual(peter.details, ['Being considered']); assert.equal(peter.state, 'CANDIDATE');
   assert.deepEqual(peter.adopt.map(a => a.targetKind).sort(), ['ENTITY', 'RELATIONSHIP']);
 });
+
+// ---------------------------------------------------------------- KS001 Upgrade Phase 2 final acceptance
+// correction (item 4) -- the universal BUILD workbench taxonomy, proven with REAL relationship kinds
+// (never a hardcoded domain fixture): ROLE/PARTICIPATION -> people, RESPONSIBILITY -> responsibilities,
+// PAYMENT_CONDITION/MONEY -> money, DATE/date-shaped CONDITION/PLACE -> timing & place, non-date
+// CONDITION/DELIVERY -> completion, AUTHORITY_RULE -> authority.
+test('workbench: a RESPONSIBILITY relationship becomes its own responsibilities row, subject-prefixed, never duplicated inside the person\'s own PEOPLE row', () => {
+  const wb = api.projectWorkbench(ctx(
+    [ent('p', 'PERSON', 'Provider', 'CONFIRMED')],
+    [rel('role', 'ROLE', 'p', { role: 'SERVICE_PROVIDER' }), rel('duty', 'RESPONSIBILITY', 'p', { action: 'carry out the work' }, 'CANDIDATE')]));
+  const person = wb.items.find(i => i.section === 'people');
+  assert.deepEqual(person.details, ['Service provider']); // no "will carry out the work" folded in here any more
+  const responsibility = wb.items.find(i => i.section === 'responsibilities');
+  assert.equal(responsibility.value, 'Provider: carry out the work');
+  assert.equal(responsibility.state, 'CANDIDATE');
+  assert.deepEqual(responsibility.adopt, [{ id: 'duty', targetKind: 'RELATIONSHIP' }]);
+});
+test('workbench: a confirmed RESPONSIBILITY carries no candidate adopt target; a candidate one does', () => {
+  const confirmed = api.projectWorkbench(ctx([ent('p', 'PERSON', 'Provider')], [rel('duty', 'RESPONSIBILITY', 'p', { action: 'deliver the goods' })]));
+  assert.deepEqual(confirmed.items.find(i => i.section === 'responsibilities').adopt, []);
+  const candidate = api.projectWorkbench(ctx([ent('p', 'PERSON', 'Provider')], [rel('duty', 'RESPONSIBILITY', 'p', { action: 'deliver the goods' }, 'CANDIDATE')]));
+  assert.deepEqual(candidate.items.find(i => i.section === 'responsibilities').adopt, [{ id: 'duty', targetKind: 'RELATIONSHIP' }]);
+});
+test('workbench: a PARTICIPATION relationship folds a participant into PEOPLE, even with no individual role qualifier', () => {
+  const wb = api.projectWorkbench(ctx([ent('m', 'PERSON', 'Member', 'CONFIRMED')], [rel('part', 'PARTICIPATION', 'm', {})]));
+  const row = wb.items.find(i => i.section === 'people');
+  assert.equal(row.value, 'Member');
+  assert.deepEqual(row.details, ['Participant']);
+  assert.equal(row.state, 'CONFIRMED');
+});
+test('workbench: a non-date CONDITION and a DELIVERY relationship both fall under COMPLETION, never "Also understood"', () => {
+  const wb = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'the deal')], [
+    rel('c1', 'CONDITION', 'c', { requires: 'inspection' }, 'CANDIDATE'),
+    rel('c2', 'DELIVERY', 'c', { destination: 'site office' }),
+  ]));
+  const completion = wb.items.filter(i => i.section === 'completion');
+  assert.equal(completion.length, 2);
+  assert.ok(completion.some(i => i.value.includes('inspection') && i.state === 'CANDIDATE'));
+  assert.ok(completion.some(i => i.value.includes('site office') && i.state === 'CONFIRMED'));
+  assert.equal(wb.items.some(i => i.section === 'other'), false);
+});
+test('workbench: an AUTHORITY_RULE relationship falls under AUTHORITY with its real state', () => {
+  const wb = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'the deal')], [rel('a', 'AUTHORITY_RULE', 'c', { approves: 'payment release' }, 'CANDIDATE')]));
+  const row = wb.items.find(i => i.section === 'authority');
+  assert.ok(row.value.includes('payment release'));
+  assert.equal(row.state, 'CANDIDATE');
+  assert.deepEqual(row.adopt, [{ id: 'a', targetKind: 'RELATIONSHIP' }]);
+});
+test('workbench render: candidate RESPONSIBILITY/CONDITION/AUTHORITY_RULE rows render "Suggested"; confirmed ones do not', () => {
+  const data = ctx(
+    [ent('p', 'PERSON', 'Provider'), ent('c', 'CONCEPT', 'the deal')],
+    [rel('duty', 'RESPONSIBILITY', 'p', { action: 'carry out the work' }, 'CANDIDATE'),
+     rel('cond', 'CONDITION', 'c', { requires: 'inspection' }),
+     rel('auth', 'AUTHORITY_RULE', 'c', { approves: 'payment release' }, 'CANDIDATE')]);
+  const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data, error: null }, source: null, offerSelectionFailure: null };
+  const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {} }));
+  // Each assertion is scoped to its own section's slice of the markup, never a greedy cross-section
+  // regex -- otherwise a LATER section's own "Suggested" could make an earlier, confirmed row look
+  // wrongly labelled.
+  const between = (from, to) => html.slice(html.indexOf(from), to ? html.indexOf(to) : undefined);
+  const responsibilities = between('Responsibilities', 'Completion');
+  assert.match(responsibilities, /carry out the work/); assert.match(responsibilities, /Suggested/);
+  const completion = between('Completion', 'Authority');
+  assert.match(completion, /inspection/); assert.doesNotMatch(completion, /Suggested/);
+  const authority = between('Authority');
+  assert.match(authority, /payment release/); assert.match(authority, /Suggested/);
+});
 test('workbench render: only actionable rows are buttons; candidates say "Suggested"; the word "Confirmed" is never used', () => {
   const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data: golden(), error: null }, source: null, offerSelectionFailure: null };
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {}, stillToSettle: ['Where the house is'] }));
-  assert.match(html, /aria-label="Who: John\. Change the person"/);
+  assert.match(html, /aria-label="People: John\. Change the person"/);
   assert.doesNotMatch(html, /aria-label="Money:/); assert.doesNotMatch(html, /aria-label="What:/);
   assert.match(html, /Friday, 25 September 2026/); assert.match(html, /Suggested/); assert.match(html, /KS Number not set/); assert.match(html, /Use this/);
   assert.doesNotMatch(html, /Confirmed/); assert.match(html, /Where the house is/); assert.match(html, /Not an Agreement/);
 });
 test('workbench render: an open instrument marks its row aria-expanded', () => {
   const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data: golden(), error: null }, source: null, offerSelectionFailure: null };
-  const spec = api.projectWorkbench(golden()).items.find(i => i.section === 'when').spec;
+  const spec = api.projectWorkbench(golden()).items.find(i => i.section === 'timingPlace').spec;
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: spec, onOpen() {} }));
-  assert.match(html, /aria-expanded="true"[^>]*aria-label="When/);
+  assert.match(html, /aria-expanded="true"[^>]*aria-label="Timing/);
 });
 test('prompt render: a live prompt is one button; photo/document get an honest note, never a dead upload control', () => {
   const p = api.renderToStaticMarkup(api.createElement(api.InstrumentPrompt, { prompt: { type: 'INSTRUMENT_PROMPT', instrument: 'when', hints: {} }, onOpen() {} }));
