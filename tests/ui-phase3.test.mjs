@@ -22,7 +22,7 @@ const text = value => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
 const candidate = { title: 'Leather shoes', purpose: null, description: null, agreementType: null, currency: 'KES', amountMinor: 400050, what: ['Leather shoes'], who: ['Wanjiru Traders'], when: ['Friday'] };
 const source = (over = {}) => ({ sourceType: 'STORE_LISTING', sourceId: 'o-1', sourceTitle: 'Leather shoes', sourceOwnerKsNumber: 'KS003', capturedPriceMinor: 400000, capturedCurrency: 'KES', capturedAvailabilityState: 'AVAILABLE', capturedQuantityAvailable: 3, capturedDescription: null, contextReference: null, boundAt: '2026-01-01T00:00:00Z', sourceStatus: 'CURRENT', current: null, ...over });
-const dto = (status, over = {}) => ({ handoffId: 'h1', conversationId: 'c1', status, agreementCandidateSummary: candidate, reviewedSource: null, unresolvedMatters: [], guidanceNotes: [], tradeContextVersion: 7, candidateDigest: 'd7', expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null, ...over });
+const dto = (status, over = {}) => ({ handoffId: 'h1', conversationId: 'c1', status, agreementCandidateSummary: candidate, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], tradeContextVersion: 7, candidateDigest: 'd7', expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null, ...over });
 const network = () => new api.ApiError('network', 'offline');
 
 function setup(overrides = {}) {
@@ -48,8 +48,8 @@ const panel = snapshot => {
 
 // ---------------------------------------------------------------- consequence boundaries
 test('the review CTA names what the backend really does: a DRAFT Agreement, never set/sent/accepted/paid', () => {
-  const review = { candidate, reviewedSource: null };
-  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const card = api.canonicalAgreementView(review, handoff);
   assert.equal(card.primaryLabel, 'Create the draft Agreement');
   assert.equal(card.primaryValue, 'create_draft');
@@ -64,12 +64,58 @@ test('money on the review is integer-exact (no float division)', () => {
   assert.equal(api.formatHandoffMoney('KES', null), 'Not yet specified');
 });
 test('the review card carries the backend sourceType through; an absent type is never shown as the Store', () => {
-  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
-  const withType = api.canonicalAgreementView({ candidate, reviewedSource: source() }, handoff);
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const withType = api.canonicalAgreementView({ candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: source() }, handoff);
   assert.equal(withType.source.sourceType, 'STORE_LISTING');
   assert.match(text(markup(api.CanonicalAgreementCard, { data: withType, onChoice() {} })), /SecurePay Store · Leather shoes/);
-  const other = api.canonicalAgreementView({ candidate, reviewedSource: source({ sourceType: 'COMMUNITY_POST' }) }, handoff);
+  const other = api.canonicalAgreementView({ candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: source({ sourceType: 'COMMUNITY_POST' }) }, handoff);
   assert.doesNotMatch(text(markup(api.CanonicalAgreementCard, { data: other, onChoice() {} })), /SecurePay Store/);
+});
+
+// KS001 Upgrade Phase 2 final acceptance correction (item 3) -- the broader review truth
+// (responsibilities/money/conditions/authority) must actually reach the rendered card, with quiet
+// Confirmed/Suggested labels, never implying Suggested means agreed.
+test('a confirmed RESPONSIBILITY renders "Confirmed"; a candidate one renders "Suggested"', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, who: [], reviewedSource: null, when: [], conditions: [], authority: [], money: [],
+    responsibilities: [
+      { description: 'Peter: handle the tiling', confirmed: true },
+      { description: 'Mary: supply the tiles', confirmed: false },
+    ],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  assert.deepEqual(card.responsibilities, review.responsibilities);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /Peter: handle the tiling.*\(Confirmed\)/);
+  assert.match(out, /Mary: supply the tiles.*\(Suggested\)/);
+});
+test('a candidate MONEY fact renders "Suggested"; a confirmed CONDITION and AUTHORITY_RULE render "Confirmed"', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, who: [], reviewedSource: null, when: [], responsibilities: [],
+    money: [{ description: 'amount=42000, currency=KES', confirmed: false }],
+    conditions: [{ description: 'requires=inspection', confirmed: true }],
+    authority: [{ description: 'approves=supplier payment', confirmed: true }],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /amount=42000, currency=KES.*\(Suggested\)/);
+  assert.match(out, /requires=inspection.*\(Confirmed\)/);
+  assert.match(out, /approves=supplier payment.*\(Confirmed\)/);
+});
+test('an empty review section is never rendered just to look complete', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
+  const card = api.canonicalAgreementView(review, handoff);
+  assert.equal(card.responsibilities, undefined);
+  assert.equal(card.money, undefined);
+  assert.equal(card.conditions, undefined);
+  assert.equal(card.authority, undefined);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.doesNotMatch(out, /Responsibilities/);
+  assert.doesNotMatch(out, /Conditions/);
+  assert.doesNotMatch(out, /Authority/);
 });
 
 // ---------------------------------------------------------------- handoff idempotency
@@ -156,7 +202,7 @@ test('an unchanged version across sign-in raises no change notice', async () => 
   assert.equal(controller.getSnapshot().changedDuringSignIn, false);
 });
 test('the signed-out moment shows what would be reviewed BEFORE sign-in, read-only, and says sign-in commits nothing', () => {
-  const view = { id: 'h1', status: 'IDENTITY_REQUIRED', candidate, reviewedSource: source(), unresolvedMatters: ['Delivery date'], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const view = { id: 'h1', status: 'IDENTITY_REQUIRED', candidate, reviewedSource: source(), mustResolve: [], stillToDecide: ['Delivery date'], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const out = panel({ phase: 'identity-required', handoff: view });
   assert.match(out, /What SecurePay understands so far/); assert.match(out, /Leather shoes/); assert.match(out, /KES 4,000\.50/);
   assert.match(out, /Delivery date/); assert.match(out, /SecurePay Store · Leather shoes/);
@@ -164,14 +210,14 @@ test('the signed-out moment shows what would be reviewed BEFORE sign-in, read-on
   assert.doesNotMatch(out, /<input[^>]*readonly/i);
 });
 test('a change during sign-in is stated plainly above the review', () => {
-  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 8, expectedCandidateDigest: 'd8' }, progressedAgreementId: null };
-  assert.match(panel({ phase: 'review-ready', handoff: view, review: { candidate, reviewedSource: null }, changedDuringSignIn: true }), /changed while you signed in/);
-  assert.doesNotMatch(panel({ phase: 'review-ready', handoff: view, review: { candidate, reviewedSource: null } }), /changed while you signed in/);
+  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 8, expectedCandidateDigest: 'd8' }, progressedAgreementId: null };
+  assert.match(panel({ phase: 'review-ready', handoff: view, review: { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null }, changedDuringSignIn: true }), /changed while you signed in/);
+  assert.doesNotMatch(panel({ phase: 'review-ready', handoff: view, review: { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null } }), /changed while you signed in/);
 });
 
 // ---------------------------------------------------------------- source continuity
 test('CHANGED: Selected earlier vs Current listing, one real action (current listing) plus the way back; nothing silently updated', () => {
-  const view = { id: 'h1', status: 'REVIEW_STALE', candidate, reviewedSource: source({ sourceStatus: 'CHANGED', current: { capturedPriceMinor: 450000, capturedCurrency: 'KES', capturedAvailabilityState: 'LOW_AVAILABILITY' } }), unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const view = { id: 'h1', status: 'REVIEW_STALE', candidate, reviewedSource: source({ sourceStatus: 'CHANGED', current: { capturedPriceMinor: 450000, capturedCurrency: 'KES', capturedAvailabilityState: 'LOW_AVAILABILITY' } }), mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const out = panel({ phase: 'review-stale', handoff: view });
   assert.match(out, /Selected earlier/); assert.match(out, /KES 4,000/); assert.match(out, /Current listing/); assert.match(out, /KES 4,500/);
   assert.match(out, /Review with the current listing/); assert.match(out, /Back to the conversation/);
@@ -179,7 +225,7 @@ test('CHANGED: Selected earlier vs Current listing, one real action (current lis
   assert.doesNotMatch(out, /Create the draft Agreement/);
 });
 test('UNAVAILABLE keeps the historical provenance, offers only the way back, and never becomes DIRECT or another listing', () => {
-  const view = { id: 'h1', status: 'REVIEW_STALE', candidate, reviewedSource: source({ sourceStatus: 'UNAVAILABLE' }), unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const view = { id: 'h1', status: 'REVIEW_STALE', candidate, reviewedSource: source({ sourceStatus: 'UNAVAILABLE' }), mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const out = panel({ phase: 'review-stale', handoff: view });
   assert.match(out, /SecurePay Store · Leather shoes/); assert.match(out, /Listed at KES 4,000 when chosen/);
   assert.match(out, /no longer available/); assert.match(out, /Back to the conversation/);
@@ -200,13 +246,13 @@ test('stale review is frozen: it is never re-read or reviewed as though it could
 
 // ---------------------------------------------------------------- correction + failure
 test('corrections route back into the conversation: no editable field exists on the review', () => {
-  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
-  const out = markup(api.HandoffPanel, { handoff: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'review-ready', handoff: view, review: { candidate, reviewedSource: null }, error: null, changedDuringSignIn: false }) }, identity: { subscribe: () => () => {}, getSnapshot: () => ({}) }, onDone() {} });
+  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const out = markup(api.HandoffPanel, { handoff: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'review-ready', handoff: view, review: { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null }, error: null, changedDuringSignIn: false }) }, identity: { subscribe: () => () => {}, getSnapshot: () => ({}) }, onDone() {} });
   assert.doesNotMatch(out, /<input|<textarea|<select/);
   assert.match(text(out), /Change something/);
 });
 test('the uncertain state offers Check what happened / Try again and promises no second draft', () => {
-  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, unresolvedMatters: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const view = { id: 'h1', status: 'READY_TO_PROGRESS', candidate, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const out = panel({ phase: 'progress-uncertain', handoff: view, error: 'SecurePay could not confirm whether this step completed.' });
   assert.match(out, /not sure that went through/); assert.match(out, /Check what happened/); assert.match(out, /Try again/); assert.match(out, /can.t create a second draft/);
 });

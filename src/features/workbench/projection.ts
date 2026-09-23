@@ -24,7 +24,17 @@ import type { InstrumentPromptView } from '../../api/securepay/agent/instruments
  * first person/role, date, place or amount) through `adds`. Nothing in this file assigns or infers
  * Agreement, participant, confirmation, identity or Money authority.
  */
-export type WorkbenchSection = 'what' | 'who' | 'when' | 'where' | 'money' | 'other';
+/**
+ * KS001 Upgrade Phase 2 final acceptance correction (item 4) -- the universal Phase 2 BUILD workbench
+ * taxonomy: WHAT WE'RE MAKING HAPPEN, PEOPLE, RESPONSIBILITIES, MONEY, TIMING & PLACE, COMPLETION/
+ * CONDITIONS, AUTHORITY, plus the read-only `other` fallback for anything genuinely outside these. Maps
+ * onto EXISTING relationship/entity kinds only -- no new ontology: ROLE/PARTICIPATION -> people,
+ * RESPONSIBILITY -> responsibilities, PAYMENT_CONDITION/MONEY -> money, DATE/DATE_RANGE/RECURRENCE/
+ * date-shaped CONDITION/PLACE -> timingPlace, non-date CONDITION/DELIVERY -> completion, AUTHORITY_RULE
+ * -> authority. "Still to decide" is rendered separately from `context.sufficiency`, not as a section here
+ * (it is never itself a Trade Context fact).
+ */
+export type WorkbenchSection = 'what' | 'people' | 'responsibilities' | 'money' | 'timingPlace' | 'completion' | 'authority' | 'other';
 export interface AdoptTarget { id: string; targetKind: 'ENTITY' | 'RELATIONSHIP' }
 export interface WorkbenchItem {
   key: string;
@@ -51,8 +61,11 @@ export interface WorkbenchItem {
 export interface WorkbenchAdd { key: 'who' | 'when' | 'where' | 'money'; label: string; spec: InstrumentSpec }
 export interface Workbench { items: WorkbenchItem[]; adds: WorkbenchAdd[]; empty: boolean }
 
-const SECTION_ORDER: WorkbenchSection[] = ['what', 'who', 'when', 'where', 'money', 'other'];
-export const SECTION_LABEL: Record<WorkbenchSection, string> = { what: 'What', who: 'Who', when: 'When', where: 'Where', money: 'Money', other: 'Also understood' };
+const SECTION_ORDER: WorkbenchSection[] = ['what', 'people', 'responsibilities', 'money', 'timingPlace', 'completion', 'authority', 'other'];
+export const SECTION_LABEL: Record<WorkbenchSection, string> = {
+  what: "What we're making happen", people: 'People', responsibilities: 'Responsibilities', money: 'Money',
+  timingPlace: 'Timing & place', completion: 'Completion', authority: 'Authority', other: 'Also understood',
+};
 
 const ROLE_LABELS: Record<string, string> = {
   SELLER: 'Seller', BUYER: 'Buyer', LANDLORD: 'Landlord', TENANT: 'Tenant', ORGANIZER: 'Organizer', LENDER: 'Lender', BORROWER: 'Borrower',
@@ -112,7 +125,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   const usedRelationshipIds = new Set<string>();
   const relationsOf = (entityId: string) => relationships.filter(r => r.subjectEntityId === entityId);
 
-  // --- WHO -------------------------------------------------------------------------------------
+  // --- PEOPLE (ROLE and, KS001 Upgrade Phase 2 final acceptance correction item 4, PARTICIPATION) -----
   for (const entity of entities) {
     if (entity.type !== 'PERSON' && entity.type !== 'ORGANIZATION') continue;
     shownEntityIds.add(entity.id);
@@ -121,7 +134,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     // like a KS Number" -- this decides both whether the KS Number itself is visibly shown (Phase 4 final
     // closeout, Section 2) and whether re-binding a second identity is ever offered (Section 4).
     const identityResolved = entity.attributes.identityResolved === 'true' && !!ks;
-    const roles = relationsOf(entity.id).filter(r => r.kind === 'ROLE');
+    // PARTICIPATION (group participation, no new ontology) is folded in alongside ROLE -- a participant
+    // with no individual role qualifier still appears here, never silently dropped (mirrors the backend's
+    // own whoDetailed).
+    const roles = relationsOf(entity.id).filter(r => r.kind === 'ROLE' || r.kind === 'PARTICIPATION');
     const details: string[] = [];
     if (identityResolved) details.push(ks!); // "Maua Shoes / KS003 / Seller" -- KS Number visible, never an internal id
     const adopt: AdoptTarget[] = [];
@@ -129,17 +145,14 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       usedRelationshipIds.add(role.id);
       const code = role.qualifiers.role ?? '';
       if (code === 'DELIVERY_LOCATION') continue;
-      const label = humanize(code || 'OTHER');
+      const fallback = role.kind === 'PARTICIPATION' ? 'Participant' : humanize('OTHER');
+      const label = code ? humanize(code) : fallback;
       details.push(code === 'OTHER' && role.qualifiers.descriptor ? role.qualifiers.descriptor : label);
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
-    for (const duty of relationsOf(entity.id).filter(r => r.kind === 'RESPONSIBILITY')) {
-      usedRelationshipIds.add(duty.id);
-      if (duty.qualifiers.action) details.push(`will ${duty.qualifiers.action}`);
-    }
     if (entity.state === 'CANDIDATE') adopt.unshift({ id: entity.id, targetKind: 'ENTITY' });
     items.push({
-      key: `who:${entity.id}`, section: 'who', value: entity.name, details, state: entity.state, adopt,
+      key: `who:${entity.id}`, section: 'people', value: entity.name, details, state: entity.state, adopt,
       identityUnresolved: !ks,
       // A still-CANDIDATE person/organization's role can be corrected in place (ASSIGN_ROLE); if their
       // identity is not yet resolved, the SAME target also lets the Who instrument bind a real KS Number
@@ -153,10 +166,31 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     });
   }
 
-  // --- WHERE (a place, optionally with a role such as delivery location) --------------------------
+  // --- RESPONSIBILITIES (KS001 Upgrade Phase 2 final acceptance correction item 4) ------------------
+  // A dedicated section, no longer folded into a person's own PEOPLE row (avoiding the double-render the
+  // mandate calls out) -- subject-name-prefixed where a real PERSON/ORGANIZATION subject is known, exactly
+  // mirroring the backend's own responsibilitiesDetailed. Never assumes a subject is always a listed
+  // person: a RESPONSIBILITY with an unknown/other subject still renders, text-only.
+  for (const relation of relationships) {
+    if (relation.kind !== 'RESPONSIBILITY') continue;
+    const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
+    const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers);
+    if (!text) continue;
+    usedRelationshipIds.add(relation.id);
+    items.push({
+      key: `responsibility:${relation.id}`, section: 'responsibilities',
+      value: subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
+      adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
+      spec: null,
+    });
+  }
+
+  // --- TIMING & PLACE: place (a place, optionally with a role such as delivery location) ------------
+  let hasPlaceItem = false;
   for (const entity of entities) {
     if (entity.type !== 'PLACE') continue;
     shownEntityIds.add(entity.id);
+    hasPlaceItem = true;
     const details: string[] = [];
     // A quiet, truthful indication that real GPS accompanies this place -- never a fake map or reverse
     // geocode (Phase 4 final closeout, Section 6).
@@ -168,7 +202,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
     items.push({
-      key: `where:${entity.id}`, section: 'where', value: entity.name, details, state: entity.state, adopt,
+      key: `where:${entity.id}`, section: 'timingPlace', value: entity.name, details, state: entity.state, adopt,
       spec: entity.state === 'CANDIDATE' ? { kind: 'where', origin: 'understood', targetEntityId: entity.id, currentPlace: entity.name } : null,
     });
   }
@@ -230,12 +264,13 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     const timeDetail = entity.type === 'DATE' && entity.attributes.time && isValidTime(entity.attributes.time)
       ? [formatTime12h(entity.attributes.time)] : [];
     items.push({
-      key: `when:${entity.id}`, section: 'when', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.type === 'DATE' ? dateLabel : entity.name,
+      key: `when:${entity.id}`, section: 'timingPlace', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.type === 'DATE' ? dateLabel : entity.name,
       details: entity.type === 'RECURRENCE' ? ['Repeats'] : timeDetail, state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
       spec: entity.state === 'CANDIDATE' ? editable : null,
     });
   }
+  let hasMoneyItem = false;
   for (const relation of relationships) {
     if (usedRelationshipIds.has(relation.id)) continue;
     const adopt: AdoptTarget[] = relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [];
@@ -244,13 +279,14 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       usedRelationshipIds.add(relation.id);
       const text = q.date ?? q.startDate ?? '';
       items.push({
-        key: `when:${relation.id}`, section: 'when', value: fromIso(text) ? longDate(text) : text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
+        key: `when:${relation.id}`, section: 'timingPlace', value: fromIso(text) ? longDate(text) : text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
         // A legacy CONDITION-relationship-based date (from an external-fact/quotation source) has no
         // matching structured-input target -- unlike a real DATE entity above, it stays read-only.
         spec: null,
       });
     } else if (relation.kind === 'PAYMENT_CONDITION' && q.amount) {
       usedRelationshipIds.add(relation.id);
+      hasMoneyItem = true;
       const parsed = parseAmount(q.amount);
       const currency = (q.currency ?? '').trim().toUpperCase();
       const extras = Object.entries(q).filter(([key, value]) => key !== 'amount' && key !== 'currency' && value.trim() !== '' && value !== 'true' && !INTERNAL_KEYS.has(key)).map(([, value]) => value);
@@ -271,7 +307,41 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const entity of entities) {
     if (entity.type !== 'MONEY') continue;
     shownEntityIds.add(entity.id);
+    hasMoneyItem = true;
     items.push({ key: `money:${entity.id}`, section: 'money', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null });
+  }
+
+  // --- COMPLETION / CONDITIONS (non-date CONDITION, DELIVERY -- KS001 Upgrade Phase 2 final acceptance
+  // correction item 4) --------------------------------------------------------------------------------
+  for (const relation of relationships) {
+    if (usedRelationshipIds.has(relation.id)) continue;
+    if (relation.kind !== 'CONDITION' && relation.kind !== 'DELIVERY') continue;
+    const text = describeQualifiers(relation.qualifiers);
+    if (!text) continue;
+    usedRelationshipIds.add(relation.id);
+    const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
+    items.push({
+      key: `completion:${relation.id}`, section: 'completion', value: text,
+      details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
+      adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,
+    });
+  }
+
+  // --- AUTHORITY (AUTHORITY_RULE -- KS001 Upgrade Phase 2 final acceptance correction item 4) --------
+  // A governance/decision rule, e.g. "Treasurer approves supplier payment" -- a review fact only, never
+  // itself real Agreement/Money authority (Section 32's own doctrine).
+  for (const relation of relationships) {
+    if (usedRelationshipIds.has(relation.id)) continue;
+    if (relation.kind !== 'AUTHORITY_RULE') continue;
+    const text = describeQualifiers(relation.qualifiers);
+    if (!text) continue;
+    usedRelationshipIds.add(relation.id);
+    const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
+    items.push({
+      key: `authority:${relation.id}`, section: 'authority', value: text,
+      details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
+      adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,
+    });
   }
 
   // --- Everything else, read-only ---------------------------------------------------------------------
@@ -296,14 +366,16 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   // "Add" is offered only for a FIRST date/place/amount -- a deliberate simplicity choice (avoiding an
   // ambiguous pile of unrelated dates/places), not a backend limitation: an existing CANDIDATE row of any
   // of these already has its own real, precise edit control above (targetEntityId/targetRelationshipId).
-  const has = (section: WorkbenchSection) => items.some(item => item.section === section);
+  // KS001 Upgrade Phase 2 final acceptance correction (item 4) -- "where" no longer has its own coarse
+  // section (place merged into the broader TIMING & PLACE section alongside date), so presence is tracked
+  // directly during the place loop above (`hasPlaceItem`) rather than derived from `item.section`.
   const hasDeadline = relationships.some(r => r.kind === 'CONDITION' && typeof r.qualifiers.date === 'string') || entities.some(e => e.type === 'DATE' || e.type === 'DATE_RANGE');
   const adds: WorkbenchAdd[] = [];
   const takenNames = entities.filter(e => e.type === 'PERSON' || e.type === 'ORGANIZATION').map(e => e.name);
   adds.push({ key: 'who', label: 'Person', spec: { kind: 'who', origin: 'add', takenNames } });
   if (!hasDeadline) adds.push({ key: 'when', label: 'Date', spec: { kind: 'when', origin: 'add' } });
-  if (!has('where')) adds.push({ key: 'where', label: 'Place', spec: { kind: 'where', origin: 'add' } });
-  if (!has('money')) adds.push({ key: 'money', label: 'Amount', spec: { kind: 'money', origin: 'add' } });
+  if (!hasPlaceItem) adds.push({ key: 'where', label: 'Place', spec: { kind: 'where', origin: 'add' } });
+  if (!hasMoneyItem) adds.push({ key: 'money', label: 'Amount', spec: { kind: 'money', origin: 'add' } });
   return { items, adds, empty: items.length === 0 };
 }
 
@@ -314,7 +386,11 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
  */
 export type PromptResolution = { spec: InstrumentSpec } | { note: string };
 export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench): PromptResolution {
-  const items = (section: WorkbenchSection) => workbench.items.filter(item => item.section === section);
+  // KS001 Upgrade Phase 2 final acceptance correction (item 4) -- "when"/"where" no longer have their own
+  // coarse sections (both now live under the broader TIMING & PLACE section), so items are matched by
+  // their stable key prefix (unchanged by the section restructure) rather than by section membership.
+  // `money` keeps its own unchanged section, but is matched the same way for consistency.
+  const itemsByPrefix = (prefix: string) => workbench.items.filter(item => item.key.startsWith(prefix));
   switch (prompt.instrument) {
     case 'who': {
       const add = workbench.adds.find(a => a.key === 'who')?.spec;
@@ -326,19 +402,19 @@ export function specForPrompt(prompt: InstrumentPromptView, workbench: Workbench
       // correction, Section 14/26).
       if (prompt.hints.mode === 'range') return { spec: { kind: 'when', origin: 'agent', mode: 'range' } };
       if (workbench.adds.some(a => a.key === 'when')) return { spec: { kind: 'when', origin: 'agent', hintDate: prompt.hints.date } };
-      const when = items('when');
+      const when = itemsByPrefix('when:');
       const editable = when.length === 1 ? when[0].spec : null;
       return editable?.kind === 'when' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds a date here. Open it from UNDERSTOOD to correct it, or tell KS001 if it has changed.' };
     }
     case 'money': {
-      const money = items('money');
+      const money = itemsByPrefix('money:');
       if (money.length === 0) return { spec: { kind: 'money', origin: 'agent' } };
       const editable = money.length === 1 ? money[0].spec : null;
       return editable?.kind === 'money' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds an amount here. Open it from UNDERSTOOD to correct it, or tell KS001 in the conversation.' };
     }
     case 'where': {
       if (workbench.adds.some(a => a.key === 'where')) return { spec: { kind: 'where', origin: 'agent' } };
-      const where = items('where');
+      const where = itemsByPrefix('where:');
       const editable = where.length === 1 ? where[0].spec : null;
       return editable?.kind === 'where' ? { spec: { ...editable, origin: 'agent' } } : { note: 'SecurePay already holds a place here. Open it from UNDERSTOOD to correct it, or tell KS001 if it has changed.' };
     }

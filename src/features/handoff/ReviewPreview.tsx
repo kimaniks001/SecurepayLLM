@@ -9,7 +9,7 @@ import { formatHandoffMoney, sourceReferenceView } from './view';
  * editable; changing anything means going back to the conversation.
  */
 export function ReviewPreview({ handoff }: { handoff: HandoffView }) {
-  const { candidate, reviewedSource, unresolvedMatters } = handoff;
+  const { candidate, reviewedSource, mustResolve, stillToDecide } = handoff;
   const rows: { label: string; values: string[] }[] = [
     { label: 'What', values: candidate.what }, { label: 'Who', values: candidate.who },
     { label: 'When', values: candidate.when },
@@ -23,9 +23,15 @@ export function ReviewPreview({ handoff }: { handoff: HandoffView }) {
           <dt className="text-sand-500">{row.label}</dt><dd className="min-w-0 break-words text-forest-800">{row.values.join(', ')}</dd>
         </div>)}</dl>
       : <p className="text-[0.88rem] text-sand-600">Not much has been settled yet.</p>}
-    {unresolvedMatters.length > 0 && <div>
-      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-ember-700">Still to settle</p>
-      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[0.85rem] text-sand-700">{unresolvedMatters.map((matter, i) => <li key={i}>{matter}</li>)}</ul>
+    {/* KS001 Upgrade Phase 2 final convergence correction (item 2) -- mustResolve and stillToDecide are
+        shown separately, never merged back into one flat "unresolved" list. */}
+    {mustResolve.length > 0 && <div>
+      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-ember-700">Needs your decision before this can be set up</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[0.85rem] text-sand-700">{mustResolve.map((matter, i) => <li key={i}>{matter}</li>)}</ul>
+    </div>}
+    {stillToDecide.length > 0 && <div>
+      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Still to decide</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[0.85rem] text-sand-700">{stillToDecide.map((matter, i) => <li key={i}>{matter}</li>)}</ul>
     </div>}
     {reviewedSource && <SourceReference source={sourceReferenceView(reviewedSource)} />}
   </section>;

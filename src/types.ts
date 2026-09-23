@@ -412,6 +412,17 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   completion: string;
   defects?: string;
   paymentTiming?: string;
+  // KS001 Upgrade Phase 2 final acceptance correction (item 3) -- the broader, state-aware human review
+  // truth (AgreementFormationReviewProjection's own responsibilities/money/conditions/authority), each
+  // entry carrying whether it is CONFIRMED or still only CANDIDATE ("suggested"). Structurally separate
+  // from the authoritative `price`/`completion` fields above, which stay exactly what Set Up Agreement
+  // actually reads -- these sections are presentation-only, broader review truth, never fed back into
+  // AgreementCreationService. Omitted (never an empty array) when the review carried no such facts, so a
+  // section with nothing to show is never rendered just to look complete.
+  responsibilities?: { description: string; confirmed: boolean }[];
+  money?: { description: string; confirmed: boolean }[];
+  conditions?: { description: string; confirmed: boolean }[];
+  authority?: { description: string; confirmed: boolean }[];
   worthSettling: { label: string; detail: string }[];
   mustSettle: { label: string; detail: string }[];
   primaryLabel: string;
