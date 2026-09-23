@@ -584,6 +584,48 @@ test('workbench render: candidate RESPONSIBILITY/CONDITION/AUTHORITY_RULE rows r
   const authority = between('Authority');
   assert.match(authority, /payment release/); assert.match(authority, /Suggested/);
 });
+
+// ---------------------------------------------------------------- KS001 Upgrade Phase 2 final acceptance
+// correction (item 7) -- CHAMA and CONCERT acceptance scenarios, proving the UI visibly carries the real
+// REPRESENTABLE structure via the restructured workbench, using only real relationship/entity kinds.
+// Rotating payout order (CHAMA) and venue selection (CONCERT) are genuine open matters the current
+// ontology has no safe generic slot for -- they are deliberately NOT fabricated here; a real
+// implementation surfaces them as "still to decide" via the server-owned sufficiency projection, not as
+// an invented workbench row (see the Known Limitations of this correction round).
+test('CHAMA: people/participation, KES 300 monthly and confirmed/candidate state are all visible; payout order is never fabricated', () => {
+  const data = ctx(
+    [ent('m1', 'PERSON', 'Wanjiku', 'CONFIRMED'), ent('m2', 'PERSON', 'Otieno', 'CANDIDATE'), ent('c', 'CONCEPT', 'the chama contribution')],
+    [rel('p1', 'PARTICIPATION', 'm1', {}), rel('p2', 'PARTICIPATION', 'm2', {}, 'CANDIDATE'),
+     rel('money', 'PAYMENT_CONDITION', 'c', { amount: '300', currency: 'KES', appliesTo: 'each member', frequency: 'monthly' })]);
+  const wb = api.projectWorkbench(data);
+  const people = wb.items.filter(i => i.section === 'people');
+  assert.ok(people.some(i => i.value === 'Wanjiku' && i.state === 'CONFIRMED'));
+  assert.ok(people.some(i => i.value === 'Otieno' && i.state === 'CANDIDATE'));
+  const money = wb.items.find(i => i.section === 'money');
+  assert.equal(money.value, 'KES 300'); assert.deepEqual(money.details, ['each member', 'monthly']);
+  // Genuine known limitation: no PAYOUT_ORDER-shaped relationship exists in the ontology, so nothing
+  // claiming to be a payout order is ever invented here.
+  assert.equal(JSON.stringify(wb).toLowerCase().includes('payout'), false);
+});
+test('CONCERT: concert, Brian, production responsibility, KES 600,000 and December are all visible under their real sections; venue is never fabricated', () => {
+  const data = ctx(
+    [ent('concert', 'SERVICE', 'Concert'), ent('brian', 'PERSON', 'Brian', 'CONFIRMED'),
+     ent('d', 'DATE', 'December', 'CONFIRMED', { date: '2026-12-05' })],
+    [rel('role', 'ROLE', 'brian', { role: 'ORGANIZER' }), rel('duty', 'RESPONSIBILITY', 'brian', { action: 'production' }),
+     rel('money', 'PAYMENT_CONDITION', 'concert', { amount: '600000', currency: 'KES' })]);
+  const wb = api.projectWorkbench(data);
+  assert.ok(wb.items.some(i => i.section === 'what' && i.value === 'Concert'));
+  const brian = wb.items.find(i => i.section === 'people' && i.value === 'Brian');
+  assert.deepEqual(brian.details, ['Organizer']);
+  const responsibility = wb.items.find(i => i.section === 'responsibilities');
+  assert.equal(responsibility.value, 'Brian: production');
+  const money = wb.items.find(i => i.section === 'money');
+  assert.equal(money.value, 'KES 600,000');
+  const timing = wb.items.find(i => i.section === 'timingPlace');
+  assert.equal(timing.value, 'Saturday, 5 December 2026');
+  // Genuine known limitation: no venue was submitted in this fixture, and none is fabricated.
+  assert.equal(wb.items.some(i => i.key.startsWith('where:')), false);
+});
 test('workbench render: only actionable rows are buttons; candidates say "Suggested"; the word "Confirmed" is never used', () => {
   const state = { conversationId: 'c', turns: [], busy: false, pending: null, error: null, context: { status: 'ready', data: golden(), error: null }, source: null, offerSelectionFailure: null };
   const html = api.renderToStaticMarkup(api.createElement(api.UnderstoodWorkbench, { state, controller: {}, activeSpec: null, onOpen() {}, stillToSettle: ['Where the house is'] }));
