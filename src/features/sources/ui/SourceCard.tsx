@@ -8,14 +8,23 @@ const KIND_LABEL: Record<string, string> = { PASTED_TEXT: 'Pasted plan', DOCUMEN
  * confidence decimals, internal entity ids, or model names -- only the bounded, safe projection the
  * backend already returns (originalName/label/documentType/summary/uncertainties/status).
  */
-export function SourceCard({ source, onRetry, onRemove, busy }: {
+export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
   source: AgentSourceArtifactView;
   onRetry: () => void;
   onRemove: () => void;
   busy: boolean;
+  /**
+   * KS001 Upgrade Phase 3 completion correction (item 9) -- how many BUILD rows currently trace back to
+   * THIS exact source (computed live by the caller from the workbench's own `item.source.sourceArtifactId`
+   * -- see AgentExperience -- never a stale count captured only at ingestion time, so it stays honest
+   * after an adoption/correction/removal changes what is actually still attributed to this source).
+   * Omitted (not shown) rather than a fabricated 0 when the caller cannot compute it yet.
+   */
+  factCount?: number;
 }) {
   if (source.extractionStatus === 'REMOVED') return null;
   const title = source.originalName || KIND_LABEL[source.sourceKind] || 'Source';
+  const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   return (
     <div className="rounded-2xl border border-cream-200 bg-white/80 shadow-soft px-4 py-3 space-y-1.5 animate-fade-in-up">
       <div className="flex items-start justify-between gap-2">
@@ -44,6 +53,20 @@ export function SourceCard({ source, onRetry, onRemove, busy }: {
       ) : (
         <>
           {source.summary && <p className="text-[0.82rem] text-forest-700 leading-snug">{source.summary}</p>}
+          {/* KS001 Upgrade Phase 3 completion correction (item 9) -- "N useful detail(s) added to BUILD /
+              N thing(s) need clarification," a bounded summary of REAL counts, never a debug screen. The
+              workbench itself remains primary; this card only says how much and points there. */}
+          {isReadable && (typeof factCount === 'number' || source.uncertainties.length > 0) && (
+            <p className="text-[0.78rem] text-sand-600">
+              {typeof factCount === 'number' && (factCount > 0
+                ? `${factCount} useful ${factCount === 1 ? 'detail' : 'details'} added to BUILD`
+                : 'Nothing from this reached BUILD yet')}
+              {typeof factCount === 'number' && source.uncertainties.length > 0 ? ' · ' : ''}
+              {source.uncertainties.length > 0
+                ? `${source.uncertainties.length} ${source.uncertainties.length === 1 ? 'thing needs' : 'things need'} clarification`
+                : ''}
+            </p>
+          )}
           {source.uncertainties.length > 0 && (
             <div className="pt-1">
               <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Needs clarification</p>
@@ -63,11 +86,13 @@ export function SourceCard({ source, onRetry, onRemove, busy }: {
   );
 }
 
-export function SourcesList({ sources, busy, onRetry, onRemove }: {
+export function SourcesList({ sources, busy, onRetry, onRemove, factCountsBySourceId }: {
   sources: AgentSourceArtifactView[];
   busy: boolean;
   onRetry: (sourceArtifactId: string) => void;
   onRemove: (sourceArtifactId: string) => void;
+  /** KS001 Upgrade Phase 3 completion correction (item 9) -- see SourceCard's own `factCount` doctrine. */
+  factCountsBySourceId?: Record<string, number>;
 }) {
   const visible = sources.filter(source => source.extractionStatus !== 'REMOVED');
   if (visible.length === 0) return null;
@@ -78,6 +103,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove }: {
           key={source.sourceArtifactId} source={source} busy={busy}
           onRetry={() => onRetry(source.sourceArtifactId)}
           onRemove={() => onRemove(source.sourceArtifactId)}
+          factCount={factCountsBySourceId?.[source.sourceArtifactId]}
         />
       ))}
     </div>

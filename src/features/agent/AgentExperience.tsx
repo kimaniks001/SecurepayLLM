@@ -522,6 +522,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // here) -- only its server-derived "still worth settling" lines and disclaimer are kept. If Trade
   // Context could not be read at all, the preview remains as a fallback so nothing is lost.
   const workbenchModel = projectWorkbench(state.context.data, new Set(state.offeredDiscoveryEntityIds));
+  // KS001 Upgrade Phase 3 completion correction (item 9) -- how many CURRENT BUILD rows trace back to
+  // each source, computed live from the workbench's own item.source (never a stale ingestion-time count
+  // -- see SourceCard's own factCount doctrine for exactly why this stays honest after an adoption/
+  // correction/removal changes what a source is still credited with).
+  const sourceFactCounts: Record<string, number> = {};
+  for (const item of workbenchModel.items) {
+    if (item.source) sourceFactCounts[item.source.sourceArtifactId] = (sourceFactCounts[item.source.sourceArtifactId] ?? 0) + 1;
+  }
   const preview = panel?.components.find((c): c is PreviewView => c.type === 'AGREEMENT_PREVIEW');
   const panelRest = (panel?.components ?? []).filter(c => c.type !== 'AGREEMENT_PREVIEW' && c.type !== 'INSTRUMENT_PROMPT' && c.type !== 'UNAVAILABLE_INPUT');
   // One contextual surface at a time: opening an instrument closes discovery, and vice versa.
@@ -704,6 +712,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 busy={sourcesState.phase === 'submitting'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
+                factCountsBySourceId={sourceFactCounts}
               />
               {sourcesState.phase === 'error' && !bringPlanOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}

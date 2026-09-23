@@ -62,7 +62,7 @@ export interface WorkbenchItem {
    * row's primary fact came from a source (a pasted plan/uploaded document/photo), never a fabricated
    * badge for an ordinary conversational fact. `null` for the latter.
    */
-  source?: { displayName: string; locator: string; removed: boolean } | null;
+  source?: { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean } | null;
 }
 export interface WorkbenchAdd { key: 'who' | 'when' | 'where' | 'money'; label: string; spec: InstrumentSpec }
 export interface Workbench { items: WorkbenchItem[]; adds: WorkbenchAdd[]; empty: boolean }
