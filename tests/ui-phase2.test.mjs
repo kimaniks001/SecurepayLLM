@@ -397,6 +397,32 @@ test('UNDERSTOOD: a stray discoveryinvited attribute (defence in depth -- the ba
   assert.equal(row.find, undefined);
 });
 
+// ---------------------------------------------------------------- KS001 Upgrade Phase 3 completion correction (item 1/9)
+test('UNDERSTOOD: a source-derived row shows a quiet, bounded source badge -- displayName and locator, never a fabricated one', () => {
+  const sourced = { ...ent('a', 'ORGANIZATION', 'ABC Plumbing Ltd', 'CANDIDATE'), source: { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false } };
+  const wb = api.projectWorkbench(ctx([sourced]));
+  const row = wb.items.find(i => i.key === 'who:a');
+  assert.deepEqual(row.source, { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false });
+  const out = html(api.UnderstoodWorkbench, { state: stateWith(ctx([sourced])), controller: {}, activeSpec: null, onOpen() {}, onFind() {} });
+  assert.match(text(out), /quotation\.pdf/);
+  assert.match(text(out), /p2/);
+});
+
+test('UNDERSTOOD: an ordinary conversational row never shows a source badge', () => {
+  const wb = api.projectWorkbench(ctx([ent('a', 'PERSON', 'Peter')]));
+  const row = wb.items.find(i => i.key === 'who:a');
+  assert.equal(row.source, null);
+  const out = html(api.UnderstoodWorkbench, { state: stateWith(ctx([ent('a', 'PERSON', 'Peter')])), controller: {}, activeSpec: null, onOpen() {}, onFind() {} });
+  assert.doesNotMatch(text(out), /source removed/);
+});
+
+test('UNDERSTOOD: a fact whose source has since been removed still names it, marked removed, without hiding the confirmed fact', () => {
+  const sourced = { ...ent('a', 'ORGANIZATION', 'ABC Plumbing Ltd', 'CONFIRMED'), source: { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: true } };
+  const out = html(api.UnderstoodWorkbench, { state: stateWith(ctx([sourced])), controller: {}, activeSpec: null, onOpen() {}, onFind() {} });
+  assert.match(text(out), /ABC Plumbing Ltd/);
+  assert.match(text(out), /quotation\.pdf.*source removed/);
+});
+
 // ---------------------------------------------------------------- DISCOVERY OFFERED vs INVITED (KS001 Upgrade Phase 1 final integration fix)
 
 test('UNDERSTOOD: KS001 offering discovery for one entity shows a real, explicit accept action ("Look on SecurePay") only for that exact entity, never an unrelated one, and never before it has been offered at all', () => {

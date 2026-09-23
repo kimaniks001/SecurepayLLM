@@ -110,12 +110,18 @@ function Row({ item, open, busy, onOpen, onFind, onUse, onRequestDiscovery }: { 
   const body = <>
     <span className="min-w-0 flex-1 text-left">
       <span className="block break-words text-[0.95rem] leading-snug text-forest-800">{item.value}</span>
-      {(item.details.length > 0 || candidate || item.identityUnresolved) && <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.78rem] text-sand-600">
+      {(item.details.length > 0 || candidate || item.identityUnresolved || item.source) && <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.78rem] text-sand-600">
         {item.details.map((detail, i) => <span key={i}>{detail}</span>)}
         {item.identityUnresolved && <span>KS Number not set</span>}
         {candidate && <span className="font-medium text-ember-700">Suggested</span>}
         {!candidate && item.state === 'CONFIRMED' && <span className="sr-only">Known in this conversation</span>}
         {item.state !== 'CANDIDATE' && item.state !== 'CONFIRMED' && <span>Unclear</span>}
+        {/* KS001 Upgrade Phase 3 completion correction (item 1/9) -- a quiet, bounded source badge; never
+            shown for an ordinary conversational fact (item.source is null). A removed source's origin is
+            still named, never hidden, even though its raw content is gone. */}
+        {item.source && <span className="italic text-sand-500">
+          {item.source.displayName}{item.source.locator ? ` · ${item.source.locator}` : ''}{item.source.removed ? ' — source removed' : ''}
+        </span>}
       </span>}
     </span>
   </>;

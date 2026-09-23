@@ -62,7 +62,7 @@ function sourceView(reviewedSource: ReviewedSourceDto | null): CanonicalAgreemen
  * `CanonicalAgreementResponse`'s own doctrine for why they stay structurally separate from the
  * authoritative `price`/`completion` fields Set Up Agreement actually reads.
  */
-function reviewSection(facts: HandoffReviewView['responsibilities']): { description: string; confirmed: boolean }[] | undefined {
+function reviewSection(facts: HandoffReviewView['responsibilities']): CanonicalAgreementResponse['responsibilities'] {
   return facts.length > 0 ? facts : undefined;
 }
 export function canonicalAgreementView(review: HandoffReviewView, handoff: HandoffView): CanonicalAgreementResponse {
@@ -78,7 +78,7 @@ export function canonicalAgreementView(review: HandoffReviewView, handoff: Hando
     ...handoff.guidanceNotes.map(note => ({ label: 'Guidance', detail: note })),
   ];
   const parties = review.who.length > 0
-    ? review.who.map(fact => ({ name: fact.description, role: fact.confirmed ? 'confirmed' : 'suggested' }))
+    ? review.who.map(fact => ({ name: fact.description, role: fact.confirmed ? 'confirmed' : 'suggested', source: fact.source }))
     : candidate.who.map(name => ({ name, role: '' }));
   const completion = review.when.length > 0
     ? review.when.map(fact => `${fact.description} (${fact.confirmed ? 'confirmed' : 'suggested'})`).join(', ')

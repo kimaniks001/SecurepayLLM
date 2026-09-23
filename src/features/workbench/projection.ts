@@ -57,6 +57,12 @@ export interface WorkbenchItem {
   offer?: { targetEntityId: string };
   /** WHO only: a named person with no KS Number understood yet. Candidate understanding, not a participant. */
   identityUnresolved?: boolean;
+  /**
+   * KS001 Upgrade Phase 3 completion correction (item 1) -- bounded, server-resolved lineage when this
+   * row's primary fact came from a source (a pasted plan/uploaded document/photo), never a fabricated
+   * badge for an ordinary conversational fact. `null` for the latter.
+   */
+  source?: { displayName: string; locator: string; removed: boolean } | null;
 }
 export interface WorkbenchAdd { key: 'who' | 'when' | 'where' | 'money'; label: string; spec: InstrumentSpec }
 export interface Workbench { items: WorkbenchItem[]; adds: WorkbenchAdd[]; empty: boolean }
@@ -151,9 +157,13 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       if (role.state === 'CANDIDATE') adopt.push({ id: role.id, targetKind: 'RELATIONSHIP' });
     }
     if (entity.state === 'CANDIDATE') adopt.unshift({ id: entity.id, targetKind: 'ENTITY' });
+    // KS001 Upgrade Phase 3 completion correction (item 1) -- a role's own lineage is preferred (the more
+    // specific "who said this role") when it has one, mirroring the backend's own whoDetailed doctrine.
+    const roleWithSource = roles.find(role => role.source);
     items.push({
       key: `who:${entity.id}`, section: 'people', value: entity.name, details, state: entity.state, adopt,
       identityUnresolved: !ks,
+      source: roleWithSource?.source ?? entity.source ?? null,
       // A still-CANDIDATE person/organization's role can be corrected in place (ASSIGN_ROLE); if their
       // identity is not yet resolved, the SAME target also lets the Who instrument bind a real KS Number
       // to this exact entity (existingTradeEntityId) -- never as plain text, always server-verified. A
@@ -181,7 +191,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       key: `responsibility:${relation.id}`, section: 'responsibilities',
       value: subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
-      spec: null,
+      spec: null, source: relation.source ?? null,
     });
   }
 
@@ -204,6 +214,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     items.push({
       key: `where:${entity.id}`, section: 'timingPlace', value: entity.name, details, state: entity.state, adopt,
       spec: entity.state === 'CANDIDATE' ? { kind: 'where', origin: 'understood', targetEntityId: entity.id, currentPlace: entity.name } : null,
+      source: entity.source ?? null,
     });
   }
 
@@ -241,6 +252,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
           && !discoveryInvitedEntityIds.has(entity.id) && offeredDiscoveryEntityIds.has(entity.id)
         ? { targetEntityId: entity.id }
         : undefined,
+      source: entity.source ?? null,
     });
   }
 
@@ -267,7 +279,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       key: `when:${entity.id}`, section: 'timingPlace', value: entity.type === 'DATE_RANGE' ? rangeLabel : entity.type === 'DATE' ? dateLabel : entity.name,
       details: entity.type === 'RECURRENCE' ? ['Repeats'] : timeDetail, state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
-      spec: entity.state === 'CANDIDATE' ? editable : null,
+      spec: entity.state === 'CANDIDATE' ? editable : null, source: entity.source ?? null,
     });
   }
   let hasMoneyItem = false;
@@ -282,7 +294,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
         key: `when:${relation.id}`, section: 'timingPlace', value: fromIso(text) ? longDate(text) : text, details: q.startDate && !q.date ? ['Starts'] : [], state: relation.state, adopt,
         // A legacy CONDITION-relationship-based date (from an external-fact/quotation source) has no
         // matching structured-input target -- unlike a real DATE entity above, it stays read-only.
-        spec: null,
+        spec: null, source: relation.source ?? null,
       });
     } else if (relation.kind === 'PAYMENT_CONDITION' && q.amount) {
       usedRelationshipIds.add(relation.id);
@@ -301,6 +313,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
         spec: plain && parsed.ok && relation.state === 'CANDIDATE'
           ? { kind: 'money', origin: 'understood', amount: parsed.value, currency: currency || undefined, targetRelationshipId: relation.id }
           : null,
+        source: relation.source ?? null,
       });
     }
   }
@@ -308,7 +321,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     if (entity.type !== 'MONEY') continue;
     shownEntityIds.add(entity.id);
     hasMoneyItem = true;
-    items.push({ key: `money:${entity.id}`, section: 'money', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null });
+    items.push({ key: `money:${entity.id}`, section: 'money', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null, source: entity.source ?? null });
   }
 
   // --- COMPLETION / CONDITIONS (non-date CONDITION, DELIVERY -- KS001 Upgrade Phase 2 final acceptance
@@ -324,6 +337,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       key: `completion:${relation.id}`, section: 'completion', value: text,
       details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,
+      source: relation.source ?? null,
     });
   }
 
@@ -341,6 +355,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       key: `authority:${relation.id}`, section: 'authority', value: text,
       details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,
+      source: relation.source ?? null,
     });
   }
 
@@ -354,11 +369,12 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     items.push({
       key: `other:${relation.id}`, section: 'other', value: text, details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,
+      source: relation.source ?? null,
     });
   }
   for (const entity of entities) {
     if (shownEntityIds.has(entity.id) || entity.type === 'CONCEPT' && referenced.has(entity.id)) continue;
-    items.push({ key: `other:${entity.id}`, section: 'other', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null });
+    items.push({ key: `other:${entity.id}`, section: 'other', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null, source: entity.source ?? null });
   }
 
   items.sort((a, b) => SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section));

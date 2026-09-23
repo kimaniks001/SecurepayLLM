@@ -8,8 +8,13 @@ export interface AgentResponseDto {
   contextualPanel: { title: string; components: ComponentDto[] } | null;
   suggestedActions: { id: string; label: string; payload: Record<string, string> }[];
 }
-export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string> }
-export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number }
+// KS001 Upgrade Phase 3 completion correction (item 1) -- the ONE bounded, safe provenance projection for
+// a source-derived fact. Mirrors AgentApiModels.SourceReferenceView exactly. `displayName` is always
+// server-derived from the real AgentSourceArtifact -- never fabricated client-side. Absent/null for an
+// ordinary conversational fact.
+export interface SourceReferenceDto { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean }
+export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string>; source?: SourceReferenceDto | null }
+export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number; source?: SourceReferenceDto | null }
 // KS001 Upgrade Phase 1 final integration fix -- bounded, first-party-only conversation INTERACTION/
 // ORCHESTRATION state, deliberately never a Trade Context entity attribute (mirrors
 // AgentApiModels.InteractionStateView exactly). Absent on a legacy response (before this field existed);
@@ -59,7 +64,7 @@ export interface ReviewedSourceDto {
 // KS001 Upgrade Phase 2 (Section 10), broadened by the final convergence correction (item 5) -- `state` is
 // always exactly "CONFIRMED" or "CANDIDATE", never a raw internal code. Mirrors
 // AgentAgreementHandoffApiModels.ReviewFactSummary exactly.
-export interface ReviewFactDto { description: string; state: string }
+export interface ReviewFactDto { description: string; state: string; source?: SourceReferenceDto | null }
 export interface AgreementReviewResponseDto {
   agreementCandidateSummary: CandidateDto;
   who: ReviewFactDto[]; responsibilities: ReviewFactDto[]; money: ReviewFactDto[]; when: ReviewFactDto[];
