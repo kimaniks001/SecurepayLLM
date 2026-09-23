@@ -330,6 +330,26 @@ test('the handoff review card surfaces the backend source status with Selected e
   assert.match(src, /SourceReference/); assert.match(src, /current/);
 });
 
+// KS001 Upgrade Phase 2 final acceptance correction (item 5) -- "Review this"/"Save for later" must
+// actually consult the server-owned sufficiency.canReview/canSave, never only local busy/pending/
+// saved-build request state. Asserted directly against the production source, not a comment claiming it.
+test('Review this consults the server-owned sufficiency.canReview, never only local request state', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const onClickIdx = agent.indexOf('handoffController.start(state.conversationId)');
+  assert.ok(onClickIdx > 0, 'expected the Review this onClick to exist');
+  const buttonStart = agent.lastIndexOf('<button', onClickIdx);
+  const button = agent.slice(buttonStart, onClickIdx);
+  assert.match(button, /sufficiency\.canReview/, 'Review this must consult the server-owned sufficiency.canReview');
+});
+test('Save for later consults the server-owned sufficiency.canSave, never only local busy/pending/saved-build request state', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const onClickIdx = agent.indexOf('savedBuildController.save(state.conversationId)');
+  assert.ok(onClickIdx > 0, 'expected the Save for later onClick to exist');
+  const buttonStart = agent.lastIndexOf('<button', onClickIdx);
+  const button = agent.slice(buttonStart, onClickIdx);
+  assert.match(button, /sufficiency\.canSave/, 'Save for later must consult the server-owned sufficiency.canSave');
+});
+
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS
 const ctx = (entities, relationships = [], discoveryInvitedEntityIds = []) =>
   api.tradeContextView({ conversationId: 'c', version: 1, entities, relationships, interactionState: { discoveryInvitedEntityIds } });
