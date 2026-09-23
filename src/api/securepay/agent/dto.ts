@@ -200,6 +200,21 @@ export interface AgentAgreementsHomeViewDto {
 export interface ConversationHistoryEntryDto { id: string; sender: string; text: string; occurredAt: string }
 export interface ConversationHistoryResponseDto { entries: ConversationHistoryEntryDto[] }
 
+// KS001 Upgrade Phase 3 (Bring what you already have) -- a source (pasted plan/document/photo) the person
+// brought into one Agent conversation. Mirrors AgentSourceApiModels.AgentSourceArtifactResponse exactly.
+// Never a provider's raw JSON, confidence decimals, internal entity ids, or model/provider name --
+// `uncertainties` carries short, human-readable descriptions only.
+export type AgentSourceKind = 'PASTED_TEXT' | 'DOCUMENT' | 'PHOTO';
+export type AgentSourceExtractionStatus = 'RECEIVED' | 'PROCESSING' | 'READY' | 'PARTIAL' | 'FAILED' | 'REMOVED';
+export interface AgentSourceArtifactDto {
+  sourceArtifactId: string; conversationId: string; sourceKind: string; originalName: string; label: string;
+  mediaType: string; byteSize: number | null; documentType: string; extractionStatus: string;
+  extractionGeneration: number; summary: string; uncertainties: string[]; failureReason: string;
+  createdAt: string; updatedAt: string;
+}
+export interface AgentSourceArtifactListDto { sources: AgentSourceArtifactDto[] }
+export interface CreatePastedTextSourceRequest { text: string; label?: string }
+
 // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Mirrors AgentSavedBuildApiModels.
 // SavedBuildResponse exactly. `savedAt` never changes after the first save; `buildUpdatedAt` is the
 // conversation's own real last-activity timestamp -- never confuse the two (see that backend record's

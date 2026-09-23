@@ -30,7 +30,12 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
       const token = options.auth === 'none' ? null : getAccessToken();
       if (options.auth === 'required' && !token) throw new ApiError('http', 'Authentication required', 401, 'AUTHENTICATION_REQUIRED');
       if (token) headers.set('Authorization', `Bearer ${token}`);
-      if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+      // KS001 Upgrade Phase 3 (Bring what you already have) -- a FormData body (a real file upload) is
+      // sent AS-IS, never JSON.stringify'd, and its Content-Type (a multipart boundary the browser itself
+      // generates) is never set here -- setting it manually would omit that boundary and corrupt the
+      // request. An ordinary object body keeps the existing JSON contract exactly as before.
+      const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+      if (options.body !== undefined && !isFormData) headers.set('Content-Type', 'application/json');
       if (options.headers) for (const [key, value] of Object.entries(options.headers)) headers.set(key, value);
       const controller = new AbortController();
       let timedOut = false;
@@ -42,7 +47,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
       try {
         const response = await fetcher(`${validatedBaseUrl}${path}`, {
           method: options.method ?? 'GET', headers,
-          body: options.body === undefined ? undefined : JSON.stringify(options.body),
+          body: options.body === undefined ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body),
           signal: controller.signal, credentials: 'omit', cache: 'no-store', redirect: 'error',
         });
         status = response.status;
