@@ -54,7 +54,17 @@ function sourceView(reviewedSource: ReviewedSourceDto | null): CanonicalAgreemen
  * STATE-AWARE review facts (`review.who`/`review.when`) rather than the flattened, state-agnostic
  * `candidate.who`/`candidate.when` -- a suggested person/date is visibly "suggested," never shown as if
  * already agreed (Section 9/22).
+ *
+ * KS001 Upgrade Phase 2 final acceptance correction (item 3) -- ALSO renders `review.responsibilities`/
+ * `review.money`/`review.conditions`/`review.authority` (previously parsed but silently ignored here), so
+ * the broadened backend review truth actually reaches the person. These are presentation-only,
+ * OMITTED (undefined, not an empty array) when the review carried no such facts -- see
+ * `CanonicalAgreementResponse`'s own doctrine for why they stay structurally separate from the
+ * authoritative `price`/`completion` fields Set Up Agreement actually reads.
  */
+function reviewSection(facts: HandoffReviewView['responsibilities']): { description: string; confirmed: boolean }[] | undefined {
+  return facts.length > 0 ? facts : undefined;
+}
 export function canonicalAgreementView(review: HandoffReviewView, handoff: HandoffView): CanonicalAgreementResponse {
   const candidate = review.candidate;
   const readyToProgress = handoff.status === 'READY_TO_PROGRESS';
@@ -83,6 +93,10 @@ export function canonicalAgreementView(review: HandoffReviewView, handoff: Hando
     price: formatHandoffMoney(candidate.currency, candidate.amountMinor),
     source: sourceView(review.reviewedSource),
     completion,
+    responsibilities: reviewSection(review.responsibilities),
+    money: reviewSection(review.money),
+    conditions: reviewSection(review.conditions),
+    authority: reviewSection(review.authority),
     worthSettling,
     mustSettle,
     // Truthful: the backend creates a DRAFT Agreement here -- not a proposal, acceptance or payment.

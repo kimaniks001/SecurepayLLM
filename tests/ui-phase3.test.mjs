@@ -72,6 +72,52 @@ test('the review card carries the backend sourceType through; an absent type is 
   assert.doesNotMatch(text(markup(api.CanonicalAgreementCard, { data: other, onChoice() {} })), /SecurePay Store/);
 });
 
+// KS001 Upgrade Phase 2 final acceptance correction (item 3) -- the broader review truth
+// (responsibilities/money/conditions/authority) must actually reach the rendered card, with quiet
+// Confirmed/Suggested labels, never implying Suggested means agreed.
+test('a confirmed RESPONSIBILITY renders "Confirmed"; a candidate one renders "Suggested"', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, who: [], reviewedSource: null, when: [], conditions: [], authority: [], money: [],
+    responsibilities: [
+      { description: 'Peter: handle the tiling', confirmed: true },
+      { description: 'Mary: supply the tiles', confirmed: false },
+    ],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  assert.deepEqual(card.responsibilities, review.responsibilities);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /Peter: handle the tiling.*\(Confirmed\)/);
+  assert.match(out, /Mary: supply the tiles.*\(Suggested\)/);
+});
+test('a candidate MONEY fact renders "Suggested"; a confirmed CONDITION and AUTHORITY_RULE render "Confirmed"', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, who: [], reviewedSource: null, when: [], responsibilities: [],
+    money: [{ description: 'amount=42000, currency=KES', confirmed: false }],
+    conditions: [{ description: 'requires=inspection', confirmed: true }],
+    authority: [{ description: 'approves=supplier payment', confirmed: true }],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /amount=42000, currency=KES.*\(Suggested\)/);
+  assert.match(out, /requires=inspection.*\(Confirmed\)/);
+  assert.match(out, /approves=supplier payment.*\(Confirmed\)/);
+});
+test('an empty review section is never rendered just to look complete', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
+  const card = api.canonicalAgreementView(review, handoff);
+  assert.equal(card.responsibilities, undefined);
+  assert.equal(card.money, undefined);
+  assert.equal(card.conditions, undefined);
+  assert.equal(card.authority, undefined);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.doesNotMatch(out, /Responsibilities/);
+  assert.doesNotMatch(out, /Conditions/);
+  assert.doesNotMatch(out, /Authority/);
+});
+
 // ---------------------------------------------------------------- handoff idempotency
 test('a retry after an uncertain create reuses the SAME clientActionId; a later explicit action gets a fresh one', async () => {
   let fail = true;

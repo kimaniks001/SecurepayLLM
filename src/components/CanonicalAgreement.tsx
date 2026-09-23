@@ -17,6 +17,32 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+/**
+ * KS001 Upgrade Phase 2 final acceptance correction (item 3) -- a state-aware review fact: a suggested
+ * (CANDIDATE) fact is visibly "Suggested," never presented as if already agreed; a "Confirmed" quiet label
+ * is shown only for a CONFIRMED fact -- never implying Suggested means agreed.
+ */
+function ReviewFactSection({ label, facts }: { label: string; facts: { description: string; confirmed: boolean }[] | undefined }) {
+  if (!facts || facts.length === 0) return null;
+  return (
+    <Section label={label}>
+      <ul className="space-y-1">
+        {facts.map((fact, i) => (
+          <li key={i} className="flex items-start gap-2 text-[0.875rem] text-forest-800">
+            <span className="w-1 h-1 rounded-full bg-forest-500 mt-2 shrink-0" />
+            <span>
+              {fact.description}
+              <span className={`ml-1.5 text-[0.7rem] font-medium ${fact.confirmed ? 'text-forest-600' : 'text-sand-500'}`}>
+                {fact.confirmed ? '(Confirmed)' : '(Suggested)'}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 /** Plain words for the backend's display statuses; an unknown status is shown as it is, never guessed. */
 const STATUS_LABEL: Record<string, string> = {
   READY_TO_PROGRESS: 'Reviewed, ready for a draft', READY_FOR_REVIEW: 'Ready to review', NEEDS_RESOLUTION: 'Needs settling',
@@ -53,6 +79,8 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
             </div>
           </Section>
 
+          <ReviewFactSection label="Responsibilities" facts={data.responsibilities} />
+
           <Section label="Work">
             <ul className="space-y-1">
               {data.work.map((item, i) => (
@@ -67,6 +95,8 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
           <Section label="Price">
             <span className="text-[0.875rem] font-medium text-forest-800">{data.price}</span>
           </Section>
+
+          <ReviewFactSection label="Money" facts={data.money} />
 
           {/* Final Phase 4 Economy Turn 3 (Section 6) -- provenance/commercial context only. This
               is NOT: an accepted offer, Agreement authority, participant authority, or payment
@@ -87,6 +117,10 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
           <Section label="Completion">
             <span className="text-[0.875rem] text-forest-800">{data.completion}</span>
           </Section>
+
+          <ReviewFactSection label="Conditions" facts={data.conditions} />
+
+          <ReviewFactSection label="Authority" facts={data.authority} />
 
           {data.defects && (
             <Section label="Defects">
