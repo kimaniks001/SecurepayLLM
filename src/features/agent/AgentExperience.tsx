@@ -561,10 +561,29 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
         // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions
         // straight into the SAME conversation experience the free-text composer would, then immediately
         // opens the relevant source-ingestion path -- never a sign-in wall in front of BUILD.
-        onBringPlan={() => { setHome(false); setBringPlanOpen(true); }}
+        //
+        // KS001 Upgrade Phase 3 completion correction (item 6) -- "Bring your plan" previously called
+        // setHome(false) here, but showHome (below) stays true regardless while there is still no
+        // conversation/turns, so BringPlanPanel (rendered only in the conversation branch) never actually
+        // appeared -- a real dead control. The fix: open BringPlanPanel directly ON Home (rendered right
+        // below, gated on bringPlanOpen alone); submitting it calls sourceController.addPastedText, whose
+        // own ensureConversationId creates the ONE real conversation and updates state.conversationId,
+        // which is what naturally flips showHome to false and lands the person in BUILD -- exactly the
+        // same real transition Document/Photo already produce, never a fabricated chat turn.
+        onBringPlan={() => setBringPlanOpen(true)}
         onPickDocument={file => { setHome(false); void sourceController.addUpload('DOCUMENT', file); }}
         onPickPhoto={file => { setHome(false); void sourceController.addUpload('PHOTO', file); }}
       />
+      {bringPlanOpen && <div className="px-4 md:px-6 pb-6">
+        <BringPlanPanel
+          busy={sourcesState.phase === 'submitting'}
+          error={sourcesState.phase === 'error' ? sourcesState.error : null}
+          onClose={() => setBringPlanOpen(false)}
+          onSubmit={(text, label) => {
+            void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+          }}
+        />
+      </div>}
       {sessionState.status !== 'signed-in' && (
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
       )}

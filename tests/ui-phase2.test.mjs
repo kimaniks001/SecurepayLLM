@@ -350,6 +350,28 @@ test('Save for later consults the server-owned sufficiency.canSave, never only l
   assert.match(button, /sufficiency\.canSave/, 'Save for later must consult the server-owned sufficiency.canSave');
 });
 
+// ---------------------------------------------------------------- KS001 Upgrade Phase 3 completion correction (item 6)
+// "Bring your plan" from signed-out Home previously called setHome(false) then setBringPlanOpen(true), but
+// showHome stays true regardless (no turns, no conversationId yet) and BringPlanPanel was rendered ONLY in
+// the conversation branch -- a real dead control. Asserted directly against production source (the same
+// convention the two tests above use), since AgentExperience's own useState wiring isn't otherwise unit-
+// tested in this repo; the underlying "one conversation, real source ingestion" behaviour this depends on
+// is separately proven in tests/sources.test.mjs's own addPastedText coverage.
+test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- never gated behind a conversation that does not exist yet', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  const onBringPlanIdx = agent.indexOf('onBringPlan={() => setBringPlanOpen(true)}');
+  assert.ok(onBringPlanIdx > 0, 'expected onBringPlan to open the panel directly, never behind setHome(false) alone');
+  // The Home branch (the JSX returned before the `showHome ? ... : <conversation>` else) must itself
+  // render BringPlanPanel gated on bringPlanOpen -- not only the conversation branch below it.
+  const showHomeElseIdx = agent.indexOf('</div> : <>');
+  assert.ok(showHomeElseIdx > onBringPlanIdx, 'expected the Home branch to end after onBringPlan');
+  const homeBranch = agent.slice(onBringPlanIdx, showHomeElseIdx);
+  assert.match(homeBranch, /\{bringPlanOpen && <div[\s\S]*<BringPlanPanel/, 'expected BringPlanPanel to render on Home itself, gated on bringPlanOpen');
+  // Submitting it must go through sourceController.addPastedText -- the SAME real ingestion path that
+  // creates the ONE real conversation (via ensureConversationId), never a fabricated human chat turn.
+  assert.match(homeBranch, /sourceController\.addPastedText/);
+});
+
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS
 const ctx = (entities, relationships = [], discoveryInvitedEntityIds = []) =>
   api.tradeContextView({ conversationId: 'c', version: 1, entities, relationships, interactionState: { discoveryInvitedEntityIds } });
