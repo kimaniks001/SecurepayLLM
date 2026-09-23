@@ -70,6 +70,9 @@ const RESERVED_DETAIL_KEYS = new Set([
   'verifiedidentity', 'participanteligible', 'eligible', 'consented', 'accepted', 'authenticated', 'authority',
   'purposesubject', 'purposetype', 'status', 'domain', 'latitude', 'longitude', 'coordinatesource',
   'date', 'time', 'startdate', 'enddate',
+  // KS001 Upgrade Phase 1, Section 14 -- the backend's own discovery-eligibility marker (see
+  // DiscoveryEligibility). Server-owned semantic mechanics, never an ordinary user-facing descriptive detail.
+  'discoveryinvited',
 ]);
 const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
 
@@ -173,7 +176,14 @@ export function projectWorkbench(context: ContextView | null): Workbench {
       spec: entity.state === 'CANDIDATE' && detailFields.length > 0
         ? { kind: 'detail', origin: 'understood', targetEntityId: entity.id, entityName: entity.name, fields: detailFields }
         : null,
-      find: entity.type === 'ITEM' || entity.type === 'SERVICE' ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name } : undefined,
+      // KS001 Upgrade Phase 1, Section 14 -- "See on SecurePay" is no longer shown merely because a WHAT
+      // row exists. It appears only once the backend's own real discoveryInvited=true marker is present on
+      // this entity (see the API's DiscoveryEligibility doctrine) -- i.e. only after the person has
+      // explicitly confirmed they want help finding this. Discovery remains a supporting capability, never
+      // the default next step for an ordinary row.
+      find: (entity.type === 'ITEM' || entity.type === 'SERVICE') && entity.attributes.discoveryInvited === 'true'
+        ? { kind: entity.type === 'ITEM' ? 'PRODUCT' : 'SERVICE', what: entity.name }
+        : undefined,
     });
   }
 
