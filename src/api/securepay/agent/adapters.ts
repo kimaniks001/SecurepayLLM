@@ -2,7 +2,7 @@ import { discoveryView, type DiscoveryView } from './discovery';
 import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, ComponentDto, HandoffDto, HandoffStatus, ReviewedSourceDto, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, HandoffDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -156,9 +156,52 @@ export function tradeContextView(dto: TradeContextDto) {
     candidates: facts.filter(fact => fact.state === 'CANDIDATE'),
     confirmed: facts.filter(fact => fact.state === 'CONFIRMED'),
     interactionState: { discoveryInvitedEntityIds },
+    // KS001 Upgrade Phase 2 (Section 5/8/23) -- the server-owned sufficiency projection driving
+    // Review/Save/Set gating and the "Still to decide" workbench section.
+    sufficiency: agreementSufficiencyView(dto.sufficiency),
   };
 }
 const handoffStatuses: readonly string[] = ['IDENTITY_REQUIRED', 'NEEDS_RESOLUTION', 'REVIEW_STALE', 'READY_FOR_REVIEW', 'READY_TO_PROGRESS', 'PROGRESSED', 'EXPIRED'];
+const sufficiencyStates: readonly string[] = ['BUILDING', 'REVIEWABLE_WITH_OPEN_ITEMS', 'UNDERSTOOD'];
+
+/**
+ * KS001 Upgrade Phase 2 (Section 5/8/23) -- the ONE place this projection is parsed. A missing/malformed
+ * `sufficiency` (a legacy conversation persisted before this field existed) degrades to the same safe
+ * default the model's own "no endless questioning" doctrine assumes worst-case: BUILDING, review not yet
+ * offered, save always allowed, set never allowed until the server actually says so. This is presentation
+ * defensiveness only -- it never overrides a real, present server value.
+ */
+function agreementSufficiencyView(dto: AgreementSufficiencyDto | undefined) {
+  const openMatter = (matter: OpenMatterDto) => ({ code: matter.code, description: matter.description });
+  if (!dto || typeof dto.canReview !== 'boolean' || typeof dto.canSave !== 'boolean' || typeof dto.canSet !== 'boolean') {
+    return { state: 'BUILDING' as AgreementSufficiencyState, canReview: false, canSave: true, canSet: false, mustResolve: [], stillToDecide: [], guidanceNotes: [] };
+  }
+  return {
+    state: (sufficiencyStates.includes(dto.state) ? dto.state : 'BUILDING') as AgreementSufficiencyState,
+    canReview: dto.canReview, canSave: dto.canSave, canSet: dto.canSet,
+    mustResolve: Array.isArray(dto.mustResolve) ? dto.mustResolve.map(openMatter) : [],
+    stillToDecide: Array.isArray(dto.stillToDecide) ? dto.stillToDecide.map(openMatter) : [],
+    guidanceNotes: Array.isArray(dto.guidanceNotes) ? dto.guidanceNotes.filter((note): note is string => typeof note === 'string') : [],
+  };
+}
+export type AgreementSufficiencyView = ReturnType<typeof agreementSufficiencyView>;
+
+function reviewFactsView(facts: unknown): { description: string; confirmed: boolean }[] {
+  if (!Array.isArray(facts)) return [];
+  return (facts as ReviewFactDto[])
+    .filter((fact): fact is ReviewFactDto => !!fact && typeof fact.description === 'string' && typeof fact.state === 'string')
+    .map(fact => ({ description: fact.description, confirmed: fact.state === 'CONFIRMED' }));
+}
+
+/** KS001 Upgrade Phase 2 (Sections 14-17) -- the saved-build list/resume view. */
+export function savedBuildView(dto: SavedBuildDto) {
+  return {
+    savedBuildId: dto.savedBuildId, conversationId: dto.conversationId, title: dto.title,
+    sufficiencyState: (sufficiencyStates.includes(dto.sufficiencyState) ? dto.sufficiencyState : 'BUILDING') as AgreementSufficiencyState,
+    openMatterCount: dto.openMatterCount, savedAt: dto.savedAt, buildUpdatedAt: dto.buildUpdatedAt,
+  };
+}
+export type SavedBuildView = ReturnType<typeof savedBuildView>;
 
 /**
  * Final Phase 4 Economy Turn 3 (Section 6/7) -- the reviewed commercial source is presentation/
@@ -171,7 +214,13 @@ export function reviewedSourceView(dto: ReviewedSourceDto | null) {
 export type ReviewedSourceView = ReturnType<typeof reviewedSourceView>;
 
 export function agreementReviewView(dto: AgreementReviewResponseDto) {
-  return { candidate: dto.agreementCandidateSummary, reviewedSource: reviewedSourceView(dto.reviewedSource) };
+  return {
+    candidate: dto.agreementCandidateSummary,
+    // KS001 Upgrade Phase 2 (Section 10) -- confirmed-vs-candidate truth, structurally separate from the
+    // authoritative `candidate` fields (title/amount/currency) that Set Up Agreement actually reads.
+    who: reviewFactsView(dto.who), when: reviewFactsView(dto.when),
+    reviewedSource: reviewedSourceView(dto.reviewedSource),
+  };
 }
 
 export function handoffView(dto: HandoffDto) {

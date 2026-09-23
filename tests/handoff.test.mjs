@@ -24,8 +24,10 @@ const handoffDto = (status, overrides = {}) => ({
 const candidateDto = { title: 'Tile the bathroom', purpose: null, description: null, agreementType: null, currency: 'KES', amountMinor: 500000, what: ['Tiling'], who: ['Peter'], when: ['Next week'] };
 // Final Phase 4 Economy Turn 3 (Section 6) -- the /review endpoint now returns the candidate
 // alongside the reviewed commercial source (null for these ordinary DIRECT-handoff fixtures).
-const reviewResponseDto = { agreementCandidateSummary: candidateDto, reviewedSource: null };
-const reviewView = { candidate: candidateDto, reviewedSource: null };
+// KS001 Upgrade Phase 2 (Section 10) -- also carries who/when review facts (empty for these fixtures,
+// which never set up review-fact-bearing Trade Context entities).
+const reviewResponseDto = { agreementCandidateSummary: candidateDto, who: [], when: [], reviewedSource: null };
+const reviewView = { candidate: candidateDto, who: [], when: [], reviewedSource: null };
 
 function setup(overrides = {}) {
   const calls = [];

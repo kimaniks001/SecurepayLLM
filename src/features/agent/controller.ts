@@ -194,6 +194,20 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     ensureConversationId,
+    /**
+     * KS001 Upgrade Phase 2 (Sections 16/17) -- "Continue building": switches this SAME controller onto
+     * an already-existing conversationId (a saved build's own), never creating a clone or a second
+     * conversation. The visible turn transcript is session-local UI state (see `Turn`'s own shape) and is
+     * NOT persisted/re-fetched by any backend endpoint, so it starts empty on resume; the canonical
+     * understanding itself (Trade Context) is never lost -- `readContext` immediately re-reads it in full,
+     * exactly what "no loss of history" means at the Trade Context level (see AgentSavedBuild's own
+     * javadoc: the pointer never copies/mutates Trade Context, so resuming re-opens the real thing).
+     */
+    async resumeConversation(conversationId: string) {
+      if (state.busy || state.pending) return;
+      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      await readContext();
+    },
     async send(text: string) {
       if (state.busy || state.pending || !text.trim()) return;
       const clientTurnId = id();

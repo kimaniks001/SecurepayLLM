@@ -15,7 +15,20 @@ export interface RelationshipDto { id: string; kind: string; subjectEntityId: st
 // AgentApiModels.InteractionStateView exactly). Absent on a legacy response (before this field existed);
 // the adapter treats that the same as an empty list, never an error.
 export interface InteractionStateDto { discoveryInvitedEntityIds: string[] }
-export interface TradeContextDto { conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[]; interactionState?: InteractionStateDto }
+// KS001 Upgrade Phase 2 (Section 5/8/23) -- the server-owned Agreement Sufficiency projection. Mirrors
+// AgentApiModels.AgreementSufficiencyView/OpenMatterView exactly. `state` is informational only --
+// canReview/canSave/canSet are the real capabilities and must always be read directly (never inferred
+// from `state`). `mustResolve`/`stillToDecide` carry human-readable descriptions, never raw codes.
+export interface OpenMatterDto { code: string; description: string }
+export type AgreementSufficiencyState = 'BUILDING' | 'REVIEWABLE_WITH_OPEN_ITEMS' | 'UNDERSTOOD';
+export interface AgreementSufficiencyDto {
+  state: string; canReview: boolean; canSave: boolean; canSet: boolean;
+  mustResolve: OpenMatterDto[]; stillToDecide: OpenMatterDto[]; guidanceNotes: string[];
+}
+export interface TradeContextDto {
+  conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[];
+  interactionState?: InteractionStateDto; sufficiency?: AgreementSufficiencyDto;
+}
 export interface TurnRequest { message: string; clientTurnId?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
 export type SourceKind = 'QUOTATION' | 'DOCUMENT_EXTRACTION' | 'PHOTO_OBSERVATION' | 'PROVIDER_PROFILE' | 'STORE_LISTING' | 'LOCATION_RESULT' | 'PREVIOUS_AGREEMENT' | 'COMMUNITY_KNOWLEDGE' | 'PARTNER_INFORMATION' | 'MASTER_OPINION';
@@ -43,7 +56,14 @@ export interface ReviewedSourceDto {
   capturedQuantityAvailable: number | null; capturedDescription: string | null; contextReference: string | null;
   boundAt: string; sourceStatus: string; current: CurrentSourceFactsDto | null;
 }
-export interface AgreementReviewResponseDto { agreementCandidateSummary: CandidateDto; reviewedSource: ReviewedSourceDto | null }
+// KS001 Upgrade Phase 2 (Section 10) -- `state` is always exactly "CONFIRMED" or "CANDIDATE", never a raw
+// internal code. Mirrors AgentAgreementHandoffApiModels.ReviewFactSummary exactly.
+export interface ReviewFactDto { description: string; state: string }
+export interface AgreementReviewResponseDto {
+  agreementCandidateSummary: CandidateDto;
+  who: ReviewFactDto[]; when: ReviewFactDto[];
+  reviewedSource: ReviewedSourceDto | null;
+}
 export type HandoffStatus = 'IDENTITY_REQUIRED' | 'NEEDS_RESOLUTION' | 'REVIEW_STALE' | 'READY_FOR_REVIEW' | 'READY_TO_PROGRESS' | 'PROGRESSED' | 'EXPIRED';
 export interface HandoffDto {
   handoffId: string; conversationId: string; status: string; agreementCandidateSummary: CandidateDto;
@@ -161,4 +181,13 @@ export interface AgentAgreementsHomeViewDto {
   upcoming: AgentHomeUpcomingEventFactDto[];
   recentActivity: AgentHomeActivityFactDto[];
   moneyByCurrency: AgentHomeMoneyByCurrencyFactDto[];
+}
+
+// KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Mirrors AgentSavedBuildApiModels.
+// SavedBuildResponse exactly. `savedAt` never changes after the first save; `buildUpdatedAt` is the
+// conversation's own real last-activity timestamp -- never confuse the two (see that backend record's
+// own javadoc for exactly why "Continue Building" must sort/show by buildUpdatedAt, not savedAt).
+export interface SavedBuildDto {
+  savedBuildId: string; conversationId: string; title: string | null;
+  sufficiencyState: string; openMatterCount: number; savedAt: string; buildUpdatedAt: string;
 }

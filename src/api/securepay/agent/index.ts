@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -59,6 +59,15 @@ export function createAgentGateway(http: HttpClient) {
     // it also binds the resolved identity as a CANDIDATE participant.
     selectKsIdentity: (id: string, body: KsIdentitySelectionRequest) =>
       http.request<KsIdentitySelectionResult>(`${conversation(id)}/identity-selections`, { method: 'POST', body, auth: 'none' }),
+    // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Requires authentication; the backend
+    // enforces every ownership boundary (AgentSavedBuildService), this is a thin transport only. Not part
+    // of the public OpenAPI contract, matching createHandoff/readHandoff's own First-Party precedent.
+    saveBuild: (conversationId: string) =>
+      http.request<SavedBuildDto>(`${conversation(conversationId)}/saved-build`, { method: 'POST', auth: 'required' }),
+    listSavedBuilds: (limit = 50, offset = 0) =>
+      http.request<SavedBuildDto[]>(`/api/agent/saved-builds?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    resumeSavedBuild: (savedBuildId: string) =>
+      http.request<SavedBuildDto>(`/api/agent/saved-builds/${segment(savedBuildId)}/resume`, { method: 'POST', auth: 'required' }),
   };
 }
 export type AgentGateway = ReturnType<typeof createAgentGateway>;

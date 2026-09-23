@@ -39,6 +39,8 @@ import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
+import { createSavedBuildController } from '../savedbuild/controller';
+import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
@@ -121,6 +123,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   const [controller, setController] = useState(() => createAgentController(gateway));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
+  // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later" / "Continue Building". Reuses the SAME
+  // identityController the handoff flow uses (one sign-in surface, not two), reset alongside it below.
+  const [savedBuildController, setSavedBuildController] = useState(() => createSavedBuildController(gateway));
+  const savedBuildState = useSyncExternalStore(savedBuildController.subscribe, savedBuildController.getSnapshot);
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -205,6 +211,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setController(createAgentController(gateway));
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
+    setSavedBuildController(createSavedBuildController(gateway));
     setNotice(null);
   };
 
@@ -526,6 +533,9 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
       {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}
+      {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
+          Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
+      {sessionState.status === 'signed-in' && <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>}
       <SignedOutHome disabled={state.busy || !!state.pending} onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }} />
       {sessionState.status !== 'signed-in' && (
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
@@ -594,14 +604,27 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
               <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
                 <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'}
+                  disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'
+                    || (state.context.data?.sufficiency && !state.context.data.sufficiency.canReview)}
                   onClick={() => { if (state.conversationId) void handoffController.start(state.conversationId); }}
                   className="min-h-11 underline disabled:opacity-40"
                 >
                   Review this
                 </button>
+                {/* KS001 Upgrade Phase 2 (Sections 14/15/20) -- a PRIVATE pre-agreement save, never
+                    "Set up Agreement" done twice: this only binds ownership to the SAME conversation, it
+                    never creates a draft Agreement. canSave is always true once a real conversation exists. */}
+                <button
+                  disabled={!state.conversationId || state.busy || !!state.pending || savedBuildState.phase === 'saving'}
+                  onClick={() => { if (state.conversationId) void savedBuildController.save(state.conversationId); }}
+                  className="min-h-11 underline disabled:opacity-40"
+                >
+                  {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
+                </button>
                 <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
+              {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
+              <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
             </div>}>
             {[
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">

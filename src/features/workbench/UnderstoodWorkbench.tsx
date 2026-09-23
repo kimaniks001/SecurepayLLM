@@ -56,6 +56,21 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
       </ul>
     </div>)}
 
+    {/* KS001 Upgrade Phase 2 (Sections 8/11/22/23/27) -- the server-owned sufficiency projection, in
+        calm human language, never raw MATERIAL_MATTER codes (see AgreementSufficiencyView's own
+        doctrine). Blocking matters get the more direct "needs your decision" phrasing; decide-later
+        matters (e.g. no provider chosen yet) never imply the build cannot be saved or set up. */}
+    {context.data?.sufficiency && (context.data.sufficiency.mustResolve.length > 0 || context.data.sufficiency.stillToDecide.length > 0) && <div className="space-y-3">
+      {context.data.sufficiency.mustResolve.length > 0 && <div>
+        <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-600">Needs your decision before this can be set up</h3>
+        <ul className="space-y-1 px-1 text-[0.85rem] text-sand-700">{context.data.sufficiency.mustResolve.map((matter, i) => <li key={i}>{matter.description}</li>)}</ul>
+      </div>}
+      {context.data.sufficiency.stillToDecide.length > 0 && <div>
+        <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Still to decide</h3>
+        <ul className="space-y-1 px-1 text-[0.85rem] text-sand-700">{context.data.sufficiency.stillToDecide.map((matter, i) => <li key={i}>{matter.description}</li>)}</ul>
+      </div>}
+    </div>}
+
     {/* Contextual possibilities, never implied missing fields: nothing here says a person, date, place or
         amount is REQUIRED -- one quiet control reveals what could be added, and only what really can be. */}
     {workbench.adds.length > 0 && <div>
@@ -63,8 +78,12 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-1 text-[0.85rem] text-forest-700 hover:text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
         <Plus className={`h-3.5 w-3.5 transition-transform ${addOpen ? 'rotate-45' : ''}`} aria-hidden="true" /><span>Add a detail</span>
       </button>
+      {/* KS001 Upgrade Phase 2 (Sections 25/49) -- the unconditional generic "Find on SecurePay" entry
+          that used to live here bypassed the target-scoped DISCOVERY_OFFER -> REQUEST_DISCOVERY path
+          (Phase 1's own doctrine: discovery is only ever offered for a real, server-verified entity the
+          person has explicitly accepted -- see Row's `find`/`offer` handling below). Removed; the ONLY
+          discovery affordance is now the per-row "Look on SecurePay"/"See on SecurePay" action. */}
       {addOpen && <div id="workbench-adds" className="mt-1 flex flex-wrap gap-2 animate-fade-in-up">
-        <button type="button" onClick={() => { onFind('SERVICE'); setAddOpen(false); }} className="inline-flex min-h-11 items-center rounded-full border border-forest-200 bg-forest-50/70 px-3.5 text-[0.85rem] font-medium text-forest-800 hover:border-forest-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Find on SecurePay</button>
         {workbench.adds.map(add => <button key={add.key} type="button" onClick={() => { onOpen(add.spec); setAddOpen(false); }} aria-expanded={activeKey === specKey(add.spec)}
           className="inline-flex min-h-11 items-center rounded-full border border-cream-300 bg-white/70 px-3.5 text-[0.85rem] text-forest-700 hover:border-forest-300 hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">{add.label}</button>)}
       </div>}
