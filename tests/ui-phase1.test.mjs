@@ -733,6 +733,40 @@ test('agent controller: submitStructuredInput surfaces a stale-version outcome d
   assert.equal(result.ok, false); assert.equal(result.stale, true);
   assert.match(result.error, /understands has changed/);
 });
+// KS001 Upgrade Phase 1 review correction (item 2) -- REQUEST_DISCOVERY is now callable from
+// SecurepayLLM, reusing the SAME submitStructuredInput machinery, never a fabricated chat sentence.
+test('agent controller: requestDiscovery sends a REQUEST_DISCOVERY structured input for the exact target, using the current Trade Context version and a fresh clientActionId', async () => {
+  const calls = [];
+  const { controller } = agentSetup({
+    readContext: async () => ({ conversationId: 'c', version: 7, entities: [], relationships: [] }),
+    submitStructuredInput: async (id, body) => { calls.push(body); return { status: 'APPLIED', affectedEntityId: 'e1', entitiesApplied: 1, relationshipsApplied: 0, conflicts: [], tradeContextVersion: 8 }; },
+  });
+  // Establish a real conversation and read a real current Trade Context version first (mirrors how the
+  // instruments controller's own currentVersion() reads state, never a caller-guessed number).
+  await controller.sendStatement('I need my bathroom tiled.');
+  const turnsBefore = controller.getSnapshot().turns.length;
+  const result = await controller.requestDiscovery('e1');
+  assert.equal(result.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].type, 'REQUEST_DISCOVERY');
+  assert.equal(calls[0].targetEntityId, 'e1');
+  assert.equal(calls[0].expectedTradeContextVersion, 7);
+  assert.ok(calls[0].clientActionId, 'a fresh clientActionId must be generated');
+  // Never a fabricated chat turn -- the turn count is unchanged by requestDiscovery itself.
+  assert.equal(controller.getSnapshot().turns.length, turnsBefore);
+});
+test('agent controller: requestDiscovery surfaces a stale-version outcome distinctly, exactly like submitStructuredInput', async () => {
+  const { controller } = agentSetup({ submitStructuredInput: async () => { throw new api.ApiError('http', 'stale', 409, 'AGENT_STRUCTURED_INPUT_STALE_VERSION'); } });
+  const result = await controller.requestDiscovery('e1');
+  assert.equal(result.ok, false); assert.equal(result.stale, true);
+  assert.match(result.error, /understands has changed/);
+});
+test('agent controller: requestDiscovery defaults to expectedTradeContextVersion 0 before any context has been read', async () => {
+  const calls = [];
+  const { controller } = agentSetup({ submitStructuredInput: async (id, body) => { calls.push(body); return { status: 'APPLIED', affectedEntityId: 'e1', entitiesApplied: 1, relationshipsApplied: 0, conflicts: [], tradeContextVersion: 1 }; } });
+  await controller.requestDiscovery('e1');
+  assert.equal(calls[0].expectedTradeContextVersion, 0);
+});
 test('agent controller: selectKsIdentity performs a pure lookup with no context refresh when no expectedTradeContextVersion is supplied', async () => {
   const { controller, calls } = agentSetup();
   const result = await controller.selectKsIdentity({ ksNumber: 'KS003' });

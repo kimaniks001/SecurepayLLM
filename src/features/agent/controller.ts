@@ -151,6 +151,30 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     update({ conversationId: conversation.conversationId });
     return conversation.conversationId;
   }
+  /**
+   * Phase 4 of the Agent/Trade-Context Convergence -- the SECOND legitimate Trade Context write path,
+   * factored out (KS001 Upgrade Phase 1 review correction, item 2) so both `submitStructuredInput` (the
+   * general-purpose entry point instruments use) and `requestDiscovery` below share the SAME
+   * idempotency, stale-version handling, and error text -- never two drifting implementations of the
+   * same POST. A standalone function (not `this`-based), matching `ensureConversationId`'s own reasoning.
+   */
+  async function doSubmitStructuredInput(
+      body: Omit<StructuredInputRequest, 'clientActionId'> & { clientActionId: string }): Promise<StructuredInputOutcome> {
+    if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
+    update({ busy: true, error: null });
+    try {
+      const conversationId = await ensureConversationId();
+      const result = await gateway.submitStructuredInput(conversationId, body);
+      await readContext();
+      return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
+    } catch (error) {
+      if (isStaleVersionError(error)) {
+        await readContext();
+        return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
+      }
+      return { ok: false, stale: false, error: errorText(error) };
+    } finally { update({ busy: false }); }
+  }
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -204,21 +228,23 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * network retry can never duplicate the action. Never appends a conversational turn -- a calendar
      * click or a money edit is not something the person "said."
      */
-    async submitStructuredInput(body: Omit<StructuredInputRequest, 'clientActionId'> & { clientActionId: string }): Promise<StructuredInputOutcome> {
-      if (state.busy) return { ok: false, stale: false, error: 'SecurePay is still working on the previous step.' };
-      update({ busy: true, error: null });
-      try {
-        const conversationId = await ensureConversationId();
-        const result = await gateway.submitStructuredInput(conversationId, body);
-        await readContext();
-        return { ok: true, result, context: state.context.status === 'ready' ? state.context.data : null };
-      } catch (error) {
-        if (isStaleVersionError(error)) {
-          await readContext();
-          return { ok: false, stale: true, error: 'What SecurePay understands has changed. Refreshed — check the current values and try again.', context: state.context.status === 'ready' ? state.context.data : null };
-        }
-        return { ok: false, stale: false, error: errorText(error) };
-      } finally { update({ busy: false }); }
+    submitStructuredInput: doSubmitStructuredInput,
+    /**
+     * KS001 Upgrade Phase 1 review correction (item 2) -- the preferred, most authority-safe
+     * discovery-invitation path: a genuine, explicit, user-originated action (the person choosing to
+     * accept KS001's own offer to help find a specific thing), never a fabricated chat sentence and
+     * never the model inferring consent from free text. Reuses the SAME structured-input machinery
+     * (idempotency via a fresh `clientActionId` per call, stale-version handling, error text) every
+     * other UI action already uses -- never a bespoke second write path. `targetEntityId` is the exact
+     * entity (from UNDERSTOOD/Trade Context) discovery is being requested for; the current Trade
+     * Context version is read from state, exactly like the instruments controller's own
+     * `currentVersion()` convention.
+     */
+    async requestDiscovery(targetEntityId: string): Promise<StructuredInputOutcome> {
+      const expectedTradeContextVersion = state.context.status === 'ready' ? state.context.data!.version : 0;
+      return doSubmitStructuredInput({
+        type: 'REQUEST_DISCOVERY', targetEntityId, expectedTradeContextVersion, clientActionId: id(),
+      });
     },
     /**
      * Phase 4, Part C -- the Who instrument's "I have their KS Number" trusted-user-action path.
