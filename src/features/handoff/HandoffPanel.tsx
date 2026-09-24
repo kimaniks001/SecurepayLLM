@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { SourceReference } from '../discovery/ui/SourceReference';
 import { ReviewPreview } from './ReviewPreview';
 import { SecureAuthCard } from '../../components/SecureAuth';
@@ -12,9 +12,6 @@ import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView, sourceReferenceView } from './view';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { openMoneyFor } from '../money/handoff';
-import { createSecureLinkCreateController } from '../securelink/createController';
-import { createSecureLinkManageController } from '../securelink/manageController';
-import { SecureLinkManagePanel } from '../securelink/SecureLinkManagePanel';
 
 type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'>;
 
@@ -32,15 +29,9 @@ export function HandoffPanel(props: { handoff: HandoffController; identity: Iden
   return <div ref={region} tabIndex={-1} aria-label="Agreement review" className="space-y-3 focus:outline-none"><HandoffBody {...props} /></div>;
 }
 
-function HandoffBody({ handoff, identity, onDone, onOpenAgreement, agreementGateway }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
+function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
-  // KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 3) -- the post-SET continuation's
-  // OWN inline sub-view for "Create SecureLink". Local to this one moment; reset whenever a fresh
-  // handoff progresses (a new `progressedAgreementId` never inherits a stale sub-view).
-  const [continuationView, setContinuationView] = useState<'choices' | 'securelink'>('choices');
-  const [secureLinkController, setSecureLinkController] = useState<ReturnType<typeof createSecureLinkCreateController> | null>(null);
-  const [secureLinkManageController, setSecureLinkManageController] = useState<ReturnType<typeof createSecureLinkManageController> | null>(null);
 
   useEffect(() => {
     if (state.phase === 'identity-required' && identityState.phase === 'signed-in') {
@@ -155,51 +146,34 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement, agreementGate
     const agreementId = state.handoff.progressedAgreementId;
     const agreementTitle = state.handoff.candidate.title ?? 'This Agreement';
 
-    // KS001 Upgrade Phase 5 continuation (Slice 2, Section 8) -- the explicit "Create SecureLink"
-    // continuation's own inline sub-view. Never automatic: only reachable by the person's own explicit
-    // choice below. Checks bounded existence truth first (SecureLinkManagePanel) so an Agreement that
-    // already has an active SecureLink is offered honest lifecycle actions, never a blind re-offer of
-    // the creation form.
-    if (continuationView === 'securelink' && agreementId && agreementGateway) {
-      if (!secureLinkController || !secureLinkManageController) {
-        const create = createSecureLinkCreateController(agreementGateway, agreementId, agreementTitle);
-        const manage = createSecureLinkManageController(agreementGateway, agreementId);
-        setSecureLinkController(create);
-        setSecureLinkManageController(manage);
-        void manage.load();
-        return <p role="status" className="text-sm text-sand-500 px-1">Preparing…</p>;
-      }
-      return (
-        <div className="space-y-3">
-          <SecureLinkManagePanel
-            agreementTitle={agreementTitle}
-            manageController={secureLinkManageController}
-            createController={secureLinkController}
-            onDone={() => { setContinuationView('choices'); setSecureLinkController(null); setSecureLinkManageController(null); }}
-          />
-        </div>
-      );
-    }
-
+    // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- this moment used to offer "Create
+    // SecureLink" immediately, opening the SecureLink creation form right here. That form's own
+    // activateProduct call could NEVER succeed at this exact moment: a freshly-SET Agreement is always
+    // DRAFT, and AgreementProductService#requireActivatable requires PARTICIPANTS_JOINING or
+    // CONFIRMATION_PENDING plus every relevant participant's confirmation -- reachable only after the
+    // Agreement is proposed, a counterparty is invited and joins, and both sides confirm. Offering a
+    // doomed action here was the real defect (see the Phase 5 Slice 4 addendum for the full archaeology
+    // and root cause) -- not a missing/misplaced button, but a button placed at the one moment it could
+    // never work. The honest next step for a fresh draft is to open it and invite someone; the Agreement
+    // workspace's own People/SecureLink area (unchanged code, reused) now carries the rest of the
+    // journey -- propose, invite, confirm, and only then create a SecureLink -- driven by the
+    // Agreement's own real backend status at every step, never by a copy of that state machine here.
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
         <p className="px-1 text-[0.85rem] text-sand-700">
-          Your Agreement is safely set. You can connect money now, create a SecureLink to share it, or
-          leave it exactly as it is — none of these happen automatically.
+          Your Agreement is safely set. You can connect money now, open it to invite someone and share
+          it, or leave it exactly as it is — none of these happen automatically.
         </p>
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [
           ...(agreementId ? [{ label: 'Connect money now', value: 'money' }] : []),
-          ...(agreementId && agreementGateway ? [{ label: 'Create SecureLink', value: 'securelink' }] : []),
-          ...(onOpenAgreement && agreementId ? [{ label: 'Open this Agreement', value: 'open' }] : []),
+          ...(agreementId && onOpenAgreement ? [{ label: 'Invite someone to review', value: 'open' }] : []),
           { label: 'Save — I’m done for now', value: 'save' },
         ] }} onChoice={value => {
           if (value === 'money' && agreementId) {
             openMoneyFor({ agreementId, title: agreementTitle, versionLabel: null, currentVersionId: null });
             handoff.reset();
             identity.reset();
-          } else if (value === 'securelink' && agreementId && agreementGateway) {
-            setContinuationView('securelink');
           } else if (value === 'open' && onOpenAgreement && agreementId) {
             handoff.reset();
             identity.reset();

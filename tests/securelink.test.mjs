@@ -4,10 +4,12 @@ import { build } from 'esbuild';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 
-// KS001 Upgrade Phase 5 (SecureLink & Money Continuation) -- covers the new post-SET continuation
-// (Connect money now / Create SecureLink / Save, none automatic), the two-step idempotent SecureLink
-// creation flow, the public review-first controller, and the share surface. Gateways are scripted from
-// the DTO shapes read in SecurePayAPI; the API itself is not run.
+// KS001 Upgrade Phase 5 (SecureLink & Money Continuation) -- covers the post-SET continuation
+// (Connect money now / Invite someone to review / Save, none automatic -- see Slice 4's UR-148 fix for
+// why "Create SecureLink" is no longer offered directly from this moment), the two-step idempotent
+// SecureLink creation flow (now reached from the persistent Agreement workspace entry point), the public
+// review-first controller, and the share surface. Gateways are scripted from the DTO shapes read in
+// SecurePayAPI; the API itself is not run.
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/securelink/createController';
 export * from './src/features/securelink/publicController';
@@ -238,32 +240,35 @@ const progressedHandoff = (over = {}) => ({
   reviewSnapshot: { expectedTradeContextVersion: 1, expectedCandidateDigest: 'd' }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: 'agreement-1', ...over,
 });
 
-test('post-SET: all three deliberate continuations are offered (Connect money now / Create SecureLink / Save), and none of them fires automatically', () => {
-  const calls = [];
-  const gatewayStub = {
-    activateProduct: async () => { calls.push('activateProduct'); throw new Error('must never be called merely by rendering'); },
-    issuePublicLocator: async () => { calls.push('issuePublicLocator'); throw new Error('must never be called merely by rendering'); },
-  };
+// KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- the post-SET moment no longer offers "Create
+// SecureLink" as an immediately-actionable choice: a freshly-SET Agreement is always DRAFT, and product
+// activation can never succeed until it is proposed, a counterparty joins, and both sides confirm (see
+// the Phase 5 Slice 4 addendum for the full archaeology). Offering that button here was itself the real
+// defect -- a doomed action, not a misplaced one -- so these three tests are updated to the corrected,
+// honest behavior rather than left asserting on the removed affordance. The real SecureLink journey now
+// lives in the persistent Agreement workspace entry point, reached via "Invite someone to review".
+
+test('post-SET: the deliberate continuations offered are Connect money now / Invite someone to review / Save, and none of them fires automatically', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff(), review: null, error: null, changedDuringSignIn: false });
-  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, agreementGateway: gatewayStub }));
+  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, onOpenAgreement() {} }));
   assert.match(html, /Connect money now/);
-  assert.match(html, /Create SecureLink/);
+  assert.match(html, /Invite someone to review/);
+  assert.doesNotMatch(html, /Create SecureLink/); // never offered directly from this one-time moment any more
   assert.match(html, /Save/i);
-  assert.equal(calls.length, 0); // reaching the 'progressed' phase alone triggers zero financial/SecureLink calls
 });
 
-test('post-SET: "Connect money now" and "Create SecureLink" are withheld when there is no progressed agreement id', () => {
+test('post-SET: "Connect money now" and "Invite someone to review" are withheld when there is no progressed agreement id', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff({ progressedAgreementId: null }), review: null, error: null, changedDuringSignIn: false });
-  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, agreementGateway: { activateProduct: async () => { throw new Error('n/a'); }, issuePublicLocator: async () => { throw new Error('n/a'); } } }));
+  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, onOpenAgreement() {} }));
   assert.doesNotMatch(html, /Connect money now/);
-  assert.doesNotMatch(html, /Create SecureLink/);
+  assert.doesNotMatch(html, /Invite someone to review/);
 });
 
-test('post-SET: "Create SecureLink" is withheld entirely when no agreementGateway is supplied (no partial/broken affordance)', () => {
+test('post-SET: "Invite someone to review" is withheld entirely when no onOpenAgreement is supplied (no partial/broken affordance)', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff(), review: null, error: null, changedDuringSignIn: false });
   const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {} }));
-  assert.doesNotMatch(html, /Create SecureLink/);
-  assert.match(html, /Connect money now/); // money handoff has no gateway dependency here -- it uses the existing openMoneyFor mechanism
+  assert.doesNotMatch(html, /Invite someone to review/);
+  assert.match(html, /Connect money now/); // money handoff has no onOpenAgreement dependency -- it uses the existing openMoneyFor mechanism
 });
 
 test('post-SET: "Save" never implies incompleteness -- it reads as a deliberate, calm choice', () => {

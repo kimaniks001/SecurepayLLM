@@ -356,3 +356,76 @@ pattern persists. Remains OPEN/EXTERNAL — no workflow edits attempted.
 
 **Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
 not deploy, do not start Phase 6.
+
+## Slice 4 addendum — SecureLink state-machine reconciliation (UR-148/UR-149 closed)
+
+**UR-148 root-caused deeper than Slice 3 found, and fixed.** Full lifecycle archaeology found the real
+defect was not merely a misplaced button: the backend's own `AgreementConfirmationService` refused every
+`CREATOR`-status participant's confirmation outright, while `AgreementProductService#requireActivatable`
+has always required exactly that — so product activation was structurally unreachable for every real
+Agreement, at any lifecycle stage. The backend fix (see the SecurePayAPI repo's own Slice 4 addendum) adds
+creator self-confirmation through the same, unmodified confirmation endpoint. On this side:
+
+- `HandoffPanel.tsx`'s post-SET moment no longer offers "Create SecureLink" as an immediately-actionable
+  choice (it could never succeed against a fresh DRAFT Agreement) — replaced with an honest **"Invite
+  someone to review"** that opens the real Agreement workspace. The doomed inline SecureLink-creation
+  sub-view was removed entirely, not merely hidden.
+- New **`AgreementSecureLinkSection`** component: a persistent SecureLink entry point in the Agreement
+  workspace's People tab, reusing Slice 2's `SecureLinkManagePanel`/`createController`/`manageController`
+  completely unmodified — no second SecureLink frontend. Gated purely on the Agreement's own real backend
+  `status` (`PARTICIPANTS_JOINING`/`CONFIRMATION_PENDING` → eligible; anything earlier → an honest "once
+  someone has joined this Agreement..." message, no gateway call made at all).
+- `ReconfirmPanel.tsx`'s `ownStanding()` — previously hard-excluded `CREATOR` with a comment saying "the
+  creator can't confirm" — now widened to accept `CREATOR` too. This is a one-line, fully-reused fix: the
+  SAME panel, SAME `confirmVersion` API call, SAME exact-version/idempotency guarantees a recipient already
+  gets now work for the creator's own confirmation, with zero new UI built.
+
+**UR-149 fixed.** Backend granted the missing `AGREEMENT_INVITATION_REVOKE` permission (a separate migration
+from UR-147's) and closed a real, independent object-ownership gap in `AgreementInvitationService#revoke`
+(previously no check at all that the caller owned the Agreement, unlike `#issue`'s own pre-existing check).
+
+**Real golden journey — achieved live, with two genuinely signed-up KS Numbers:** SET → propose → invite →
+real Join in a separate session ("You have joined this Agreement," distinct from confirming) → creator
+explicitly confirms via the exact same `ReconfirmPanel` a recipient uses → recipient confirms → a
+product-activation attempt now reaches the real, substantive backend precondition (a monetary-obligation
+check) instead of failing on the state-machine circularity UR-148 used to cause. Also live-verified: the
+Agreement's own creator successfully revoking their own real invitation (UR-149's fix).
+
+**Not achieved live this pass, stated plainly:** a genuinely ACTIVE SecureLink with a real public URL,
+public review in a second session, Join via the SecureLink's own public doorway, Replace/Revoke on a real
+active locator, QR physical scan, and Money handoff on an activated Agreement. Two further, genuine,
+pre-existing architecture gaps were found along the way (documented in the backend repo's register, not
+worked around):
+
+- **UR-150 (OPEN):** `PublicJoinAuthorityService`'s own design clearly anticipates a SecureLink bringing in
+  an Agreement's FIRST counterparty, but by construction of the existing state machine this is unreachable
+  — a locator can only ever be ACTIVE after someone has already joined by the ordinary invitation route, so
+  the public-Join path's own "counterparty already joined" rejection fires for every real Agreement, always.
+  Predates this slice; only became observable once UR-148's fix made activation reachable at all.
+- **UR-151 (OPEN):** the KS001/SET conversational flow's "Use this" confirmation of a suggested Money
+  amount is never translated into a structured monetary `ObligationDefinition` the backend's own product
+  activation can see — confirmed live (a freshly created Agreement with a confirmed KES 30,000 amount still
+  showed "Price: Not yet specified" on its own Terms tab, and activation failed on
+  `"monetary obligation required for product activation"`). No Agreement created through the ordinary
+  conversational path can currently reach an ACTIVE product for this reason.
+
+**Responsive verification:** desktop fully verified for every new/changed screen (Review-gate hint, post-SET
+continuation, People tab with the persistent SecureLink section, creator-side ReconfirmPanel). Narrowest
+width achieved via direct browser resize in this environment remains ~606px (the same tool/OS floor as
+Slice 1-2) — verified clean at that width. A true 375px/320px viewport was NOT achieved for these
+authenticated screens this pass (the iframe technique used previously only works for the unauthenticated
+public SecureLink page) — stated honestly rather than claimed.
+
+**Tests.** 3 existing `securelink.test.mjs` cases updated to match the corrected post-SET behavior (the
+removed "Create SecureLink" choice, the new "Invite someone to review" one) rather than left asserting on
+removed behavior; 1 existing `ui-phase6.test.mjs` case updated (creator now legitimately gets real standing,
+matching the backend fix, rather than "nothing"); 8 new cases in `tests/ur148-securelink-workspace.test.mjs`
+covering the new `AgreementSecureLinkSection` (eligibility gating, no premature gateway calls, reuse of
+Slice 2's own components) and the widened `ownStanding`. Full suite: **1108/1108** (was 1100). `tsc
+--noEmit` clean. `eslint` clean (7 pre-existing warnings, unchanged). Production build succeeds.
+
+**GitHub Actions (UR-146):** re-checked; the same instant billing-condition failure pattern persists.
+Remains OPEN/EXTERNAL.
+
+**Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
+not deploy, do not start Phase 6.
