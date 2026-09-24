@@ -92,7 +92,10 @@ export function createAgreementGateway(http: HttpClient) {
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // KS001 Upgrade Phase 4 continuation (Section 21/23) -- the self-scoped invitation inbox. No
     // identityId parameter exists anywhere here: every match is derived from the caller's OWN session.
-    myInvitations: () => http.request<AgreementInvitationInboxItemResponse[]>('/api/v1/agreement-invitations/me', { auth: 'required' }),
+    // KS001 Upgrade Phase 4 final convergence (Section 2) -- genuinely bounded/paginated (same Page<T>
+    // convention as currentUserAgreements/currentUserActions); the backend never assembles or returns a
+    // caller's entire lifetime invitation history in one response.
+    myInvitations: (page = 0, size = 20) => http.request<Page<AgreementInvitationInboxItemResponse>>(`/api/v1/agreement-invitations/me${pagination(page, size)}`, { auth: 'required' }),
     viewMyInvitation: (invitationId: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}`, { auth: 'required' }),
     joinMyInvitation: (invitationId: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,

@@ -500,9 +500,17 @@ test('InvitationsForYou: a non-actionable (expired/revoked) card shows its statu
   assert.doesNotMatch(out, /Review invitation/);
 });
 
-test('InvitationsForYou is bounded: at most 3 cards render, the rest are summarized as a count -- never a full inbox table', () => {
+test('InvitationsForYou is bounded: at most 3 cards render, the rest are reachable through a real "View all invitations" doorway -- never a full inbox table inline', () => {
   const items = [1, 2, 3, 4, 5].map(n => invCard({ invitationId: `invitation-${n}` }));
-  const out = text(html(api.InvitationsForYou, { items, onReview: () => {} }));
+  const out = text(html(api.InvitationsForYou, { items, onReview: () => {}, onViewAll: () => {} }));
   assert.equal((out.match(/Review invitation/g) || []).length, 3);
-  assert.match(out, /\+2 more invitations/);
+  // KS001 Upgrade Phase 4 final convergence (Section 4) -- "+N more" is no longer dead text; it is now
+  // folded into a real, clickable "View all invitations" action routing to the dedicated Invitations surface.
+  assert.match(out, /View all invitations \(\+2 more\)/);
+});
+
+test('KS001 Upgrade Phase 4 final convergence (Section 4) -- "View all invitations" is offered even when every current invitation already fits on the card, so the full history (past/expired/revoked) stays reachable', () => {
+  const out = text(html(api.InvitationsForYou, { items: [invCard()], onReview: () => {}, onViewAll: () => {} }));
+  assert.match(out, /View all invitations/);
+  assert.doesNotMatch(out, /more\)/);
 });

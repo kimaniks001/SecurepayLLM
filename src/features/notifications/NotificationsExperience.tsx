@@ -122,9 +122,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
   onNavigate: (view: AppView) => void;
   onOpenAgreement: (agreementId: string) => void;
 }) {
-  // PHASE 4 Care convergence (Section 1/3) -- OPEN_INVITATIONS routes to signed-in Home, where
-  // "Invitations for you" lives (this same slice's own Home surface), never a specific Agreement.
-  const onOpenInvitations = () => onNavigate('signed-in');
+  // KS001 Upgrade Phase 4 final convergence (Section 5) -- OPEN_INVITATIONS now routes straight to the
+  // dedicated Invitations surface (the same top-level hash route Home's own "View all invitations"
+  // doorway uses), rather than dumping the caller at general Home and making them find it themselves.
+  // Still purely a navigation hint -- no authority is encoded in the actionKey itself (Section 5's own
+  // "OPEN_INVITATIONS remains a navigation hint only" instruction).
+  const onOpenInvitations = () => { window.location.hash = '#/invitations'; };
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [tab, setTab] = useState<'inbox' | 'preferences'>('inbox');
 

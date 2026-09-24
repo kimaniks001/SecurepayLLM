@@ -5,6 +5,8 @@ import { MoneyExperience } from './features/money/MoneyExperience';
 import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
 import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
+import { InvitationInboxExperience } from './features/invitation-inbox/InvitationInboxExperience';
+import { createInvitationInboxController } from './features/invitation-inbox/controller';
 import { parseInvitationRoute, parseMyInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
 import { createSecurePayApi } from './api/securepay';
@@ -110,6 +112,24 @@ function useActivationRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/**
+ * KS001 Upgrade Phase 4 final convergence (Section 3/4) — the Invitations surface is a first-class,
+ * non-secret route (no invitation id in this URL — that only ever appears via `#/my-invitations/{id}`,
+ * see `useMyInvitationRoute`), reached from Home's "View all invitations" doorway and from
+ * `OPEN_INVITATIONS` notifications.
+ */
+function useInvitationInboxRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?invitations\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
 /** Money is a first-class, non-secret route -- no Agreement or payment identifiers are put in the URL. */
 function useMoneyRoute(): [boolean, () => void] {
   const matches = () => typeof window !== 'undefined' && /^#\/?money\/?$/.test(window.location.hash);
@@ -155,6 +175,10 @@ function useMoneySessionRoute(): string | null {
 export default function RuntimeApp() {
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
+  const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
+  // KS001 Upgrade Phase 4 final convergence (Section 3/4) -- created once, matching the same
+  // parent-creates-controller convention AgentExperience uses for notificationsController.
+  const [invitationInboxController] = useState(() => agreementGateway && createInvitationInboxController(agreementGateway));
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
@@ -178,6 +202,15 @@ export default function RuntimeApp() {
     // self-scoped invitation id from Home's "Invitations for you" instead of a raw token.
     return api && agreementGateway
       ? <RecipientExperience key={myInvitationId} invitationId={myInvitationId} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearMyInvitationId} />
+      : <Unavailable />;
+  }
+  if (invitationInboxRoute) {
+    return api && invitationInboxController
+      ? <InvitationInboxExperience
+          controller={invitationInboxController}
+          onLeave={clearInvitationInboxRoute}
+          onReview={invitationId => { window.location.hash = `#/my-invitations/${encodeURIComponent(invitationId)}`; }}
+        />
       : <Unavailable />;
   }
   if (activationRoute) {

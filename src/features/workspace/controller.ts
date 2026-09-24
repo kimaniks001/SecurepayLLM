@@ -155,8 +155,10 @@ export function createWorkspaceController(gateway: Gateway) {
             initial.homeExtras,
           )
         : state.homeExtras;
+      // KS001 Upgrade Phase 4 final convergence (Section 2) -- Home only ever needs its own bounded top
+      // slice; the full self-scoped history lives behind the dedicated Invitations surface's own paging.
       const myInvitations = view === 'home'
-        ? await bestEffort(() => gateway.myInvitations(), initial.myInvitations)
+        ? await bestEffort(() => gateway.myInvitations(0, 20).then(page => page.items), initial.myInvitations)
         : state.myInvitations;
       update({ hub: { status: 'ready', data: hub }, myCalendarEvents, homeExtras, myInvitations });
     } catch (error) {

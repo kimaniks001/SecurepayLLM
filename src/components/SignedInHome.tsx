@@ -30,6 +30,8 @@ interface SignedInHomeProps {
   onNavigateAgreements: () => void;
   /** PHASE 4 NEXT SLICE (Section 7): opens the existing recipient review experience by invitation id — never Home's own detail page. Real callers must supply this; the fixture/demo app never renders any invitations, so its own no-op default is never actually reachable. */
   onReviewInvitation?: (invitationId: string) => void;
+  /** KS001 Upgrade Phase 4 final convergence (Section 4): the real "View all invitations" doorway to the dedicated Invitations surface. */
+  onViewAllInvitations?: () => void;
   /**
    * Real callers must supply these three explicitly (never omit) so this component never has to guess
    * a truthful value itself; omitting them preserves the exact existing Bolt fixture text/prompts
@@ -59,6 +61,7 @@ export function SignedInHome({
   onOpenAgreement,
   onNavigateAgreements,
   onReviewInvitation = () => {},
+  onViewAllInvitations = () => {},
   greeting = fixtureGreeting,
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
@@ -108,7 +111,7 @@ export function SignedInHome({
 
           {/* Mobile: needs attention + waiting below the fold */}
           <div className="md:hidden mt-8 space-y-6">
-            <InvitationsForYou items={invitations} onReview={onReviewInvitation} />
+            <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
             <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
             <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
             <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
@@ -134,7 +137,7 @@ export function SignedInHome({
             recentCount={recentActivity.length}
             onNavigateAgreements={onNavigateAgreements}
           />
-          <InvitationsForYou items={invitations} onReview={onReviewInvitation} />
+          <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
           <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
           <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
           <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />

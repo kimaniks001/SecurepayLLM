@@ -397,7 +397,7 @@ test('workspace Home: myInvitations is fetched best-effort alongside the Hub and
   const gateway = {
     currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
     hub: async () => hub(),
-    myInvitations: async () => [inboxItem()],
+    myInvitations: async () => ({ items: [inboxItem()], page: 0, size: 20, totalElements: 1 }),
   };
   const controller = api.createWorkspaceController(gateway);
   controller.enter();
@@ -424,7 +424,7 @@ test('workspace Hub (not Home) never fetches myInvitations -- it is a Home-only 
   const gateway = {
     currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
     hub: async () => hub(),
-    myInvitations: async () => { calls.push('myInvitations'); return []; },
+    myInvitations: async () => { calls.push('myInvitations'); return { items: [], page: 0, size: 20, totalElements: 0 }; },
   };
   const controller = api.createWorkspaceController(gateway);
   controller.goHub();
@@ -455,16 +455,17 @@ test('invitationsForYouView: never invents an inviter name, an agreement title, 
   assert.equal(view.amountLine, null);
 });
 
-test('invitationsForYouView: EXPIRED and REVOKED are non-actionable with a truthful status note, never an expiry line', () => {
-  const [expired] = api.invitationsForYouView([inboxItem({ status: 'EXPIRED', needsAttention: false })]);
-  assert.equal(expired.actionable, false);
-  assert.equal(expired.statusNote, 'This invitation has expired.');
-  assert.equal(expired.expiryLine, null);
+test('KS001 Upgrade Phase 4 final convergence (Section 3) -- invitationsForYouView: EXPIRED and REVOKED never appear on Home at all -- only the backend\'s own needsAttention truth does, so an older-but-actionable invitation can never be crowded out by recent historical ones', () => {
+  const views = api.invitationsForYouView([
+    inboxItem({ invitationId: 'expired-1', status: 'EXPIRED', needsAttention: false }),
+    inboxItem({ invitationId: 'revoked-1', status: 'REVOKED', needsAttention: false }),
+  ]);
+  assert.equal(views.length, 0);
+});
 
-  const [revoked] = api.invitationsForYouView([inboxItem({ status: 'REVOKED', needsAttention: false })]);
-  assert.equal(revoked.actionable, false);
-  assert.equal(revoked.statusNote, 'This invitation is no longer available.');
-  assert.equal(revoked.expiryLine, null);
+test('KS001 Upgrade Phase 4 final convergence (Section 3) -- a genuinely EXPIRED-by-clock invitation (backend needsAttention=false even though persisted status still reads ISSUED) is likewise excluded from Home', () => {
+  const views = api.invitationsForYouView([inboxItem({ status: 'ISSUED', needsAttention: false })]);
+  assert.equal(views.length, 0);
 });
 
 test('invitationsForYouView never uses Accept/Confirm/Pay-shaped copy anywhere', () => {

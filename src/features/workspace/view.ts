@@ -84,26 +84,25 @@ export interface InvitationForYouCardView {
  * — ownership, matching and lifecycle truth all come from there; this never re-derives any of it
  * (Section 5's own "the frontend must not reproduce the backend matching logic" doctrine).
  *
- * <p>A `JOINED` invitation is hidden here (Section 9 — "should generally no longer appear as a pending
- * invitation"; the person reaches that Agreement through their normal Agreement surfaces instead) — a
- * purely presentational filter over the backend's own truthful `status`, never an authority decision.
+ * <p>KS001 Upgrade Phase 4 final convergence (Section 3) — Home's job is "what needs me?", not an
+ * invitation archive: only the backend's own {@code needsAttention} truth is shown here (never a
+ * browser-derived lifecycle judgement), so a handful of recently-revoked/expired invitations can never
+ * crowd out an older but still-actionable one behind a fixed 3-card slice. Historical invitations
+ * (EXPIRED/REVOKED/JOINED) belong to the full Invitations surface (see {@code invitation-inbox/view.ts}),
+ * reached from Home only through the explicit "View all invitations" doorway — never inline here.
  */
 export function invitationsForYouView(items: AgreementInvitationInboxItemResponse[]): InvitationForYouCardView[] {
   return items
-    .filter(item => item.status !== 'JOINED')
+    .filter(item => item.needsAttention)
     .map(item => ({
       invitationId: item.invitationId,
-      actionable: item.needsAttention,
+      actionable: true,
       inviterLine: item.inviterDisplayName ? `${item.inviterDisplayName} invited you` : 'You’ve been invited',
       agreementTitle: item.agreementTitle ?? 'An agreement',
       roleLine: `Your proposed role: ${humanizeCode(item.roleCode)}`,
       amountLine: item.proposedAmountMinor != null ? `${formatMoney(item.currency, item.proposedAmountMinor)} proposed` : null,
-      expiryLine: item.needsAttention ? `Expires ${formatShortDate(item.expiresAt)}` : null,
-      statusNote: item.status === 'EXPIRED'
-        ? 'This invitation has expired.'
-        : item.status === 'REVOKED'
-          ? 'This invitation is no longer available.'
-          : null,
+      expiryLine: `Expires ${formatShortDate(item.expiresAt)}`,
+      statusNote: null,
     }));
 }
 

@@ -224,6 +224,9 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           // `#/money`; RuntimeApp's own useMyInvitationRoute picks this up and mounts the existing
           // RecipientExperience by invitation id, never a Home-specific detail page.
           onReviewInvitation={invitationId => { window.location.hash = `#/my-invitations/${encodeURIComponent(invitationId)}`; }}
+          // KS001 Upgrade Phase 4 final convergence (Section 4) -- the same top-level hash-route seam,
+          // to the dedicated Invitations surface (RuntimeApp's own useInvitationInboxRoute).
+          onViewAllInvitations={() => { window.location.hash = '#/invitations'; }}
         />
       );
     }
