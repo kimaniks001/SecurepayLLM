@@ -201,3 +201,38 @@ creation flow built on existing backend authority, and a review-first public Sec
 into the existing Join core rather than duplicating it. No frontend financial authority was introduced. No
 existing behavior regressed (1069/1069 passing, up from 1045). Phase 6 was not started.
 **PR #42 remains DRAFT — do not merge, do not deploy.**
+
+---
+
+## P. Hardening Pass Addendum (Human Review & Hardening Pass, same day)
+
+No frontend source changes this pass — the review's four priority areas (production locator URL config,
+plaintext slug logging, repeat/existing-SecureLink behavior, real browser verification) were all backend or
+verification-only concerns; see the SecurePayAPI Phase 5 report's own Hardening Pass Addendum for the full
+UR-141/UR-143/UR-144 findings.
+
+**Real browser verification against the live backend (new this pass, correcting Section M's earlier
+statement that this environment lacked a usable backend):** started the actual `SecurepayCoreApplication`
+against real local Postgres/Redis (a `docker compose`-managed stack was genuinely usable for this, contrary
+to the earlier assumption — Testcontainers-specific integration tests remain the separately-blocked case)
+and this app's own `npm run dev`, at desktop width (1440×900). Confirmed via real network capture (not
+assumed): a genuine multi-turn KS001 Agent conversation persists correctly against the real backend;
+`handoff`'s idempotent-retry recovery works correctly on a real transient failure; the `#/securelink/{slug}`
+route calls the live `viewSecureLink` endpoint and correctly renders the "can't find this SecureLink" state
+from a real `404` response, with no layout break at a reduced width (~606px CSS, confirmed via
+`window.innerWidth` — see the honest limitation below).
+
+**Not achieved, stated plainly:** reaching `HandoffPanel`'s real `'progressed'` phase live requires a second
+real KS-Number-identified counterparty (the deterministic Agent's pre-existing `canReview` sufficiency gate
+correctly refuses a free-text-only provider name) — creating a second live identity was judged beyond this
+pass's reasonable scope, so the post-SET continuation UI (Connect money now / Create SecureLink / Save)
+itself was not exercised live this round; the 24 unit tests in `tests/securelink.test.mjs` remain the
+primary evidence for that surface. True 375px/320px viewports could not be forced below the browser
+automation tool's own ~606px CSS-width floor on this system — confirmed via direct `window.innerWidth`
+inspection, not assumed — so a genuine mobile-width check did not occur and is not claimed to have occurred.
+
+**Cleanup:** the local dev server and `.env.local` created for this session were stopped/removed; no
+frontend source file was modified.
+
+**Merge-readiness:** unchanged from Section O — DRAFT, human review required. This addendum adds evidence
+and honest limitations; it does not change the completion judgment.
