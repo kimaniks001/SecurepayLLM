@@ -34,16 +34,25 @@ export type KsPreviewState =
   | { status: 'not-found'; checked: string }
   | { status: 'error'; checked: string };
 
+/** KS001 Upgrade Phase 4 continuation (Section 8) -- how the creator identifies the person they're inviting. */
+export type InviteTargetMode = 'KS_NUMBER' | 'CONTACT';
+
 export interface InviteState {
   phase: InvitePhase;
   roleCode: string | null;
+  targetMode: InviteTargetMode;
   ksNumber: string;
   ksPreview: KsPreviewState;
+  contactChannel: 'EMAIL' | 'SMS';
+  contactDestination: string;
   /** The exact request being (re)tried. Held from the first attempt until success or a definite rejection or reset. */
-  request: { key: string; roleCode: string; ksNumber: string } | null;
+  request:
+    | { key: string; roleCode: string; target: { type: 'KS_NUMBER'; ksNumber: string } }
+    | { key: string; roleCode: string; target: { type: 'CONTACT'; channel: 'EMAIL' | 'SMS'; destination: string } }
+    | null;
   /** In memory ONLY: a bearer doorway, never persisted or logged. Cleared on reset/leave. */
   /** `link` is null when SecurePay replayed an existing invitation without a token: the exact `invitationId` is kept so it can be revoked precisely. */
-  issued: { invitationId: string; link: string | null } | null;
+  issued: { invitationId: string; link: string | null; targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN'; targetHint: string | null } | null;
   error: string | null;
   list: ListState;
   proposing: boolean;
@@ -51,7 +60,11 @@ export interface InviteState {
   revokingId: string | null;
   revokeError: string | null;
 }
-const initial: InviteState = { phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null };
+const initial: InviteState = {
+  phase: 'closed', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' },
+  contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null,
+  list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null,
+};
 
 /** A client timeout / network failure / 5xx is not proof the step failed: SecurePay may already have created it. */
 const isUncertain = (error: unknown) => error instanceof ApiError && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500);
@@ -102,6 +115,15 @@ export function createInviteController(gateway: Pick<AgreementGateway, 'propose'
     setKs(ksNumber: string) { if (state.phase === 'form' || state.phase === 'error') update({ ksNumber, ksPreview: { status: 'idle' } }); },
 
     /**
+     * KS001 Upgrade Phase 4 continuation (Section 8/9) -- the creator's choice of how they identify the
+     * person they're inviting. Switching modes never carries stale state from the other mode into a
+     * request: the KS preview is invalidated and the contact destination is cleared.
+     */
+    setTargetMode(mode: InviteTargetMode) { if (state.phase === 'form' || state.phase === 'error') update({ targetMode: mode, ksPreview: { status: 'idle' }, contactDestination: '' }); },
+    setContactChannel(channel: 'EMAIL' | 'SMS') { if (state.phase === 'form' || state.phase === 'error') update({ contactChannel: channel, contactDestination: '' }); },
+    setContactDestination(value: string) { if (state.phase === 'form' || state.phase === 'error') update({ contactDestination: value }); },
+
+    /**
      * KS001 Upgrade Phase 4 (Section 10) -- the creator's own explicit "check this KS Number" step,
      * before issuance is ever allowed. A 404 means "no such active identity" (Section 15's own
      * anti-enumeration doctrine folds this together with "known but ineligible"); any other failure is
@@ -140,15 +162,35 @@ export function createInviteController(gateway: Pick<AgreementGateway, 'propose'
      */
     async issue() {
       if (!['form', 'error', 'uncertain'].includes(state.phase)) return;
-      const normalized = normalizeKs(state.ksNumber);
-      const previewConfirmed = state.ksPreview.status === 'found' && state.ksPreview.checked === normalized;
-      const request = state.request ?? (state.roleCode && previewConfirmed ? { key: id(), roleCode: state.roleCode, ksNumber: normalized } : null);
-      if (!request) return;
+      let request = state.request;
+      if (!request) {
+        if (!state.roleCode) return;
+        if (state.targetMode === 'KS_NUMBER') {
+          const normalized = normalizeKs(state.ksNumber);
+          const previewConfirmed = state.ksPreview.status === 'found' && state.ksPreview.checked === normalized;
+          if (!previewConfirmed) return;
+          request = { key: id(), roleCode: state.roleCode, target: { type: 'KS_NUMBER', ksNumber: normalized } };
+        } else {
+          // KS001 Upgrade Phase 4 continuation (Section 10) -- deliberately NO preview/check step for a
+          // contact target: SecurePay must never confirm "this phone/email already has an account" before
+          // issuance (anti-enumeration). Only a plausibly non-blank destination gates the button.
+          const destination = state.contactDestination.trim();
+          if (!destination) return;
+          request = { key: id(), roleCode: state.roleCode, target: { type: 'CONTACT', channel: state.contactChannel, destination } };
+        }
+      }
       update({ phase: 'issuing', error: null, request });
       try {
-        const result = await gateway.issueInvitation(agreementId, { idempotencyKey: request.key, roleCode: request.roleCode, intendedKsNumber: request.ksNumber });
+        const body = request.target.type === 'KS_NUMBER'
+          ? { idempotencyKey: request.key, roleCode: request.roleCode, intendedKsNumber: request.target.ksNumber }
+          : { idempotencyKey: request.key, roleCode: request.roleCode, contactChannel: request.target.channel, contactDestination: request.target.destination };
+        const result = await gateway.issueInvitation(agreementId, body);
         // Success releases the retry sequence: the next explicit invitation gets a fresh key.
-        update({ request: null, issued: { invitationId: result.invitationId, link: result.invitationToken ? linkFor(result.invitationToken) : null }, phase: result.invitationToken ? 'issued' : 'issued-earlier' });
+        update({
+          request: null,
+          issued: { invitationId: result.invitationId, link: result.invitationToken ? linkFor(result.invitationToken) : null, targetKind: result.targetKind, targetHint: result.targetHint },
+          phase: result.invitationToken ? 'issued' : 'issued-earlier',
+        });
         void loadList(); onAgreementChanged();
       } catch (error) {
         if (isUncertain(error)) { update({ phase: 'uncertain', error: UNCERTAIN }); return; }
@@ -158,7 +200,7 @@ export function createInviteController(gateway: Pick<AgreementGateway, 'propose'
     },
 
     /** Ends the retry sequence and forgets the link. A later invitation is a new action with a fresh key. */
-    reset() { update({ phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null }); },
+    reset() { update({ phase: 'closed', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null }); },
 
     /** Revoking stops the link working; it never removes someone who has already joined. Idempotent on the server. */
     async revoke(invitationId: string) {

@@ -11,6 +11,14 @@ export interface SessionTokensDto { accessToken: string; accessTokenExpiresAt: s
 export interface RecoveryRequestDto { recoveryToken: string; expiresAt: string }
 export interface RecoveryVerificationDto { recoveryToken: string; expiresAt: string; verified: boolean }
 
+// KS001 Upgrade Phase 4 continuation -- self-onboarding signup (SignupController), reused inside the
+// invitation journey for a recipient who does not yet have a KS Number. Signup proves a contact, issues
+// an identity, and authenticates a session -- it never joins or confirms anything (see
+// features/signup/controller.ts's own doctrine).
+export interface StartSignupRequest { displayName: string; channelType: 'EMAIL' | 'SMS'; destination: string; password: string; applicationId?: string; deviceId?: string; sourceIpHash?: string }
+export interface PendingSignupDto { signupChallengeToken: string; expiresAt: string; maskedDestination: string; resendAvailableAt: string }
+export interface CompletedSignupDto { ksNumber: string; accessToken: string; accessTokenExpiresAt: string; refreshToken: string; refreshTokenExpiresAt: string }
+
 /** Caller supplies the existing session's token provider to HTTP. No JWT identity inference or parallel session store. */
 export function createAuthGateway(http: HttpClient) {
   return {
@@ -25,6 +33,10 @@ export function createAuthGateway(http: HttpClient) {
     requestRecovery: (ksNumber: string) => http.request<RecoveryRequestDto>('/api/v1/auth/recovery/request', { method: 'POST', body: { ksNumber }, auth: 'none' }),
     verifyRecovery: (body: { recoveryToken: string; otpCode: string }) => http.request<RecoveryVerificationDto>('/api/v1/auth/recovery/verify', { method: 'POST', body, auth: 'none' }),
     resetRecoveryPassword: (body: { recoveryToken: string; newPassword: string }) => http.request<void>('/api/v1/auth/recovery/reset', { method: 'POST', body, auth: 'none' }),
+    // KS001 Upgrade Phase 4 continuation -- signup-in-invitation (Section 15).
+    signupStart: (body: StartSignupRequest) => http.request<PendingSignupDto>('/api/v1/auth/signup/start', { method: 'POST', body, auth: 'none' }),
+    signupResend: (signupChallengeToken: string) => http.request<void>('/api/v1/auth/signup/resend', { method: 'POST', body: { signupChallengeToken }, auth: 'none' }),
+    signupVerify: (body: { signupChallengeToken: string; otp: string }) => http.request<CompletedSignupDto>('/api/v1/auth/signup/verify', { method: 'POST', body, auth: 'none' }),
   };
 }
 export type AuthGateway = ReturnType<typeof createAuthGateway>;

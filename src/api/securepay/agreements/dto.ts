@@ -149,6 +149,10 @@ export interface PublicInvitationViewResponse {
   inviterDisplayName: string | null;
   inviterCanonicalKsNumber: string | null;
   notice: string;
+  // KS001 Upgrade Phase 4 continuation -- what kind of target this invitation names, and the one safe
+  // display form (a KS Number, or a masked contact hint, or nothing for an OPEN invitation).
+  targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN';
+  targetHint: string | null;
 }
 /** KS001 Upgrade Phase 4 (Section 7/9) -- one row of the server-owned People projection. */
 export interface AgreementPersonResponse {
@@ -168,6 +172,9 @@ export interface AgreementPersonResponse {
   confirmationCurrent: boolean;
   reconfirmationRequired: boolean;
   humanState: string;
+  // KS001 Upgrade Phase 4 continuation -- the masked contact hint before a real identity has joined a
+  // contact-bound invitation. Null once displayName is known.
+  maskedContactTarget: string | null;
 }
 // KS001 Upgrade Phase 4 continuation (item 3) -- the creator is deliberately excluded from every
 // denominator except peopleCount itself. See AgreementPeopleProjectionService's own javadoc
@@ -193,6 +200,24 @@ export interface InvitationTargetResponse {
   canonicalKsNumber: string | null;
   displayName: string | null;
   identityType: string | null;
+}
+/** KS001 Upgrade Phase 4 continuation -- one row of the self-scoped invitation inbox. Never a raw token, token hash, or raw contact. */
+export interface AgreementInvitationInboxItemResponse {
+  invitationId: string;
+  agreementId: string;
+  agreementPublicReference: string | null;
+  agreementTitle: string | null;
+  roleCode: string;
+  inviterDisplayName: string | null;
+  inviterCanonicalKsNumber: string | null;
+  status: 'ISSUED' | 'VIEWED' | 'JOINED' | 'REVOKED' | 'EXPIRED';
+  issuedAt: string;
+  expiresAt: string;
+  firstViewedAt: string | null;
+  isCurrentVersion: boolean;
+  needsAttention: boolean;
+  targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN';
+  targetHint: string | null;
 }
 export interface JoinAgreementResponse {
   agreementId: string;

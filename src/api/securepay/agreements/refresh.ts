@@ -15,6 +15,8 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'propose', 'issueInvitation', 'invitations', 'revokeInvitation', 'lookupInvitationTargetByKsNumber',
   // KS001 Upgrade Phase 4 (Section 7) -- the server-owned People projection
   'people',
+  // KS001 Upgrade Phase 4 continuation (Section 21/23) -- the self-scoped invitation inbox
+  'myInvitations', 'viewMyInvitation', 'joinMyInvitation',
   // Execution (obligations, completion status, start, complete, evidence list + review, next actions)
   'obligations', 'obligationCompletionStatus', 'startObligation', 'completeObligation', 'obligationEvidence', 'reviewEvidence', 'myNextActions',
   // Amendments (list, structured diff, apply / reject / withdraw)

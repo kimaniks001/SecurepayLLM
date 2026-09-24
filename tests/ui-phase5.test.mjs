@@ -56,6 +56,38 @@ test('issue needs an explicit role and a KS Number; the body is exactly key + ro
   assert.deepEqual(issues(calls)[0], ['issue', 'agr-1', { idempotencyKey: 'key-1', roleCode: 'SERVICE_PROVIDER', intendedKsNumber: 'KS003' }]);
   assert.equal('intendedIdentityId' in issues(calls)[0][2], false);
 });
+
+// ------------------------------------------------------------ KS001 Upgrade Phase 4 continuation -- contact target
+test('contact-targeted issuance sends channel+destination, never intendedKsNumber, and requires NO preview/check step', async () => {
+  const { controller, calls } = setup();
+  controller.open(); controller.setTargetMode('CONTACT'); controller.setRole('SERVICE_PROVIDER');
+  controller.setContactChannel('SMS'); controller.setContactDestination('0712345678');
+  await controller.issue();
+  assert.deepEqual(issues(calls)[0], ['issue', 'agr-1', { idempotencyKey: 'key-1', roleCode: 'SERVICE_PROVIDER', contactChannel: 'SMS', contactDestination: '0712345678' }]);
+  assert.equal('intendedKsNumber' in issues(calls)[0][2], false);
+  assert.equal('intendedIdentityId' in issues(calls)[0][2], false);
+  // Section 10/32 -- issuing to a contact never triggers any lookup/preview call at all.
+  assert.equal(calls.some(c => c[0] === 'lookup'), false);
+});
+test('a blank contact destination never issues; switching target mode clears the other mode\'s state', async () => {
+  const { controller, calls } = setup();
+  controller.open(); controller.setRole('SERVICE_PROVIDER'); controller.setKs('KS003'); await controller.checkKs();
+  controller.setTargetMode('CONTACT');
+  assert.equal(controller.getSnapshot().ksPreview.status, 'idle'); // switching modes invalidates the KS preview
+  await controller.issue();
+  assert.equal(issues(calls).length, 0); // blank contact destination
+  controller.setContactChannel('EMAIL'); controller.setContactDestination('mary@example.com');
+  controller.setTargetMode('KS_NUMBER');
+  assert.equal(controller.getSnapshot().contactDestination, ''); // switching back clears the contact field too
+});
+test('the issued success state carries the server-returned masked target hint, never a client-guessed mask', async () => {
+  const { controller } = setup({ issueInvitation: async (id, body) => ({ invitationId: 'inv-9', status: 'ISSUED', invitationToken: 'RAW', replayed: false, targetKind: 'CONTACT', targetHint: '•••• 5678' }) });
+  controller.open(); controller.setTargetMode('CONTACT'); controller.setRole('SERVICE_PROVIDER');
+  controller.setContactChannel('SMS'); controller.setContactDestination('0712345678');
+  await controller.issue();
+  assert.equal(controller.getSnapshot().issued.targetKind, 'CONTACT');
+  assert.equal(controller.getSnapshot().issued.targetHint, '•••• 5678');
+});
 test('the role list is the canonical vocabulary, and an unknown word cannot be typed in as a role', () => {
   const codes = api.INVITE_ROLES.map(r => r.code);
   assert.ok(codes.includes('SERVICE_PROVIDER') && codes.includes('CLIENT') && codes.includes('BUYER') && codes.includes('SELLER'));
@@ -111,9 +143,9 @@ test('reset/abandon ends the retry sequence and forgets the link', async () => {
   assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
 });
 test('a replay after a lost response has no token: it says the invitation exists and cannot be shown again', async () => {
-  const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true }) });
+  const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true, targetKind: 'KS_NUMBER', targetHint: 'KS0002' }) });
   await fill(controller); await controller.issue();
-  assert.equal(controller.getSnapshot().phase, 'issued-earlier'); assert.deepEqual(controller.getSnapshot().issued, { invitationId: 'inv-1', link: null });
+  assert.equal(controller.getSnapshot().phase, 'issued-earlier'); assert.deepEqual(controller.getSnapshot().issued, { invitationId: 'inv-1', link: null, targetKind: 'KS_NUMBER', targetHint: 'KS0002' });
 });
 
 // ------------------------------------------------------------ permissions and validation
@@ -130,12 +162,14 @@ test('the invitation link is never persisted and no delivery is claimed', async 
   for (const f of ['src/features/invitations/controller.ts', 'src/features/invitations/InvitePanel.tsx']) {
     const src = await readFile(f, 'utf8');
     assert.doesNotMatch(src, /localStorage|sessionStorage|indexedDB|console\.|document\.cookie/, f);
-    assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), /Resend|Sent to|Delivered|WhatsApp|Notified|Extend|SMS/, f);
+    // KS001 Upgrade Phase 4 continuation -- "SMS"/"EMAIL" are now legitimate contact-CHANNEL identifiers
+    // (never a delivery claim by themselves); the forbidden words remain the actual claim-shaped phrases.
+    assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), /Resend|Sent to|Delivered|WhatsApp|Notified|Extend|SMS sent|SMS delivered/, f);
   }
 });
-const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...snapshot }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over }));
+const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'closed', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...snapshot }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over }));
 test('the ready state: "Invitation ready", copy is not send, the raw token is not shown, focusable region', () => {
-  const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   const out = text(html5);
   assert.match(out, /Invitation ready/); assert.match(out, /Nothing has been sent, and no one has joined/); assert.match(out, /Copy invitation link/);
   assert.match(out, /shows this link only now/);
@@ -146,7 +180,7 @@ test('the form says what it does and does not do; labels are real labels', () =>
   assert.match(out, /Who should take part in this Agreement\?/); assert.match(out, /Their KS Number/); assert.match(out, /Their role in this Agreement/);
   assert.match(out, /Creating an invitation makes a link you can share\. It doesn.t send anything, and nobody has joined or agreed to anything/);
   assert.match(out, /Only the account with this KS Number will be able to join/);
-  const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   assert.match(markup, /<label[^>]*for="[^"]+-ks"/); assert.match(markup, /<label[^>]*for="[^"]+-role"/); assert.match(markup, /<select/);
 });
 test('a draft offers Propose, not Invite; a non-creator or a non-invitable status sees no invite controls', () => {
@@ -208,6 +242,17 @@ test('real identity is shown where SecurePay supplies it, and only that: no inte
   assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Wanjiru Traders', canonicalKsNumber: 'KS003' })).name, 'Wanjiru Traders · KS003');
   assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { canonicalKsNumber: 'KS003' })).name, 'KS003');
   assert.equal(one(PP('p1', 'INVITED')).name, 'Someone invited');
+});
+// KS001 Upgrade Phase 4 continuation (Section 31) -- a contact-bound invitation before Join.
+test('a contact-bound invitation shows the masked contact hint, never a name that does not exist yet, and never the raw contact', () => {
+  const invited = one(PP('p1', 'INVITED', 'SERVICE_PROVIDER', { maskedContactTarget: '•••• 5678' }));
+  assert.equal(invited.name, '•••• 5678');
+  const opened = one(PP('p1', 'INVITATION_OPENED', 'SERVICE_PROVIDER', { maskedContactTarget: 'm•••@example.com' }));
+  assert.equal(opened.name, 'm•••@example.com');
+  assert.doesNotMatch(opened.statusText, /m•••@example\.com opened/); // subject prefix stays absent -- no real name is known yet
+  // Once a real identity has joined, the real name always wins over any retained masked hint.
+  const joined = one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Mary Wanjiku', maskedContactTarget: '•••• 5678' }));
+  assert.equal(joined.name, 'Mary Wanjiku');
   assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED')).name, 'Participant'); // already joined, unresolved name -- distinct fallback from merely invited
   assert.doesNotMatch(JSON.stringify(api.peopleFromProjection(projectionOf([PP('p1', 'INVITED')]), [])), /identityId/);
 });
@@ -322,14 +367,14 @@ test('Phase 5 code has no Money, funding or execution affordances', async () => 
 });
 
 // ------------------------------------------------------------ Phase 5 correction pass
-const bareState = o => ({ phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...o });
-const stubPanel = (snapshot, calls = [], over = {}) => html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => bareState(snapshot), loadList() {}, open: () => calls.push('open'), issue() {}, reset: () => calls.push('reset'), propose() {}, revoke: id => calls.push(['revoke', id]), setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over });
+const bareState = o => ({ phase: 'closed', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...o });
+const stubPanel = (snapshot, calls = [], over = {}) => html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => bareState(snapshot), loadList() {}, open: () => calls.push('open'), issue() {}, reset: () => calls.push('reset'), propose() {}, revoke: id => calls.push(['revoke', id]), setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over });
 
 test('replay without a token keeps the EXACT returned invitation id, never the token', async () => {
-  const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-42', status: 'ISSUED', invitationToken: null, replayed: true }) });
+  const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-42', status: 'ISSUED', invitationToken: null, replayed: true, targetKind: 'KS_NUMBER', targetHint: 'KS0002' }) });
   await fill(controller); await controller.issue();
   const s = controller.getSnapshot();
-  assert.equal(s.phase, 'issued-earlier'); assert.deepEqual(s.issued, { invitationId: 'inv-42', link: null });
+  assert.equal(s.phase, 'issued-earlier'); assert.deepEqual(s.issued, { invitationId: 'inv-42', link: null, targetKind: 'KS_NUMBER', targetHint: 'KS0002' });
   assert.doesNotMatch(JSON.stringify(s), /TOKEN|token/i);
 });
 test('the direct revoke action uses exactly that id, and never picks one by role, date, position or text', async () => {
@@ -390,11 +435,15 @@ test('the KS helper says SecurePay checks the number before issuance, and only t
   assert.match(out, /Only the account with this KS Number will be able to join/);
 });
 test('a found KS preview shows the bounded identity, never contact details, and enables Create invitation', () => {
-  const out = text(stubPanel({ phase: 'form', ksNumber: 'KS0010492', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' }));
+  const markup = stubPanel({ phase: 'form', ksNumber: 'KS0010492', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' });
+  const out = text(markup);
   assert.match(out, /Mary Wanjiku/);
   assert.match(out, /KS0010492/);
-  assert.doesNotMatch(out, /@|phone|email/i);
-  const markup = stubPanel({ phase: 'form', ksNumber: 'KS0010492', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' });
+  // Scoped to the identity-preview box itself -- the panel's own "I have their phone or email" MODE
+  // TOGGLE (a real, unrelated Section 8 affordance) legitimately contains those words elsewhere.
+  const previewBlock = markup.match(/<div role="status"[^>]*>[\s\S]*?<\/div>/)[0];
+  assert.match(previewBlock, /Mary Wanjiku/);
+  assert.doesNotMatch(previewBlock, /@|phone|email/i);
   const submitButton = markup.match(/<button type="submit"[^>]*>/)[0];
   assert.doesNotMatch(submitButton, /\sdisabled(=|\s|>)/);
 });

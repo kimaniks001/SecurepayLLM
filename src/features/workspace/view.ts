@@ -254,7 +254,12 @@ export function peopleFromProjection(
 }
 
 function personFromProjectionRow(p: AgreementPersonResponse): AgreementPerson {
-  const identity = p.displayName ? (p.canonicalKsNumber ? `${p.displayName} · ${p.canonicalKsNumber}` : p.displayName) : p.canonicalKsNumber;
+  // KS001 Upgrade Phase 4 continuation (Section 31) -- before a contact-bound invitation is joined,
+  // SecurePay has no real identity to show at all; the masked contact hint (e.g. "•••• 5678") is the
+  // ONLY honest thing to display, never a real name that doesn't exist yet and never the raw contact.
+  const identity = p.displayName
+    ? (p.canonicalKsNumber ? `${p.displayName} · ${p.canonicalKsNumber}` : p.displayName)
+    : (p.canonicalKsNumber ?? p.maskedContactTarget);
   const nameKnown = !!p.displayName;
   const stillPending = p.humanState === 'INVITED' || p.humanState === 'INVITATION_OPENED' || p.humanState === 'INVITATION_EXPIRED' || p.humanState === 'INVITATION_REVOKED';
   const fallbackName = p.isCreator ? 'Participant' : (stillPending ? 'Someone invited' : 'Participant');
