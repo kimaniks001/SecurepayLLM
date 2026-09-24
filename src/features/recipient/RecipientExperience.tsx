@@ -14,28 +14,59 @@ import type { SessionStore } from '../../api/securepay/session';
 import { createRecipientController } from './controller';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { createSignupController } from '../signup/controller';
+import { signupView } from '../signup/view';
 import { recipientReviewView, joinPromptView, joinedStatusView, exactVersionView, participantsView, roleWords, needsChangingView, changedVersionNoticeView, confirmedView, recipientErrorView } from './view';
 
 const AUTH_CONTEXT = { title: 'SecurePay needs to know who you are', reason: 'Before adding you to this Agreement, SecurePay needs to know who you are. Signing in only proves that — it does not join, confirm or accept anything, and you’ll come straight back to this invitation.', secondaryLabel: 'Not now' };
 
-export function RecipientExperience({ token, gateway, auth, session, onLeave }: {
-  token: string; gateway: AgreementGateway; auth: AuthGateway; session: SessionStore; onLeave: () => void;
+/**
+ * KS001 Upgrade Phase 4 continuation (Section 14) — the identity-boundary sub-choice: sign in with an
+ * existing KS Number, or get a new one via signup. Purely local UI routing between the two EXISTING,
+ * unmodified sub-controllers below; never itself a source of authority.
+ */
+type IdentityPath = 'unset' | 'signin' | 'signup';
+
+export function RecipientExperience({ token, invitationId, gateway, auth, session, onLeave }: {
+  /** The raw public token doorway. Ignored when `invitationId` is also given. */
+  token?: string;
+  /**
+   * PHASE 4 NEXT SLICE (Section 7/8) — the self-scoped doorway: an invitation discovered through the
+   * authenticated inbox (Home's "Invitations for you"), opened WITHOUT the original raw token. Takes
+   * precedence over `token` when both are somehow given.
+   */
+  invitationId?: string;
+  gateway: AgreementGateway; auth: AuthGateway; session: SessionStore; onLeave: () => void;
 }) {
-  const [recipient] = useState(() => createRecipientController(gateway, token));
+  const [recipient] = useState(() => createRecipientController(gateway, invitationId ? { invitationId } : (token as string)));
   const [identity] = useState(() => createIdentityController(auth, session));
+  const [signup] = useState(() => createSignupController(auth, session));
   const state = useSyncExternalStore(recipient.subscribe, recipient.getSnapshot);
   const [needsChanging, setNeedsChanging] = useState(false);
+  const [identityPath, setIdentityPath] = useState<IdentityPath>('unset');
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot);
+  const signupState = useSyncExternalStore(signup.subscribe, signup.getSnapshot);
 
   useEffect(() => { void recipient.load(); }, [recipient]);
   useEffect(() => {
     if (state.phase === 'identity-required' && identityState.phase === 'signed-in') {
       recipient.afterIdentitySignedIn();
       identity.reset();
+      setIdentityPath('unset');
     }
   }, [state.phase, identityState.phase, recipient, identity]);
+  useEffect(() => {
+    // KS001 Upgrade Phase 4 continuation (Section 17/18) -- signup completing only establishes a session,
+    // the SAME way ordinary sign-in's OTP completion does. It never calls recipient.join() itself; the
+    // person still lands on the explicit Join prompt, exactly like the existing sign-in path.
+    if (state.phase === 'identity-required' && signupState.phase === 'completed') {
+      recipient.afterIdentitySignedIn();
+      signup.reset();
+      setIdentityPath('unset');
+    }
+  }, [state.phase, signupState.phase, recipient, signup]);
 
-  const leave = () => { recipient.reset(); identity.reset(); onLeave(); };
+  const leave = () => { recipient.reset(); identity.reset(); signup.reset(); setIdentityPath('unset'); onLeave(); };
 
   let body: React.ReactNode;
   if (state.phase === 'idle' || state.phase === 'loading-invitation') {
@@ -56,28 +87,85 @@ export function RecipientExperience({ token, gateway, auth, session, onLeave }: 
   } else if (state.phase === 'identity-required') {
     // After Join, "before adding you to this Agreement" would be false: only the stage-true words are used.
     const afterJoin = state.resume === 'reload-version' || state.resume === 'version-ready';
-    const authData = secureAuthView(identityState, state.authNotice
-      ? { ...AUTH_CONTEXT, reason: afterJoin ? `${state.authNotice} Signing in only proves who you are — it does not confirm anything.` : `${state.authNotice} ${AUTH_CONTEXT.reason}` }
-      : AUTH_CONTEXT);
-    body = (
-      <SecureAuthCard
-        data={authData}
-        values={identityState.phase === 'otp' ? [identityState.otp] : [identityState.ksNumber, identityState.password]}
-        disabled={identityState.busy}
-        errorText={identityState.error}
-        onFieldChange={(index, value) => {
-          if (identityState.phase === 'otp') identity.setOtp(value);
-          else if (index === 0) identity.setKsNumber(value);
-          else identity.setPassword(value);
-        }}
-        onChoice={value => {
-          if (value === 'submit_credentials') void identity.submitCredentials();
-          else if (value === 'submit_otp') void identity.submitOtp();
-          else if (value === 'reset_credentials') identity.reset();
-          else if (value === 'cancel_auth') leave();
-        }}
-      />
-    );
+    if (identityPath === 'unset') {
+      // KS001 Upgrade Phase 4 continuation (Section 14) -- the identity-boundary choice. Neither option
+      // is itself an action on the Agreement; both merely lead to establishing who the person is.
+      body = (
+        <div className="space-y-3 text-center">
+          <p className="text-[0.9rem] text-sand-700">{state.authNotice ?? AUTH_CONTEXT.reason}</p>
+          <ChoiceButtons
+            data={{ type: 'CHOICE_BUTTONS', choices: [
+              { label: 'I have a KS Number', value: 'path_signin' },
+              { label: 'Get my KS Number', value: 'path_signup' },
+            ] }}
+            onChoice={value => {
+              if (value === 'path_signin') setIdentityPath('signin');
+              else if (value === 'path_signup') setIdentityPath('signup');
+            }}
+          />
+          <button type="button" className="text-[0.8rem] text-sand-500 underline" onClick={leave}>Not now</button>
+        </div>
+      );
+    } else if (identityPath === 'signup') {
+      const signupData = signupView(signupState);
+      body = (
+        <div className="space-y-3">
+          {signupState.phase === 'form' && (
+            <ChoiceButtons
+              data={{ type: 'CHOICE_BUTTONS', choices: [
+                { label: 'Phone', value: 'channel_sms' },
+                { label: 'Email', value: 'channel_email' },
+              ] }}
+              onChoice={value => {
+                if (value === 'channel_sms') signup.setChannelType('SMS');
+                else if (value === 'channel_email') signup.setChannelType('EMAIL');
+              }}
+            />
+          )}
+          <SecureAuthCard
+            data={signupData}
+            values={signupState.phase === 'otp' ? [signupState.otp] : [signupState.displayName, signupState.destination, signupState.password]}
+            disabled={signupState.busy}
+            errorText={signupState.error}
+            onFieldChange={(index, value) => {
+              if (signupState.phase === 'otp') signup.setOtp(value);
+              else if (index === 0) signup.setDisplayName(value);
+              else if (index === 1) signup.setDestination(value);
+              else signup.setPassword(value);
+            }}
+            onChoice={value => {
+              if (value === 'signup_start') void signup.start();
+              else if (value === 'signup_verify') void signup.verify();
+              else if (value === 'signup_reset') signup.reset();
+              else if (value === 'signup_use_existing') { signup.reset(); setIdentityPath('signin'); }
+            }}
+          />
+        </div>
+      );
+    } else {
+      const authData = secureAuthView(identityState, state.authNotice
+        ? { ...AUTH_CONTEXT, reason: afterJoin ? `${state.authNotice} Signing in only proves who you are — it does not confirm anything.` : `${state.authNotice} ${AUTH_CONTEXT.reason}` }
+        : AUTH_CONTEXT);
+      body = (
+        <SecureAuthCard
+          data={authData}
+          values={identityState.phase === 'otp' ? [identityState.otp] : [identityState.ksNumber, identityState.password]}
+          disabled={identityState.busy}
+          errorText={identityState.error}
+          onFieldChange={(index, value) => {
+            if (identityState.phase === 'otp') identity.setOtp(value);
+            else if (index === 0) identity.setKsNumber(value);
+            else identity.setPassword(value);
+          }}
+          onChoice={value => {
+            if (value === 'submit_credentials') void identity.submitCredentials();
+            else if (value === 'submit_otp') void identity.submitOtp();
+            else if (value === 'reset_credentials') identity.reset();
+            else if (value === 'cancel_auth') { identity.reset(); setIdentityPath('unset'); }
+          }}
+        />
+      );
+    }
   } else if (state.phase === 'join-prompt' || state.phase === 'join-error' || state.phase === 'join-uncertain') {
     body = (
       <div className="space-y-3">

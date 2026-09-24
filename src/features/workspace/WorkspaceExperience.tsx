@@ -23,12 +23,12 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText } from './controller';
-import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
+import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, invitationsForYouView, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
-  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
   review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
@@ -217,8 +217,16 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           recentActivity={recentActivityView(state.homeExtras.recentActivity)}
           problems={problemsView(state.homeExtras.problems)}
           moneyByCurrency={moneyByCurrencyView(state.homeExtras.moneyByCurrency)}
+          invitations={invitationsForYouView(state.myInvitations)}
           onOpenAgreement={id => controller.openFromHome(id)}
           onNavigateAgreements={() => controller.goHub()}
+          // PHASE 4 NEXT SLICE (Section 7) — same hash-route seam AgentExperience already uses for
+          // `#/money`; RuntimeApp's own useMyInvitationRoute picks this up and mounts the existing
+          // RecipientExperience by invitation id, never a Home-specific detail page.
+          onReviewInvitation={invitationId => { window.location.hash = `#/my-invitations/${encodeURIComponent(invitationId)}`; }}
+          // KS001 Upgrade Phase 4 final convergence (Section 4) -- the same top-level hash-route seam,
+          // to the dedicated Invitations surface (RuntimeApp's own useInvitationInboxRoute).
+          onViewAllInvitations={() => { window.location.hash = '#/invitations'; }}
         />
       );
     }
@@ -233,8 +241,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
     else if (state.detail.status !== 'ready') body = <LoadingNotice text="Loading this agreement…" />;
     else if (state.selectedStatus && state.selectedCompletion) {
-      const { dto, confirmations, milestoneStates, events, conflicts, tags } = state.detail.data;
-      const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
+      const { dto, confirmations, people, milestoneStates, events, conflicts, tags } = state.detail.data;
+      const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion, people);
       const progress = agreementProgressView(dto, milestoneStates ?? []);
       const calendarEvents = agreementCalendarView(events);
       const eventTitleById = new Map(events.map(e => [e.id, e.title]));

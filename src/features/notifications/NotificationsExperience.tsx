@@ -7,7 +7,7 @@ import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
-import type { NotificationCategory, NotificationEvent } from '../../api/securepay/notifications';
+import { parseNotificationActionKey, type NotificationCategory, type NotificationEvent } from '../../api/securepay/notifications';
 import type { NotificationsController } from './controller';
 
 const CATEGORY_LABEL: Record<NotificationCategory, string> = {
@@ -31,12 +31,35 @@ function relativeTime(iso: string): string {
   return `${days}d ago`;
 }
 
-function NotificationRow({ notification, onMarkRead, onOpenAgreement }: {
+/**
+ * PHASE 4 Care convergence (Section 1-3, 12) — the notification's own `actionKey` now decides the
+ * action, never `agreementId`'s mere presence (Section 1's own named bug: an invited person who has not
+ * yet joined may have no Agreement read authority at all, even though `agreementId` is carried for
+ * audit/context). An unrecognized or absent `actionKey` (or an Agreement-scoped one missing the
+ * `agreementId` it needs) renders no button at all -- informational only (Section 38).
+ */
+export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void): { label: string; run: () => void } | null {
+  const actionKey = parseNotificationActionKey(notification.actionKey);
+  if (actionKey === 'OPEN_INVITATIONS') return { label: 'Review invitation', run: onOpenInvitations };
+  if (actionKey === 'OPEN_AGREEMENT' && notification.agreementId) {
+    const agreementId = notification.agreementId;
+    return { label: 'Open Agreement', run: () => onOpenAgreement(agreementId) };
+  }
+  if (actionKey === 'REVIEW_AGREEMENT' && notification.agreementId) {
+    const agreementId = notification.agreementId;
+    return { label: 'Review Agreement', run: () => onOpenAgreement(agreementId) };
+  }
+  return null;
+}
+
+function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvitations }: {
   notification: NotificationEvent;
   onMarkRead: (id: string) => void;
   onOpenAgreement: (agreementId: string) => void;
+  onOpenInvitations: () => void;
 }) {
   const unread = !notification.readAt;
+  const action = actionFor(notification, onOpenAgreement, onOpenInvitations);
   return (
     <div className={`rounded-xl border px-4 py-3 ${unread ? 'border-forest-200 bg-forest-50/40' : 'border-cream-200 bg-white'}`}>
       <div className="flex items-start gap-2.5">
@@ -55,12 +78,9 @@ function NotificationRow({ notification, onMarkRead, onOpenAgreement }: {
             </p>
           )}
           <div className="mt-2 flex flex-wrap gap-3 text-[0.75rem]">
-            {/* Doctrine (task section 20): route only where a real, present field supports it --
-                `agreementId` is real and populated by production event producers; `actionKey` is
-                never populated by any real caller today, so it is never used for routing here. */}
-            {notification.agreementId && (
-              <button onClick={() => onOpenAgreement(notification.agreementId!)} className="text-forest-700 underline">
-                Open Agreement
+            {action && (
+              <button onClick={action.run} className="text-forest-700 underline">
+                {action.label}
               </button>
             )}
             {unread && (
@@ -102,6 +122,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
   onNavigate: (view: AppView) => void;
   onOpenAgreement: (agreementId: string) => void;
 }) {
+  // KS001 Upgrade Phase 4 final convergence (Section 5) -- OPEN_INVITATIONS now routes straight to the
+  // dedicated Invitations surface (the same top-level hash route Home's own "View all invitations"
+  // doorway uses), rather than dumping the caller at general Home and making them find it themselves.
+  // Still purely a navigation hint -- no authority is encoded in the actionKey itself (Section 5's own
+  // "OPEN_INVITATIONS remains a navigation hint only" instruction).
+  const onOpenInvitations = () => { window.location.hash = '#/invitations'; };
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [tab, setTab] = useState<'inbox' | 'preferences'>('inbox');
 
@@ -153,7 +179,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
             {state.inbox.status === 'ready' && state.inbox.data && state.inbox.data.length > 0 && (
               <div className="space-y-2">
                 {state.inbox.data.map(notification => (
-                  <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} />
+                  <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
                 ))}
                 {state.hasMore && (
                   <button

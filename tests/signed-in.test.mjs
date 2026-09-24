@@ -381,3 +381,97 @@ export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { o
     assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
   }
 });
+
+// ─── PHASE 4 NEXT SLICE — Home's "Invitations for you" (Section 4/5) ───────────────────────────────
+
+const inboxItem = (overrides = {}) => ({
+  invitationId: 'invitation-1', agreementId: 'agreement-1', agreementPublicReference: 'AGR-1',
+  agreementTitle: 'Kitchen cabinetry', agreementPurpose: 'Build kitchen cabinets', currency: 'KES',
+  proposedAmountMinor: 18000000, roleCode: 'CARPENTER', inviterDisplayName: 'James Kimani',
+  inviterCanonicalKsNumber: 'KS0001', status: 'ISSUED', issuedAt: '2026-09-20T00:00:00Z',
+  expiresAt: '2026-10-02T00:00:00Z', firstViewedAt: null, isCurrentVersion: true, needsAttention: true,
+  targetKind: 'KS_NUMBER', targetHint: 'KS0002', ...overrides,
+});
+
+test('workspace Home: myInvitations is fetched best-effort alongside the Hub and populates state', async () => {
+  const gateway = {
+    currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
+    hub: async () => hub(),
+    myInvitations: async () => ({ items: [inboxItem()], page: 0, size: 20, totalElements: 1 }),
+  };
+  const controller = api.createWorkspaceController(gateway);
+  controller.enter();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(controller.getSnapshot().myInvitations.length, 1);
+  assert.equal(controller.getSnapshot().myInvitations[0].invitationId, 'invitation-1');
+});
+
+test('workspace Home: a failed myInvitations read never fails Home closed -- defaults to empty', async () => {
+  const gateway = {
+    currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
+    hub: async () => hub(),
+    myInvitations: async () => { throw new api.ApiError('http', 'unavailable', 500, null); },
+  };
+  const controller = api.createWorkspaceController(gateway);
+  controller.enter();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(controller.getSnapshot().hub.status, 'ready');
+  assert.deepEqual(controller.getSnapshot().myInvitations, []);
+});
+
+test('workspace Hub (not Home) never fetches myInvitations -- it is a Home-only read', async () => {
+  const calls = [];
+  const gateway = {
+    currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
+    hub: async () => hub(),
+    myInvitations: async () => { calls.push('myInvitations'); return { items: [], page: 0, size: 20, totalElements: 0 }; },
+  };
+  const controller = api.createWorkspaceController(gateway);
+  controller.goHub();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(calls.length, 0);
+});
+
+test('invitationsForYouView: a JOINED invitation is hidden -- the person reaches it through normal Agreement surfaces', () => {
+  const views = api.invitationsForYouView([inboxItem({ status: 'JOINED', needsAttention: false })]);
+  assert.equal(views.length, 0);
+});
+
+test('invitationsForYouView: an active invitation shows inviter/title/role/amount/expiry and IS actionable', () => {
+  const [view] = api.invitationsForYouView([inboxItem()]);
+  assert.match(view.inviterLine, /James Kimani invited you/);
+  assert.equal(view.agreementTitle, 'Kitchen cabinetry');
+  assert.match(view.roleLine, /Carpenter/);
+  assert.match(view.amountLine, /KES/);
+  assert.match(view.expiryLine, /Expires/);
+  assert.equal(view.actionable, true);
+  assert.equal(view.statusNote, null);
+});
+
+test('invitationsForYouView: never invents an inviter name, an agreement title, or a proposed amount SecurePay did not supply', () => {
+  const [view] = api.invitationsForYouView([inboxItem({ inviterDisplayName: null, agreementTitle: null, proposedAmountMinor: null })]);
+  assert.equal(view.inviterLine, 'You’ve been invited');
+  assert.equal(view.agreementTitle, 'An agreement');
+  assert.equal(view.amountLine, null);
+});
+
+test('KS001 Upgrade Phase 4 final convergence (Section 3) -- invitationsForYouView: EXPIRED and REVOKED never appear on Home at all -- only the backend\'s own needsAttention truth does, so an older-but-actionable invitation can never be crowded out by recent historical ones', () => {
+  const views = api.invitationsForYouView([
+    inboxItem({ invitationId: 'expired-1', status: 'EXPIRED', needsAttention: false }),
+    inboxItem({ invitationId: 'revoked-1', status: 'REVOKED', needsAttention: false }),
+  ]);
+  assert.equal(views.length, 0);
+});
+
+test('KS001 Upgrade Phase 4 final convergence (Section 3) -- a genuinely EXPIRED-by-clock invitation (backend needsAttention=false even though persisted status still reads ISSUED) is likewise excluded from Home', () => {
+  const views = api.invitationsForYouView([inboxItem({ status: 'ISSUED', needsAttention: false })]);
+  assert.equal(views.length, 0);
+});
+
+test('invitationsForYouView never uses Accept/Confirm/Pay-shaped copy anywhere', () => {
+  const views = api.invitationsForYouView([inboxItem(), inboxItem({ invitationId: 'i2', status: 'EXPIRED', needsAttention: false }), inboxItem({ invitationId: 'i3', status: 'REVOKED', needsAttention: false })]);
+  // Only the actual rendered copy -- never the object's own property NAMES (e.g. "agreementTitle"
+  // itself contains "agree", which is not a claim about anything).
+  const allCopy = views.flatMap(v => [v.inviterLine, v.agreementTitle, v.roleLine, v.amountLine, v.expiryLine, v.statusNote]).filter(Boolean).join(' | ');
+  assert.doesNotMatch(allCopy, /Accept|Confirm|Pay now|Complete payment|You joined|Your agreement|You agreed/i);
+});

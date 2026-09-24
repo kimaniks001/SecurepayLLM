@@ -143,7 +143,85 @@ export interface PublicInvitationViewResponse {
   proposedAmountMinor: number | null;
   invitationExpiresAt: string;
   proposalVersionNumber: number;
+  // KS001 Upgrade Phase 4 (Section 20/21/23) -- previously absent: whether the version shown is still
+  // the Agreement's CURRENT one, and a bounded inviter summary (never contact details).
+  isCurrentVersion: boolean;
+  inviterDisplayName: string | null;
+  inviterCanonicalKsNumber: string | null;
   notice: string;
+  // KS001 Upgrade Phase 4 continuation -- what kind of target this invitation names, and the one safe
+  // display form (a KS Number, or a masked contact hint, or nothing for an OPEN invitation).
+  targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN';
+  targetHint: string | null;
+}
+/** KS001 Upgrade Phase 4 (Section 7/9) -- one row of the server-owned People projection. */
+export interface AgreementPersonResponse {
+  participantId: string;
+  identityId: string | null;
+  displayName: string | null;
+  canonicalKsNumber: string | null;
+  roleCode: string;
+  isCreator: boolean;
+  invitationId: string | null;
+  invitationStatus: string | null;
+  invitationIssuedAt: string | null;
+  invitationExpiresAt: string | null;
+  invitationFirstViewedAt: string | null;
+  joinedAt: string | null;
+  confirmedVersionNumber: number | null;
+  confirmationCurrent: boolean;
+  reconfirmationRequired: boolean;
+  humanState: string;
+  // KS001 Upgrade Phase 4 continuation -- the masked contact hint before a real identity has joined a
+  // contact-bound invitation. Null once displayName is known.
+  maskedContactTarget: string | null;
+}
+// KS001 Upgrade Phase 4 continuation (item 3) -- the creator is deliberately excluded from every
+// denominator except peopleCount itself. See AgreementPeopleProjectionService's own javadoc
+// (SecurePayAPI) for the full field-by-field rationale.
+export interface AgreementPeopleSummaryResponse {
+  peopleCount: number;
+  expectedParticipantCount: number;
+  pendingInvitationCount: number;
+  joinedParticipantCount: number;
+  confirmedCurrentParticipantCount: number;
+  reconfirmationRequiredCount: number;
+  allExpectedHaveJoined: boolean;
+  allJoinedHaveConfirmedCurrent: boolean;
+  allExpectedHaveConfirmedCurrent: boolean;
+}
+export interface AgreementPeopleResponse {
+  people: AgreementPersonResponse[];
+  summary: AgreementPeopleSummaryResponse;
+}
+/** KS001 Upgrade Phase 4 (Section 10) -- the bounded creator-facing invitation-target preview. */
+export interface InvitationTargetResponse {
+  identityId: string;
+  canonicalKsNumber: string | null;
+  displayName: string | null;
+  identityType: string | null;
+}
+/** KS001 Upgrade Phase 4 continuation -- one row of the self-scoped invitation inbox. Never a raw token, token hash, or raw contact. */
+export interface AgreementInvitationInboxItemResponse {
+  invitationId: string;
+  agreementId: string;
+  agreementPublicReference: string | null;
+  agreementTitle: string | null;
+  /** PHASE 4 NEXT SLICE (Section 5/6) -- the same frozen-invited-version fields a raw-token holder can already see via PublicInvitationView. */
+  agreementPurpose: string | null;
+  currency: string | null;
+  proposedAmountMinor: number | null;
+  roleCode: string;
+  inviterDisplayName: string | null;
+  inviterCanonicalKsNumber: string | null;
+  status: 'ISSUED' | 'VIEWED' | 'JOINED' | 'REVOKED' | 'EXPIRED';
+  issuedAt: string;
+  expiresAt: string;
+  firstViewedAt: string | null;
+  isCurrentVersion: boolean;
+  needsAttention: boolean;
+  targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN';
+  targetHint: string | null;
 }
 export interface JoinAgreementResponse {
   agreementId: string;

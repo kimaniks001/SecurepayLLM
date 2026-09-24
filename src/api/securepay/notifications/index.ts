@@ -16,6 +16,24 @@ import type { HttpClient } from '../http';
 export type NotificationCategory = 'AGREEMENTS' | 'MONEY' | 'REVIEWS' | 'SECURITY' | 'COMMUNITY' | 'SUPPORT';
 export type NotificationPriority = 'NORMAL' | 'HIGH';
 
+/**
+ * PHASE 4 Care convergence (Section 2) — the CLOSED navigation-hint vocabulary a notification's
+ * `actionKey` may legitimately carry (mirrors the backend's own `NotificationActionKey` enum, persisted
+ * as this exact wire string). Never itself authority (Section 27) — it only routes to an existing,
+ * independently-authorized surface.
+ */
+export type NotificationActionKey = 'OPEN_INVITATIONS' | 'OPEN_AGREEMENT' | 'REVIEW_AGREEMENT';
+
+/**
+ * The one place a raw, persisted `actionKey` string is trusted. An unrecognized or absent value returns
+ * `null` — informational only, never a guessed destination (Section 3/38's own "unknown actionKey -> no
+ * action button" doctrine).
+ */
+export function parseNotificationActionKey(raw: string | null): NotificationActionKey | null {
+  if (raw === 'OPEN_INVITATIONS' || raw === 'OPEN_AGREEMENT' || raw === 'REVIEW_AGREEMENT') return raw;
+  return null;
+}
+
 export interface NotificationEvent {
   id: string;
   category: NotificationCategory;
@@ -26,11 +44,12 @@ export interface NotificationEvent {
   agreementId: string | null;
   bridgeId: string | null;
   /**
-   * Deep-link hint. As of this pass, no real production event producer populates this (every real
-   * `PublishNotificationCommand` call site in SecurePayAPI passes `null`) -- see
-   * docs/PHASE6_CONVERGENCE_PRODUCTION.md's Communication section. Frontend routing must not invent
-   * a mapping for values that could appear here; it is carried through only so a future backend
-   * producer can start using it without a frontend contract change.
+   * PHASE 4 Care convergence (Section 1/2) — the raw wire value of the backend's typed
+   * `NotificationActionKey`. Real producers (invitation issued/revoked, and this slice's Join/
+   * confirmation/reconfirmation Care triggers) now populate this; some older/other events may still
+   * legitimately carry `null` (purely informational). ALWAYS pass this through `parseNotificationActionKey`
+   * before routing on it — never compare this raw string directly, and never invent a mapping for a value
+   * that parser does not recognize (Section 3/38's own "unknown actionKey -> no action button" doctrine).
    */
   actionKey: string | null;
   createdAt: string;

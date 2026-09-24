@@ -16,6 +16,7 @@ export * from './src/api/securepay/session';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
 const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
+const err = (kind, status, message) => new api.ApiError(kind, message ?? 'x', status ?? null, null);
 const TOKEN = 'raw-invitation-token';
 const invitationDto = (overrides = {}) => ({
   publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile the bathroom', intendedRole: 'PROVIDER',
@@ -319,6 +320,14 @@ test('route: the invitation token lives only in a hash fragment and is parsed na
   assert.equal(api.parseInvitationRoute(''), null);
 });
 
+test('route: the self-scoped my-invitations route is parsed narrowly and never confused with the token route', () => {
+  assert.equal(api.parseMyInvitationRoute('#/my-invitations/invitation-42'), 'invitation-42');
+  assert.equal(api.parseMyInvitationRoute('#/my-invitations/'), null);
+  assert.equal(api.parseMyInvitationRoute('#/invitation/abc123'), null);
+  assert.equal(api.parseInvitationRoute('#/my-invitations/invitation-42'), null);
+  assert.equal(api.parseMyInvitationRoute(''), null);
+});
+
 test('16. production path wires the real recipient/identity/session modules and cannot fall back to fixture state', async () => {
   const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' }, loader: { '.png': 'dataurl' } });
   const paths = Object.keys(result.metafile.inputs);
@@ -397,4 +406,68 @@ test('recipientReviewView never labels a proposed amount as labour, and never fa
   });
   assert.equal(withoutAmount.purpose, null);
   assert.equal(withoutAmount.proposedAmount, null);
+});
+
+// ------------------------------------------------------------ PHASE 4 NEXT SLICE -- self-scoped entry (Section 7/8)
+const INVITATION_ID = 'invitation-42';
+function setupBySelf(overrides = {}) {
+  const calls = [];
+  const gateway = {
+    viewMyInvitation: async invitationId => { calls.push(['viewMyInvitation', invitationId]); return invitationDto(); },
+    joinMyInvitation: async (invitationId, idempotencyKey) => { calls.push(['joinMyInvitation', invitationId, idempotencyKey]); return joinDto(); },
+    versions: async agreementId => { calls.push(['versions', agreementId]); return [versionDto()]; },
+    version: async (agreementId, versionId) => { calls.push(['version', agreementId, versionId]); return versionDto(); },
+    confirmVersion: async (agreementId, versionId, body) => { calls.push(['confirmVersion', agreementId, versionId, body]); return confirmationDto(); },
+    ...overrides,
+  };
+  let n = 0;
+  return { calls, controller: api.createRecipientController(gateway, { invitationId: INVITATION_ID }, () => `key-${++n}`) };
+}
+
+test('self-scoped entry loads via viewMyInvitation, never the public token endpoint', async () => {
+  const { controller, calls } = setupBySelf();
+  await controller.load();
+  assert.equal(controller.getSnapshot().phase, 'invitation-ready');
+  assert.deepEqual(calls[0], ['viewMyInvitation', INVITATION_ID]);
+  assert.equal(calls.some(c => c[0] === 'invitation'), false);
+});
+
+test('self-scoped entry joins via joinMyInvitation with the invitation id, never a raw token', async () => {
+  const { controller, calls } = setupBySelf();
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  assert.equal(controller.getSnapshot().phase, 'version-ready');
+  const joinCall = calls.find(c => c[0] === 'joinMyInvitation');
+  assert.ok(joinCall);
+  assert.equal(joinCall[1], INVITATION_ID);
+  assert.equal(calls.some(c => c[0] === 'join'), false);
+});
+
+test('a 401 on the initial self-scoped load asks to sign in, then re-reads the SAME invitation -- never jumps ahead to Join', async () => {
+  let attempt = 0;
+  const { controller } = setupBySelf({
+    viewMyInvitation: async () => { attempt += 1; if (attempt === 1) throw err('http', 401, 'unauthenticated'); return invitationDto(); },
+  });
+  await controller.load();
+  assert.equal(controller.getSnapshot().phase, 'identity-required');
+  assert.match(controller.getSnapshot().authNotice, /session ended/i);
+
+  controller.afterIdentitySignedIn();
+  // The reload is async; the assertion below waits for it to settle.
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(controller.getSnapshot().phase, 'invitation-ready');
+  assert.ok(controller.getSnapshot().invitation);
+});
+
+test('a 403 ownership mismatch on a by-id Join fails exactly like the token path: nothing joined, real sign-in boundary', async () => {
+  const { controller } = setupBySelf({ joinMyInvitation: async () => { throw err('http', 403, 'invitation ownership mismatch'); } });
+  await controller.load();
+  controller.proceed(true);
+  await controller.join();
+  const s = controller.getSnapshot();
+  assert.equal(s.phase, 'identity-required');
+  assert.equal(s.resume, 'join-prompt');
+  assert.match(s.authNotice, /account you.re signed in with/);
+  assert.equal(s.join, null);
 });

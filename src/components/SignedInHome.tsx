@@ -9,8 +9,9 @@ import { HomeWorkbenchSummary } from './HomeWorkbenchSummary';
 import { UpcomingEventsList } from './UpcomingEventsList';
 import { ProblemsList } from './ProblemsList';
 import { AgreementMoneyByCurrencySummary } from './AgreementMoneyByCurrencySummary';
+import { InvitationsForYou } from './InvitationsForYou';
 import type { AttentionItem, WaitingItem, ActivityEntry, ProblemItem, MoneyByCurrencyItem } from '../types';
-import type { CalendarEventView } from '../features/workspace/view';
+import type { CalendarEventView, InvitationForYouCardView } from '../features/workspace/view';
 
 interface SignedInHomeProps {
   onStart: (text: string) => void;
@@ -23,8 +24,14 @@ interface SignedInHomeProps {
   problems?: ProblemItem[];
   /** Final Phase 3 correction (Section 9): real Agreement Money by currency. Defaults to empty. */
   moneyByCurrency?: MoneyByCurrencyItem[];
+  /** PHASE 4 NEXT SLICE (Section 4): invitations the authenticated caller can review, from GET /agreement-invitations/me. Defaults to empty. */
+  invitations?: InvitationForYouCardView[];
   onOpenAgreement: (id: string) => void;
   onNavigateAgreements: () => void;
+  /** PHASE 4 NEXT SLICE (Section 7): opens the existing recipient review experience by invitation id — never Home's own detail page. Real callers must supply this; the fixture/demo app never renders any invitations, so its own no-op default is never actually reachable. */
+  onReviewInvitation?: (invitationId: string) => void;
+  /** KS001 Upgrade Phase 4 final convergence (Section 4): the real "View all invitations" doorway to the dedicated Invitations surface. */
+  onViewAllInvitations?: () => void;
   /**
    * Real callers must supply these three explicitly (never omit) so this component never has to guess
    * a truthful value itself; omitting them preserves the exact existing Bolt fixture text/prompts
@@ -50,8 +57,11 @@ export function SignedInHome({
   upcomingEvents = [],
   problems = [],
   moneyByCurrency = [],
+  invitations = [],
   onOpenAgreement,
   onNavigateAgreements,
+  onReviewInvitation = () => {},
+  onViewAllInvitations = () => {},
   greeting = fixtureGreeting,
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
@@ -101,6 +111,7 @@ export function SignedInHome({
 
           {/* Mobile: needs attention + waiting below the fold */}
           <div className="md:hidden mt-8 space-y-6">
+            <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
             <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
             <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
             <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
@@ -126,6 +137,7 @@ export function SignedInHome({
             recentCount={recentActivity.length}
             onNavigateAgreements={onNavigateAgreements}
           />
+          <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
           <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
           <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
           <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />

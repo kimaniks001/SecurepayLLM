@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
+import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementInvitationInboxItemResponse, AgreementKeyContractReferralResponse, AgreementPeopleResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, InvitationTargetResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -8,7 +8,7 @@ export interface HubDto {
   cancelled: CurrentUserAgreementSummaryResponse[]; expired: CurrentUserAgreementSummaryResponse[];
 }
 /** `invitationToken` is null on an idempotent REPLAY: SecurePay returns the existing invitation but never the raw token again. */
-export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean }
+export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean; targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN'; targetHint: string | null }
 export interface ObligationDto { id: string; publicReference: string; agreementId: string; agreementVersionId: string; obligationType: string; title: string; description: string | null; responsibleParticipantId: string; beneficiaryParticipantId: string | null; currency: string | null; amountMinor: number | null; status: string; createdAt: string }
 export interface ObligationCompletionStatusDto { eligible: boolean; currentStatus: string; unmetRequirements: string[]; satisfiedRequirements: string[]; evidenceIds: string[]; explanationCodes: string[] }
 export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string }
@@ -41,7 +41,19 @@ export function createAgreementGateway(http: HttpClient) {
     // reconfirmationRequired. Used only to render real "who confirmed the current version" and this
     // caller's own stale-review state — never to derive Agreement or Money authority.
     confirmationStatus: (id: string) => http.request<AgreementConfirmationStatusResponse[]>(`${agreement(id)}/confirmation-status`, { auth: 'required' }),
-    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    // KS001 Upgrade Phase 4 continuation -- deliberately no intendedIdentityId field: a public caller may
+    // only ever name an intended recipient by KS Number (server re-resolved) OR a phone/email (bound to a
+    // digest server-side, never persisted raw), never both.
+    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedKsNumber?: string; contactChannel?: 'EMAIL' | 'SMS'; contactDestination?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    // KS001 Upgrade Phase 4 (Section 10) -- the bounded creator-facing preview before issuing a
+    // KS-Number-targeted invitation. A 404 means "no such active identity" (never distinguished from
+    // "known but ineligible" -- Section 15's own anti-enumeration doctrine) -- the caller checks
+    // `error.status === 404` and treats it as "not found," not a failure to report.
+    lookupInvitationTargetByKsNumber: (id: string, ksNumber: string) => http.request<InvitationTargetResponse>(`${agreement(id)}/invitation-targets/by-ks-number?ksNumber=${encodeURIComponent(ksNumber)}`, { auth: 'required' }),
+    // KS001 Upgrade Phase 4 (Section 7/9) -- the ONE server-owned People projection: who is here, their
+    // bounded identity display, invitation/join/confirmation state and a human participation state,
+    // plus small server-computed summary counts (never a percentage/meter).
+    people: (id: string) => http.request<AgreementPeopleResponse>(`${agreement(id)}/people`, { auth: 'required' }),
     // Draft -> Proposed (creator only, idempotent if already PROPOSED). Invitations can only be issued from PROPOSED onward.
     propose: (id: string) => http.request<{ id: string; status: string }>(`${agreement(id)}/propose`, { method: 'POST', auth: 'required' }),
     // Real shape: List<AgreementInvitationResponse> -- id, roleCode, status (ISSUED|VIEWED|JOINED|REVOKED|EXPIRED), issuedAt, expiresAt, revokedAt. No target, no token.
@@ -78,6 +90,14 @@ export function createAgreementGateway(http: HttpClient) {
     withdrawAmendment: (id: string, amendmentId: string) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/withdraw`, { method: 'POST', auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // KS001 Upgrade Phase 4 continuation (Section 21/23) -- the self-scoped invitation inbox. No
+    // identityId parameter exists anywhere here: every match is derived from the caller's OWN session.
+    // KS001 Upgrade Phase 4 final convergence (Section 2) -- genuinely bounded/paginated (same Page<T>
+    // convention as currentUserAgreements/currentUserActions); the backend never assembles or returns a
+    // caller's entire lifetime invitation history in one response.
+    myInvitations: (page = 0, size = 20) => http.request<Page<AgreementInvitationInboxItemResponse>>(`/api/v1/agreement-invitations/me${pagination(page, size)}`, { auth: 'required' }),
+    viewMyInvitation: (invitationId: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}`, { auth: 'required' }),
+    joinMyInvitation: (invitationId: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,
     // versionStatus included), not the lighter AgreementVersionSummaryResponse used in Detail's
     // versionHistory. Callers must select CURRENT by versionStatus, never by highest versionNumber.

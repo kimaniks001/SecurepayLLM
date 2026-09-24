@@ -12,7 +12,7 @@ export { createReconfirmController } from './src/features/amendments/reconfirm';
 export { ChangesPanel, amendmentStatusWord } from './src/features/amendments/ChangesPanel';
 export { ReconfirmPanel, ownStanding } from './src/features/amendments/ReconfirmPanel';
 export { AUTHENTICATED_AGREEMENT_METHODS } from './src/api/securepay/agreements/refresh';
-export { peopleView } from './src/features/workspace/view';
+export { peopleFromProjection } from './src/features/workspace/view';
 export { ApiError } from './src/api/securepay/http';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
@@ -239,31 +239,35 @@ test('the controller has no way to propose, edit or rebase a proposal', async ()
 });
 
 // ------------------------------------------------------------ People / confirmation after a new version
-const P = (id, status) => ({ participantId: id, roleCode: 'SERVICE_PROVIDER', participantStatus: status, ksNumber: 'KS003', displayName: 'Kamau' });
-const C = (participantId, versionNumber, current, status = 'CONFIRMED') => ({ id: 'c', agreementVersionId: `v${versionNumber}`, participantId, versionNumber, versionContentHash: 'h', status, assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: 'x', confirmationCurrent: current, reconfirmationRequired: !current });
-test('MATERIAL amendment: the backend INVALIDATES the row and leaves participantStatus CONFIRMED -> "needs to review", not unknown', () => {
-  const p = api.peopleView([P('p1', 'CONFIRMED')], [C('p1', 1, false, 'INVALIDATED')], 2)[0];
-  assert.equal(p.statusText, 'Confirmed version 1 · needs to review version 2'); assert.equal(p.statusKind, 'needs');
+//
+// KS001 Upgrade Phase 4 continuation (item 4) -- peopleView (the client-side participants+confirmations+
+// version composition that used to decide MATERIAL vs non-material amendment handling, WITHDRAWN/
+// INVALIDATED status semantics, and the "missing row" contradiction case) is RETIRED. That entire
+// derivation now lives, and is tested, server-side in AgreementConfirmationService/
+// AgreementPeopleProjectionService (SecurePayAPI) -- the frontend receives one already-resolved
+// humanState per participant and only ever turns it into copy. These tests prove that thin mapping only.
+const PP = (humanState, extra = {}) => ({
+  participantId: 'p1', identityId: 'i1', displayName: 'Kamau', canonicalKsNumber: 'KS003', roleCode: 'SERVICE_PROVIDER',
+  isCreator: false, invitationId: null, invitationStatus: null, invitationIssuedAt: null, invitationExpiresAt: null,
+  invitationFirstViewedAt: null, joinedAt: null, confirmedVersionNumber: null, confirmationCurrent: false,
+  reconfirmationRequired: false, humanState, ...extra,
 });
-test('NON-material amendment: the row stays CONFIRMED on the old version (confirmationCurrent false) -> the same words: the backend does not distinguish them here', () => {
-  const p = api.peopleView([P('p1', 'CONFIRMED')], [C('p1', 1, false, 'CONFIRMED')], 2)[0];
-  assert.equal(p.statusText, 'Confirmed version 1 · needs to review version 2');
+const projectionOf = people => ({ people, summary: { peopleCount: people.length, expectedParticipantCount: 0, pendingInvitationCount: 0, joinedParticipantCount: 0, confirmedCurrentParticipantCount: 0, reconfirmationRequiredCount: 0, allExpectedHaveJoined: false, allJoinedHaveConfirmedCurrent: false, allExpectedHaveConfirmedCurrent: false } });
+test('a MATERIAL amendment is server-expressed as RECONFIRMATION_REQUIRED -> "needs to review", never unknown', () => {
+  const p = api.peopleFromProjection(projectionOf([PP('RECONFIRMATION_REQUIRED', { confirmedVersionNumber: 1 })]), [])[0];
+  assert.equal(p.statusText, 'Kamau needs to review the changed Agreement'); assert.equal(p.statusKind, 'needs');
 });
-test('materialChange is never an input to People: only SecurePay\'s confirmation rows are', async () => {
+test('a current confirmation is server-expressed as CONFIRMED_CURRENT -> named when identity is known', () => {
+  const p = api.peopleFromProjection(projectionOf([PP('CONFIRMED_CURRENT', { confirmedVersionNumber: 1 })]), [])[0];
+  assert.equal(p.statusText, 'Kamau confirmed'); assert.equal(p.statusKind, 'current');
+});
+test('materialChange is never an input to the frontend People mapper at all -- only the server-owned humanState is', async () => {
   const src = await readFile('src/features/workspace/view.ts', 'utf8');
-  const fn = src.slice(src.indexOf('export function peopleView'), src.indexOf('function displayNameForParticipant')).replace(/\/\/.*$/gm, '');
-  assert.doesNotMatch(fn, /materialChange|material/i);
+  const fn = src.slice(src.indexOf('export function peopleFromProjection'), src.indexOf('function displayNameForParticipant')).replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(fn, /materialChange/i);
 });
-test('WITHDRAWN is not a confirmation; an INVALIDATED row that also claims to be current contradicts itself -> unknown', () => {
-  assert.equal(api.peopleView([P('p1', 'JOINED_UNCONFIRMED')], [C('p1', 1, false, 'WITHDRAWN')], 2)[0].statusKind, 'waiting');
-  assert.equal(api.peopleView([P('p1', 'CONFIRMED')], [C('p1', 2, true, 'INVALIDATED')], 2)[0].statusKind, 'unknown');
-});
-test('a failed confirmations read after a new version stays UNKNOWN', () => {
-  assert.equal(api.peopleView([P('p1', 'CONFIRMED')], null, 2)[0].statusKind, 'unknown');
-});
-test('before an amendment a current confirmation is current; after, only SecurePay\'s flag moves it', () => {
-  assert.equal(api.peopleView([P('p1', 'CONFIRMED')], [C('p1', 1, true)], 1)[0].statusText, 'Joined · confirmed version 1');
-  assert.equal(api.peopleView([P('p1', 'CONFIRMED')], [C('p1', 1, false)], 2)[0].statusKind, 'needs');
+test('a failed People read after a new version stays UNKNOWN, never silently reused from before the change', () => {
+  assert.equal(api.peopleFromProjection(null, [{ participantId: 'p1', roleCode: 'SERVICE_PROVIDER', participantStatus: 'CONFIRMED', ksNumber: 'KS003', displayName: 'Kamau' }])[0].statusKind, 'unknown');
 });
 
 // ------------------------------------------------------------ reconfirmation
