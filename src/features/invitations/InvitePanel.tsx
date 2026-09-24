@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { Check, Link2 } from 'lucide-react';
-import { INVITABLE_STATUSES, INVITE_ROLES, isPlausibleKs, type InviteController } from './controller';
+import { INVITABLE_STATUSES, INVITE_ROLES, isPlausibleKs, normalizeKs, type InviteController } from './controller';
 import type { AgreementInvitationDto } from '../../api/securepay/agreements';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
@@ -66,9 +66,27 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
       <h3 className="font-display text-[1.05rem] text-forest-800">Who should take part in this Agreement?</h3>
       <div>
         <label htmlFor={`${uid}-ks`} className="block text-[0.8rem] text-sand-700">Their KS Number</label>
-        <input id={`${uid}-ks`} value={state.ksNumber} disabled={locked} onChange={e => controller.setKs(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby={`${uid}-ks-help`}
-          className={`mt-1 min-h-11 w-full rounded-xl border border-cream-300 bg-white px-3 text-[0.95rem] text-forest-800 ${FOCUS}`} />
-        <p id={`${uid}-ks-help`} className="mt-1 text-[0.75rem] text-sand-600">SecurePay will bind this invitation to the KS Number you enter. It is not checked when the invitation is created, so check the number carefully. Only the account with this KS Number will be able to join.</p>
+        <div className="mt-1 flex gap-2">
+          <input id={`${uid}-ks`} value={state.ksNumber} disabled={locked} onChange={e => controller.setKs(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-describedby={`${uid}-ks-help`}
+            className={`min-h-11 flex-1 rounded-xl border border-cream-300 bg-white px-3 text-[0.95rem] text-forest-800 ${FOCUS}`} />
+          <button type="button" className={SECONDARY} disabled={locked || state.ksPreview.status === 'checking' || !isPlausibleKs(state.ksNumber)} onClick={() => void controller.checkKs()}>
+            {state.ksPreview.status === 'checking' ? 'Checking…' : 'Check'}
+          </button>
+        </div>
+        <p id={`${uid}-ks-help`} className="mt-1 text-[0.75rem] text-sand-600">SecurePay checks this KS Number against real SecurePay identities before you can invite them. Only the account with this KS Number will be able to join.</p>
+        {/* KS001 Upgrade Phase 4 (Section 10) -- the bounded confirmation before issuance is ever allowed. */}
+        {state.ksPreview.status === 'found' && state.ksPreview.checked === normalizeKs(state.ksNumber) && (
+          <div role="status" className="mt-2 rounded-xl border border-forest-200 bg-forest-50/60 px-3 py-2">
+            <p className="text-[0.85rem] font-medium text-forest-800">{state.ksPreview.target.displayName ?? 'A SecurePay identity'}</p>
+            <p className="text-[0.75rem] text-sand-600">{state.ksPreview.target.canonicalKsNumber ?? state.ksPreview.checked}</p>
+          </div>
+        )}
+        {state.ksPreview.status === 'not-found' && state.ksPreview.checked === normalizeKs(state.ksNumber) && (
+          <p role="alert" className="mt-2 text-[0.8rem] text-ember-700">SecurePay couldn’t find an active identity with that KS Number. Check it carefully, or ask them to bring a KS Number first.</p>
+        )}
+        {state.ksPreview.status === 'error' && state.ksPreview.checked === normalizeKs(state.ksNumber) && (
+          <p role="alert" className="mt-2 text-[0.8rem] text-sand-700">SecurePay couldn’t check that KS Number just now. <button type="button" className={`underline ${FOCUS}`} onClick={() => void controller.checkKs()}>Try again</button></p>
+        )}
       </div>
       <div>
         <label htmlFor={`${uid}-role`} className="block text-[0.8rem] text-sand-700">Their role in this Agreement</label>
@@ -89,7 +107,7 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
         {state.phase === 'error' && state.error && <p role="alert" className="rounded-xl border border-ember-200 bg-ember-50 px-3 py-2.5 text-[0.85rem] text-sand-800">{state.error}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={PRIMARY} disabled={busy || (state.phase !== 'uncertain' && (!state.roleCode || !isPlausibleKs(state.ksNumber)))}>{state.phase === 'uncertain' ? 'Check and try again' : 'Create invitation'}</button>
+        <button type="submit" className={PRIMARY} disabled={busy || (state.phase !== 'uncertain' && (!state.roleCode || !(state.ksPreview.status === 'found' && state.ksPreview.checked === normalizeKs(state.ksNumber))))}>{state.phase === 'uncertain' ? 'Check and try again' : 'Create invitation'}</button>
         <button type="button" className={SECONDARY} disabled={busy} onClick={() => controller.reset()}>Cancel</button>
       </div>
     </form>}

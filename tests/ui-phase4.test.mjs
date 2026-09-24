@@ -25,7 +25,7 @@ const api = mod.exports;
 const text = (component, props) => api.renderToStaticMarkup(api.createElement(component, props)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
 const TOKEN = 'tok';
-const invitation = (o = {}) => ({ publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile the bathroom', intendedRole: 'SERVICE_PROVIDER', currency: 'KES', proposedAmountMinor: 6800050, invitationExpiresAt: '2026-12-01T00:00:00Z', proposalVersionNumber: 1, notice: 'Viewing this invitation is not acceptance and does not join the agreement.', ...o });
+const invitation = (o = {}) => ({ publicReference: 'AGR-1', title: 'Bathroom retiling', purpose: 'Retile the bathroom', intendedRole: 'SERVICE_PROVIDER', currency: 'KES', proposedAmountMinor: 6800050, invitationExpiresAt: '2026-12-01T00:00:00Z', proposalVersionNumber: 1, isCurrentVersion: true, inviterDisplayName: null, inviterCanonicalKsNumber: null, notice: 'Viewing this invitation is not acceptance and does not join the agreement.', ...o });
 const join = (o = {}) => ({ agreementId: 'a1', publicReference: 'AGR-1', participantId: 'p-me', role: 'SERVICE_PROVIDER', participantStatus: 'JOINED_UNCONFIRMED', joinedVersionId: 'v1', joinedVersionNumber: 1, confirmationRequired: true, joinedAt: 'x', notice: 'n', ...o });
 const version = (o = {}) => ({ id: 'v1', versionNumber: 1, snapshot: { title: 'Bathroom retiling', purpose: 'Retile the bathroom', currency: 'KES', proposed_amount_minor: 6800050 }, contentHash: 'h1', parentVersionId: null, amendmentReason: null, materialChange: false, versionStatus: 'CURRENT', createdAt: 'x', ...o });
 const confirmation = (o = {}) => ({ id: 'c1', agreementVersionId: 'v1', participantId: 'p-me', versionNumber: 1, versionContentHash: 'h1', status: 'CONFIRMED', assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: 'x', confirmationCurrent: true, reconfirmationRequired: false, ...o });
@@ -54,9 +54,9 @@ test('opening the invitation reads it and nothing else: no join, no confirmation
   assert.equal(controller.getSnapshot().phase, 'invitation-ready');
   assert.equal(controller.getSnapshot().join, null); assert.equal(controller.getSnapshot().confirmation, null);
 });
-test('the public card orients: nothing joined or agreed, what happens next, no invented inviter, no pressure wording', () => {
+test('the public card orients: nothing joined or agreed, what happens next, no invented inviter when SecurePay resolved none, no pressure wording', () => {
   const card = api.recipientReviewView(invitation());
-  assert.equal(card.inviterName, ''); // SecurePay exposes no inviter identity, so none is claimed
+  assert.equal(card.inviterName, ''); // no inviterDisplayName in the fixture -- none is invented
   assert.equal(card.role, 'Service provider');
   assert.equal(card.proposedAmount, 'KES 68,000.50'); // integer-exact
   const out = text(api.RecipientReviewCard, { data: card, onChoice() {}, notice: invitation().notice });
@@ -65,6 +65,24 @@ test('the public card orients: nothing joined or agreed, what happens next, no i
   assert.match(out, /You.ve been invited to look at this before deciding anything/);
   assert.doesNotMatch(out, /Someone has invited|Accept invitation|Sign contract|Pay now|Join now to see/i);
   assert.doesNotMatch(out, /[^\d]0\.[0-9]|undefined/);
+});
+// KS001 Upgrade Phase 4 (Section 23) -- a bounded inviter summary IS shown once SecurePay actually
+// resolves one, and never more than displayName + KS Number.
+test('a resolved inviter is shown as displayName · KS Number, never contact details', () => {
+  const card = api.recipientReviewView(invitation({ inviterDisplayName: 'James Kimani', inviterCanonicalKsNumber: 'KS0000123' }));
+  assert.equal(card.inviterName, 'James Kimani · KS0000123');
+});
+test('an inviter name with no resolved KS Number is shown alone', () => {
+  const card = api.recipientReviewView(invitation({ inviterDisplayName: 'James Kimani', inviterCanonicalKsNumber: null }));
+  assert.equal(card.inviterName, 'James Kimani');
+});
+// KS001 Upgrade Phase 4 (Section 20/21) -- the backend's own notice text already changes when the
+// invited version is no longer current; the frontend surfaces it verbatim, never recomputing it.
+test('a changed-since-invited notice from the backend is shown verbatim, never recomputed client-side', () => {
+  const changed = invitation({ isCurrentVersion: false, notice: 'This invitation was created before the Agreement was updated. If you join, SecurePay will show you the current version before you can confirm anything.' });
+  const card = api.recipientReviewView(changed);
+  const out = text(api.RecipientReviewCard, { data: card, onChoice() {}, notice: changed.notice });
+  assert.match(out, /created before the Agreement was updated/);
 });
 test('the invitation view only shows facts SecurePay put in the public view', () => {
   const card = api.recipientReviewView(invitation({ purpose: '', proposedAmountMinor: null }));

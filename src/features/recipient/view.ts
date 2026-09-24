@@ -34,8 +34,11 @@ function formatDate(iso: string): string {
 export function recipientReviewView(invitation: PublicInvitationViewResponse): RecipientReviewResponse {
   return {
     type: 'RECIPIENT_REVIEW',
-    // SecurePay's public invitation view exposes no inviter identity, so none is claimed.
-    inviterName: '',
+    // KS001 Upgrade Phase 4 (Section 23) -- a bounded inviter summary, shown only when SecurePay
+    // actually resolved one; never invented, never more than displayName + KS Number.
+    inviterName: invitation.inviterDisplayName
+      ? (invitation.inviterCanonicalKsNumber ? `${invitation.inviterDisplayName} · ${invitation.inviterCanonicalKsNumber}` : invitation.inviterDisplayName)
+      : '',
     title: invitation.title,
     role: roleWords(invitation.intendedRole),
     purpose: invitation.purpose || null,

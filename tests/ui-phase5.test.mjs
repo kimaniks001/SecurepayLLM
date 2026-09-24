@@ -32,12 +32,13 @@ function setup(over = {}) {
     invitations: async id => { calls.push(['invitations', id]); return []; },
     revokeInvitation: async (id, inv) => { calls.push(['revoke', id, inv]); return {}; },
     issueInvitation: async (id, body) => { calls.push(['issue', id, body]); return { invitationId: 'inv-1', status: 'ISSUED', invitationToken: 'SECRET+/TOKEN', replayed: false }; },
+    lookupInvitationTargetByKsNumber: async (id, ksNumber) => { calls.push(['lookup', id, ksNumber]); return { identityId: 'target-1', canonicalKsNumber: ksNumber, displayName: 'A SecurePay Identity', identityType: 'INDIVIDUAL' }; },
     ...over,
   };
   const changed = [];
   return { calls, changed, controller: api.createInviteController(gateway, 'agr-1', ORIGIN, () => changed.push(1), () => `key-${++n}`) };
 }
-const fill = c => { c.open(); c.setRole('SERVICE_PROVIDER'); c.setKs('KS003'); };
+const fill = async c => { c.open(); c.setRole('SERVICE_PROVIDER'); c.setKs('KS003'); await c.checkKs(); };
 const issues = calls => calls.filter(c => c[0] === 'issue');
 
 // ------------------------------------------------------------ issuance
@@ -50,7 +51,8 @@ test('issue needs an explicit role and a KS Number; the body is exactly key + ro
   const { controller, calls } = setup();
   controller.open(); await controller.issue(); assert.equal(issues(calls).length, 0);
   controller.setRole('SERVICE_PROVIDER'); await controller.issue(); assert.equal(issues(calls).length, 0);
-  controller.setKs(' KS 003 '); await controller.issue();
+  controller.setKs(' KS 003 '); await controller.issue(); assert.equal(issues(calls).length, 0); // Section 10 -- no confirmed preview yet
+  await controller.checkKs(); await controller.issue();
   assert.deepEqual(issues(calls)[0], ['issue', 'agr-1', { idempotencyKey: 'key-1', roleCode: 'SERVICE_PROVIDER', intendedKsNumber: 'KS003' }]);
   assert.equal('intendedIdentityId' in issues(calls)[0][2], false);
 });
@@ -60,13 +62,13 @@ test('the role list is the canonical vocabulary, and an unknown word cannot be t
   assert.equal(new Set(codes).size, codes.length);
 });
 test('success says only that an invitation exists: link from the returned token, no join, no send, no confirmation', async () => {
-  const { controller } = setup(); fill(controller); await controller.issue();
+  const { controller } = setup(); await fill(controller); await controller.issue();
   const s = controller.getSnapshot();
   assert.equal(s.phase, 'issued'); assert.equal(s.issued.link, `${ORIGIN}/#/invitation/${encodeURIComponent('SECRET+/TOKEN')}`);
   assert.equal(s.request, null);
 });
 test('creating an invitation asks the workspace to re-read the Agreement (to show authoritative People), nothing else', async () => {
-  const { controller, changed, calls } = setup(); fill(controller); await controller.issue();
+  const { controller, changed, calls } = setup(); await fill(controller); await controller.issue();
   assert.equal(changed.length, 1); assert.equal(calls.some(c => c[0] === 'confirm' || c[0] === 'join'), false);
 });
 test('propose is its own explicit step: draft -> proposed, it invites nobody', async () => {
@@ -78,7 +80,7 @@ test('propose is its own explicit step: draft -> proposed, it invites nobody', a
 test('uncertain create: retry uses the SAME key and SAME body; inputs are locked while it is unresolved', async () => {
   let first = true;
   const { controller, calls } = setup({ issueInvitation: async (id, body) => { calls.push(['issue', id, body]); if (first) { first = false; throw err('timeout', null, 't'); } return { invitationId: 'inv-1', status: 'ISSUED', invitationToken: 'T', replayed: false }; } });
-  fill(controller); await controller.issue();
+  await fill(controller); await controller.issue();
   assert.equal(controller.getSnapshot().phase, 'uncertain'); assert.match(controller.getSnapshot().error, /couldn.t confirm whether that went through/);
   controller.setKs('KS999'); controller.setRole('BUYER'); // ignored: the request under retry must not change
   assert.equal(controller.getSnapshot().ksNumber, 'KS003'); assert.equal(controller.getSnapshot().roleCode, 'SERVICE_PROVIDER');
@@ -88,29 +90,29 @@ test('uncertain create: retry uses the SAME key and SAME body; inputs are locked
 });
 test('5xx and network errors are uncertain; a 4xx is definite and releases the key', async () => {
   for (const e of [err('network', null), err('http', 503), err('timeout', null)]) {
-    const { controller } = setup({ issueInvitation: async () => { throw e; } }); fill(controller); await controller.issue();
+    const { controller } = setup({ issueInvitation: async () => { throw e; } }); await fill(controller); await controller.issue();
     assert.equal(controller.getSnapshot().phase, 'uncertain');
   }
   const { controller, calls } = setup({ issueInvitation: async (id, b) => { calls.push(['issue', id, b]); throw err('http', 422, 'x'); } });
-  fill(controller); await controller.issue();
+  await fill(controller); await controller.issue();
   assert.equal(controller.getSnapshot().phase, 'error'); assert.equal(controller.getSnapshot().request, null);
   await controller.issue(); assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey); // new explicit attempt -> fresh key
 });
 test('success releases the key; a later invitation gets a fresh one', async () => {
-  const { controller, calls } = setup(); fill(controller); await controller.issue(); controller.reset();
-  fill(controller); await controller.issue();
+  const { controller, calls } = setup(); await fill(controller); await controller.issue(); controller.reset();
+  await fill(controller); await controller.issue();
   assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
 });
 test('reset/abandon ends the retry sequence and forgets the link', async () => {
   const { controller, calls } = setup({ issueInvitation: async (id, b) => { calls.push(['issue', id, b]); throw err('timeout', null); } });
-  fill(controller); await controller.issue(); controller.reset();
+  await fill(controller); await controller.issue(); controller.reset();
   assert.equal(controller.getSnapshot().request, null); assert.equal(controller.getSnapshot().issued, null);
-  fill(controller); await controller.issue();
+  await fill(controller); await controller.issue();
   assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
 });
 test('a replay after a lost response has no token: it says the invitation exists and cannot be shown again', async () => {
   const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true }) });
-  fill(controller); await controller.issue();
+  await fill(controller); await controller.issue();
   assert.equal(controller.getSnapshot().phase, 'issued-earlier'); assert.deepEqual(controller.getSnapshot().issued, { invitationId: 'inv-1', link: null });
 });
 
@@ -118,7 +120,7 @@ test('a replay after a lost response has no token: it says the invitation exists
 test('401 / 403 / validation never claim an invitation exists, and expose no raw backend text', async () => {
   const cases = [[err('http', 401, 'auth'), /session ended.*No invitation was created/], [err('http', 403, 'forbidden'), /can.t invite people to this Agreement\. No invitation was created/], [err('http', 422, 'only creator may issue invitations for now'), /Only the person who created this Agreement/], [err('http', 422, 'agreement cannot issue invitations in status DRAFT'), /isn.t in a state where invitations can be created/], [err('http', 422, 'SELECT secret'), /Check the KS Number and role/]];
   for (const [e, want] of cases) {
-    const { controller } = setup({ issueInvitation: async () => { throw e; } }); fill(controller); await controller.issue();
+    const { controller } = setup({ issueInvitation: async () => { throw e; } }); await fill(controller); await controller.issue();
     const s = controller.getSnapshot(); assert.equal(s.phase, 'error'); assert.equal(s.issued, null); assert.match(s.error, want); assert.doesNotMatch(s.error, /SELECT|secret|forbidden/);
   }
 });
@@ -131,9 +133,9 @@ test('the invitation link is never persisted and no delivery is claimed', async 
     assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), /Resend|Sent to|Delivered|WhatsApp|Notified|Extend|SMS/, f);
   }
 });
-const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'closed', roleCode: null, ksNumber: '', request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...snapshot }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over }));
+const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...snapshot }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over }));
 test('the ready state: "Invitation ready", copy is not send, the raw token is not shown, focusable region', () => {
-  const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, ksNumber: '', request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   const out = text(html5);
   assert.match(out, /Invitation ready/); assert.match(out, /Nothing has been sent, and no one has joined/); assert.match(out, /Copy invitation link/);
   assert.match(out, /shows this link only now/);
@@ -144,7 +146,7 @@ test('the form says what it does and does not do; labels are real labels', () =>
   assert.match(out, /Who should take part in this Agreement\?/); assert.match(out, /Their KS Number/); assert.match(out, /Their role in this Agreement/);
   assert.match(out, /Creating an invitation makes a link you can share\. It doesn.t send anything, and nobody has joined or agreed to anything/);
   assert.match(out, /Only the account with this KS Number will be able to join/);
-  const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, ksNumber: '', request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
+  const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   assert.match(markup, /<label[^>]*for="[^"]+-ks"/); assert.match(markup, /<label[^>]*for="[^"]+-role"/); assert.match(markup, /<select/);
 });
 test('a draft offers Propose, not Invite; a non-creator or a non-invitable status sees no invite controls', () => {
@@ -155,7 +157,7 @@ test('a draft offers Propose, not Invite; a non-creator or a non-invitable statu
   assert.match(panel({}, { agreementStatus: 'PARTICIPANTS_JOINING' }), /Invite someone/);
 });
 test('the uncertain state is announced and promises no second invitation', () => {
-  const out = panel({ phase: 'uncertain', roleCode: 'BUYER', ksNumber: 'KS003', error: 'SecurePay couldn’t confirm whether that went through.' });
+  const out = panel({ phase: 'uncertain', roleCode: 'BUYER', ksNumber: 'KS003', ksPreview: { status: 'idle' }, error: 'SecurePay couldn’t confirm whether that went through.' });
   assert.match(out, /We.re not sure that went through/); assert.match(out, /can.t create two/); assert.match(out, /Check and try again/);
 });
 test('invitation status words follow SecurePay statuses: opened is not joined, and expiry comes from expiresAt', () => {
@@ -301,12 +303,12 @@ test('Phase 5 code has no Money, funding or execution affordances', async () => 
 });
 
 // ------------------------------------------------------------ Phase 5 correction pass
-const bareState = o => ({ phase: 'closed', roleCode: null, ksNumber: '', request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...o });
-const stubPanel = (snapshot, calls = [], over = {}) => html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => bareState(snapshot), loadList() {}, open: () => calls.push('open'), issue() {}, reset: () => calls.push('reset'), propose() {}, revoke: id => calls.push(['revoke', id]), setKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over });
+const bareState = o => ({ phase: 'closed', roleCode: null, ksNumber: '', ksPreview: { status: 'idle' }, request: null, issued: null, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null, ...o });
+const stubPanel = (snapshot, calls = [], over = {}) => html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => bareState(snapshot), loadList() {}, open: () => calls.push('open'), issue() {}, reset: () => calls.push('reset'), propose() {}, revoke: id => calls.push(['revoke', id]), setKs() {}, checkKs() {}, setRole() {} }, agreementStatus: 'PROPOSED', isCreator: true, ...over });
 
 test('replay without a token keeps the EXACT returned invitation id, never the token', async () => {
   const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-42', status: 'ISSUED', invitationToken: null, replayed: true }) });
-  fill(controller); await controller.issue();
+  await fill(controller); await controller.issue();
   const s = controller.getSnapshot();
   assert.equal(s.phase, 'issued-earlier'); assert.deepEqual(s.issued, { invitationId: 'inv-42', link: null });
   assert.doesNotMatch(JSON.stringify(s), /TOKEN|token/i);
@@ -331,24 +333,24 @@ test('after the exact invitation is revoked, the creator can deliberately create
     issueInvitation: async (id, body) => { calls.push(['issue', id, body]); n++; return n === 1 ? { invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true } : { invitationId: 'inv-2', status: 'ISSUED', invitationToken: 'NEW', replayed: false }; },
     invitations: async () => [{ id: 'inv-1', roleCode: 'SERVICE_PROVIDER', status: 'REVOKED', issuedAt: 'x', expiresAt: 'y', revokedAt: 'z' }],
   });
-  fill(controller); await controller.issue(); await controller.revoke('inv-1');
+  await fill(controller); await controller.issue(); await controller.revoke('inv-1');
   assert.equal(controller.getSnapshot().list.items[0].status, 'REVOKED');
   const done = stubPanel({ phase: 'issued-earlier', issued: { invitationId: 'inv-1', link: null }, list: { status: 'ready', items: controller.getSnapshot().list.items } });
   assert.match(text(done), /That invitation is revoked/); assert.match(text(done), /Create a new invitation/); assert.doesNotMatch(text(done), /Revoke this invitation/);
-  controller.reset(); fill(controller); await controller.issue();
+  controller.reset(); await fill(controller); await controller.issue();
   assert.notEqual(issues(calls)[0][2].idempotencyKey, issues(calls)[1][2].idempotencyKey);
   assert.equal(controller.getSnapshot().phase, 'issued');
 });
 test('an uncertain revoke keeps the exact id and re-reads the list; it is not shown as revoked until SecurePay says so', async () => {
   const { controller } = setup({ revokeInvitation: async () => { throw err('timeout', null); }, issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true }), invitations: async () => [{ id: 'inv-1', roleCode: 'BUYER', status: 'ISSUED', issuedAt: 'x', expiresAt: '2030-01-01T00:00:00Z', revokedAt: null }] });
-  fill(controller); await controller.issue(); await controller.revoke('inv-1');
+  await fill(controller); await controller.issue(); await controller.revoke('inv-1');
   const s = controller.getSnapshot();
   assert.match(s.revokeError, /couldn.t confirm whether that went through/); assert.equal(s.issued.invitationId, 'inv-1');
   assert.doesNotMatch(text(stubPanel(s)), /That invitation is revoked/);
 });
 test('reset clears the replayed invitation identity', async () => {
   const { controller } = setup({ issueInvitation: async () => ({ invitationId: 'inv-1', status: 'ISSUED', invitationToken: null, replayed: true }) });
-  fill(controller); await controller.issue(); controller.reset();
+  await fill(controller); await controller.issue(); controller.reset();
   assert.equal(controller.getSnapshot().issued, null); assert.equal(controller.getSnapshot().phase, 'closed');
 });
 test('the gateway types the token as nullable', async () => {
@@ -368,11 +370,31 @@ test('a missing row proves "not confirmed" only where the participant authority 
   assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 3, true)]).statusText, 'Joined · confirmed version 3');
   assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3).statusText, 'Confirmed version 2 · needs to review version 3');
 });
-test('the KS helper says the number is not checked at creation, and never claims it was verified', () => {
+// KS001 Upgrade Phase 4 (Section 10) -- the KS Number IS now checked server-side, with a bounded
+// preview, before the creator can ever press "Create invitation." This supersedes the earlier
+// "not checked when the invitation is created" disclaimer.
+test('the KS helper says SecurePay checks the number before issuance, and only the exact account can join', () => {
   const out = text(stubPanel({ phase: 'form' }));
-  assert.match(out, /SecurePay will bind this invitation to the KS Number you enter\. It is not checked when the invitation is created, so check the number carefully/);
+  assert.match(out, /SecurePay checks this KS Number against real SecurePay identities before you can invite them/);
   assert.match(out, /Only the account with this KS Number will be able to join/);
-  assert.doesNotMatch(out, /verified|is valid|was found|account found|confirmed account|we found|exists on SecurePay/i);
+});
+test('a found KS preview shows the bounded identity, never contact details, and enables Create invitation', () => {
+  const out = text(stubPanel({ phase: 'form', ksNumber: 'KS0010492', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' }));
+  assert.match(out, /Mary Wanjiku/);
+  assert.match(out, /KS0010492/);
+  assert.doesNotMatch(out, /@|phone|email/i);
+  const markup = stubPanel({ phase: 'form', ksNumber: 'KS0010492', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' });
+  const submitButton = markup.match(/<button type="submit"[^>]*>/)[0];
+  assert.doesNotMatch(submitButton, /\sdisabled(=|\s|>)/);
+});
+test('a not-found KS preview blocks issuance and never claims an identity was verified when it was not', () => {
+  const out = text(stubPanel({ phase: 'form', ksNumber: 'KS9999999', ksPreview: { status: 'not-found', checked: 'KS9999999' }, roleCode: 'SERVICE_PROVIDER' }));
+  assert.match(out, /couldn.t find an active identity with that KS Number/);
+});
+test('editing the KS Number after a found preview invalidates it (checked no longer matches) so Create invitation stays disabled', () => {
+  const markup = stubPanel({ phase: 'form', ksNumber: 'KS0010499', ksPreview: { status: 'found', checked: 'KS0010492', target: { identityId: 'id-1', canonicalKsNumber: 'KS0010492', displayName: 'Mary Wanjiku', identityType: 'INDIVIDUAL' } }, roleCode: 'SERVICE_PROVIDER' });
+  const out = text(markup);
+  assert.doesNotMatch(out, /Mary Wanjiku/); // stale preview for a DIFFERENT (already-edited) number is never shown as current
 });
 test('an unknown invitation status fails closed: not "Not opened yet", not joined/revoked/expired, and no Revoke', () => {
   const inv = o => ({ id: 'i', roleCode: 'BUYER', status: 'ISSUED', issuedAt: '2026-09-01T00:00:00Z', expiresAt: '2030-01-01T00:00:00Z', revokedAt: null, ...o });

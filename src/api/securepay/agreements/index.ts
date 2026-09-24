@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
+import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementKeyContractReferralResponse, AgreementPeopleResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, InvitationTargetResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -42,6 +42,15 @@ export function createAgreementGateway(http: HttpClient) {
     // caller's own stale-review state — never to derive Agreement or Money authority.
     confirmationStatus: (id: string) => http.request<AgreementConfirmationStatusResponse[]>(`${agreement(id)}/confirmation-status`, { auth: 'required' }),
     issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    // KS001 Upgrade Phase 4 (Section 10) -- the bounded creator-facing preview before issuing a
+    // KS-Number-targeted invitation. A 404 means "no such active identity" (never distinguished from
+    // "known but ineligible" -- Section 15's own anti-enumeration doctrine) -- the caller checks
+    // `error.status === 404` and treats it as "not found," not a failure to report.
+    lookupInvitationTargetByKsNumber: (id: string, ksNumber: string) => http.request<InvitationTargetResponse>(`${agreement(id)}/invitation-targets/by-ks-number?ksNumber=${encodeURIComponent(ksNumber)}`, { auth: 'required' }),
+    // KS001 Upgrade Phase 4 (Section 7/9) -- the ONE server-owned People projection: who is here, their
+    // bounded identity display, invitation/join/confirmation state and a human participation state,
+    // plus small server-computed summary counts (never a percentage/meter).
+    people: (id: string) => http.request<AgreementPeopleResponse>(`${agreement(id)}/people`, { auth: 'required' }),
     // Draft -> Proposed (creator only, idempotent if already PROPOSED). Invitations can only be issued from PROPOSED onward.
     propose: (id: string) => http.request<{ id: string; status: string }>(`${agreement(id)}/propose`, { method: 'POST', auth: 'required' }),
     // Real shape: List<AgreementInvitationResponse> -- id, roleCode, status (ISSUED|VIEWED|JOINED|REVOKED|EXPIRED), issuedAt, expiresAt, revokedAt. No target, no token.

@@ -143,7 +143,50 @@ export interface PublicInvitationViewResponse {
   proposedAmountMinor: number | null;
   invitationExpiresAt: string;
   proposalVersionNumber: number;
+  // KS001 Upgrade Phase 4 (Section 20/21/23) -- previously absent: whether the version shown is still
+  // the Agreement's CURRENT one, and a bounded inviter summary (never contact details).
+  isCurrentVersion: boolean;
+  inviterDisplayName: string | null;
+  inviterCanonicalKsNumber: string | null;
   notice: string;
+}
+/** KS001 Upgrade Phase 4 (Section 7/9) -- one row of the server-owned People projection. */
+export interface AgreementPersonResponse {
+  participantId: string;
+  identityId: string | null;
+  displayName: string | null;
+  canonicalKsNumber: string | null;
+  roleCode: string;
+  isCreator: boolean;
+  invitationId: string | null;
+  invitationStatus: string | null;
+  invitationIssuedAt: string | null;
+  invitationExpiresAt: string | null;
+  invitationFirstViewedAt: string | null;
+  joinedAt: string | null;
+  confirmedVersionNumber: number | null;
+  confirmationCurrent: boolean;
+  reconfirmationRequired: boolean;
+  humanState: string;
+}
+export interface AgreementPeopleSummaryResponse {
+  expectedCount: number;
+  joinedCount: number;
+  confirmedCurrentCount: number;
+  reconfirmationRequiredCount: number;
+  allExpectedHaveJoined: boolean;
+  allJoinedHaveConfirmedCurrent: boolean;
+}
+export interface AgreementPeopleResponse {
+  people: AgreementPersonResponse[];
+  summary: AgreementPeopleSummaryResponse;
+}
+/** KS001 Upgrade Phase 4 (Section 10) -- the bounded creator-facing invitation-target preview. */
+export interface InvitationTargetResponse {
+  identityId: string;
+  canonicalKsNumber: string | null;
+  displayName: string | null;
+  identityType: string | null;
 }
 export interface JoinAgreementResponse {
   agreementId: string;
