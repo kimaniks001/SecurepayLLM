@@ -33,17 +33,26 @@ export interface SourcesState {
 const initial: SourcesState = { phase: 'idle', sources: [], error: null };
 
 /**
- * KS001 Upgrade Phase 3 -- "bring what you already have" into the SAME canonical BUILD. This controller
- * only ever talks to the source-ingestion surface; it never fabricates a fact itself and never assumes
- * anything landed until the real, server-returned artifact says so. {@code onSourceApplied} lets the
- * caller (see {@code AgentExperience}) refresh the real Trade Context after a source's extraction
- * completes, so newly-arrived CANDIDATE facts appear in BUILD without a manual chat turn.
+ * KS001 Upgrade Phase 3 final merge-readiness correction (item 1) -- the SINGLE `onSourceApplied` callback
+ * conflated two genuinely different events: "a source actually produced/changed real Trade Context facts,
+ * and KS001 should say something about it" (ingestion/retry) versus "the canonical Trade Context needs a
+ * fresh read because the server just changed it, with no continuation reply to surface" (removal, which
+ * invalidates unadopted candidates server-side but never fabricates a chat message about it). Split into
+ * two, so a caller (see {@code AgentExperience}) can wire each to the right real behaviour:
+ * `onSourceIngested` -- extraction genuinely ran (create/retry) -- refresh context AND surface KS001's
+ * real continuation reply; `onSourceChanged` -- the source list/Trade Context changed for some OTHER
+ * reason (removal) -- refresh context only, never inventing a reply the backend did not produce.
  */
+export interface SourceControllerCallbacks {
+  onSourceIngested?: () => void;
+  onSourceChanged?: () => void;
+}
 export function createSourceController(
     gateway: Pick<AgentGateway, 'createPastedTextSource' | 'uploadSource' | 'listSources' | 'getSource' | 'retrySource' | 'removeSource'>,
     ensureConversationId: () => Promise<string>,
-    onSourceApplied?: () => void,
+    callbacks?: SourceControllerCallbacks,
 ) {
+  const { onSourceIngested, onSourceChanged } = callbacks ?? {};
   let state: SourcesState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<SourcesState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -78,7 +87,7 @@ export function createSourceController(
         const artifact = sourceArtifactView(await gateway.createPastedTextSource(conversationId, { text: text.trim(), label }));
         upsert(artifact);
         update({ phase: 'list-ready' });
-        onSourceApplied?.();
+        onSourceIngested?.();
         return { ok: true, source: artifact };
       } catch (error) {
         const message = sourceIngestionErrorText(error);
@@ -96,7 +105,7 @@ export function createSourceController(
         const artifact = sourceArtifactView(await gateway.uploadSource(conversationId, sourceKind, file, label));
         upsert(artifact);
         update({ phase: 'list-ready' });
-        onSourceApplied?.();
+        onSourceIngested?.();
         return { ok: true, source: artifact };
       } catch (error) {
         const message = sourceIngestionErrorText(error);
@@ -112,19 +121,27 @@ export function createSourceController(
         const artifact = sourceArtifactView(await gateway.retrySource(conversationId, sourceArtifactId));
         upsert(artifact);
         update({ phase: 'list-ready' });
-        onSourceApplied?.();
+        onSourceIngested?.();
       } catch (error) {
         update({ phase: 'error', error: sourceIngestionErrorText(error) });
       }
     },
 
-    /** Section 24 -- removal never rewrites already-adopted Agreement/BUILD truth. */
+    /**
+     * KS001 Upgrade Phase 3 final merge-readiness correction (item 1) -- removal never rewrites already-
+     * adopted Agreement/BUILD truth, but it DOES retire this source's own unadopted candidates server-side
+     * (see `AgentSourceIngestionService#remove`/`SourceCandidateInvalidator`), which can genuinely change
+     * the real Trade Context. `onSourceChanged` (a plain context re-read, never a fabricated KS001 reply --
+     * the backend records no continuation message for a removal) is what makes that visible immediately,
+     * rather than leaving a now-invalid candidate on screen until some unrelated later refresh.
+     */
     async remove(conversationId: string, sourceArtifactId: string) {
       update({ phase: 'submitting', error: null });
       try {
         const artifact = sourceArtifactView(await gateway.removeSource(conversationId, sourceArtifactId));
         upsert(artifact);
         update({ phase: 'list-ready' });
+        onSourceChanged?.();
       } catch (error) {
         update({ phase: 'error', error: sourceIngestionErrorText(error) });
       }

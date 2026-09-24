@@ -15,7 +15,9 @@ interface SignedOutHomeProps {
 }
 
 const DOCUMENT_ACCEPT = '.pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv';
-const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+// KS001 Upgrade Phase 3 final merge-readiness correction (item 4) -- WebP deliberately not offered here;
+// see AttachSourceMenu's own note (the backend has no safe, bounded WebP dimension parser).
+const PHOTO_ACCEPT = 'image/jpeg,image/png';
 
 /**
  * KS001 Upgrade Phase 3 (Bring what you already have, Section 36) -- current architectural decision:

@@ -2,7 +2,10 @@ import { useRef, useState } from 'react';
 import { Camera, FileText, Paperclip, PenLine } from 'lucide-react';
 
 const DOCUMENT_ACCEPT = '.pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv';
-const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+// KS001 Upgrade Phase 3 final merge-readiness correction (item 4) -- WebP deliberately not offered here:
+// the backend has no safe, bounded WebP dimension parser (see SourceContentSignatureValidator's own
+// javadoc), so it is never advertised as an accepted photo type end to end.
+const PHOTO_ACCEPT = 'image/jpeg,image/png';
 
 /**
  * KS001 Upgrade Phase 3 (Section 40) -- a SINGLE attachment control, never a toolbar jungle: one quiet

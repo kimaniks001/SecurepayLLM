@@ -132,13 +132,22 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   const [savedBuildController, setSavedBuildController] = useState(() => createSavedBuildController(gateway));
   const savedBuildState = useSyncExternalStore(savedBuildController.subscribe, savedBuildController.getSnapshot);
   // KS001 Upgrade Phase 3 (Bring what you already have) -- "bring what you already have" into the SAME
-  // canonical BUILD. onSourceApplied refreshes the REAL Trade Context once a source's extraction actually
+  // canonical BUILD. onSourceIngested refreshes the REAL Trade Context once a source's extraction actually
   // lands new CANDIDATE facts, so BUILD reflects them without a manual chat turn (Section 30/31).
   //
   // KS001 Upgrade Phase 3 completion correction (item 7) -- refreshAfterSourceIngestion (not the plain
   // review()) also surfaces KS001's own real, server-composed continuation reply, so the person sees KS001
   // actually react to what was brought in, never only a silent BUILD refresh.
-  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, () => void controller.refreshAfterSourceIngestion()));
+  //
+  // KS001 Upgrade Phase 3 final merge-readiness correction (item 1) -- removal is a SEPARATE event
+  // (onSourceChanged): the server invalidates unadopted candidates but never records a continuation reply
+  // for it, so this deliberately calls the plain review() (context re-read only), never
+  // refreshAfterSourceIngestion (which would look for a KS001 reply that was never produced), and never
+  // fabricates one client-side either.
+  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, {
+    onSourceIngested: () => void controller.refreshAfterSourceIngestion(),
+    onSourceChanged: () => void controller.review(),
+  }));
   const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
   const [projectsController] = useState(() => createProjectsController(projectGateway));
@@ -227,7 +236,10 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
-    setSourceController(createSourceController(gateway, freshController.ensureConversationId, () => void freshController.refreshAfterSourceIngestion()));
+    setSourceController(createSourceController(gateway, freshController.ensureConversationId, {
+      onSourceIngested: () => void freshController.refreshAfterSourceIngestion(),
+      onSourceChanged: () => void freshController.review(),
+    }));
     setBringPlanOpen(false);
     setNotice(null);
   };
