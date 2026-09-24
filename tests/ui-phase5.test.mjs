@@ -9,9 +9,10 @@ import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/invitations/controller';
 export { InvitePanel, invitationStatusText } from './src/features/invitations/InvitePanel';
-export { peopleFromProjection } from './src/features/workspace/view';
+export { peopleFromProjection, invitationsForYouView } from './src/features/workspace/view';
 export { createWorkspaceController } from './src/features/workspace/controller';
 export { AgreementPeople } from './src/components/AgreementPeople';
+export { InvitationsForYou } from './src/components/InvitationsForYou';
 export { handoffNoticeView } from './src/features/handoff/view';
 export { ApiError } from './src/api/securepay/http';
 export { createElement } from 'react';
@@ -465,4 +466,43 @@ test('an unknown invitation status fails closed: not "Not opened yet", not joine
   const out = text(stubPanel({ list: { status: 'ready', items: [inv({ status: 'SUSPENDED' })] } }));
   assert.match(out, /Invitation status unavailable/); assert.doesNotMatch(out, /Revoke this invitation/);
   assert.match(api.invitationStatusText(inv({})), /^Not opened yet/);
+});
+
+// ─── PHASE 4 NEXT SLICE — InvitationsForYou (Home) ─────────────────────────────────────────────────
+const invCard = (overrides = {}) => ({
+  invitationId: 'invitation-1', actionable: true, inviterLine: 'James invited you',
+  agreementTitle: 'Kitchen cabinetry', roleLine: 'Your proposed role: Carpenter',
+  amountLine: 'KES 180,000.00 proposed', expiryLine: 'Expires Fri, 2 Oct', statusNote: null, ...overrides,
+});
+
+test('InvitationsForYou renders nothing at all when there are no invitations (Section 25 -- no empty-state module)', () => {
+  const out = html(api.InvitationsForYou, { items: [], onReview: () => {} });
+  assert.equal(out, '');
+});
+
+test('InvitationsForYou: an actionable card offers Review invitation and calls onReview with the exact invitation id', () => {
+  const calls = [];
+  const markup = html(api.InvitationsForYou, { items: [invCard()], onReview: id => calls.push(id) });
+  const out = text(markup);
+  assert.match(out, /James invited you/);
+  assert.match(out, /Kitchen cabinetry/);
+  assert.match(out, /Carpenter/);
+  assert.match(out, /Review invitation/);
+  assert.doesNotMatch(out, /Accept|Confirm|Join Agreement|Pay/);
+});
+
+test('InvitationsForYou: a non-actionable (expired/revoked) card shows its status note and no Review CTA', () => {
+  const out = text(html(api.InvitationsForYou, {
+    items: [invCard({ actionable: false, statusNote: 'This invitation has expired.', expiryLine: null })],
+    onReview: () => {},
+  }));
+  assert.match(out, /This invitation has expired/);
+  assert.doesNotMatch(out, /Review invitation/);
+});
+
+test('InvitationsForYou is bounded: at most 3 cards render, the rest are summarized as a count -- never a full inbox table', () => {
+  const items = [1, 2, 3, 4, 5].map(n => invCard({ invitationId: `invitation-${n}` }));
+  const out = text(html(api.InvitationsForYou, { items, onReview: () => {} }));
+  assert.equal((out.match(/Review invitation/g) || []).length, 3);
+  assert.match(out, /\+2 more invitations/);
 });

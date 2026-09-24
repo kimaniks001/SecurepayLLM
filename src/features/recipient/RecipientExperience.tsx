@@ -27,10 +27,18 @@ const AUTH_CONTEXT = { title: 'SecurePay needs to know who you are', reason: 'Be
  */
 type IdentityPath = 'unset' | 'signin' | 'signup';
 
-export function RecipientExperience({ token, gateway, auth, session, onLeave }: {
-  token: string; gateway: AgreementGateway; auth: AuthGateway; session: SessionStore; onLeave: () => void;
+export function RecipientExperience({ token, invitationId, gateway, auth, session, onLeave }: {
+  /** The raw public token doorway. Ignored when `invitationId` is also given. */
+  token?: string;
+  /**
+   * PHASE 4 NEXT SLICE (Section 7/8) — the self-scoped doorway: an invitation discovered through the
+   * authenticated inbox (Home's "Invitations for you"), opened WITHOUT the original raw token. Takes
+   * precedence over `token` when both are somehow given.
+   */
+  invitationId?: string;
+  gateway: AgreementGateway; auth: AuthGateway; session: SessionStore; onLeave: () => void;
 }) {
-  const [recipient] = useState(() => createRecipientController(gateway, token));
+  const [recipient] = useState(() => createRecipientController(gateway, invitationId ? { invitationId } : (token as string)));
   const [identity] = useState(() => createIdentityController(auth, session));
   const [signup] = useState(() => createSignupController(auth, session));
   const state = useSyncExternalStore(recipient.subscribe, recipient.getSnapshot);

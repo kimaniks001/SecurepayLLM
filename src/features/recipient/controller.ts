@@ -84,7 +84,7 @@ export interface RecipientState {
   /** Who else is on the Agreement, as SecurePay lists them (role + status only -- it exposes no name or KS Number). null = not loaded. */
   participants: AgreementParticipantDto[] | null;
   /** Where to go once the person has signed in again mid-journey (never assumes the interrupted step happened). */
-  resume: 'join-prompt' | 'version-ready' | 'reload-version' | null;
+  resume: 'join-prompt' | 'version-ready' | 'reload-version' | 'reload-invitation' | null;
   /** Why the person is being asked to sign in again (stage-aware; shown on the sign-in screen). */
   authNotice: string | null;
   joinIdempotencyKey: string | null;
@@ -96,7 +96,17 @@ const initial: RecipientState = {
   changed: false, participants: null, resume: null, authNotice: null, joinIdempotencyKey: null, confirmIdempotencyKey: null, error: null,
 };
 
-type Gateway = Pick<AgreementGateway, 'invitation' | 'join' | 'versions' | 'version' | 'confirmVersion' | 'participants'>;
+type Gateway = Pick<AgreementGateway, 'invitation' | 'join' | 'versions' | 'version' | 'confirmVersion' | 'participants' | 'viewMyInvitation' | 'joinMyInvitation'>;
+
+/**
+ * PHASE 4 NEXT SLICE (Section 7/8) — a raw public token (the original SecureLink/contact-invitation
+ * doorway) OR a self-scoped invitation id (discovered through the authenticated inbox — Home's
+ * "Invitations for you"). Both converge on the exact same review -> identity -> explicit Join ->
+ * exact-version review -> explicit confirmation journey below; only WHICH gateway calls resolve the
+ * invitation and perform Join differ. A raw string is always a token (backward compatible with every
+ * existing call site); an object names the self-scoped id explicitly so the two can never be confused.
+ */
+export type RecipientEntry = string | { invitationId: string };
 
 /**
  * Narrow recipient orchestration only: invitation -> identity (owned by the shared identity
@@ -104,7 +114,8 @@ type Gateway = Pick<AgreementGateway, 'invitation' | 'join' | 'versions' | 'vers
  * Agreement lifecycle, participant, or confirmation truth locally — every phase transition follows
  * an authoritative backend response.
  */
-export function createRecipientController(gateway: Gateway, token: string, id = () => crypto.randomUUID()) {
+export function createRecipientController(gateway: Gateway, entry: RecipientEntry, id = () => crypto.randomUUID()) {
+  const bySelf = typeof entry !== 'string';
   let state: RecipientState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<RecipientState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -216,26 +227,46 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
     }
   }
 
+  /**
+   * Review only. Never joins or confirms anything. A token entry is a public read (`auth: 'none'`); a
+   * self-scoped entry (Home) is already authenticated by the time this is reachable — a 401 here (e.g. a
+   * session that expired between page loads) asks the person to sign in again and re-runs THIS SAME read
+   * (never jumps ahead to Join, since the invitation has not actually been reviewed yet).
+   */
+  async function loadInvitation() {
+    update({ phase: 'loading-invitation', resume: null, authNotice: null, error: null });
+    try {
+      const invitation = bySelf ? await gateway.viewMyInvitation(entry.invitationId) : await gateway.invitation(entry);
+      update({ invitation, phase: 'invitation-ready' });
+    } catch (error) {
+      if (bySelf && error instanceof ApiError && error.status === 401) {
+        update({ phase: 'identity-required', resume: 'reload-invitation', authNotice: authWords.read, error: null });
+        return;
+      }
+      update({ phase: 'invitation-error', error: invitationProblem(error) });
+    }
+  }
+
   return {
     getSnapshot: (): RecipientState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
-    /** Public review only. Never authenticates, joins, or confirms anything. */
     async load() {
       if (state.phase !== 'idle' && state.phase !== 'invitation-error') return;
-      update({ ...initial, phase: 'loading-invitation' });
-      try {
-        const invitation = await gateway.invitation(token);
-        update({ invitation, phase: 'invitation-ready' });
-      } catch (error) {
-        update({ phase: 'invitation-error', error: invitationProblem(error) });
-      }
+      update({ ...initial });
+      await loadInvitation();
     },
 
     /** Called once a real session exists. Moves only to the explicit Join boundary — never joins by itself. */
     afterIdentitySignedIn() {
       if (state.phase !== 'identity-required') return;
       const resume = state.resume;
+      if (resume === 'reload-invitation') {
+        // The invitation itself was never successfully reviewed yet -- re-run that SAME read, never
+        // jump ahead to a Join prompt for content the person has not actually seen.
+        void loadInvitation();
+        return;
+      }
       if (resume === 'reload-version' && state.join) {
         // Already joined: only the READ is repeated. Join is never called again.
         update({ resume: null, authNotice: null });
@@ -258,7 +289,7 @@ export function createRecipientController(gateway: Gateway, token: string, id = 
       const idempotencyKey = state.joinIdempotencyKey ?? id();
       update({ phase: 'joining', error: null, joinIdempotencyKey: idempotencyKey });
       try {
-        const result = await gateway.join(token, idempotencyKey);
+        const result = bySelf ? await gateway.joinMyInvitation(entry.invitationId, idempotencyKey) : await gateway.join(entry, idempotencyKey);
         update({ join: result });
         await loadVersion(result.agreementId, result.joinedVersionId, false);
       } catch (error) {

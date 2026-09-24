@@ -207,6 +207,10 @@ export interface AgreementInvitationInboxItemResponse {
   agreementId: string;
   agreementPublicReference: string | null;
   agreementTitle: string | null;
+  /** PHASE 4 NEXT SLICE (Section 5/6) -- the same frozen-invited-version fields a raw-token holder can already see via PublicInvitationView. */
+  agreementPurpose: string | null;
+  currency: string | null;
+  proposedAmountMinor: number | null;
   roleCode: string;
   inviterDisplayName: string | null;
   inviterCanonicalKsNumber: string | null;

@@ -1,7 +1,7 @@
 import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
   AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationResponse, AgreementCompletionResponse, AgreementConfirmationStatusResponse,
-  AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementPeopleResponse, AgreementProblemSummaryResponse,
+  AgreementInvitationInboxItemResponse, AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementPeopleResponse, AgreementProblemSummaryResponse,
   CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
   PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse, WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
@@ -79,6 +79,13 @@ export interface WorkspaceState {
     recentActivity: RecentActivityEntryResponse[];
     moneyByCurrency: AgreementMoneyByCurrencyResponse[];
   };
+  /**
+   * PHASE 4 NEXT SLICE (Section 4/5) — Home's "Invitations for you", read straight from the self-scoped
+   * `GET /agreement-invitations/me`. The frontend never reproduces the backend's ownership matching —
+   * this is exactly what the backend returned, sorted however it returned it. Best-effort like
+   * `homeExtras`: a failure here never fails Home closed, defaults to empty (never a fabricated list).
+   */
+  myInvitations: AgreementInvitationInboxItemResponse[];
   selectedAgreementId: string | null;
   selectedStatus: AgreementStatus | null;
   selectedCompletion: DetailCompletion | null;
@@ -103,13 +110,14 @@ const initial: WorkspaceState = {
   hub: { status: 'idle' },
   myCalendarEvents: [],
   homeExtras: { problems: [], recentActivity: [], moneyByCurrency: [] },
+  myInvitations: [],
   selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedActorStatus: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
 type Gateway = Pick<AgreementGateway,
   'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'people' | 'milestoneEffectiveStates'
-  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
@@ -147,7 +155,10 @@ export function createWorkspaceController(gateway: Gateway) {
             initial.homeExtras,
           )
         : state.homeExtras;
-      update({ hub: { status: 'ready', data: hub }, myCalendarEvents, homeExtras });
+      const myInvitations = view === 'home'
+        ? await bestEffort(() => gateway.myInvitations(), initial.myInvitations)
+        : state.myInvitations;
+      update({ hub: { status: 'ready', data: hub }, myCalendarEvents, homeExtras, myInvitations });
     } catch (error) {
       update({ hub: { status: 'error', error: asApiError(error) } });
     }

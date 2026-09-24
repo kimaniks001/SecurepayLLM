@@ -1,5 +1,5 @@
 import type {
-  AgreementConfirmationResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
+  AgreementConfirmationResponse, AgreementDetailResponse, AgreementInvitationInboxItemResponse, AgreementMoneyByCurrencyResponse,
   AgreementMoneyRecordResponse, AgreementPeopleResponse, AgreementPersonResponse, AgreementProblemSummaryResponse,
   CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse, RecentActivityEntryResponse,
   WorkspaceNextActionResponse,
@@ -61,6 +61,50 @@ function formatRelativeTime(iso: string | null | undefined): string {
 /** Turns a real backend code (actionCode, status, gateCode…) into readable text — never invents a code. */
 function humanizeCode(code: string): string {
   return code.toLowerCase().split('_').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// ─── PHASE 4 NEXT SLICE (Section 4-9) — Home's "Invitations for you" ────────
+
+export interface InvitationForYouCardView {
+  invitationId: string;
+  /** ISSUED/VIEWED (the backend's own `needsAttention`) — only these get a "Review invitation" CTA. */
+  actionable: boolean;
+  inviterLine: string;
+  agreementTitle: string;
+  roleLine: string;
+  amountLine: string | null;
+  /** Shown only for an actionable (still-usable) invitation. */
+  expiryLine: string | null;
+  /** Shown only for a non-actionable historical one (EXPIRED/REVOKED) — never alongside expiryLine. */
+  statusNote: string | null;
+}
+
+/**
+ * A THIN presentation mapper over the backend's own self-scoped inbox (`GET /agreement-invitations/me`)
+ * — ownership, matching and lifecycle truth all come from there; this never re-derives any of it
+ * (Section 5's own "the frontend must not reproduce the backend matching logic" doctrine).
+ *
+ * <p>A `JOINED` invitation is hidden here (Section 9 — "should generally no longer appear as a pending
+ * invitation"; the person reaches that Agreement through their normal Agreement surfaces instead) — a
+ * purely presentational filter over the backend's own truthful `status`, never an authority decision.
+ */
+export function invitationsForYouView(items: AgreementInvitationInboxItemResponse[]): InvitationForYouCardView[] {
+  return items
+    .filter(item => item.status !== 'JOINED')
+    .map(item => ({
+      invitationId: item.invitationId,
+      actionable: item.needsAttention,
+      inviterLine: item.inviterDisplayName ? `${item.inviterDisplayName} invited you` : 'You’ve been invited',
+      agreementTitle: item.agreementTitle ?? 'An agreement',
+      roleLine: `Your proposed role: ${humanizeCode(item.roleCode)}`,
+      amountLine: item.proposedAmountMinor != null ? `${formatMoney(item.currency, item.proposedAmountMinor)} proposed` : null,
+      expiryLine: item.needsAttention ? `Expires ${formatShortDate(item.expiresAt)}` : null,
+      statusNote: item.status === 'EXPIRED'
+        ? 'This invitation has expired.'
+        : item.status === 'REVOKED'
+          ? 'This invitation is no longer available.'
+          : null,
+    }));
 }
 
 // ─── Hub bucket / Home-list → locked Bolt AgreementStatus ───────────────────
