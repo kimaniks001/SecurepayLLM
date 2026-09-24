@@ -104,6 +104,17 @@ test('createController: a DEFINITE rejection (e.g. 400/409) returns to the form 
   assert.notEqual(seenKeys[0], seenKeys[1]);
 });
 
+test('createController: a real AGREEMENT_CONFLICT (product already active) is surfaced honestly, not as a raw internal exception string', async () => {
+  const { controller } = setupCreate({
+    activateProduct: async () => { throw new api.ApiError('http', 'product already active for agreement', 409, 'AGREEMENT_CONFLICT'); },
+  });
+  await controller.create();
+  const snap = controller.getSnapshot();
+  assert.equal(snap.phase, 'form');
+  assert.match(snap.error, /already has an active SecureLink/);
+  assert.doesNotMatch(snap.error, /product already active for agreement/);
+});
+
 test('createController: a publicUrl of null (base URL not configured) is surfaced as-is, never fabricated client-side', async () => {
   const { controller } = setupCreate({ issuePublicLocator: async () => ({ locatorId: 'l1', pathClass: 's', status: 'ACTIVE', slug: 'amani/1', replayed: false, publicUrl: null }) });
   await controller.create();

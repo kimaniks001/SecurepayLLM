@@ -32,6 +32,14 @@ function errorMessage(error: unknown): string {
     if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) {
       return 'SecurePay couldn’t confirm whether that went through. Try again — it won’t create a duplicate.';
     }
+    // A fresh attempt against an Agreement that already has an active product (e.g. a second, separate
+    // "Create SecureLink" click after one already exists) is a real, known AGREEMENT_CONFLICT from the
+    // backend -- surfaced honestly rather than as a raw internal exception message. This slice does not
+    // yet read back the existing SecureLink's own slug/URL to show it instead (see the Phase 5 completion
+    // report's own "known limitations").
+    if (error.code === 'AGREEMENT_CONFLICT') {
+      return 'This Agreement already has an active SecureLink. Open the Agreement to find it.';
+    }
     return error.message;
   }
   return 'SecurePay could not create the SecureLink.';
