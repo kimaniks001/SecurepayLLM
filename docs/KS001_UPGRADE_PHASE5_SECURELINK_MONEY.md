@@ -236,3 +236,63 @@ frontend source file was modified.
 
 **Merge-readiness:** unchanged from Section O — DRAFT, human review required. This addendum adds evidence
 and honest limitations; it does not change the completion judgment.
+
+---
+
+## Q. Slice 2 Addendum — SecureLink Lifecycle & Sharing Completeness (same day)
+
+Commit `64ab62a`. Backend companion: SecurePayAPI PR #231 commits `98d1383b`/`265ea64c` (Part A) and
+`2a8a47e2` (Slice 2 read endpoint) — see that repo's own Phase 5 report for the full Part A/CI diagnosis.
+
+**Existing-SecureLink handling.** New `manageController.ts` loads `gateway.activeLocator(agreementId)`
+(the new backend existence-check endpoint) before ever offering the creation form again.
+`SecureLinkManagePanel.tsx` renders "This Agreement already has an active SecureLink" with two deliberate
+actions instead of blindly re-offering `CreateSecureLinkPanel`. `HandoffPanel.tsx`'s "Create SecureLink"
+choice now routes through this panel.
+
+**Replace/Revoke.** Both reuse the existing `rotatePublicLocator`/`revokePublicLocator` gateway calls
+(already present from slice 1's backend work, newly wired into the frontend this round). Each requires an
+explicit confirmation step naming the exact consequence before any mutation, and both follow the
+established idempotent-retry idiom (one key per logical attempt, reused across an uncertain outcome, a
+definite rejection re-loads real state rather than fabricating it).
+
+**Sharing completeness.** `qrcode.react` added (confirmed zero new `npm audit` vulnerabilities — identical
+count before/after). New `QrCode.tsx` renders an unbranded `QRCodeSVG` (level M) encoding the exact
+`publicUrl`, wired into `ShareCard.tsx`. WhatsApp/native-share copy rewritten to "Review this SecurePay
+Agreement: {title}."
+
+**Drive-by fix.** `CreateSecureLinkPanel.tsx` and `SecureLinkExperience.tsx` were each missing the
+`getServerSnapshot` argument to `useSyncExternalStore` — harmless in this app's real client-only runtime,
+but it blocked any static/SSR-style render of these components (discovered because my own new tests needed
+exactly that). Brought in line with `HandoffPanel.tsx`'s existing 3-argument convention.
+
+**Tests.** 27 new: 22 in `tests/securelink-manage.test.mjs` (manage-controller load/replace/revoke/
+idempotent-retry/definite-failure-reload paths, panel rendering per phase, explicit-confirmation copy
+assertions), 5 in `tests/qr-roundtrip.test.mjs` (a genuine `qrcode`-encoder + `jsqr`-decoder round trip,
+including one proving level M's error correction survives a small simulated obstruction — this verifies
+the QR format/approach, not `qrcode.react`'s own SVG renderer directly, and is explicitly not a physical
+camera scan). Full suite: **1096/1096 passing** (was 1069). `tsc --noEmit`, `eslint`, and the production
+build are all clean.
+
+**Real browser verification, continued.** Re-attempted the live E2E journey with fresh backend/frontend
+instances (same local sandbox setup as the earlier addendum). Confirmed the earlier findings still hold
+(multi-turn conversation, idempotent retry) and additionally confirmed the new `#/securelink/{slug}`
+not-found path renders correctly at both **375px and 320px CSS viewport widths** — this time achieved via
+a genuine, standards-based technique (a same-document `<iframe>` with an explicit CSS `width`, which
+creates its own independent browsing-context viewport regardless of the outer window's own size) rather
+than resizing the actual browser window, since this tool/OS combination has a demonstrated hard floor
+around 606px CSS width on direct window resize (confirmed via `window.innerWidth`/`outerWidth` both
+reading 606 immediately after a `resize_window(1440, 900)` call reported success). No horizontal scroll,
+readable copy, and comfortable touch targets at both widths for the pages actually reached.
+
+**Not achieved, stated plainly.** "Review this" (the gate before SET) remained disabled through every live
+attempt this pass too, despite supplying product, counterparty, amount, fixed-price, completion-evidence,
+and payment-timing details across two separate sessions. Code review of the backend's own
+`AgreementSufficiencyEvaluator` (see the SecurePayAPI report) shows this should not depend on counterparty
+resolution — the exact remaining condition was not isolated within this pass's time budget and is filed as
+UR-145 in the backend repo's register rather than guessed at. Consequence: the authenticated post-SET
+continuation, SecureLink creation, replace, revoke, and QR screens were **not** exercised live this pass
+either; their evidence remains the 27 new unit/component tests above, not a live walkthrough.
+
+**Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
+not deploy, do not start Phase 6.
