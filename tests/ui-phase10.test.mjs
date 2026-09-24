@@ -232,7 +232,11 @@ test('routing: Help is an AppView reached from Account, Agreement Support, Money
 });
 test('notifications stay attention, not case management: no review or support-case deep link is invented', async () => {
   const n = await src('src/features/notifications/NotificationsExperience.tsx');
-  assert.doesNotMatch(n, /supportCase|ticket|reviewCaseId|actionKey\s*===|route.*actionKey/i);
+  // PHASE 4 Care convergence: actionKey-based routing (OPEN_INVITATIONS/OPEN_AGREEMENT/REVIEW_AGREEMENT)
+  // is now real, deliberate architecture -- see the closed `parseNotificationActionKey` contract. What
+  // remains genuinely forbidden is inventing a review-case or support-case deep link, which this screen
+  // still has no concept of at all.
+  assert.doesNotMatch(n, /supportCase|ticket|reviewCaseId/i);
   assert.match(m.HUMAN_SUPPORT_UNAVAILABLE, /not yet available/);
 });
 

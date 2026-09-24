@@ -239,10 +239,14 @@ test('K. The Notifications gateway calls the real, verified NotificationControll
   assert.deepEqual(Object.keys(calls[6].body).sort(), ['agreementsCategoryEnabled', 'communityCategoryEnabled', 'emailEnabled', 'moneyCategoryEnabled', 'reviewsCategoryEnabled', 'securityCategoryEnabled', 'smsEnabled', 'supportCategoryEnabled', 'whatsappEnabled'].sort(), 'preferences update must send exactly the real backend fields, nothing invented');
 });
 
-test('L. Notification deep-linking never invents an actionKey-to-route mapping -- only the real, present agreementId field is used to open an Agreement', async () => {
+test('L. PHASE 4 Care convergence -- notification deep-linking now routes on the CLOSED actionKey contract, never on agreementId presence alone', async () => {
   const contents = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
-  assert.doesNotMatch(contents, /notification\.actionKey/, 'must never branch UI routing on actionKey, which no real backend event producer populates today');
-  assert.match(contents, /notification\.agreementId/, 'must route using the real, present agreementId field');
+  // The prior doctrine ("actionKey is never populated, route on agreementId alone") was a real, named
+  // bug once real Care events started carrying OPEN_INVITATIONS/OPEN_AGREEMENT/REVIEW_AGREEMENT: an
+  // invited person who has not yet joined may have no Agreement read authority at all, even though
+  // agreementId is still carried for audit/context. Routing must go through the closed parser.
+  assert.match(contents, /parseNotificationActionKey\(notification\.actionKey\)/, 'must route through the closed actionKey parser, never a raw string comparison');
+  assert.match(contents, /notification\.agreementId/, 'agreementId is still consulted -- but only alongside an Agreement-scoped actionKey, never alone');
 });
 
 test('M. Notification preferences are never force-enabled by the frontend -- savePreferences sends exactly the person\'s own draft values, unmodified', async () => {

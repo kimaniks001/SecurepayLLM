@@ -343,10 +343,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setWorkspaceAgreementId(null);
     setNotice('This area is not available yet. You can keep talking with SecurePay.');
   };
-  /** A Notification with a real `agreementId` opens that Agreement directly in the Workspace --
-   * the same real mechanism WorkspaceExperience's own controller uses internally, not a new one.
-   * Never routes on `actionKey`, which no real backend event producer populates today (task
-   * section 20 -- see the notifications gateway's own doc comment on this). */
+  /** Opens the given Agreement directly in the Workspace -- the same real mechanism
+   * WorkspaceExperience's own controller uses internally, not a new one. PHASE 4 Care convergence:
+   * `NotificationsExperience` itself now decides WHETHER to call this at all (gated on the notification's
+   * own closed `actionKey` contract -- `OPEN_AGREEMENT`/`REVIEW_AGREEMENT`, never `agreementId`'s mere
+   * presence); this function only performs the navigation once that decision has already been made. */
   const openAgreementFromNotification = (agreementId: string) => {
     setNotificationsView(false);
     setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
