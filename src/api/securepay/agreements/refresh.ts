@@ -25,4 +25,8 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'attributePlug', 'plugAttribution', 'referralStatus',
   // Living Agreement enrichments
   'milestoneEffectiveStates', 'calendarEvents', 'calendarConflicts', 'myCalendar', 'tagsForAgreement', 'tagAgreement', 'untagAgreement', 'myTags',
+  // KS001 Upgrade Phase 5 (SecureLink & Money Continuation) -- product activation, locator issuance, and
+  // the authenticated join-authority bridge. `viewSecureLink` is the public doorway (`auth: 'none'`) and
+  // is deliberately absent, exactly like `invitation(token)` above.
+  'activateProduct', 'issuePublicLocator', 'requestSecureLinkJoinAuthority',
 ] as const satisfies readonly (keyof AgreementGateway)[];

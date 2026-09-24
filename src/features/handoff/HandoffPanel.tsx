@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { SourceReference } from '../discovery/ui/SourceReference';
 import { ReviewPreview } from './ReviewPreview';
 import { SecureAuthCard } from '../../components/SecureAuth';
@@ -10,8 +10,14 @@ import type { HandoffController } from './controller';
 import type { IdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView, sourceReferenceView } from './view';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import { openMoneyFor } from '../money/handoff';
+import { createSecureLinkCreateController } from '../securelink/createController';
+import { CreateSecureLinkPanel } from '../securelink/CreateSecureLinkPanel';
 
-export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
+type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator'>;
+
+export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(props.handoff.subscribe, props.handoff.getSnapshot, props.handoff.getSnapshot);
   // Focus follows the moment: when the phase changes the region takes focus, so a keyboard or screen-reader
   // user lands on what is now true rather than on a control that has just disappeared.
@@ -25,9 +31,14 @@ export function HandoffPanel(props: { handoff: HandoffController; identity: Iden
   return <div ref={region} tabIndex={-1} aria-label="Agreement review" className="space-y-3 focus:outline-none"><HandoffBody {...props} /></div>;
 }
 
-function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
+function HandoffBody({ handoff, identity, onDone, onOpenAgreement, agreementGateway }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
+  // KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 3) -- the post-SET continuation's
+  // OWN inline sub-view for "Create SecureLink". Local to this one moment; reset whenever a fresh
+  // handoff progresses (a new `progressedAgreementId` never inherits a stale sub-view).
+  const [continuationView, setContinuationView] = useState<'choices' | 'securelink'>('choices');
+  const [secureLinkController, setSecureLinkController] = useState<ReturnType<typeof createSecureLinkCreateController> | null>(null);
 
   useEffect(() => {
     if (state.phase === 'identity-required' && identityState.phase === 'signed-in') {
@@ -139,13 +150,55 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
   }
 
   if (state.phase === 'progressed' && state.handoff) {
+    const agreementId = state.handoff.progressedAgreementId;
+    const agreementTitle = state.handoff.candidate.title ?? 'This Agreement';
+
+    // KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 3) -- the explicit "Create
+    // SecureLink" continuation's own inline sub-view. Never automatic: only reachable by the person's
+    // own explicit choice below.
+    if (continuationView === 'securelink' && agreementId && agreementGateway) {
+      if (!secureLinkController) {
+        setSecureLinkController(createSecureLinkCreateController(agreementGateway, agreementId, agreementTitle));
+        return <p role="status" className="text-sm text-sand-500 px-1">Preparing…</p>;
+      }
+      return (
+        <div className="space-y-3">
+          <CreateSecureLinkPanel
+            agreementTitle={agreementTitle}
+            controller={secureLinkController}
+            onDone={() => { setContinuationView('choices'); setSecureLinkController(null); }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
+        <p className="px-1 text-[0.85rem] text-sand-700">
+          Your Agreement is safely set. You can connect money now, create a SecureLink to share it, or
+          leave it exactly as it is — none of these happen automatically.
+        </p>
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [
-          ...(onOpenAgreement && state.handoff.progressedAgreementId ? [{ label: 'Open this Agreement', value: 'open' }] : []),
-          { label: 'Back to the conversation', value: 'done' },
-        ] }} onChoice={value => { if (value === 'open' && onOpenAgreement && state.handoff?.progressedAgreementId) { const id = state.handoff.progressedAgreementId; handoff.reset(); identity.reset(); onOpenAgreement(id); } else leave(); }} />
+          ...(agreementId ? [{ label: 'Connect money now', value: 'money' }] : []),
+          ...(agreementId && agreementGateway ? [{ label: 'Create SecureLink', value: 'securelink' }] : []),
+          ...(onOpenAgreement && agreementId ? [{ label: 'Open this Agreement', value: 'open' }] : []),
+          { label: 'Save — I’m done for now', value: 'save' },
+        ] }} onChoice={value => {
+          if (value === 'money' && agreementId) {
+            openMoneyFor({ agreementId, title: agreementTitle, versionLabel: null, currentVersionId: null });
+            handoff.reset();
+            identity.reset();
+          } else if (value === 'securelink' && agreementId && agreementGateway) {
+            setContinuationView('securelink');
+          } else if (value === 'open' && onOpenAgreement && agreementId) {
+            handoff.reset();
+            identity.reset();
+            onOpenAgreement(agreementId);
+          } else {
+            leave();
+          }
+        }} />
       </div>
     );
   }

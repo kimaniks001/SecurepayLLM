@@ -6,6 +6,7 @@ import { HostedMoneySessionExperience } from './features/money/HostedMoneySessio
 import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { InvitationInboxExperience } from './features/invitation-inbox/InvitationInboxExperience';
+import { SecureLinkExperience } from './features/securelink/SecureLinkExperience';
 import { createInvitationInboxController } from './features/invitation-inbox/controller';
 import { parseInvitationRoute, parseMyInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -156,6 +157,26 @@ function useMoneyOperationsRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/**
+ * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 8) — the public SecureLink route,
+ * `#/securelink/{slug}`. The slug is the ONLY identifier ever in this URL (never an Agreement id) — it
+ * is exactly what the server-issued `publicUrl` already carries, never reconstructed client-side.
+ */
+function useSecureLinkRoute(): string | null {
+  const parse = () => {
+    if (typeof window === 'undefined') return null;
+    const match = /^#\/?securelink\/([^/]+)\/?$/.exec(window.location.hash);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+  const [slug, setSlug] = useState(parse);
+  useEffect(() => {
+    const onHashChange = () => setSlug(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return slug;
+}
+
 /** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
 function useMoneySessionRoute(): string | null {
   const parse = () => {
@@ -183,6 +204,7 @@ export default function RuntimeApp() {
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
+  const secureLinkSlug = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
@@ -211,6 +233,11 @@ export default function RuntimeApp() {
           onLeave={clearInvitationInboxRoute}
           onReview={invitationId => { window.location.hash = `#/my-invitations/${encodeURIComponent(invitationId)}`; }}
         />
+      : <Unavailable />;
+  }
+  if (secureLinkSlug) {
+    return api && agreementGateway
+      ? <SecureLinkExperience key={secureLinkSlug} slug={secureLinkSlug} gateway={agreementGateway} auth={api.auth} session={session} onLeave={() => { window.location.hash = ''; }} />
       : <Unavailable />;
   }
   if (activationRoute) {

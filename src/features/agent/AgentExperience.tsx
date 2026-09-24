@@ -749,7 +749,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspace(true); }} />
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspace(true); }} agreementGateway={agreementGateway} />
               </div>,
             ]}
           </ConversationSurface>

@@ -19,6 +19,21 @@ export interface AmendmentDiffDto { amendmentId: string; sourceVersionId: string
 export interface AgreementInvitationDto { id: string; roleCode: string; status: string; issuedAt: string; expiresAt: string; revokedAt: string | null }
 export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
+// KS001 Upgrade Phase 5 (SecureLink & Money Continuation) -- product activation and public locator (SecureLink) issuance.
+export interface AgreementProductActivationDto { productId: string; productType: string; status: string; activatedAt: string; expiresAt: string | null; replayed: boolean }
+export interface ActivateAgreementProductRequest { idempotencyKey: string; purposeSummary: string; publicAmountDisplay?: boolean }
+/** `publicUrl` is null when no production public-facing base URL is configured yet -- never fabricate one client-side. */
+export interface IssuePublicLocatorDto { locatorId: string; pathClass: string; status: string; slug: string; replayed: boolean; publicUrl: string | null }
+export interface PublicProductParticipantDto { displayLabel: string; roleCode: string }
+export interface PublicProductMilestoneDto { sequenceOrder: number; title: string; status: string }
+export interface PublicFairTradeGuidanceDto { principleNumber: number; principleTitle: string; guidance: string }
+/** The bounded pre-Join public review -- Section 8's own "review is not Join/accept/pay" boundary. */
+export interface PublicProductViewDto {
+  productType: string; purposeSummary: string; currency: string | null; amountMinor: number | null;
+  amountVisible: boolean; participants: PublicProductParticipantDto[]; publicStatus: string;
+  expiresAt: string | null; milestones: PublicProductMilestoneDto[]; nextStepGuidance: string | null;
+  verifyIdentityPrompt: string | null; fairTradeGuidance: PublicFairTradeGuidanceDto[];
+}
 export function createAgreementGateway(http: HttpClient) {
   const agreement = (id: string) => `/api/v1/agreements/${segment(id)}`;
   const pagination = (page: number, size: number) => {
@@ -98,6 +113,20 @@ export function createAgreementGateway(http: HttpClient) {
     myInvitations: (page = 0, size = 20) => http.request<Page<AgreementInvitationInboxItemResponse>>(`/api/v1/agreement-invitations/me${pagination(page, size)}`, { auth: 'required' }),
     viewMyInvitation: (invitationId: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}`, { auth: 'required' }),
     joinMyInvitation: (invitationId: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/me/${segment(invitationId)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 6/7) -- creating a SecureLink is a
+    // TWO-step server-owned sequence: activate the Agreement's product (the backend classifies
+    // SECURE_LINK vs KEY_CONTRACT itself from the Agreement's own obligations -- the frontend never
+    // supplies or guesses a productType), then issue a public locator against that now-active product.
+    // Both are idempotent; the creator's own explicit choice, never automatic at SET.
+    activateProduct: (id: string, body: ActivateAgreementProductRequest) => http.request<AgreementProductActivationDto>(`${agreement(id)}/product`, { method: 'POST', body, auth: 'required' }),
+    issuePublicLocator: (id: string, idempotencyKey: string) => http.request<IssuePublicLocatorDto>(`${agreement(id)}/public-locators`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Public, unauthenticated review -- Section 8's own "opening a link is not Join/accept/pay" boundary.
+    // Never the raw Agreement id; only ever the opaque slug already embedded in the shared SecureLink URL.
+    viewSecureLink: (slug: string) => http.request<PublicProductViewDto>(`/api/v1/public/securelinks/${segment(slug)}`, { auth: 'none' }),
+    // The authenticated-only bridge from a public SecureLink review into the SAME existing Join core:
+    // on success, hands back a fresh single-use invitation token; the caller still makes a SEPARATE,
+    // explicit `join(token, idempotencyKey)` call above -- this never joins anyone by itself.
+    requestSecureLinkJoinAuthority: (slug: string, idempotencyKey: string) => http.request<IssueInvitationDto>(`/api/v1/public/securelinks/${segment(slug)}/join-authority`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Real shape: List<AgreementVersionResponse> — each entry is the full version record (id,
     // versionStatus included), not the lighter AgreementVersionSummaryResponse used in Detail's
     // versionHistory. Callers must select CURRENT by versionStatus, never by highest versionNumber.
