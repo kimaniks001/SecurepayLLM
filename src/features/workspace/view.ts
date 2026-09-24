@@ -1,7 +1,8 @@
 import type {
   AgreementConfirmationResponse, AgreementDetailResponse, AgreementMoneyByCurrencyResponse,
-  AgreementMoneyRecordResponse, AgreementProblemSummaryResponse, CurrentUserAgreementSummaryResponse,
-  MilestoneEffectiveStateResponse, RecentActivityEntryResponse, WorkspaceNextActionResponse,
+  AgreementMoneyRecordResponse, AgreementPeopleResponse, AgreementPersonResponse, AgreementProblemSummaryResponse,
+  CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse, RecentActivityEntryResponse,
+  WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
 import type { HubDto } from '../../api/securepay/agreements';
 import { moneyHandoffView } from '../../api/securepay/money/adapters';
@@ -224,44 +225,67 @@ export function waitingItemsFromHub(waitingOnOthers: CurrentUserAgreementSummary
 // ─── Agreement Detail ─────────────────────────────────────────────────────
 
 /**
- * Who is on the Agreement and what is true of each of them, from TWO authorities joined by the stable participant id
- * (never by name, KS Number, role or position):
- *   - Detail participants: identity (name / KS Number where SecurePay supplies them), role, participantStatus;
- *   - `/confirmations`: every confirmation with SecurePay's own `confirmationCurrent` flag.
- * `confirmations === null` means that read FAILED: unknown, which is never shown as "not confirmed".
- * Currentness is SecurePay's `confirmationCurrent`, never a comparison of version numbers made here.
+ * KS001 Upgrade Phase 4 continuation (item 4) — who is on the Agreement and where each of them stands,
+ * read DIRECTLY from SecurePay's own server-owned People projection (`GET /agreements/{id}/people`,
+ * `AgreementPeopleProjectionService`). This is deliberately a thin PRESENTATION mapper only: it turns the
+ * server's own `humanState` enum into human copy — it must never re-derive a different participation
+ * state from participants/confirmations/version the way the retired client-side `peopleView` used to
+ * (that composition, and its own confirmation-comparison logic, now lives — and is tested — server-side
+ * in `AgreementConfirmationService`/`AgreementPeopleProjectionService`).
+ *
+ * <p>`projection === null` means the People read FAILED — unknown, never shown as "not joined"/"not
+ * confirmed"; this falls back to the raw Detail participant list (name/role only, no confirmation claim
+ * at all) so the People area still renders SOMETHING rather than going blank.</p>
  */
-export function peopleView(
+export function peopleFromProjection(
+  projection: AgreementPeopleResponse | null,
   participants: AgreementDetailResponse['participants'],
-  confirmations: AgreementConfirmationResponse[] | null,
-  currentVersionNumber: number | null,
 ): AgreementPerson[] {
-  return participants.map(p => {
-    const identity = p.displayName ? (p.ksNumber ? `${p.displayName} · ${p.ksNumber}` : p.displayName) : (p.ksNumber ?? null);
-    const invited = p.participantStatus === 'INVITED' || p.participantStatus === 'PENDING';
-    const base = { name: identity ?? (invited ? 'Someone invited' : 'Participant'), role: humanizeCode(p.roleCode), confirmationStatus: 'not_joined' as const };
-    if (p.participantStatus === 'CREATOR') return { ...base, statusText: 'Started this Agreement', statusKind: 'neutral' as const };
-    if (invited) return { ...base, statusText: 'Invitation issued · not joined yet', statusKind: 'waiting' as const };
-    if (p.participantStatus !== 'JOINED_UNCONFIRMED' && p.participantStatus !== 'CONFIRMED') return { ...base, statusText: humanizeCode(p.participantStatus), statusKind: 'neutral' as const };
-    if (confirmations === null) return { ...base, statusText: 'Joined · confirmation status couldn’t be loaded', statusKind: 'unknown' as const };
-    // A CONFIRMED row on the current version is a current confirmation. An earlier confirmation is either still CONFIRMED
-    // on an older version (a non-material change) or INVALIDATED (a material change): both mean "confirmed earlier, this
-    // version needs review". WITHDRAWN is not a confirmation.
-    const mine = confirmations.filter(c => c.participantId === p.participantId && (c.status === 'CONFIRMED' || c.status === 'INVALIDATED'));
-    const current = mine.find(c => c.confirmationCurrent && c.status === 'CONFIRMED');
-    if (current) return { ...base, statusText: `Joined · confirmed version ${current.versionNumber}`, statusKind: 'current' as const };
-    const earlierRows = mine.filter(c => !c.confirmationCurrent);
-    // An INVALIDATED row that SecurePay also flags as on the current version contradicts itself: unknown, not a guess.
-    if (mine.length > 0 && earlierRows.length === 0) return { ...base, statusText: 'Joined · confirmation details couldn’t be established', statusKind: 'unknown' as const };
-    if (earlierRows.length > 0) {
-      const earlier = Math.max(...earlierRows.map(c => c.versionNumber));
-      return { ...base, statusText: `Confirmed version ${earlier} · needs to review ${currentVersionNumber != null ? `version ${currentVersionNumber}` : 'the current version'}`, statusKind: 'needs' as const };
-    }
-    // Only where the participant authority ALSO says unconfirmed may a missing row mean "not confirmed". A participant
-    // row saying CONFIRMED with no matching confirmation record is a contradiction this client cannot resolve.
-    if (p.participantStatus === 'CONFIRMED') return { ...base, statusText: 'Joined · confirmation details couldn’t be established', statusKind: 'unknown' as const };
-    return { ...base, statusText: 'Joined · confirmation still needed', statusKind: 'waiting' as const };
-  });
+  if (projection === null) {
+    return participants.map(p => ({
+      name: p.displayName ? (p.ksNumber ? `${p.displayName} · ${p.ksNumber}` : p.displayName) : (p.ksNumber ?? (p.participantStatus === 'CREATOR' ? 'Participant' : 'Someone invited')),
+      role: humanizeCode(p.roleCode),
+      confirmationStatus: 'not_joined' as const,
+      statusText: 'People status couldn’t be loaded',
+      statusKind: 'unknown' as const,
+    }));
+  }
+  return projection.people.map(personFromProjectionRow);
+}
+
+function personFromProjectionRow(p: AgreementPersonResponse): AgreementPerson {
+  const identity = p.displayName ? (p.canonicalKsNumber ? `${p.displayName} · ${p.canonicalKsNumber}` : p.displayName) : p.canonicalKsNumber;
+  const nameKnown = !!p.displayName;
+  const stillPending = p.humanState === 'INVITED' || p.humanState === 'INVITATION_OPENED' || p.humanState === 'INVITATION_EXPIRED' || p.humanState === 'INVITATION_REVOKED';
+  const fallbackName = p.isCreator ? 'Participant' : (stillPending ? 'Someone invited' : 'Participant');
+  const name = identity ?? fallbackName;
+  const role = humanizeCode(p.roleCode);
+  // The subject prefix is only ever added when a real name is known -- Section 4's own "use real
+  // displayName when available; never invent one" -- an unresolved person's row stays subject-free
+  // ("Invitation ready · not opened yet"), never "Someone invited opened the invitation".
+  const who = nameKnown ? p.displayName as string : null;
+  switch (p.humanState) {
+    case 'CREATOR':
+      return { name, role, confirmationStatus: 'not_joined', statusText: 'Started this Agreement', statusKind: 'neutral' };
+    case 'INVITED':
+      return { name, role, confirmationStatus: 'not_joined', statusText: 'Invitation ready · not opened yet', statusKind: 'waiting' };
+    case 'INVITATION_OPENED':
+      return { name, role, confirmationStatus: 'not_joined', statusText: who ? `${who} opened the invitation · has not joined` : 'Invitation opened · not joined yet', statusKind: 'waiting' };
+    case 'JOINED_NOT_CONFIRMED':
+      return { name, role, confirmationStatus: 'joined_not_confirmed', statusText: who ? `${who} joined · review still needed` : 'Joined · review still needed', statusKind: 'waiting' };
+    case 'CONFIRMED_CURRENT':
+      return { name, role, confirmationStatus: 'confirmed_current', statusText: who ? `${who} confirmed` : `Confirmed version ${p.confirmedVersionNumber ?? ''}`.trim(), statusKind: 'current' };
+    case 'RECONFIRMATION_REQUIRED':
+      return { name, role, confirmationStatus: 'confirmed_current', statusText: who ? `${who} needs to review the changed Agreement` : 'Needs to review the changed Agreement', statusKind: 'needs' };
+    case 'INVITATION_EXPIRED':
+      return { name, role, confirmationStatus: 'not_joined', statusText: 'Invitation expired', statusKind: 'neutral' };
+    case 'INVITATION_REVOKED':
+      return { name, role, confirmationStatus: 'not_joined', statusText: 'Invitation revoked', statusKind: 'neutral' };
+    default:
+      // An unrecognized state fails closed to unknown, never a guessed status -- see this function's
+      // own "never derive a different participation state" doctrine.
+      return { name, role, confirmationStatus: 'not_joined', statusText: 'Status unavailable', statusKind: 'unknown' };
+  }
 }
 
 function displayNameForParticipant(participantId: string, participants: AgreementDetailResponse['participants']): string {
@@ -282,8 +306,9 @@ export function agreementDetailView(
   confirmations: AgreementConfirmationResponse[] | null,
   status: AgreementStatus,
   completion: DetailCompletion,
+  peopleProjection: AgreementPeopleResponse | null = null,
 ): AgreementDetailType {
-  const people = peopleView(dto.participants, confirmations, dto.currentVersion?.versionNumber ?? null);
+  const people = peopleFromProjection(peopleProjection, dto.participants);
   const documents: AgreementDocument[] = dto.documents.map(d => ({
     id: d.evidenceId,
     filename: d.originalFilename || d.description || 'Document',

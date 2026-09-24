@@ -41,7 +41,10 @@ export function createAgreementGateway(http: HttpClient) {
     // reconfirmationRequired. Used only to render real "who confirmed the current version" and this
     // caller's own stale-review state — never to derive Agreement or Money authority.
     confirmationStatus: (id: string) => http.request<AgreementConfirmationStatusResponse[]>(`${agreement(id)}/confirmation-status`, { auth: 'required' }),
-    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedIdentityId?: string; intendedKsNumber?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
+    // KS001 Upgrade Phase 4 continuation (item 2) -- deliberately no intendedIdentityId field: a public
+    // caller may only ever name an intended recipient by KS Number, which the server re-resolves and
+    // validates independently at issuance.
+    issueInvitation: (id: string, body: { idempotencyKey: string; roleCode: string; intendedKsNumber?: string }) => http.request<IssueInvitationDto>(`${agreement(id)}/invitations`, { method: 'POST', body, auth: 'required' }),
     // KS001 Upgrade Phase 4 (Section 10) -- the bounded creator-facing preview before issuing a
     // KS-Number-targeted invitation. A 404 means "no such active identity" (never distinguished from
     // "known but ineligible" -- Section 15's own anti-enumeration doctrine) -- the caller checks

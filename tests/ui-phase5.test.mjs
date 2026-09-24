@@ -9,7 +9,7 @@ import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/invitations/controller';
 export { InvitePanel, invitationStatusText } from './src/features/invitations/InvitePanel';
-export { peopleView } from './src/features/workspace/view';
+export { peopleFromProjection } from './src/features/workspace/view';
 export { createWorkspaceController } from './src/features/workspace/controller';
 export { AgreementPeople } from './src/components/AgreementPeople';
 export { handoffNoticeView } from './src/features/handoff/view';
@@ -186,86 +186,102 @@ test('revoke calls the real endpoint then re-reads the list', async () => {
 });
 
 // ------------------------------------------------------------ People
-const P = (id, status, role = 'SERVICE_PROVIDER', extra = {}) => ({ participantId: id, roleCode: role, participantStatus: status, ksNumber: null, displayName: null, ...extra });
-const C = (participantId, versionNumber, current, extra = {}) => ({ id: `c-${participantId}-${versionNumber}`, agreementVersionId: `v${versionNumber}`, participantId, versionNumber, versionContentHash: 'h', status: 'CONFIRMED', assuranceMethod: 'AUTHENTICATED_SESSION', confirmedAt: 'x', confirmationCurrent: current, reconfirmationRequired: !current, ...extra });
-const one = (participant, confirmations, current = 3) => api.peopleView([participant], confirmations, current)[0];
+// KS001 Upgrade Phase 4 continuation (item 4) -- peopleView (client-side participants+confirmations+
+// version composition) is RETIRED. Confirmation-current/reconfirmation-required/stale-version logic now
+// lives, and is tested, server-side (AgreementConfirmationService/AgreementPeopleProjectionService,
+// SecurePayAPI). This frontend mapper (peopleFromProjection) is a THIN presentation layer over the
+// server's own humanState enum -- these tests prove the mapping and the bounded-identity/unknown-fallback
+// doctrine only, never a client-side confirmation derivation (there is none left to test here).
+const PP = (id, humanState, role = 'SERVICE_PROVIDER', extra = {}) => ({
+  participantId: id, identityId: null, displayName: null, canonicalKsNumber: null, roleCode: role,
+  isCreator: humanState === 'CREATOR', invitationId: null, invitationStatus: null, invitationIssuedAt: null,
+  invitationExpiresAt: null, invitationFirstViewedAt: null, joinedAt: null, confirmedVersionNumber: null,
+  confirmationCurrent: false, reconfirmationRequired: false, humanState, ...extra,
+});
+const projectionOf = people => ({
+  people,
+  summary: { peopleCount: people.length, expectedParticipantCount: 0, pendingInvitationCount: 0, joinedParticipantCount: 0, confirmedCurrentParticipantCount: 0, reconfirmationRequiredCount: 0, allExpectedHaveJoined: false, allJoinedHaveConfirmedCurrent: false, allExpectedHaveConfirmedCurrent: false },
+});
+const one = person => api.peopleFromProjection(projectionOf([person]), [])[0];
 
 test('real identity is shown where SecurePay supplies it, and only that: no internal ids, no invented names', () => {
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Wanjiru Traders', ksNumber: 'KS003' }), []).name, 'Wanjiru Traders · KS003');
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { ksNumber: 'KS003' }), []).name, 'KS003');
-  assert.equal(one(P('p1', 'INVITED'), []).name, 'Someone invited');
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), []).name, 'Participant');
-  assert.doesNotMatch(JSON.stringify(api.peopleView([P('p1', 'INVITED')], [], 1)), /identityId/);
+  assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Wanjiru Traders', canonicalKsNumber: 'KS003' })).name, 'Wanjiru Traders · KS003');
+  assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { canonicalKsNumber: 'KS003' })).name, 'KS003');
+  assert.equal(one(PP('p1', 'INVITED')).name, 'Someone invited');
+  assert.equal(one(PP('p1', 'JOINED_NOT_CONFIRMED')).name, 'Participant'); // already joined, unresolved name -- distinct fallback from merely invited
+  assert.doesNotMatch(JSON.stringify(api.peopleFromProjection(projectionOf([PP('p1', 'INVITED')]), [])), /identityId/);
 });
 test('roles come from SecurePay roleCode only, in plain words', () => {
-  assert.equal(one(P('p1', 'INVITED', 'SERVICE_PROVIDER'), []).role, 'Service Provider');
-  assert.equal(one(P('p1', 'CREATOR', 'PROPOSER'), []).role, 'Proposer');
+  assert.equal(one(PP('p1', 'INVITED', 'SERVICE_PROVIDER')).role, 'Service Provider');
+  assert.equal(one(PP('p1', 'CREATOR', 'PROPOSER')).role, 'Proposer');
 });
 test('the creator is not asked to confirm: "Started this Agreement", neutral', () => {
-  const c = one(P('p0', 'CREATOR', 'PROPOSER'), []);
+  const c = one(PP('p0', 'CREATOR', 'PROPOSER'));
   assert.equal(c.statusText, 'Started this Agreement'); assert.equal(c.statusKind, 'neutral');
 });
-test('invited: the invitation exists, they have not joined', () => {
-  for (const s of ['INVITED', 'PENDING']) assert.equal(one(P('p1', s), []).statusText, 'Invitation issued · not joined yet');
+test('invited: the invitation exists, they have not opened or joined yet', () => {
+  assert.equal(one(PP('p1', 'INVITED')).statusText, 'Invitation ready · not opened yet');
+});
+test('invitation opened is distinct from invited and from joined', () => {
+  const named = one(PP('p1', 'INVITATION_OPENED', 'SERVICE_PROVIDER', { displayName: 'Mary' }));
+  assert.equal(named.statusText, 'Mary opened the invitation · has not joined'); assert.equal(named.statusKind, 'waiting');
+  assert.equal(one(PP('p1', 'INVITATION_OPENED')).statusText, 'Invitation opened · not joined yet');
 });
 test('joined but unconfirmed is distinct from confirmed', () => {
-  const p = one(P('p1', 'JOINED_UNCONFIRMED'), []);
-  assert.equal(p.statusText, 'Joined · confirmation still needed'); assert.equal(p.statusKind, 'waiting');
+  const p = one(PP('p1', 'JOINED_NOT_CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Mary' }));
+  assert.equal(p.statusText, 'Mary joined · review still needed'); assert.equal(p.statusKind, 'waiting');
 });
-test('current confirmation is clearly current and names the version', () => {
-  const p = one(P('p1', 'CONFIRMED'), [C('p1', 3, true)]);
-  assert.equal(p.statusText, 'Joined · confirmed version 3'); assert.equal(p.statusKind, 'current');
+test('current confirmation is clearly current, named when identity is known', () => {
+  const p = one(PP('p1', 'CONFIRMED_CURRENT', 'SERVICE_PROVIDER', { displayName: 'Mary', confirmedVersionNumber: 3 }));
+  assert.equal(p.statusText, 'Mary confirmed'); assert.equal(p.statusKind, 'current');
 });
-test('a stale confirmation is NOT "Confirmed": it names both versions and says review again', () => {
-  const p = one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3);
-  assert.equal(p.statusText, 'Confirmed version 2 · needs to review version 3'); assert.equal(p.statusKind, 'needs');
-  assert.doesNotMatch(p.statusText, /^Confirmed$|Joined · confirmed/);
+test('reconfirmation required is distinct from a fresh confirmation, and never called "confirmed"', () => {
+  const p = one(PP('p1', 'RECONFIRMATION_REQUIRED', 'SERVICE_PROVIDER', { displayName: 'Mary' }));
+  assert.equal(p.statusText, 'Mary needs to review the changed Agreement'); assert.equal(p.statusKind, 'needs');
+  assert.doesNotMatch(p.statusText, /^Mary confirmed$/);
 });
-test('participantStatus CONFIRMED with no current confirmation is never shown as confirmed-current (the old code did)', () => {
-  assert.notEqual(one(P('p1', 'CONFIRMED'), []).statusKind, 'current');
-  assert.equal(one(P('p1', 'CONFIRMED'), []).statusKind, 'unknown'); // contradictory authorities: unknown, not "still needed"
+test('expired and revoked invitations are their own historical statuses, never shown as pending', () => {
+  assert.equal(one(PP('p1', 'INVITATION_EXPIRED')).statusText, 'Invitation expired');
+  assert.equal(one(PP('p1', 'INVITATION_REVOKED')).statusText, 'Invitation revoked');
 });
-test('currentness is SecurePay\'s confirmationCurrent flag, not a local version-number comparison', () => {
-  // Same number as the current version but the backend says it is not current -> needs review.
-  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 3, false)], 3).statusKind, 'needs');
-  // A lower number that the backend says IS current -> current.
-  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 1, true)], 3).statusKind, 'current');
-});
-test('one participant confirming never implies the others did; matching is by participantId, not order or name', () => {
-  const ps = [P('pA', 'JOINED_UNCONFIRMED', 'BUYER', { displayName: 'Kamau' }), P('pB', 'JOINED_UNCONFIRMED', 'SELLER', { displayName: 'Kamau' })];
-  const out = api.peopleView(ps, [C('pB', 3, true)], 3);
+test('one participant confirming never implies the others did; each row is independent, driven by ITS OWN humanState', () => {
+  const out = api.peopleFromProjection(projectionOf([
+    PP('pA', 'JOINED_NOT_CONFIRMED', 'BUYER', { displayName: 'Kamau' }),
+    PP('pB', 'CONFIRMED_CURRENT', 'SELLER', { displayName: 'Kamau' }),
+  ]), []);
   assert.equal(out[0].statusKind, 'waiting'); assert.equal(out[1].statusKind, 'current');
-  const swapped = api.peopleView([...ps].reverse(), [C('pB', 3, true)], 3);
-  assert.equal(swapped[0].statusKind, 'current'); assert.equal(swapped[1].statusKind, 'waiting');
 });
-test('a withdrawn/other-status confirmation does not count', () => {
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), [C('p1', 3, true, { status: 'WITHDRAWN' })]).statusKind, 'waiting');
+test('when the People read fails (null projection) every row is UNKNOWN, never "not confirmed"/"not joined"', () => {
+  const participants = [{ participantId: 'p1', roleCode: 'SERVICE_PROVIDER', participantStatus: 'JOINED_UNCONFIRMED', ksNumber: null, displayName: null }];
+  const rows = api.peopleFromProjection(null, participants);
+  assert.equal(rows[0].statusKind, 'unknown');
+  assert.match(rows[0].statusText, /couldn.t be loaded/);
+  assert.doesNotMatch(rows[0].statusText, /not confirmed|still needed|not joined/i);
 });
-test('when the confirmations read failed (null) the joined person is UNKNOWN, never "not confirmed"', () => {
-  const p = one(P('p1', 'JOINED_UNCONFIRMED'), null);
-  assert.equal(p.statusKind, 'unknown'); assert.match(p.statusText, /confirmation status couldn.t be loaded/); assert.doesNotMatch(p.statusText, /not confirmed|still needed/i);
-  const c = one(P('p2', 'CONFIRMED'), null); assert.equal(c.statusKind, 'unknown');
-  // People not depending on confirmations keep their truth.
-  assert.equal(one(P('p3', 'INVITED'), null).statusText, 'Invitation issued · not joined yet');
-});
-test('an Agreement change makes an earlier confirmation stale, with no automatic action', async () => {
-  const before = one(P('p1', 'CONFIRMED'), [C('p1', 2, true)], 2);
-  const after = one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3);
-  assert.equal(before.statusKind, 'current'); assert.equal(after.statusKind, 'needs'); assert.match(after.statusText, /needs to review version 3/);
+test('an Agreement change makes an earlier confirmation stale (server-driven RECONFIRMATION_REQUIRED), with no automatic action', async () => {
+  const before = one(PP('p1', 'CONFIRMED_CURRENT', 'SERVICE_PROVIDER', { displayName: 'Mary' }));
+  const after = one(PP('p1', 'RECONFIRMATION_REQUIRED', 'SERVICE_PROVIDER', { displayName: 'Mary' }));
+  assert.equal(before.statusKind, 'current'); assert.equal(after.statusKind, 'needs');
   const src = await readFile('src/features/invitations/controller.ts', 'utf8');
   assert.doesNotMatch(src, /confirmVersion|reinvite/i);
 });
 test('People renders the words and an icon (never colour alone), with no scoreboard or percentage', () => {
-  const people = api.peopleView([P('p1', 'CONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Kamau' }), P('p2', 'JOINED_UNCONFIRMED'), P('p3', 'INVITED')], [C('p1', 3, true)], 3);
+  const people = api.peopleFromProjection(projectionOf([
+    PP('p1', 'CONFIRMED_CURRENT', 'SERVICE_PROVIDER', { displayName: 'Kamau' }),
+    PP('p2', 'JOINED_NOT_CONFIRMED'),
+    PP('p3', 'INVITED'),
+  ]), []);
   const markup = html(api.AgreementPeople, { people });
   const out = text(markup);
-  assert.match(out, /Kamau/); assert.match(out, /Joined · confirmed version 3/); assert.match(out, /Joined · confirmation still needed/); assert.match(out, /Invitation issued · not joined yet/);
+  assert.match(out, /Kamau/); assert.match(out, /Kamau confirmed/); assert.match(out, /Joined · review still needed/); assert.match(out, /Invitation ready · not opened yet/);
   assert.match(markup, /<ul[^>]*aria-label="People on this Agreement"/); assert.match(markup, /aria-hidden="true"/);
   assert.doesNotMatch(out, /%|\d+\/\d+|complete|progress/i);
 });
 
 // ------------------------------------------------------------ workspace partial failure + creator
-const detailDto = { overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'T', purpose: '', description: '', agreementType: 'SERVICE', status: 'PROPOSED', currency: 'KES', proposedAmountMinor: null, createdAt: 'x', updatedAt: 'x', expiresAt: null }, currentVersion: { versionId: 'v3', versionNumber: 3, contentHash: 'h', createdAt: 'x', amendmentReason: null, materialChange: false }, participants: [P('p0', 'CREATOR', 'PROPOSER', { displayName: 'James', ksNumber: 'KS001' }), P('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Kamau', ksNumber: 'KS003' })], milestones: [], terms: [], documents: [], activity: [], versionHistory: [], money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 } };
+/** Raw AgreementDetailResponse.participants shape -- distinct from the People-projection row shape (PP) above. */
+const RP = (id, status, role = 'SERVICE_PROVIDER', extra = {}) => ({ participantId: id, roleCode: role, participantStatus: status, ksNumber: null, displayName: null, ...extra });
+const detailDto = { overview: { agreementId: 'agr-1', publicReference: 'AGR-1', title: 'T', purpose: '', description: '', agreementType: 'SERVICE', status: 'PROPOSED', currency: 'KES', proposedAmountMinor: null, createdAt: 'x', updatedAt: 'x', expiresAt: null }, currentVersion: { versionId: 'v3', versionNumber: 3, contentHash: 'h', createdAt: 'x', amendmentReason: null, materialChange: false }, participants: [RP('p0', 'CREATOR', 'PROPOSER', { displayName: 'James', ksNumber: 'KS001' }), RP('p1', 'JOINED_UNCONFIRMED', 'SERVICE_PROVIDER', { displayName: 'Kamau', ksNumber: 'KS003' })], milestones: [], terms: [], documents: [], activity: [], versionHistory: [], money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 } };
 const summary = (over = {}) => ({ agreementId: 'agr-1', publicReference: 'AGR-1', title: 'T', purpose: '', status: 'PROPOSED', agreementType: 'SERVICE', proposedAmountMinor: null, currency: 'KES', createdAt: 'x', updatedAt: 'x', currentActor: { roleCode: 'PROPOSER', participantStatus: 'CREATOR' }, counterparty: null, nextDeadline: null, attentionRequired: false, nextActions: [], currentAgreementVersionId: 'v3', completion: { completed: false, status: 'X', reasonCodes: [], agreementVersionId: 'v3', completedAt: null }, ...over });
 const hub = items => ({ needsMe: items, waitingOnOthers: [], takingShape: [], active: [], changedReviewRequired: [], completed: [], cancelled: [], expired: [] });
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -274,8 +290,11 @@ test('workspace: Detail loads, participants survive a failed confirmations read 
   const c = api.createWorkspaceController(gateway); c.enter(); await tick(); c.openFromHome('agr-1'); await tick();
   const s = c.getSnapshot();
   assert.equal(s.detail.status, 'ready'); assert.equal(s.detail.data.confirmations, null); assert.equal(s.selectedActorStatus, 'CREATOR');
-  const people = api.peopleView(s.detail.data.dto.participants, s.detail.data.confirmations, 3);
-  assert.equal(people[1].statusKind, 'unknown'); assert.equal(people[0].statusText, 'Started this Agreement');
+  // The gateway mock above declares no `people` method at all -- bestEffort's own catch-all means the
+  // People read fails the same way an outright missing/erroring endpoint would: null, never thrown.
+  assert.equal(s.detail.data.people, null);
+  const people = api.peopleFromProjection(s.detail.data.people, s.detail.data.dto.participants);
+  assert.equal(people[1].statusKind, 'unknown'); assert.equal(people[0].statusText.length > 0, true);
 });
 test('workspace: a recipient (not CREATOR) never gets invite controls', async () => {
   const gateway = { currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }), hub: async () => hub([summary({ currentActor: { roleCode: 'SERVICE_PROVIDER', participantStatus: 'JOINED_UNCONFIRMED' } })]), detail: async () => detailDto, confirmations: async () => [], money: { status: async () => { throw err('http', 404, 'x'); }, records: async () => [] } };
@@ -357,19 +376,11 @@ test('the gateway types the token as nullable', async () => {
   const src = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
   assert.match(src, /invitationToken: string \| null/); assert.doesNotMatch(src, /invitationToken: string;/);
 });
-test('participant CONFIRMED but no confirmation record is UNKNOWN, not "confirmation still needed"', () => {
-  const p = one(P('p1', 'CONFIRMED'), []);
-  assert.equal(p.statusKind, 'unknown'); assert.equal(p.statusText, 'Joined · confirmation details couldn’t be established');
-  assert.doesNotMatch(p.statusText, /still needed|not confirmed/i);
-  // A record for a DIFFERENT participant does not fill the gap.
-  assert.equal(one(P('p1', 'CONFIRMED'), [C('someone-else', 3, true)]).statusKind, 'unknown');
-});
-test('a missing row proves "not confirmed" only where the participant authority also says unconfirmed', () => {
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), []).statusText, 'Joined · confirmation still needed');
-  assert.equal(one(P('p1', 'JOINED_UNCONFIRMED'), [C('someone-else', 3, true)]).statusText, 'Joined · confirmation still needed');
-  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 3, true)]).statusText, 'Joined · confirmed version 3');
-  assert.equal(one(P('p1', 'CONFIRMED'), [C('p1', 2, false)], 3).statusText, 'Confirmed version 2 · needs to review version 3');
-});
+// The old "CONFIRMED participant status but no matching confirmation record" contradiction-detection
+// logic (matching confirmation records by participantId, distinguishing a missing row from a genuine
+// "not confirmed") is RETIRED from the frontend entirely -- AgreementConfirmationService now computes
+// confirmationCurrent/reconfirmationRequired server-side (see AgreementPeopleProjectionServiceTest,
+// SecurePayAPI) and hands the frontend one already-resolved humanState per participant, tested above.
 // KS001 Upgrade Phase 4 (Section 10) -- the KS Number IS now checked server-side, with a bounded
 // preview, before the creator can ever press "Create invitation." This supersedes the earlier
 // "not checked when the invitation is created" disclaimer.

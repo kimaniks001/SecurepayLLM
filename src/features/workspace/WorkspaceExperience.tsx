@@ -233,8 +233,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
     else if (state.detail.status !== 'ready') body = <LoadingNotice text="Loading this agreement…" />;
     else if (state.selectedStatus && state.selectedCompletion) {
-      const { dto, confirmations, milestoneStates, events, conflicts, tags } = state.detail.data;
-      const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion);
+      const { dto, confirmations, people, milestoneStates, events, conflicts, tags } = state.detail.data;
+      const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion, people);
       const progress = agreementProgressView(dto, milestoneStates ?? []);
       const calendarEvents = agreementCalendarView(events);
       const eventTitleById = new Map(events.map(e => [e.id, e.title]));

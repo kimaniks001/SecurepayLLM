@@ -169,13 +169,19 @@ export interface AgreementPersonResponse {
   reconfirmationRequired: boolean;
   humanState: string;
 }
+// KS001 Upgrade Phase 4 continuation (item 3) -- the creator is deliberately excluded from every
+// denominator except peopleCount itself. See AgreementPeopleProjectionService's own javadoc
+// (SecurePayAPI) for the full field-by-field rationale.
 export interface AgreementPeopleSummaryResponse {
-  expectedCount: number;
-  joinedCount: number;
-  confirmedCurrentCount: number;
+  peopleCount: number;
+  expectedParticipantCount: number;
+  pendingInvitationCount: number;
+  joinedParticipantCount: number;
+  confirmedCurrentParticipantCount: number;
   reconfirmationRequiredCount: number;
   allExpectedHaveJoined: boolean;
   allJoinedHaveConfirmedCurrent: boolean;
+  allExpectedHaveConfirmedCurrent: boolean;
 }
 export interface AgreementPeopleResponse {
   people: AgreementPersonResponse[];
