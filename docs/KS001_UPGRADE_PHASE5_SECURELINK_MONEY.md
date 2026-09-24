@@ -296,3 +296,63 @@ either; their evidence remains the 27 new unit/component tests above, not a live
 
 **Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
 not deploy, do not start Phase 6.
+
+## Slice 3 addendum — UR-145 root-cause + real SET-to-SecureLink golden journey attempt
+
+**Root cause found and fixed.** A temporary, clearly-marked diagnostic (`console.log('[UR145]', ...)`,
+fully removed before commit) capturing `conversationId`/`busy`/`pending`/`handoffState.phase` and the raw
+`sufficiency` object was added to `AgentExperience.tsx` and exercised against a real local backend with a
+real, freshly signed-up KS Number. Exact disabling predicate: `sufficiency.canReview` was `false` with
+`mustResolve` containing one `NO_SCOPE` matter, even after a fully coherent conversation — because the
+extracted WHAT fact was still a server-side **"Suggested"** candidate awaiting the person's own explicit
+"Use this" confirmation. `busy`, `pending`, and `handoffState.phase` were all confirmed idle/ready
+throughout, ruling out the other four candidate explanations the mandate asked to check. Clicking "Use
+this" cleared `NO_SCOPE` immediately; `canReview` became `true`; "Review this" enabled and correctly
+proceeded through sign-in, the canonical Agreement review, and SET to a genuine `progressed` post-SET
+state. **This is a legitimate, doctrine-consistent gate (never auto-confirm an AI-suggested fact), not a
+code defect** — reclassified accordingly rather than "fixed" as a bug.
+
+**Fix.** `AgentExperience.tsx` now shows an inline hint using the backend's own `mustResolve[0].description`
+verbatim, gated on the exact same `!busy && !pending && handoffState.phase === 'idle' && !canReview &&
+mustResolve.length > 0` conditions as the button itself — never a second, drifting copy of the rule, and
+never exposing internal codes/enums. The Review button's own disabling predicate is byte-for-byte unchanged
+(no hard-coded `canReview=true`, no weakened gate).
+
+**Regression test.** `tests/ur145-review-gate.test.mjs`, 4 new source-inspection cases (matching this
+codebase's own `pr11-review-closure.test.mjs` convention for this large, integrated component): no
+diagnostic trace remains; the hint uses the server's own description verbatim; the hint is gated on the
+real, specific predicate; the button's disabling predicate is unchanged. Full suite: **1100/1100** (was
+1096). `tsc --noEmit`, `eslint` (7 pre-existing warnings, unchanged), and the production build all remain
+clean.
+
+**Golden journey — achieved live, twice, with real signed-up KS Numbers:** Home → KS001 → coherent
+multi-fact trade → "Use this" confirmation → "Review this" enabled → canonical Agreement review → sign-in
+→ same review → explicit SET → genuine post-SET continuation showing the real Connect-money-now /
+Create-SecureLink / Save choices, none executing automatically.
+
+**Golden journey — not achieved live this pass, stated plainly rather than implied:** Save-path
+no-side-effect confirmation, SecureLink creation, public review in a separate session, Join, confirmation,
+existing-SecureLink management, Replace, Revoke, QR physical scan, Money handoff, and responsive
+verification of any of those new screens. Blocked by two further real backend findings this slice
+documents rather than works around:
+- **UR-147 (backend, RESOLVED this slice):** the Agreement's own creator got a real `403` from the new
+  active-locator endpoint — a genuine authorization-provisioning gap (a permission bundle seeded but never
+  granted to the real baseline role), fixed by a migration in the backend repo. This would have blocked
+  every real production user, not just this session.
+- **UR-148 (backend/product, OPEN):** "Create SecureLink" from the post-SET continuation cannot succeed for
+  a freshly-SET Agreement (backend requires a later status than a fresh draft ever has), and there is no
+  persistent frontend entry point to reach it afterward. A genuine product/architecture ambiguity, documented
+  rather than resolved unilaterally.
+- **UR-149 (backend, OPEN, out of this slice's SecureLink scope):** a further real `403` on invitation
+  revoke while trying to advance a counterparty to a joinable state, in the Phase 4 invitation domain —
+  documented, not fixed, to respect this slice's own scope boundary.
+
+Full detail (instrumentation, exact predicate, root cause, and the UR-147 fix itself) is in the backend
+repo's `docs/operations/KS001_UPGRADE_PHASE5_SECURELINK_MONEY_PROGRESS.md` Slice 3 addendum and
+`docs/operations/UNRESOLVED_ITEMS_REGISTER.md`.
+
+**GitHub Actions (UR-146):** re-checked at the end of this slice; the same instant billing-condition failure
+pattern persists. Remains OPEN/EXTERNAL — no workflow edits attempted.
+
+**Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
+not deploy, do not start Phase 6.
