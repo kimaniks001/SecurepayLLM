@@ -394,7 +394,11 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   title: string;
   version: string;
   status: string;
-  parties: { name: string; role: string }[];
+  // KS001 Upgrade Phase 3 completion correction (item 1) -- bounded, server-resolved source lineage for a
+  // source-derived party/fact (a pasted plan/uploaded document/photo) -- an entirely DIFFERENT concept
+  // from `source` below (a bound Store commercial listing). `null`/absent for an ordinary conversational
+  // fact -- never a fabricated badge.
+  parties: { name: string; role: string; source?: { displayName: string; locator: string; removed: boolean } | null }[];
   work: string[];
   price: string;
   // Final Phase 4 Economy Turn 3 (Section 6) -- provenance/commercial context only, never
@@ -419,10 +423,10 @@ export interface CanonicalAgreementResponse extends BaseResponse {
   // actually reads -- these sections are presentation-only, broader review truth, never fed back into
   // AgreementCreationService. Omitted (never an empty array) when the review carried no such facts, so a
   // section with nothing to show is never rendered just to look complete.
-  responsibilities?: { description: string; confirmed: boolean }[];
-  money?: { description: string; confirmed: boolean }[];
-  conditions?: { description: string; confirmed: boolean }[];
-  authority?: { description: string; confirmed: boolean }[];
+  responsibilities?: { description: string; confirmed: boolean; source?: { displayName: string; locator: string; removed: boolean } | null }[];
+  money?: { description: string; confirmed: boolean; source?: { displayName: string; locator: string; removed: boolean } | null }[];
+  conditions?: { description: string; confirmed: boolean; source?: { displayName: string; locator: string; removed: boolean } | null }[];
+  authority?: { description: string; confirmed: boolean; source?: { displayName: string; locator: string; removed: boolean } | null }[];
   worthSettling: { label: string; detail: string }[];
   mustSettle: { label: string; detail: string }[];
   primaryLabel: string;

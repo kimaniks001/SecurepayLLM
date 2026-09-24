@@ -22,7 +22,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
  * (CANDIDATE) fact is visibly "Suggested," never presented as if already agreed; a "Confirmed" quiet label
  * is shown only for a CONFIRMED fact -- never implying Suggested means agreed.
  */
-function ReviewFactSection({ label, facts }: { label: string; facts: { description: string; confirmed: boolean }[] | undefined }) {
+function ReviewFactSection({ label, facts }: { label: string; facts: { description: string; confirmed: boolean; source?: { displayName: string; locator: string; removed: boolean } | null }[] | undefined }) {
   if (!facts || facts.length === 0) return null;
   return (
     <Section label={label}>
@@ -35,6 +35,11 @@ function ReviewFactSection({ label, facts }: { label: string; facts: { descripti
               <span className={`ml-1.5 text-[0.7rem] font-medium ${fact.confirmed ? 'text-forest-600' : 'text-sand-500'}`}>
                 {fact.confirmed ? '(Confirmed)' : '(Suggested)'}
               </span>
+              {/* KS001 Upgrade Phase 3 completion correction (item 1/9) -- bounded source attribution,
+                  surviving adoption; a removed source still names it, without hiding the fact itself. */}
+              {fact.source && <span className="ml-1.5 text-[0.7rem] italic text-sand-500">
+                {fact.source.displayName}{fact.source.locator ? ` · ${fact.source.locator}` : ''}{fact.source.removed ? ' — source removed' : ''}
+              </span>}
             </span>
           </li>
         ))}
@@ -74,6 +79,9 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
                 <div key={i} className="flex items-baseline gap-2">
                   <span className="text-[0.875rem] font-medium text-forest-800">{party.name}</span>
                   {party.role && <span className="text-[0.78rem] text-sand-500">— {party.role}</span>}
+                  {party.source && <span className="text-[0.7rem] italic text-sand-500">
+                    {party.source.displayName}{party.source.locator ? ` · ${party.source.locator}` : ''}{party.source.removed ? ' — source removed' : ''}
+                  </span>}
                 </div>
               ))}
             </div>

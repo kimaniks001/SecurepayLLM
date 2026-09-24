@@ -41,6 +41,10 @@ import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
+import { createSourceController } from '../sources/controller';
+import { AttachSourceMenu } from '../sources/ui/AttachSourceMenu';
+import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
+import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
@@ -127,6 +131,25 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // identityController the handoff flow uses (one sign-in surface, not two), reset alongside it below.
   const [savedBuildController, setSavedBuildController] = useState(() => createSavedBuildController(gateway));
   const savedBuildState = useSyncExternalStore(savedBuildController.subscribe, savedBuildController.getSnapshot);
+  // KS001 Upgrade Phase 3 (Bring what you already have) -- "bring what you already have" into the SAME
+  // canonical BUILD. onSourceIngested refreshes the REAL Trade Context once a source's extraction actually
+  // lands new CANDIDATE facts, so BUILD reflects them without a manual chat turn (Section 30/31).
+  //
+  // KS001 Upgrade Phase 3 completion correction (item 7) -- refreshAfterSourceIngestion (not the plain
+  // review()) also surfaces KS001's own real, server-composed continuation reply, so the person sees KS001
+  // actually react to what was brought in, never only a silent BUILD refresh.
+  //
+  // KS001 Upgrade Phase 3 final merge-readiness correction (item 1) -- removal is a SEPARATE event
+  // (onSourceChanged): the server invalidates unadopted candidates but never records a continuation reply
+  // for it, so this deliberately calls the plain review() (context re-read only), never
+  // refreshAfterSourceIngestion (which would look for a KS001 reply that was never produced), and never
+  // fabricates one client-side either.
+  const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, {
+    onSourceIngested: () => void controller.refreshAfterSourceIngestion(),
+    onSourceChanged: () => void controller.review(),
+  }));
+  const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
+  const [bringPlanOpen, setBringPlanOpen] = useState(false);
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -208,12 +231,24 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   const startNewConversation = () => {
     instruments.cancel();
     discovery.close();
-    setController(createAgentController(gateway));
+    const freshController = createAgentController(gateway);
+    setController(freshController);
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
+    setSourceController(createSourceController(gateway, freshController.ensureConversationId, {
+      onSourceIngested: () => void freshController.refreshAfterSourceIngestion(),
+      onSourceChanged: () => void freshController.review(),
+    }));
+    setBringPlanOpen(false);
     setNotice(null);
   };
+
+  // KS001 Upgrade Phase 3 -- keeps the visible source list in step with whichever conversation is
+  // actually current (a fresh one, a resumed saved build, or one seeded from a Store offer/AI handoff).
+  useEffect(() => {
+    void sourceController.list(state.conversationId);
+  }, [state.conversationId, sourceController]);
 
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
@@ -499,6 +534,14 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // here) -- only its server-derived "still worth settling" lines and disclaimer are kept. If Trade
   // Context could not be read at all, the preview remains as a fallback so nothing is lost.
   const workbenchModel = projectWorkbench(state.context.data, new Set(state.offeredDiscoveryEntityIds));
+  // KS001 Upgrade Phase 3 completion correction (item 9) -- how many CURRENT BUILD rows trace back to
+  // each source, computed live from the workbench's own item.source (never a stale ingestion-time count
+  // -- see SourceCard's own factCount doctrine for exactly why this stays honest after an adoption/
+  // correction/removal changes what a source is still credited with).
+  const sourceFactCounts: Record<string, number> = {};
+  for (const item of workbenchModel.items) {
+    if (item.source) sourceFactCounts[item.source.sourceArtifactId] = (sourceFactCounts[item.source.sourceArtifactId] ?? 0) + 1;
+  }
   const preview = panel?.components.find((c): c is PreviewView => c.type === 'AGREEMENT_PREVIEW');
   const panelRest = (panel?.components ?? []).filter(c => c.type !== 'AGREEMENT_PREVIEW' && c.type !== 'INSTRUMENT_PROMPT' && c.type !== 'UNAVAILABLE_INPUT');
   // One contextual surface at a time: opening an instrument closes discovery, and vice versa.
@@ -536,7 +579,35 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
       {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
           Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
       {sessionState.status === 'signed-in' && <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>}
-      <SignedOutHome disabled={state.busy || !!state.pending} onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }} />
+      <SignedOutHome
+        disabled={state.busy || !!state.pending}
+        onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }}
+        // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions
+        // straight into the SAME conversation experience the free-text composer would, then immediately
+        // opens the relevant source-ingestion path -- never a sign-in wall in front of BUILD.
+        //
+        // KS001 Upgrade Phase 3 completion correction (item 6) -- "Bring your plan" previously called
+        // setHome(false) here, but showHome (below) stays true regardless while there is still no
+        // conversation/turns, so BringPlanPanel (rendered only in the conversation branch) never actually
+        // appeared -- a real dead control. The fix: open BringPlanPanel directly ON Home (rendered right
+        // below, gated on bringPlanOpen alone); submitting it calls sourceController.addPastedText, whose
+        // own ensureConversationId creates the ONE real conversation and updates state.conversationId,
+        // which is what naturally flips showHome to false and lands the person in BUILD -- exactly the
+        // same real transition Document/Photo already produce, never a fabricated chat turn.
+        onBringPlan={() => setBringPlanOpen(true)}
+        onPickDocument={file => { setHome(false); void sourceController.addUpload('DOCUMENT', file); }}
+        onPickPhoto={file => { setHome(false); void sourceController.addUpload('PHOTO', file); }}
+      />
+      {bringPlanOpen && <div className="px-4 md:px-6 pb-6">
+        <BringPlanPanel
+          busy={sourcesState.phase === 'submitting'}
+          error={sourcesState.phase === 'error' ? sourcesState.error : null}
+          onClose={() => setBringPlanOpen(false)}
+          onSubmit={(text, label) => {
+            void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+          }}
+        />
+      </div>}
       {sessionState.status !== 'signed-in' && (
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
       )}
@@ -601,7 +672,17 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}
-              <div className="flex flex-wrap gap-x-4 text-sm text-forest-700">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-forest-700">
+                {/* KS001 Upgrade Phase 3 (Bring what you already have, Section 40) -- one quiet attach
+                    control (Document / Photo / Paste a plan), never a toolbar jungle. Real bytes only
+                    reach SecurePay once the person actually picks a file -- never a local preview shown as
+                    success (Section 65). */}
+                <AttachSourceMenu
+                  disabled={state.busy || sourcesState.phase === 'submitting'}
+                  onBringPlan={() => setBringPlanOpen(true)}
+                  onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
+                  onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+                />
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
                 <button
                   disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'
@@ -626,6 +707,26 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 </button>
                 <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
+              {bringPlanOpen && (
+                <BringPlanPanel
+                  busy={sourcesState.phase === 'submitting'}
+                  error={sourcesState.phase === 'error' ? sourcesState.error : null}
+                  onClose={() => setBringPlanOpen(false)}
+                  onSubmit={(text, label) => {
+                    void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+                  }}
+                />
+              )}
+              {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
+                  extraction-debug screen. BUILD itself remains the primary structured view. */}
+              <SourcesList
+                sources={sourcesState.sources}
+                busy={sourcesState.phase === 'submitting'}
+                onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
+                onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
+                factCountsBySourceId={sourceFactCounts}
+              />
+              {sourcesState.phase === 'error' && !bringPlanOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
             </div>}>

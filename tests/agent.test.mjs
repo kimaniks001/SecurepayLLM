@@ -506,8 +506,13 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
   // still exist in the untouched Bolt baseline (proving the diff is really the locked-copy fix).
   assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
   assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
-  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
-  assert.ok(current.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'), 'expected the exact locked supporting text');
+  // KS001 Upgrade Phase 3 (Section 36) -- this earlier locked headline/supporting text is now
+  // deliberately SUPERSEDED by the new Phase 3 hero copy; the OLD text must be gone from current
+  // (it was already asserted absent above via the "old paraphrased headline" check having been
+  // replaced by yet another generation of copy), and the NEW text must be present.
+  assert.ok(current.includes('Bring the plan. Leave with an agreement.'), 'expected the exact Phase 3 headline');
+  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed.'), 'expected the exact Phase 3 supporting text');
+  assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'), 'expected the exact Phase 3 trust line');
   assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
   assert.ok(!current.includes('Fair trader score') && !/\d+\/12/.test(current), 'must never grade the person with a fair trade score');
   for (const text of ['I need someone to tile my bathroom']) {
@@ -542,4 +547,52 @@ test('conversationHistoryView returns an empty list, never throwing, on a missin
   assert.deepEqual(api.conversationHistoryView(null), []);
   assert.deepEqual(api.conversationHistoryView({}), []);
   assert.deepEqual(api.conversationHistoryView({ entries: 'nope' }), []);
+});
+
+// ---------------------------------------------------------------- KS001 Upgrade Phase 3 completion correction (item 7)
+test('refreshAfterSourceIngestion appends a genuinely NEW KS001 reply and refreshes Trade Context, never duplicating an existing turn', async () => {
+  const { controller, calls } = setup({
+    conversationHistory: async id => { calls.push(['history', id]); return { entries: [
+      { id: 'reply-1', sender: 'KS001', text: "I've pulled a detail from quotation.pdf into BUILD. What else should I know?", occurredAt: '2026-01-01T00:00:00Z' },
+    ] }; },
+  });
+  await controller.send('Bring my plan'); // seeds conversationId + one human turn, mirroring a real prior exchange
+  calls.length = 0;
+
+  await controller.refreshAfterSourceIngestion();
+
+  const turns = controller.getSnapshot().turns;
+  assert.equal(turns.length, 3); // the human turn, the turn's own agent reply, plus the ONE new orphan KS001 reply
+  assert.equal(turns[2].sender, 'agent');
+  assert.equal(turns[2].id, 'reply-1');
+  assert.match(turns[2].response.message.text, /quotation\.pdf/);
+  assert.ok(calls.some(call => Array.isArray(call) && call[0] === 'history'));
+  assert.ok(calls.some(call => call === 'context'), 'Trade Context must still be refreshed, not only history');
+});
+
+test('refreshAfterSourceIngestion never duplicates a reply already shown, and never touches human turns', async () => {
+  const { controller, calls } = setup({
+    conversationHistory: async id => { calls.push(['history', id]); return { entries: [
+      { id: 'reply-1', sender: 'KS001', text: 'Already shown once.', occurredAt: '2026-01-01T00:00:00Z' },
+    ] }; },
+  });
+  await controller.send('Bring my plan');
+  await controller.refreshAfterSourceIngestion();
+  const afterFirst = controller.getSnapshot().turns.length;
+
+  await controller.refreshAfterSourceIngestion(); // the SAME reply id is returned again by the gateway
+
+  assert.equal(controller.getSnapshot().turns.length, afterFirst); // never duplicated
+  assert.equal(controller.getSnapshot().turns[0].sender, 'user'); // the human turn is untouched
+});
+
+test('refreshAfterSourceIngestion degrades to a plain Trade Context refresh when history cannot be read', async () => {
+  const { controller } = setup({ conversationHistory: async () => { throw new Error('network'); } });
+  await controller.send('Bring my plan');
+  const beforeTurns = controller.getSnapshot().turns.length;
+
+  await controller.refreshAfterSourceIngestion(); // must not throw
+
+  assert.equal(controller.getSnapshot().turns.length, beforeTurns); // no fabricated entry
+  assert.equal(controller.getSnapshot().context.status, 'ready'); // BUILD itself still refreshed
 });

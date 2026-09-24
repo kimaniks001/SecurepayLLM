@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatePastedTextSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
 export function createAgentGateway(http: HttpClient) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -83,6 +83,34 @@ export function createAgentGateway(http: HttpClient) {
       http.request<SavedBuildDto[]>(`/api/agent/saved-builds?limit=${limit}&offset=${offset}`, { auth: 'required' }),
     resumeSavedBuild: (savedBuildId: string) =>
       http.request<SavedBuildDto>(`/api/agent/saved-builds/${segment(savedBuildId)}/resume`, { method: 'POST', auth: 'required' }),
+
+    // KS001 Upgrade Phase 3 (Bring what you already have) -- "bring what you already have" into the SAME
+    // canonical BUILD. Every route is conversation-scoped and passes the SAME `auth: 'optional'` transport
+    // as every other conversation-scoped call above (Section 39 -- signed-out value first; Section 34's
+    // ratchet still applies once the conversation is saved).
+    createPastedTextSource: (conversationId: string, body: CreatePastedTextSourceRequest) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/pasted-text`, { method: 'POST', body, auth: 'optional' }),
+    /**
+     * Section 65 -- success is reported ONLY after SecurePay has really received the bytes; this call
+     * resolves (or rejects) based on the REAL upload, never a local blob URL. `file` is sent as real
+     * multipart form data (see the http client's own FormData handling) -- never base64-encoded into a
+     * JSON body, which would risk enormous request sizes for an ordinary photo.
+     */
+    uploadSource: (conversationId: string, sourceKind: 'DOCUMENT' | 'PHOTO', file: File, label?: string) => {
+      const form = new FormData();
+      form.append('sourceKind', sourceKind);
+      if (label) form.append('label', label);
+      form.append('file', file, file.name);
+      return http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/upload`, { method: 'POST', body: form, auth: 'optional' });
+    },
+    listSources: (conversationId: string) =>
+      http.request<AgentSourceArtifactListDto>(`${conversation(conversationId)}/sources`, { auth: 'optional' }),
+    getSource: (conversationId: string, sourceArtifactId: string) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}`, { auth: 'optional' }),
+    retrySource: (conversationId: string, sourceArtifactId: string) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}/retry`, { method: 'POST', auth: 'optional' }),
+    removeSource: (conversationId: string, sourceArtifactId: string) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}`, { method: 'DELETE', auth: 'optional' }),
   };
 }
 export type AgentGateway = ReturnType<typeof createAgentGateway>;

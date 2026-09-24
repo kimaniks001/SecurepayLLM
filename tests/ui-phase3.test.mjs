@@ -118,6 +118,42 @@ test('an empty review section is never rendered just to look complete', () => {
   assert.doesNotMatch(out, /Authority/);
 });
 
+// ---------------------------------------------------------------- KS001 Upgrade Phase 3 completion correction (item 1/9)
+// Bounded source lineage (a pasted plan/uploaded document/photo) -- an entirely DIFFERENT concept from the
+// Store commercial `reviewedSource` above -- must reach the canonical frozen Review with source attribution.
+test('a source-derived money fact shows its bounded source badge; an ordinary conversational fact shows none', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, who: [], reviewedSource: null, when: [], responsibilities: [], conditions: [], authority: [],
+    money: [{ description: 'amount=480000, currency=KES', confirmed: false, source: { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false } }],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /amount=480000, currency=KES.*quotation\.pdf.*p2/);
+});
+test('a party whose source has since been removed still names it, marked removed, without hiding the party', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, reviewedSource: null, responsibilities: [], money: [], when: [], conditions: [], authority: [],
+    who: [{ description: 'ABC Plumbing Ltd', confirmed: true, source: { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: true } }],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.match(out, /ABC Plumbing Ltd/);
+  assert.match(out, /quotation\.pdf.*source removed/);
+});
+test('an ordinary conversational fact carries no source badge at all', () => {
+  const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
+  const review = {
+    candidate, reviewedSource: null, responsibilities: [], money: [], when: [], conditions: [], authority: [],
+    who: [{ description: 'Peter', confirmed: true, source: null }],
+  };
+  const card = api.canonicalAgreementView(review, handoff);
+  const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
+  assert.doesNotMatch(out, /source removed/);
+  assert.doesNotMatch(out, /quotation\.pdf/);
+});
+
 // ---------------------------------------------------------------- handoff idempotency
 test('a retry after an uncertain create reuses the SAME clientActionId; a later explicit action gets a fresh one', async () => {
   let fail = true;

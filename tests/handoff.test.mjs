@@ -150,13 +150,13 @@ test('KS001 Upgrade Phase 2 final convergence correction (item 5): candidate fac
   const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', candidate: candidateDto, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: digest }, expiresAt: '2026-01-01T00:00:00Z', progressedAgreementId: null };
   const review = {
     candidate: candidateDto,
-    who: [{ description: 'Peter (tiler)', confirmed: true }, { description: 'Mary (tiler)', confirmed: false }],
+    who: [{ description: 'Peter (tiler)', confirmed: true, source: null }, { description: 'Mary (tiler)', confirmed: false, source: null }],
     responsibilities: [], money: [],
-    when: [{ description: 'startDate=2026-11-01', confirmed: false }],
+    when: [{ description: 'startDate=2026-11-01', confirmed: false, source: null }],
     conditions: [], authority: [], reviewedSource: null,
   };
   const view = api.canonicalAgreementView(review, handoff);
-  assert.deepEqual(view.parties, [{ name: 'Peter (tiler)', role: 'confirmed' }, { name: 'Mary (tiler)', role: 'suggested' }]);
+  assert.deepEqual(view.parties, [{ name: 'Peter (tiler)', role: 'confirmed', source: null }, { name: 'Mary (tiler)', role: 'suggested', source: null }]);
   assert.equal(view.completion, 'startDate=2026-11-01 (suggested)');
 });
 

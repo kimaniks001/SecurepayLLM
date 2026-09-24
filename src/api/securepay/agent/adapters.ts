@@ -2,7 +2,7 @@ import { discoveryView, type DiscoveryView } from './discovery';
 import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, ConversationHistoryEntryDto, ConversationHistoryResponseDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceExtractionStatus, AgentSourceKind, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, ConversationHistoryEntryDto, ConversationHistoryResponseDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, SourceReferenceDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -123,6 +123,24 @@ export function agentResponseView(dto: AgentResponseDto) {
 }
 
 /**
+ * KS001 Upgrade Phase 3 completion correction (item 1) -- normalizes a possibly-absent/malformed
+ * `SourceReferenceDto` into either a real, safe source reference or `null` (never partially trusted). A
+ * source is bounded, presentation-only lineage: it must never be treated as Agreement/participant/money
+ * authority, and `displayName` must never be shown as if it were the person's own words.
+ */
+export function sourceReferenceView(source: SourceReferenceDto | null | undefined) {
+  if (!source || typeof source.sourceArtifactId !== 'string' || typeof source.displayName !== 'string'
+    || typeof source.sourceKind !== 'string' || typeof source.locator !== 'string' || typeof source.removed !== 'boolean') {
+    return null;
+  }
+  return {
+    sourceArtifactId: source.sourceArtifactId, displayName: source.displayName,
+    sourceKind: source.sourceKind, locator: source.locator, removed: source.removed,
+  };
+}
+export type SourceReferenceView = ReturnType<typeof sourceReferenceView>;
+
+/**
  * Retain IDs, qualifiers/provenance and the original state; unknown state is never confirmed.
  *
  * The backend serialises with `default-property-inclusion: non_null`, so a relationship with no
@@ -151,8 +169,12 @@ export function tradeContextView(dto: TradeContextDto) {
     : [];
   // Phase 1: the raw (already validated) records are retained for the workbench projection, which
   // needs entity types, relationship kinds and qualifiers -- not the flattened `facts` list.
+  // KS001 Upgrade Phase 3 completion correction (item 1) -- `source` is normalized here too, so the
+  // workbench can render a quiet "quotation.pdf · p2" badge for a source-derived row without ever trusting
+  // an unvalidated shape.
   return { conversationId: dto.conversationId, version: dto.version, facts,
-    entities: dto.entities, relationships: dto.relationships.map(relation => ({ ...relation, objectEntityId: relation.objectEntityId ?? null })),
+    entities: dto.entities.map(entity => ({ ...entity, source: sourceReferenceView(entity.source) })),
+    relationships: dto.relationships.map(relation => ({ ...relation, objectEntityId: relation.objectEntityId ?? null, source: sourceReferenceView(relation.source) })),
     candidates: facts.filter(fact => fact.state === 'CANDIDATE'),
     confirmed: facts.filter(fact => fact.state === 'CONFIRMED'),
     interactionState: { discoveryInvitedEntityIds },
@@ -176,6 +198,27 @@ export function conversationHistoryView(dto: ConversationHistoryResponseDto) {
     && typeof entry.text === 'string' && typeof entry.occurredAt === 'string');
 }
 export type ConversationHistoryView = ReturnType<typeof conversationHistoryView>;
+
+// KS001 Upgrade Phase 3 (Bring what you already have) -- a source (pasted plan/document/photo) the person
+// brought into BUILD. `extractionStatus` is validated against the real closed lifecycle (Section 15) --
+// an unrecognized value degrades to 'FAILED' (the safe, never-silently-successful default) rather than
+// being trusted as-is.
+const sourceExtractionStatuses: readonly string[] = ['RECEIVED', 'PROCESSING', 'READY', 'PARTIAL', 'FAILED', 'REMOVED'];
+const sourceKinds: readonly string[] = ['PASTED_TEXT', 'DOCUMENT', 'PHOTO'];
+export function sourceArtifactView(dto: AgentSourceArtifactDto) {
+  return {
+    sourceArtifactId: dto.sourceArtifactId,
+    conversationId: dto.conversationId,
+    sourceKind: (sourceKinds.includes(dto.sourceKind) ? dto.sourceKind : 'DOCUMENT') as AgentSourceKind,
+    originalName: dto.originalName, label: dto.label, mediaType: dto.mediaType, byteSize: dto.byteSize,
+    documentType: dto.documentType,
+    extractionStatus: (sourceExtractionStatuses.includes(dto.extractionStatus) ? dto.extractionStatus : 'FAILED') as AgentSourceExtractionStatus,
+    extractionGeneration: dto.extractionGeneration, summary: dto.summary,
+    uncertainties: Array.isArray(dto.uncertainties) ? dto.uncertainties.filter((u): u is string => typeof u === 'string') : [],
+    failureReason: dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
+  };
+}
+export type AgentSourceArtifactView = ReturnType<typeof sourceArtifactView>;
 
 const handoffStatuses: readonly string[] = ['IDENTITY_REQUIRED', 'NEEDS_RESOLUTION', 'REVIEW_STALE', 'READY_FOR_REVIEW', 'READY_TO_PROGRESS', 'PROGRESSED', 'EXPIRED'];
 const sufficiencyStates: readonly string[] = ['BUILDING', 'REVIEWABLE_WITH_OPEN_ITEMS', 'UNDERSTOOD'];
@@ -202,11 +245,11 @@ function agreementSufficiencyView(dto: AgreementSufficiencyDto | undefined) {
 }
 export type AgreementSufficiencyView = ReturnType<typeof agreementSufficiencyView>;
 
-function reviewFactsView(facts: unknown): { description: string; confirmed: boolean }[] {
+function reviewFactsView(facts: unknown): { description: string; confirmed: boolean; source: SourceReferenceView }[] {
   if (!Array.isArray(facts)) return [];
   return (facts as ReviewFactDto[])
     .filter((fact): fact is ReviewFactDto => !!fact && typeof fact.description === 'string' && typeof fact.state === 'string')
-    .map(fact => ({ description: fact.description, confirmed: fact.state === 'CONFIRMED' }));
+    .map(fact => ({ description: fact.description, confirmed: fact.state === 'CONFIRMED', source: sourceReferenceView(fact.source) }));
 }
 
 /** KS001 Upgrade Phase 2 (Sections 14-17) -- the saved-build list/resume view. */

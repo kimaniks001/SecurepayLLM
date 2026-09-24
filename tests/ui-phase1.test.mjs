@@ -228,6 +228,35 @@ test('money: only a plain amount+currency CANDIDATE row is directly editable; a 
   const confirmedRow = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r', 'PAYMENT_CONDITION', 'shoe', { amount: '4000', currency: 'KES' })]));
   assert.equal(confirmedRow.items.find(i => i.section === 'money').spec, null);
 });
+// KS001 Upgrade Phase 3 final money-convergence correction (item 8) -- the backend's own canonical
+// "value concept" anchor (SecurePayAPI's CanonicalConceptResolver) is a hidden CONCEPT entity, exactly
+// like the pre-existing "contribution" concept above; this proves a source-derived TOTAL anchored to it
+// renders as its OWN distinct, correctly-adoptable money row -- never confused with, or merged into, a
+// separate payment-stage (deposit/balance) row on a DIFFERENT subject, and the anchor entity itself never
+// leaks as a visible row of its own. No frontend change was needed for the backend correction: this row
+// rendering is purely a function of each relationship's OWN qualifiers, regardless of which entity its
+// subject happens to be.
+test('money: a canonical-concept-anchored total and separate payment-stage rows never merge or leak the anchor entity', () => {
+  const wb = api.projectWorkbench(ctx(
+    [ent('value-concept', 'CONCEPT', 'value', 'CANDIDATE', { _legacySlug: '_concept_value' }),
+     ent('deposit-term', 'CONCEPT', 'Deposit', 'CANDIDATE'),
+     ent('balance-term', 'CONCEPT', 'Balance', 'CANDIDATE')],
+    [rel('total', 'PAYMENT_CONDITION', 'value-concept', { amount: '42000', currency: 'KES' }, 'CANDIDATE'),
+     rel('deposit', 'PAYMENT_CONDITION', 'deposit-term', { amount: '21000', currency: 'KES', type: 'deposit' }, 'CANDIDATE'),
+     rel('balance', 'PAYMENT_CONDITION', 'balance-term', { amount: '21000', currency: 'KES', type: 'balance' }, 'CANDIDATE')]));
+  const moneyRows = wb.items.filter(i => i.section === 'money');
+  assert.equal(moneyRows.length, 3); // three distinct rows, never collapsed into one
+  const total = moneyRows.find(r => r.key === 'money:total');
+  assert.equal(total.value, 'KES 42,000');
+  assert.deepEqual(total.adopt, [{ id: 'total', targetKind: 'RELATIONSHIP' }]); // "Use this" targets the REAL relationship id
+  assert.deepEqual(total.spec, { kind: 'money', origin: 'understood', amount: '42000', currency: 'KES', targetRelationshipId: 'total' });
+  const deposit = moneyRows.find(r => r.key === 'money:deposit');
+  assert.equal(deposit.value, 'KES 21,000'); assert.deepEqual(deposit.details, ['deposit']);
+  const balance = moneyRows.find(r => r.key === 'money:balance');
+  assert.equal(balance.value, 'KES 21,000'); assert.deepEqual(balance.details, ['balance']);
+  // The hidden anchor entity itself never appears as its own row anywhere in the workbench.
+  assert.ok(!wb.items.some(i => i.key === 'other:value-concept' || i.key === 'what:value-concept'));
+});
 
 // ---------------------------------------------------------------- DATE / TIME
 test('calendar: no hard-coded year/month anywhere in the production date code', async () => {
