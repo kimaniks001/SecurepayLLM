@@ -24,6 +24,21 @@ export interface AgreementProductActivationDto { productId: string; productType:
 export interface ActivateAgreementProductRequest { idempotencyKey: string; purposeSummary: string; publicAmountDisplay?: boolean }
 /** `publicUrl` is null when no production public-facing base URL is configured yet -- never fabricate one client-side. */
 export interface IssuePublicLocatorDto { locatorId: string; pathClass: string; status: string; slug: string; replayed: boolean; publicUrl: string | null }
+/**
+ * KS001 Upgrade Phase 5 continuation (Slice 2, Section 8/9) -- `publicUrl` here is the REPLACEMENT
+ * locator's own fresh URL, never the rotated-away one; the old link is never shown as active again.
+ */
+export interface RotatePublicLocatorDto { previousLocatorId: string; replacementLocatorId: string; slug: string; status: string; replayed: boolean; publicUrl: string | null }
+export interface RevokePublicLocatorDto { locatorId: string; pathClass: string; status: string; issuedAt: string; expiresAt: string | null; supersededByLocatorId: string | null }
+/**
+ * KS001 Upgrade Phase 5 continuation (Slice 2, Section 8) -- bounded existence truth only.
+ * `hasActiveLocator=false` means no product exists yet OR no active locator does. Deliberately has no
+ * slug/publicUrl field at all -- the plaintext slug is architecturally unrecoverable after issuance
+ * (only a one-way digest is stored server-side), so this can only ever answer "does one exist, and
+ * what state is it in," never "what is the URL." `locatorId` is opaque, for the rotate/revoke calls
+ * only -- never for display.
+ */
+export interface ActiveLocatorSummaryDto { hasActiveLocator: boolean; locatorId: string | null; pathClass: string | null; status: string | null; issuedAt: string | null; expiresAt: string | null }
 export interface PublicProductParticipantDto { displayLabel: string; roleCode: string }
 export interface PublicProductMilestoneDto { sequenceOrder: number; title: string; status: string }
 export interface PublicFairTradeGuidanceDto { principleNumber: number; principleTitle: string; guidance: string }
@@ -120,6 +135,16 @@ export function createAgreementGateway(http: HttpClient) {
     // Both are idempotent; the creator's own explicit choice, never automatic at SET.
     activateProduct: (id: string, body: ActivateAgreementProductRequest) => http.request<AgreementProductActivationDto>(`${agreement(id)}/product`, { method: 'POST', body, auth: 'required' }),
     issuePublicLocator: (id: string, idempotencyKey: string) => http.request<IssuePublicLocatorDto>(`${agreement(id)}/public-locators`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // KS001 Upgrade Phase 5 continuation (Slice 2, Section 8) -- bounded existence truth, so the
+    // creator's own experience can offer honest lifecycle actions instead of blindly re-showing the
+    // creation form. Never returns a slug/URL -- see ActiveLocatorSummaryDto's own doctrine.
+    activeLocator: (id: string) => http.request<ActiveLocatorSummaryDto>(`${agreement(id)}/public-locators/active`, { auth: 'required' }),
+    // Section 9 -- "Replace SecureLink": the existing backend rotate authority, reused as-is. The
+    // replacement's own fresh publicUrl is returned; the old link is never shown as active again.
+    rotatePublicLocator: (id: string, locatorId: string, idempotencyKey: string) => http.request<RotatePublicLocatorDto>(`${agreement(id)}/public-locators/${segment(locatorId)}/rotate`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Section 10 -- "Revoke SecureLink": the existing backend revoke authority, reused as-is. Never
+    // implies Agreement cancellation.
+    revokePublicLocator: (id: string, locatorId: string, idempotencyKey: string) => http.request<RevokePublicLocatorDto>(`${agreement(id)}/public-locators/${segment(locatorId)}/revoke`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Public, unauthenticated review -- Section 8's own "opening a link is not Join/accept/pay" boundary.
     // Never the raw Agreement id; only ever the opaque slug already embedded in the shared SecureLink URL.
     viewSecureLink: (slug: string) => http.request<PublicProductViewDto>(`/api/v1/public/securelinks/${segment(slug)}`, { auth: 'none' }),

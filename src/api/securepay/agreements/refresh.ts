@@ -29,4 +29,7 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   // the authenticated join-authority bridge. `viewSecureLink` is the public doorway (`auth: 'none'`) and
   // is deliberately absent, exactly like `invitation(token)` above.
   'activateProduct', 'issuePublicLocator', 'requestSecureLinkJoinAuthority',
+  // KS001 Upgrade Phase 5 continuation (Slice 2) -- SecureLink lifecycle management (existence read,
+  // replace/rotate, revoke). `viewSecureLink` remains the only no-auth SecureLink method.
+  'activeLocator', 'rotatePublicLocator', 'revokePublicLocator',
 ] as const satisfies readonly (keyof AgreementGateway)[];

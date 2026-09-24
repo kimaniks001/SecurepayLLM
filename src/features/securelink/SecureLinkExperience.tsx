@@ -36,9 +36,9 @@ export function SecureLinkExperience({ slug, gateway, auth, session, onLeave }: 
   const [controller] = useState(() => createSecureLinkPublicController(gateway, slug));
   const [identity] = useState(() => createIdentityController(auth, session));
   const [signup] = useState(() => createSignupController(auth, session));
-  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot);
-  const signupState = useSyncExternalStore(signup.subscribe, signup.getSnapshot);
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
+  const signupState = useSyncExternalStore(signup.subscribe, signup.getSnapshot, signup.getSnapshot);
   const [identityPath, setIdentityPath] = useState<IdentityPath>('unset');
 
   useEffect(() => { void controller.load(); }, [controller]);

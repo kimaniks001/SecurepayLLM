@@ -14,7 +14,7 @@ export function CreateSecureLinkPanel({ agreementTitle, controller, onDone }: {
   controller: SecureLinkCreateController;
   onDone: () => void;
 }) {
-  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 
   if (state.phase === 'created') {
     return (

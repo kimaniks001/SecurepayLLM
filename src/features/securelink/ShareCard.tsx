@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
+import { SecureLinkQrCode } from './QrCode';
 
 /**
- * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 7) — the SecureLink share surface.
+ * KS001 Upgrade Phase 5 continuation (Slice 2, Sections 7/12–16) — the SecureLink share surface.
  * Encodes the EXACT server-issued `publicUrl` only — never reconstructs a URL from the slug/Agreement id
- * client-side. Supports copy, native share, and WhatsApp; print uses the browser's own print dialog over
- * this same card. QR code generation is deliberately NOT included in this round (see the Phase 5
- * completion report's own "Remaining limitations" — no QR library has been evaluated/approved yet, and
- * shipping an unverified hand-rolled encoder risks a code that fails to scan, which is worse than not
- * shipping one).
+ * client-side. Supports copy, native share, WhatsApp, print, and a QR code (Section 13; deliberately
+ * unbranded this round — see `QrCode.tsx`'s own doctrine comment). WhatsApp/native-share copy is phrased
+ * as an invitation to REVIEW, never as payment, acceptance, or a completed trade (Section 14) — opening
+ * this link is review-first, never Join/Confirm/pay on its own.
  */
 export function ShareCard({ title, purposeSummary, slug, publicUrl }: {
   title: string;
@@ -18,7 +18,7 @@ export function ShareCard({ title, purposeSummary, slug, publicUrl }: {
   publicUrl: string | null;
 }) {
   const [copied, setCopied] = useState(false);
-  const shareText = `${title}: ${purposeSummary}`;
+  const shareText = `Review this SecurePay Agreement: ${title}`;
   const canShare = publicUrl != null;
 
   async function copyLink() {
@@ -51,8 +51,19 @@ export function ShareCard({ title, purposeSummary, slug, publicUrl }: {
     <div className="rounded-2xl border border-cream-200 bg-white p-5 space-y-3">
       <p className="text-xs uppercase tracking-wide text-sand-500">SecureLink</p>
       <h3 className="font-display text-lg text-forest-800">{title}</h3>
+      {purposeSummary && purposeSummary !== title && (
+        <p className="text-[0.82rem] text-sand-600">{purposeSummary}</p>
+      )}
       {canShare ? (
-        <p className="text-[0.82rem] text-sand-700 break-all rounded-lg bg-cream-50 border border-cream-200 px-3 py-2">{publicUrl}</p>
+        <>
+          <p className="text-[0.82rem] text-sand-700 break-all rounded-lg bg-cream-50 border border-cream-200 px-3 py-2">{publicUrl}</p>
+          <div className="flex justify-center py-2" data-testid="securelink-qr">
+            <SecureLinkQrCode publicUrl={publicUrl} />
+          </div>
+          <p className="text-[0.72rem] text-sand-400 text-center">
+            Opening this link is a review — it does not join, confirm, or pay anything on its own.
+          </p>
+        </>
       ) : (
         <StatusNotice tone="info" icon={false}>
           Sharing isn’t configured on this deployment yet — SecurePay hasn’t been given a public web address to

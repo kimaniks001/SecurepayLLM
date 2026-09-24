@@ -13,9 +13,10 @@ import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHan
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { openMoneyFor } from '../money/handoff';
 import { createSecureLinkCreateController } from '../securelink/createController';
-import { CreateSecureLinkPanel } from '../securelink/CreateSecureLinkPanel';
+import { createSecureLinkManageController } from '../securelink/manageController';
+import { SecureLinkManagePanel } from '../securelink/SecureLinkManagePanel';
 
-type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator'>;
+type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'>;
 
 export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(props.handoff.subscribe, props.handoff.getSnapshot, props.handoff.getSnapshot);
@@ -39,6 +40,7 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement, agreementGate
   // handoff progresses (a new `progressedAgreementId` never inherits a stale sub-view).
   const [continuationView, setContinuationView] = useState<'choices' | 'securelink'>('choices');
   const [secureLinkController, setSecureLinkController] = useState<ReturnType<typeof createSecureLinkCreateController> | null>(null);
+  const [secureLinkManageController, setSecureLinkManageController] = useState<ReturnType<typeof createSecureLinkManageController> | null>(null);
 
   useEffect(() => {
     if (state.phase === 'identity-required' && identityState.phase === 'signed-in') {
@@ -153,20 +155,27 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement, agreementGate
     const agreementId = state.handoff.progressedAgreementId;
     const agreementTitle = state.handoff.candidate.title ?? 'This Agreement';
 
-    // KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 3) -- the explicit "Create
-    // SecureLink" continuation's own inline sub-view. Never automatic: only reachable by the person's
-    // own explicit choice below.
+    // KS001 Upgrade Phase 5 continuation (Slice 2, Section 8) -- the explicit "Create SecureLink"
+    // continuation's own inline sub-view. Never automatic: only reachable by the person's own explicit
+    // choice below. Checks bounded existence truth first (SecureLinkManagePanel) so an Agreement that
+    // already has an active SecureLink is offered honest lifecycle actions, never a blind re-offer of
+    // the creation form.
     if (continuationView === 'securelink' && agreementId && agreementGateway) {
-      if (!secureLinkController) {
-        setSecureLinkController(createSecureLinkCreateController(agreementGateway, agreementId, agreementTitle));
+      if (!secureLinkController || !secureLinkManageController) {
+        const create = createSecureLinkCreateController(agreementGateway, agreementId, agreementTitle);
+        const manage = createSecureLinkManageController(agreementGateway, agreementId);
+        setSecureLinkController(create);
+        setSecureLinkManageController(manage);
+        void manage.load();
         return <p role="status" className="text-sm text-sand-500 px-1">Preparing…</p>;
       }
       return (
         <div className="space-y-3">
-          <CreateSecureLinkPanel
+          <SecureLinkManagePanel
             agreementTitle={agreementTitle}
-            controller={secureLinkController}
-            onDone={() => { setContinuationView('choices'); setSecureLinkController(null); }}
+            manageController={secureLinkManageController}
+            createController={secureLinkController}
+            onDone={() => { setContinuationView('choices'); setSecureLinkController(null); setSecureLinkManageController(null); }}
           />
         </div>
       );
