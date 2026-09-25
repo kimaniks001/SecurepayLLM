@@ -6,6 +6,7 @@ import { HostedMoneySessionExperience } from './features/money/HostedMoneySessio
 import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { InvitationInboxExperience } from './features/invitation-inbox/InvitationInboxExperience';
+import { SecureLinkExperience } from './features/securelink/SecureLinkExperience';
 import { createInvitationInboxController } from './features/invitation-inbox/controller';
 import { parseInvitationRoute, parseMyInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
@@ -156,6 +157,33 @@ function useMoneyOperationsRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/**
+ * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 8) — the public SecureLink route,
+ * `#/securelink/{slug}`. The slug is the ONLY identifier ever in this URL (never an Agreement id) — it
+ * is exactly what the server-issued `publicUrl` already carries, never reconstructed client-side.
+ *
+ * KS001 Upgrade Phase 5 continuation (Slice 5) — also accepts the backend's own real path-prefix shape
+ * (`PublicLocatorUrlBuilder`/`PublicPathClass#pathPrefix`: `s`/`r`/`k`/`w`/`g`), so a genuinely
+ * server-issued `publicUrl` (once a production base URL is configured — see UR-141) actually opens here,
+ * rather than only ever matching a hand-typed `#/securelink/{slug}` link. Both forms resolve the exact
+ * same way — the backend's own `viewSecureLink` lookup already keys purely off the slug digest, never
+ * the path segment.
+ */
+function useSecureLinkRoute(): string | null {
+  const parse = () => {
+    if (typeof window === 'undefined') return null;
+    const match = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/.exec(window.location.hash);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
+  const [slug, setSlug] = useState(parse);
+  useEffect(() => {
+    const onHashChange = () => setSlug(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return slug;
+}
+
 /** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
 function useMoneySessionRoute(): string | null {
   const parse = () => {
@@ -183,6 +211,7 @@ export default function RuntimeApp() {
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
+  const secureLinkSlug = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
@@ -211,6 +240,11 @@ export default function RuntimeApp() {
           onLeave={clearInvitationInboxRoute}
           onReview={invitationId => { window.location.hash = `#/my-invitations/${encodeURIComponent(invitationId)}`; }}
         />
+      : <Unavailable />;
+  }
+  if (secureLinkSlug) {
+    return api && agreementGateway
+      ? <SecureLinkExperience key={secureLinkSlug} slug={secureLinkSlug} gateway={agreementGateway} auth={api.auth} session={session} onLeave={() => { window.location.hash = ''; }} />
       : <Unavailable />;
   }
   if (activationRoute) {

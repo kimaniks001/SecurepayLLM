@@ -272,10 +272,16 @@ test('a failed People read after a new version stays UNKNOWN, never silently reu
 
 // ------------------------------------------------------------ reconfirmation
 const standing = o => ({ participantId: 'p1', identityId: 'i', roleCode: 'X', participantStatus: 'CONFIRMED', confirmedVersionId: 'v1', confirmedVersionNumber: 1, currentVersionId: 'v2', currentVersionNumber: 2, confirmationCurrent: false, reconfirmationRequired: true, ...o });
-test('own standing: needs review only from SecurePay\'s reconfirmationRequired; the creator and a failed read get nothing', () => {
+// KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- CREATOR now CAN confirm (the backend's own
+// AgreementConfirmationService gained this capability this slice; see the Phase 5 Slice 4 addendum), so
+// this reuses the exact same standing/confirm machinery a recipient already uses, unchanged. Only an
+// unrecognized status (something that is neither a real recipient standing nor CREATOR) and a failed/
+// ambiguous read still get nothing.
+test('own standing: needs review only from SecurePay\'s reconfirmationRequired; CREATOR now gets the same real standing, and a failed/unrecognized read gets nothing', () => {
   assert.ok(api.ownStanding([standing()], 'CONFIRMED')); assert.ok(api.ownStanding([standing({ confirmedVersionNumber: null, participantStatus: 'JOINED_UNCONFIRMED' })], 'JOINED_UNCONFIRMED'));
+  assert.ok(api.ownStanding([standing({ participantStatus: 'CREATOR' })], 'CREATOR'));
   assert.equal(api.ownStanding([standing({ reconfirmationRequired: false, confirmationCurrent: true })], 'CONFIRMED'), null);
-  assert.equal(api.ownStanding([standing()], 'CREATOR'), null); assert.equal(api.ownStanding(null, 'CONFIRMED'), null); assert.equal(api.ownStanding([], 'CONFIRMED'), null);
+  assert.equal(api.ownStanding([standing()], 'INVITED'), null); assert.equal(api.ownStanding(null, 'CONFIRMED'), null); assert.equal(api.ownStanding([], 'CONFIRMED'), null);
   assert.equal(api.ownStanding([standing(), standing()], 'CONFIRMED'), null); // ambiguous
 });
 function reSetup(over = {}) {

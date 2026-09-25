@@ -10,8 +10,12 @@ import type { HandoffController } from './controller';
 import type { IdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView, sourceReferenceView } from './view';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import { openMoneyFor } from '../money/handoff';
 
-export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
+type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'>;
+
+export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(props.handoff.subscribe, props.handoff.getSnapshot, props.handoff.getSnapshot);
   // Focus follows the moment: when the phase changes the region takes focus, so a keyboard or screen-reader
   // user lands on what is now true rather than on a control that has just disappeared.
@@ -25,7 +29,7 @@ export function HandoffPanel(props: { handoff: HandoffController; identity: Iden
   return <div ref={region} tabIndex={-1} aria-label="Agreement review" className="space-y-3 focus:outline-none"><HandoffBody {...props} /></div>;
 }
 
-function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void }) {
+function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
 
@@ -139,13 +143,45 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
   }
 
   if (state.phase === 'progressed' && state.handoff) {
+    const agreementId = state.handoff.progressedAgreementId;
+    const agreementTitle = state.handoff.candidate.title ?? 'This Agreement';
+
+    // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- this moment used to offer "Create
+    // SecureLink" immediately, opening the SecureLink creation form right here. That form's own
+    // activateProduct call could NEVER succeed at this exact moment: a freshly-SET Agreement is always
+    // DRAFT, and AgreementProductService#requireActivatable requires PARTICIPANTS_JOINING or
+    // CONFIRMATION_PENDING plus every relevant participant's confirmation -- reachable only after the
+    // Agreement is proposed, a counterparty is invited and joins, and both sides confirm. Offering a
+    // doomed action here was the real defect (see the Phase 5 Slice 4 addendum for the full archaeology
+    // and root cause) -- not a missing/misplaced button, but a button placed at the one moment it could
+    // never work. The honest next step for a fresh draft is to open it and invite someone; the Agreement
+    // workspace's own People/SecureLink area (unchanged code, reused) now carries the rest of the
+    // journey -- propose, invite, confirm, and only then create a SecureLink -- driven by the
+    // Agreement's own real backend status at every step, never by a copy of that state machine here.
     return (
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
+        <p className="px-1 text-[0.85rem] text-sand-700">
+          Your Agreement is safely set. You can connect money now, open it to invite someone and share
+          it, or leave it exactly as it is — none of these happen automatically.
+        </p>
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [
-          ...(onOpenAgreement && state.handoff.progressedAgreementId ? [{ label: 'Open this Agreement', value: 'open' }] : []),
-          { label: 'Back to the conversation', value: 'done' },
-        ] }} onChoice={value => { if (value === 'open' && onOpenAgreement && state.handoff?.progressedAgreementId) { const id = state.handoff.progressedAgreementId; handoff.reset(); identity.reset(); onOpenAgreement(id); } else leave(); }} />
+          ...(agreementId ? [{ label: 'Connect money now', value: 'money' }] : []),
+          ...(agreementId && onOpenAgreement ? [{ label: 'Invite someone to review', value: 'open' }] : []),
+          { label: 'Save — I’m done for now', value: 'save' },
+        ] }} onChoice={value => {
+          if (value === 'money' && agreementId) {
+            openMoneyFor({ agreementId, title: agreementTitle, versionLabel: null, currentVersionId: null });
+            handoff.reset();
+            identity.reset();
+          } else if (value === 'open' && onOpenAgreement && agreementId) {
+            handoff.reset();
+            identity.reset();
+            onOpenAgreement(agreementId);
+          } else {
+            leave();
+          }
+        }} />
       </div>
     );
   }

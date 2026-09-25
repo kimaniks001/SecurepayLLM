@@ -693,6 +693,22 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 >
                   Review this
                 </button>
+                {/* KS001 Upgrade Phase 5 continuation (Slice 3, UR-145) -- "Review this" is correctly
+                    disabled while a suggested (not-yet-confirmed) WHAT still needs the person's own
+                    explicit "Use this." Live testing found this gate itself is legitimate (never a
+                    predicate bug -- see the Phase 5 completion report's own root-cause account), but
+                    nothing told the person WHY the button stayed disabled after a seemingly-complete
+                    conversation. This names the exact real reason, using the server's own
+                    mustResolve description verbatim -- never a second, independently-drifting copy
+                    of the sufficiency rule. */}
+                {!state.busy && !state.pending && handoffState.phase === 'idle' && state.context.data?.sufficiency
+                  && !state.context.data.sufficiency.canReview
+                  && state.context.data.sufficiency.mustResolve.length > 0 && (
+                  <p className="w-full text-[0.78rem] text-sand-500 basis-full">
+                    Review isn’t ready yet: {state.context.data.sufficiency.mustResolve[0].description} Confirm
+                    it above with “Use this” first.
+                  </p>
+                )}
                 {/* KS001 Upgrade Phase 2 (Sections 14/15/20), final convergence correction (item 8) -- a
                     PRIVATE pre-agreement save, never "Set up Agreement" done twice: this only binds
                     ownership to the SAME conversation, it never creates a draft Agreement. Gated on the
@@ -749,7 +765,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspace(true); }} />
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspace(true); }} agreementGateway={agreementGateway} />
               </div>,
             ]}
           </ConversationSurface>

@@ -8,6 +8,7 @@ import { openMoneyFor } from '../money/handoff';
 import { ErrorStateCard } from '../../components/ErrorState';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { InvitePanel } from '../invitations/InvitePanel';
+import { AgreementSecureLinkSection } from '../securelink/AgreementSecureLinkSection';
 import { createInviteController } from '../invitations/controller';
 import { ChangesPanel } from '../amendments/ChangesPanel';
 import { ReconfirmPanel, ownStanding } from '../amendments/ReconfirmPanel';
@@ -29,6 +30,14 @@ import type { AgentController } from '../agent/controller';
 type Gateway = Pick<AgreementGateway,
   'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
+  // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- the persistent Agreement workspace
+  // SecureLink entry point (AgreementSecureLinkSection) needs these; every real caller already passes
+  // the full AgreementGateway through here (see AgentExperience.tsx's own workspaceGateway), so this
+  // only widens the TYPE this component declares itself needing, not the authority granted anywhere.
+  | 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'
+  // KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- same widening, for the new pre-activation
+  // public doorway entry point.
+  | 'issuePublicDoorway' | 'activeDoorway' | 'rotatePublicDoorway' | 'revokePublicDoorway'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
   review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
@@ -294,7 +303,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
           topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
-          peopleExtra={<InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />}
+          peopleExtra={<>
+            <InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />
+            <AgreementSecureLinkSection agreementId={boltDetail.id} agreementTitle={dto.overview.title} agreementStatus={dto.overview.status} gateway={gateway} />
+          </>}
         />
       );
     }

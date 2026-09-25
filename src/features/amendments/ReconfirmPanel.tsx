@@ -12,8 +12,14 @@ const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disa
 
 /** The caller's own confirmation standing, from SecurePay's `confirmation-status` row (the endpoint returns only the caller's row). */
 export function ownStanding(rows: AgreementConfirmationStatusResponse[] | null, actorStatus: string | null): AgreementConfirmationStatusResponse | null {
-  // The creator can't confirm (SecurePay requires a joined participant), and a failed read is unknown, not "needs review".
-  if (!rows || rows.length !== 1 || (actorStatus !== 'JOINED_UNCONFIRMED' && actorStatus !== 'CONFIRMED')) return null;
+  // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- CREATOR can now confirm too: the backend's
+  // own AgreementConfirmationService gained this capability this slice (see the Phase 5 Slice 4
+  // addendum), through the SAME confirm endpoint this panel already calls unchanged below. A failed read
+  // is still unknown, not "needs review".
+  if (!rows || rows.length !== 1
+      || (actorStatus !== 'JOINED_UNCONFIRMED' && actorStatus !== 'CONFIRMED' && actorStatus !== 'CREATOR')) {
+    return null;
+  }
   return rows[0].reconfirmationRequired ? rows[0] : null;
 }
 

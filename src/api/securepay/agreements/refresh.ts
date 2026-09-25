@@ -25,4 +25,15 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'attributePlug', 'plugAttribution', 'referralStatus',
   // Living Agreement enrichments
   'milestoneEffectiveStates', 'calendarEvents', 'calendarConflicts', 'myCalendar', 'tagsForAgreement', 'tagAgreement', 'untagAgreement', 'myTags',
+  // KS001 Upgrade Phase 5 (SecureLink & Money Continuation) -- product activation, locator issuance, and
+  // the authenticated join-authority bridge. `viewSecureLink` is the public doorway (`auth: 'none'`) and
+  // is deliberately absent, exactly like `invitation(token)` above.
+  'activateProduct', 'issuePublicLocator', 'requestSecureLinkJoinAuthority',
+  // KS001 Upgrade Phase 5 continuation (Slice 2) -- SecureLink lifecycle management (existence read,
+  // replace/rotate, revoke). `viewSecureLink` remains the only no-auth SecureLink method.
+  'activeLocator', 'rotatePublicLocator', 'revokePublicLocator',
+  // KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- the pre-activation public Agreement doorway's
+  // own lifecycle management. `viewSecureLink` still serves the public read for a doorway too (auth
+  // 'none', unchanged) -- only the creator-side manage calls below need session refresh.
+  'issuePublicDoorway', 'activeDoorway', 'rotatePublicDoorway', 'revokePublicDoorway',
 ] as const satisfies readonly (keyof AgreementGateway)[];
