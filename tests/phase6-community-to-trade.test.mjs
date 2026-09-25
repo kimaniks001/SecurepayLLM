@@ -37,7 +37,7 @@ test('useCommunitySource selects the real Community source, then lets KS001 comp
   const gateway = {
     createConversation: async () => { calls.push('create-conversation'); return { conversationId: 'c1' }; },
     selectCommercialSource: async (id, body) => { calls.push(['selectCommercialSource', id, body]); return communitySelectionDto(); },
-    continueAfterSourceSelection: async id => { calls.push(['continueAfterSourceSelection', id]); return agentResponseFixture("You're starting from a bathroom repair need. What would you like to help with?"); },
+    continueAfterSourceSelection: async (id, actionId) => { calls.push(['continueAfterSourceSelection', id, actionId]); return agentResponseFixture("You're starting from a bathroom repair need. What would you like to help with?"); },
     readContext: async id => { calls.push(['readContext', id]); return { conversationId: id, version: 1, entities: [], relationships: [] }; },
     submitTurn: async () => { throw new Error('must never be called -- source text is never submitted as a human turn'); },
   };
@@ -49,8 +49,12 @@ test('useCommunitySource selects the real Community source, then lets KS001 comp
   assert.equal(result.amount, 'none');
   assert.equal(calls[0], 'create-conversation');
   assert.equal(calls[1][0], 'selectCommercialSource');
-  assert.deepEqual(calls[1][2], { sourceType: 'COMMUNITY_POST', sourceId: 'obj-1', sourceOwnerKsNumber: 'KS900', candidateParticipantKsNumber: undefined });
+  const mintedActionId = calls[1][2].sourceSelectionActionId;
+  assert.ok(mintedActionId && typeof mintedActionId === 'string' && mintedActionId.length > 0, 'a stable action id must be minted for this explicit human action');
+  assert.deepEqual(calls[1][2], { sourceType: 'COMMUNITY_POST', sourceId: 'obj-1', sourceOwnerKsNumber: 'KS900', candidateParticipantKsNumber: undefined, sourceSelectionActionId: mintedActionId });
   assert.equal(calls[2][0], 'continueAfterSourceSelection');
+  // The EXACT SAME action id correlates the selection call and its continuation.
+  assert.equal(calls[2][2], mintedActionId);
   assert.equal(controller.getSnapshot().source?.sourceTitle, 'Bathroom repair need');
   assert.equal(controller.getSnapshot().source?.sourceType, 'COMMUNITY_POST');
   // NEVER a "user" turn -- only KS001's own composed reply appears in the transcript.
@@ -146,12 +150,12 @@ test('continuing without a Community source clears provenance and auto-submits N
   assert.equal(calls.length, 0);
 });
 
-test('a second "Use this" mid-conversation calls the continuation again -- a bounded, non-mutating reply is safe to compose more than once', async () => {
+test('a second "Use this" mid-conversation calls the continuation again -- a bounded, non-mutating reply is safe to compose more than once, and a genuinely NEW action mints a NEW action id', async () => {
   const continuationCalls = [];
   const gateway = {
     createConversation: async () => ({ conversationId: 'c1' }),
     selectCommercialSource: async () => communitySelectionDto(),
-    continueAfterSourceSelection: async () => { continuationCalls.push(1); return agentResponseFixture('ok'); },
+    continueAfterSourceSelection: async (id, actionId) => { continuationCalls.push(actionId); return agentResponseFixture('ok'); },
     readContext: async id => ({ conversationId: id, version: 1, entities: [], relationships: [] }),
   };
   const controller = api.agentController.createAgentController(gateway);
@@ -161,8 +165,55 @@ test('a second "Use this" mid-conversation calls the continuation again -- a bou
   await controller.useCommunitySource({ sourceType: 'OPPORTUNITY', sourceId: 'obj-2', sourceOwnerKsNumber: 'KS901' });
 
   assert.equal(continuationCalls.length, 2);
+  assert.notEqual(continuationCalls[0], continuationCalls[1], 'a genuinely new explicit action must mint a new action id, never reuse the prior one');
   assert.equal(controller.getSnapshot().turns.length, 2);
   assert.ok(controller.getSnapshot().turns.every(t => t.sender === 'agent'), 'still never a fabricated human turn');
+});
+
+test('retryCommunitySourceSelection reuses the EXACT SAME action id minted on the first attempt -- never mints a fresh one merely because the HTTP attempt is retried', async () => {
+  const selectionActionIds = [];
+  const continuationActionIds = [];
+  let attempt = 0;
+  const gateway = {
+    createConversation: async () => ({ conversationId: 'c1' }),
+    selectCommercialSource: async (id, body) => {
+      attempt += 1;
+      selectionActionIds.push(body.sourceSelectionActionId);
+      if (attempt === 1) throw new Error('no longer available');
+      return communitySelectionDto();
+    },
+    continueAfterSourceSelection: async (id, actionId) => { continuationActionIds.push(actionId); return agentResponseFixture('ok'); },
+    readContext: async id => ({ conversationId: id, version: 1, entities: [], relationships: [] }),
+  };
+  const controller = api.agentController.createAgentController(gateway);
+
+  await controller.useCommunitySource({ sourceType: 'COMMUNITY_POST', sourceId: 'obj-1', sourceOwnerKsNumber: 'KS900' });
+  await controller.retryCommunitySourceSelection();
+
+  assert.equal(selectionActionIds.length, 2);
+  assert.equal(selectionActionIds[0], selectionActionIds[1], 'a retry of the same failed action must reuse the same action id');
+  assert.equal(continuationActionIds[0], selectionActionIds[0], 'the continuation must be correlated by the exact same action id as its selection call');
+});
+
+test('a rapid second useCommunitySource call while the first is still in flight is rejected as busy, never fires a second selection', async () => {
+  let releaseFirst;
+  const firstGate = new Promise(resolve => { releaseFirst = resolve; });
+  const calls = [];
+  const gateway = {
+    createConversation: async () => ({ conversationId: 'c1' }),
+    selectCommercialSource: async (id, body) => { calls.push(body); await firstGate; return communitySelectionDto(); },
+    continueAfterSourceSelection: async () => agentResponseFixture('ok'),
+    readContext: async id => ({ conversationId: id, version: 1, entities: [], relationships: [] }),
+  };
+  const controller = api.agentController.createAgentController(gateway);
+
+  const first = controller.useCommunitySource({ sourceType: 'COMMUNITY_POST', sourceId: 'obj-1', sourceOwnerKsNumber: 'KS900' });
+  const second = await controller.useCommunitySource({ sourceType: 'OPPORTUNITY', sourceId: 'obj-2', sourceOwnerKsNumber: 'KS901' });
+  releaseFirst();
+  await first;
+
+  assert.equal(second.status, 'busy', 'a rapid second explicit action while the first is still in flight must be rejected client-side as busy');
+  assert.equal(calls.length, 1, 'only the first selection call was ever made');
 });
 
 test('a failed continuation call is best-effort -- the source stays selected and no error is thrown', async () => {
@@ -183,15 +234,29 @@ test('a failed continuation call is best-effort -- the source stays selected and
 
 // ─── api/securepay/agent -- the new continuation gateway route ─────────────────────────
 
-test('gateway: agent.continueAfterSourceSelection hits POST .../commercial-source/continue', async () => {
+test('gateway: agent.continueAfterSourceSelection hits POST .../commercial-source/continue, sending the exact action id in the body', async () => {
   const calls = [];
-  const http = { request: async (path, options = {}) => { calls.push({ path, method: options.method, auth: options.auth }); return agentResponseFixture('ok'); } };
+  const http = { request: async (path, options = {}) => { calls.push({ path, method: options.method, auth: options.auth, body: options.body }); return agentResponseFixture('ok'); } };
   const gateway = api.agentGatewayModule.createAgentGateway(http);
 
-  await gateway.continueAfterSourceSelection('c1');
+  await gateway.continueAfterSourceSelection('c1', 'action-42');
 
   assert.equal(calls[0].path, '/api/agent/conversations/c1/commercial-source/continue');
   assert.equal(calls[0].method, 'POST');
+  assert.deepEqual(calls[0].body, { sourceSelectionActionId: 'action-42' });
+});
+
+test('gateway: agent.selectCommercialSource forwards sourceSelectionActionId in the request body', async () => {
+  const calls = [];
+  const http = { request: async (path, options = {}) => { calls.push({ path, method: options.method, body: options.body }); return communitySelectionDto(); } };
+  const gateway = api.agentGatewayModule.createAgentGateway(http);
+
+  await gateway.selectCommercialSource('c1', {
+    sourceType: 'COMMUNITY_POST', sourceId: 'obj-1', sourceOwnerKsNumber: 'KS900', sourceSelectionActionId: 'action-7',
+  });
+
+  assert.equal(calls[0].path, '/api/agent/conversations/c1/commercial-source');
+  assert.equal(calls[0].body.sourceSelectionActionId, 'action-7');
 });
 
 // ─── api/securepay/agreements -- the participant-safe source-provenance gateway route ─────────────────────────
@@ -239,7 +304,7 @@ test('never a second Agreement/handoff engine, and never the ordinary turn endpo
   assert.match(contents, /async function attemptCommunitySourceSelection/);
   assert.match(contents, /gateway\.selectCommercialSource\(conversationId, \{/);
   assert.match(contents, /async function continueAfterSourceSelection/);
-  assert.match(contents, /gateway\.continueAfterSourceSelection\(state\.conversationId\)/);
+  assert.match(contents, /gateway\.continueAfterSourceSelection\(state\.conversationId, actionId\)/);
   assert.doesNotMatch(contents, /gateway\.createHandoff\(/);
   // The correction removed the old fake-human-turn-seeding mechanism entirely.
   assert.doesNotMatch(contents, /seedOpeningTurnIfFirst/);

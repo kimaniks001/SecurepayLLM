@@ -47,8 +47,15 @@ export interface ExternalFactRequest { sourceKind: SourceKind; sourceDescription
 // has explicitly chosen as trade context ("Start a trade with Peter"). Omitted/undefined means
 // exactly what selecting a source has always meant -- no candidate, never itself Agreement
 // participant authority.
+//
+// Final pre-merge correction (source-selection continuation idempotency) -- `sourceSelectionActionId`
+// is optional (Store's own existing calls never supply one, and that path is unchanged): a stable,
+// client-minted id identifying ONE explicit human "Use this"/"Start a trade with X" intention, reused
+// across a retry of that SAME intention. The backend binds it to a fingerprint of this exact pointer;
+// a later call reusing the SAME id with a DIFFERENT pointer fails closed.
 export interface SelectCommercialSourceRequest {
   sourceType: string; sourceId: string; sourceOwnerKsNumber: string; candidateParticipantKsNumber?: string;
+  sourceSelectionActionId?: string;
 }
 export interface SelectedCommercialSourceDto {
   sourceType: string; sourceId: string; sourceTitle: string | null; sourceOwnerKsNumber: string | null;
