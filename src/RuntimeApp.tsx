@@ -157,31 +157,61 @@ function useMoneyOperationsRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+const SECURE_LINK_PATH_PATTERN = /^\/(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
+const SECURE_LINK_HASH_PATTERN = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
+
 /**
- * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 8) — the public SecureLink route,
- * `#/securelink/{slug}`. The slug is the ONLY identifier ever in this URL (never an Agreement id) — it
- * is exactly what the server-issued `publicUrl` already carries, never reconstructed client-side.
+ * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 8) — the public SecureLink route.
+ * The slug is the ONLY identifier ever in this URL (never an Agreement id) — it is exactly what the
+ * server-issued `publicUrl` already carries, never reconstructed client-side.
  *
- * KS001 Upgrade Phase 5 continuation (Slice 5) — also accepts the backend's own real path-prefix shape
- * (`PublicLocatorUrlBuilder`/`PublicPathClass#pathPrefix`: `s`/`r`/`k`/`w`/`g`), so a genuinely
- * server-issued `publicUrl` (once a production base URL is configured — see UR-141) actually opens here,
- * rather than only ever matching a hand-typed `#/securelink/{slug}` link. Both forms resolve the exact
- * same way — the backend's own `viewSecureLink` lookup already keys purely off the slug digest, never
- * the path segment.
+ * KS001 Upgrade Phase 5 continuation (Slice 5) — also accepted the backend's own real path-prefix
+ * shape (`PublicLocatorUrlBuilder`/`PublicPathClass#pathPrefix`: `s`/`r`/`k`/`w`/`g`) as a HASH form
+ * (`#/r/{slug}`), so a hand-typed or locally-shared link would still resolve.
+ *
+ * KS001 Upgrade Phase 5 — UR-141 closure (routing alignment): `PublicLocatorUrlBuilder` has always
+ * built a CLEAN pathname URL (`{baseUrl}/{prefix}/{slug}`, no `#`) — this is the actual shape every
+ * genuinely server-issued `publicUrl` carries once a production base URL is configured. This hook was
+ * checking only `window.location.hash`, so a real production link (`https://securepay.ke/r/{slug}`)
+ * would never have matched here at all — a genuine routing mismatch, found and closed by this pass
+ * before any production deployment. The canonical pathname form is now checked FIRST (matching
+ * doctrine: new server-issued links use the clean form); the legacy hash form is checked second,
+ * purely for backward compatibility with old/local/shared links, and never becomes canonical. Both
+ * forms converge on the exact same slug and the exact same `SecureLinkExperience`/backend digest
+ * lookup below — no duplicate authority, and the path prefix itself is navigation only (Section 8 of
+ * the closure mandate): the backend's own locator lookup remains the sole authority on product type,
+ * regardless of which prefix a URL was typed or shared with.
  */
-function useSecureLinkRoute(): string | null {
+function useSecureLinkRoute(): [string | null, () => void] {
   const parse = () => {
     if (typeof window === 'undefined') return null;
-    const match = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/.exec(window.location.hash);
-    return match ? decodeURIComponent(match[1]) : null;
+    const pathMatch = SECURE_LINK_PATH_PATTERN.exec(window.location.pathname);
+    if (pathMatch) return decodeURIComponent(pathMatch[1]);
+    const hashMatch = SECURE_LINK_HASH_PATTERN.exec(window.location.hash);
+    return hashMatch ? decodeURIComponent(hashMatch[1]) : null;
   };
   const [slug, setSlug] = useState(parse);
   useEffect(() => {
-    const onHashChange = () => setSlug(parse());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onChange = () => setSlug(parse());
+    window.addEventListener('hashchange', onChange);
+    window.addEventListener('popstate', onChange);
+    return () => {
+      window.removeEventListener('hashchange', onChange);
+      window.removeEventListener('popstate', onChange);
+    };
   }, []);
-  return slug;
+  const clear = () => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+      // A canonical pathname route leaves no hash to clear -- reset the path itself, without a
+      // full reload, so leaving a clean-path SecureLink returns to the ordinary application shell.
+      if (SECURE_LINK_PATH_PATTERN.test(window.location.pathname)) {
+        window.history.replaceState(null, '', '/');
+      }
+    }
+    setSlug(null);
+  };
+  return [slug, clear];
 }
 
 /** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
@@ -211,7 +241,7 @@ export default function RuntimeApp() {
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
-  const secureLinkSlug = useSecureLinkRoute();
+  const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
@@ -244,7 +274,7 @@ export default function RuntimeApp() {
   }
   if (secureLinkSlug) {
     return api && agreementGateway
-      ? <SecureLinkExperience key={secureLinkSlug} slug={secureLinkSlug} gateway={agreementGateway} auth={api.auth} session={session} onLeave={() => { window.location.hash = ''; }} />
+      ? <SecureLinkExperience key={secureLinkSlug} slug={secureLinkSlug} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearSecureLinkSlug} />
       : <Unavailable />;
   }
   if (activationRoute) {
