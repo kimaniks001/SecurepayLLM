@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { CommunityHome } from '../../components/CommunityHome';
 import { CommunityObjectDetail } from '../../components/CommunityObjectDetail';
@@ -7,8 +7,12 @@ import { CommunityCreatePanel } from '../../components/CommunityCreatePanel';
 import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
+import type { PublicStoreView } from '../../api/securepay/store/dto';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { DiscoveryGateway } from '../../api/securepay/discovery';
+import type { DiscoveryResults, DiscoveryScope, PublicProfileResponse } from '../../api/securepay/discovery/dto';
+import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { AppView, ErrorStateResponse } from '../../types';
 import type { CommunitySourceFact } from '../agent/controller';
 import {
@@ -17,7 +21,7 @@ import {
 } from './controller';
 import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 
-type Gateway = Pick<StoreGateway, 'search'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load Community', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -259,13 +263,17 @@ function YourCirclesView({
 }
 
 function DiscoverCirclesView({
-  circles, loading, error, onOpen, onRetry,
+  circles, loading, error, onOpen, onRetry, query, onQueryChange,
 }: {
   circles: CircleResponse[];
   loading: boolean;
   error: string | null;
   onOpen: (id: string) => void;
   onRetry: () => void;
+  /** Phase 6 Slice 5 (Discovery & Identity, Section 12) -- additive text query; blank means the
+   * original unfiltered browse, unchanged. */
+  query: string;
+  onQueryChange: (query: string) => void;
 }) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -274,10 +282,17 @@ function DiscoverCirclesView({
         <p className="text-[0.8rem] text-sand-500">
           Every ACTIVE Circle is listed here, deterministically by recency — never ranked, never a "recommended for you."
         </p>
+        <input
+          type="text"
+          value={query}
+          onChange={e => onQueryChange(e.target.value)}
+          placeholder="Search Circles by name, purpose, or category…"
+          className="w-full rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
+        />
         {loading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
         {error && <ErrorStateCard data={{ type: 'ERROR_STATE', title: 'SecurePay could not load Circles', text: error, primaryLabel: 'Try again', primaryValue: 'retry' }} onChoice={onRetry} />}
         {!loading && !error && circles.length === 0 && (
-          <p className="text-[0.82rem] text-sand-500 py-6 text-center">No Circles exist yet.</p>
+          <p className="text-[0.82rem] text-sand-500 py-6 text-center">{query ? `No Circles found for "${query}".` : 'No Circles exist yet.'}</p>
         )}
         {circles.map(c => <CircleCard key={c.id} circle={c} onOpen={() => onOpen(c.id)} />)}
       </div>
@@ -526,9 +541,283 @@ function communitySourceFactFor(
   };
 }
 
-export function CommunityExperience({ gateway, communityGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis }: {
+const SEARCH_SCOPES: { value: DiscoveryScope; label: string }[] = [
+  { value: 'EVERYTHING', label: 'Everything' },
+  { value: 'COMMUNITY', label: 'Community' },
+  { value: 'CIRCLES', label: 'Circles' },
+  { value: 'STORES', label: 'Stores' },
+  { value: 'PEOPLE', label: 'People & businesses' },
+];
+
+const COMMUNITY_TYPE_LABEL: Record<DiscoveryResults['community'][number]['objectType'], string> = {
+  QUESTION: 'Question', NEED: 'Need', OPPORTUNITY: 'Opportunity', WORK_STORY: 'Work story', DISCUSSION: 'Discussion',
+};
+
+/**
+ * Phase 6 Slice 5 (Discovery & Identity) -- "find what actually exists in their Community without
+ * SecurePay deciding what is best for them" (Section 2/28). Results are grouped by real type
+ * (Section 8) -- never flattened into one generic list -- and factual only: no score, rank, star
+ * rating, "recommended", or "trending" label anywhere here. Opening a result always leads to that
+ * item's own authoritative surface (Community object detail, Circle detail, the real Store offer, or
+ * a public profile) -- never a shortcut into Agreement/trade authority (Section 47/56).
+ */
+function CommunitySearchView({
+  query, scope, results, onQueryChange, onSubmit, onScopeChange, onBack,
+  onOpenCommunityItem, onOpenCircleItem, onOpenStoreItem, onOpenPersonItem,
+}: {
+  query: string;
+  scope: DiscoveryScope;
+  results: RemoteState<DiscoveryResults>;
+  onQueryChange: (query: string) => void;
+  onSubmit: () => void;
+  onScopeChange: (scope: DiscoveryScope) => void;
+  onBack: () => void;
+  onOpenCommunityItem: (id: string) => void;
+  onOpenCircleItem: (id: string) => void;
+  onOpenStoreItem: (canonicalKsNumber: string, offerId: string) => void;
+  onOpenPersonItem: (canonicalKsNumber: string) => void;
+}) {
+  const data = results.status === 'ready' ? results.data : null;
+  const totalShown = data ? data.community.length + data.circles.length + data.stores.length + data.people.length : 0;
+  return (
+    <div className="flex-1 overflow-y-auto scrollbar-thin">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={onBack} className="p-1.5 -ml-1.5 rounded-lg hover:bg-cream-100 transition-colors" aria-label="Back">
+            <ArrowLeft className="w-5 h-5 text-forest-700" />
+          </button>
+          <h2 className="font-display text-lg text-forest-800 font-medium">Search Community</h2>
+        </div>
+        <form onSubmit={e => { e.preventDefault(); onSubmit(); }} className="flex gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={e => onQueryChange(e.target.value)}
+            placeholder="What are you looking for?"
+            className="flex-1 rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
+          />
+          <button type="submit" className="rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium px-4 py-2.5 hover:bg-forest-700 transition-colors">
+            Search
+          </button>
+        </form>
+        <div className="flex gap-1.5 flex-wrap">
+          {SEARCH_SCOPES.map(s => (
+            <button
+              key={s.value}
+              onClick={() => onScopeChange(s.value)}
+              className={`text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-colors ${
+                scope === s.value ? 'bg-forest-600 text-cream-50' : 'text-forest-700 bg-cream-50 hover:bg-cream-100'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {results.status === 'loading' && <p className="text-[0.8rem] text-sand-500 py-4 text-center">Searching…</p>}
+        {results.status === 'error' && (
+          <ErrorStateCard data={errorView(errorText(results.error))} onChoice={onSubmit} />
+        )}
+        {results.status === 'ready' && totalShown === 0 && (
+          <div className="py-8 text-center space-y-2">
+            <p className="text-[0.85rem] text-sand-500">No matches for &quot;{query}&quot;.</p>
+            <p className="text-[0.78rem] text-sand-400">Ask the Community, post a Need, start a Discussion, or browse Circles instead.</p>
+          </div>
+        )}
+
+        {data && data.community.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">Community</h3>
+            {data.community.map(item => (
+              <button
+                key={item.id}
+                onClick={() => onOpenCommunityItem(item.id)}
+                className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3.5 hover:border-forest-300 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-display text-[0.9rem] text-forest-800 font-medium leading-snug">{item.title}</h4>
+                  <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 shrink-0">
+                    {COMMUNITY_TYPE_LABEL[item.objectType]}
+                  </span>
+                </div>
+                <p className="text-[0.72rem] text-sand-500 mt-1">
+                  {item.authorDisplayName ?? 'A Community member'}{item.locationLabel ? ` · ${item.locationLabel}` : ''}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {data && data.circles.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">Circles</h3>
+            {data.circles.map(circle => (
+              <button
+                key={circle.id}
+                onClick={() => onOpenCircleItem(circle.id)}
+                className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3.5 hover:border-forest-300 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-display text-[0.9rem] text-forest-800 font-medium leading-snug">{circle.name}</h4>
+                  <span className="text-[0.68rem] text-sand-500 shrink-0">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</span>
+                </div>
+                <p className="text-[0.8rem] text-sand-600 mt-1 line-clamp-2">{circle.purpose}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {data && data.stores.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">Stores</h3>
+            {data.stores.map(offer => (
+              <button
+                key={offer.offerId}
+                onClick={() => onOpenStoreItem(offer.canonicalKsNumber, offer.offerId)}
+                className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3.5 hover:border-forest-300 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-display text-[0.9rem] text-forest-800 font-medium leading-snug">{offer.title}</h4>
+                  {offer.priceMinor !== null && offer.currency && (
+                    <span className="text-[0.75rem] font-medium text-forest-700 shrink-0">{(offer.priceMinor / 100).toFixed(2)} {offer.currency}</span>
+                  )}
+                </div>
+                <p className="text-[0.72rem] text-sand-500 mt-1">{offer.displayName}{offer.locationLabel ? ` · ${offer.locationLabel}` : ''}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {data && data.people.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">People &amp; businesses</h3>
+            {data.people.map(person => (
+              <button
+                key={person.canonicalKsNumber}
+                onClick={() => onOpenPersonItem(person.canonicalKsNumber)}
+                className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-3.5 hover:border-forest-300 transition-colors flex items-center justify-between gap-2"
+              >
+                <div>
+                  <h4 className="font-display text-[0.9rem] text-forest-800 font-medium leading-snug">{person.displayName}</h4>
+                  <p className="text-[0.72rem] text-sand-500 mt-0.5">{person.identityType === 'BUSINESS' ? 'Business' : 'Person'}{person.hasStore ? ' · Has a Store' : ''}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Phase 6 Slice 5 -- a public person/business profile (Section 16/17). Informational only: never an
+ * account/Settings surface (Section 34), never a "Hire this person" shortcut (Section 37). Verified
+ * means exactly the backend's real state -- there is deliberately no "trusted"/"recommended" language
+ * anywhere here (Section 23).
+ */
+function CommunityProfileView({
+  profile, storeGateway, onBack, onOpenActivityItem, onOpenStoreOffer,
+}: {
+  profile: RemoteState<PublicProfileResponse>;
+  storeGateway: Pick<StoreGateway, 'store'>;
+  onBack: () => void;
+  onOpenActivityItem: (id: string) => void;
+  onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
+}) {
+  const [store, setStore] = useState<RemoteState<PublicStoreView>>({ status: 'idle' });
+
+  return (
+    <div className="flex-1 overflow-y-auto scrollbar-thin">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={onBack} className="p-1.5 -ml-1.5 rounded-lg hover:bg-cream-100 transition-colors" aria-label="Back">
+            <ArrowLeft className="w-5 h-5 text-forest-700" />
+          </button>
+          <h2 className="font-display text-lg text-forest-800 font-medium">Profile</h2>
+        </div>
+
+        {profile.status === 'loading' && <p className="text-[0.8rem] text-sand-500 py-4 text-center">Loading…</p>}
+        {profile.status === 'error' && <ErrorStateCard data={errorView(errorText(profile.error))} onChoice={onBack} />}
+
+        {profile.status === 'ready' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-display text-base text-forest-800 font-medium">{profile.data.displayName}</h3>
+                <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 shrink-0">
+                  {profile.data.identityType === 'BUSINESS' ? 'Business' : 'Person'}
+                </span>
+              </div>
+              {profile.data.hasStore && (
+                <div className="mt-3 pt-3 border-t border-cream-100">
+                  {profile.data.storeTagline && <p className="text-[0.8rem] text-sand-600">{profile.data.storeTagline}</p>}
+                  {profile.data.storeLocationLabel && <p className="text-[0.72rem] text-sand-500 mt-0.5">{profile.data.storeLocationLabel}</p>}
+                  <button
+                    onClick={async () => {
+                      if (store.status === 'loading' || store.status === 'ready') return;
+                      setStore({ status: 'loading' });
+                      try {
+                        const view = await storeGateway.store(profile.data.canonicalKsNumber);
+                        setStore({ status: 'ready', data: view });
+                      } catch (error) {
+                        setStore({ status: 'error', error: error instanceof ApiError ? error : new ApiError('network', 'SecurePay is unavailable') });
+                      }
+                    }}
+                    className="mt-2 text-[0.8rem] font-medium text-forest-600 hover:text-forest-700"
+                  >
+                    View Store →
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {store.status === 'loading' && <p className="text-[0.8rem] text-sand-500">Loading Store…</p>}
+            {store.status === 'error' && <p className="text-[0.8rem] text-red-600">{errorText(store.error)}</p>}
+            {store.status === 'ready' && (
+              <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+                <h4 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">Store offers</h4>
+                {store.data.offers.length === 0 && <p className="text-[0.8rem] text-sand-500">No published offers yet.</p>}
+                {store.data.offers.map(offer => (
+                  <button
+                    key={offer.id}
+                    onClick={() => onOpenStoreOffer(profile.data.canonicalKsNumber, offer.id)}
+                    className="w-full text-left rounded-xl border border-cream-200 px-3 py-2.5 hover:border-forest-300 transition-colors"
+                  >
+                    <p className="text-[0.85rem] text-forest-800 font-medium">{offer.title}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {profile.data.recentActivity.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[0.72rem] font-medium text-sand-500 uppercase tracking-wide">Recent public activity</h4>
+                {profile.data.recentActivity.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => onOpenActivityItem(item.id)}
+                    className="w-full text-left rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 hover:border-forest-300 transition-colors"
+                  >
+                    <p className="text-[0.85rem] text-forest-800 font-medium">{item.title}</p>
+                    <p className="text-[0.68rem] text-sand-500 mt-0.5">{COMMUNITY_TYPE_LABEL[item.objectType]}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
+  /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
+   * from each domain's own real authority (see `DiscoverySearchController`'s own doctrine). */
+  discoveryGateway: DiscoveryGateway;
   trustedMediaOrigin: string | null;
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
@@ -542,7 +831,7 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
    */
   onUseThis: (fact: CommunitySourceFact) => void;
 }) {
-  const [controller] = useState(() => createCommunityController(gateway, communityGateway, trustedMediaOrigin));
+  const [controller] = useState(() => createCommunityController(gateway, communityGateway, discoveryGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
   useEffect(() => {
@@ -562,6 +851,27 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.query]);
 
+  // Phase 6 Slice 5 (Discovery & Identity) -- the exact same debounce discipline as the Store-search
+  // box above, applied to Discover Circles' own new text query and the dedicated Search screen.
+  const previousDiscoverCirclesQuery = useRef(state.discoverCirclesQuery);
+  useEffect(() => {
+    if (previousDiscoverCirclesQuery.current === state.discoverCirclesQuery) return;
+    previousDiscoverCirclesQuery.current = state.discoverCirclesQuery;
+    const handle = setTimeout(() => void controller.submitDiscoverCirclesQuery(), 400);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.discoverCirclesQuery]);
+
+  const previousSearchQuery = useRef(state.searchQuery);
+  useEffect(() => {
+    if (previousSearchQuery.current === state.searchQuery) return;
+    previousSearchQuery.current = state.searchQuery;
+    if (state.view !== 'search') return;
+    const handle = setTimeout(() => void controller.submitDiscoverySearch(), 400);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.searchQuery]);
+
   const isActiveMember = state.membership.kind === 'active';
   const realObjects = isActiveMember && state.feed.status === 'ready' ? state.feed.data.map(o => realObjectToCommunityObject(o)) : [];
   const storeObjects = state.search.status === 'ready' ? state.search.data.map(storeResultToCommunityObject) : [];
@@ -571,20 +881,59 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     : undefined;
 
   const banner = (
-    <TrustProjectBanner
-      membership={state.membership}
-      onAccept={() => void controller.acceptInvitation()}
-      onDecline={() => void controller.declineInvitation()}
-      onOpenInvite={() => controller.openInvite()}
-      principlesOpen={state.principlesOpen}
-      onTogglePrinciples={() => void controller.togglePrinciples()}
-      principles={state.principles.status === 'ready' ? state.principles.data : []}
-      principlesLoading={state.principles.status === 'loading'}
-    />
+    <>
+      <TrustProjectBanner
+        membership={state.membership}
+        onAccept={() => void controller.acceptInvitation()}
+        onDecline={() => void controller.declineInvitation()}
+        onOpenInvite={() => controller.openInvite()}
+        principlesOpen={state.principlesOpen}
+        onTogglePrinciples={() => void controller.togglePrinciples()}
+        principles={state.principles.status === 'ready' ? state.principles.data : []}
+        principlesLoading={state.principles.status === 'loading'}
+      />
+      {isActiveMember && (
+        <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3">
+          <button
+            onClick={() => controller.openSearch()}
+            className="w-full flex items-center gap-2 rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 text-[0.82rem] text-sand-500 hover:border-forest-300 transition-colors"
+          >
+            <Search className="w-4 h-4 shrink-0" aria-hidden="true" />
+            Search Community, Circles, Stores, people &amp; businesses
+          </button>
+        </div>
+      )}
+    </>
   );
 
   let body: React.ReactNode;
-  if (state.view === 'circleCompose') {
+  if (state.view === 'search') {
+    body = (
+      <CommunitySearchView
+        query={state.searchQuery}
+        scope={state.searchScope}
+        results={state.discoverySearch}
+        onQueryChange={q => controller.setSearchQuery(q)}
+        onSubmit={() => void controller.submitDiscoverySearch()}
+        onScopeChange={scope => controller.setSearchScope(scope)}
+        onBack={() => controller.backToHome()}
+        onOpenCommunityItem={id => void controller.openObject(id)}
+        onOpenCircleItem={id => void controller.openCircle(id)}
+        onOpenStoreItem={(ks, offerId) => onOpenStoreOffer(ks, offerId)}
+        onOpenPersonItem={ks => void controller.openProfile(ks)}
+      />
+    );
+  } else if (state.view === 'profile') {
+    body = (
+      <CommunityProfileView
+        profile={state.selectedProfile}
+        storeGateway={gateway}
+        onBack={() => controller.backToSearch()}
+        onOpenActivityItem={id => void controller.openObject(id)}
+        onOpenStoreOffer={(ks, offerId) => onOpenStoreOffer(ks, offerId)}
+      />
+    );
+  } else if (state.view === 'circleCompose') {
     body = (
       <CommunityCreatePanel
         options={REAL_COMPOSE_TYPES}
@@ -763,7 +1112,9 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
           loading={state.discoverCircles.status === 'loading'}
           error={state.discoverCircles.status === 'error' ? errorText(state.discoverCircles.error) : null}
           onOpen={id => void controller.openCircle(id)}
-          onRetry={() => void controller.showCommunityTab('discover')}
+          onRetry={() => void controller.submitDiscoverCirclesQuery()}
+          query={state.discoverCirclesQuery}
+          onQueryChange={q => controller.setDiscoverCirclesQuery(q)}
         />
       </>
     );
@@ -792,8 +1143,9 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
           circlesEntryLabel="Your Circle profile"
           circlesEntryDescription="See your real network activity — referrals, agreements brought in, and growth credit. Not a named Circle or group."
           // Phase 6 -- the real feed (Questions/Needs/Opportunities/Work Stories/Discussions) is shown
-          // only to an ACTIVE Trust Project member; the search box still searches Store offers only
-          // (real full-text Community search is a later slice) -- copy says exactly that, never more.
+          // only to an ACTIVE Trust Project member; this inline box still searches Store offers only,
+          // copy says exactly that, never more. Real Community/Circle/People search now exists as its
+          // own dedicated entry point (Slice 5, Section 28-29) -- see the "Search Community" button.
           searchPlaceholder="Search store offers by category or location..."
           noResultsMessage={`No store offers found for "${state.query}".`}
         />

@@ -33,6 +33,17 @@ export function createCommunityGateway(http: HttpClient) {
       http.request<CommunityObjectResponse[]>(`/api/v1/community/objects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
     mine: (limit = 50, offset = 0) =>
       http.request<CommunityObjectResponse[]>(`/api/v1/community/objects/mine?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    // Phase 6 Slice 5 (Discovery & Identity) -- Community LIVE search: factual matching only, never
+    // recommendation (an exact title match sorts first, then recency -- see the backend's own
+    // doctrine). `types` narrows to specific object types; empty/omitted searches every type.
+    search: (q: string, types: string[] = [], limit = 50, offset = 0) => {
+      const query = new URLSearchParams();
+      if (q) query.set('q', q);
+      types.forEach(type => query.append('types', type));
+      query.set('limit', String(limit));
+      query.set('offset', String(offset));
+      return http.request<CommunityObjectResponse[]>(`/api/v1/community/objects/search?${query.toString()}`, { auth: 'required' });
+    },
     get: (id: string) => http.request<CommunityObjectResponse>(obj(id), { auth: 'required' }),
     close: (id: string) => http.request<CommunityObjectResponse>(`${obj(id)}/close`, { method: 'POST', auth: 'required' }),
 
@@ -91,8 +102,16 @@ export function createCommunityGateway(http: HttpClient) {
           auth: 'required',
           headers: { 'Idempotency-Key': idempotencyKey },
         }),
-      discover: (limit = 50, offset = 0) =>
-        http.request<CircleResponse[]>(`/api/v1/community/circles?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      // Phase 6 Slice 5 (Discovery & Identity) -- `q` is optional and additive: omitted, this is the
+      // exact original unfiltered discovery listing; supplied, it narrows to matching PUBLIC Circles
+      // (never a PRIVATE one, regardless of name match -- see the backend's own doctrine).
+      discover: (limit = 50, offset = 0, q?: string) => {
+        const query = new URLSearchParams();
+        if (q) query.set('q', q);
+        query.set('limit', String(limit));
+        query.set('offset', String(offset));
+        return http.request<CircleResponse[]>(`/api/v1/community/circles?${query.toString()}`, { auth: 'required' });
+      },
       mine: (limit = 50, offset = 0) =>
         http.request<CircleResponse[]>(`/api/v1/community/circles/mine?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       // Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped
