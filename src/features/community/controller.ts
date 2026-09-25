@@ -139,12 +139,17 @@ export function createCommunityController(
 
     async enter() {
       if (state.search.status === 'idle') void runSearch('');
+      // Slice 1 correction (The Trust Project doctrine): Community feed/detail now require
+      // authentication -- not signed-out-first-class browsing. A signed-out (or otherwise
+      // unauthenticated) caller's loadFeed()/mine() calls both fail with 401, caught below and by
+      // loadFeed's own try/catch; the store-offer search above is unaffected (Store retains its
+      // existing, separate public authority). Invitation/membership-scoped read authority -- the
+      // real reason Community reads are restricted at all -- is Slice 2's job, not invented here.
       if (state.feed.status === 'idle') await loadFeed();
-      // Signed-out browsing is first-class (Section 19) -- a 401 here just means no own objects to flag.
       try {
         const mine = await community.mine();
         update({ ownObjectIds: new Set(mine.map(o => o.id)) });
-      } catch { /* signed out, or transiently unavailable -- Close affordance simply stays hidden */ }
+      } catch { /* not authenticated, or transiently unavailable -- Close affordance simply stays hidden */ }
     },
     setQuery(query: string) { update({ query }); },
     async submitSearch() { await runSearch(state.query); },

@@ -86,6 +86,26 @@ test('realObjectToCommunityObject: status maps ACTIVE/CLOSED/REMOVED to the UI v
   assert.equal(api.communityView.realObjectToCommunityObject(realObject({ status: 'REMOVED' })).status, 'withdrawn');
 });
 
+/**
+ * Slice 1 correction (The Trust Project doctrine): a real Community post must never be represented
+ * as internet-public content -- reads now fail closed behind authentication, pending Trust Project
+ * invitation/membership authority. 'public' is reserved for genuinely public content (a Store offer
+ * reference); a real Community post uses the distinct 'community' value instead.
+ */
+test('realObjectToCommunityObject: a real Community post is marked visibility "community", never "public"', () => {
+  for (const objectType of ['QUESTION', 'NEED', 'OPPORTUNITY', 'WORK_STORY', 'DISCUSSION']) {
+    const mapped = api.communityView.realObjectToCommunityObject(realObject({ objectType }));
+    assert.equal(mapped.visibility, 'community');
+    assert.notEqual(mapped.visibility, 'public');
+  }
+});
+
+test('storeResultToCommunityObject: a Store offer reference keeps its own, unchanged "public" visibility', () => {
+  const result = { canonicalKsNumber: 'KS-100', displayName: 'Keyman Security', locationLabel: 'Nairobi', offer: { id: 'offer-1', version: 1, title: 'CCTV install', description: 'x' } };
+  const mapped = api.communityView.storeResultToCommunityObject(result);
+  assert.equal(mapped.visibility, 'public');
+});
+
 // ─── features/community/controller.ts -- real create/feed/mine/close orchestration ─────────────────────────
 
 function fakeCommunityGateway(overrides = {}) {
@@ -103,13 +123,32 @@ function fakeCommunityGateway(overrides = {}) {
 }
 const storeGatewayStub = { search: async () => [] };
 
-test('controller.enter loads the real feed and never crashes when signed out (mine() rejecting)', async () => {
+test('controller.enter never crashes when mine() rejects independently of feed()', async () => {
   const { gateway } = fakeCommunityGateway({ mine: async () => { throw new Error('401'); } });
   const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
   await controller.enter();
   const snap = controller.getSnapshot();
   assert.equal(snap.feed.status, 'ready');
   assert.equal(snap.feed.data.length, 1);
+  assert.deepEqual([...snap.ownObjectIds], []);
+});
+
+/**
+ * Slice 1 correction (The Trust Project doctrine): Community feed/detail now require authentication
+ * -- this is deliberately NOT "signed-out browsing is first-class" (that was the old, now-corrected
+ * assumption). An unauthenticated caller's feed() and mine() both fail; enter() must still degrade
+ * gracefully rather than crash or leave stale loading state. Store's own separate search authority
+ * is unaffected -- Store is not made private merely because Community posts are.
+ */
+test('controller.enter degrades gracefully -- never crashes -- when the caller is not authenticated (feed() and mine() both reject)', async () => {
+  const { gateway } = fakeCommunityGateway({
+    feed: async () => { throw new Error('401'); },
+    mine: async () => { throw new Error('401'); },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.enter();
+  const snap = controller.getSnapshot();
+  assert.equal(snap.feed.status, 'error');
   assert.deepEqual([...snap.ownObjectIds], []);
 });
 

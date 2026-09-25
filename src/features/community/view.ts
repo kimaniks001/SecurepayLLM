@@ -28,6 +28,12 @@ function relativeTime(iso: string): string {
  * `responses` (replies/"I can help" are Slice 2), no invented capabilities/budget/timing fields the
  * backend does not yet carry. `provenance` states plainly that this is a real Community post, never
  * a reputation/rating claim (Section 4/20's own "never reputation scoring" doctrine).
+ *
+ * <p>Slice 1 correction (The Trust Project doctrine): `visibility` is `'community'`, never `'public'`
+ * -- the backend now fails closed behind authentication for every real Community read (see
+ * `createCommunityGateway`'s own doctrine comment), pending Trust Project invitation/membership
+ * authority in a later slice. `'public'` remains reserved for genuinely internet-public content (a
+ * Store offer reference, below) -- this UI model never claims a real Community post is that.
  */
 export function realObjectToCommunityObject(dto: CommunityObjectResponse): CommunityObject {
   return {
@@ -42,7 +48,7 @@ export function realObjectToCommunityObject(dto: CommunityObjectResponse): Commu
     status: dto.status === 'ACTIVE' ? 'active' : dto.status === 'CLOSED' ? 'closed' : 'withdrawn',
     responses: [],
     provenance: dto.authorCanonicalKsNumber ? `Posted by ${dto.authorCanonicalKsNumber}` : 'Posted to Community',
-    visibility: 'public',
+    visibility: 'community',
   };
 }
 
