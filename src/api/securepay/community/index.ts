@@ -1,5 +1,6 @@
 import { segment, type HttpClient } from '../http';
 import type {
+  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -19,6 +20,7 @@ import type {
  */
 export function createCommunityGateway(http: HttpClient) {
   const obj = (id: string) => `/api/v1/community/objects/${segment(id)}`;
+  const circle = (id: string) => `/api/v1/community/circles/${segment(id)}`;
   return {
     create: (objectType: string, title: string, body: string, locationLabel: string | null, idempotencyKey: string) =>
       http.request<CommunityObjectResponse>('/api/v1/community/objects', {
@@ -73,6 +75,84 @@ export function createCommunityGateway(http: HttpClient) {
     // Our 12 Principles (Slice 2) -- read-only, unauthenticated: an invitee must be able to see
     // these before deciding whether to accept, and they are not private Community content.
     principles: () => http.request<FairTradePrincipleResponse[]>('/api/v1/community/principles', { auth: 'none' }),
+
+    // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
+    // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real
+    // signed-in identity; the backend independently enforces ACTIVE Trust Project membership (and,
+    // for content/membership actions, ACTIVE Circle membership) on top of authentication.
+    circles: {
+      create: (
+        name: string, purpose: string, membershipMode: string, visibility: string, categoryLabel: string | null,
+        locationLabel: string | null, idempotencyKey: string,
+      ) =>
+        http.request<CircleResponse>('/api/v1/community/circles', {
+          method: 'POST',
+          body: { name, purpose, membershipMode, visibility, categoryLabel, locationLabel },
+          auth: 'required',
+          headers: { 'Idempotency-Key': idempotencyKey },
+        }),
+      discover: (limit = 50, offset = 0) =>
+        http.request<CircleResponse[]>(`/api/v1/community/circles?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      mine: (limit = 50, offset = 0) =>
+        http.request<CircleResponse[]>(`/api/v1/community/circles/mine?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      // Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped
+      // (their own INVITED rows only). The one legitimate route to discover a PRIVATE Circle they
+      // cannot otherwise find through general discovery; opening one routes into the existing
+      // Circle detail experience rather than a second accept/decline engine.
+      myInvitations: (limit = 50, offset = 0) =>
+        http.request<CirclePendingInvitationView[]>(`/api/v1/community/circles/invitations?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      get: (circleId: string) => http.request<CircleResponse>(circle(circleId), { auth: 'required' }),
+      close: (circleId: string) => http.request<CircleResponse>(`${circle(circleId)}/close`, { method: 'POST', auth: 'required' }),
+      membership: (circleId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/membership`, { auth: 'required' }),
+
+      join: (circleId: string, idempotencyKey: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/join`, {
+          method: 'POST', auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+        }),
+      request: (circleId: string, idempotencyKey: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/requests`, {
+          method: 'POST', auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+        }),
+      pendingRequests: (circleId: string, limit = 50, offset = 0) =>
+        http.request<CirclePendingRequestView[]>(`${circle(circleId)}/requests?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      approveRequest: (circleId: string, membershipId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/requests/${segment(membershipId)}/approve`, { method: 'POST', auth: 'required' }),
+      declineRequest: (circleId: string, membershipId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/requests/${segment(membershipId)}/decline`, { method: 'POST', auth: 'required' }),
+
+      invite: (circleId: string, inviteeCanonicalKsNumber: string, idempotencyKey: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/invitations`, {
+          method: 'POST',
+          body: { inviteeCanonicalKsNumber },
+          auth: 'required',
+          headers: { 'Idempotency-Key': idempotencyKey },
+        }),
+      acceptInvitation: (circleId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/invitations/accept`, { method: 'POST', auth: 'required' }),
+      declineInvitation: (circleId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/invitations/decline`, { method: 'POST', auth: 'required' }),
+
+      leave: (circleId: string) => http.request<CircleMembershipResponse>(`${circle(circleId)}/leave`, { method: 'POST', auth: 'required' }),
+      removeMember: (circleId: string, membershipId: string) =>
+        http.request<CircleMembershipResponse>(`${circle(circleId)}/members/${segment(membershipId)}/remove`, { method: 'POST', auth: 'required' }),
+      members: (circleId: string, limit = 50, offset = 0) =>
+        http.request<CircleMemberView[]>(`${circle(circleId)}/members?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+
+      // Circle-scoped Community content -- reuses the same CommunityObjectResponse shape as
+      // Community LIVE (`circleId` on the response tells them apart).
+      objects: {
+        create: (circleId: string, objectType: string, title: string, body: string, locationLabel: string | null, idempotencyKey: string) =>
+          http.request<CommunityObjectResponse>(`${circle(circleId)}/objects`, {
+            method: 'POST',
+            body: { objectType, title, body, locationLabel },
+            auth: 'required',
+            headers: { 'Idempotency-Key': idempotencyKey },
+          }),
+        list: (circleId: string, limit = 50, offset = 0) =>
+          http.request<CommunityObjectResponse[]>(`${circle(circleId)}/objects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      },
+    },
   };
 }
 export type CommunityGateway = ReturnType<typeof createCommunityGateway>;

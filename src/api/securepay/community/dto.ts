@@ -2,6 +2,14 @@
  * Phase 6 (Community Life) Slice 1 -- real, backend-persisted Community objects. Matches
  * `CommunityObjectController.CommunityObjectResponse` exactly. Author identity fields are always
  * server-resolved -- never sent by the client.
+ *
+ * <p>Slice 3 addition: `circleId` is `null` for a Community LIVE object (every pre-existing Slice
+ * 1/2 object) or a real Circle id when the object is scoped to exactly that Circle.
+ *
+ * <p>Correction (Slice 3 pre-merge completion pass): `canClose` is server-derived (`status ==
+ * ACTIVE && authorIdentityId == authenticated requester`, the same pattern as `CommunityReplyResponse
+ * .canWithdraw`), present on every create/feed/mine/get/close response for BOTH Community LIVE and
+ * Circle-scoped objects -- never inferred client-side from a LIVE-only owned-id set.
  */
 export interface CommunityObjectResponse {
   id: string;
@@ -15,6 +23,8 @@ export interface CommunityObjectResponse {
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
+  circleId: string | null;
+  canClose: boolean;
 }
 
 /**
@@ -73,4 +83,88 @@ export interface FairTradePrincipleResponse {
   number: number;
   title: string;
   text: string;
+}
+
+/**
+ * Phase 6 (Community Life) Slice 3 -- a named Circle: "a home inside The Trust Project." Matches
+ * `CommunityCircleController.CircleResponse` exactly. Discovery-safe fields only -- a Circle's own
+ * content (posts/replies/help) is a completely separate, membership-gated read (see
+ * `circles.objects`). `memberCount` is a plain count, never a ranking/engagement signal.
+ *
+ * <p>Correction (Slice 3 pre-merge completion pass): `visibility` is a SEPARATE authority from
+ * `membershipMode` -- `membershipMode` answers "how does someone become a member?"; `visibility`
+ * answers "who can discover this Circle exists?". A PRIVATE Circle never appears in general
+ * discovery regardless of its membership mode.
+ */
+export interface CircleResponse {
+  id: string;
+  name: string;
+  purpose: string;
+  membershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+  visibility: 'PUBLIC' | 'PRIVATE';
+  categoryLabel: string | null;
+  locationLabel: string | null;
+  status: 'ACTIVE' | 'CLOSED';
+  creatorCanonicalKsNumber: string | null;
+  creatorDisplayName: string | null;
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+/**
+ * Matches `CommunityCircleController.CircleMembershipResponse` exactly -- the caller's own
+ * relationship to one Circle. `status` is `null` only when they have no membership record at all
+ * (and are not the owner, whose own membership is implicitly ACTIVE from creation).
+ */
+export interface CircleMembershipResponse {
+  status: 'INVITED' | 'REQUESTED' | 'ACTIVE' | 'DECLINED' | 'LEFT' | 'REMOVED' | null;
+  isOwner: boolean;
+  invitedByDisplayName: string | null;
+  createdAt: string | null;
+  respondedAt: string | null;
+}
+
+/** Matches `CommunityCircleController.PendingRequestView` exactly -- an owner's own pending
+ * REQUEST_TO_JOIN review queue. `membershipId` is the opaque reference used to approve/decline. */
+export interface CirclePendingRequestView {
+  membershipId: string;
+  requesterCanonicalKsNumber: string | null;
+  requesterDisplayName: string | null;
+  requestedAt: string;
+}
+
+/**
+ * Matches `CommunityCircleController.MemberView` exactly -- community-safe identity fields only,
+ * for an ACTIVE Circle member's own view of who else is in the Circle. `membershipId` is the opaque
+ * reference an owner's Remove action targets -- never identity-revealing beyond the fields above.
+ *
+ * <p>Correction (final pre-merge correction pass): `isSelf` is server-derived (never inferred
+ * locally) so the UI can hide the owner's own Remove button -- the backend already rejects
+ * self-removal (`CannotRemoveOwnerException`); this field only lets the client avoid offering an
+ * action that will always fail.
+ */
+export interface CircleMemberView {
+  membershipId: string;
+  canonicalKsNumber: string | null;
+  displayName: string | null;
+  isSelf: boolean;
+}
+
+/**
+ * Correction (final pre-merge correction pass) -- matches
+ * `CommunityCircleController.PendingInvitationView` exactly. One of the caller's own pending Circle
+ * invitations: the one legitimate route to discover a PRIVATE Circle they cannot otherwise find
+ * through general discovery. Opening one routes into the existing Circle detail experience -- this
+ * is never a second accept/decline engine, just enough to identify and open the invitation.
+ */
+export interface CirclePendingInvitationView {
+  circleId: string;
+  circleName: string;
+  circlePurpose: string;
+  circleVisibility: 'PUBLIC' | 'PRIVATE';
+  circleMembershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+  invitedByDisplayName: string | null;
+  invitedAt: string;
 }
