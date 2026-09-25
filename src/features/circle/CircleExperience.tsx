@@ -15,19 +15,26 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 
 function errorView(message: string): ErrorStateResponse {
-  return { type: 'ERROR_STATE', title: 'SecurePay could not load your Circle profile', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
+  return { type: 'ERROR_STATE', title: 'SecurePay could not load your network activity', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
 }
 
 /**
- * The real Circle experience is deliberately narrow: `GET /api/v1/circle/me` (task section 4) is the
- * entire verified backend Circle contract this phase exposes — a self-scoped identity/referral read,
- * never a named group. Bolt's rich named-Circle screens (CircleHome, CircleDiscoveryList,
- * CircleMemberDirectory, CircleEconomicSummary, CircleCreateFlow, CircleJoinFlow) stay fixture-only and
- * are never imported here (see docs/PRODUCTION_MIGRATION_LEDGER.md section 17) — this component renders
- * only the real profile plus a truthful notice for the named-Circle gap, using the same visual language
- * (not a redesign, no new component library).
+ * The real Circle experience is deliberately narrow: `GET /api/v1/circle/me` is the entire verified
+ * backend contract this component exposes — a self-scoped identity/referral read, never a named group.
  *
- * Final Phase 4 Economy correction (programme decision): the former synthetic weighted-score tile
+ * <p>Phase 6 Slice 6 (Production Convergence) correction -- this component's own page copy previously
+ * described named Circles as a still-missing "gap" ("are not available yet"). That is now STALE:
+ * Phase 6 (Slices 3-6) built a real named-Circle system (`CommunityCircle`/`CommunityExperience`'s own
+ * "Your Circles"/"Discover Circles" tabs) with real discovery, membership, invitations, and content --
+ * it simply lives entirely inside Community, not here. This component was never renamed to that system
+ * and never gained that authority; it remains the separate, narrower per-identity referral/growth
+ * summary the backend has always actually provided (see `docs/PRODUCTION_MIGRATION_LEDGER.md` section
+ * 17 for the original archaeology). Its own on-screen label was corrected from "Your Circle profile"/
+ * "Circle profile" to "Your network activity" (Section 8) specifically because the word "Circle" now
+ * collides with the real named-Circle system one screen away in Community -- the backend route/package
+ * names are intentionally left unchanged (renaming those was never necessary for this correction).
+ *
+ * <p>Final Phase 4 Economy correction (programme decision): the former synthetic weighted-score tile
  * is retired — it conflicted with the locked no-gamification doctrine. Only real, separately-
  * computed factual counts (traders referred, referrals activated, Agreements brought in) remain.
  */
@@ -87,7 +94,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   if (state.profile.status === 'error') {
     body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.profile.error))} onChoice={() => void controller.load()} /></div>;
   } else if (state.profile.status !== 'ready') {
-    body = <p role="status" className="text-sm text-sand-500 text-center py-10">Loading your Circle profile…</p>;
+    body = <p role="status" className="text-sm text-sand-500 text-center py-10">Loading your network activity…</p>;
   } else {
     const profile = state.profile.data;
     body = (
@@ -97,7 +104,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
             <ArrowLeft className="w-3.5 h-3.5" />
             Community
           </button>
-          <PageHeader title="Your Circle profile" />
+          <PageHeader title="Your network activity" />
         </div>
 
         <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
@@ -150,12 +157,14 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
 
           <Surface>
             <SurfaceBody>
-              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Named Circles</div>
+              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Looking for a named Circle?</div>
               <p className="text-[0.825rem] text-sand-600">
-                Named Circles — discovery, member directories, joining, creating, and a Circle-scoped economic
-                story — are not available yet. SecurePay does not currently record Circle membership as a
-                named group; only the real activity above is authoritative.
+                Construction Circle, Parents Circle, and other named groups live inside Community, under
+                "Your Circles" and "Discover Circles" — a separate system from the network activity above.
               </p>
+              <button onClick={() => onNavigate('community')} className="mt-2 text-[0.8rem] font-medium text-forest-600 hover:text-forest-700">
+                Go to Community →
+              </button>
             </SurfaceBody>
           </Surface>
 

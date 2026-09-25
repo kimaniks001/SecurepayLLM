@@ -344,10 +344,11 @@ test('Community Home distinguishes Community LIVE, Your Circles, and Discover Ci
   assert.match(contents, /Discover Circles/);
 });
 
-test('the old per-identity Circle profile entry point is unchanged and never confused with named Circles', async () => {
+test('the old per-identity referral/growth entry point is renamed away from "Circle" (Phase 6 Slice 6) and never confused with named Circles', async () => {
   const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
-  assert.match(contents, /circlesEntryLabel="Your Circle profile"/);
+  assert.match(contents, /circlesEntryLabel="Your network activity"/);
   assert.match(contents, /Not a named Circle or group\./);
+  assert.doesNotMatch(contents, /circlesEntryLabel="Your Circle profile"/);
 });
 
 test('no fixture/hardcoded named Circle content exists in the production Circle UI path', async () => {

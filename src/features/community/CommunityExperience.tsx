@@ -1182,10 +1182,15 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenEcosystem={() => onNavigate('ecosystem')}
           storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
           storeSearchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
-          // No named-Circle/group authority exists on the backend (task: "Remove fake named-Circle copy
-          // from real Community") — never name fictitious Circles or imply membership in one.
-          circlesEntryLabel="Your Circle profile"
-          circlesEntryDescription="See your real network activity — referrals, agreements brought in, and growth credit. Not a named Circle or group."
+          // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
+          // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
+          // "Discover Circles", the CommunityHomeTabs directly above this screen) are now a real
+          // product surface, so reusing the word "Circle" here for this completely separate per-
+          // identity referral/growth summary was a genuine terminology collision on the SAME screen.
+          // See CircleExperience.tsx for the matching destination-page rename; this card still routes
+          // to that same, unrenamed backend surface (`GET /api/v1/circle/me`) -- only the label changed.
+          circlesEntryLabel="Your network activity"
+          circlesEntryDescription="Referrals, agreements brought in, and growth credit. Not a named Circle or group."
           // Phase 6 -- the real feed (Questions/Needs/Opportunities/Work Stories/Discussions) is shown
           // only to an ACTIVE Trust Project member; this inline box still searches Store offers only,
           // copy says exactly that, never more. Real Community/Circle/People search now exists as its

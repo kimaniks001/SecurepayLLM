@@ -155,11 +155,15 @@ test('J. The real Circle gateway exposes only the one verified self-scoped read,
   assert.deepEqual(Object.keys(gateway), ['me']);
 });
 
-test('K. The real Circle experience renders no Join/Create Circle action and a truthful named-Circle gap notice', async () => {
+test('K. The real Circle experience renders no Join/Create Circle action of its own, and truthfully points elsewhere to the real named-Circle system (Phase 6 Slice 6 correction: named Circles are no longer a "gap")', async () => {
   const contents = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
   assert.doesNotMatch(contents, /Join Circle|Create Circle|onJoin|onCreate/);
-  assert.match(contents, /Named Circles/);
-  assert.match(contents, /not available yet/);
+  // This component itself still has no join/create authority (that lives entirely in Community's own
+  // named-Circle system) -- but it must no longer claim named Circles "are not available yet", since
+  // Phase 6 (Slices 3-6) made them real.
+  assert.doesNotMatch(contents, /Named Circles.{0,40}(are not available|not available yet)/s);
+  assert.match(contents, /named Circle/i);
+  assert.match(contents, /Go to Community/);
 });
 
 // ─── L/M. Real Community composer/discussion never claim persistence ─────────────────────────
@@ -383,12 +387,16 @@ export const markup = renderToStaticMarkup(React.createElement(CommunityHome, ${
 }
 
 test('H1. Real-mode Community never names a fictitious named Circle or implies membership in one', async () => {
+  // Phase 6 Slice 6 (Production Convergence) -- label renamed from "Your Circle profile" to "Your
+  // network activity": named Circles are now a real product surface (Slice 3+), so reusing the word
+  // "Circle" here for this separate per-identity referral/growth summary was a genuine terminology
+  // collision with the real "Your Circles"/"Discover Circles" tabs one screen away.
   const markup = await renderCommunityHome({
     ...communityHomeDefaultProps,
-    circlesEntryLabel: 'Your Circle profile',
-    circlesEntryDescription: 'See your real network activity — referrals, agreements brought in, and growth credit. Not a named Circle or group.',
+    circlesEntryLabel: 'Your network activity',
+    circlesEntryDescription: 'Referrals, agreements brought in, and growth credit. Not a named Circle or group.',
   });
-  assert.match(markup, /Your Circle profile/);
+  assert.match(markup, /Your network activity/);
   assert.doesNotMatch(markup, /Construction Circle/);
   assert.doesNotMatch(markup, /Creative Professionals/);
 });
@@ -402,7 +410,7 @@ test('H2. Fixture-mode Community (default props) still names the demo Circles �
 
 test('H3. The real Community experience wires the truthful named-Circle copy overrides', async () => {
   const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
-  assert.match(contents, /circlesEntryLabel="Your Circle profile"/);
+  assert.match(contents, /circlesEntryLabel="Your network activity"/);
   assert.doesNotMatch(contents, /Construction Circle|Creative Professionals/);
 });
 
