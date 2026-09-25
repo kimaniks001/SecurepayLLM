@@ -11,7 +11,7 @@ import type { PublicStoreView } from '../../api/securepay/store/dto';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { DiscoveryGateway } from '../../api/securepay/discovery';
-import type { DiscoveryResults, DiscoveryScope, PublicProfileResponse } from '../../api/securepay/discovery/dto';
+import type { DiscoveryResults, DiscoveryScope, PublicDirectoryIdentityType, PublicProfileResponse } from '../../api/securepay/discovery/dto';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { AppView, ErrorStateResponse } from '../../types';
 import type { CommunitySourceFact } from '../agent/controller';
@@ -553,6 +553,13 @@ const COMMUNITY_TYPE_LABEL: Record<DiscoveryResults['community'][number]['object
   QUESTION: 'Question', NEED: 'Need', OPPORTUNITY: 'Opportunity', WORK_STORY: 'Work story', DISCUSSION: 'Discussion',
 };
 
+/** Final pre-merge correction (Section 6) -- an exhaustive mapping over the narrowed
+ * `PublicDirectoryIdentityType` union (`INDIVIDUAL`/`BUSINESS` only), never a ternary against a wider
+ * identity-type union that could silently treat a third value as "Person". */
+const IDENTITY_TYPE_LABEL: Record<PublicDirectoryIdentityType, string> = {
+  INDIVIDUAL: 'Person', BUSINESS: 'Business',
+};
+
 /**
  * Phase 6 Slice 5 (Discovery & Identity) -- "find what actually exists in their Community without
  * SecurePay deciding what is best for them" (Section 2/28). Results are grouped by real type
@@ -564,6 +571,7 @@ const COMMUNITY_TYPE_LABEL: Record<DiscoveryResults['community'][number]['object
 function CommunitySearchView({
   query, scope, results, onQueryChange, onSubmit, onScopeChange, onBack,
   onOpenCommunityItem, onOpenCircleItem, onOpenStoreItem, onOpenPersonItem,
+  loadingMore, loadMoreError, onLoadMore,
 }: {
   query: string;
   scope: DiscoveryScope;
@@ -576,9 +584,20 @@ function CommunitySearchView({
   onOpenCircleItem: (id: string) => void;
   onOpenStoreItem: (canonicalKsNumber: string, offerId: string) => void;
   onOpenPersonItem: (canonicalKsNumber: string) => void;
+  /** Final pre-merge correction -- real pagination for a specific (non-EVERYTHING) scope only
+   * (Section 9/26); `EVERYTHING` never renders "Load more" regardless of these props. */
+  loadingMore: boolean;
+  loadMoreError: string | null;
+  onLoadMore: () => void;
 }) {
   const data = results.status === 'ready' ? results.data : null;
   const totalShown = data ? data.community.length + data.circles.length + data.stores.length + data.people.length : 0;
+  const hasMore = data && scope !== 'EVERYTHING' && (
+    scope === 'COMMUNITY' ? data.communityHasMore
+      : scope === 'CIRCLES' ? data.circlesHasMore
+      : scope === 'STORES' ? data.storesHasMore
+      : data.peopleHasMore
+  );
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
@@ -699,10 +718,32 @@ function CommunitySearchView({
               >
                 <div>
                   <h4 className="font-display text-[0.9rem] text-forest-800 font-medium leading-snug">{person.displayName}</h4>
-                  <p className="text-[0.72rem] text-sand-500 mt-0.5">{person.identityType === 'BUSINESS' ? 'Business' : 'Person'}{person.hasStore ? ' · Has a Store' : ''}</p>
+                  <p className="text-[0.72rem] text-sand-500 mt-0.5">{IDENTITY_TYPE_LABEL[person.identityType]}{person.hasStore ? ' · Has a Store' : ''}</p>
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {hasMore && (
+          <div className="pt-1">
+            {loadMoreError ? (
+              <div className="text-center space-y-2">
+                <p className="text-[0.78rem] text-red-600">{loadMoreError}</p>
+                <button onClick={onLoadMore} className="text-[0.8rem] font-medium text-forest-600 hover:text-forest-700">
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onLoadMore}
+                disabled={loadingMore}
+                aria-busy={loadingMore || undefined}
+                className="w-full rounded-xl border border-cream-200 bg-white px-4 py-2.5 text-[0.82rem] font-medium text-forest-600 hover:border-forest-300 transition-colors disabled:opacity-60"
+              >
+                {loadingMore ? 'Loading more…' : 'Load more'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -746,7 +787,7 @@ function CommunityProfileView({
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-display text-base text-forest-800 font-medium">{profile.data.displayName}</h3>
                 <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 shrink-0">
-                  {profile.data.identityType === 'BUSINESS' ? 'Business' : 'Person'}
+                  {IDENTITY_TYPE_LABEL[profile.data.identityType]}
                 </span>
               </div>
               {profile.data.hasStore && (
@@ -921,6 +962,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onOpenCircleItem={id => void controller.openCircle(id)}
         onOpenStoreItem={(ks, offerId) => onOpenStoreOffer(ks, offerId)}
         onOpenPersonItem={ks => void controller.openProfile(ks)}
+        loadingMore={state.searchLoadingMore}
+        loadMoreError={state.searchLoadMoreError}
+        onLoadMore={() => void controller.loadMoreSearchResults()}
       />
     );
   } else if (state.view === 'profile') {

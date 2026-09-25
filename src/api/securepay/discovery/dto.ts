@@ -35,19 +35,37 @@ export interface DiscoveryStoreItem {
   locationLabel: string | null;
 }
 
-/** Never the internal identity UUID, email, phone, or any other private field (Section 16/17). */
+/**
+ * Never the internal identity UUID, email, phone, or any other private field (Section 16/17). Final
+ * pre-merge correction (Section 5/6) -- a public directory identity is only ever a real person or
+ * business; `SYSTEM`/`TEST` are structurally impossible values here (the backend never returns them),
+ * so this union is intentionally narrower than the platform's own internal `IdentityType`.
+ */
 export interface DiscoveryPersonItem {
   canonicalKsNumber: string;
   displayName: string;
-  identityType: 'INDIVIDUAL' | 'BUSINESS' | 'SYSTEM' | 'TEST';
+  identityType: PublicDirectoryIdentityType;
   hasStore: boolean;
 }
 
+/** Final pre-merge correction -- the only two identity types a public person/business directory may
+ * ever show (Section 5/6). Never widen this to include `SYSTEM`/`TEST`. */
+export type PublicDirectoryIdentityType = 'INDIVIDUAL' | 'BUSINESS';
+
+/**
+ * Final pre-merge correction -- one `*HasMore` boolean per section, never a fabricated total count
+ * (Section 12: "Do not invent fake total counts"). Only meaningful for a specific `scope`; the
+ * `EVERYTHING` preview never drives a "Load more" UI regardless of these values (Section 26).
+ */
 export interface DiscoveryResults {
   community: DiscoveryCommunityItem[];
+  communityHasMore: boolean;
   circles: DiscoveryCircleItem[];
+  circlesHasMore: boolean;
   stores: DiscoveryStoreItem[];
+  storesHasMore: boolean;
   people: DiscoveryPersonItem[];
+  peopleHasMore: boolean;
 }
 
 export type DiscoveryScope = 'EVERYTHING' | 'COMMUNITY' | 'CIRCLES' | 'STORES' | 'PEOPLE';
@@ -67,7 +85,7 @@ export interface PublicActivityItem {
 export interface PublicProfileResponse {
   canonicalKsNumber: string;
   displayName: string;
-  identityType: 'INDIVIDUAL' | 'BUSINESS' | 'SYSTEM' | 'TEST';
+  identityType: PublicDirectoryIdentityType;
   hasStore: boolean;
   storeTagline: string | null;
   storeLocationLabel: string | null;

@@ -22,7 +22,17 @@ function fakeHttp() {
 }
 
 function discoveryResultsFixture(overrides = {}) {
-  return { community: [], circles: [], stores: [], people: [], ...overrides };
+  return {
+    community: [], communityHasMore: false, circles: [], circlesHasMore: false,
+    stores: [], storesHasMore: false, people: [], peopleHasMore: false, ...overrides,
+  };
+}
+
+function communityItemFixture(overrides = {}) {
+  return {
+    id: 'obj-1', objectType: 'NEED', title: 'Bathroom repair', locationLabel: null,
+    authorCanonicalKsNumber: 'KS900', authorDisplayName: 'James', createdAt: '2026-09-26T08:00:00Z', ...overrides,
+  };
 }
 
 function profileFixture(overrides = {}) {
@@ -315,4 +325,192 @@ test('AgentExperience threads a real discoveryGateway prop into CommunityExperie
   const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(contents, /discoveryGateway: DiscoveryGateway/);
   assert.match(contents, /discoveryGateway=\{discoveryGateway\}/);
+});
+
+// ─── Final pre-merge correction -- real end-to-end pagination ─────────────────────────
+
+test('a scoped first page renders with the correct SEARCH_PAGE_SIZE and offset 0', async () => {
+  const searchCalls = [];
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (...args) => { searchCalls.push(args); return discoveryResultsFixture({ community: [communityItemFixture()], communityHasMore: true }); },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.deepEqual(searchCalls[0], ['', 'COMMUNITY', api.communityController.SEARCH_PAGE_SIZE, 0]);
+  assert.equal(controller.getSnapshot().discoverySearch.data.community.length, 1);
+});
+
+test('Load more requests the next offset and appends to the existing page, never repeating it', async () => {
+  const searchCalls = [];
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => {
+      searchCalls.push(offset);
+      return offset === 0
+        ? discoveryResultsFixture({ community: [communityItemFixture({ id: 'obj-1', title: 'Page 1' })], communityHasMore: true })
+        : discoveryResultsFixture({ community: [communityItemFixture({ id: 'obj-2', title: 'Page 2' })], communityHasMore: false });
+    },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await controller.loadMoreSearchResults();
+
+  assert.deepEqual(searchCalls, [0, api.communityController.SEARCH_PAGE_SIZE]);
+  const community_ = controller.getSnapshot().discoverySearch.data.community;
+  assert.deepEqual(community_.map(c => c.title), ['Page 1', 'Page 2']);
+  assert.equal(controller.getSnapshot().discoverySearch.data.communityHasMore, false);
+});
+
+test('a query change resets pagination to a fresh page 1, never appending to the old query\'s results', async () => {
+  let call = 0;
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => {
+      call += 1;
+      return discoveryResultsFixture({ community: [communityItemFixture({ id: `obj-${call}`, title: `${q}-${offset}` })], communityHasMore: true });
+    },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await controller.loadMoreSearchResults();
+  assert.equal(controller.getSnapshot().discoverySearch.data.community.length, 2);
+
+  await controller.submitDiscoverySearch();
+
+  const snapshot = controller.getSnapshot();
+  assert.equal(snapshot.discoverySearch.data.community.length, 1, 'a fresh search must replace, never append to, the previous query\'s accumulated pages');
+  assert.equal(snapshot.searchOffset, 0);
+});
+
+test('a scope change resets pagination to a fresh page 1 under the new scope', async () => {
+  const scopesAndOffsets = [];
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => { scopesAndOffsets.push([scope, offset]); return discoveryResultsFixture({ circles: [], circlesHasMore: false }); },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  controller.setSearchScope('CIRCLES');
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.deepEqual(scopesAndOffsets, [['COMMUNITY', 0], ['CIRCLES', 0]]);
+  assert.equal(controller.getSnapshot().searchOffset, 0);
+});
+
+test('a stale Load more response from an abandoned query can never append after a newer search has started', async () => {
+  let resolveStalePage;
+  const stalePagePromise = new Promise(resolve => { resolveStalePage = resolve; });
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => {
+      if (q === 'paint' && offset === api.communityController.SEARCH_PAGE_SIZE) {
+        await stalePagePromise;
+        return discoveryResultsFixture({ community: [communityItemFixture({ id: 'stale', title: 'Stale page 2' })] });
+      }
+      return discoveryResultsFixture({ community: [communityItemFixture({ id: `${q}-1`, title: `${q} page 1` })], communityHasMore: true });
+    },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchQuery('paint');
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const loadMore = controller.loadMoreSearchResults();
+
+  // A brand-new search starts (e.g. the person changed the query) while the stale "Load more" is
+  // still in flight.
+  controller.setSearchQuery('plumber');
+  await controller.submitDiscoverySearch();
+  resolveStalePage();
+  await loadMore;
+
+  const snapshot = controller.getSnapshot();
+  assert.deepEqual(snapshot.discoverySearch.data.community.map(c => c.title), ['plumber page 1'], 'the stale load-more response must never overwrite or append onto the newer search');
+});
+
+test('a Load more failure preserves page 1 and never converts it into an empty/error state', async () => {
+  let attempt = 0;
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => {
+      if (offset === 0) return discoveryResultsFixture({ community: [communityItemFixture({ id: 'page1', title: 'Page 1' })], communityHasMore: true });
+      attempt += 1;
+      throw new Error('network blip');
+    },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('COMMUNITY');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await controller.loadMoreSearchResults();
+
+  const snapshot = controller.getSnapshot();
+  assert.equal(snapshot.discoverySearch.status, 'ready');
+  assert.deepEqual(snapshot.discoverySearch.data.community.map(c => c.title), ['Page 1']);
+  assert.ok(snapshot.searchLoadMoreError);
+  assert.equal(attempt, 1);
+});
+
+test('EVERYTHING scope never triggers a Load more request, even if called directly', async () => {
+  const searchCalls = [];
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (...args) => { searchCalls.push(args); return discoveryResultsFixture(); },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.openSearch();
+  await controller.submitDiscoverySearch();
+  searchCalls.length = 0;
+  await controller.loadMoreSearchResults();
+
+  assert.equal(searchCalls.length, 0, 'EVERYTHING is a bounded preview -- Load more must be a no-op');
+});
+
+test('the UI never renders a "Load more" affordance for the EVERYTHING scope even when a *HasMore flag is true', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /const hasMore = data && scope !== 'EVERYTHING' &&/);
+});
+
+test('Store scope Load more advances the real offset -- page 2 is not page 1 repeated', async () => {
+  const offsetsRequested = [];
+  const community = baseCommunityGateway();
+  const discovery = baseDiscoveryGateway({
+    search: async (q, scope, limit, offset) => {
+      offsetsRequested.push(offset);
+      return offset === 0
+        ? discoveryResultsFixture({ stores: [{ offerId: 'o1', kind: 'PRODUCT', title: 'Offer 1', priceMinor: null, currency: null, availabilityState: 'AVAILABLE', canonicalKsNumber: 'KS1', displayName: 'Store 1', locationLabel: null }], storesHasMore: true })
+        : discoveryResultsFixture({ stores: [{ offerId: 'o2', kind: 'SERVICE', title: 'Offer 2', priceMinor: null, currency: null, availabilityState: 'TAKING_WORK', canonicalKsNumber: 'KS2', displayName: 'Store 2', locationLabel: null }], storesHasMore: false });
+    },
+  });
+  const controller = api.communityController.createCommunityController({ search: async () => [] }, community, discovery);
+
+  controller.setSearchScope('STORES');
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await controller.loadMoreSearchResults();
+
+  assert.deepEqual(offsetsRequested, [0, api.communityController.SEARCH_PAGE_SIZE]);
+  const stores = controller.getSnapshot().discoverySearch.data.stores;
+  assert.deepEqual(stores.map(s => s.offerId), ['o1', 'o2']);
+});
+
+test('the public directory identity-type contract exposes only INDIVIDUAL and BUSINESS -- never SYSTEM or TEST', async () => {
+  const dto = await readFile('src/api/securepay/discovery/dto.ts', 'utf8');
+  assert.match(dto, /export type PublicDirectoryIdentityType = 'INDIVIDUAL' \| 'BUSINESS';/);
+  assert.doesNotMatch(dto, /identityType: 'INDIVIDUAL' \| 'BUSINESS' \| 'SYSTEM' \| 'TEST'/);
+
+  const experience = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(experience, /const IDENTITY_TYPE_LABEL: Record<PublicDirectoryIdentityType, string> = \{/);
+  // Item 6 -- never a ternary against a wider identity-type union.
+  assert.doesNotMatch(experience, /identityType === 'BUSINESS' \? 'Business' : 'Person'/);
 });
