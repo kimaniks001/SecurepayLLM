@@ -52,6 +52,11 @@ export function createAgentGateway(http: HttpClient) {
     // title/price. Read exactly once, at Agreement-handoff progression, never here.
     selectCommercialSource: (id: string, body: SelectCommercialSourceRequest) =>
       http.request<SelectedCommercialSourceDto>(`${conversation(id)}/commercial-source`, { method: 'POST', body, auth: 'optional' }),
+    // Phase 6 Slice 4 final pre-merge correction -- "the human explicitly selected this source;
+    // compose the next KS001 response." Never submits a conversational turn -- the backend records
+    // only KS001's own reply, never a fabricated human message carrying the source's own words.
+    continueAfterSourceSelection: (id: string) =>
+      http.request<AgentResponseDto>(`${conversation(id)}/commercial-source/continue`, { method: 'POST', auth: 'optional' }),
     submitDate: (id: string, body: ExternalFactRequest & { date: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/date`, { method: 'POST', body, auth: 'optional' }),
     lookupPriorTerm: (id: string, body: { sourceAgreementPublicReference: string; termQuery: string; clientTurnId?: string }) => http.request<TradeContextDto>(`${conversation(id)}/prior-agreement-terms`, { method: 'POST', body, auth: 'required' }),
     createHandoff: (id: string, clientActionId?: string) => http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' }),

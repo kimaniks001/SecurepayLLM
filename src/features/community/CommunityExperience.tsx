@@ -507,7 +507,12 @@ function CircleDetailPanel({
  * → 'OPPORTUNITY', everything else -- NEED/WORK_STORY/QUESTION/DISCUSSION -- → 'COMMUNITY_POST');
  * the backend independently re-verifies this against the real object regardless. `null` only when
  * the object carries no resolvable author KS Number (should not happen for a real object, but this
- * never fabricates one). `openingMessage` is the object's own real title/body, never invented.
+ * never fabricates one).
+ *
+ * <p>Final pre-merge correction -- carries no opening message any more. The object's own title/body
+ * is never submitted as a conversational turn (it may not be the current human's own words); KS001
+ * instead receives it as bounded, server-composed model context (see the Agent controller's own
+ * `continueAfterSourceSelection`), never a fabricated human statement.
  */
 function communitySourceFactFor(
   object: CommunityObjectResponse, candidateParticipantKsNumber?: string,
@@ -518,7 +523,6 @@ function communitySourceFactFor(
     sourceId: object.id,
     sourceOwnerKsNumber: object.authorCanonicalKsNumber,
     candidateParticipantKsNumber,
-    openingMessage: `${object.title}. ${object.body}`,
   };
 }
 
@@ -662,12 +666,14 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     // help list -- never from session-scoped creation tracking -- so it is correct even immediately
     // after a page refresh/controller reload.
     const activeHelpResponseId = state.objectHelp.status === 'ready' ? myActiveHelpResponseId(state.objectHelp.data) : null;
-    // Phase 6 Slice 4 (Community → Trade) -- the FIRST real ACTIVE "I can help" responder's own KS
-    // Number, if any. V1 simplification: when several people have offered to help, "Start trade with
-    // helper" proceeds with the first current one rather than offering a picker -- a genuinely new
-    // capability, not a regression, since no such action existed before this slice at all.
-    const firstActiveHelper = state.objectHelp.status === 'ready'
-      ? state.objectHelp.data.find((h: CommunityHelpResponseView) => h.status === 'ACTIVE')
+    // Phase 6 Slice 4 final pre-merge correction -- EVERY real, current ACTIVE "I can help" responder,
+    // rendered distinctly (never just the first one) so the object's own owner explicitly chooses
+    // exactly one by clicking THAT responder's own button. Supplied only to the owner (isOwn) -- a
+    // non-owner viewer never sees a "Start a trade with X" affordance for someone else's Need/Opportunity.
+    const activeHelpResponders = isOwn && state.objectHelp.status === 'ready'
+      ? state.objectHelp.data
+          .filter((h: CommunityHelpResponseView) => h.status === 'ACTIVE')
+          .map(h => ({ id: h.id, displayName: h.authorDisplayName, canonicalKsNumber: h.authorCanonicalKsNumber }))
       : undefined;
     body = (
       <CommunityObjectDetail
@@ -681,8 +687,12 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
           const fact = communitySourceFactFor(state.selectedRealObject!);
           if (fact) onUseThis(fact);
         }}
-        onToTrade={() => {
-          const fact = communitySourceFactFor(state.selectedRealObject!, firstActiveHelper?.authorCanonicalKsNumber ?? undefined);
+        onToTrade={() => controller.showNotice('This area is not available yet.')}
+        activeHelpResponders={activeHelpResponders}
+        onStartTradeWithResponder={candidateKsNumber => {
+          // The EXPLICIT human choice -- candidateKsNumber is exactly the KS Number of the button the
+          // person clicked, never inferred, never a default, never "whichever is first."
+          const fact = communitySourceFactFor(state.selectedRealObject!, candidateKsNumber);
           if (fact) onUseThis(fact);
         }}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}

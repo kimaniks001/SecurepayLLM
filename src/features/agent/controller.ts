@@ -14,17 +14,23 @@ export type OfferFact = { amount?: string; currency?: string; sourceDescription:
  * WORK_STORY/QUESTION/DISCUSSION object. `sourceType` is derived by the CALLER from the object's own
  * real `objectType` (OPPORTUNITY → 'OPPORTUNITY', everything else → 'COMMUNITY_POST') -- the backend
  * independently re-verifies this against the real object regardless. `candidateParticipantKsNumber`
- * is present only for "Start a trade with Peter" (an owner choosing one of their own object's ACTIVE
- * "I can help" responders as trade CONTEXT, never Agreement participant authority).
- * `openingMessage` is the real object's own title/body, never fabricated -- seeded as the first
- * conversational turn so KS001's very next reply already has this context.
+ * is present only for "Start a trade with Peter" (an owner's OWN EXPLICIT choice of one of their
+ * object's ACTIVE "I can help" responders as trade CONTEXT, never Agreement participant authority --
+ * never inferred, never a default, never "whichever responder is first").
+ *
+ * <p>Final pre-merge correction -- this carries no {@code openingMessage} any more. The Community
+ * object's own title/body is never submitted as a conversational turn: it may have been written by
+ * someone other than the current human (e.g. Peter pressing "Use this" on Mary's own words), and
+ * recording it as though the human said it would corrupt conversational provenance. The backend now
+ * exposes the selected source as its own bounded, separately-labeled model context instead (see
+ * {@code useCommunitySource}'s own doctrine below) -- the frontend never fabricates a human turn to
+ * give KS001 that context.
  */
 export type CommunitySourceFact = {
   sourceType: 'COMMUNITY_POST' | 'OPPORTUNITY';
   sourceId: string;
   sourceOwnerKsNumber: string;
   candidateParticipantKsNumber?: string;
-  openingMessage: string;
 };
 export interface AgentState {
   conversationId: string | null;
@@ -142,7 +148,7 @@ function historyReplyResponseView(text: string): ResponseView {
 }
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
   let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -443,17 +449,17 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       return attemptCommunitySourceSelection(failure.fact);
     },
     /**
-     * The explicit, visible choice to proceed without the Community source: clears any provenance so
-     * the eventual Agreement is understood as DIRECT, never silently attributed to a Community object
-     * that was never actually confirmed. The opening message is still worth saying -- it is the
-     * person's own real words about what they want -- so it is still seeded as an ordinary turn.
+     * Final pre-merge correction -- the explicit, visible choice to proceed without the Community
+     * source: clears any provenance so the eventual Agreement is understood as DIRECT, never silently
+     * attributed to a Community object that was never actually confirmed. Nothing from the Community
+     * object is ever auto-submitted as the person's own words -- the person simply continues speaking
+     * to KS001 normally from here, exactly like starting a fresh DIRECT conversation.
      */
     async continueCommunitySourceWithoutSource(): Promise<'continued' | 'busy' | 'nothing'> {
       const failure = state.communitySourceSelectionFailure;
       if (state.busy || state.pending) return 'busy';
       if (!failure) return 'nothing';
       update({ communitySourceSelectionFailure: null, source: null });
-      await seedOpeningTurnIfFirst(failure.fact.openingMessage);
       return 'continued';
     },
   };
@@ -479,12 +485,14 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
   }
 
   /**
-   * Phase 6 Slice 4 -- selects the real Community source FIRST (server-verified against the real
-   * object; never trusts the caller's own title/owner claims), then seeds the object's own real
-   * title/body as the opening conversational turn (only on a genuinely fresh conversation -- never
-   * repeated on a retry that already has turns). A failed selection is held in
-   * `communitySourceSelectionFailure`, untouched, until an explicit retry/continue -- the opening
-   * message is never sent while a selection failure is outstanding.
+   * Final pre-merge correction -- selects the real Community source FIRST (server-verified against
+   * the real object; never trusts the caller's own title/owner claims), then lets KS001 compose an
+   * informed reply from the bounded selected-source context the backend now exposes to the model.
+   * NEVER submits the object's own title/body as a conversational turn -- that text may have been
+   * written by someone other than the current human (e.g. Peter pressing "Use this" on Mary's own
+   * Need), and recording it as though the human said it would corrupt conversational provenance. A
+   * failed selection is held in `communitySourceSelectionFailure`, untouched, until an explicit
+   * retry/continue -- KS001 is never asked to compose a reply while a selection failure is outstanding.
    */
   async function attemptCommunitySourceSelection(fact: CommunitySourceFact): Promise<SourceSelectionResult> {
     update({ communitySourceSelectionFailure: null });
@@ -501,17 +509,29 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       return { status: 'failed', error: message };
     }
     update({ source: selection });
-    await seedOpeningTurnIfFirst(fact.openingMessage);
+    // The explicit human action (Use this / Start a trade with X) already happened -- this only lets
+    // KS001 compose an informed reply to it, never a second human action and never a fake human turn.
+    await continueAfterSourceSelection();
     return { status: 'selected', source: selection, amount: 'none' };
   }
 
-  /** Seeds the person's own real opening words as an ordinary turn -- only when the conversation has
-   * no turns yet, so this never re-says anything on a retry or a later "Use this" mid-conversation. */
-  async function seedOpeningTurnIfFirst(openingMessage: string): Promise<void> {
-    if (state.turns.length > 0 || !openingMessage.trim()) return;
-    const clientTurnId = id();
-    update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: openingMessage.trim() }] });
-    await run({ kind: 'turn', body: { message: openingMessage.trim(), clientTurnId } });
+  /**
+   * Final pre-merge correction -- "the human explicitly selected this source; compose the next KS001
+   * response." Calls the dedicated continuation endpoint (never `submitTurn`), which records only
+   * KS001's own assistant reply server-side -- never a human turn. Appends that reply to the
+   * transcript exactly like an ordinary turn's reply, with no preceding "user" entry. Best-effort: if
+   * this quiet continuation fails, the source is already genuinely selected regardless, and the
+   * person can simply start describing the trade themselves.
+   */
+  async function continueAfterSourceSelection(): Promise<void> {
+    if (!state.conversationId) return;
+    try {
+      const response = agentResponseView(await gateway.continueAfterSourceSelection(state.conversationId));
+      update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
+      await readContext();
+    } catch {
+      // Best-effort only -- see this function's own doctrine above.
+    }
   }
 
   /** Returns whether the offer's amount (if any) / conversation seed reached SecurePay. */
