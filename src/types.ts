@@ -1237,6 +1237,14 @@ export interface CommunityResponse {
   text: string;
   date: string;
   kind: 'reply' | 'i_can_help' | 'follow_up' | 'share_experience';
+  /**
+   * Phase 6 Slice 2 correction -- server-derived only (`authorIdentityId == authenticated
+   * requester identity`, computed backend-side on every list/create/withdraw response). Never
+   * inferred client-side from display names or session-scoped creation tracking, so it survives a
+   * page refresh/controller reload. Undefined for a fixture/Store-offer response, which carries no
+   * real withdraw authority at all.
+   */
+  canWithdraw?: boolean;
 }
 
 export interface CommunityObject {

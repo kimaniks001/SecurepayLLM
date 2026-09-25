@@ -235,11 +235,20 @@ test('R. No Community/Circle path imports Money/payment-intent/checkout/cart log
 // ─── U. No arbitrary client-side ranking/recommendation algorithm ─────────────────────────
 
 test('U. Community/Circle feature files introduce no new sort/ranking logic of their own', async () => {
+  // Phase 6 Slice 2 correction: this originally banned any `.sort(` at all, back when the only real
+  // content was the Store merge's own recency ordering. Slice 2 explicitly requires real replies to
+  // be shown "ordered chronologically" (a flat chronological list, not ranked) -- controller.ts's own
+  // .sort() is exactly that single, narrow, timestamp-based chronological ordering in
+  // combineRealResponses, never an engagement/popularity/score-based ranking. The forbidden pattern
+  // below still catches an actual ranking algorithm if one is ever introduced.
   const files = ['src/features/community/controller.ts', 'src/features/community/view.ts', 'src/features/circle/controller.ts'];
+  const forbiddenRankingTerms = /\.sort\([^)]*\b(score|rank|popularity|engagement|weight|relevance)\b/i;
   for (const file of files) {
     const contents = await readFile(file, 'utf8');
-    assert.doesNotMatch(contents, /\.sort\(/, `${file} must not introduce its own ranking/sort — reuse the existing recency-only Store merge`);
+    assert.doesNotMatch(contents, forbiddenRankingTerms, `${file} must not introduce an engagement/popularity/score-based ranking`);
   }
+  const viewContents = await readFile('src/features/community/view.ts', 'utf8');
+  assert.match(viewContents, /createdAtIso\.localeCompare\(/, 'the one permitted sort must be plain chronological ordering by timestamp');
 });
 
 test('U2. Community browsing reuses the existing recency-only Store search fan-out/merge, not a new engine', async () => {

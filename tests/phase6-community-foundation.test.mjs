@@ -108,6 +108,8 @@ test('storeResultToCommunityObject: a Store offer reference keeps its own, uncha
 
 // ─── features/community/controller.ts -- real create/feed/mine/close orchestration ─────────────────────────
 
+const activeMembershipResponse = { status: 'ACTIVE', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' };
+
 function fakeCommunityGateway(overrides = {}) {
   const calls = [];
   return {
@@ -118,6 +120,27 @@ function fakeCommunityGateway(overrides = {}) {
       mine: async () => { calls.push(['mine']); return overrides.mine ? overrides.mine() : []; },
       get: async (id) => { calls.push(['get', id]); return realObject({ id }); },
       close: async (id) => { calls.push(['close', id]); return overrides.close ? overrides.close(id) : realObject({ id, status: 'CLOSED', closedAt: '2026-09-02T00:00:00Z' }); },
+      // Every existing Slice 1 test in this file assumes an ACTIVE Trust Project member (that
+      // assumption predates Slice 2's own membership gate) -- default to ACTIVE here so those tests
+      // keep exercising exactly what they always meant to, and override per-test where a test is
+      // specifically about membership/authentication state itself.
+      membership: {
+        me: async () => { calls.push(['membership.me']); return overrides.membershipMe ? overrides.membershipMe() : activeMembershipResponse; },
+        invite: async (...args) => { calls.push(['membership.invite', ...args]); return overrides.membershipInvite ? overrides.membershipInvite(...args) : activeMembershipResponse; },
+        accept: async () => { calls.push(['membership.accept']); return overrides.membershipAccept ? overrides.membershipAccept() : activeMembershipResponse; },
+        decline: async () => { calls.push(['membership.decline']); return overrides.membershipDecline ? overrides.membershipDecline() : { ...activeMembershipResponse, status: 'DECLINED' }; },
+      },
+      replies: {
+        create: async (...args) => { calls.push(['replies.create', ...args]); return overrides.replyCreate ? overrides.replyCreate(...args) : null; },
+        list: async (...args) => { calls.push(['replies.list', ...args]); return overrides.replyList ? overrides.replyList(...args) : []; },
+        withdraw: async (...args) => { calls.push(['replies.withdraw', ...args]); return overrides.replyWithdraw ? overrides.replyWithdraw(...args) : null; },
+      },
+      help: {
+        offer: async (...args) => { calls.push(['help.offer', ...args]); return overrides.helpOffer ? overrides.helpOffer(...args) : null; },
+        list: async (...args) => { calls.push(['help.list', ...args]); return overrides.helpList ? overrides.helpList(...args) : []; },
+        withdraw: async (...args) => { calls.push(['help.withdraw', ...args]); return overrides.helpWithdraw ? overrides.helpWithdraw(...args) : null; },
+      },
+      principles: async () => { calls.push(['principles']); return overrides.principles ? overrides.principles() : []; },
     },
   };
 }
