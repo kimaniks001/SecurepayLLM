@@ -41,10 +41,26 @@ export interface ExternalFactRequest { sourceKind: SourceKind; sourceDescription
 // Final Phase 4 Economy Turn 2 (Section 3/9) -- the ONE pointer the frontend ever tells SecurePay
 // about a chosen commercial source. Never a title/price/owner -- those are always re-derived
 // server-side from the real record; see AgentCommercialSourceController's own doctrine.
-export interface SelectCommercialSourceRequest { sourceType: string; sourceId: string; sourceOwnerKsNumber: string }
+//
+// Phase 6 Slice 4 (Community → Trade) -- `candidateParticipantKsNumber` is optional and only
+// meaningful for a Community source: the KS Number of an "I can help" responder the object's OWNER
+// has explicitly chosen as trade context ("Start a trade with Peter"). Omitted/undefined means
+// exactly what selecting a source has always meant -- no candidate, never itself Agreement
+// participant authority.
+//
+// Final pre-merge correction (source-selection continuation idempotency) -- `sourceSelectionActionId`
+// is optional (Store's own existing calls never supply one, and that path is unchanged): a stable,
+// client-minted id identifying ONE explicit human "Use this"/"Start a trade with X" intention, reused
+// across a retry of that SAME intention. The backend binds it to a fingerprint of this exact pointer;
+// a later call reusing the SAME id with a DIFFERENT pointer fails closed.
+export interface SelectCommercialSourceRequest {
+  sourceType: string; sourceId: string; sourceOwnerKsNumber: string; candidateParticipantKsNumber?: string;
+  sourceSelectionActionId?: string;
+}
 export interface SelectedCommercialSourceDto {
   sourceType: string; sourceId: string; sourceTitle: string | null; sourceOwnerKsNumber: string | null;
-  contextReference: string | null; capturedPriceMinor: number | null; capturedCurrency: string | null; selectedAt: string;
+  contextReference: string | null; capturedPriceMinor: number | null; capturedCurrency: string | null;
+  originatingKsNumber: string | null; selectedAt: string;
 }
 export interface CandidateDto { title: string | null; purpose: string | null; description: string | null; agreementType: string | null; currency: string | null; amountMinor: number | null; what: string[]; who: string[]; when: string[] }
 // Final Phase 4 Economy Turn 3 (Section 6/7) -- the EXACT commercial source bound to a handoff at

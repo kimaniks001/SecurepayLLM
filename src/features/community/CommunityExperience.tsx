@@ -8,8 +8,9 @@ import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CircleResponse, CirclePendingInvitationView, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { AppView, ErrorStateResponse } from '../../types';
+import type { CommunitySourceFact } from '../agent/controller';
 import {
   createCommunityController, errorText, REAL_COMPOSE_TYPES,
   type CommunityHomeTab, type CircleMembershipMode, type CircleVisibility, type MembershipUiState,
@@ -499,13 +500,47 @@ function CircleDetailPanel({
  * identity referral/growth "Circle profile" entry point (`CircleExperience`) -- untouched, unrenamed,
  * and never confused with these new named Circles.
  */
-export function CommunityExperience({ gateway, communityGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle }: {
+
+/**
+ * Phase 6 Slice 4 (Community → Trade) -- resolves a real, backend-verified "Use this" pointer from a
+ * real Community object. `sourceType` is derived from the object's own real `objectType` (OPPORTUNITY
+ * → 'OPPORTUNITY', everything else -- NEED/WORK_STORY/QUESTION/DISCUSSION -- → 'COMMUNITY_POST');
+ * the backend independently re-verifies this against the real object regardless. `null` only when
+ * the object carries no resolvable author KS Number (should not happen for a real object, but this
+ * never fabricates one).
+ *
+ * <p>Final pre-merge correction -- carries no opening message any more. The object's own title/body
+ * is never submitted as a conversational turn (it may not be the current human's own words); KS001
+ * instead receives it as bounded, server-composed model context (see the Agent controller's own
+ * `continueAfterSourceSelection`), never a fabricated human statement.
+ */
+function communitySourceFactFor(
+  object: CommunityObjectResponse, candidateParticipantKsNumber?: string,
+): CommunitySourceFact | null {
+  if (!object.authorCanonicalKsNumber) return null;
+  return {
+    sourceType: object.objectType === 'OPPORTUNITY' ? 'OPPORTUNITY' : 'COMMUNITY_POST',
+    sourceId: object.id,
+    sourceOwnerKsNumber: object.authorCanonicalKsNumber,
+    candidateParticipantKsNumber,
+  };
+}
+
+export function CommunityExperience({ gateway, communityGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   trustedMediaOrigin: string | null;
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
   onOpenCircle: () => void;
+  /**
+   * Phase 6 Slice 4 (Community → Trade) -- "Use this": bring a real Need/Opportunity into a trade
+   * conversation as CONTEXT. The caller (AgentExperience, which owns the real Agent conversation
+   * controller) is responsible for actually selecting the source and leaving Community; this
+   * component only ever resolves the real, backend-verified pointer -- never fabricates a title,
+   * owner, or candidate.
+   */
+  onUseThis: (fact: CommunitySourceFact) => void;
 }) {
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -631,6 +666,15 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     // help list -- never from session-scoped creation tracking -- so it is correct even immediately
     // after a page refresh/controller reload.
     const activeHelpResponseId = state.objectHelp.status === 'ready' ? myActiveHelpResponseId(state.objectHelp.data) : null;
+    // Phase 6 Slice 4 final pre-merge correction -- EVERY real, current ACTIVE "I can help" responder,
+    // rendered distinctly (never just the first one) so the object's own owner explicitly chooses
+    // exactly one by clicking THAT responder's own button. Supplied only to the owner (isOwn) -- a
+    // non-owner viewer never sees a "Start a trade with X" affordance for someone else's Need/Opportunity.
+    const activeHelpResponders = isOwn && state.objectHelp.status === 'ready'
+      ? state.objectHelp.data
+          .filter((h: CommunityHelpResponseView) => h.status === 'ACTIVE')
+          .map(h => ({ id: h.id, displayName: h.authorDisplayName, canonicalKsNumber: h.authorCanonicalKsNumber }))
+      : undefined;
     body = (
       <CommunityObjectDetail
         object={object}
@@ -639,7 +683,18 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
         onICanHelp={() => controller.showNotice('This area is not available yet.')}
         onDiscuss={() => controller.showNotice('This area is not available yet.')}
         onViewOffer={() => {}}
+        onUseThis={() => {
+          const fact = communitySourceFactFor(state.selectedRealObject!);
+          if (fact) onUseThis(fact);
+        }}
         onToTrade={() => controller.showNotice('This area is not available yet.')}
+        activeHelpResponders={activeHelpResponders}
+        onStartTradeWithResponder={candidateKsNumber => {
+          // The EXPLICIT human choice -- candidateKsNumber is exactly the KS Number of the button the
+          // person clicked, never inferred, never a default, never "whichever is first."
+          const fact = communitySourceFactFor(state.selectedRealObject!, candidateKsNumber);
+          if (fact) onUseThis(fact);
+        }}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}
         realHelp={{
           offered: activeHelpResponseId !== null,

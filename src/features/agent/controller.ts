@@ -9,6 +9,29 @@ export type ResponseView = ReturnType<typeof agentResponseView>;
 export type Turn = { id: string; sender: 'user'; text: string } | { id: string; sender: 'agent'; response: ResponseView };
 type Pending = { kind: 'turn'; body: TurnRequest } | { kind: 'adopt'; body: AdoptFactRequest } | { kind: 'external-amount'; body: ExternalFactRequest & { amount: string; currency?: string } };
 export type OfferFact = { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string };
+/**
+ * Phase 6 Slice 4 (Community → Trade) -- "Use this" from a real Community NEED/OPPORTUNITY/
+ * WORK_STORY/QUESTION/DISCUSSION object. `sourceType` is derived by the CALLER from the object's own
+ * real `objectType` (OPPORTUNITY → 'OPPORTUNITY', everything else → 'COMMUNITY_POST') -- the backend
+ * independently re-verifies this against the real object regardless. `candidateParticipantKsNumber`
+ * is present only for "Start a trade with Peter" (an owner's OWN EXPLICIT choice of one of their
+ * object's ACTIVE "I can help" responders as trade CONTEXT, never Agreement participant authority --
+ * never inferred, never a default, never "whichever responder is first").
+ *
+ * <p>Final pre-merge correction -- this carries no {@code openingMessage} any more. The Community
+ * object's own title/body is never submitted as a conversational turn: it may have been written by
+ * someone other than the current human (e.g. Peter pressing "Use this" on Mary's own words), and
+ * recording it as though the human said it would corrupt conversational provenance. The backend now
+ * exposes the selected source as its own bounded, separately-labeled model context instead (see
+ * {@code useCommunitySource}'s own doctrine below) -- the frontend never fabricates a human turn to
+ * give KS001 that context.
+ */
+export type CommunitySourceFact = {
+  sourceType: 'COMMUNITY_POST' | 'OPPORTUNITY';
+  sourceId: string;
+  sourceOwnerKsNumber: string;
+  candidateParticipantKsNumber?: string;
+};
 export interface AgentState {
   conversationId: string | null;
   turns: Turn[];
@@ -28,6 +51,19 @@ export interface AgentState {
    * DIRECT trade that still looks like it came from the Store.
    */
   offerSelectionFailure: { fact: OfferFact; error: string } | null;
+  /**
+   * Phase 6 Slice 4 -- the SAME "held until explicit retry/continue" discipline as
+   * `offerSelectionFailure`, for a Community "Use this" whose `selectCommercialSource` call failed.
+   * A failed selection never silently seeds the opening conversational turn either -- the person
+   * must explicitly retry or continue without the source first.
+   *
+   * <p>Final pre-merge correction (continuation idempotency) -- `actionId` is the stable id minted
+   * ONCE for this explicit "Use this"/"Start a trade with X" intention and reused verbatim by
+   * `retryCommunitySourceSelection`, so a retry of the SAME intention always carries the SAME id to
+   * both `selectCommercialSource` and `continueAfterSourceSelection` -- never a fresh one merely
+   * because the HTTP attempt is being retried.
+   */
+  communitySourceSelectionFailure: { fact: CommunitySourceFact; error: string; actionId: string } | null;
   /**
    * KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED: every real, server-verified entity
    * id KS001 has offered to help find so far this session (via a DISCOVERY_OFFER response component).
@@ -118,8 +154,8 @@ function historyReplyResponseView(text: string): ResponseView {
 }
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [] };
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
@@ -226,7 +262,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       let turns: Turn[] = [];
       try {
         const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
@@ -400,6 +436,44 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       await submitOfferFact(failure.fact);
       return 'continued';
     },
+    /**
+     * Phase 6 Slice 4 (Community → Trade) -- "Use this" from a real Community object. Mirrors
+     * `useOffer`'s own discipline exactly: the source is selected FIRST (server-verified, never a
+     * fabricated title/owner), and only after that succeeds does KS001 compose an informed reply --
+     * never the reverse, so a failed selection can never silently become a DIRECT trade that still
+     * looks like it came from Community.
+     *
+     * <p>Final pre-merge correction (continuation idempotency) -- mints ONE stable action id for this
+     * explicit human intention, right here, on the FIRST attempt only. `retryCommunitySourceSelection`
+     * reuses the SAME id (see that method below); a fresh call to `useCommunitySource` (a genuinely new
+     * explicit action -- a different object, or a different chosen responder) always mints a new one.
+     */
+    async useCommunitySource(fact: CommunitySourceFact): Promise<SourceSelectionResult> {
+      if (state.busy || state.pending) return { status: 'busy' };
+      return attemptCommunitySourceSelection(fact, id());
+    },
+    /** Re-attempts the exact same "Use this" the person already chose -- reusing the SAME action id
+     * minted on the first attempt, never a fresh one merely because this HTTP attempt is a retry. */
+    async retryCommunitySourceSelection(): Promise<SourceSelectionResult> {
+      const failure = state.communitySourceSelectionFailure;
+      if (state.busy || state.pending) return { status: 'busy' };
+      if (!failure) return { status: 'no-source' };
+      return attemptCommunitySourceSelection(failure.fact, failure.actionId);
+    },
+    /**
+     * Final pre-merge correction -- the explicit, visible choice to proceed without the Community
+     * source: clears any provenance so the eventual Agreement is understood as DIRECT, never silently
+     * attributed to a Community object that was never actually confirmed. Nothing from the Community
+     * object is ever auto-submitted as the person's own words -- the person simply continues speaking
+     * to KS001 normally from here, exactly like starting a fresh DIRECT conversation.
+     */
+    async continueCommunitySourceWithoutSource(): Promise<'continued' | 'busy' | 'nothing'> {
+      const failure = state.communitySourceSelectionFailure;
+      if (state.busy || state.pending) return 'busy';
+      if (!failure) return 'nothing';
+      update({ communitySourceSelectionFailure: null, source: null });
+      return 'continued';
+    },
   };
 
   async function attemptOfferSelection(fact: OfferFact): Promise<SourceSelectionResult> {
@@ -420,6 +494,67 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     // Only AFTER the source is really selected may the offer's price become a candidate fact.
     const amount = fact.amount ? ((await submitOfferFact(fact)) ? 'submitted' : 'failed') : (await submitOfferFact(fact), 'none');
     return { status: 'selected', source: selection, amount };
+  }
+
+  /**
+   * Final pre-merge correction -- selects the real Community source FIRST (server-verified against
+   * the real object; never trusts the caller's own title/owner claims), then lets KS001 compose an
+   * informed reply from the bounded selected-source context the backend now exposes to the model.
+   * NEVER submits the object's own title/body as a conversational turn -- that text may have been
+   * written by someone other than the current human (e.g. Peter pressing "Use this" on Mary's own
+   * Need), and recording it as though the human said it would corrupt conversational provenance. A
+   * failed selection is held in `communitySourceSelectionFailure`, untouched, until an explicit
+   * retry/continue -- KS001 is never asked to compose a reply while a selection failure is outstanding.
+   *
+   * <p>Continuation idempotency correction -- `actionId` is the ONE stable id for this explicit human
+   * intention (minted once by `useCommunitySource`, reused verbatim by `retryCommunitySourceSelection`
+   * for every retry of the SAME intention). Sent to BOTH `selectCommercialSource` (the backend binds it
+   * to this exact source/candidate pointer, rejecting a same-id-different-pointer replay) and
+   * `continueAfterSourceSelection` (the backend derives its at-most-once reply guarantee from it). Sets
+   * `busy` for the duration -- real UX protection against a rapid double-click firing this twice; the
+   * backend's own id-keyed idempotency is the actual guarantee regardless of this frontend guard.
+   */
+  async function attemptCommunitySourceSelection(fact: CommunitySourceFact, actionId: string): Promise<SourceSelectionResult> {
+    update({ communitySourceSelectionFailure: null, busy: true });
+    let selection: SelectedCommercialSourceDto;
+    try {
+      const conversationId = await ensureConversationId();
+      selection = await gateway.selectCommercialSource(conversationId, {
+        sourceType: fact.sourceType, sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+        candidateParticipantKsNumber: fact.candidateParticipantKsNumber, sourceSelectionActionId: actionId,
+      });
+    } catch (error) {
+      const message = sourceErrorText(error);
+      update({ communitySourceSelectionFailure: { fact, error: message, actionId }, busy: false });
+      return { status: 'failed', error: message };
+    }
+    update({ source: selection });
+    // The explicit human action (Use this / Start a trade with X) already happened -- this only lets
+    // KS001 compose an informed reply to it, never a second human action and never a fake human turn.
+    await continueAfterSourceSelection(actionId);
+    update({ busy: false });
+    return { status: 'selected', source: selection, amount: 'none' };
+  }
+
+  /**
+   * Final pre-merge correction -- "the human explicitly selected this source; compose the next KS001
+   * response." Calls the dedicated continuation endpoint (never `submitTurn`) with the SAME `actionId`
+   * the preceding selection used, which records only KS001's own assistant reply server-side -- never
+   * a human turn, and never a second reply for a retried action (the backend replays the already-
+   * persisted one). Appends whatever reply comes back to the transcript exactly like an ordinary turn's
+   * reply, with no preceding "user" entry -- on a replay this is the SAME reply appearing again, never
+   * a duplicate distinct one. Best-effort: if this quiet continuation fails, the source is already
+   * genuinely selected regardless, and the person can simply start describing the trade themselves.
+   */
+  async function continueAfterSourceSelection(actionId: string): Promise<void> {
+    if (!state.conversationId) return;
+    try {
+      const response = agentResponseView(await gateway.continueAfterSourceSelection(state.conversationId, actionId));
+      update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
+      await readContext();
+    } catch {
+      // Best-effort only -- see this function's own doctrine above.
+    }
   }
 
   /** Returns whether the offer's amount (if any) / conversation seed reached SecurePay. */

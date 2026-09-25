@@ -36,4 +36,6 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   // own lifecycle management. `viewSecureLink` still serves the public read for a doorway too (auth
   // 'none', unchanged) -- only the creator-side manage calls below need session refresh.
   'issuePublicDoorway', 'activeDoorway', 'rotatePublicDoorway', 'revokePublicDoorway',
+  // Phase 6 Slice 4 (Community → Trade), item 18 -- the participant-safe source-provenance read.
+  'source',
 ] as const satisfies readonly (keyof AgreementGateway)[];

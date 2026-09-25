@@ -38,6 +38,8 @@ type Gateway = Pick<AgreementGateway,
   // KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- same widening, for the new pre-activation
   // public doorway entry point.
   | 'issuePublicDoorway' | 'activeDoorway' | 'rotatePublicDoorway' | 'revokePublicDoorway'
+  // Phase 6 Slice 4 (Community → Trade), item 19 -- the participant-safe source-provenance read.
+  | 'source'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
   review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
@@ -250,7 +252,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
     else if (state.detail.status !== 'ready') body = <LoadingNotice text="Loading this agreement…" />;
     else if (state.selectedStatus && state.selectedCompletion) {
-      const { dto, confirmations, people, milestoneStates, events, conflicts, tags } = state.detail.data;
+      const { dto, confirmations, people, milestoneStates, events, conflicts, tags, sourceProvenance } = state.detail.data;
       const boltDetail = agreementDetailView(dto, confirmations, state.selectedStatus, state.selectedCompletion, people);
       const progress = agreementProgressView(dto, milestoneStates ?? []);
       const calendarEvents = agreementCalendarView(events);
@@ -302,7 +304,31 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} initialCaseId={tabHint?.agreementId === boltDetail.id ? tabHint.reviewCaseId ?? null : null} onGetHelp={onOpenSupport ? review => onOpenSupport({ kind: 'review', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null, reviewCaseId: review.reviewCaseId, reviewAgreementVersionId: review.agreementVersionId }) : undefined} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
-          topExtra={<ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />}
+          topExtra={<>
+            {/* Phase 6 Slice 4 (Community → Trade), item 19 -- quiet, provenance-only "Started from"
+                line, from the participant-safe GET .../source read. Present only once a real
+                commercial source was attached (an ordinary DIRECT Agreement shows nothing here);
+                `available=false` is worded as the source being gone, never as the Agreement itself
+                having changed. A best-effort read failure (sourceProvenance === null) shows nothing,
+                same as every other Phase 3 enrichment on this page. */}
+            {sourceProvenance?.present && (
+              <section aria-label="Where this started" className="rounded-2xl border border-cream-200 bg-cream-50/70 px-4 py-3">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Started from</p>
+                <p className="mt-0.5 text-[0.9rem] text-forest-800 break-words">
+                  {sourceProvenance.sourceTitle ?? 'Selected source'}
+                  {sourceProvenance.contextLabel ? <span className="text-sand-500"> · {sourceProvenance.contextLabel}</span> : null}
+                </p>
+                {!sourceProvenance.available && (
+                  <p role="status" className="mt-1.5 text-[0.85rem] text-sand-700">
+                    {sourceProvenance.contextLabel === 'Community'
+                      ? 'Source is no longer available in Community.'
+                      : 'This source is no longer available.'}
+                  </p>
+                )}
+              </section>
+            )}
+            <ReconfirmPanel controller={reconfirmFor(boltDetail.id)} amendments={amendmentsFor(boltDetail.id)} detail={dto} standing={ownStanding(state.detail.data.myConfirmation, state.selectedActorStatus)} />
+          </>}
           peopleExtra={<>
             <InvitePanel controller={inviteFor(boltDetail.id)} agreementStatus={dto.overview.status} isCreator={state.selectedActorStatus === 'CREATOR'} />
             <AgreementSecureLinkSection agreementId={boltDetail.id} agreementTitle={dto.overview.title} agreementStatus={dto.overview.status} gateway={gateway} />

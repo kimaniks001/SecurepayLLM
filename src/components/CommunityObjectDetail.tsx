@@ -17,6 +17,13 @@ interface CommunityObjectDetailProps {
   onICanHelp: () => void;
   onDiscuss: () => void;
   onViewOffer: (offerId: string) => void;
+  /**
+   * Kept required for source compatibility with every existing caller (the fixture path in App.tsx,
+   * and the Store-offer-reference branch in CommunityExperience.tsx) -- final pre-merge correction:
+   * no longer called anywhere inside THIS component. The single generic "Start trade with helper"
+   * action it drove for a real Need/Opportunity is replaced by `activeHelpResponders`/
+   * `onStartTradeWithResponder` below, one explicit button per real responder.
+   */
   onToTrade: () => void;
   /**
    * The caller resolves this (fixture `getOfferById` in App.tsx; the real fetched Store offer in
@@ -51,9 +58,29 @@ interface CommunityObjectDetailProps {
    * the affordance survives a page refresh.
    */
   onWithdrawReply?: (replyId: string) => void;
+  /**
+   * Phase 6 Slice 4 (Community → Trade) -- "Use this": bring this real Need/Opportunity into a trade
+   * conversation as CONTEXT, never itself acceptance/agreement/payment. Present only for a real,
+   * backend-persisted object (the fixture path never supplies this, so it stays byte-identical);
+   * renders regardless of whether a responder has offered to help yet -- see
+   * `activeHelpResponders`/`onStartTradeWithResponder` for the separate, per-responder action below.
+   */
+  onUseThis?: () => void;
+  /**
+   * Phase 6 Slice 4 final pre-merge correction -- every real, CURRENT ACTIVE "I can help" responder,
+   * rendered distinctly so the object's own OWNER chooses exactly one by an explicit click on THAT
+   * responder's own button. Replaces the earlier "Start trade with helper" shortcut, which let
+   * SecurePay pick whichever responder happened to be first in a collection -- never an explicit
+   * human choice. Supplied only to the object's own owner (never a non-owner viewer); the backend
+   * independently re-verifies ownership and ACTIVE-response eligibility regardless of this gate.
+   */
+  activeHelpResponders?: { id: string; displayName: string | null; canonicalKsNumber: string | null }[];
+  /** Called with exactly the clicked responder's own canonical KS Number -- never inferred, never a
+   * default, never "whichever one is first." */
+  onStartTradeWithResponder?: (candidateKsNumber: string) => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -163,6 +190,38 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
           </div>
         )}
 
+        {/* Phase 6 Slice 4 final pre-merge correction -- every real, CURRENT ACTIVE "I can help"
+            responder shown distinctly, each with their own explicit "Start a trade with X" button.
+            Supplied only to the object's own owner. Never a single generic action that lets
+            SecurePay pick a responder by array/collection order -- the human presses the button
+            beside the specific responder they choose. */}
+        {activeHelpResponders && activeHelpResponders.length > 0 && (
+          <div>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">People who can help</div>
+            <div className="space-y-2">
+              {activeHelpResponders.map(responder => {
+                const label = responder.displayName ?? responder.canonicalKsNumber ?? 'A Trust Project member';
+                return (
+                  <div key={responder.id} className="rounded-xl border border-cream-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[0.825rem] font-medium text-forest-800">{label}</div>
+                      <span className="text-[0.65rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 mt-1 inline-block">I can help</span>
+                    </div>
+                    {onStartTradeWithResponder && responder.canonicalKsNumber && (
+                      <button
+                        onClick={() => onStartTradeWithResponder(responder.canonicalKsNumber!)}
+                        className="shrink-0 text-[0.75rem] font-medium text-forest-600 hover:text-forest-700 whitespace-nowrap"
+                      >
+                        Start a trade with {label}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="space-y-2">
           {isNeedOrOpp && (
@@ -199,13 +258,13 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                   Discuss this
                 </button>
               )}
-              {object.responses.some((r) => r.kind === 'i_can_help') && (
+              {onUseThis && (
                 <button
-                  onClick={onToTrade}
+                  onClick={onUseThis}
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-forest-300 text-forest-700 text-[0.825rem] font-medium py-2.5 hover:bg-forest-50 transition-colors"
                 >
                   <ArrowRight className="w-4 h-4" />
-                  Start trade with helper
+                  Use this
                 </button>
               )}
             </>

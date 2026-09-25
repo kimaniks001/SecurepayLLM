@@ -296,6 +296,22 @@ export interface AgreementPlugAttributionResponse {
   plugKsNumber: string;
   attributedAt: string;
 }
+/**
+ * Phase 6 Slice 4 (Community → Trade), item 18 -- matches
+ * `AgreementSourceProvenanceController.AgreementSourceProvenanceResponse` exactly. The narrow,
+ * PARTICIPANT-SAFE read of an Agreement's commercial source provenance -- deliberately bounded (no
+ * sourceId/sourceOwnerKsNumber/contextReference/audit metadata/Circle name); see the backend
+ * controller's own doctrine comment for the exact exclusion list. `present=false` means an ordinary
+ * DIRECT Agreement with no commercial source, never an error.
+ */
+export interface AgreementSourceProvenanceResponse {
+  present: boolean;
+  sourceType: string | null;
+  sourceTitle: string | null;
+  contextLabel: string | null;
+  capturedAt: string | null;
+  available: boolean;
+}
 /** `state` is exactly one of NO_INTRODUCTION/CANDIDATE/NOT_QUALIFIED/QUALIFIED — never computed by the
  * frontend. Amounts are decimal strings and populate only once QUALIFIED. `rewardPaid` is always `false`
  * today — no payout authority exists anywhere in this backend yet (re-confirmed against current

@@ -2,7 +2,7 @@ import type { AgreementGateway, HubDto } from '../../api/securepay/agreements';
 import type {
   AgreementCalendarEventResponse, AgreementDetailResponse, AgreementConfirmationResponse, AgreementCompletionResponse, AgreementConfirmationStatusResponse,
   AgreementInvitationInboxItemResponse, AgreementMoneyByCurrencyResponse, AgreementMoneyRecordResponse, AgreementPeopleResponse, AgreementProblemSummaryResponse,
-  CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
+  AgreementSourceProvenanceResponse, CurrentUserAgreementSummaryResponse, MilestoneEffectiveStateResponse,
   PersonalTagResponse, RecentActivityEntryResponse, SchedulingConflictResponse, WorkspaceNextActionResponse,
 } from '../../api/securepay/agreements/dto';
 import type { MoneyGateway } from '../../api/securepay/money';
@@ -47,6 +47,13 @@ export interface DetailData {
   events: AgreementCalendarEventResponse[];
   conflicts: SchedulingConflictResponse[];
   tags: PersonalTagResponse[];
+  /**
+   * Phase 6 Slice 4 (Community → Trade), item 19 -- the narrow, participant-safe read of this
+   * Agreement's commercial source provenance (`GET .../source`). Best-effort like the other Phase 3
+   * enrichments above: a read failure never fails Detail closed. `null` on failure only; a genuine
+   * DIRECT Agreement with no source is `{ present: false, ... }`, never `null`.
+   */
+  sourceProvenance: AgreementSourceProvenanceResponse | null;
 }
 export type MoneyLoad =
   | { kind: 'unavailable'; message: string }
@@ -117,7 +124,7 @@ const initial: WorkspaceState = {
 
 type Gateway = Pick<AgreementGateway,
   'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'people' | 'milestoneEffectiveStates'
-  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
+  | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations' | 'source'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
 };
@@ -176,13 +183,14 @@ export function createWorkspaceController(gateway: Gateway) {
       bestEffort<AgreementPeopleResponse | null>(() => gateway.people(agreementId), null),
     ]);
     // Phase 3 enrichments: additive only, never allowed to fail Detail closed.
-    const [milestoneStates, events, conflicts, tags] = await Promise.all([
+    const [milestoneStates, events, conflicts, tags, sourceProvenance] = await Promise.all([
       bestEffort<MilestoneEffectiveStateResponse[] | null>(() => gateway.milestoneEffectiveStates(agreementId), null),
       bestEffort(() => gateway.calendarEvents(agreementId), []),
       bestEffort(() => gateway.calendarConflicts(agreementId), []),
       bestEffort(() => gateway.tagsForAgreement(agreementId), []),
+      bestEffort<AgreementSourceProvenanceResponse | null>(() => gateway.source(agreementId), null),
     ]);
-    return { dto, confirmations, myConfirmation, people, milestoneStates, events, conflicts, tags };
+    return { dto, confirmations, myConfirmation, people, milestoneStates, events, conflicts, tags, sourceProvenance };
   }
 
   async function openDetail(summary: CurrentUserAgreementSummaryResponse, origin: StatusOrigin) {
