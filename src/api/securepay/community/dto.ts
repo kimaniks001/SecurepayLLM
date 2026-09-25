@@ -5,6 +5,11 @@
  *
  * <p>Slice 3 addition: `circleId` is `null` for a Community LIVE object (every pre-existing Slice
  * 1/2 object) or a real Circle id when the object is scoped to exactly that Circle.
+ *
+ * <p>Correction (Slice 3 pre-merge completion pass): `canClose` is server-derived (`status ==
+ * ACTIVE && authorIdentityId == authenticated requester`, the same pattern as `CommunityReplyResponse
+ * .canWithdraw`), present on every create/feed/mine/get/close response for BOTH Community LIVE and
+ * Circle-scoped objects -- never inferred client-side from a LIVE-only owned-id set.
  */
 export interface CommunityObjectResponse {
   id: string;
@@ -19,6 +24,7 @@ export interface CommunityObjectResponse {
   updatedAt: string;
   closedAt: string | null;
   circleId: string | null;
+  canClose: boolean;
 }
 
 /**
@@ -84,12 +90,18 @@ export interface FairTradePrincipleResponse {
  * `CommunityCircleController.CircleResponse` exactly. Discovery-safe fields only -- a Circle's own
  * content (posts/replies/help) is a completely separate, membership-gated read (see
  * `circles.objects`). `memberCount` is a plain count, never a ranking/engagement signal.
+ *
+ * <p>Correction (Slice 3 pre-merge completion pass): `visibility` is a SEPARATE authority from
+ * `membershipMode` -- `membershipMode` answers "how does someone become a member?"; `visibility`
+ * answers "who can discover this Circle exists?". A PRIVATE Circle never appears in general
+ * discovery regardless of its membership mode.
  */
 export interface CircleResponse {
   id: string;
   name: string;
   purpose: string;
   membershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+  visibility: 'PUBLIC' | 'PRIVATE';
   categoryLabel: string | null;
   locationLabel: string | null;
   status: 'ACTIVE' | 'CLOSED';
@@ -123,9 +135,13 @@ export interface CirclePendingRequestView {
   requestedAt: string;
 }
 
-/** Matches `CommunityCircleController.MemberView` exactly -- community-safe identity fields only,
- * for an ACTIVE Circle member's own view of who else is in the Circle. */
+/**
+ * Matches `CommunityCircleController.MemberView` exactly -- community-safe identity fields only,
+ * for an ACTIVE Circle member's own view of who else is in the Circle. `membershipId` is the opaque
+ * reference an owner's Remove action targets -- never identity-revealing beyond the fields above.
+ */
 export interface CircleMemberView {
+  membershipId: string;
   canonicalKsNumber: string | null;
   displayName: string | null;
 }

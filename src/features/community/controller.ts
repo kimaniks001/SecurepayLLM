@@ -1,7 +1,7 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type {
-  CircleMembershipResponse, CircleResponse,
+  CircleMemberView, CircleMembershipResponse, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from '../../api/securepay/community/dto';
@@ -36,6 +36,7 @@ function normalizeKsNumberForComparison(value: string): string {
 export type CommunityView = 'home' | 'object' | 'compose' | 'circleDetail' | 'circleCompose';
 export type CommunityHomeTab = 'live' | 'circles' | 'discover';
 export type CircleMembershipMode = 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+export type CircleVisibility = 'PUBLIC' | 'PRIVATE';
 const REAL_COMPOSE_TYPES: { value: CommunityObjectType; label: string }[] = [
   { value: 'question', label: 'Ask a question' },
   { value: 'need', label: 'Post a need' },
@@ -130,6 +131,9 @@ export interface CreateCircleDraft {
   name: string;
   purpose: string;
   membershipMode: CircleMembershipMode;
+  /** Correction (Slice 3 pre-merge completion pass) -- a SEPARATE choice from `membershipMode`: "who
+   * can find this Circle?" (visibility) vs. "how do people join?" (membershipMode). */
+  visibility: CircleVisibility;
   categoryLabel: string;
   locationLabel: string;
   submitting: boolean;
@@ -137,7 +141,7 @@ export interface CreateCircleDraft {
   idempotencyKey: string;
 }
 const emptyCreateCircleDraft: CreateCircleDraft = {
-  name: '', purpose: '', membershipMode: 'OPEN', categoryLabel: '', locationLabel: '',
+  name: '', purpose: '', membershipMode: 'OPEN', visibility: 'PUBLIC', categoryLabel: '', locationLabel: '',
   submitting: false, error: null, idempotencyKey: '',
 };
 
@@ -215,6 +219,20 @@ export interface CommunityState {
   /** The Circle-scoped post composer -- the exact same draft shape as Community LIVE's own
    * `ComposeDraft`, including its idempotency-key lifecycle, just posting into a Circle instead. */
   circleComposeDraft: ComposeDraft;
+
+  // ─── Correction (Slice 3 pre-merge completion pass): owner-side Circle management ─────────────────────────
+
+  /** Owner-only. Loaded alongside membership when the Circle opens and the caller is its owner. */
+  circlePendingRequests: RemoteState<CirclePendingRequestView[]>;
+  /** ACTIVE members only. Loaded alongside the scoped feed for any ACTIVE member/owner. */
+  circleMembers: RemoteState<CircleMemberView[]>;
+  circleInviteOpen: boolean;
+  /** Reuses the SAME `InviteDraft` shape (and its own target-binding idempotency-key correction) as
+   * Trust Project invitation -- one stable key permanently bound to one invitee once a remote
+   * submission is attempted, exactly the same contract the backend enforces for Circle invitation. */
+  circleInviteDraft: InviteDraft;
+  circleCloseConfirmOpen: boolean;
+  circleClosing: boolean;
 }
 const initial: CommunityState = {
   view: 'home', query: '', search: { status: 'idle' }, feed: { status: 'idle' },
@@ -228,6 +246,9 @@ const initial: CommunityState = {
   selectedCircleId: null, selectedCircle: null, circleMembership: { status: 'idle' }, circleObjects: { status: 'idle' },
   circleJoinIntentKey: '', circleJoinSubmitting: false, circleJoinError: null,
   circleComposeDraft: { ...emptyDraft },
+  circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
+  circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft },
+  circleCloseConfirmOpen: false, circleClosing: false,
 };
 
 type Gateway = Pick<StoreReadGateway, 'search'>;
@@ -358,12 +379,39 @@ export function createCommunityController(
     }
   }
 
+  /** ACTIVE members only -- reused by both the caller's own view of who else is in the Circle and by
+   * the owner (who is always an ACTIVE member of their own Circle). */
+  async function loadCircleMembers(circleId: string) {
+    update({ circleMembers: { status: 'loading' } });
+    try {
+      const members = await community.circles.members(circleId);
+      update({ circleMembers: { status: 'ready', data: members } });
+    } catch (error) {
+      update({ circleMembers: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
+  /** Owner-only -- only ever called when the caller is already known to be the Circle's own owner. */
+  async function loadCirclePendingRequests(circleId: string) {
+    update({ circlePendingRequests: { status: 'loading' } });
+    try {
+      const pending = await community.circles.pendingRequests(circleId);
+      update({ circlePendingRequests: { status: 'ready', data: pending } });
+    } catch (error) {
+      update({ circlePendingRequests: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
   async function refreshCircleMembership(circleId: string) {
     try {
       const membership = await community.circles.membership(circleId);
       update({ circleMembership: { status: 'ready', data: membership } });
       if (membership.status === 'ACTIVE' || membership.isOwner) {
         await loadCircleObjects(circleId);
+        await loadCircleMembers(circleId);
+      }
+      if (membership.isOwner && state.selectedCircle?.membershipMode === 'REQUEST_TO_JOIN') {
+        await loadCirclePendingRequests(circleId);
       }
       return membership;
     } catch (error) {
@@ -436,11 +484,20 @@ export function createCommunityController(
       }
     },
 
-    /** Closing is the author's own action only -- the backend independently enforces ownership. */
+    /**
+     * Closing is the author's own action only -- the backend independently enforces ownership,
+     * using the exact same endpoint/authority for a Community LIVE object and a Circle-scoped one
+     * (Circle ownership never grants authority over a member's own content). Removes the closed
+     * object from whichever feed it was showing in, LIVE or the currently-open Circle's own scoped
+     * feed -- each removal is a harmless no-op if the object was never in that particular list.
+     */
     async closeObject(id: string) {
       try {
         const closed = await community.close(id);
         removeFeedObject(id);
+        if (state.circleObjects.status === 'ready') {
+          update({ circleObjects: { status: 'ready', data: state.circleObjects.data.filter(o => o.id !== id) } });
+        }
         update({ selectedRealObject: closed, notice: 'Closed. It no longer appears in the open feed.' });
       } catch (error) {
         update({ notice: errorText(error) });
@@ -601,8 +658,11 @@ export function createCommunityController(
     setCreateCircleMode(mode: CircleMembershipMode) {
       update({ createCircleDraft: { ...state.createCircleDraft, membershipMode: mode, error: null } });
     },
+    setCreateCircleVisibility(visibility: CircleVisibility) {
+      update({ createCircleDraft: { ...state.createCircleDraft, visibility, error: null } });
+    },
     async submitCreateCircle() {
-      const { name, purpose, membershipMode, categoryLabel, locationLabel, idempotencyKey } = state.createCircleDraft;
+      const { name, purpose, membershipMode, visibility, categoryLabel, locationLabel, idempotencyKey } = state.createCircleDraft;
       if (!name.trim()) { update({ createCircleDraft: { ...state.createCircleDraft, error: 'Give the Circle a name.' } }); return; }
       if (!purpose.trim()) { update({ createCircleDraft: { ...state.createCircleDraft, error: 'Say what this Circle is for.' } }); return; }
       update({ createCircleDraft: { ...state.createCircleDraft, submitting: true, error: null } });
@@ -610,7 +670,7 @@ export function createCommunityController(
         // The SAME idempotencyKey minted when the panel opened is reused on every attempt -- never
         // regenerated here, so a retry after any failure stays a genuine retry.
         const created = await community.circles.create(
-          name.trim(), purpose.trim(), membershipMode, categoryLabel.trim() || null, locationLabel.trim() || null, idempotencyKey);
+          name.trim(), purpose.trim(), membershipMode, visibility, categoryLabel.trim() || null, locationLabel.trim() || null, idempotencyKey);
         const withoutExisting = state.myCircles.status === 'ready' ? state.myCircles.data.filter(c => c.id !== created.id) : [];
         update({
           createCircleOpen: false, createCircleDraft: { ...emptyCreateCircleDraft }, notice: 'Circle created.',
@@ -632,6 +692,9 @@ export function createCommunityController(
         view: 'circleDetail', selectedCircleId: id, selectedCircle: cached,
         circleMembership: { status: 'loading' }, circleObjects: { status: 'idle' },
         circleJoinIntentKey: newIdempotencyKey('circle-join'), circleJoinError: null,
+        circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
+        circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft },
+        circleCloseConfirmOpen: false, circleClosing: false,
       });
       try {
         const circle = await community.circles.get(id);
@@ -683,9 +746,17 @@ export function createCommunityController(
         update({ notice: errorText(error) });
       }
     },
-    /** Self-only. Never leaves The Trust Project, never cancels Agreements, never deletes Store
+    /**
+     * Self-only. Never leaves The Trust Project, never cancels Agreements, never deletes Store
      * access or public Community LIVE content -- see `CommunityCircleMembershipService#leave`'s own
-     * doctrine comment for the exact backend guarantee this mirrors. */
+     * doctrine comment for the exact backend guarantee this mirrors.
+     *
+     * <p>Correction (Slice 3 pre-merge completion pass): the owner cannot leave an ACTIVE Circle at
+     * all this slice (no stewardship-transfer authority exists) -- the backend's own corrected error
+     * message ("the Circle owner cannot leave while the Circle is active -- close the Circle
+     * instead") is relayed verbatim via `errorText`, never papered over with an invented "transfer"
+     * prompt the product does not actually support.
+     */
     async leaveCircle() {
       if (!state.selectedCircleId) return;
       try {
@@ -694,6 +765,92 @@ export function createCommunityController(
         await refreshCircleMembership(state.selectedCircleId);
       } catch (error) {
         update({ notice: errorText(error) });
+      }
+    },
+
+    // ─── Owner-only Circle management (Slice 3 pre-merge completion pass) ─────────────────────────
+
+    async approveCircleRequest(membershipId: string) {
+      if (!state.selectedCircleId) return;
+      try {
+        await community.circles.approveRequest(state.selectedCircleId, membershipId);
+        await loadCirclePendingRequests(state.selectedCircleId);
+        await refreshCircleMembership(state.selectedCircleId); // refreshes member count/list too
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+    async declineCircleRequest(membershipId: string) {
+      if (!state.selectedCircleId) return;
+      try {
+        await community.circles.declineRequest(state.selectedCircleId, membershipId);
+        await loadCirclePendingRequests(state.selectedCircleId);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+    async removeCircleMember(membershipId: string) {
+      if (!state.selectedCircleId) return;
+      try {
+        await community.circles.removeMember(state.selectedCircleId, membershipId);
+        await loadCircleMembers(state.selectedCircleId);
+        await refreshCircleMembership(state.selectedCircleId); // refreshes member count
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+
+    /**
+     * Circle invitation is owner-only, and the invitee must already be an ACTIVE Trust Project
+     * member -- see `CommunityCircleMembershipService#invite`'s own doctrine comment. Reuses the same
+     * target-binding idempotency-key correction as Trust Project invitation: before any remote
+     * attempt the KS Number may be freely edited; the first remote attempt binds this draft's key to
+     * the normalized target for every retry.
+     */
+    openCircleInvite() {
+      update({ circleInviteOpen: true, circleInviteDraft: { ...emptyInviteDraft, idempotencyKey: newIdempotencyKey('circle-invite') } });
+    },
+    cancelCircleInvite() { update({ circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft } }); },
+    setCircleInviteKsNumber(value: string) {
+      if (state.circleInviteDraft.attemptedTargetKsNumber !== null) return;
+      update({ circleInviteDraft: { ...state.circleInviteDraft, ksNumber: value, error: null } });
+    },
+    async submitCircleInvite() {
+      if (!state.selectedCircleId) return;
+      const boundTarget = state.circleInviteDraft.attemptedTargetKsNumber;
+      if (!boundTarget && !state.circleInviteDraft.ksNumber.trim()) {
+        update({ circleInviteDraft: { ...state.circleInviteDraft, error: 'Enter their KS Number.' } });
+        return;
+      }
+      const target = boundTarget ?? normalizeKsNumberForComparison(state.circleInviteDraft.ksNumber);
+      update({ circleInviteDraft: { ...state.circleInviteDraft, submitting: true, error: null, attemptedTargetKsNumber: target } });
+      try {
+        await community.circles.invite(state.selectedCircleId, target, state.circleInviteDraft.idempotencyKey);
+        update({
+          circleInviteDraft: { ...emptyInviteDraft, sent: true, idempotencyKey: newIdempotencyKey('circle-invite') },
+          notice: 'Invitation sent.',
+        });
+      } catch (error) {
+        update({ circleInviteDraft: { ...state.circleInviteDraft, submitting: false, error: errorText(error) } });
+      }
+    },
+
+    openCircleCloseConfirm() { update({ circleCloseConfirmOpen: true }); },
+    cancelCircleCloseConfirm() { update({ circleCloseConfirmOpen: false }); },
+    /** Owner-only. Preserves history (posts, replies, help, membership); only stops new activity --
+     * see `CommunityCircleService#close`'s own doctrine comment. Never deletes the Circle, never
+     * deletes member accounts, never revokes Trust Project membership. */
+    async confirmCloseCircle() {
+      if (!state.selectedCircleId) return;
+      update({ circleClosing: true });
+      try {
+        const closed = await community.circles.close(state.selectedCircleId);
+        update({
+          selectedCircle: closed, circleCloseConfirmOpen: false, circleClosing: false,
+          notice: 'Circle closed. Existing posts and membership history are preserved.',
+        });
+      } catch (error) {
+        update({ circleClosing: false, notice: errorText(error) });
       }
     },
 
@@ -758,6 +915,7 @@ export function createCommunityController(
       update({
         ...initial, draft: { ...emptyDraft }, inviteDraft: { ...emptyInviteDraft }, replyDraft: { ...emptyReplyDraft },
         createCircleDraft: { ...emptyCreateCircleDraft }, circleComposeDraft: { ...emptyDraft },
+        circleInviteDraft: { ...emptyInviteDraft },
       });
     },
   };

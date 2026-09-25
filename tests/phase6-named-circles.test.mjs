@@ -24,14 +24,14 @@ function fakeHttp() {
 test('gateway: circles.create/discover/mine/get/close hit the real per-circle paths, authenticated', async () => {
   const { calls, http } = fakeHttp();
   const gateway = api.communityGatewayModule.createCommunityGateway(http);
-  await gateway.circles.create('Name', 'Purpose', 'OPEN', 'Cat', 'Loc', 'key-1');
+  await gateway.circles.create('Name', 'Purpose', 'OPEN', 'PUBLIC', 'Cat', 'Loc', 'key-1');
   await gateway.circles.discover();
   await gateway.circles.mine();
   await gateway.circles.get('circle-1');
   await gateway.circles.close('circle-1');
   assert.equal(calls[0].path, '/api/v1/community/circles');
   assert.equal(calls[0].headers['Idempotency-Key'], 'key-1');
-  assert.deepEqual(calls[0].body, { name: 'Name', purpose: 'Purpose', membershipMode: 'OPEN', categoryLabel: 'Cat', locationLabel: 'Loc' });
+  assert.deepEqual(calls[0].body, { name: 'Name', purpose: 'Purpose', membershipMode: 'OPEN', visibility: 'PUBLIC', categoryLabel: 'Cat', locationLabel: 'Loc' });
   assert.match(calls[1].path, /\/api\/v1\/community\/circles\?/);
   assert.equal(calls[2].path, '/api/v1/community/circles/mine?limit=50&offset=0');
   assert.equal(calls[3].path, '/api/v1/community/circles/circle-1');
@@ -94,19 +94,19 @@ function fakeCircleGateway(overrides = {}) {
         discover: async (...args) => { calls.push(['circles.discover', ...args]); return overrides.discover ? overrides.discover(...args) : []; },
         mine: async (...args) => { calls.push(['circles.mine', ...args]); return overrides.mine ? overrides.mine(...args) : []; },
         get: async (...args) => { calls.push(['circles.get', ...args]); return overrides.get ? overrides.get(...args) : circleFixture(args[0]); },
-        close: async () => { throw new Error('not used'); },
+        close: async (...args) => { calls.push(['circles.close', ...args]); return overrides.close ? overrides.close(...args) : (() => { throw new Error('not used'); })(); },
         membership: async (...args) => { calls.push(['circles.membership', ...args]); return overrides.membership ? overrides.membership(...args) : { status: null, isOwner: false, invitedByDisplayName: null, createdAt: null, respondedAt: null }; },
         join: async (...args) => { calls.push(['circles.join', ...args]); return overrides.join ? overrides.join(...args) : (() => { throw new Error('not used'); })(); },
         request: async (...args) => { calls.push(['circles.request', ...args]); return overrides.request ? overrides.request(...args) : (() => { throw new Error('not used'); })(); },
-        pendingRequests: async () => [],
-        approveRequest: async () => { throw new Error('not used'); },
-        declineRequest: async () => { throw new Error('not used'); },
-        invite: async () => { throw new Error('not used'); },
+        pendingRequests: async (...args) => { calls.push(['circles.pendingRequests', ...args]); return overrides.pendingRequests ? overrides.pendingRequests(...args) : []; },
+        approveRequest: async (...args) => { calls.push(['circles.approveRequest', ...args]); return overrides.approveRequest ? overrides.approveRequest(...args) : (() => { throw new Error('not used'); })(); },
+        declineRequest: async (...args) => { calls.push(['circles.declineRequest', ...args]); return overrides.declineRequest ? overrides.declineRequest(...args) : (() => { throw new Error('not used'); })(); },
+        invite: async (...args) => { calls.push(['circles.invite', ...args]); return overrides.invite ? overrides.invite(...args) : (() => { throw new Error('not used'); })(); },
         acceptInvitation: async (...args) => { calls.push(['circles.acceptInvitation', ...args]); return overrides.acceptInvitation ? overrides.acceptInvitation(...args) : (() => { throw new Error('not used'); })(); },
         declineInvitation: async (...args) => { calls.push(['circles.declineInvitation', ...args]); return overrides.declineInvitation ? overrides.declineInvitation(...args) : (() => { throw new Error('not used'); })(); },
         leave: async (...args) => { calls.push(['circles.leave', ...args]); return overrides.leave ? overrides.leave(...args) : (() => { throw new Error('not used'); })(); },
-        removeMember: async () => { throw new Error('not used'); },
-        members: async () => [],
+        removeMember: async (...args) => { calls.push(['circles.removeMember', ...args]); return overrides.removeMember ? overrides.removeMember(...args) : (() => { throw new Error('not used'); })(); },
+        members: async (...args) => { calls.push(['circles.members', ...args]); return overrides.members ? overrides.members(...args) : []; },
         objects: {
           create: async (...args) => { calls.push(['circles.objects.create', ...args]); return overrides.objectsCreate ? overrides.objectsCreate(...args) : (() => { throw new Error('not used'); })(); },
           list: async (...args) => { calls.push(['circles.objects.list', ...args]); return overrides.objectsList ? overrides.objectsList(...args) : []; },
@@ -117,7 +117,7 @@ function fakeCircleGateway(overrides = {}) {
 }
 function circleFixture(id, overrides = {}) {
   return {
-    id, name: 'Test Circle', purpose: 'A place to test.', membershipMode: 'OPEN', categoryLabel: null, locationLabel: null,
+    id, name: 'Test Circle', purpose: 'A place to test.', membershipMode: 'OPEN', visibility: 'PUBLIC', categoryLabel: null, locationLabel: null,
     status: 'ACTIVE', creatorCanonicalKsNumber: 'KS999', creatorDisplayName: 'Someone', memberCount: 3,
     createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', closedAt: null, ...overrides,
   };
@@ -262,7 +262,7 @@ test('correction-pattern: submitCreateCircle reuses the SAME idempotency key acr
   let attempt = 0;
   const usedKeys = [];
   const { gateway } = fakeCircleGateway({
-    create: async (name, purpose, mode, cat, loc, key) => {
+    create: async (name, purpose, mode, visibility, cat, loc, key) => {
       usedKeys.push(key);
       attempt += 1;
       if (attempt === 1) throw new Error('network blip');
@@ -355,4 +355,129 @@ test('Circle actions never call Agreement/handoff/payment/Money authority', asyn
 test('Circle creation copy never claims partnership, joint venture, or commercial alliance', async () => {
   const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
   assert.match(contents, /Not a partnership, joint/);
+});
+
+// ─── Pre-merge completion pass: visibility, owner UI, honest lifecycle copy ─────────────────────────
+
+test('the create-Circle UI offers visibility as a SEPARATE choice from membership mode', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /How do people join\?/);
+  assert.match(contents, /Who can find this Circle\?/);
+});
+
+test('the invite-only copy correction: the Circle owner, never "an existing member", is named as the real invitation authority', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.doesNotMatch(contents, /an existing member must invite you/);
+  assert.match(contents, /The Circle owner must invite you before you can join/);
+});
+
+test('the Circle-scoped post Close action is driven by the server-derived canClose field, never the LIVE-only ownObjectIds set', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /state\.selectedRealObject\.canClose/);
+});
+
+test('the owner-leave copy never tells the owner to perform an unsupported stewardship transfer', async () => {
+  const controllerSource = await readFile('src/features/community/controller.ts', 'utf8');
+  assert.doesNotMatch(controllerSource, /transfer Circle stewardship/i);
+});
+
+test('controller.openCreateCircle defaults visibility to PUBLIC and submitCreateCircle sends the chosen visibility', async () => {
+  const { gateway, calls } = fakeCircleGateway({ create: async () => circleFixture('new-circle', { visibility: 'PRIVATE' }) });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openCreateCircle();
+  assert.equal(controller.getSnapshot().createCircleDraft.visibility, 'PUBLIC');
+
+  controller.setCreateCircleVisibility('PRIVATE');
+  controller.setCreateCircleField('name', 'N');
+  controller.setCreateCircleField('purpose', 'P');
+  await controller.submitCreateCircle();
+
+  const createCall = calls.find(c => c[0] === 'circles.create');
+  assert.equal(createCall[4], 'PRIVATE'); // (name, purpose, membershipMode, visibility, ...)
+});
+
+test('controller: an owner can approve and decline pending Circle requests, refreshing the queue afterward', async () => {
+  let approved = false;
+  const { gateway, calls } = fakeCircleGateway({
+    get: id => circleFixture(id, { membershipMode: 'REQUEST_TO_JOIN' }),
+    membership: async () => ({ status: 'ACTIVE', isOwner: true, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }),
+    pendingRequests: async () => (approved ? [] : [{ membershipId: 'req-1', requesterCanonicalKsNumber: 'KS200', requesterDisplayName: 'Mary W.', requestedAt: '2026-09-01T00:00:00Z' }]),
+    approveRequest: async () => { approved = true; },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.openCircle('circle-1');
+  assert.equal(controller.getSnapshot().circlePendingRequests.data.length, 1);
+
+  await controller.approveCircleRequest('req-1');
+
+  assert.ok(calls.some(c => c[0] === 'circles.approveRequest' && c[2] === 'req-1'));
+  assert.equal(controller.getSnapshot().circlePendingRequests.data.length, 0);
+});
+
+test('controller: an owner can remove a member, refreshing the member list afterward', async () => {
+  let removed = false;
+  const { gateway, calls } = fakeCircleGateway({
+    membership: async () => ({ status: 'ACTIVE', isOwner: true, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }),
+    members: async () => (removed
+      ? [{ membershipId: 'owner-m', canonicalKsNumber: 'KS999', displayName: 'Owner' }]
+      : [{ membershipId: 'owner-m', canonicalKsNumber: 'KS999', displayName: 'Owner' }, { membershipId: 'member-m', canonicalKsNumber: 'KS200', displayName: 'Mary W.' }]),
+    removeMember: async () => { removed = true; },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.openCircle('circle-1');
+  assert.equal(controller.getSnapshot().circleMembers.data.length, 2);
+
+  await controller.removeCircleMember('member-m');
+
+  assert.ok(calls.some(c => c[0] === 'circles.removeMember' && c[2] === 'member-m'));
+  assert.equal(controller.getSnapshot().circleMembers.data.length, 1);
+});
+
+test('controller: an owner can close their Circle after explicit confirmation, and the closed status is reflected immediately', async () => {
+  const { gateway, calls } = fakeCircleGateway({
+    membership: async () => ({ status: 'ACTIVE', isOwner: true, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }),
+    close: async () => circleFixture('circle-1', { status: 'CLOSED' }),
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.openCircle('circle-1');
+  controller.openCircleCloseConfirm();
+  assert.equal(controller.getSnapshot().circleCloseConfirmOpen, true);
+
+  await controller.confirmCloseCircle();
+
+  assert.ok(calls.some(c => c[0] === 'circles.close'));
+  assert.equal(controller.getSnapshot().selectedCircle.status, 'CLOSED');
+  assert.equal(controller.getSnapshot().circleCloseConfirmOpen, false);
+});
+
+test('correction-pattern: submitCircleInvite binds its idempotency key to the first attempted target, exactly like Trust Project invitation', async () => {
+  let attempt = 0;
+  const usedPairs = [];
+  const { gateway } = fakeCircleGateway({
+    membership: async () => ({ status: 'ACTIVE', isOwner: true, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }),
+    invite: async (circleId, target, key) => {
+      usedPairs.push([target, key]);
+      attempt += 1;
+      if (attempt === 1) throw new Error('network blip');
+    },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.openCircle('circle-1');
+  controller.openCircleInvite();
+  const openedKey = controller.getSnapshot().circleInviteDraft.idempotencyKey;
+
+  controller.setCircleInviteKsNumber('KS200');
+  await controller.submitCircleInvite(); // fails (attempt 1) -- binds target+key
+  assert.equal(controller.getSnapshot().circleInviteDraft.attemptedTargetKsNumber, 'KS200');
+
+  // An edit attempted after the first remote attempt is refused.
+  controller.setCircleInviteKsNumber('KS201');
+  assert.equal(controller.getSnapshot().circleInviteDraft.ksNumber, 'KS200');
+
+  await controller.submitCircleInvite(); // retries -- succeeds, reusing the exact same pair
+  assert.ok(controller.getSnapshot().circleInviteDraft.sent);
+
+  assert.equal(usedPairs.length, 2);
+  assert.deepEqual(usedPairs[0], ['KS200', openedKey]);
+  assert.deepEqual(usedPairs[1], ['KS200', openedKey]);
 });

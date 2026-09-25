@@ -12,7 +12,7 @@ import type { CircleResponse, CommunityObjectResponse } from '../../api/securepa
 import type { AppView, ErrorStateResponse } from '../../types';
 import {
   createCommunityController, errorText, REAL_COMPOSE_TYPES,
-  type CommunityHomeTab, type CircleMembershipMode, type MembershipUiState,
+  type CommunityHomeTab, type CircleMembershipMode, type CircleVisibility, type MembershipUiState,
 } from './controller';
 import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 
@@ -246,6 +246,9 @@ function CircleDetailPanel({
   circle, membershipStatus, isOwner, invitedByDisplayName, joinSubmitting, joinError,
   onJoin, onRequestToJoin, onAccept, onDecline, onLeave, onBack,
   objects, objectsLoading, onOpenObject, onCompose,
+  members, membersLoading, onRemoveMember,
+  pendingRequests, onApproveRequest, onDeclineRequest,
+  onOpenInvite, onOpenCloseConfirm,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
@@ -263,6 +266,14 @@ function CircleDetailPanel({
   objectsLoading: boolean;
   onOpenObject: (id: string) => void;
   onCompose: () => void;
+  members: { membershipId: string; canonicalKsNumber: string | null; displayName: string | null }[];
+  membersLoading: boolean;
+  onRemoveMember: (membershipId: string) => void;
+  pendingRequests: { membershipId: string; requesterCanonicalKsNumber: string | null; requesterDisplayName: string | null }[];
+  onApproveRequest: (membershipId: string) => void;
+  onDeclineRequest: (membershipId: string) => void;
+  onOpenInvite: () => void;
+  onOpenCloseConfirm: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   return (
@@ -281,12 +292,23 @@ function CircleDetailPanel({
             <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">
               {CIRCLE_MODE_LABEL[circle.membershipMode]}
             </span>
+            <span className="text-[0.68rem] font-medium text-sand-600 bg-cream-100 rounded-full px-2 py-0.5">
+              {circle.visibility === 'PUBLIC' ? 'Discoverable by anyone in The Trust Project' : 'Private — not in general discovery'}
+            </span>
             <span className="text-[0.68rem] text-sand-500">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</span>
+            {circle.status === 'CLOSED' && (
+              <span className="text-[0.68rem] font-medium text-sand-500 bg-cream-50 rounded-full px-2 py-0.5">Closed</span>
+            )}
           </div>
         </div>
 
         {isOwner && (
-          <p className="text-[0.75rem] text-sand-500 px-1">This is one of your Circles — you are its steward.</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[0.75rem] text-sand-500">This is one of your Circles — you are its steward.</p>
+            {circle.status === 'ACTIVE' && (
+              <button onClick={onOpenCloseConfirm} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Close Circle</button>
+            )}
+          </div>
         )}
         {!isOwner && membershipStatus === 'ACTIVE' && (
           <div className="flex items-center justify-between">
@@ -297,7 +319,7 @@ function CircleDetailPanel({
         {membershipStatus === 'INVITED' && (
           <div className="rounded-xl border border-forest-200 bg-forest-50/40 px-4 py-3.5 space-y-2">
             <p className="text-[0.8rem] text-forest-800">
-              {invitedByDisplayName ?? 'A Circle owner'} invited you to join this Circle.
+              {invitedByDisplayName ?? 'The Circle owner'} invited you to join this Circle.
             </p>
             <div className="flex gap-2">
               <button onClick={onAccept} className="rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium px-4 py-2 hover:bg-forest-700 transition-colors">Accept</button>
@@ -330,10 +352,35 @@ function CircleDetailPanel({
             )}
             {circle.membershipMode === 'INVITE_ONLY' && (
               <p className="text-[0.8rem] text-sand-600">
-                Join this Circle to see and take part in its conversations. This Circle is invite-only — an existing member must invite you.
+                {/* Correction (Slice 3 pre-merge completion pass): the backend's real invitation
+                    authority is owner-only -- this copy must say exactly that, never the previous,
+                    inaccurate wording naming any member as able to invite. */}
+                This Circle is invite-only. The Circle owner must invite you before you can join.
               </p>
             )}
             {joinError && <p role="alert" className="text-[0.75rem] text-red-600">{joinError}</p>}
+          </div>
+        )}
+
+        {/* Owner-only management (Slice 3 pre-merge completion pass) -- exposes existing backend
+            authority (invite/approve/decline/remove/close) that already worked, never new authority. */}
+        {isOwner && circle.membershipMode === 'INVITE_ONLY' && circle.status === 'ACTIVE' && (
+          <button onClick={onOpenInvite} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700 text-left">
+            Invite someone
+          </button>
+        )}
+        {isOwner && circle.membershipMode === 'REQUEST_TO_JOIN' && pendingRequests.length > 0 && (
+          <div className="space-y-2 pt-2 border-t border-cream-100">
+            <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Requests to join</h2>
+            {pendingRequests.map(r => (
+              <div key={r.membershipId} className="flex items-center justify-between rounded-xl border border-cream-200 bg-white px-4 py-2.5">
+                <span className="text-[0.82rem] text-forest-800">{r.requesterDisplayName ?? r.requesterCanonicalKsNumber ?? 'A Trust Project member'}</span>
+                <div className="flex gap-2">
+                  <button onClick={() => onApproveRequest(r.membershipId)} className="text-[0.75rem] font-medium text-forest-600 hover:text-forest-700">Approve</button>
+                  <button onClick={() => onDeclineRequest(r.membershipId)} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Decline</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -341,7 +388,9 @@ function CircleDetailPanel({
           <div className="space-y-3 pt-2 border-t border-cream-100">
             <div className="flex items-center justify-between">
               <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle feed</h2>
-              <button onClick={onCompose} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Share</button>
+              {circle.status === 'ACTIVE' && (
+                <button onClick={onCompose} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Share</button>
+              )}
             </div>
             {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
             {!objectsLoading && objects.length === 0 && (
@@ -357,6 +406,27 @@ function CircleDetailPanel({
                   <div className="text-[0.85rem] font-medium text-forest-800">{o.title}</div>
                   <p className="text-[0.78rem] text-sand-600 mt-0.5 line-clamp-2">{o.body}</p>
                 </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Member list -- an ACTIVE member's own view of who else is in the Circle (community-safe
+            identity fields only); Remove is owner-only. */}
+        {isMember && (
+          <div className="space-y-2 pt-2 border-t border-cream-100">
+            <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Members</h2>
+            {membersLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+            <div className="space-y-1.5">
+              {members.map(m => (
+                <div key={m.membershipId} className="flex items-center justify-between text-[0.82rem] text-forest-800 px-1">
+                  <span>{m.displayName ?? m.canonicalKsNumber ?? 'A Circle member'}</span>
+                  {isOwner && (
+                    <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
+                      Remove
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -467,6 +537,14 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
         objectsLoading={state.circleObjects.status === 'loading'}
         onOpenObject={id => void controller.openCircleObject(id)}
         onCompose={() => controller.openCircleComposer()}
+        members={state.circleMembers.status === 'ready' ? state.circleMembers.data : []}
+        membersLoading={state.circleMembers.status === 'loading'}
+        onRemoveMember={id => void controller.removeCircleMember(id)}
+        pendingRequests={state.circlePendingRequests.status === 'ready' ? state.circlePendingRequests.data : []}
+        onApproveRequest={id => void controller.approveCircleRequest(id)}
+        onDeclineRequest={id => void controller.declineCircleRequest(id)}
+        onOpenInvite={() => controller.openCircleInvite()}
+        onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
       />
     );
   } else if (state.view === 'compose') {
@@ -493,9 +571,11 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
       state.objectHelp.status === 'ready' ? state.objectHelp.data : [],
     );
     const object = realObjectToCommunityObject(state.selectedRealObject, responses);
-    // A Circle-scoped object is never in `ownObjectIds` (LIVE-only, from `mine()`) -- author-only
-    // Close for a Circle-scoped object is deferred; the caller may still reply/help/withdraw normally.
-    const isOwn = state.selectedCircleId === null && state.ownObjectIds.has(state.selectedRealObject.id);
+    // Correction (Slice 3 pre-merge completion pass): server-derived `canClose` (status === ACTIVE &&
+    // authorIdentityId === requester) drives the Close action identically for a Community LIVE object
+    // and a Circle-scoped one -- never inferred from the LIVE-only `ownObjectIds` set, which never
+    // covered Circle-scoped objects at all.
+    const isOwn = state.selectedRealObject.canClose;
     // Correction (Slice 2 pre-merge): whether the caller already has an ACTIVE "I can help" signal,
     // and which response id a withdrawal targets, is derived directly from the real, server-returned
     // help list -- never from session-scoped creation tracking -- so it is correct even immediately
@@ -687,6 +767,7 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
               rows={2}
               className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 mb-2 resize-none"
             />
+            <p className="text-[0.68rem] font-medium text-sand-500 uppercase tracking-wide mb-1">How do people join?</p>
             <div className="flex gap-1.5 mb-3">
               {(['OPEN', 'REQUEST_TO_JOIN', 'INVITE_ONLY'] as CircleMembershipMode[]).map(mode => (
                 <button
@@ -700,6 +781,26 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
                 </button>
               ))}
             </div>
+            {/* Correction (Slice 3 pre-merge completion pass): visibility is a SEPARATE choice from
+                membership mode -- "who can find this Circle?" vs. "how do people join?". */}
+            <p className="text-[0.68rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Who can find this Circle?</p>
+            <div className="flex gap-1.5 mb-3">
+              {([
+                { value: 'PUBLIC' as CircleVisibility, label: 'Public', description: 'Anyone in The Trust Project can discover it.' },
+                { value: 'PRIVATE' as CircleVisibility, label: 'Private', description: 'Only invited/connected members can see it.' },
+              ]).map(v => (
+                <button
+                  key={v.value}
+                  onClick={() => controller.setCreateCircleVisibility(v.value)}
+                  title={v.description}
+                  className={`flex-1 text-[0.7rem] font-medium rounded-lg px-2 py-1.5 transition-colors ${
+                    state.createCircleDraft.visibility === v.value ? 'bg-forest-600 text-cream-50' : 'bg-cream-50 text-forest-700 hover:bg-cream-100'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
             {state.createCircleDraft.error && <p role="alert" className="text-[0.75rem] text-red-600 mb-2">{state.createCircleDraft.error}</p>}
             <div className="flex gap-2">
               <button
@@ -710,6 +811,67 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
                 {state.createCircleDraft.submitting ? 'Creating…' : 'Create Circle'}
               </button>
               <button onClick={() => controller.cancelCreateCircle()} className="rounded-xl border border-cream-200 text-forest-700 text-[0.82rem] font-medium px-4 py-2.5 hover:bg-cream-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {state.circleInviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm" onClick={() => controller.cancelCircleInvite()}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-base text-forest-800 mb-1">Invite someone</h2>
+            <p className="text-[0.75rem] text-sand-500 mb-3">
+              Invite an existing Trust Project member into this Circle.
+            </p>
+            <input
+              type="text"
+              value={state.circleInviteDraft.ksNumber}
+              onChange={e => controller.setCircleInviteKsNumber(e.target.value)}
+              readOnly={state.circleInviteDraft.attemptedTargetKsNumber !== null}
+              placeholder="Their KS Number (e.g. KS123)"
+              className={`w-full rounded-xl border border-cream-200 px-3 py-2.5 text-[0.85rem] placeholder:text-sand-400 focus:outline-none focus:border-forest-300 mb-2 ${
+                state.circleInviteDraft.attemptedTargetKsNumber !== null ? 'bg-cream-100 text-sand-500' : 'bg-white text-forest-800'
+              }`}
+            />
+            {state.circleInviteDraft.attemptedTargetKsNumber !== null && (
+              <p className="text-[0.72rem] text-sand-500 mb-2">Retry this invitation, or cancel to invite someone else.</p>
+            )}
+            {state.circleInviteDraft.error && <p role="alert" className="text-[0.75rem] text-red-600 mb-2">{state.circleInviteDraft.error}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => void controller.submitCircleInvite()}
+                disabled={state.circleInviteDraft.submitting}
+                className="flex-1 rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
+              >
+                {state.circleInviteDraft.submitting
+                  ? 'Sending…'
+                  : state.circleInviteDraft.attemptedTargetKsNumber !== null ? 'Retry invitation' : 'Send invitation'}
+              </button>
+              <button onClick={() => controller.cancelCircleInvite()} className="rounded-xl border border-cream-200 text-forest-700 text-[0.82rem] font-medium px-4 py-2.5 hover:bg-cream-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {state.circleCloseConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm" onClick={() => controller.cancelCircleCloseConfirm()}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-base text-forest-800 mb-1">Close this Circle?</h2>
+            <p className="text-[0.75rem] text-sand-500 mb-4">
+              Closing stops new Circle activity. Existing posts and membership history are preserved.
+              Members do not leave The Trust Project.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => void controller.confirmCloseCircle()}
+                disabled={state.circleClosing}
+                className="flex-1 rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
+              >
+                {state.circleClosing ? 'Closing…' : 'Close Circle'}
+              </button>
+              <button onClick={() => controller.cancelCircleCloseConfirm()} className="rounded-xl border border-cream-200 text-forest-700 text-[0.82rem] font-medium px-4 py-2.5 hover:bg-cream-50 transition-colors">
                 Cancel
               </button>
             </div>

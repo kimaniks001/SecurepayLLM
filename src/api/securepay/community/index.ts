@@ -82,12 +82,12 @@ export function createCommunityGateway(http: HttpClient) {
     // for content/membership actions, ACTIVE Circle membership) on top of authentication.
     circles: {
       create: (
-        name: string, purpose: string, membershipMode: string, categoryLabel: string | null,
+        name: string, purpose: string, membershipMode: string, visibility: string, categoryLabel: string | null,
         locationLabel: string | null, idempotencyKey: string,
       ) =>
         http.request<CircleResponse>('/api/v1/community/circles', {
           method: 'POST',
-          body: { name, purpose, membershipMode, categoryLabel, locationLabel },
+          body: { name, purpose, membershipMode, visibility, categoryLabel, locationLabel },
           auth: 'required',
           headers: { 'Idempotency-Key': idempotencyKey },
         }),
