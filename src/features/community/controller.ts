@@ -5,6 +5,8 @@ import type {
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from '../../api/securepay/community/dto';
+import type { DiscoveryGateway } from '../../api/securepay/discovery';
+import type { DiscoveryResults, DiscoveryScope, PublicProfileResponse } from '../../api/securepay/discovery/dto';
 import { searchResultsView, type StoreSearchResult } from '../../api/securepay/store/adapters';
 import { searchRequests, mergeSearchResults } from '../store/view';
 import type { StoreReadGateway } from '../store/view';
@@ -33,7 +35,10 @@ function normalizeKsNumberForComparison(value: string): string {
   return value.trim().toUpperCase();
 }
 
-export type CommunityView = 'home' | 'object' | 'compose' | 'circleDetail' | 'circleCompose';
+export type CommunityView = 'home' | 'object' | 'compose' | 'circleDetail' | 'circleCompose' | 'search' | 'profile';
+/** Final pre-merge correction -- the page size used for a specific (non-EVERYTHING) discovery scope's
+ * real pagination. `EVERYTHING` always uses the backend's own small fixed preview instead. */
+export const SEARCH_PAGE_SIZE = 20;
 export type CommunityHomeTab = 'live' | 'circles' | 'discover';
 export type CircleMembershipMode = 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
 export type CircleVisibility = 'PUBLIC' | 'PRIVATE';
@@ -240,6 +245,34 @@ export interface CommunityState {
   circleInviteDraft: InviteDraft;
   circleCloseConfirmOpen: boolean;
   circleClosing: boolean;
+
+  // ─── Phase 6 Slice 5 (Discovery & Identity) -- "find what actually exists, without SecurePay
+  // deciding what is best for you" ─────────────────────────
+
+  /** Discover Circles' own text query (Section 12) -- additive to the tab's existing unfiltered
+   * browse; blank means the exact original behaviour. */
+  discoverCirclesQuery: string;
+
+  /** The one coherent Community discovery entry point (Section 28) -- `view: 'search'`. Never a
+   * ranked/recommended result; `scope` narrows which section(s) are searched, matching the backend's
+   * own EVERYTHING-preview-vs-one-scope-paginated contract. */
+  searchQuery: string;
+  searchScope: DiscoveryScope;
+  discoverySearch: RemoteState<DiscoveryResults>;
+  /** Final pre-merge correction (Section 8-24) -- real end-to-end pagination for a specific scope.
+   * `searchOffset` is the offset of the LAST page already loaded (0 after a fresh first-page search);
+   * `Load more` requests `searchOffset + SEARCH_PAGE_SIZE` and appends. Reset to 0 by every fresh
+   * query/scope search (Section 24) -- never carried over from a previous, different search.
+   * `searchLoadingMore`/`searchLoadMoreError` are deliberately separate from `discoverySearch`'s own
+   * status so a page-2 failure never blanks the already-loaded page 1 (Section 23). */
+  searchOffset: number;
+  searchLoadingMore: boolean;
+  searchLoadMoreError: string | null;
+
+  /** A public person/business profile, opened from a search result (`view: 'profile'`) -- never the
+   * account/Settings experience (Section 34). */
+  selectedProfileKsNumber: string | null;
+  selectedProfile: RemoteState<PublicProfileResponse>;
 }
 const initial: CommunityState = {
   view: 'home', query: '', search: { status: 'idle' }, feed: { status: 'idle' },
@@ -256,6 +289,10 @@ const initial: CommunityState = {
   circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
   circleInviteOpen: false, circleInvitations: { status: 'idle' }, circleInviteDraft: { ...emptyInviteDraft },
   circleCloseConfirmOpen: false, circleClosing: false,
+  discoverCirclesQuery: '',
+  searchQuery: '', searchScope: 'EVERYTHING', discoverySearch: { status: 'idle' },
+  searchOffset: 0, searchLoadingMore: false, searchLoadMoreError: null,
+  selectedProfileKsNumber: null, selectedProfile: { status: 'idle' },
 };
 
 type Gateway = Pick<StoreReadGateway, 'search'>;
@@ -271,6 +308,7 @@ type Gateway = Pick<StoreReadGateway, 'search'>;
 export function createCommunityController(
   gateway: Gateway,
   community: CommunityGateway,
+  discovery: DiscoveryGateway,
   trustedMediaOrigin: string | null = null,
 ) {
   let state: CommunityState = { ...initial };
@@ -364,13 +402,76 @@ export function createCommunityController(
     }
   }
 
-  async function loadDiscoverCircles() {
+  let discoverCirclesSequence = 0;
+  async function loadDiscoverCircles(query?: string) {
+    const sequence = ++discoverCirclesSequence;
     update({ discoverCircles: { status: 'loading' } });
     try {
-      const circles = await community.circles.discover();
+      const circles = await community.circles.discover(50, 0, query || undefined);
+      if (sequence !== discoverCirclesSequence) return;
       update({ discoverCircles: { status: 'ready', data: circles } });
     } catch (error) {
+      if (sequence !== discoverCirclesSequence) return;
       update({ discoverCircles: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
+  // ─── Phase 6 Slice 5 (Discovery & Identity) ─────────────────────────
+
+  /** Final pre-merge correction -- appends only the section matching the active scope; the OTHER
+   * sections are always empty for a scoped search (never fabricated), so a position-wise concat is
+   * safe for every scope, including a future one that searches more than one section. */
+  function mergeDiscoveryResults(previous: DiscoveryResults, next: DiscoveryResults): DiscoveryResults {
+    return {
+      community: [...previous.community, ...next.community], communityHasMore: next.communityHasMore,
+      circles: [...previous.circles, ...next.circles], circlesHasMore: next.circlesHasMore,
+      stores: [...previous.stores, ...next.stores], storesHasMore: next.storesHasMore,
+      people: [...previous.people, ...next.people], peopleHasMore: next.peopleHasMore,
+    };
+  }
+
+  /**
+   * Final pre-merge correction -- `append=false` is a fresh first-page search (resets `searchOffset`
+   * to 0 and replaces any prior results); `append=true` is "Load more" (keeps the existing results
+   * visible while fetching, merges on success, and on failure leaves the existing page untouched --
+   * Section 22/23). The existing sequence-number discipline (already used by the Store-search box
+   * above) is reused verbatim so a stale response -- whether a delayed first page from an abandoned
+   * query/scope, or a delayed "Load more" page from before a new search started -- can never overwrite
+   * newer state (Section 21).
+   */
+  let discoverySearchSequence = 0;
+  async function runDiscoverySearch(query: string, scope: DiscoveryScope, offset: number, append: boolean) {
+    const sequence = ++discoverySearchSequence;
+    if (append) {
+      update({ searchLoadingMore: true, searchLoadMoreError: null });
+    } else {
+      update({ searchQuery: query, searchScope: scope, searchOffset: 0, discoverySearch: { status: 'loading' }, searchLoadMoreError: null });
+    }
+    try {
+      const results = await discovery.search(query, scope, SEARCH_PAGE_SIZE, offset);
+      if (sequence !== discoverySearchSequence) return;
+      if (append && state.discoverySearch.status === 'ready') {
+        update({ discoverySearch: { status: 'ready', data: mergeDiscoveryResults(state.discoverySearch.data, results) }, searchOffset: offset, searchLoadingMore: false });
+      } else {
+        update({ discoverySearch: { status: 'ready', data: results }, searchOffset: offset, searchLoadingMore: false });
+      }
+    } catch (error) {
+      if (sequence !== discoverySearchSequence) return;
+      if (append) {
+        update({ searchLoadingMore: false, searchLoadMoreError: errorText(error) });
+      } else {
+        update({ discoverySearch: { status: 'error', error: asApiError(error) } });
+      }
+    }
+  }
+
+  async function loadProfile(canonicalKsNumber: string) {
+    update({ selectedProfileKsNumber: canonicalKsNumber, selectedProfile: { status: 'loading' } });
+    try {
+      const profile = await discovery.profiles.get(canonicalKsNumber);
+      update({ selectedProfile: { status: 'ready', data: profile } });
+    } catch (error) {
+      update({ selectedProfile: { status: 'error', error: asApiError(error) } });
     }
   }
 
@@ -478,7 +579,18 @@ export function createCommunityController(
         replyDraft: { ...emptyReplyDraft, idempotencyKey: newIdempotencyKey('community-reply') },
         helpError: null, helpIntentKey: newIdempotencyKey('community-help'),
       });
-      if (real) await loadObjectConversation(id);
+      if (real) { await loadObjectConversation(id); return; }
+      // Phase 6 Slice 5 (Discovery & Identity) -- opening a search result that is not already in the
+      // locally-loaded LIVE feed (e.g. an older post, or one reached from Search rather than the
+      // home feed) now falls back to a real fetch by id, mirroring `openCircle`'s own existing
+      // fetch-fallback below -- never a silently-blank detail view.
+      try {
+        const fetched = await community.get(id);
+        update({ selectedRealObject: fetched });
+        await loadObjectConversation(id);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
     },
     backToHome() { update({ view: 'home', selectedObjectId: null, selectedRealObject: null }); },
 
@@ -676,8 +788,14 @@ export function createCommunityController(
         if (state.myCircles.status === 'idle') await loadMyCircles();
         if (state.circleInvitations.status === 'idle') await loadCircleInvitations();
       }
-      if (tab === 'discover' && state.discoverCircles.status === 'idle') await loadDiscoverCircles();
+      if (tab === 'discover' && state.discoverCircles.status === 'idle') await loadDiscoverCircles(state.discoverCirclesQuery);
     },
+
+    /** Phase 6 Slice 5 (Discovery & Identity, Section 12) -- Discover Circles' own text query,
+     * additive to its existing unfiltered browse; the caller debounces the resulting re-search
+     * exactly like the existing home `query`/`submitSearch` pair. */
+    setDiscoverCirclesQuery(query: string) { update({ discoverCirclesQuery: query }); },
+    async submitDiscoverCirclesQuery() { await loadDiscoverCircles(state.discoverCirclesQuery); },
 
     openCreateCircle() {
       update({ createCircleOpen: true, createCircleDraft: { ...emptyCreateCircleDraft, idempotencyKey: newIdempotencyKey('circle-create') } });
@@ -967,6 +1085,33 @@ export function createCommunityController(
 
     showNotice(text: string) { update({ notice: text }); },
     dismissNotice() { update({ notice: null }); },
+
+    // ─── Phase 6 Slice 5 (Discovery & Identity) -- "find → understand → open → decide for yourself" ─────
+
+    /** Opens the one coherent Community discovery entry point (Section 28). Never auto-runs a search
+     * on open -- the person types what they are looking for, exactly like every other real Community
+     * search box in this app. */
+    openSearch() { update({ view: 'search' }); },
+    setSearchQuery(query: string) { update({ searchQuery: query }); },
+    /** A scope change is a genuinely new search (Section 9/24) -- always resets to page 1. */
+    setSearchScope(scope: DiscoveryScope) { void runDiscoverySearch(state.searchQuery, scope, 0, false); },
+    async submitDiscoverySearch() { await runDiscoverySearch(state.searchQuery, state.searchScope, 0, false); },
+    /** "Load more" (Section 11) -- never offered for `EVERYTHING` (Section 26), a no-op while a
+     * first page or an earlier "Load more" is already in flight. The same action is reused for a
+     * page-2 retry after a failure (Section 23) -- there is only ever one "load the next page" intent. */
+    async loadMoreSearchResults() {
+      if (state.searchScope === 'EVERYTHING') return;
+      if (state.discoverySearch.status !== 'ready' || state.searchLoadingMore) return;
+      await runDiscoverySearch(state.searchQuery, state.searchScope, state.searchOffset + SEARCH_PAGE_SIZE, true);
+    },
+
+    /** Opens a public person/business profile from a search result (Section 34) -- informational
+     * only; this is never itself a route to Agreement/trade authority (Section 37). */
+    async openProfile(canonicalKsNumber: string) {
+      update({ view: 'profile' });
+      await loadProfile(canonicalKsNumber);
+    },
+    backToSearch() { update({ view: 'search' }); },
 
     reset() {
       update({

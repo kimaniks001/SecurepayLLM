@@ -7,6 +7,7 @@ import { createMoneyGateway } from './money';
 import { createStoreGateway } from './store';
 import { createCircleGateway } from './circle';
 import { createCommunityGateway } from './community';
+import { createDiscoveryGateway } from './discovery';
 import { createMasterGateway } from './master';
 import { createMarketNetworkGateway } from './marketnetwork';
 import { createReferralGateway } from './referral';
@@ -39,6 +40,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http),
     circle: createCircleGateway(http),
     community: createCommunityGateway(http),
+    discovery: createDiscoveryGateway(http),
     master: createMasterGateway(http), marketNetwork: createMarketNetworkGateway(http), referral: createReferralGateway(http), subscription: createSubscriptionGateway(http),
     settlementDestinations: createSettlementDestinationGateway(http), financialPartners: createFinancialPartnerGateway(http), moneyAuthority: createMoneyAuthorityGateway(http),
     moneySession: createMoneySessionGateway(http), paymentIntent: createPaymentIntentGateway(http), paymentRelease: createPaymentReleaseGateway(http), agreementReview: createAgreementReviewGateway(http), moneyOperations: createMoneyOperationsGateway(http),
