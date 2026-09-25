@@ -285,23 +285,52 @@ test('RuntimeApp wires a first-class #/securelink/{slug} route to SecureLinkExpe
   const runtime = await readFile(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
   assert.match(runtime, /useSecureLinkRoute/);
   assert.match(runtime, /SecureLinkExperience/);
-  const hookBody = runtime.slice(runtime.indexOf('function useSecureLinkRoute'), runtime.indexOf('function useSecureLinkRoute') + 900);
+  const hookStart = runtime.indexOf('const SECURE_LINK_PATH_PATTERN');
+  const hookBody = runtime.slice(hookStart, hookStart + 3300);
   assert.match(hookBody, /securelink/); // the route parses off "securelink/" (or a real backend path prefix), not an agreement/product identifier
 
-  // The exact parsing regex, exercised directly: a bare slug segment matches under "securelink" OR any
-  // of the backend's own real path prefixes (Slice 5 -- PublicPathClass#pathPrefix: s/r/k/w/g), decoded,
-  // trailing slash tolerated, and anything else (including an empty/missing slug) does not.
-  const regexLiteral = /\/\^#\\\/\?\(\?:securelink\|s\|r\|k\|w\|g\)\\\/\(\[\^\/\]\+\)\\\/\?\$\//.exec(hookBody);
-  assert.ok(regexLiteral, 'expected to find the exact route regex in useSecureLinkRoute');
-  const routeRegex = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
-  assert.equal(routeRegex.exec('#/securelink/amani%2F123456789')[1], 'amani%2F123456789');
-  assert.equal(decodeURIComponent(routeRegex.exec('#/securelink/amani%2F123456789')[1]), 'amani/123456789');
-  // The backend's own real path-prefix shapes (Slice 5) resolve identically.
-  assert.equal(routeRegex.exec('#/s/amini-abc')[1], 'amini-abc');
-  assert.equal(routeRegex.exec('#/r/amini-abc')[1], 'amini-abc');
-  assert.equal(routeRegex.exec('#securelink/amani/1'), null); // an extra path segment after the slug never matches -- [^/]+ stops at the first "/"
-  assert.equal(routeRegex.exec('#/securelink/'), null); // an empty slug never matches
-  assert.equal(routeRegex.exec('#/money'), null);
+  // The exact parsing regexes, exercised directly: a bare slug segment matches under "securelink" OR any
+  // of the backend's own real path prefixes (PublicPathClass#pathPrefix: s/r/k/w/g), decoded, trailing
+  // slash tolerated, and anything else (including an empty/missing slug) does not.
+  assert.match(runtime, /SECURE_LINK_PATH_PATTERN\s*=\s*\/\^\\\/\(\?:securelink\|s\|r\|k\|w\|g\)\\\/\(\[\^\/\]\+\)\\\/\?\$\//);
+  assert.match(runtime, /SECURE_LINK_HASH_PATTERN\s*=\s*\/\^#\\\/\?\(\?:securelink\|s\|r\|k\|w\|g\)\\\/\(\[\^\/\]\+\)\\\/\?\$\//);
+  const pathRegex = /^\/(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
+  const hashRegex = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
+  assert.equal(hashRegex.exec('#/securelink/amani%2F123456789')[1], 'amani%2F123456789');
+  assert.equal(decodeURIComponent(hashRegex.exec('#/securelink/amani%2F123456789')[1]), 'amani/123456789');
+  // The backend's own real path-prefix shapes resolve identically under either form.
+  assert.equal(hashRegex.exec('#/s/amini-abc')[1], 'amini-abc');
+  assert.equal(hashRegex.exec('#/r/amini-abc')[1], 'amini-abc');
+  assert.equal(hashRegex.exec('#securelink/amani/1'), null); // an extra path segment after the slug never matches -- [^/]+ stops at the first "/"
+  assert.equal(hashRegex.exec('#/securelink/'), null); // an empty slug never matches
+  assert.equal(hashRegex.exec('#/money'), null);
+  // UR-141 closure -- the canonical, server-issued CLEAN pathname form (PublicLocatorUrlBuilder's own
+  // shape: `{baseUrl}/{prefix}/{slug}`, no `#`), which a real production link actually carries.
+  assert.equal(pathRegex.exec('/r/amini-2y40w0385rzqr5se278zr7vb1m')[1], 'amini-2y40w0385rzqr5se278zr7vb1m');
+  assert.equal(pathRegex.exec('/s/umoja-abc')[1], 'umoja-abc');
+  assert.equal(pathRegex.exec('/k/jenga-abc')[1], 'jenga-abc');
+  assert.equal(pathRegex.exec('/w/haraka-abc')[1], 'haraka-abc');
+  assert.equal(pathRegex.exec('/g/taji-abc')[1], 'taji-abc');
+  assert.equal(pathRegex.exec('/r/'), null); // an empty slug never matches
+  assert.equal(pathRegex.exec('/r/amini-abc/extra'), null); // an extra path segment never matches
+  assert.equal(pathRegex.exec('/'), null); // the bare application root never matches
+  assert.equal(pathRegex.exec('/some-other-app-route'), null);
+});
+
+test('UR-141 closure: useSecureLinkRoute checks the canonical clean pathname FIRST, falling back to the legacy hash form only when no pathname match exists -- both converge on the same slug/lookup, and clear() resets whichever form was active', async () => {
+  const runtime = await readFile(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
+  const hookStart = runtime.indexOf('const SECURE_LINK_PATH_PATTERN');
+  const hookBody = runtime.slice(hookStart, hookStart + 3300);
+  // Pathname is resolved before hash inside the same parse function -- source order proves precedence.
+  const pathIdx = hookBody.indexOf('SECURE_LINK_PATH_PATTERN.exec(window.location.pathname)');
+  const hashIdx = hookBody.indexOf('SECURE_LINK_HASH_PATTERN.exec(window.location.hash)');
+  assert.ok(pathIdx > -1 && hashIdx > -1 && pathIdx < hashIdx, 'expected the canonical pathname match to be attempted before the legacy hash match');
+  // clear() resets the pathname (via history.replaceState, no reload) only when a clean-path route was
+  // active, and always clears any hash -- never leaves the caller stuck back in the same route.
+  assert.match(hookBody, /window\.history\.replaceState\(null,\s*['"]['"],\s*['"]\/['"]\)/);
+  assert.match(hookBody, /window\.location\.hash\s*=\s*['"]['"]/);
+  // popstate is observed alongside hashchange, since a pathname change never fires hashchange.
+  assert.match(hookBody, /addEventListener\('popstate'/);
 });
 
 // ---------------------------------------------------------------- SecureLinkExperience.tsx -- wiring/doctrine checks
