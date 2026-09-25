@@ -42,25 +42,17 @@ test('createCommunityGateway: create() sends an Idempotency-Key header and the r
   assert.deepEqual(calls[0].body, { objectType: 'NEED', title: 'Bathroom repair', body: 'body text', locationLabel: 'Othaya' });
 });
 
-test('createCommunityGateway: feed() and get() are readable without requiring authentication', async () => {
+test('Slice 1 correction: createCommunityGateway requires authentication for every method, including feed() and get() (Trust Project fail-closed interim)', async () => {
   const { calls, http } = fakeHttp();
   const gateway = api.communityGatewayModule.createCommunityGateway(http);
   await gateway.feed();
   await gateway.get('obj-1');
-  assert.equal(calls[0].auth, 'optional');
-  assert.equal(calls[1].auth, 'optional');
-  assert.match(calls[1].path, /\/api\/v1\/community\/objects\/obj-1$/);
-});
-
-test('createCommunityGateway: mine() and close() require authentication', async () => {
-  const { calls, http } = fakeHttp();
-  const gateway = api.communityGatewayModule.createCommunityGateway(http);
   await gateway.mine();
   await gateway.close('obj-1');
-  assert.equal(calls[0].auth, 'required');
-  assert.equal(calls[1].auth, 'required');
-  assert.equal(calls[1].method, 'POST');
-  assert.match(calls[1].path, /\/api\/v1\/community\/objects\/obj-1\/close$/);
+  assert.ok(calls.every(c => c.auth === 'required'), 'every Community gateway call must require authentication');
+  assert.match(calls[1].path, /\/api\/v1\/community\/objects\/obj-1$/);
+  assert.equal(calls[3].method, 'POST');
+  assert.match(calls[3].path, /\/api\/v1\/community\/objects\/obj-1\/close$/);
 });
 
 // ─── features/community/view.ts -- realObjectToCommunityObject ─────────────────────────
@@ -170,6 +162,93 @@ test('controller.submitCompose surfaces a gateway failure without losing the dra
   assert.equal(snap.view, 'compose');
   assert.ok(snap.draft.error);
   assert.equal(snap.draft.submitting, false);
+});
+
+// ─── Slice 1 correction 1: one Idempotency-Key per draft, minted on open, never per submit ─────────────────────────
+
+test('Slice 1 correction: openComposer mints exactly one Idempotency-Key up front, before any field is touched', () => {
+  const { gateway } = fakeCommunityGateway();
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openComposer();
+  const key = controller.getSnapshot().draft.idempotencyKey;
+  assert.ok(key && key.length > 0);
+});
+
+test('Slice 1 correction: two submit attempts against the same unchanged draft reuse the SAME Idempotency-Key, even across a failure', async () => {
+  let attempt = 0;
+  const seenKeys = [];
+  const { gateway } = fakeCommunityGateway({
+    create: async (type, title, body, location, idempotencyKey) => {
+      seenKeys.push(idempotencyKey);
+      attempt += 1;
+      if (attempt === 1) throw new Error('network down');
+      return realObject({ objectType: type, id: 'created-retry' });
+    },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openComposer();
+  const mintedKey = controller.getSnapshot().draft.idempotencyKey;
+  controller.setComposeType('need');
+  controller.setComposeField('title', 'Bathroom repair');
+  controller.setComposeField('body', 'Looking for someone to repair it.');
+
+  await controller.submitCompose(); // fails (network)
+  assert.equal(controller.getSnapshot().view, 'compose'); // still on the composer, draft intact
+  assert.equal(controller.getSnapshot().draft.idempotencyKey, mintedKey); // key survived the failure
+
+  await controller.submitCompose(); // retried -- same draft, same key
+  assert.equal(controller.getSnapshot().view, 'home'); // this attempt succeeds
+
+  assert.equal(seenKeys.length, 2);
+  assert.equal(seenKeys[0], seenKeys[1]);
+  assert.equal(seenKeys[0], mintedKey);
+});
+
+test('Slice 1 correction: a fresh composer session (after cancel, then reopening) mints a genuinely new Idempotency-Key', () => {
+  const { gateway } = fakeCommunityGateway();
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openComposer();
+  const firstKey = controller.getSnapshot().draft.idempotencyKey;
+  controller.cancelComposer();
+  controller.openComposer();
+  const secondKey = controller.getSnapshot().draft.idempotencyKey;
+  assert.notEqual(firstKey, secondKey);
+});
+
+test('Slice 1 correction: local validation failures never mint a fresh key or call the gateway', async () => {
+  const { gateway, calls } = fakeCommunityGateway();
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openComposer();
+  const mintedKey = controller.getSnapshot().draft.idempotencyKey;
+  await controller.submitCompose(); // no type chosen yet
+  assert.equal(controller.getSnapshot().draft.idempotencyKey, mintedKey);
+  controller.setComposeType('question');
+  await controller.submitCompose(); // no title yet
+  assert.equal(controller.getSnapshot().draft.idempotencyKey, mintedKey);
+  assert.equal(calls.filter(c => c[0] === 'create').length, 0);
+});
+
+// ─── Slice 1 correction 2: a successful Close removes the object from the current ACTIVE feed ─────────────────────────
+
+test('Slice 1 correction: closeObject removes the object from the current ACTIVE feed immediately, without requiring a refresh', async () => {
+  const { gateway } = fakeCommunityGateway({
+    feed: () => [realObject({ id: 'obj-1' }), realObject({ id: 'obj-2' })],
+    close: (id) => realObject({ id, status: 'CLOSED', closedAt: '2026-09-02T00:00:00Z' }),
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.enter();
+  assert.equal(controller.getSnapshot().feed.data.length, 2);
+
+  await controller.closeObject('obj-1');
+
+  const snap = controller.getSnapshot();
+  assert.equal(snap.feed.data.length, 1);
+  assert.ok(!snap.feed.data.some(o => o.id === 'obj-1'));
+  assert.ok(snap.feed.data.some(o => o.id === 'obj-2'));
+  // The closed object's own detail state is still honestly available (Section 2's own "may remain
+  // available in ... current detail state" allowance) -- just no longer in the ACTIVE feed list.
+  assert.equal(snap.selectedRealObject.id, 'obj-1');
+  assert.equal(snap.selectedRealObject.status, 'CLOSED');
 });
 
 test('controller.closeObject updates the object in place and shows a notice', async () => {
