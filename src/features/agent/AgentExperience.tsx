@@ -15,6 +15,7 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { CircleGateway } from '../../api/securepay/circle';
+import type { CommunityGateway } from '../../api/securepay/community';
 import type { MasterGateway } from '../../api/securepay/master';
 import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
 import type { ReferralGateway } from '../../api/securepay/referral';
@@ -113,8 +114,9 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+export function AgentExperience({ gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+  communityGateway: CommunityGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
@@ -384,6 +386,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     return (
       <CommunityExperience
         gateway={storeGateway}
+        communityGateway={communityGateway}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onOpenCircle={() => navigateTo('circle')}

@@ -1,5 +1,56 @@
 import type { StoreSearchResult } from '../../api/securepay/store/adapters';
-import type { CommunityObject } from '../../types';
+import type { CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { CommunityObject, CommunityObjectType } from '../../types';
+
+const REAL_OBJECT_TYPE: Record<CommunityObjectResponse['objectType'], CommunityObjectType> = {
+  QUESTION: 'question',
+  NEED: 'need',
+  OPPORTUNITY: 'opportunity',
+  WORK_STORY: 'work_story',
+  DISCUSSION: 'discussion',
+};
+
+function relativeTime(iso: string): string {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.round(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * Phase 6 (Community Life) Slice 1 -- a real, backend-persisted Community object. No fabricated
+ * `responses` (replies/"I can help" are Slice 2), no invented capabilities/budget/timing fields the
+ * backend does not yet carry. `provenance` states plainly that this is a real Community post, never
+ * a reputation/rating claim (Section 4/20's own "never reputation scoring" doctrine).
+ *
+ * <p>Slice 1 correction (The Trust Project doctrine): `visibility` is `'community'`, never `'public'`
+ * -- the backend now fails closed behind authentication for every real Community read (see
+ * `createCommunityGateway`'s own doctrine comment), pending Trust Project invitation/membership
+ * authority in a later slice. `'public'` remains reserved for genuinely internet-public content (a
+ * Store offer reference, below) -- this UI model never claims a real Community post is that.
+ */
+export function realObjectToCommunityObject(dto: CommunityObjectResponse): CommunityObject {
+  return {
+    id: dto.id,
+    objectType: REAL_OBJECT_TYPE[dto.objectType],
+    author: dto.authorDisplayName ?? dto.authorCanonicalKsNumber ?? 'A SecurePay member',
+    authorCapacity: 'personal',
+    createdAt: relativeTime(dto.createdAt),
+    title: dto.title,
+    body: dto.body,
+    generalLocation: dto.locationLabel ?? undefined,
+    status: dto.status === 'ACTIVE' ? 'active' : dto.status === 'CLOSED' ? 'closed' : 'withdrawn',
+    responses: [],
+    provenance: dto.authorCanonicalKsNumber ? `Posted by ${dto.authorCanonicalKsNumber}` : 'Posted to Community',
+    visibility: 'community',
+  };
+}
 
 /**
  * The only real Community content source this phase has: Store Offers, via the already-productionized

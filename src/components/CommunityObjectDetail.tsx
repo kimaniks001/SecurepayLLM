@@ -25,9 +25,16 @@ interface CommunityObjectDetailProps {
    * required so the real Community route's production bundle never pulls in Store fixtures.
    */
   offer: StoreOffer | null;
+  /**
+   * Phase 6 (Community Life) Slice 1 -- author-only Close action for a real, backend-persisted,
+   * still-ACTIVE object. Omitted entirely (no button rendered) for the fixture path, a non-author
+   * viewer, a store offer reference, or an object that is not the caller's own -- the backend
+   * independently enforces ownership regardless of whether this prop is supplied.
+   */
+  onClose?: () => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer, onClose }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -168,6 +175,14 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
             >
               <MessageCircle className="w-4 h-4" />
               Reply or share experience
+            </button>
+          )}
+          {onClose && object.status === 'active' && (
+            <button
+              onClick={onClose}
+              className="w-full text-[0.8rem] text-sand-500 hover:text-forest-600 py-2 transition-colors"
+            >
+              Close this post
             </button>
           )}
         </div>

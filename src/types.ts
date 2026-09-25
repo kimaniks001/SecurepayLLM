@@ -1256,7 +1256,13 @@ export interface CommunityObject {
   relatedPersonIds?: string[];
   relatedBusinessIds?: string[];
   provenance: string;
-  visibility: 'public' | 'connections';
+  /**
+   * Phase 6 Slice 1 correction (Trust Project doctrine) -- 'community' is the truthful value for a
+   * real, backend-persisted Community post: visible to authenticated Community readers, never
+   * internet-public. 'public' remains reserved for genuinely public content (a Store offer
+   * reference). 'connections' is the pre-existing fixture-only value, unchanged.
+   */
+  visibility: 'public' | 'connections' | 'community';
   mediaCaption?: string;
   category?: string;
   budget?: string;
