@@ -1,6 +1,6 @@
 import { segment, type HttpClient } from '../http';
 import type {
-  CircleMemberView, CircleMembershipResponse, CirclePendingRequestView, CircleResponse,
+  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -95,6 +95,12 @@ export function createCommunityGateway(http: HttpClient) {
         http.request<CircleResponse[]>(`/api/v1/community/circles?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       mine: (limit = 50, offset = 0) =>
         http.request<CircleResponse[]>(`/api/v1/community/circles/mine?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      // Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped
+      // (their own INVITED rows only). The one legitimate route to discover a PRIVATE Circle they
+      // cannot otherwise find through general discovery; opening one routes into the existing
+      // Circle detail experience rather than a second accept/decline engine.
+      myInvitations: (limit = 50, offset = 0) =>
+        http.request<CirclePendingInvitationView[]>(`/api/v1/community/circles/invitations?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       get: (circleId: string) => http.request<CircleResponse>(circle(circleId), { auth: 'required' }),
       close: (circleId: string) => http.request<CircleResponse>(`${circle(circleId)}/close`, { method: 'POST', auth: 'required' }),
       membership: (circleId: string) =>

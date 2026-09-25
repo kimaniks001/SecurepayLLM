@@ -139,9 +139,32 @@ export interface CirclePendingRequestView {
  * Matches `CommunityCircleController.MemberView` exactly -- community-safe identity fields only,
  * for an ACTIVE Circle member's own view of who else is in the Circle. `membershipId` is the opaque
  * reference an owner's Remove action targets -- never identity-revealing beyond the fields above.
+ *
+ * <p>Correction (final pre-merge correction pass): `isSelf` is server-derived (never inferred
+ * locally) so the UI can hide the owner's own Remove button -- the backend already rejects
+ * self-removal (`CannotRemoveOwnerException`); this field only lets the client avoid offering an
+ * action that will always fail.
  */
 export interface CircleMemberView {
   membershipId: string;
   canonicalKsNumber: string | null;
   displayName: string | null;
+  isSelf: boolean;
+}
+
+/**
+ * Correction (final pre-merge correction pass) -- matches
+ * `CommunityCircleController.PendingInvitationView` exactly. One of the caller's own pending Circle
+ * invitations: the one legitimate route to discover a PRIVATE Circle they cannot otherwise find
+ * through general discovery. Opening one routes into the existing Circle detail experience -- this
+ * is never a second accept/decline engine, just enough to identify and open the invitation.
+ */
+export interface CirclePendingInvitationView {
+  circleId: string;
+  circleName: string;
+  circlePurpose: string;
+  circleVisibility: 'PUBLIC' | 'PRIVATE';
+  circleMembershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+  invitedByDisplayName: string | null;
+  invitedAt: string;
 }

@@ -58,6 +58,14 @@ test('gateway: circles.join/request/invite/acceptInvitation/declineInvitation/le
   assert.equal(calls[5].path, '/api/v1/community/circles/circle-1/leave');
 });
 
+test('gateway: circles.myInvitations hits the self-scoped pending-invitations path', async () => {
+  const { calls, http } = fakeHttp();
+  const gateway = api.communityGatewayModule.createCommunityGateway(http);
+  await gateway.circles.myInvitations();
+  assert.equal(calls[0].path, '/api/v1/community/circles/invitations?limit=50&offset=0');
+  assert.equal(calls[0].auth, 'required');
+});
+
 test('gateway: circles.objects.create/list hit the real Circle-scoped object paths', async () => {
   const { calls, http } = fakeHttp();
   const gateway = api.communityGatewayModule.createCommunityGateway(http);
@@ -107,6 +115,7 @@ function fakeCircleGateway(overrides = {}) {
         leave: async (...args) => { calls.push(['circles.leave', ...args]); return overrides.leave ? overrides.leave(...args) : (() => { throw new Error('not used'); })(); },
         removeMember: async (...args) => { calls.push(['circles.removeMember', ...args]); return overrides.removeMember ? overrides.removeMember(...args) : (() => { throw new Error('not used'); })(); },
         members: async (...args) => { calls.push(['circles.members', ...args]); return overrides.members ? overrides.members(...args) : []; },
+        myInvitations: async (...args) => { calls.push(['circles.myInvitations', ...args]); return overrides.myInvitations ? overrides.myInvitations(...args) : []; },
         objects: {
           create: async (...args) => { calls.push(['circles.objects.create', ...args]); return overrides.objectsCreate ? overrides.objectsCreate(...args) : (() => { throw new Error('not used'); })(); },
           list: async (...args) => { calls.push(['circles.objects.list', ...args]); return overrides.objectsList ? overrides.objectsList(...args) : []; },
@@ -448,6 +457,131 @@ test('controller: an owner can close their Circle after explicit confirmation, a
   assert.ok(calls.some(c => c[0] === 'circles.close'));
   assert.equal(controller.getSnapshot().selectedCircle.status, 'CLOSED');
   assert.equal(controller.getSnapshot().circleCloseConfirmOpen, false);
+});
+
+// ─── Final pre-merge correction pass: private Circle reachability ─────────────────────────
+
+function invitationFixture(circleId, overrides = {}) {
+  return {
+    circleId, circleName: 'Nyeri Builders', circlePurpose: 'A place to test.',
+    circleVisibility: 'PRIVATE', circleMembershipMode: 'INVITE_ONLY',
+    invitedByDisplayName: 'Mary W.', invitedAt: '2026-09-01T00:00:00Z', ...overrides,
+  };
+}
+
+test('controller.showCommunityTab("circles") also loads the self-scoped pending Circle invitations', async () => {
+  const { gateway, calls } = fakeCircleGateway({ myInvitations: async () => [invitationFixture('circle-9')] });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+
+  await controller.showCommunityTab('circles');
+
+  assert.ok(calls.some(c => c[0] === 'circles.myInvitations'));
+  assert.equal(controller.getSnapshot().circleInvitations.data.length, 1);
+  assert.equal(controller.getSnapshot().circleInvitations.data[0].circleId, 'circle-9');
+});
+
+test('opening a pending Circle invitation routes into the SAME Circle detail experience -- never a second accept/decline engine', async () => {
+  const { gateway } = fakeCircleGateway({
+    get: id => circleFixture(id, { visibility: 'PRIVATE', membershipMode: 'INVITE_ONLY' }),
+    membership: async () => ({ status: 'INVITED', isOwner: false, invitedByDisplayName: 'Mary W.', createdAt: '2026-09-01T00:00:00Z', respondedAt: null }),
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+
+  await controller.openCircle('circle-9');
+
+  assert.equal(controller.getSnapshot().view, 'circleDetail');
+  assert.equal(controller.getSnapshot().circleMembership.data.status, 'INVITED');
+});
+
+test('accepting a pending Circle invitation removes it from the pending list and the Circle converges to Your Circles', async () => {
+  let accepted = false;
+  const { gateway, calls } = fakeCircleGateway({
+    myInvitations: async () => (accepted ? [] : [invitationFixture('circle-9')]),
+    mine: async () => (accepted ? [circleFixture('circle-9', { visibility: 'PRIVATE', membershipMode: 'INVITE_ONLY' })] : []),
+    get: id => circleFixture(id, { visibility: 'PRIVATE', membershipMode: 'INVITE_ONLY' }),
+    membership: async () => (accepted
+      ? { status: 'ACTIVE', isOwner: false, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }
+      : { status: 'INVITED', isOwner: false, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: null }),
+    acceptInvitation: async () => { accepted = true; },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.showCommunityTab('circles');
+  assert.equal(controller.getSnapshot().circleInvitations.data.length, 1);
+  await controller.openCircle('circle-9');
+
+  await controller.acceptCircleInvitation();
+
+  assert.equal(controller.getSnapshot().circleInvitations.data.length, 0);
+  assert.equal(controller.getSnapshot().circleMembership.data.status, 'ACTIVE');
+  assert.ok(controller.getSnapshot().myCircles.data.some(c => c.id === 'circle-9'));
+  assert.ok(calls.filter(c => c[0] === 'circles.mine').length >= 2, 'Your Circles is re-fetched after accept, not guessed locally');
+});
+
+test('declining a pending Circle invitation removes it from the pending list without leaving a stale card', async () => {
+  let declined = false;
+  const { gateway } = fakeCircleGateway({
+    myInvitations: async () => (declined ? [] : [invitationFixture('circle-9')]),
+    get: id => circleFixture(id, { visibility: 'PRIVATE', membershipMode: 'INVITE_ONLY' }),
+    membership: async () => (declined
+      ? { status: 'DECLINED', isOwner: false, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-01T00:00:00Z' }
+      : { status: 'INVITED', isOwner: false, invitedByDisplayName: null, createdAt: '2026-09-01T00:00:00Z', respondedAt: null }),
+    declineInvitation: async () => { declined = true; },
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  await controller.showCommunityTab('circles');
+  assert.equal(controller.getSnapshot().circleInvitations.data.length, 1);
+  await controller.openCircle('circle-9');
+
+  await controller.declineCircleInvitation();
+
+  assert.equal(controller.getSnapshot().circleInvitations.data.length, 0);
+  assert.equal(controller.getSnapshot().circleMembership.data.status, 'DECLINED');
+});
+
+test('an unrelated caller never sees another person\'s pending invitations -- the backend scopes this, the fixture just proves the plumbing passes an empty list through unchanged', async () => {
+  const { gateway } = fakeCircleGateway({ myInvitations: async () => [] });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+
+  await controller.showCommunityTab('circles');
+
+  assert.deepEqual(controller.getSnapshot().circleInvitations.data, []);
+});
+
+test('choosing PRIVATE visibility locks the create-Circle draft to Invite-only, and the mode cannot be changed away from it while PRIVATE is selected', async () => {
+  const { gateway } = fakeCircleGateway();
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openCreateCircle();
+  controller.setCreateCircleMode('OPEN');
+  assert.equal(controller.getSnapshot().createCircleDraft.membershipMode, 'OPEN');
+
+  controller.setCreateCircleVisibility('PRIVATE');
+  assert.equal(controller.getSnapshot().createCircleDraft.membershipMode, 'INVITE_ONLY');
+
+  // Refused outright while PRIVATE is selected -- never representable as a state, not merely hidden.
+  controller.setCreateCircleMode('REQUEST_TO_JOIN');
+  assert.equal(controller.getSnapshot().createCircleDraft.membershipMode, 'INVITE_ONLY');
+
+  // PUBLIC still exposes all three membership choices.
+  controller.setCreateCircleVisibility('PUBLIC');
+  controller.setCreateCircleMode('OPEN');
+  assert.equal(controller.getSnapshot().createCircleDraft.membershipMode, 'OPEN');
+});
+
+test('the create-Circle UI locks/hides membership mode to Invite-only when PRIVATE is selected, with explanatory copy', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /state\.createCircleDraft\.visibility === 'PRIVATE'/);
+  assert.match(contents, /Private Circles are invite-only\. Only people you invite can find and join them\./);
+});
+
+test('a "Circle invitations" section exists and opening one routes into the existing Circle detail experience', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /Circle invitations/);
+  assert.match(contents, /View invitation/);
+});
+
+test('the member list never offers Remove on the requester\'s own (isSelf) row, even for the owner', async () => {
+  const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(contents, /isOwner && !m\.isSelf/);
 });
 
 test('correction-pattern: submitCircleInvite binds its idempotency key to the first attempted target, exactly like Trust Project invitation', async () => {

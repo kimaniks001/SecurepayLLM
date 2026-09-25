@@ -8,7 +8,7 @@ import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CircleResponse, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { CircleResponse, CirclePendingInvitationView, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { AppView, ErrorStateResponse } from '../../types';
 import {
   createCommunityController, errorText, REAL_COMPOSE_TYPES,
@@ -173,10 +173,54 @@ function CircleCard({ circle, onOpen }: { circle: CircleResponse; onOpen: () => 
 }
 
 /**
+ * Final pre-merge correction pass -- a pending Circle invitation. The one legitimate route for the
+ * invitee to discover a PRIVATE Circle otherwise invisible to general discovery ("Your Circles" is
+ * ACTIVE-only, general discovery is PUBLIC-only). Opening one routes into the SAME Circle detail
+ * experience every other Circle uses -- there is no separate accept/decline UI here.
+ */
+function CircleInvitationCard({ invitation, onOpen }: { invitation: CirclePendingInvitationView; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-2xl border border-forest-200 bg-forest-50/60 px-4 py-3.5 hover:border-forest-300 transition-colors animate-quiet-in"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-display text-[0.95rem] text-forest-800 font-medium leading-snug">{invitation.circleName}</h3>
+        <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-100 rounded-full px-2 py-0.5 shrink-0">Invited</span>
+      </div>
+      <p className="text-[0.8rem] text-sand-600 mt-1 line-clamp-2">{invitation.circlePurpose}</p>
+      {invitation.invitedByDisplayName && (
+        <p className="text-[0.72rem] text-sand-500 mt-1.5">Invited by {invitation.invitedByDisplayName}</p>
+      )}
+      <span className="inline-block mt-2 text-[0.75rem] font-medium text-forest-600">View invitation →</span>
+    </button>
+  );
+}
+
+function CircleInvitationsSection({
+  invitations, loading, onOpen,
+}: {
+  invitations: CirclePendingInvitationView[];
+  loading: boolean;
+  onOpen: (circleId: string) => void;
+}) {
+  if (!loading && invitations.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[0.78rem] font-medium text-sand-500 uppercase tracking-wide">Circle invitations</h3>
+      {loading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+      {invitations.map(inv => (
+        <CircleInvitationCard key={inv.circleId} invitation={inv} onOpen={() => onOpen(inv.circleId)} />
+      ))}
+    </div>
+  );
+}
+
+/**
  * "Your Circles" -- the smaller spaces this person actually belongs to (real backend data, `circles.mine()`).
  */
 function YourCirclesView({
-  circles, loading, error, onOpen, onCreate, onRetry,
+  circles, loading, error, onOpen, onCreate, onRetry, invitations, invitationsLoading,
 }: {
   circles: CircleResponse[];
   loading: boolean;
@@ -184,10 +228,12 @@ function YourCirclesView({
   onOpen: (id: string) => void;
   onCreate: () => void;
   onRetry: () => void;
+  invitations: CirclePendingInvitationView[];
+  invitationsLoading: boolean;
 }) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg text-forest-800 font-medium">Your Circles</h2>
@@ -197,9 +243,10 @@ function YourCirclesView({
             + Create a Circle
           </button>
         </div>
+        <CircleInvitationsSection invitations={invitations} loading={invitationsLoading} onOpen={onOpen} />
         {loading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
         {error && <ErrorStateCard data={{ type: 'ERROR_STATE', title: 'SecurePay could not load your Circles', text: error, primaryLabel: 'Try again', primaryValue: 'retry' }} onChoice={onRetry} />}
-        {!loading && !error && circles.length === 0 && (
+        {!loading && !error && circles.length === 0 && invitations.length === 0 && (
           <p className="text-[0.82rem] text-sand-500 py-6 text-center">
             Find a Circle around a place, skill, profession, interest or problem worth working on.
           </p>
@@ -266,7 +313,7 @@ function CircleDetailPanel({
   objectsLoading: boolean;
   onOpenObject: (id: string) => void;
   onCompose: () => void;
-  members: { membershipId: string; canonicalKsNumber: string | null; displayName: string | null }[];
+  members: { membershipId: string; canonicalKsNumber: string | null; displayName: string | null; isSelf: boolean }[];
   membersLoading: boolean;
   onRemoveMember: (membershipId: string) => void;
   pendingRequests: { membershipId: string; requesterCanonicalKsNumber: string | null; requesterDisplayName: string | null }[];
@@ -420,8 +467,11 @@ function CircleDetailPanel({
             <div className="space-y-1.5">
               {members.map(m => (
                 <div key={m.membershipId} className="flex items-center justify-between text-[0.82rem] text-forest-800 px-1">
-                  <span>{m.displayName ?? m.canonicalKsNumber ?? 'A Circle member'}</span>
-                  {isOwner && (
+                  <span>{m.displayName ?? m.canonicalKsNumber ?? 'A Circle member'}{m.isSelf ? ' (you)' : ''}</span>
+                  {/* UX-only cleanup (final pre-merge correction pass): the backend already rejects
+                      self-removal (CannotRemoveOwnerException) regardless of this check -- hiding the
+                      owner's own Remove button here just avoids offering an action that always fails. */}
+                  {isOwner && !m.isSelf && (
                     <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
                       Remove
                     </button>
@@ -643,6 +693,8 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
           onOpen={id => void controller.openCircle(id)}
           onCreate={() => controller.openCreateCircle()}
           onRetry={() => void controller.showCommunityTab('circles')}
+          invitations={state.circleInvitations.status === 'ready' ? state.circleInvitations.data : []}
+          invitationsLoading={state.circleInvitations.status === 'loading'}
         />
       </>
     );
@@ -768,19 +820,33 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
               className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 mb-2 resize-none"
             />
             <p className="text-[0.68rem] font-medium text-sand-500 uppercase tracking-wide mb-1">How do people join?</p>
-            <div className="flex gap-1.5 mb-3">
-              {(['OPEN', 'REQUEST_TO_JOIN', 'INVITE_ONLY'] as CircleMembershipMode[]).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => controller.setCreateCircleMode(mode)}
-                  className={`flex-1 text-[0.7rem] font-medium rounded-lg px-2 py-1.5 transition-colors ${
-                    state.createCircleDraft.membershipMode === mode ? 'bg-forest-600 text-cream-50' : 'bg-cream-50 text-forest-700 hover:bg-cream-100'
-                  }`}
-                >
-                  {CIRCLE_MODE_LABEL[mode]}
-                </button>
-              ))}
-            </div>
+            {state.createCircleDraft.visibility === 'PRIVATE' ? (
+              // Final pre-merge correction pass: a PRIVATE Circle is server-enforced as INVITE_ONLY-
+              // only, so the mode choice is locked and hidden rather than offered only to fail once
+              // submitted -- see CommunityCircleService#create's own doctrine comment.
+              <div className="mb-3">
+                <div className="w-full text-center text-[0.7rem] font-medium rounded-lg px-2 py-1.5 bg-forest-600 text-cream-50">
+                  {CIRCLE_MODE_LABEL.INVITE_ONLY}
+                </div>
+                <p className="text-[0.68rem] text-sand-500 mt-1">
+                  Private Circles are invite-only. Only people you invite can find and join them.
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-1.5 mb-3">
+                {(['OPEN', 'REQUEST_TO_JOIN', 'INVITE_ONLY'] as CircleMembershipMode[]).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => controller.setCreateCircleMode(mode)}
+                    className={`flex-1 text-[0.7rem] font-medium rounded-lg px-2 py-1.5 transition-colors ${
+                      state.createCircleDraft.membershipMode === mode ? 'bg-forest-600 text-cream-50' : 'bg-cream-50 text-forest-700 hover:bg-cream-100'
+                    }`}
+                  >
+                    {CIRCLE_MODE_LABEL[mode]}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Correction (Slice 3 pre-merge completion pass): visibility is a SEPARATE choice from
                 membership mode -- "who can find this Circle?" vs. "how do people join?". */}
             <p className="text-[0.68rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Who can find this Circle?</p>

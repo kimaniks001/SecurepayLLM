@@ -1,7 +1,7 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type {
-  CircleMemberView, CircleMembershipResponse, CirclePendingRequestView, CircleResponse,
+  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from '../../api/securepay/community/dto';
@@ -227,6 +227,13 @@ export interface CommunityState {
   /** ACTIVE members only. Loaded alongside the scoped feed for any ACTIVE member/owner. */
   circleMembers: RemoteState<CircleMemberView[]>;
   circleInviteOpen: boolean;
+  /**
+   * Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped.
+   * The one legitimate route to discover a PRIVATE Circle otherwise invisible to general discovery.
+   * Loaded lazily alongside `myCircles` when the Circles tab is shown; opening one routes into the
+   * existing Circle detail experience (`openCircle`) -- never a second accept/decline engine.
+   */
+  circleInvitations: RemoteState<CirclePendingInvitationView[]>;
   /** Reuses the SAME `InviteDraft` shape (and its own target-binding idempotency-key correction) as
    * Trust Project invitation -- one stable key permanently bound to one invitee once a remote
    * submission is attempted, exactly the same contract the backend enforces for Circle invitation. */
@@ -247,7 +254,7 @@ const initial: CommunityState = {
   circleJoinIntentKey: '', circleJoinSubmitting: false, circleJoinError: null,
   circleComposeDraft: { ...emptyDraft },
   circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
-  circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft },
+  circleInviteOpen: false, circleInvitations: { status: 'idle' }, circleInviteDraft: { ...emptyInviteDraft },
   circleCloseConfirmOpen: false, circleClosing: false,
 };
 
@@ -389,6 +396,27 @@ export function createCommunityController(
     } catch (error) {
       update({ circleMembers: { status: 'error', error: asApiError(error) } });
     }
+  }
+
+  /**
+   * Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped.
+   * Never a generic search across every Circle's membership; the backend independently enforces this scoping.
+   */
+  async function loadCircleInvitations() {
+    update({ circleInvitations: { status: 'loading' } });
+    try {
+      const invitations = await community.circles.myInvitations();
+      update({ circleInvitations: { status: 'ready', data: invitations } });
+    } catch (error) {
+      update({ circleInvitations: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
+  /** Removes one Circle's invitation from the pending list after it is accepted or declined --
+   * either way it must stop appearing as "waiting for me". */
+  function removeCircleInvitation(circleId: string) {
+    if (state.circleInvitations.status !== 'ready') return;
+    update({ circleInvitations: { status: 'ready', data: state.circleInvitations.data.filter(i => i.circleId !== circleId) } });
   }
 
   /** Owner-only -- only ever called when the caller is already known to be the Circle's own owner. */
@@ -644,7 +672,10 @@ export function createCommunityController(
 
     async showCommunityTab(tab: CommunityHomeTab) {
       update({ communityTab: tab });
-      if (tab === 'circles' && state.myCircles.status === 'idle') await loadMyCircles();
+      if (tab === 'circles') {
+        if (state.myCircles.status === 'idle') await loadMyCircles();
+        if (state.circleInvitations.status === 'idle') await loadCircleInvitations();
+      }
       if (tab === 'discover' && state.discoverCircles.status === 'idle') await loadDiscoverCircles();
     },
 
@@ -655,11 +686,26 @@ export function createCommunityController(
     setCreateCircleField(field: 'name' | 'purpose' | 'categoryLabel' | 'locationLabel', value: string) {
       update({ createCircleDraft: { ...state.createCircleDraft, [field]: value, error: null } });
     },
+    /**
+     * Final pre-merge correction pass -- a PRIVATE Circle is server-enforced as INVITE_ONLY-only
+     * (`CommunityCircleService#create`). This hard invariant here means the mode can never be
+     * changed away from INVITE_ONLY while PRIVATE is selected, even if a future UI bug tried to --
+     * mirroring, not merely hoping for, the backend's own rejection.
+     */
     setCreateCircleMode(mode: CircleMembershipMode) {
+      if (state.createCircleDraft.visibility === 'PRIVATE' && mode !== 'INVITE_ONLY') return;
       update({ createCircleDraft: { ...state.createCircleDraft, membershipMode: mode, error: null } });
     },
+    /**
+     * Choosing PRIVATE locks membershipMode to INVITE_ONLY immediately -- the only currently valid
+     * combination -- so the impossible PRIVATE+OPEN/PRIVATE+REQUEST_TO_JOIN combination is never even
+     * representable in the draft, let alone submitted only to fail server-side. Switching back to
+     * PUBLIC leaves the mode as INVITE_ONLY (still valid for PUBLIC) rather than guessing a different
+     * one the person did not choose.
+     */
     setCreateCircleVisibility(visibility: CircleVisibility) {
-      update({ createCircleDraft: { ...state.createCircleDraft, visibility, error: null } });
+      const membershipMode = visibility === 'PRIVATE' ? 'INVITE_ONLY' : state.createCircleDraft.membershipMode;
+      update({ createCircleDraft: { ...state.createCircleDraft, visibility, membershipMode, error: null } });
     },
     async submitCreateCircle() {
       const { name, purpose, membershipMode, visibility, categoryLabel, locationLabel, idempotencyKey } = state.createCircleDraft;
@@ -730,18 +776,29 @@ export function createCommunityController(
     },
     async acceptCircleInvitation() {
       if (!state.selectedCircleId) return;
+      const circleId = state.selectedCircleId;
       try {
-        await community.circles.acceptInvitation(state.selectedCircleId);
-        await refreshCircleMembership(state.selectedCircleId);
+        await community.circles.acceptInvitation(circleId);
+        // The invitation is now resolved -- it must stop appearing as "waiting for me", and the
+        // Circle must appear in Your Circles the next time that list is read. Re-fetching (rather
+        // than guessing the new server state locally) keeps both lists converged with the backend.
+        removeCircleInvitation(circleId);
+        if (state.myCircles.status !== 'idle') await loadMyCircles();
+        await refreshCircleMembership(circleId);
       } catch (error) {
         update({ notice: errorText(error) });
       }
     },
     async declineCircleInvitation() {
       if (!state.selectedCircleId) return;
+      const circleId = state.selectedCircleId;
       try {
-        await community.circles.declineInvitation(state.selectedCircleId);
-        await refreshCircleMembership(state.selectedCircleId);
+        await community.circles.declineInvitation(circleId);
+        // Resolved either way -- stops appearing as "waiting for me". The Circle itself becomes
+        // unavailable again for a PRIVATE Circle (the backend's own visibility gate), never a stale
+        // card left behind here.
+        removeCircleInvitation(circleId);
+        await refreshCircleMembership(circleId);
       } catch (error) {
         update({ notice: errorText(error) });
       }
