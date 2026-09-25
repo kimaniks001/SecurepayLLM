@@ -2,6 +2,9 @@
  * Phase 6 (Community Life) Slice 1 -- real, backend-persisted Community objects. Matches
  * `CommunityObjectController.CommunityObjectResponse` exactly. Author identity fields are always
  * server-resolved -- never sent by the client.
+ *
+ * <p>Slice 3 addition: `circleId` is `null` for a Community LIVE object (every pre-existing Slice
+ * 1/2 object) or a real Circle id when the object is scoped to exactly that Circle.
  */
 export interface CommunityObjectResponse {
   id: string;
@@ -15,6 +18,7 @@ export interface CommunityObjectResponse {
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
+  circleId: string | null;
 }
 
 /**
@@ -73,4 +77,55 @@ export interface FairTradePrincipleResponse {
   number: number;
   title: string;
   text: string;
+}
+
+/**
+ * Phase 6 (Community Life) Slice 3 -- a named Circle: "a home inside The Trust Project." Matches
+ * `CommunityCircleController.CircleResponse` exactly. Discovery-safe fields only -- a Circle's own
+ * content (posts/replies/help) is a completely separate, membership-gated read (see
+ * `circles.objects`). `memberCount` is a plain count, never a ranking/engagement signal.
+ */
+export interface CircleResponse {
+  id: string;
+  name: string;
+  purpose: string;
+  membershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
+  categoryLabel: string | null;
+  locationLabel: string | null;
+  status: 'ACTIVE' | 'CLOSED';
+  creatorCanonicalKsNumber: string | null;
+  creatorDisplayName: string | null;
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+}
+
+/**
+ * Matches `CommunityCircleController.CircleMembershipResponse` exactly -- the caller's own
+ * relationship to one Circle. `status` is `null` only when they have no membership record at all
+ * (and are not the owner, whose own membership is implicitly ACTIVE from creation).
+ */
+export interface CircleMembershipResponse {
+  status: 'INVITED' | 'REQUESTED' | 'ACTIVE' | 'DECLINED' | 'LEFT' | 'REMOVED' | null;
+  isOwner: boolean;
+  invitedByDisplayName: string | null;
+  createdAt: string | null;
+  respondedAt: string | null;
+}
+
+/** Matches `CommunityCircleController.PendingRequestView` exactly -- an owner's own pending
+ * REQUEST_TO_JOIN review queue. `membershipId` is the opaque reference used to approve/decline. */
+export interface CirclePendingRequestView {
+  membershipId: string;
+  requesterCanonicalKsNumber: string | null;
+  requesterDisplayName: string | null;
+  requestedAt: string;
+}
+
+/** Matches `CommunityCircleController.MemberView` exactly -- community-safe identity fields only,
+ * for an ACTIVE Circle member's own view of who else is in the Circle. */
+export interface CircleMemberView {
+  canonicalKsNumber: string | null;
+  displayName: string | null;
 }
