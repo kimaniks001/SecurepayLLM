@@ -300,9 +300,18 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
               type="text"
               value={state.inviteDraft.ksNumber}
               onChange={e => controller.setInviteKsNumber(e.target.value)}
+              readOnly={state.inviteDraft.attemptedTargetKsNumber !== null}
               placeholder="Their KS Number (e.g. KS123)"
-              className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 mb-2"
+              className={`w-full rounded-xl border border-cream-200 px-3 py-2.5 text-[0.85rem] placeholder:text-sand-400 focus:outline-none focus:border-forest-300 mb-2 ${
+                state.inviteDraft.attemptedTargetKsNumber !== null ? 'bg-cream-100 text-sand-500' : 'bg-white text-forest-800'
+              }`}
             />
+            {/* Correction (Slice 2 pre-merge, second pass): once a remote submission has been
+                attempted, this draft's key is permanently bound to that invitee -- the field locks
+                and a retry (or an explicit cancel to target someone else) are the only options. */}
+            {state.inviteDraft.attemptedTargetKsNumber !== null && (
+              <p className="text-[0.72rem] text-sand-500 mb-2">Retry this invitation, or cancel to invite someone else.</p>
+            )}
             {state.inviteDraft.error && <p role="alert" className="text-[0.75rem] text-red-600 mb-2">{state.inviteDraft.error}</p>}
             <div className="flex gap-2">
               <button
@@ -310,7 +319,9 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
                 disabled={state.inviteDraft.submitting}
                 className="flex-1 rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
               >
-                {state.inviteDraft.submitting ? 'Sending…' : 'Send invitation'}
+                {state.inviteDraft.submitting
+                  ? 'Sending…'
+                  : state.inviteDraft.attemptedTargetKsNumber !== null ? 'Retry invitation' : 'Send invitation'}
               </button>
               <button onClick={() => controller.cancelInvite()} className="rounded-xl border border-cream-200 text-forest-700 text-[0.82rem] font-medium px-4 py-2.5 hover:bg-cream-50 transition-colors">
                 Cancel

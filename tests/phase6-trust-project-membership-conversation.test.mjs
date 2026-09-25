@@ -187,40 +187,112 @@ test('controller.submitInvite validates locally and sends the invitee KS Number 
 
 // ─── Correction (Slice 2 pre-merge): idempotency-key lifecycle for invitation and "I can help" ────
 
-test('correction 1: controller.submitInvite reuses the SAME idempotency key across a failed attempt, a retry, and an edit to the KS Number', async () => {
+/**
+ * Correction (Slice 2, second pre-merge pass): mirrors the real backend's own "one invitation
+ * Idempotency-Key permanently bound to one invitee" contract (`TrustProjectMembershipService.invite`'s
+ * own `IllegalStateException` when the same key is replayed against a different invitee), so a
+ * frontend regression that ever sent a mismatched (key, target) pair would be caught here exactly as
+ * it would be by the real backend -- never silently accepted by an over-permissive test double.
+ */
+function keyBoundInviteMock(onSuccess) {
+  const boundTargets = new Map();
+  return async (ksNumber, idempotencyKey) => {
+    const existingTarget = boundTargets.get(idempotencyKey);
+    if (existingTarget !== undefined && existingTarget !== ksNumber) {
+      throw new Error('issuance key is already bound to a different invitee');
+    }
+    boundTargets.set(idempotencyKey, ksNumber);
+    return onSuccess
+      ? onSuccess(ksNumber, idempotencyKey)
+      : { status: 'INVITED', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: null };
+  };
+}
+
+test('correction (invitation binding) 6: the mock backend enforces the SAME key-bound-to-invitee rule as production', async () => {
+  const invite = keyBoundInviteMock();
+  await invite('KS200', 'key-1'); // first use of key-1 -- binds it to KS200
+  await assert.rejects(() => invite('KS201', 'key-1'), /already bound to a different invitee/);
+  await invite('KS200', 'key-1'); // a genuine retry (same invitee, same key) still converges without error
+});
+
+test('correction (invitation binding) 1: the KS Number may be freely edited before any remote submission attempt', async () => {
+  const { gateway } = fakeCommunityGateway({ invite: keyBoundInviteMock() });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openInvite();
+  controller.setInviteKsNumber('KS200');
+  controller.setInviteKsNumber('KS201'); // no remote attempt has happened yet -- free editing
+  assert.equal(controller.getSnapshot().inviteDraft.ksNumber, 'KS201');
+  assert.equal(controller.getSnapshot().inviteDraft.attemptedTargetKsNumber, null);
+});
+
+test('correction (invitation binding) 2/3: the first remote submission binds target+key, and every retry reuses exactly that pair', async () => {
   let attempt = 0;
-  const usedKeys = [];
+  const usedPairs = [];
   const { gateway } = fakeCommunityGateway({
-    invite: async (ksNumber, idempotencyKey) => {
-      usedKeys.push(idempotencyKey);
+    invite: keyBoundInviteMock((ksNumber, key) => {
+      usedPairs.push([ksNumber, key]);
       attempt += 1;
       if (attempt === 1) throw new Error('network blip');
       return { status: 'INVITED', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: null };
-    },
+    }),
   });
   const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
-
   controller.openInvite();
   const openedKey = controller.getSnapshot().inviteDraft.idempotencyKey;
-  assert.ok(openedKey);
 
   controller.setInviteKsNumber('KS200');
-  await controller.submitInvite(); // fails (attempt 1) -- key must NOT be regenerated on failure
-  assert.ok(controller.getSnapshot().inviteDraft.error);
+  await controller.submitInvite(); // the FIRST remote attempt -- fails, but BINDS target+key
+  assert.equal(controller.getSnapshot().inviteDraft.attemptedTargetKsNumber, 'KS200');
   assert.equal(controller.getSnapshot().inviteDraft.idempotencyKey, openedKey);
 
-  // The user changes the KS Number while the SAME invite panel remains open -- still one stable
-  // invitation intention/draft, so still the same key (per the mandate's own explicit note).
-  controller.setInviteKsNumber('KS201');
-  await controller.submitInvite(); // succeeds (attempt 2) -- the retry
+  await controller.submitInvite(); // a retry -- succeeds, reusing exactly the bound pair
   assert.ok(controller.getSnapshot().inviteDraft.sent);
 
-  assert.equal(usedKeys.length, 2);
-  assert.equal(usedKeys[0], openedKey);
-  assert.equal(usedKeys[1], openedKey); // SAME key reused across the retry, never regenerated per Submit press
+  assert.equal(usedPairs.length, 2);
+  assert.deepEqual(usedPairs[0], ['KS200', openedKey]);
+  assert.deepEqual(usedPairs[1], ['KS200', openedKey]);
+});
 
-  // A confirmed success discards this intention -- reopening (or continuing) mints a genuinely new one.
-  assert.notEqual(controller.getSnapshot().inviteDraft.idempotencyKey, openedKey);
+test('correction (invitation binding) 4: the target cannot silently change after a remote attempt -- edits are refused', async () => {
+  const { gateway } = fakeCommunityGateway({
+    invite: keyBoundInviteMock(() => { throw new Error('network blip'); }),
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openInvite();
+  controller.setInviteKsNumber('KS200');
+  await controller.submitInvite(); // fails -- binds the target to KS200
+  assert.equal(controller.getSnapshot().inviteDraft.attemptedTargetKsNumber, 'KS200');
+
+  controller.setInviteKsNumber('KS201'); // an attempted edit AFTER a remote attempt must be refused
+  assert.equal(controller.getSnapshot().inviteDraft.ksNumber, 'KS200'); // unchanged
+
+  // Retrying still targets the originally-bound invitee (KS200), never the rejected edit (KS201) --
+  // the keyBoundInviteMock would throw a DIFFERENT, more specific error ("already bound to a
+  // different invitee") if the controller ever sent KS201 under this same key; it does not, so the
+  // ordinary "network blip" failure recurs unchanged.
+  await controller.submitInvite();
+  assert.ok(controller.getSnapshot().inviteDraft.error);
+  assert.equal(controller.getSnapshot().inviteDraft.attemptedTargetKsNumber, 'KS200');
+});
+
+test('correction (invitation binding) 5: Cancel then a new invitation permits a different target, with a fresh key', async () => {
+  const { gateway } = fakeCommunityGateway({
+    invite: keyBoundInviteMock(() => { throw new Error('network blip'); }),
+  });
+  const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
+  controller.openInvite();
+  controller.setInviteKsNumber('KS200');
+  await controller.submitInvite(); // fails, binds KS200
+  const firstKey = controller.getSnapshot().inviteDraft.idempotencyKey;
+
+  controller.cancelInvite();
+  controller.openInvite(); // an explicit, genuinely new invitation session
+  assert.equal(controller.getSnapshot().inviteDraft.attemptedTargetKsNumber, null);
+  const secondKey = controller.getSnapshot().inviteDraft.idempotencyKey;
+  assert.notEqual(secondKey, firstKey);
+
+  controller.setInviteKsNumber('KS201'); // a genuinely different target is now allowed
+  assert.equal(controller.getSnapshot().inviteDraft.ksNumber, 'KS201');
 });
 
 test('correction 2: controller.offerHelp reuses the SAME help-intent key across a retry, and mints a fresh one only after a confirmed withdrawal', async () => {
