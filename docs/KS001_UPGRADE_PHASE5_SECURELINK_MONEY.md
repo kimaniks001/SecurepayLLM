@@ -429,3 +429,80 @@ Remains OPEN/EXTERNAL.
 
 **Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
 not deploy, do not start Phase 6.
+
+---
+
+## Phase 5 Slice 5 — Public Doorway + Monetary Obligation Convergence
+
+Starting SHA verified before continuing: `a7016fd1d24e7ad6b1e1c5917e8520b9c9f03b39` (matched the mandate's
+own stated value). PR #42 confirmed DRAFT/OPEN throughout.
+
+**New surfaces this slice:** `DoorwayManagePanel.tsx` (pre-activation SecureLink lifecycle — create/replace/
+revoke — mirroring `SecureLinkManagePanel` exactly, human-facing wording never distinguishing doorway from
+ACTIVE SecureLink), `doorwayCreateController.ts`/`doorwayManageController.ts` (single-idempotency-key
+issuance, matching the codebase's own uncertain-retry idiom), `AgreementSecureLinkSection.tsx` rewritten to
+check ACTIVE-product truth first and fall back to the doorway only when none exists.
+
+**Two genuine, live-discovered defects found and fixed in this pass, neither anticipated by design:**
+
+1. **Infinite render-loop crash.** `AgreementSecureLinkSection`'s `useSyncExternalStore` fallback
+   `subscribe`/`getSnapshot` (used while controllers are still initializing) were inline arrow functions
+   reallocated on every render. `useSyncExternalStore` compares these by reference identity; a fresh
+   function/object every render means "always changed," and React's own loop-prevention fired
+   ("Maximum update depth exceeded"), white-screening the ENTIRE People tab for EVERY Agreement, eligible
+   or not — these hooks run unconditionally before the eligibility check. Live-reproduced against a real
+   Agreement's People tab; fixed by hoisting the fallbacks to stable, module-level constants
+   (`NOOP_SUBSCRIBE`/`LOADING_SNAPSHOT`/`GET_LOADING_SNAPSHOT`). No existing test caught this: every prior
+   test rendered via `renderToStaticMarkup`, which never runs effects or the client reconciler's own loop
+   detection at all — this is the first defect this codebase's test suite structurally could not catch, and
+   it is recorded honestly as such rather than glossed over.
+2. **Missing activation-trigger UI path.** Once a doorway existed, nothing ever offered a path to real
+   product activation — the section only ever rendered `SecureLinkManagePanel`/`productCreate` once an
+   ACTIVE product ALREADY existed, an identically-shaped circularity to UR-150 itself, one layer further in.
+   Live-discovered only after completing real confirmations and finding no "Activate" affordance anywhere
+   in Overview/People/Money/Progress. Fixed by extending `DoorwayManagePanel`'s `has-doorway` phase with an
+   "Activate SecureLink now" action reusing the SAME, unmodified `productCreate` controller
+   `SecureLinkManagePanel` already owns — the backend's own `activateProduct` precondition check remains the
+   sole readiness authority; nothing here precomputes or guesses eligibility.
+
+**Live golden journey (real KS008 creator, real KS009 recipient):** SET (a fresh "sell my used iPhone for a
+fixed price of KES 40000" conversation) → canonical review showing real `PRICE: KES 40,000` (see the
+backend-side UR-151 root-cause fix this required) → "Create the draft Agreement" → propose → "Create
+SecureLink" issuing a real pre-activation doorway (`#/r/haraka-...`) → opened anonymously in a separate
+session, showing exact reviewed content, review-only messaging, no auth required to view → recipient signs
+in → "Join this Agreement" → real Join → both participants independently confirm the exact current version
+→ "Activate SecureLink now" → real product activation, backend-classified `KEY_CONTRACT` (never frontend-
+computed) → Replace (old URL 404s, new URL resolves ACTIVE) → Revoke (URL 404s, Agreement/obligation
+entirely unaffected) → Money tab re-reads the real structured obligation (`Amount: KES 40,000.00`), Payment
+Ready honestly `Blocked` with real backend reasons, no frontend-authorized next action.
+
+**Responsive verification:** the new public doorway page verified via same-document iframe (the
+established technique for this environment's ~606px resize floor) at genuine 375px and 320px widths — clean
+at both, no horizontal overflow, all text wraps correctly. Desktop verified throughout live testing at
+~820-1500px. Authenticated in-session screens (People tab, Money tab, confirmation cards) were exercised
+live at desktop width only this pass, consistent with prior slices' own stated iframe-technique limitation
+for authenticated routes.
+
+**QR:** rendered from the real server-issued URL at both activation stages; no physical camera scan
+performed (no device available this pass) — UR-142 remains PARTIALLY RESOLVED, stated honestly, unchanged.
+
+**Tests.** `tests/ur150-public-doorway.test.mjs` grew from 13 to 17 cases this pass: 2 new
+`DoorwayManagePanel` "has-doorway" activation-path cases (offers "Activate SecureLink now"; a successful
+activation shows the NEW active product's own ShareCard, never silently reusing the doorway URL) and 1 new
+structural regression test proving the `useSyncExternalStore` fallback fix (stable module-level constants,
+never inline-recreated literals) by direct source inspection — this repository has no jsdom/
+react-test-renderer to actually mount and reconcile a real component tree and catch the infinite loop
+programmatically; the fix's real proof is the live browser verification recorded above, not this test alone,
+stated honestly rather than overclaimed. Full suite: **1122/1122** (was 1108). `tsc --noEmit` clean. `eslint`
+clean (7 pre-existing warnings, unchanged, unrelated files). Production build succeeds.
+
+**GitHub Actions (UR-146):** unchanged; not re-triggered this pass beyond the single end-of-slice check
+recorded in the backend's own progress report.
+
+**New unresolved items:** UR-153 (backend, out of scope, not fixed — an unrelated Agreement review-case
+read-model query 500s on a real PgJDBC parameter-type-inference limitation) and UR-154 (cosmetic — the
+public doorway view's ROLES list renders each role twice, e.g. "Proposer · Proposer"). Full text in the
+backend repo's `UNRESOLVED_ITEMS_REGISTER.md`.
+
+**Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
+not deploy, do not start Phase 6.

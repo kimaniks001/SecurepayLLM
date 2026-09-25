@@ -131,6 +131,7 @@ const viewDto = (over = {}) => ({
   productType: 'SECURE_LINK', purposeSummary: 'Tile the bathroom', currency: 'KES', amountMinor: 500000,
   amountVisible: true, participants: [{ displayLabel: 'Amani', roleCode: 'INITIATOR' }], publicStatus: 'OPEN',
   expiresAt: null, milestones: [], nextStepGuidance: null, verifyIdentityPrompt: null, fairTradeGuidance: [],
+  versionNumber: 1, isCurrentVersion: true,
   ...over,
 });
 
@@ -213,7 +214,7 @@ test('publicProductView: no internal identifiers leak through -- only the bounde
   const dto = viewDto();
   const view = api.publicProductView(dto);
   const keys = Object.keys(view);
-  assert.deepEqual(keys.sort(), ['amountLine', 'expiryLine', 'milestones', 'nextStepGuidance', 'participants', 'productTypeLabel', 'purposeSummary', 'statusLine'].sort());
+  assert.deepEqual(keys.sort(), ['amountLine', 'expiryLine', 'milestones', 'nextStepGuidance', 'participants', 'productTypeLabel', 'purposeSummary', 'statusLine', 'versionLine', 'isCurrentVersion'].sort());
 });
 
 // ---------------------------------------------------------------- ShareCard.tsx
@@ -284,16 +285,20 @@ test('RuntimeApp wires a first-class #/securelink/{slug} route to SecureLinkExpe
   const runtime = await readFile(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
   assert.match(runtime, /useSecureLinkRoute/);
   assert.match(runtime, /SecureLinkExperience/);
-  const hookBody = runtime.slice(runtime.indexOf('function useSecureLinkRoute'), runtime.indexOf('function useSecureLinkRoute') + 700);
-  assert.match(hookBody, /securelink\\\//); // the route parses off "securelink/", not an agreement/product identifier
+  const hookBody = runtime.slice(runtime.indexOf('function useSecureLinkRoute'), runtime.indexOf('function useSecureLinkRoute') + 900);
+  assert.match(hookBody, /securelink/); // the route parses off "securelink/" (or a real backend path prefix), not an agreement/product identifier
 
-  // The exact parsing regex, exercised directly: only a bare slug segment matches, decoded, trailing
-  // slash tolerated, and anything else (including an empty/missing slug) does not.
-  const regexLiteral = /\/\^#\\\/\?securelink\\\/\(\[\^\/\]\+\)\\\/\?\$\//.exec(hookBody);
+  // The exact parsing regex, exercised directly: a bare slug segment matches under "securelink" OR any
+  // of the backend's own real path prefixes (Slice 5 -- PublicPathClass#pathPrefix: s/r/k/w/g), decoded,
+  // trailing slash tolerated, and anything else (including an empty/missing slug) does not.
+  const regexLiteral = /\/\^#\\\/\?\(\?:securelink\|s\|r\|k\|w\|g\)\\\/\(\[\^\/\]\+\)\\\/\?\$\//.exec(hookBody);
   assert.ok(regexLiteral, 'expected to find the exact route regex in useSecureLinkRoute');
-  const routeRegex = /^#\/?securelink\/([^/]+)\/?$/;
+  const routeRegex = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/;
   assert.equal(routeRegex.exec('#/securelink/amani%2F123456789')[1], 'amani%2F123456789');
   assert.equal(decodeURIComponent(routeRegex.exec('#/securelink/amani%2F123456789')[1]), 'amani/123456789');
+  // The backend's own real path-prefix shapes (Slice 5) resolve identically.
+  assert.equal(routeRegex.exec('#/s/amini-abc')[1], 'amini-abc');
+  assert.equal(routeRegex.exec('#/r/amini-abc')[1], 'amini-abc');
   assert.equal(routeRegex.exec('#securelink/amani/1'), null); // an extra path segment after the slug never matches -- [^/]+ stops at the first "/"
   assert.equal(routeRegex.exec('#/securelink/'), null); // an empty slug never matches
   assert.equal(routeRegex.exec('#/money'), null);

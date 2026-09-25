@@ -161,11 +161,18 @@ function useMoneyOperationsRoute(): [boolean, () => void] {
  * KS001 Upgrade Phase 5 (SecureLink & Money Continuation, Section 8) — the public SecureLink route,
  * `#/securelink/{slug}`. The slug is the ONLY identifier ever in this URL (never an Agreement id) — it
  * is exactly what the server-issued `publicUrl` already carries, never reconstructed client-side.
+ *
+ * KS001 Upgrade Phase 5 continuation (Slice 5) — also accepts the backend's own real path-prefix shape
+ * (`PublicLocatorUrlBuilder`/`PublicPathClass#pathPrefix`: `s`/`r`/`k`/`w`/`g`), so a genuinely
+ * server-issued `publicUrl` (once a production base URL is configured — see UR-141) actually opens here,
+ * rather than only ever matching a hand-typed `#/securelink/{slug}` link. Both forms resolve the exact
+ * same way — the backend's own `viewSecureLink` lookup already keys purely off the slug digest, never
+ * the path segment.
  */
 function useSecureLinkRoute(): string | null {
   const parse = () => {
     if (typeof window === 'undefined') return null;
-    const match = /^#\/?securelink\/([^/]+)\/?$/.exec(window.location.hash);
+    const match = /^#\/?(?:securelink|s|r|k|w|g)\/([^/]+)\/?$/.exec(window.location.hash);
     return match ? decodeURIComponent(match[1]) : null;
   };
   const [slug, setSlug] = useState(parse);

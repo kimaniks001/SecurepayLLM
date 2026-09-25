@@ -48,6 +48,10 @@ export interface PublicProductViewDto {
   amountVisible: boolean; participants: PublicProductParticipantDto[]; publicStatus: string;
   expiresAt: string | null; milestones: PublicProductMilestoneDto[]; nextStepGuidance: string | null;
   verifyIdentityPrompt: string | null; fairTradeGuidance: PublicFairTradeGuidanceDto[];
+  // KS001 Upgrade Phase 5 continuation (Slice 5, Section 10) -- the exact version this view reflects,
+  // and whether the Agreement has since moved on. Closes a real gap: this view previously showed no
+  // version information at all.
+  versionNumber: number; isCurrentVersion: boolean;
 }
 export function createAgreementGateway(http: HttpClient) {
   const agreement = (id: string) => `/api/v1/agreements/${segment(id)}`;
@@ -145,8 +149,19 @@ export function createAgreementGateway(http: HttpClient) {
     // Section 10 -- "Revoke SecureLink": the existing backend revoke authority, reused as-is. Never
     // implies Agreement cancellation.
     revokePublicLocator: (id: string, locatorId: string, idempotencyKey: string) => http.request<RevokePublicLocatorDto>(`${agreement(id)}/public-locators/${segment(locatorId)}/revoke`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- a PRE-ACTIVATION, Agreement-level public
+    // review/Join doorway, distinct from the ACTIVE-product SecureLink above (activateProduct/
+    // issuePublicLocator). Reuses the exact same response shapes (pathClass just reads
+    // "AGREEMENT_DOORWAY" instead of "SECURE_LINK") since the backend's own locator model is shared.
+    // Requires the Agreement to already be PROPOSED (or further along) -- never DRAFT.
+    issuePublicDoorway: (id: string, idempotencyKey: string) => http.request<IssuePublicLocatorDto>(`${agreement(id)}/public-doorway`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    activeDoorway: (id: string) => http.request<ActiveLocatorSummaryDto>(`${agreement(id)}/public-doorway/active`, { auth: 'required' }),
+    rotatePublicDoorway: (id: string, locatorId: string, idempotencyKey: string) => http.request<RotatePublicLocatorDto>(`${agreement(id)}/public-doorway/${segment(locatorId)}/rotate`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    revokePublicDoorway: (id: string, locatorId: string, idempotencyKey: string) => http.request<RevokePublicLocatorDto>(`${agreement(id)}/public-doorway/${segment(locatorId)}/revoke`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Public, unauthenticated review -- Section 8's own "opening a link is not Join/accept/pay" boundary.
     // Never the raw Agreement id; only ever the opaque slug already embedded in the shared SecureLink URL.
+    // Serves BOTH a pre-activation doorway and an ACTIVE SecureLink -- the backend discriminates via
+    // productType ("AGREEMENT_DOORWAY" vs "SECURE_LINK"/"KEY_CONTRACT"), never a second frontend route.
     viewSecureLink: (slug: string) => http.request<PublicProductViewDto>(`/api/v1/public/securelinks/${segment(slug)}`, { auth: 'none' }),
     // The authenticated-only bridge from a public SecureLink review into the SAME existing Join core:
     // on success, hands back a fresh single-use invitation token; the caller still makes a SEPARATE,

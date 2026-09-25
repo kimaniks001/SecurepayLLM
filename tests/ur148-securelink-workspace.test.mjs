@@ -28,24 +28,31 @@ function unreachableGateway() {
     activeLocator: async () => { throw new Error('must never be called before eligibility'); },
     rotatePublicLocator: async () => { throw new Error('must never be called before eligibility'); },
     revokePublicLocator: async () => { throw new Error('must never be called before eligibility'); },
+    issuePublicDoorway: async () => { throw new Error('must never be called before eligibility'); },
+    activeDoorway: async () => { throw new Error('must never be called before eligibility'); },
+    rotatePublicDoorway: async () => { throw new Error('must never be called before eligibility'); },
+    revokePublicDoorway: async () => { throw new Error('must never be called before eligibility'); },
   };
 }
 
 // ---------------------------------------------------------------- AgreementSecureLinkSection.tsx
 
-test('AgreementSecureLinkSection: a DRAFT/PROPOSED/INVITATION_PENDING Agreement is told honestly to wait, and the gateway is never touched', () => {
-  for (const status of ['DRAFT', 'PROPOSED', 'INVITATION_PENDING']) {
-    const html = text(markup(api.AgreementSecureLinkSection, {
-      agreementId: 'agr-1', agreementTitle: 'Tile the bathroom', agreementStatus: status, gateway: unreachableGateway(),
-    }));
-    assert.match(html, /SecureLink/);
-    assert.match(html, /once someone has joined/i);
-    assert.doesNotMatch(html, /Create SecureLink/); // the creation form is never shown before eligibility
-  }
+// KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- eligibility widened from
+// PARTICIPANTS_JOINING/CONFIRMATION_PENDING-only to "anything but DRAFT/CANCELLED/EXPIRED", since a
+// pre-activation public doorway (unlike an ACTIVE SecureLink) can legitimately be created as soon as the
+// Agreement is PROPOSED. Only a DRAFT Agreement is told to wait now.
+
+test('AgreementSecureLinkSection: only a DRAFT Agreement is told to wait, and the gateway is never touched', () => {
+  const html = text(markup(api.AgreementSecureLinkSection, {
+    agreementId: 'agr-1', agreementTitle: 'Tile the bathroom', agreementStatus: 'DRAFT', gateway: unreachableGateway(),
+  }));
+  assert.match(html, /SecureLink/);
+  assert.match(html, /once this agreement has been proposed/i);
+  assert.doesNotMatch(html, /Create SecureLink/); // the creation form is never shown before eligibility
 });
 
-test('AgreementSecureLinkSection: PARTICIPANTS_JOINING/CONFIRMATION_PENDING are eligible -- the initial render checks for an existing SecureLink rather than assuming none exists', () => {
-  for (const status of ['PARTICIPANTS_JOINING', 'CONFIRMATION_PENDING']) {
+test('AgreementSecureLinkSection: PROPOSED/INVITATION_PENDING/PARTICIPANTS_JOINING/CONFIRMATION_PENDING are all eligible -- the initial render checks for an existing ACTIVE SecureLink rather than assuming none exists', () => {
+  for (const status of ['PROPOSED', 'INVITATION_PENDING', 'PARTICIPANTS_JOINING', 'CONFIRMATION_PENDING']) {
     const html = text(markup(api.AgreementSecureLinkSection, {
       agreementId: 'agr-1', agreementTitle: 'Tile the bathroom', agreementStatus: status, gateway: unreachableGateway(),
     }));
@@ -71,11 +78,14 @@ test('AgreementSecureLinkSection: reuses Slice 2\'s own unmodified SecureLink co
   assert.doesNotMatch(source, /issuePublicLocator\(/);
 });
 
-test('AgreementSecureLinkSection: eligibility is exactly the two statuses AgreementProductService#requireActivatable accepts -- no invented third status', async () => {
+test('AgreementSecureLinkSection: eligibility is a POSITIVE allow-list (fails closed for any unrecognized status), covering exactly PROPOSED through CONFIRMATION_PENDING', async () => {
   const source = await readFile(new URL('../src/features/securelink/AgreementSecureLinkSection.tsx', import.meta.url), 'utf8');
-  const eligibleLine = source.split('\n').find(l => l.includes('const eligible ='));
-  assert.match(eligibleLine, /PARTICIPANTS_JOINING/);
-  assert.match(eligibleLine, /CONFIRMATION_PENDING/);
+  const eligibleLine = source.split('\n').find(l => l.includes('ELIGIBLE_STATUSES = new Set('));
+  assert.match(eligibleLine, /'PROPOSED'/);
+  assert.match(eligibleLine, /'INVITATION_PENDING'/);
+  assert.match(eligibleLine, /'PARTICIPANTS_JOINING'/);
+  assert.match(eligibleLine, /'CONFIRMATION_PENDING'/);
+  assert.doesNotMatch(eligibleLine, /'DRAFT'|'CANCELLED'|'EXPIRED'/);
 });
 
 // ---------------------------------------------------------------- ReconfirmPanel.tsx -- ownStanding (UR-148 creator confirmation)

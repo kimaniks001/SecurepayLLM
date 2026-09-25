@@ -35,6 +35,9 @@ type Gateway = Pick<AgreementGateway,
   // the full AgreementGateway through here (see AgentExperience.tsx's own workspaceGateway), so this
   // only widens the TYPE this component declares itself needing, not the authority granted anywhere.
   | 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'
+  // KS001 Upgrade Phase 5 continuation (Slice 5, UR-150) -- same widening, for the new pre-activation
+  // public doorway entry point.
+  | 'issuePublicDoorway' | 'activeDoorway' | 'rotatePublicDoorway' | 'revokePublicDoorway'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
   review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;

@@ -75,6 +75,7 @@ export function SecureLinkExperience({ slug, gateway, auth, session, onLeave }: 
           <h2 className="font-display text-xl text-forest-800">{view.purposeSummary}</h2>
           {view.amountLine && <p className="text-sm text-sand-700">{view.amountLine}</p>}
           <p className="text-[0.78rem] text-sand-500">{view.statusLine}</p>
+          <p className={`text-[0.75rem] ${view.isCurrentVersion ? 'text-sand-500' : 'text-ember-700'}`}>{view.versionLine}</p>
           {view.expiryLine && <p className="text-[0.75rem] text-sand-500">{view.expiryLine}</p>}
           {view.participants.length > 0 && (
             <div className="pt-2 space-y-1">
