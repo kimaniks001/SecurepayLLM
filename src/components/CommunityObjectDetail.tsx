@@ -44,12 +44,16 @@ interface CommunityObjectDetailProps {
    * real, backend-persisted object; renders in addition to the existing responses list above.
    */
   realReply?: { body: string; submitting: boolean; error: string | null; onBodyChange: (value: string) => void; onSubmit: () => void };
-  /** Phase 6 Slice 2 -- lets the author of a real reply withdraw their own, and no one else's. */
-  myReplyIds?: ReadonlySet<string>;
+  /**
+   * Phase 6 Slice 2 correction -- lets the author of a real reply withdraw their own, and no one
+   * else's, using the response's own server-derived `canWithdraw` field directly (see
+   * `CommunityResponse.canWithdraw`'s own doctrine comment) rather than a session-scoped id set, so
+   * the affordance survives a page refresh.
+   */
   onWithdrawReply?: (replyId: string) => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer, onClose, realHelp, realReply, myReplyIds, onWithdrawReply }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -148,7 +152,7 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                     <span className="text-[0.65rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 mb-1.5 inline-block">I can help</span>
                   )}
                   <p className="text-[0.825rem] text-forest-800 leading-relaxed">{resp.text}</p>
-                  {onWithdrawReply && myReplyIds?.has(resp.id) && (
+                  {onWithdrawReply && resp.canWithdraw && (
                     <button onClick={() => onWithdrawReply(resp.id)} className="mt-1.5 text-[0.7rem] text-sand-500 hover:text-forest-600">
                       Withdraw
                     </button>

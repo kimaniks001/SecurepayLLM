@@ -31,7 +31,13 @@ export interface MembershipResponse {
   respondedAt: string | null;
 }
 
-/** Matches `CommunityConversationController.ReplyResponse` exactly. */
+/**
+ * Matches `CommunityConversationController.ReplyResponse` exactly.
+ *
+ * <p>Correction (Slice 2 pre-merge): `canWithdraw` is server-derived (`authorIdentityId ==
+ * authenticated requester identity`, computed backend-side), present on every list/create/withdraw
+ * response -- never inferred client-side, so ownership survives a page refresh.
+ */
 export interface CommunityReplyResponse {
   id: string;
   objectId: string;
@@ -41,9 +47,15 @@ export interface CommunityReplyResponse {
   status: 'ACTIVE' | 'WITHDRAWN';
   createdAt: string;
   withdrawnAt: string | null;
+  canWithdraw: boolean;
 }
 
-/** Matches `CommunityConversationController.HelpResponseView` exactly -- a signal, never a message. */
+/**
+ * Matches `CommunityConversationController.HelpResponseView` exactly -- a signal, never a message.
+ *
+ * <p>Correction (Slice 2 pre-merge): `canWithdraw` is server-derived the same way as
+ * `CommunityReplyResponse.canWithdraw` -- see that field's own doctrine comment.
+ */
 export interface CommunityHelpResponseView {
   id: string;
   objectId: string;
@@ -52,6 +64,7 @@ export interface CommunityHelpResponseView {
   status: 'ACTIVE' | 'WITHDRAWN';
   createdAt: string;
   withdrawnAt: string | null;
+  canWithdraw: boolean;
 }
 
 /** Matches `CommunityPrinciplesController.PrincipleResponse` exactly -- read-only reference to the

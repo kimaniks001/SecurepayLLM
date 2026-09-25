@@ -57,6 +57,10 @@ export function realObjectToCommunityObject(dto: CommunityObjectResponse, respon
  * chronological `responses` list `CommunityObjectDetail` already knows how to render. No fabricated
  * text for a help signal -- it plainly states what happened, since it carries no free-text body of
  * its own (a willingness SIGNAL, never a message).
+ *
+ * <p>Correction (Slice 2 pre-merge): `canWithdraw` is carried straight through from each DTO's own
+ * server-derived field -- never recomputed here, never sourced from session-scoped "did this
+ * session create it" tracking. This is what lets Withdraw-eligibility survive a page refresh.
  */
 export function combineRealResponses(replies: CommunityReplyResponse[], help: CommunityHelpResponseView[]): CommunityResponse[] {
   type Timed = CommunityResponse & { createdAtIso: string };
@@ -69,6 +73,7 @@ export function combineRealResponses(replies: CommunityReplyResponse[], help: Co
       text: r.body,
       date: relativeTime(r.createdAt),
       kind: 'reply',
+      canWithdraw: r.canWithdraw,
       createdAtIso: r.createdAt,
     }));
   const helpResponses: Timed[] = help
@@ -80,11 +85,23 @@ export function combineRealResponses(replies: CommunityReplyResponse[], help: Co
       text: 'Offered to help with this.',
       date: relativeTime(h.createdAt),
       kind: 'i_can_help',
+      canWithdraw: h.canWithdraw,
       createdAtIso: h.createdAt,
     }));
   return [...replyResponses, ...helpResponses]
     .sort((a, b) => a.createdAtIso.localeCompare(b.createdAtIso))
     .map(({ createdAtIso: _createdAtIso, ...response }) => response);
+}
+
+/**
+ * Correction (Slice 2 pre-merge): whether the caller currently has an ACTIVE "I can help" signal on
+ * this object -- and, if so, which response id to withdraw -- derived directly from the real,
+ * server-returned help list's own `canWithdraw` field (never from session-scoped "did this session
+ * just create it" state). An ACTIVE help response can only be `canWithdraw: true` for its own
+ * author, so finding one here IS "the caller already offered help," surviving a page refresh.
+ */
+export function myActiveHelpResponseId(help: CommunityHelpResponseView[]): string | null {
+  return help.find(h => h.status === 'ACTIVE' && h.canWithdraw)?.id ?? null;
 }
 
 /**

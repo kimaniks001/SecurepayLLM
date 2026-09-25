@@ -9,7 +9,7 @@ import type { StoreGateway } from '../../api/securepay/store';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createCommunityController, errorText, REAL_COMPOSE_TYPES, type MembershipUiState } from './controller';
-import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses } from './view';
+import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 
 type Gateway = Pick<StoreGateway, 'search'>;
 
@@ -191,6 +191,11 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     );
     const object = realObjectToCommunityObject(state.selectedRealObject, responses);
     const isOwn = state.ownObjectIds.has(state.selectedRealObject.id);
+    // Correction (Slice 2 pre-merge): whether the caller already has an ACTIVE "I can help" signal,
+    // and which response id a withdrawal targets, is derived directly from the real, server-returned
+    // help list -- never from session-scoped creation tracking -- so it is correct even immediately
+    // after a page refresh/controller reload.
+    const activeHelpResponseId = state.objectHelp.status === 'ready' ? myActiveHelpResponseId(state.objectHelp.data) : null;
     body = (
       <CommunityObjectDetail
         object={object}
@@ -202,11 +207,11 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
         onToTrade={() => controller.showNotice('This area is not available yet.')}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}
         realHelp={{
-          offered: state.myHelpResponseId !== null,
+          offered: activeHelpResponseId !== null,
           offering: state.helpOffering,
           error: state.helpError,
           onOffer: () => void controller.offerHelp(),
-          onWithdraw: () => void controller.withdrawHelp(),
+          onWithdraw: () => { if (activeHelpResponseId) void controller.withdrawHelp(activeHelpResponseId); },
         }}
         realReply={{
           body: state.replyDraft.body,
@@ -215,7 +220,6 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
           onBodyChange: value => controller.setReplyBody(value),
           onSubmit: () => void controller.submitReply(),
         }}
-        myReplyIds={state.myReplyIds}
         onWithdrawReply={id => void controller.withdrawReply(id)}
       />
     );
