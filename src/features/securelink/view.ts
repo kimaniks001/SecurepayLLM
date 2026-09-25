@@ -11,6 +11,21 @@ function humanizeCode(code: string): string {
   return code.toLowerCase().split('_').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+/**
+ * UR-154 (KS001 Upgrade Phase 5 final convergence) — a participant's `displayLabel` and humanized
+ * `roleCode` are frequently the SAME human-facing value from two different backend fields (e.g.
+ * displayLabel "Proposer" and roleCode "PROPOSER"), which previously always rendered as "Proposer ·
+ * Proposer". This suppresses the duplicate ONLY when the two values are equivalent once normalized
+ * (case/whitespace-insensitive comparison) — never hard-coded to specific role codes, so it stays
+ * correct for any current or future role where the two fields genuinely agree, and still shows BOTH
+ * values whenever they carry meaningfully different information.
+ */
+function participantLine(displayLabel: string, roleCode: string): string {
+  const humanRole = humanizeCode(roleCode);
+  const normalize = (value: string) => value.trim().toLowerCase();
+  return normalize(displayLabel) === normalize(humanRole) ? displayLabel : `${displayLabel} · ${humanRole}`;
+}
+
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   SECURE_LINK: 'SecureLink',
   KEY_CONTRACT: 'KeyContract',
@@ -57,7 +72,7 @@ export function publicProductView(dto: PublicProductViewDto): PublicProductCardV
     amountLine: dto.amountVisible ? formatMoney(dto.currency, dto.amountMinor) : null,
     statusLine: PUBLIC_STATUS_LABEL[dto.publicStatus] ?? 'Status unavailable',
     expiryLine: dto.expiresAt ? `Expires ${formatDate(dto.expiresAt)}` : null,
-    participants: dto.participants.map(p => `${p.displayLabel} · ${humanizeCode(p.roleCode)}`),
+    participants: dto.participants.map(p => participantLine(p.displayLabel, p.roleCode)),
     milestones: dto.milestones.map(m => `${m.sequenceOrder}. ${m.title} — ${humanizeCode(m.status)}`),
     nextStepGuidance: dto.nextStepGuidance,
     // KS001 Upgrade Phase 5 continuation (Slice 5, Section 10/13) -- the person must always know exactly

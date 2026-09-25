@@ -506,3 +506,55 @@ backend repo's `UNRESOLVED_ITEMS_REGISTER.md`.
 
 **Merge-readiness:** unchanged — DRAFT, human review required. Both PRs remain DRAFT/OPEN. Do not merge, do
 not deploy, do not start Phase 6.
+
+---
+
+## Phase 5 — Final Convergence & Merge Review
+
+Starting SHA verified before continuing: `236c65ba8dee3064d813984bd4f5f70ec721c156`, matching the mandate's
+own stated value. PR #42 confirmed DRAFT/OPEN throughout. This pass performed no new feature work — its
+purpose was to verify merge-readiness, fixing only UR-154 (a genuine, minor cosmetic defect) as directed.
+
+**UR-154 fixed.** `publicProductView` always concatenated a participant's `displayLabel` and the humanized
+`roleCode`, rendering "Proposer · Proposer"/"Counterparty · Counterparty" whenever the two values happened to
+be the same human string. Fixed with a new `participantLine` helper: a generic, case/whitespace-insensitive
+normalized-equality check (never hard-coded to `PROPOSER`/`COUNTERPARTY` specifically) suppresses the
+duplicate only when the two values genuinely agree, and still shows both when they carry different
+information (e.g. a real name alongside a role: "Amani · Initiator"). Live-verified on the real public
+doorway page — ROLES now shows plain "Proposer"/"Counterparty".
+
+**Second-counterparty rejection — live-proven for the first time this Phase.** A genuine third identity
+(KS010) attempted to join the same public doorway after KS009 had already joined. The backend correctly
+returned `422` with "SecureLink already has a joined counterparty" — the frontend surfaced this honestly,
+never silently retrying or masking it as a different error.
+
+**Save / no-side-effect path — live-verified.** A fresh SET followed by "Save — I'm done for now" was
+confirmed (via direct backend read) to leave the Agreement as a clean DRAFT with its own SET-time obligation,
+zero invitations, zero doorway, zero joins, zero confirmations — the frontend's "none of these happen
+automatically" copy is accurate.
+
+**Doorway → ACTIVE product coexistence — confirmed intentional, not accidental.** Re-verified live: the
+original pre-activation doorway and the post-activation ACTIVE product locator both remain independently
+resolvable, each with correct, distinct `productTypeLabel`/`statusLine` — never ambiguous about which is
+authoritative.
+
+**Dead code / diff review.** `git diff main...HEAD` inspected for debug leftovers, temporary hacks, or stray
+credentials: none found.
+
+**Validation (final).** `node --test tests/*.test.mjs` **1125/1125**, 0 failures (was 1122 + 3 new UR-154
+cases in `tests/ur150-public-doorway.test.mjs`). `tsc --noEmit` clean. `eslint` 0 errors (7 pre-existing,
+unrelated warnings, unchanged). Production build succeeds.
+
+**GitHub Actions (UR-146):** unchanged; not re-triggered this pass beyond the single end-of-review check
+recorded in the backend's own progress report.
+
+**Merge-blocker classification:** no MERGE BLOCKER remains. UR-142 (QR physical scan) is a NON-BLOCKING
+FOLLOW-UP. UR-141 (production public-base URL) is a DEPLOYMENT BLOCKER only, not a code-merge blocker.
+UR-146 is EXTERNAL.
+
+**Human merge review gate — SecurepayLLM PR #42:** technically merge-ready (all validations green); UX
+convergence complete for the reached Phase 5 journey; authority-safe (no frontend-computed classification,
+amount, or financial authority anywhere reached); no known merge-blocking defects.
+
+**Overall assessment:** Phase 5 frontend build work is complete. **This pass STOPS here — no merge, no
+deploy, Phase 6 not started.** PR #42 remains DRAFT/OPEN, awaiting human merge authority.

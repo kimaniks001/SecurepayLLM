@@ -185,6 +185,36 @@ test('publicProductView: a pre-activation doorway still reads as "SecureLink" to
   assert.equal(view.productTypeLabel, 'SecureLink');
 });
 
+// ---------------------------------------------------------------- view.ts -- UR-154 participant role-label duplication
+
+const withParticipants = participants => ({
+  productType: 'SECURE_LINK', purposeSummary: 'Tile the bathroom', currency: null, amountMinor: null,
+  amountVisible: false, participants, publicStatus: 'OPEN', expiresAt: null, milestones: [],
+  nextStepGuidance: null, verifyIdentityPrompt: null, fairTradeGuidance: [], versionNumber: 1, isCurrentVersion: true,
+});
+
+test('publicProductView: suppresses a participant role line that duplicates the display label once normalized (UR-154)', () => {
+  const view = api.publicProductView(withParticipants([
+    { displayLabel: 'Proposer', roleCode: 'PROPOSER' },
+    { displayLabel: 'Counterparty', roleCode: 'COUNTERPARTY' },
+  ]));
+  assert.deepEqual(view.participants, ['Proposer', 'Counterparty']);
+});
+
+test('publicProductView: still shows BOTH values when the display label and role code genuinely differ -- suppression is never hard-coded to specific role codes', () => {
+  const view = api.publicProductView(withParticipants([
+    { displayLabel: 'Amani', roleCode: 'INITIATOR' },
+  ]));
+  assert.deepEqual(view.participants, ['Amani · Initiator']);
+});
+
+test('publicProductView: normalization is case/whitespace-insensitive, not a literal string match', () => {
+  const view = api.publicProductView(withParticipants([
+    { displayLabel: '  proposer  ', roleCode: 'PROPOSER' },
+  ]));
+  assert.deepEqual(view.participants, ['  proposer  ']);
+});
+
 // ---------------------------------------------------------------- AgreementSecureLinkSection.tsx wiring
 
 test('AgreementSecureLinkSection: checks the ACTIVE-product truth FIRST, falling back to the pre-activation doorway only when none exists', async () => {
