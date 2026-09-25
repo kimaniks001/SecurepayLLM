@@ -8,8 +8,9 @@ import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CircleResponse, CirclePendingInvitationView, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { AppView, ErrorStateResponse } from '../../types';
+import type { CommunitySourceFact } from '../agent/controller';
 import {
   createCommunityController, errorText, REAL_COMPOSE_TYPES,
   type CommunityHomeTab, type CircleMembershipMode, type CircleVisibility, type MembershipUiState,
@@ -499,13 +500,43 @@ function CircleDetailPanel({
  * identity referral/growth "Circle profile" entry point (`CircleExperience`) -- untouched, unrenamed,
  * and never confused with these new named Circles.
  */
-export function CommunityExperience({ gateway, communityGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle }: {
+
+/**
+ * Phase 6 Slice 4 (Community → Trade) -- resolves a real, backend-verified "Use this" pointer from a
+ * real Community object. `sourceType` is derived from the object's own real `objectType` (OPPORTUNITY
+ * → 'OPPORTUNITY', everything else -- NEED/WORK_STORY/QUESTION/DISCUSSION -- → 'COMMUNITY_POST');
+ * the backend independently re-verifies this against the real object regardless. `null` only when
+ * the object carries no resolvable author KS Number (should not happen for a real object, but this
+ * never fabricates one). `openingMessage` is the object's own real title/body, never invented.
+ */
+function communitySourceFactFor(
+  object: CommunityObjectResponse, candidateParticipantKsNumber?: string,
+): CommunitySourceFact | null {
+  if (!object.authorCanonicalKsNumber) return null;
+  return {
+    sourceType: object.objectType === 'OPPORTUNITY' ? 'OPPORTUNITY' : 'COMMUNITY_POST',
+    sourceId: object.id,
+    sourceOwnerKsNumber: object.authorCanonicalKsNumber,
+    candidateParticipantKsNumber,
+    openingMessage: `${object.title}. ${object.body}`,
+  };
+}
+
+export function CommunityExperience({ gateway, communityGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   trustedMediaOrigin: string | null;
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
   onOpenCircle: () => void;
+  /**
+   * Phase 6 Slice 4 (Community → Trade) -- "Use this": bring a real Need/Opportunity into a trade
+   * conversation as CONTEXT. The caller (AgentExperience, which owns the real Agent conversation
+   * controller) is responsible for actually selecting the source and leaving Community; this
+   * component only ever resolves the real, backend-verified pointer -- never fabricates a title,
+   * owner, or candidate.
+   */
+  onUseThis: (fact: CommunitySourceFact) => void;
 }) {
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -631,6 +662,13 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
     // help list -- never from session-scoped creation tracking -- so it is correct even immediately
     // after a page refresh/controller reload.
     const activeHelpResponseId = state.objectHelp.status === 'ready' ? myActiveHelpResponseId(state.objectHelp.data) : null;
+    // Phase 6 Slice 4 (Community → Trade) -- the FIRST real ACTIVE "I can help" responder's own KS
+    // Number, if any. V1 simplification: when several people have offered to help, "Start trade with
+    // helper" proceeds with the first current one rather than offering a picker -- a genuinely new
+    // capability, not a regression, since no such action existed before this slice at all.
+    const firstActiveHelper = state.objectHelp.status === 'ready'
+      ? state.objectHelp.data.find((h: CommunityHelpResponseView) => h.status === 'ACTIVE')
+      : undefined;
     body = (
       <CommunityObjectDetail
         object={object}
@@ -639,7 +677,14 @@ export function CommunityExperience({ gateway, communityGateway, trustedMediaOri
         onICanHelp={() => controller.showNotice('This area is not available yet.')}
         onDiscuss={() => controller.showNotice('This area is not available yet.')}
         onViewOffer={() => {}}
-        onToTrade={() => controller.showNotice('This area is not available yet.')}
+        onUseThis={() => {
+          const fact = communitySourceFactFor(state.selectedRealObject!);
+          if (fact) onUseThis(fact);
+        }}
+        onToTrade={() => {
+          const fact = communitySourceFactFor(state.selectedRealObject!, firstActiveHelper?.authorCanonicalKsNumber ?? undefined);
+          if (fact) onUseThis(fact);
+        }}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}
         realHelp={{
           offered: activeHelpResponseId !== null,

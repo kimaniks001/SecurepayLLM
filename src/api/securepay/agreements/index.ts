@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementInvitationInboxItemResponse, AgreementKeyContractReferralResponse, AgreementPeopleResponse, AgreementPlugAttributionResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, InvitationTargetResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
+import type { AgreementCalendarEventResponse, AgreementConfirmationResponse, AgreementConfirmationStatusResponse, AgreementDetailResponse, AgreementInvitationInboxItemResponse, AgreementKeyContractReferralResponse, AgreementPeopleResponse, AgreementPlugAttributionResponse, AgreementSourceProvenanceResponse, AgreementVersionResponse, AgreementsHomeResponse, CurrentUserActionResponse, CurrentUserAgreementSummaryResponse, InvitationTargetResponse, JoinAgreementResponse, MilestoneEffectiveStateResponse, PersonalTagResponse, PublicInvitationViewResponse, SchedulingConflictResponse } from './dto';
 export interface Page<T> { items: T[]; page: number; size: number; totalElements: number }
 export interface HubDto {
   needsMe: CurrentUserAgreementSummaryResponse[]; waitingOnOthers: CurrentUserAgreementSummaryResponse[];
@@ -183,6 +183,11 @@ export function createAgreementGateway(http: HttpClient) {
     attributePlug: (id: string, relationshipRef: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { method: 'POST', body: { relationshipRef }, auth: 'required' }),
     plugAttribution: (id: string) => http.request<AgreementPlugAttributionResponse>(`${agreement(id)}/plug-attribution`, { auth: 'required' }),
     referralStatus: (id: string) => http.request<AgreementKeyContractReferralResponse>(`${agreement(id)}/plug-attribution/referral-status`, { auth: 'required' }),
+
+    // Phase 6 Slice 4 (Community → Trade), item 18 -- the narrow, participant-safe read of an
+    // Agreement's persisted commercial source provenance (AgreementSourceProvenanceController).
+    // Server-side authority: creator or joined participant only -- never AGREEMENT_AUDIT_READ.
+    source: (id: string) => http.request<AgreementSourceProvenanceResponse>(`${agreement(id)}/source`, { auth: 'required' }),
 
     // Phase 3 Living Agreements -- milestone DAG effective state, never derived from sequenceOrder.
     milestoneEffectiveStates: (id: string) => http.request<MilestoneEffectiveStateResponse[]>(`${agreement(id)}/milestones/effective-states`, { auth: 'required' }),

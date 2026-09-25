@@ -32,7 +32,7 @@ import { UnderstoodWorkbench } from '../workbench/UnderstoodWorkbench';
 import { createDiscoveryController, emptyQuery, type DiscoveryQuery } from '../discovery/controller';
 import { DiscoveryHost } from '../discovery/ui/DiscoveryHost';
 import { FoundOnSecurePay } from '../discovery/ui/FoundOnSecurePay';
-import { SourceFailureNote } from '../discovery/ui/SourceReference';
+import { SourceFailureNote, SourceReference } from '../discovery/ui/SourceReference';
 import type { DiscoveryView } from '../../api/securepay/agent/discovery';
 import { foundLabel } from '../discovery/result';
 import { projectWorkbench, specForPrompt, type PromptResolution } from '../workbench/projection';
@@ -391,6 +391,9 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
         onNavigate={navigateTo}
         onOpenCircle={() => navigateTo('circle')}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => { setStoreOfferRoute({ canonicalKsNumber, offerId }); navigateTo('store'); }}
+        // Phase 6 Slice 4 (Community → Trade) -- mirrors onUseOffer's own pattern exactly: leave
+        // Community, then let the SAME real Agent conversation controller select the source.
+        onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
       />
     );
   }
@@ -673,6 +676,22 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
                   anything from the offer reaches the conversation. */}
               {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error}
                 onRetry={() => void controller.retryOfferSelection()} onContinueWithout={() => void controller.continueOfferWithoutSource()} />}
+              {/* Phase 6 Slice 4 (Community → Trade) -- the SAME failed-selection discipline for a
+                  Community "Use this": never silent, held until an explicit retry/continue. */}
+              {state.communitySourceSelectionFailure && <SourceFailureNote busy={state.busy} error={state.communitySourceSelectionFailure.error}
+                onRetry={() => void controller.retryCommunitySourceSelection()} onContinueWithout={() => void controller.continueCommunitySourceWithoutSource()} />}
+              {/* Phase 6 Slice 4 -- "Trade Taking Shape" quietly shows where this trade started, once
+                  a source (Store or Community) has actually been selected. Provenance only -- never
+                  Agreement/CONFIRMED truth, never a bigger presence than the conversation itself. */}
+              {state.source && !state.offerSelectionFailure && !state.communitySourceSelectionFailure && (
+                <SourceReference source={{
+                  sourceType: state.source.sourceType,
+                  title: state.source.sourceTitle ?? 'Selected source',
+                  ownerKs: state.source.sourceOwnerKsNumber,
+                  capturedPriceMinor: state.source.capturedPriceMinor,
+                  capturedCurrency: state.source.capturedCurrency,
+                }} />
+              )}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
               </StatusNotice>}

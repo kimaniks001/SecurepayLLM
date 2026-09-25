@@ -9,6 +9,23 @@ export type ResponseView = ReturnType<typeof agentResponseView>;
 export type Turn = { id: string; sender: 'user'; text: string } | { id: string; sender: 'agent'; response: ResponseView };
 type Pending = { kind: 'turn'; body: TurnRequest } | { kind: 'adopt'; body: AdoptFactRequest } | { kind: 'external-amount'; body: ExternalFactRequest & { amount: string; currency?: string } };
 export type OfferFact = { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string };
+/**
+ * Phase 6 Slice 4 (Community → Trade) -- "Use this" from a real Community NEED/OPPORTUNITY/
+ * WORK_STORY/QUESTION/DISCUSSION object. `sourceType` is derived by the CALLER from the object's own
+ * real `objectType` (OPPORTUNITY → 'OPPORTUNITY', everything else → 'COMMUNITY_POST') -- the backend
+ * independently re-verifies this against the real object regardless. `candidateParticipantKsNumber`
+ * is present only for "Start a trade with Peter" (an owner choosing one of their own object's ACTIVE
+ * "I can help" responders as trade CONTEXT, never Agreement participant authority).
+ * `openingMessage` is the real object's own title/body, never fabricated -- seeded as the first
+ * conversational turn so KS001's very next reply already has this context.
+ */
+export type CommunitySourceFact = {
+  sourceType: 'COMMUNITY_POST' | 'OPPORTUNITY';
+  sourceId: string;
+  sourceOwnerKsNumber: string;
+  candidateParticipantKsNumber?: string;
+  openingMessage: string;
+};
 export interface AgentState {
   conversationId: string | null;
   turns: Turn[];
@@ -28,6 +45,13 @@ export interface AgentState {
    * DIRECT trade that still looks like it came from the Store.
    */
   offerSelectionFailure: { fact: OfferFact; error: string } | null;
+  /**
+   * Phase 6 Slice 4 -- the SAME "held until explicit retry/continue" discipline as
+   * `offerSelectionFailure`, for a Community "Use this" whose `selectCommercialSource` call failed.
+   * A failed selection never silently seeds the opening conversational turn either -- the person
+   * must explicitly retry or continue without the source first.
+   */
+  communitySourceSelectionFailure: { fact: CommunitySourceFact; error: string } | null;
   /**
    * KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED: every real, server-verified entity
    * id KS001 has offered to help find so far this session (via a DISCOVERY_OFFER response component).
@@ -119,7 +143,7 @@ function historyReplyResponseView(text: string): ResponseView {
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
 export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [] };
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [] };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
   async function readContext() {
@@ -226,7 +250,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       let turns: Turn[] = [];
       try {
         const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
@@ -400,6 +424,38 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       await submitOfferFact(failure.fact);
       return 'continued';
     },
+    /**
+     * Phase 6 Slice 4 (Community → Trade) -- "Use this" from a real Community object. Mirrors
+     * `useOffer`'s own discipline exactly: the source is selected FIRST (server-verified, never a
+     * fabricated title/owner), and only after that succeeds does the object's own real title/body
+     * seed the opening conversational turn -- never the reverse, so a failed selection can never
+     * silently become a DIRECT trade that still looks like it came from Community.
+     */
+    async useCommunitySource(fact: CommunitySourceFact): Promise<SourceSelectionResult> {
+      if (state.busy || state.pending) return { status: 'busy' };
+      return attemptCommunitySourceSelection(fact);
+    },
+    /** Re-attempts the exact same "Use this" the person already chose. */
+    async retryCommunitySourceSelection(): Promise<SourceSelectionResult> {
+      const failure = state.communitySourceSelectionFailure;
+      if (state.busy || state.pending) return { status: 'busy' };
+      if (!failure) return { status: 'no-source' };
+      return attemptCommunitySourceSelection(failure.fact);
+    },
+    /**
+     * The explicit, visible choice to proceed without the Community source: clears any provenance so
+     * the eventual Agreement is understood as DIRECT, never silently attributed to a Community object
+     * that was never actually confirmed. The opening message is still worth saying -- it is the
+     * person's own real words about what they want -- so it is still seeded as an ordinary turn.
+     */
+    async continueCommunitySourceWithoutSource(): Promise<'continued' | 'busy' | 'nothing'> {
+      const failure = state.communitySourceSelectionFailure;
+      if (state.busy || state.pending) return 'busy';
+      if (!failure) return 'nothing';
+      update({ communitySourceSelectionFailure: null, source: null });
+      await seedOpeningTurnIfFirst(failure.fact.openingMessage);
+      return 'continued';
+    },
   };
 
   async function attemptOfferSelection(fact: OfferFact): Promise<SourceSelectionResult> {
@@ -420,6 +476,42 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     // Only AFTER the source is really selected may the offer's price become a candidate fact.
     const amount = fact.amount ? ((await submitOfferFact(fact)) ? 'submitted' : 'failed') : (await submitOfferFact(fact), 'none');
     return { status: 'selected', source: selection, amount };
+  }
+
+  /**
+   * Phase 6 Slice 4 -- selects the real Community source FIRST (server-verified against the real
+   * object; never trusts the caller's own title/owner claims), then seeds the object's own real
+   * title/body as the opening conversational turn (only on a genuinely fresh conversation -- never
+   * repeated on a retry that already has turns). A failed selection is held in
+   * `communitySourceSelectionFailure`, untouched, until an explicit retry/continue -- the opening
+   * message is never sent while a selection failure is outstanding.
+   */
+  async function attemptCommunitySourceSelection(fact: CommunitySourceFact): Promise<SourceSelectionResult> {
+    update({ communitySourceSelectionFailure: null });
+    let selection: SelectedCommercialSourceDto;
+    try {
+      const conversationId = await ensureConversationId();
+      selection = await gateway.selectCommercialSource(conversationId, {
+        sourceType: fact.sourceType, sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+        candidateParticipantKsNumber: fact.candidateParticipantKsNumber,
+      });
+    } catch (error) {
+      const message = sourceErrorText(error);
+      update({ communitySourceSelectionFailure: { fact, error: message } });
+      return { status: 'failed', error: message };
+    }
+    update({ source: selection });
+    await seedOpeningTurnIfFirst(fact.openingMessage);
+    return { status: 'selected', source: selection, amount: 'none' };
+  }
+
+  /** Seeds the person's own real opening words as an ordinary turn -- only when the conversation has
+   * no turns yet, so this never re-says anything on a retry or a later "Use this" mid-conversation. */
+  async function seedOpeningTurnIfFirst(openingMessage: string): Promise<void> {
+    if (state.turns.length > 0 || !openingMessage.trim()) return;
+    const clientTurnId = id();
+    update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: openingMessage.trim() }] });
+    await run({ kind: 'turn', body: { message: openingMessage.trim(), clientTurnId } });
   }
 
   /** Returns whether the offer's amount (if any) / conversation seed reached SecurePay. */
