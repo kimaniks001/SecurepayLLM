@@ -1,6 +1,9 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type {
+  CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
+  FairTradePrincipleResponse, MembershipResponse,
+} from '../../api/securepay/community/dto';
 import { searchResultsView, type StoreSearchResult } from '../../api/securepay/store/adapters';
 import { searchRequests, mergeSearchResults } from '../store/view';
 import type { StoreReadGateway } from '../store/view';
@@ -15,6 +18,9 @@ export function errorText(error: unknown): string {
 }
 function asApiError(error: unknown): ApiError {
   return error instanceof ApiError ? error : new ApiError('network', 'SecurePay is unavailable');
+}
+function newIdempotencyKey(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export type CommunityView = 'home' | 'object' | 'compose';
@@ -46,9 +52,35 @@ export interface ComposeDraft {
 }
 const emptyDraft: ComposeDraft = { objectType: null, title: '', body: '', locationLabel: '', submitting: false, error: null, idempotencyKey: '' };
 
-function newIdempotencyKey(): string {
-  return `community-create-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+/**
+ * Phase 6 (Community Life) Slice 2 -- The Trust Project membership, presented as a discriminated
+ * state the UI can switch on directly, distinguishing "not signed in" from "signed in but not (yet)
+ * a member" -- two genuinely different situations the raw backend `status: null`/401 conflate.
+ */
+export type MembershipUiState =
+  | { kind: 'signed-out' }
+  | { kind: 'loading' }
+  | { kind: 'none' }
+  | { kind: 'invited'; membership: MembershipResponse }
+  | { kind: 'active'; membership: MembershipResponse }
+  | { kind: 'declined'; membership: MembershipResponse }
+  | { kind: 'revoked'; membership: MembershipResponse };
+
+function toMembershipUiState(membership: MembershipResponse): MembershipUiState {
+  switch (membership.status) {
+    case null: return { kind: 'none' };
+    case 'INVITED': return { kind: 'invited', membership };
+    case 'ACTIVE': return { kind: 'active', membership };
+    case 'DECLINED': return { kind: 'declined', membership };
+    case 'REVOKED': return { kind: 'revoked', membership };
+  }
 }
+
+export interface ReplyDraft { body: string; submitting: boolean; error: string | null; idempotencyKey: string }
+const emptyReplyDraft: ReplyDraft = { body: '', submitting: false, error: null, idempotencyKey: '' };
+
+export interface InviteDraft { ksNumber: string; submitting: boolean; error: string | null; sent: boolean }
+const emptyInviteDraft: InviteDraft = { ksNumber: '', submitting: false, error: null, sent: false };
 
 export interface CommunityState {
   view: CommunityView;
@@ -63,20 +95,51 @@ export interface CommunityState {
   ownObjectIds: ReadonlySet<string>;
   draft: ComposeDraft;
   notice: string | null;
+
+  /** The Trust Project membership (Slice 2). Loaded on enter(); gates the real feed entirely. */
+  membership: MembershipUiState;
+  /** Real replies/help for the currently-open object (Slice 2). */
+  objectReplies: RemoteState<CommunityReplyResponse[]>;
+  objectHelp: RemoteState<CommunityHelpResponseView[]>;
+  replyDraft: ReplyDraft;
+  /**
+   * The id of the help-response this session's own "I can help" created for the currently-open
+   * object, if any -- a deliberately session-scoped signal (Slice 2 does not compare against a
+   * fetched own-identity KS number just to detect a PRE-EXISTING offer from an earlier session; the
+   * backend itself remains the real, independently-enforced "one ACTIVE signal per person" authority
+   * either way -- this only decides which button this session shows).
+   */
+  myHelpResponseId: string | null;
+  helpOffering: boolean;
+  helpError: string | null;
+  /** Reply ids this session's own submitReply() created for the currently-open object -- the same
+   * deliberately session-scoped approach as myHelpResponseId (see its own doctrine comment above). */
+  myReplyIds: ReadonlySet<string>;
+
+  inviteOpen: boolean;
+  inviteDraft: InviteDraft;
+
+  principlesOpen: boolean;
+  principles: RemoteState<FairTradePrincipleResponse[]>;
 }
 const initial: CommunityState = {
   view: 'home', query: '', search: { status: 'idle' }, feed: { status: 'idle' },
   selectedObjectId: null, selectedRealObject: null, ownObjectIds: new Set(), draft: { ...emptyDraft }, notice: null,
+  membership: { kind: 'loading' }, objectReplies: { status: 'idle' }, objectHelp: { status: 'idle' },
+  replyDraft: { ...emptyReplyDraft }, myHelpResponseId: null, helpOffering: false, helpError: null, myReplyIds: new Set(),
+  inviteOpen: false, inviteDraft: { ...emptyInviteDraft },
+  principlesOpen: false, principles: { status: 'idle' },
 };
 
 type Gateway = Pick<StoreReadGateway, 'search'>;
 
 /**
- * Phase 6 (Community Life) Slice 1 -- real Question/Need/Opportunity/Work Story/Discussion authority,
- * against `CommunityObjectController` (`createCommunityGateway`). Store-offer search (Phase 10) is
- * preserved unchanged and merged alongside the real feed -- Community continues to reference Store
- * rather than duplicate it (Section 4/27). Creating, listing one's own objects and closing an object
- * still never create Agreement/handoff authority -- see `CommunityObjectService`'s own doctrine.
+ * Phase 6 (Community Life) Slice 1/2 -- The Trust Project: real Question/Need/Opportunity/Work
+ * Story/Discussion authority, real membership (invite/accept/decline), and real Conversation & Help
+ * (reply/"I can help"), against the real backend (`createCommunityGateway`). Store-offer search
+ * (Phase 10) is preserved unchanged and merged alongside the real feed -- Community continues to
+ * reference Store rather than duplicate it. Nothing here ever creates Agreement/handoff/payment/
+ * referral-reward authority -- see each backend service's own doctrine.
  */
 export function createCommunityController(
   gateway: Gateway,
@@ -103,6 +166,24 @@ export function createCommunityController(
     }
   }
 
+  async function loadMembership() {
+    update({ membership: { kind: 'loading' } });
+    try {
+      const membership = await community.membership.me();
+      update({ membership: toMembershipUiState(membership) });
+    } catch (error) {
+      const apiError = asApiError(error);
+      // A required-auth call the http client rejects locally (no token) surfaces as this exact
+      // shape -- see createHttpClient's own 'Authentication required' -- distinguishing "not signed
+      // in" from a genuine backend error the UI should otherwise report.
+      if (apiError.status === 401 || apiError.code === 'AUTHENTICATION_REQUIRED') {
+        update({ membership: { kind: 'signed-out' } });
+      } else {
+        update({ membership: { kind: 'none' }, notice: errorText(apiError) });
+      }
+    }
+  }
+
   async function loadFeed() {
     update({ feed: { status: 'loading' } });
     try {
@@ -110,6 +191,17 @@ export function createCommunityController(
       update({ feed: { status: 'ready', data: objects } });
     } catch (error) {
       update({ feed: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
+  async function loadObjectConversation(objectId: string) {
+    update({ objectReplies: { status: 'loading' }, objectHelp: { status: 'loading' } });
+    try {
+      const [replies, help] = await Promise.all([community.replies.list(objectId), community.help.list(objectId)]);
+      update({ objectReplies: { status: 'ready', data: replies }, objectHelp: { status: 'ready', data: help } });
+    } catch (error) {
+      const err = asApiError(error);
+      update({ objectReplies: { status: 'error', error: err }, objectHelp: { status: 'error', error: err } });
     }
   }
 
@@ -139,29 +231,35 @@ export function createCommunityController(
 
     async enter() {
       if (state.search.status === 'idle') void runSearch('');
-      // Slice 1 correction (The Trust Project doctrine): Community feed/detail now require
-      // authentication -- not signed-out-first-class browsing. A signed-out (or otherwise
-      // unauthenticated) caller's loadFeed()/mine() calls both fail with 401, caught below and by
-      // loadFeed's own try/catch; the store-offer search above is unaffected (Store retains its
-      // existing, separate public authority). Invitation/membership-scoped read authority -- the
-      // real reason Community reads are restricted at all -- is Slice 2's job, not invented here.
-      if (state.feed.status === 'idle') await loadFeed();
-      try {
-        const mine = await community.mine();
-        update({ ownObjectIds: new Set(mine.map(o => o.id)) });
-      } catch { /* not authenticated, or transiently unavailable -- Close affordance simply stays hidden */ }
+      await loadMembership();
+      // Slice 2 convergence: the real feed/mine only ever succeed for an ACTIVE Trust Project
+      // member -- attempting them for a non-member wastes a round trip that can only 403. The
+      // store-offer search above is unaffected either way (Store retains its own separate authority).
+      if (state.membership.kind === 'active') {
+        if (state.feed.status === 'idle') await loadFeed();
+        try {
+          const mine = await community.mine();
+          update({ ownObjectIds: new Set(mine.map(o => o.id)) });
+        } catch { /* transiently unavailable -- Close affordance simply stays hidden */ }
+      }
     },
     setQuery(query: string) { update({ query }); },
     async submitSearch() { await runSearch(state.query); },
 
     /** Opening a real Community object never creates Agreement/handoff authority -- pure local view switch. */
-    openObject(id: string) {
+    async openObject(id: string) {
       const real = state.feed.status === 'ready' ? state.feed.data.find(o => o.id === id) ?? null : null;
-      update({ view: 'object', selectedObjectId: id, selectedRealObject: real });
+      update({
+        view: 'object', selectedObjectId: id, selectedRealObject: real,
+        objectReplies: { status: 'idle' }, objectHelp: { status: 'idle' },
+        replyDraft: { ...emptyReplyDraft, idempotencyKey: newIdempotencyKey('community-reply') },
+        myHelpResponseId: null, helpError: null, myReplyIds: new Set(),
+      });
+      if (real) await loadObjectConversation(id);
     },
     backToHome() { update({ view: 'home', selectedObjectId: null, selectedRealObject: null }); },
 
-    openComposer() { update({ view: 'compose', draft: { ...emptyDraft, idempotencyKey: newIdempotencyKey() } }); },
+    openComposer() { update({ view: 'compose', draft: { ...emptyDraft, idempotencyKey: newIdempotencyKey('community-create') } }); },
     cancelComposer() { update({ view: 'home', draft: { ...emptyDraft } }); },
     setComposeType(objectType: CommunityObjectType) { update({ draft: { ...state.draft, objectType, error: null } }); },
     setComposeField(field: 'title' | 'body' | 'locationLabel', value: string) {
@@ -202,10 +300,112 @@ export function createCommunityController(
       }
     },
 
+    // ─── The Trust Project membership (Slice 2) ─────────────────────────
+
+    async acceptInvitation() {
+      try {
+        const membership = await community.membership.accept();
+        update({ membership: toMembershipUiState(membership) });
+        if (membership.status === 'ACTIVE') await this.enter();
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+    async declineInvitation() {
+      try {
+        const membership = await community.membership.decline();
+        update({ membership: toMembershipUiState(membership) });
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+    openInvite() { update({ inviteOpen: true, inviteDraft: { ...emptyInviteDraft } }); },
+    cancelInvite() { update({ inviteOpen: false, inviteDraft: { ...emptyInviteDraft } }); },
+    setInviteKsNumber(value: string) { update({ inviteDraft: { ...state.inviteDraft, ksNumber: value, error: null } }); },
+    async submitInvite() {
+      const ksNumber = state.inviteDraft.ksNumber.trim();
+      if (!ksNumber) { update({ inviteDraft: { ...state.inviteDraft, error: 'Enter their KS Number.' } }); return; }
+      update({ inviteDraft: { ...state.inviteDraft, submitting: true, error: null } });
+      try {
+        await community.membership.invite(ksNumber, newIdempotencyKey(`community-invite-${ksNumber}`));
+        update({ inviteDraft: { ...emptyInviteDraft, sent: true }, notice: 'Invitation sent.' });
+      } catch (error) {
+        update({ inviteDraft: { ...state.inviteDraft, submitting: false, error: errorText(error) } });
+      }
+    },
+
+    // ─── Conversation & Help (Slice 2) ─────────────────────────
+
+    setReplyBody(value: string) { update({ replyDraft: { ...state.replyDraft, body: value, error: null } }); },
+    async submitReply() {
+      if (!state.selectedObjectId) return;
+      const body = state.replyDraft.body.trim();
+      if (!body) { update({ replyDraft: { ...state.replyDraft, error: 'Say something first.' } }); return; }
+      update({ replyDraft: { ...state.replyDraft, submitting: true, error: null } });
+      try {
+        const created = await community.replies.create(state.selectedObjectId, body, state.replyDraft.idempotencyKey);
+        update({
+          replyDraft: { ...emptyReplyDraft, idempotencyKey: newIdempotencyKey('community-reply') },
+          myReplyIds: new Set([...state.myReplyIds, created.id]),
+        });
+        await loadObjectConversation(state.selectedObjectId);
+      } catch (error) {
+        update({ replyDraft: { ...state.replyDraft, submitting: false, error: errorText(error) } });
+      }
+    },
+    async withdrawReply(replyId: string) {
+      if (!state.selectedObjectId) return;
+      try {
+        await community.replies.withdraw(state.selectedObjectId, replyId);
+        await loadObjectConversation(state.selectedObjectId);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+
+    /** "I can help" is a distinct willingness SIGNAL -- never a reply, never an Agreement, never a bid. */
+    async offerHelp() {
+      if (!state.selectedObjectId) return;
+      update({ helpOffering: true, helpError: null });
+      try {
+        const offer = await community.help.offer(state.selectedObjectId, newIdempotencyKey('community-help'));
+        update({ helpOffering: false, myHelpResponseId: offer.id });
+        await loadObjectConversation(state.selectedObjectId);
+      } catch (error) {
+        update({ helpOffering: false, helpError: errorText(error) });
+      }
+    },
+    async withdrawHelp() {
+      if (!state.selectedObjectId || !state.myHelpResponseId) return;
+      try {
+        await community.help.withdraw(state.selectedObjectId, state.myHelpResponseId);
+        update({ myHelpResponseId: null });
+        await loadObjectConversation(state.selectedObjectId);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+
+    // ─── Our 12 Principles (Slice 2) -- read from the one canonical source, never re-typed ─────────────────────────
+
+    async togglePrinciples() {
+      const opening = !state.principlesOpen;
+      update({ principlesOpen: opening });
+      if (opening && state.principles.status === 'idle') {
+        update({ principles: { status: 'loading' } });
+        try {
+          const list = await community.principles();
+          update({ principles: { status: 'ready', data: list } });
+        } catch (error) {
+          update({ principles: { status: 'error', error: asApiError(error) } });
+        }
+      }
+    },
+
     showNotice(text: string) { update({ notice: text }); },
     dismissNotice() { update({ notice: null }); },
 
-    reset() { update({ ...initial, draft: { ...emptyDraft } }); },
+    reset() { update({ ...initial, draft: { ...emptyDraft }, inviteDraft: { ...emptyInviteDraft }, replyDraft: { ...emptyReplyDraft } }); },
   };
 }
 export type CommunityController = ReturnType<typeof createCommunityController>;
