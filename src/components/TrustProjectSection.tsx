@@ -22,7 +22,7 @@ const PILLARS = [
   {
     title: 'Technologies',
     line: 'Tools that make fair trade practical.',
-    detail: 'SecurePay and KS001 to shape clear agreements, a Store for what you offer, SecureLinks to share it, and Community to ask and help.',
+    detail: 'SecurePay and KS001 to shape clear agreements, a Store for what you offer, SecureLinks to share it, and Community to ask and help. For businesses and builders, Developer / Connect in Account provides SecurePay integration tools such as API credentials and webhooks, managed by the Business that owns them.',
   },
   {
     title: 'Systems',
@@ -55,11 +55,11 @@ const CAPACITIES = [
 ] as const;
 
 const ORIGIN = [
-  'Everyday trade relied too much on memory, scattered messages and goodwill.',
-  'The first response was to write down practical principles of fair trade.',
-  'SecurePay was built to turn those principles into tools people can actually use.',
-  'Tools alone weren’t enough — people also need one another.',
-  'The Trust Project grew into the community around those shared technologies, systems and people.',
+  'The Trust Project began with a practical question: how can trust be made visible, practical and repeatable in ordinary trade?',
+  'That work produced the 12 Principles of Fair Trade.',
+  'SecurePay was built to turn those principles into tools people could actually use.',
+  'Technology alone was not enough — people also need knowledge, connection and one another.',
+  'The Trust Project therefore grew into the community around those shared technologies, systems and people.',
 ] as const;
 
 interface TrustProjectSectionProps {
@@ -135,7 +135,7 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
             <div className="rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3">
               <h3 className="font-display text-[0.95rem] text-forest-800">A Store for every member</h3>
               <p className="mt-1 text-[0.78rem] text-sand-600 leading-relaxed">
-                Your Store is your digital economic presence, tied to your KS Number. It can start empty — nothing is published until you publish it. A Store is not an endorsement.
+                Your KS identity gives you a digital Store while your SecurePay identity is active. It can start empty — nothing is published until you publish it. A Store is not an endorsement.
               </p>
             </div>
             <div className="rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3">

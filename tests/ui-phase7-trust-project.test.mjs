@@ -62,6 +62,9 @@ test('membership is belonging, never certification; a Store is not an endorsemen
   assert.match(full, /Belonging is not a certificate that someone is trustworthy/);
   assert.match(full, /A Store is not an endorsement/);
   assert.match(full, /It can start empty — nothing is published until you publish it/);
+  // The Store comes from the active KS identity, never from Trust Project membership itself.
+  assert.match(full, /Your KS identity gives you a digital Store while your SecurePay identity is active\./);
+  assert.doesNotMatch(full, /membership (gives|provisions|creates|guarantees)[^.]*Store|joining (gives|creates)[^.]*Store|every member (gets|is guaranteed)[^.]*Store/i);
 });
 test('the Skills Institute is named but NOT presented as available (locked Phase 11D capability truth)', () => {
   assert.match(full, /The Skills Institute, for structured training and practice, is not open yet\./);
@@ -86,7 +89,10 @@ test('the 12 Principles are reused from the canonical source, never rewritten', 
 });
 test('the origin story is short and about problem → principles → technology → community', () => {
   assert.match(full, /How this started/);
-  for (const s of [/memory, scattered messages and goodwill/, /practical principles of fair trade/, /SecurePay was built/, /people also need one another/, /community around those shared technologies, systems and people/]) assert.match(full, s);
+  // Chronology: The Trust Project and its trust question come FIRST, then the 12 Principles, then SecurePay, then the wider community.
+  const order = [/The Trust Project began with a practical question: how can trust be made visible, practical and repeatable in ordinary trade\?/, /That work produced the 12 Principles of Fair Trade\./, /SecurePay was built to turn those principles into tools people could actually use\./, /Technology alone was not enough — people also need knowledge, connection and one another\./, /The Trust Project therefore grew into the community around those shared technologies, systems and people\./];
+  const story = full.slice(full.indexOf('How this started'));
+  let at = -1; for (const re of order) { const m = story.search(re); assert.ok(m > at, `${re} out of order or missing`); at = m; }
   assert.doesNotMatch(full, /founder|wire/i);
 });
 
@@ -126,6 +132,14 @@ test('the real signed-in Home (Workspace) keeps its own headline and adds only t
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(agent, /onOpenCommunity=\{\(\) => navigateTo\('community'\)\}/);
   assert.match(agent, /if \(community\) return; \/\/ re-read on leaving Community/);
+});
+
+test('Developer / Connect is named only as the existing Account integration capability, owned by the Business -- no new route, nav item or action', async () => {
+  assert.match(full, /For businesses and builders, Developer \/ Connect in Account provides SecurePay integration tools such as API credentials and webhooks, managed by the Business that owns them\./);
+  const src = strip(await readFile('src/components/TrustProjectSection.tsx', 'utf8'));
+  assert.doesNotMatch(src, /navigateTo|'developer'|onOpenDeveloper|#\/developer|href=/);
+  assert.equal((api.renderToStaticMarkup(api.createElement(api.TrustProjectSection, { onExploreCommunity: noop, onOpenStores: noop })).match(/<button/g) ?? []).length, 3);
+  assert.doesNotMatch(full, /every member (can|gets)[^.]*(API|credential|webhook)/i);
 });
 
 // ------------------------------------------------------------ invitation + scope
