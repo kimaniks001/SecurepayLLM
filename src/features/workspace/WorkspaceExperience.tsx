@@ -44,7 +44,7 @@ type Gateway = Pick<AgreementGateway,
   | 'source'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
-  review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'eligibility' | 'acknowledge' | 'respond' | 'submitEvidence'>;
+  review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond' | 'submitEvidence' | 'v2Preflight' | 'v2Open' | 'v2Cases'>;
 };
 
 type AgentAskGateway = Pick<AgentGateway, 'switchAccessGrant'>;

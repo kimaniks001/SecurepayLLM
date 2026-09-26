@@ -9,7 +9,7 @@ const bundle = await build({ stdin: { contents: `
 export * from './src/features/review/display';
 export * from './src/features/review/actions';
 export { ReviewListView, CaseDetailView, YourPart } from './src/features/review/ReviewPanel';
-export { AddEvidence, OpeningStatus } from './src/features/review/ReviewEvidence';
+export { AddEvidence } from './src/features/review/ReviewEvidence';
 export { createAgreementReviewGateway, REVIEW_MAX_PAGE_SIZE } from './src/api/securepay/agreement-review';
 export { REVIEW_AUTHENTICATED_METHODS } from './src/api/securepay/agreement-review/refresh';
 export { createAttemptStore } from './src/features/money/attempt';
@@ -88,8 +88,8 @@ test('no Review cases: "No formal reviews" (not a read failure); read failure: u
   assert.match(none, /No formal reviews on this Agreement/); assert.doesNotMatch(none, /couldn’t be loaded/);
   const failed = text(html(m.ReviewListView, { cases: { status: 'error' }, lookup, currentVersionId: null, onOpen() {} }));
   assert.match(failed, /Reviews couldn’t be loaded\. That doesn’t mean there are none\./); assert.doesNotMatch(failed, /No formal reviews/);
-  assert.match(none, /Starting a formal review isn’t available in SecurePay yet/);
-  assert.match(failed, /Starting a formal review isn’t available in SecurePay yet/);
+  // Phase 7 Slice 6B: starting a formal review is SecurePay's v2 journey, passed in as `opening` (see ui-phase7-review-opening.test.mjs).
+  assert.doesNotMatch(none + failed, /isn’t available in SecurePay yet/);
 });
 test('list separates Active reviews from Review history and labels current / earlier / unknown Agreement version without ids', () => {
   const items = [sum({ reviewCaseId: 'a', state: 'UNDER_REVIEW' }), sum({ reviewCaseId: 'b', state: 'DECIDED', agreementVersionId: 'ver-1-secret', terminalOutcome: 'CASE_DISMISSED' }), sum({ reviewCaseId: 'c', state: 'WEIRD_STATE' })];

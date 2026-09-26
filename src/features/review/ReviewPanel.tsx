@@ -5,9 +5,10 @@ import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse, ReviewEvidenc
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { createAttemptStore } from '../money/attempt';
 import { ACK_WORDS, OUTCOME_WORDS, RESPOND_WORDS, runAcknowledge, runRespond, validateNarrative, type CaseContext, type ReviewOutcome } from './actions';
-import { AddEvidence, OpeningStatus } from './ReviewEvidence';
+import { AddEvidence } from './ReviewEvidence';
+import { OpeningAvailability, StartFormalReview, V2CaseList } from './ReviewOpening';
 import {
-  EVIDENCE_NOT_OPEN, MONEY_MAY_BE_AFFECTED, OUTCOME_NOT_MONEY, REVIEW_OPENING_NOT_AVAILABLE, canAddEvidence, RESPONSE_TYPE_WORDS, VERSION_SCOPE_WORDS, deadlineLine, evidenceSize, evidenceTypeWords, outcomeWords, participantActions,
+  EVIDENCE_NOT_OPEN, MONEY_MAY_BE_AFFECTED, OUTCOME_NOT_MONEY, canAddEvidence, RESPONSE_TYPE_WORDS, VERSION_SCOPE_WORDS, deadlineLine, evidenceSize, evidenceTypeWords, outcomeWords, participantActions,
   reasonWords, roleWords, stateGroup, stateWords, subjectLabel, versionNumberWords, versionScope, type SubjectLookup,
 } from './display';
 
@@ -42,7 +43,7 @@ const EVIDENCE_STATES = new Set(['OPENED', 'AWAITING_RESPONSE', 'EVIDENCE_COLLEC
  * opened, and what the Review Reserve requires, is read from SecurePay. Nothing here computes or implies a financial effect.
  */
 export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney, onGetHelp, initialCaseId = null }: {
-  gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'eligibility' | 'acknowledge' | 'respond' | 'submitEvidence'>;
+  gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond' | 'submitEvidence' | 'v2Preflight' | 'v2Open' | 'v2Cases'>;
   agreementGateway: Pick<AgreementGateway, 'obligations' | 'versions'>;
   agreementId: string;
   /** From the exact Agreement Detail read (Phase 5/8). null = couldn't be established -> neutral version wording. */
@@ -54,7 +55,10 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
   initialCaseId?: string | null;
 }) {
   const [cases, refreshCases] = useRead(() => gateway.list({ agreementId, size: 50 }), agreementId);
-  const [eligibility] = useRead(() => gateway.eligibility(agreementId), agreementId);
+  // Phase 7 Slice 6B -- the canonical v2 formal Reviews, and SecurePay's own preflight for starting one.
+  const [preflight, refreshPreflight] = useRead(() => gateway.v2Preflight(agreementId), agreementId);
+  const [v2Cases, refreshV2Cases] = useRead(async () => (await gateway.v2Cases(agreementId)).items, agreementId);
+  const [starting, setStarting] = useState(false);
   const [versions] = useRead(async () => new Map((await agreementGateway.versions(agreementId)).map(v => [v.id, v.versionNumber] as const)), agreementId);
   const [obligations] = useRead(async () => new Map((await agreementGateway.obligations(agreementId)).map(o => [o.id, o.title] as const)), agreementId);
   const [selected, setSelected] = useState<string | null>(initialCaseId);
@@ -83,12 +87,19 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
   }
 
   return <ReviewListView cases={merged} lookup={lookup} currentVersionId={currentVersionId} onOpen={setSelected} onMore={() => void loadMore()} moreState={moreState}
-    opening={<OpeningStatus eligibility={eligibility} />} />;
+    opening={<div className="space-y-3" data-testid="formal-reviews">
+      <Label>Formal reviews</Label>
+      <V2CaseList cases={v2Cases} />
+      {starting && preflight.status === 'ready'
+        ? <StartFormalReview gateway={gateway} preflight={preflight.data} onCancel={() => setStarting(false)}
+            onOpened={() => { refreshV2Cases(); refreshPreflight(); }} />
+        : <OpeningAvailability preflight={preflight} onStart={() => setStarting(true)} />}
+    </div>} />;
 }
 
 export function ReviewListView({ cases, lookup, currentVersionId, onOpen, onMore, moreState = 'idle', opening }: {
   cases: Read<{ items: ReviewCaseSummaryResponse[]; totalElements: number }>; lookup: SubjectLookup; currentVersionId: string | null; onOpen: (reviewCaseId: string) => void; onMore?: () => void; moreState?: 'idle' | 'loading' | 'error';
-  /** Phase 7 Slice 6 -- SecurePay's own answer on starting a formal review here (never a start button yet). */
+  /** Phase 7 Slice 6B -- the canonical v2 formal Reviews and SecurePay's own "start a formal review" journey. */
   opening?: React.ReactNode;
 }) {
   return (
@@ -117,7 +128,7 @@ export function ReviewListView({ cases, lookup, currentVersionId, onOpen, onMore
           {moreState === 'error' && <Note tone="warn">More reviews couldn’t be loaded.</Note>}
         </div>
       )}
-      {opening ?? <Note>{REVIEW_OPENING_NOT_AVAILABLE}</Note>}
+      {opening}
     </div>
   );
 }

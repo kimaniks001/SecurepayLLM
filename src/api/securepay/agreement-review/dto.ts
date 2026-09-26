@@ -72,10 +72,6 @@ export interface ReviewEvidenceItemResponse {
 }
 export interface ReviewEvidenceListResponse { items: ReviewEvidenceItemResponse[] }
 
-/** ARCHAEOLOGY ONLY -- production UI never sends this: opening enrols no respondent and the Review Reserve eligibility is unreadable. */
-export interface OpenReviewCaseRequest { agreementId: string; agreementVersionId: string; subjectType: ReviewSubjectType; subjectId: string; openReasonCode: ReviewOpenReasonCode; narrativeContext: string | null }
-export interface OpenReviewCaseResponse { [field: string]: unknown }
-
 export interface ReviewListParams { page?: number; size?: number; agreementId?: string; state?: ReviewCaseState; activeOnly?: boolean }
 export interface AcknowledgeReviewRequest { agreementId: string; expectedVersion: number }
 export interface SubmitReviewResponseRequest { agreementId: string; expectedVersion: number; responseType: ReviewResponseType; narrative: string }
@@ -83,10 +79,21 @@ export interface SubmitReviewResponseRequest { agreementId: string; expectedVers
 /** Phase 7 Slice 6 -- evidence types SecurePay accepts (`review_case_evidence_type_check`). */
 export type ReviewEvidenceType = 'DOCUMENT' | 'IMAGE' | 'RECEIPT' | 'DELIVERY_RECORD' | 'AGREEMENT_RECORD' | 'COMMUNICATION' | 'OTHER';
 export interface SubmitReviewEvidenceInput { agreementId: string; evidenceType: ReviewEvidenceType; narrativeDescription: string | null; contentSha256Hex: string; file: Blob; filename: string }
-/** Phase 7 Slice 6 -- `AgreementReviewEligibilityReadService.Eligibility`: backend truth, yes/no only; no balance is ever returned. */
-export interface ReviewEligibilityResponse {
-  agreementId: string;
-  formalOpeningAvailable: boolean;
-  formalOpeningUnavailableReason: string | null;
-  reviewReserve: { currency: string; minimumMinor: number; eligible: boolean; reasonCode: string };
+
+/** Phase 7 Slice 6B -- the v2 participant opening preflight (`AgreementReviewV2ParticipantOpeningService.Preflight`). */
+export type ReviewV2SubjectType = 'AGREEMENT' | 'OBLIGATION';
+export interface ReviewV2SubjectOption {
+  subjectType: ReviewV2SubjectType; subjectId: string; workTitle: string | null; wholeAgreementRestricted: boolean; affectedAmountMinor: number;
+  people: { name: string; role: string }[]; yourReserveReady: boolean; allReserveReady: boolean; interruptsReleaseCountdown: boolean;
+  available: boolean; unavailableReason: string | null;
+}
+export interface ReviewV2Preflight {
+  agreementId: string; currentVersionId: string; openingAvailable: boolean; unavailableReason: string | null; reasonCodes: string[];
+  currency: string; reviewReserveMinimumMinor: number; subjects: ReviewV2SubjectOption[];
+}
+export interface ReviewV2OpenRequest { agreementId: string; expectedAgreementVersionId: string; subjectType: ReviewV2SubjectType; subjectId: string; reasonCode: string }
+export interface ReviewV2OpenResponse { reviewCaseId: string; state: string; releaseRestriction: string; idempotentReplay: boolean }
+export interface ReviewV2Case {
+  reviewCaseId: string; state: string; reasonCode: string; subject: string; wholeAgreement: boolean; affectedAmountMinor: number; currency: string;
+  releaseRestricted: boolean; openedAt: string; openedByYou: boolean; yourRole: string | null; people: { name: string; role: string; isYou: boolean }[];
 }

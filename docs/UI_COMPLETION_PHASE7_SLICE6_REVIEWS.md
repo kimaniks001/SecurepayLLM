@@ -42,3 +42,42 @@ Acknowledge and respond keep:
 
 - `tests/ui-phase7-reviews.test.mjs` (10): gateway, pre-checks, same-bytes key binding, refusals, `canAddEvidence` matrix, case-view evidence control, outcome wording, reserve wording from backend numbers, no opening or escalation calls and no hardcoded reserve, and Problems → Support.
 - `tests/ui-phase9.test.mjs` is updated to the new boundary: upload allowed only in `ReviewEvidence.tsx`, and still no download, object URL, link or image anywhere in the Review feature.
+
+---
+
+## Slice 6B — Start a formal review (canonical v2, UR-194)
+
+**Current architectural decision (human):** participants open formal Reviews on the v2 model only. The legacy v1 `openCase` is **removed from the gateway**; it is never the participant path.
+
+- **Where:** Agreement → Support → **Reviews & issues** → **Formal reviews**. The section lists the v2 Reviews the person takes part in, in words:
+  - state (e.g. "Opened — waiting for the participants");
+  - what is under review;
+  - the amount;
+  - "release of this is restricted while it is open";
+  - your part and who else takes part.
+
+  It then shows **Start a formal review** only when SecurePay's preflight says one can open. Otherwise it shows SecurePay's own reason, e.g. "Confirm the Agreement first".
+- **The journey** (`features/review/ReviewOpening.tsx`):
+  1. **What is the problem about?** Only the subjects SecurePay offers (the whole Agreement, or a piece of work). Unavailable ones are disabled and say why, for example "One or more of the people involved don't have the Review Reserve this needs yet".
+  2. **What happened?** Four bounded reasons. Unknown codes are never offered.
+  3. **What will happen**, all from SecurePay:
+     - what becomes restricted from release (only this work, or the whole Agreement with the reason);
+     - the amount;
+     - who takes part;
+     - that the running 48-hour release countdown will stop;
+     - the refundable Review Reserve (not a charge; readiness for you, and for everyone, without anyone's balance);
+     - the boundary: SecurePay does not decide who is right, and opening moves no money.
+  4. An explicit "I understand…" confirmation, then **Open formal review**.
+- **Request and retry safety:** the request carries only the offered subject, the reason and the exact current version. SecurePay derives scope, amount and people. One opening is one exact request with one key. An uncertain result offers **Try the same request again** or **Check what happened**, which settles from the person's own list. A different request while one is unresolved is refused.
+- **Refusal wording:**
+  - the Agreement changed → "Look at the current version…";
+  - already open → "A formal review already covers this…";
+  - not possible now → "Nothing was opened".
+
+  None of them claims anything was opened, decided or moved.
+- **Replaced:** the Slice 6A "isn't available in SecurePay yet" copy and the eligibility read in the UI are replaced by the v2 preflight.
+
+**Tests:** `tests/ui-phase7-review-opening.test.mjs` (8); `ui-phase7-reviews` and `ui-phase9` updated. Full suite 1304/1304.
+**Not here (backend UR-198):** proposing or confirming a settlement, OTP confirmation, withdrawal. Those are financial authority for a separate approved slice.
+
+**Browser (real backend, Slice 6B):** Agreement → Support → Reviews & issues → Formal reviews shows SecurePay's reason from the real preflight, with no Start button and no overflow. A defect found here is fixed: when nothing can open, each subject is listed read-only with its own reason. The successful open was not browser-verified, because no local path funds a Review Reserve (only activation funding through a real payment rail). It is proven through the same controller on real PostgreSQL in the backend Golden Journey.

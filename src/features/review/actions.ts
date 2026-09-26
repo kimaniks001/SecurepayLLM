@@ -1,7 +1,7 @@
 import { ApiError } from '../../api/securepay/http';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { REVIEW_EVIDENCE_MAX_BYTES, REVIEW_EVIDENCE_MAX_DESCRIPTION, REVIEW_EVIDENCE_MEDIA_TYPES, REVIEW_MAX_NARRATIVE } from '../../api/securepay/agreement-review';
-import type { ReviewActionResponse, ReviewEvidenceItemResponse, ReviewEvidenceType, ReviewResponseType } from '../../api/securepay/agreement-review/dto';
+import type { ReviewActionResponse, ReviewEvidenceItemResponse, ReviewEvidenceType, ReviewResponseType, ReviewV2OpenRequest, ReviewV2OpenResponse } from '../../api/securepay/agreement-review/dto';
 import { isUncertainFinancialError, type AttemptStore } from '../money/attempt';
 
 /**
@@ -127,6 +127,55 @@ export const EVIDENCE_WORDS = {
     'description-too-long': 'The description is longer than SecurePay accepts (1,024 characters).',
   } satisfies Record<EvidenceProblem, string>,
 } as const;
+
+/**
+ * Phase 7 Slice 6B -- open a formal Review (canonical v2). One logical opening = one exact request + one key: the request names only the subject
+ * SecurePay offered, a bounded reason and the exact current version; an uncertain opening is retried as the SAME request, and a different request
+ * while one is unresolved is refused. SecurePay derives what is restricted and who takes part; nothing is computed here.
+ */
+export type OpenOutcome =
+  | { kind: 'ok'; result: ReviewV2OpenResponse }
+  | { kind: 'uncertain' }
+  | { kind: 'refused' }
+  | { kind: 'changed' }        // AGREEMENT_CONFLICT: the Agreement changed; read the current version first
+  | { kind: 'already-open' }   // AGREEMENT_REVIEW_V2_CONFLICT: a review already covers this, or the key was reused differently
+  | { kind: 'not-possible' }   // 422: not offered / not possible right now (e.g. Review Reserve)
+  | { kind: 'not-found' }
+  | { kind: 'forbidden' }
+  | { kind: 'rejected' };
+
+export async function runOpenV2(gateway: Pick<AgreementReviewGateway, 'v2Open'>, attempts: AttemptStore, request: ReviewV2OpenRequest): Promise<OpenOutcome> {
+  const key = attempts.keyFor(JSON.stringify(['open-v2', request.agreementId, request.expectedAgreementVersionId, request.subjectType, request.subjectId, request.reasonCode]));
+  if (!key.ok) return { kind: 'refused' };
+  try {
+    const result = await gateway.v2Open(request, key.key);
+    attempts.settle();
+    return { kind: 'ok', result };
+  } catch (error) {
+    if (isUncertainFinancialError(error)) return { kind: 'uncertain' };
+    attempts.settle();
+    if (error instanceof ApiError) {
+      if (error.code === 'AGREEMENT_CONFLICT') return { kind: 'changed' };
+      if (error.code === 'AGREEMENT_REVIEW_V2_CONFLICT') return { kind: 'already-open' };
+      if (error.status === 422) return { kind: 'not-possible' };
+      if (error.status === 404) return { kind: 'not-found' };
+      if (error.status === 403) return { kind: 'forbidden' };
+    }
+    return { kind: 'rejected' };
+  }
+}
+
+export const OPEN_WORDS: Readonly<Record<Exclude<OpenOutcome['kind'], 'ok'>, string> & { ok: string }> = {
+  ok: 'SecurePay opened the formal review. The part of the Agreement it covers is now restricted from release while the participants work through it. Nobody has decided anything, and no money moved.',
+  uncertain: 'SecurePay is not yet sure whether the review was opened. Trying again sends the same request, so it can’t open twice.',
+  refused: 'An earlier request is still unresolved. Try that exact request again, or check what happened, before making a different one.',
+  changed: 'The Agreement changed while you were preparing this. Look at the current version, then start again. Nothing was opened.',
+  'already-open': 'A formal review already covers this part of the Agreement. Nothing new was opened.',
+  'not-possible': 'SecurePay couldn’t open this review right now. Nothing was opened. The steps above show what SecurePay currently allows.',
+  'not-found': 'SecurePay couldn’t open a review on this Agreement for your account.',
+  forbidden: 'SecurePay says this account can’t open a formal review.',
+  rejected: 'SecurePay did not open the review. Nothing was opened.',
+};
 
 /** Customer wording for each outcome. Never says the review was decided, and never says money moved. */
 export const ACK_WORDS = {

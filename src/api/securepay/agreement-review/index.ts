@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
-  AcknowledgeReviewRequest, OpenReviewCaseRequest, OpenReviewCaseResponse, ReviewActionResponse, ReviewCaseDetailResponse, ReviewCaseListResponse,
-  ReviewEligibilityResponse, ReviewEvidenceItemResponse, ReviewEvidenceListResponse, ReviewListParams, SubmitReviewEvidenceInput, SubmitReviewResponseRequest,
+  AcknowledgeReviewRequest, ReviewActionResponse, ReviewCaseDetailResponse, ReviewCaseListResponse,
+  ReviewEvidenceItemResponse, ReviewV2Case, ReviewV2OpenRequest, ReviewV2OpenResponse, ReviewV2Preflight, ReviewEvidenceListResponse, ReviewListParams, SubmitReviewEvidenceInput, SubmitReviewResponseRequest,
 } from './dto';
 
 /** Backend maximum page size for the participant list. */
@@ -17,10 +17,11 @@ export const REVIEW_EVIDENCE_MEDIA_TYPES = ['application/pdf', 'image/jpeg', 'im
 /**
  * PARTICIPANT Agreement Review gateway. Every method is `auth: 'required'` (see `refresh.ts`).
  * Production wiring boundary (docs/UI_COMPLETION_PHASE9_AGREEMENT_REVIEW.md):
- *   LIVE:      list, detail, evidence, eligibility (reads); acknowledge, respond (bound to the fresh case `version`); submitEvidence
+ *   LIVE:      list, detail, evidence (reads); acknowledge, respond (bound to the fresh case `version`); submitEvidence
  *              (Phase 7 Slice 6: durable PostgreSQL storage, digest-verified, metadata only -- there is no content download).
- *   UNWIRED:   openCase (AGREEMENT_REVIEW_OPEN is ungranted until the v1/v2 opening decision), requestEscalation (an internal
- *              senior-review request; ungranted, nothing readable proves it landed).
+ *              Phase 7 Slice 6B: v2Preflight / v2Open / v2Cases -- the ONE participant opening path, on the canonical v2 model.
+ *   UNWIRED:   requestEscalation (an internal senior-review request; ungranted, nothing readable proves it landed).
+ *   REMOVED:   the legacy v1 openCase (never the participant path; ungranted, deprecated in the contract).
  * Idempotency keys are caller-supplied; no method mints one.
  */
 export function createAgreementReviewGateway(http: HttpClient) {
@@ -38,8 +39,6 @@ export function createAgreementReviewGateway(http: HttpClient) {
     },
     detail: (reviewCaseId: string, agreementId: string) => http.request<ReviewCaseDetailResponse>(withAgreement(reviewCaseId, agreementId), { auth: 'required' }),
     evidence: (reviewCaseId: string, agreementId: string) => http.request<ReviewEvidenceListResponse>(withAgreement(reviewCaseId, agreementId, '/evidence'), { auth: 'required' }),
-    /** Phase 7 Slice 6 -- can a formal Review be started, and what does the Review Reserve require (yes/no; never a balance). */
-    eligibility: (agreementId: string) => http.request<ReviewEligibilityResponse>(`${base}/eligibility?agreementId=${segment(agreementId)}`, { auth: 'required' }),
     /** Phase 7 Slice 6 -- one evidence file, multipart. The digest binds the request to the exact bytes; SecurePay recomputes and verifies it. */
     submitEvidence: (reviewCaseId: string, input: SubmitReviewEvidenceInput, idempotencyKey: string) => {
       const form = new FormData();
@@ -57,9 +56,13 @@ export function createAgreementReviewGateway(http: HttpClient) {
     /** UNWIRED (archaeology): records escalation INTENT only; nothing readable proves it landed. */
     requestEscalation: (reviewCaseId: string, request: AcknowledgeReviewRequest, idempotencyKey: string) =>
       http.request<ReviewActionResponse>(`${base}/${segment(reviewCaseId)}/escalations`, { method: 'POST', auth: 'required', body: request, headers: { 'Idempotency-Key': idempotencyKey } }),
-    /** UNWIRED (archaeology): creates only an OPENER-side case; no respondent is enrolled and nothing readable says the Review Reserve is sufficient. */
-    openCase: (request: OpenReviewCaseRequest, idempotencyKey: string) =>
-      http.request<OpenReviewCaseResponse>(`${base}/open`, { method: 'POST', auth: 'required', body: request, headers: { 'Idempotency-Key': idempotencyKey } }),
+    /** Phase 7 Slice 6B -- what a formal Review would cover, who takes part, and whether it can open now. */
+    v2Preflight: (agreementId: string) => http.request<ReviewV2Preflight>(`${base}/v2/preflight?agreementId=${segment(agreementId)}`, { auth: 'required' }),
+    /** Phase 7 Slice 6B -- open ONE preflight-offered subject; SecurePay derives scope, amount and who takes part. */
+    v2Open: (request: ReviewV2OpenRequest, idempotencyKey: string) =>
+      http.request<ReviewV2OpenResponse>(`${base}/v2/open`, { method: 'POST', auth: 'required', body: request, headers: { 'Idempotency-Key': idempotencyKey } }),
+    /** Phase 7 Slice 6B -- the v2 formal Reviews the caller takes part in. */
+    v2Cases: (agreementId: string) => http.request<{ items: ReviewV2Case[] }>(`${base}/v2?agreementId=${segment(agreementId)}`, { auth: 'required' }),
   };
 }
 export type AgreementReviewGateway = ReturnType<typeof createAgreementReviewGateway>;

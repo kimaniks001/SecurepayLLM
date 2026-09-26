@@ -10,7 +10,7 @@ const bundle = await build({ stdin: { contents: `
 export * from './src/features/review/display';
 export * from './src/features/review/actions';
 export { ReviewListView, CaseDetailView } from './src/features/review/ReviewPanel';
-export { AddEvidence, OpeningStatus } from './src/features/review/ReviewEvidence';
+export { AddEvidence } from './src/features/review/ReviewEvidence';
 export { createAgreementReviewGateway, REVIEW_EVIDENCE_MAX_BYTES } from './src/api/securepay/agreement-review';
 export { REVIEW_AUTHENTICATED_METHODS } from './src/api/securepay/agreement-review/refresh';
 export { createAttemptStore } from './src/features/money/attempt';
@@ -32,17 +32,15 @@ const DIGEST = createHash('sha256').update(PDF).digest('hex');
 const file = (o = {}) => ({ name: 'fence.pdf', size: PDF.byteLength, type: 'application/pdf', bytes: async () => PDF.buffer.slice(0), blob: new Blob([PDF], { type: 'application/pdf' }), ...o });
 const ctx = { reviewCaseId: 'rc-1', agreementId: 'agr-1' };
 const item = (o = {}) => ({ evidenceId: 'ev-1', evidenceType: 'DOCUMENT', originalFilename: 'fence.pdf', mediaType: 'application/pdf', contentLength: PDF.byteLength, submittedAt: '2026-09-26T10:00:00Z', submittedByCaller: true, contentSha256Hex: DIGEST, ...o });
-const eligibility = (o = {}) => ({ agreementId: 'agr-1', formalOpeningAvailable: false, formalOpeningUnavailableReason: 'FORMAL_OPENING_NOT_YET_AVAILABLE', reviewReserve: { currency: 'KES', minimumMinor: 20000, eligible: true, reasonCode: 'RESERVE_SUFFICIENT', ...o } });
 const sum = (o = {}) => ({ reviewCaseId: 'rc-1', agreementId: 'agr-1', agreementVersionId: 'v2', subjectType: 'AGREEMENT', subjectId: 'agr-1', callerRole: 'RESPONDENT', state: 'AWAITING_RESPONSE', openedAt: '2026-09-20T10:00:00Z', responseDeadlineAt: '2026-09-27T10:00:00Z', evidenceDeadlineAt: null, terminalOutcome: null, version: 3, ...o });
 const det = (o = {}) => ({ ...sum(), decisionReasonCode: null, callerAcknowledged: true, callerResponded: false, ...o });
 const lookup = { versions: new Map([['v2', 2]]), obligations: new Map() };
 
 // ------------------------------------------------------------ gateway
-test('gateway: eligibility and multipart evidence, both authenticated and session-refreshed; the key is the caller\'s', async () => {
+test('gateway: multipart evidence is authenticated and session-refreshed; the key is the caller\'s', async () => {
   const calls = []; const http = { request: async (path, o = {}) => { calls.push([path, o]); return {}; } };
   const g = m.createAgreementReviewGateway(http);
-  await g.eligibility('agr 1');
-  assert.equal(calls[0][0], '/api/v1/agreement-reviews/eligibility?agreementId=agr%201'); assert.equal(calls[0][1].auth, 'required');
+  calls.push(['placeholder', {}]);
   await g.submitEvidence('rc-1', { agreementId: 'agr-1', evidenceType: 'RECEIPT', narrativeDescription: 'Receipt for poles', contentSha256Hex: DIGEST, file: new Blob([PDF]), filename: 'fence.pdf' }, 'k-ev');
   const [path, o] = calls[1];
   assert.equal(path, '/api/v1/agreement-reviews/rc-1/evidence'); assert.equal(o.method, 'POST'); assert.equal(o.auth, 'required');
@@ -50,7 +48,7 @@ test('gateway: eligibility and multipart evidence, both authenticated and sessio
   assert.equal(o.body.get('agreementId'), 'agr-1'); assert.equal(o.body.get('evidenceType'), 'RECEIPT');
   assert.equal(o.body.get('narrativeDescription'), 'Receipt for poles'); assert.equal(o.body.get('contentSha256Hex'), DIGEST);
   assert.equal(o.body.get('file').name, 'fence.pdf');
-  for (const method of ['eligibility', 'submitEvidence']) assert.ok(m.REVIEW_AUTHENTICATED_METHODS.includes(method), method);
+  for (const method of ['submitEvidence']) assert.ok(m.REVIEW_AUTHENTICATED_METHODS.includes(method), method);
 });
 
 // ------------------------------------------------------------ evidence command
@@ -113,21 +111,8 @@ test('a recorded outcome is labelled as recorded, never as SecurePay\'s verdict,
   assert.match(t, /does not move money by itself/); assert.match(t, /Open Money for the current financial effect/);
 });
 
-// ------------------------------------------------------------ opening + Review Reserve
-test('opening is not offered; the Review Reserve is explained from SecurePay\'s own numbers, as a refundable deposit, never a balance', () => {
-  const yes = text(html(m.OpeningStatus, { eligibility: ready(eligibility()) }));
-  assert.match(yes, /Starting a formal review isn’t available in SecurePay yet/);
-  assert.match(yes, /refundable Review Reserve of KES 200\.00 while it is open\. It is not a charge\. Your Review Reserve currently covers it\./);
-  const no = text(html(m.OpeningStatus, { eligibility: ready(eligibility({ minimumMinor: 30050, eligible: false, reasonCode: 'RESERVE_INSUFFICIENT' })) }));
-  assert.match(no, /KES 300\.50/); assert.match(no, /doesn’t currently cover it/);
-  const failed = text(html(m.OpeningStatus, { eligibility: { status: 'error' } }));
-  assert.match(failed, /couldn’t check the Review Reserve/); assert.doesNotMatch(failed, /covers it/);
-  for (const t of [yes, no]) assert.doesNotMatch(t, /balance|frozen|escrow|fee is charged|will be charged/i);
-  const list = html(m.ReviewListView, { cases: ready({ items: [], totalElements: 0 }), lookup, currentVersionId: 'v2', onOpen() {}, opening: m.createElement(m.OpeningStatus, { eligibility: ready(eligibility()) }) });
-  assert.doesNotMatch(text(list), /Start a formal review/); assert.doesNotMatch(list, /<button[^>]*>\s*Start/);
-});
-test('no production path calls openCase or requestEscalation, and the UI hardcodes no Review Reserve figure', async () => {
-  for (const f of ['src/features/review/ReviewPanel.tsx', 'src/features/review/ReviewEvidence.tsx', 'src/features/review/display.ts', 'src/features/review/actions.ts']) {
+test('no production path calls the legacy v1 openCase or requestEscalation, and the UI hardcodes no Review Reserve figure', async () => {
+  for (const f of ['src/features/review/ReviewPanel.tsx', 'src/features/review/ReviewEvidence.tsx', 'src/features/review/ReviewOpening.tsx', 'src/features/review/display.ts', 'src/features/review/actions.ts']) {
     const s = await readFile(f, 'utf8');
     assert.doesNotMatch(s, /\.openCase\(|\.requestEscalation\(/, f);
     assert.doesNotMatch(s, /\b20000\b|\b200\b.*KES|KES 200/, f);
