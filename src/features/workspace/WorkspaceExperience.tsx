@@ -28,7 +28,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'submitEvidence' | 'reviewEvidence' | 'myNextActions'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
   // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- the persistent Agreement workspace
   // SecureLink entry point (AgreementSecureLinkSection) needs these; every real caller already passes

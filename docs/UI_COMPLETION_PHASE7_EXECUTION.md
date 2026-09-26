@@ -1,5 +1,26 @@
 # UI Completion — Phase 7: Living Agreement Execution, Evidence, Milestones & Completion Truth
 
+## KS001 Upgrade Phase 7 — Slice 2 (Evidence): **written-statement evidence is wired**; Review and Complete stay withheld
+
+**Current architectural decision.** SecurePayAPI Phase 7 Slice 2 (branch `feat/phase7-evidence-slice2`) made evidence submission real authority:
+
+- `POST …/obligations/{id}/evidence` now takes `{ idempotencyKey, expectedAgreementVersionId, expectedObligationVersion, evidenceType, … }`.
+- SecurePay derives the submitter from the session and only the obligation's responsible, established participant may submit (403 otherwise). This fixes UR-181: the old endpoint compared the responsible participant with itself.
+- Stale versions → 409; a closed Agreement → 422; the work must be started. The submission is idempotent per key and body.
+- Evidence is a participant's claim. It is **not** approval (that is the review decision), **not** completion and **not** money.
+- **SecurePay has no file storage.** A `TEXT_STATEMENT` is its own content. Other types are participant-declared references, which this app does not send.
+
+Frontend changes in this slice:
+
+- **Gateway:** `submitEvidence(id, oid, { idempotencyKey, expectedAgreementVersionId, expectedObligationVersion, evidenceType: 'TEXT_STATEMENT', description })` (statements only). It is registered as an authenticated method. `EvidenceDto.kind` / `supersedesEvidenceId` are additive.
+- **Controller:** `canSubmitEvidence` is true only on SecurePay's own `SUBMIT_EVIDENCE` signal for current-version IN_PROGRESS/OVERDUE work. `submitStatement(oid)` re-reads authority fresh, then pins the key, versions **and text**, so an uncertain retry resends the identical request.
+- **Uncertain outcomes:** `checkEvidence` proves an uncertain submission only from a re-read record with exactly the pinned statement.
+- **Error responses:** 403, 409 (stale: the Agreement is reloaded and the user told it changed) and 422 are all definite.
+- **Progress panel:** a calm written-statement form ("Describe what you did, as your evidence") replaces the old "not available yet" line. It states plainly that uploading files isn't available, and that submitting doesn't approve the evidence or complete the work.
+- **Evidence list:** statements render as "Written statement — …". "Approved in review" is still shown only from completion-status.
+- **Still withheld:** Approve / Reject evidence and Complete. Production guards forbid any production call to `submitEvidence` / review / complete outside the controller.
+
+
 ## KS001 Upgrade Phase 7 — Slice 1 (Execution & Progress): **Start work is wired**; Review and Complete stay withheld
 
 **Current architectural decision.** SecurePayAPI Phase 7 Slice 1 (branch `feat/phase7-execution-progress-slice1`) made START an atomic, server-owned authority:

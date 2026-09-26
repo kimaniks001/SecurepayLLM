@@ -17,8 +17,8 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   'people',
   // KS001 Upgrade Phase 4 continuation (Section 21/23) -- the self-scoped invitation inbox
   'myInvitations', 'viewMyInvitation', 'joinMyInvitation',
-  // Execution (obligations, completion status, start, complete, evidence list + review, next actions)
-  'obligations', 'obligationCompletionStatus', 'startObligation', 'completeObligation', 'obligationEvidence', 'reviewEvidence', 'myNextActions',
+  // Execution (obligations, completion status, start, complete, evidence submit (Phase 7 Slice 2) + list + review, next actions)
+  'obligations', 'obligationCompletionStatus', 'startObligation', 'completeObligation', 'submitEvidence', 'obligationEvidence', 'reviewEvidence', 'myNextActions',
   // Amendments (list, structured diff, apply / reject / withdraw)
   'amendments', 'amendmentDiff', 'applyAmendment', 'rejectAmendment', 'withdrawAmendment',
   // Plug / referral attribution
