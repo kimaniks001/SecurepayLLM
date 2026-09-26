@@ -44,7 +44,7 @@ type Gateway = Pick<AgreementGateway,
   | 'source'
 > & {
   money: Pick<MoneyGateway, 'status' | 'records'>;
-  review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
+  review: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'eligibility' | 'acknowledge' | 'respond' | 'submitEvidence'>;
 };
 
 type AgentAskGateway = Pick<AgentGateway, 'switchAccessGrant'>;
@@ -102,7 +102,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway));
   // One-shot navigation hint from Help ("Reviews & issues"): captured at mount, cleared right after. Never Agreement truth.
-  const [tabHint] = useState(() => peekDetailTabHint());
+  const [tabHint, setTabHint] = useState(() => peekDetailTabHint());
   useEffect(() => { clearDetailTabHint(); }, []);
   // One invite controller per selected Agreement; its in-memory state (incl. an unshared link) survives quiet refreshes.
   const [invites] = useState(() => new Map<string, ReturnType<typeof createInviteController>>());
@@ -236,7 +236,9 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           problems={problemsView(state.homeExtras.problems)}
           moneyByCurrency={moneyByCurrencyView(state.homeExtras.moneyByCurrency)}
           invitations={invitationsForYouView(state.myInvitations)}
-          onOpenAgreement={id => controller.openFromHome(id)}
+          onOpenAgreement={id => { setTabHint(null); controller.openFromHome(id); }}
+          // Phase 7 Slice 6 -- a Problem is Review/dispute state, so its Agreement opens on Support (Reviews & issues). No case id is invented.
+          onOpenProblem={id => { setTabHint({ agreementId: id, tab: 'support' }); controller.openFromHome(id); }}
           onNavigateAgreements={() => controller.goHub()}
           // PHASE 4 NEXT SLICE (Section 7) — same hash-route seam AgentExperience already uses for
           // `#/money`; RuntimeApp's own useMyInvitationRoute picks this up and mounts the existing

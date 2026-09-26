@@ -8,7 +8,8 @@ import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `
 export * from './src/features/review/display';
 export * from './src/features/review/actions';
-export { ReviewListView, CaseDetailView, YourPart, REVIEW_OPEN_WITHHELD, EVIDENCE_UPLOAD_WITHHELD } from './src/features/review/ReviewPanel';
+export { ReviewListView, CaseDetailView, YourPart } from './src/features/review/ReviewPanel';
+export { AddEvidence, OpeningStatus } from './src/features/review/ReviewEvidence';
 export { createAgreementReviewGateway, REVIEW_MAX_PAGE_SIZE } from './src/api/securepay/agreement-review';
 export { REVIEW_AUTHENTICATED_METHODS } from './src/api/securepay/agreement-review/refresh';
 export { createAttemptStore } from './src/features/money/attempt';
@@ -61,7 +62,7 @@ test('drift guard: every authenticated Agreement Review gateway method is in REV
 });
 
 // ---- production boundary
-test('no production path opens a review, requests escalation or uploads evidence; fixture dispute data is not imported by the Review path', async () => {
+test('no production path opens a review or requests escalation; evidence upload lives ONLY in ReviewEvidence.tsx and nothing downloads or links content', async () => {
   const files = [];
   const walk = async dir => { for (const e of await readdir(new URL(`../${dir}`, import.meta.url), { withFileTypes: true })) { const p = `${dir}/${e.name}`; if (e.isDirectory()) await walk(p); else if (/\.(ts|tsx)$/.test(e.name)) files.push(p); } };
   await walk('src/features'); await walk('src/components'); await walk('src/api');
@@ -72,7 +73,9 @@ test('no production path opens a review, requests escalation or uploads evidence
   }
   for (const f of files.filter(f => f.startsWith('src/features/review/'))) {
     const s = await src(f);
-    assert.doesNotMatch(s, /type="file"|type='file'|FormData|multipart|createObjectURL|href=\{|<img|download/i, f);
+    // Phase 7 Slice 6: durable evidence storage made upload safe -- but only from the one evidence component, and content is never downloaded or linked.
+    if (!f.endsWith('ReviewEvidence.tsx')) assert.doesNotMatch(s, /type="file"|type='file'|FormData|multipart/i, f);
+    assert.doesNotMatch(s, /createObjectURL|href=\{|<img|download/i, f);
     assert.doesNotMatch(s, /disputeData|DisputeWorkspace|DisputeMatching|DisputeMaster|localStorage|sessionStorage/, f);
     assert.doesNotMatch(s, /reviewer-queue|\/operations|submitDecision|approveDecision/, f);
   }
@@ -85,8 +88,8 @@ test('no Review cases: "No formal reviews" (not a read failure); read failure: u
   assert.match(none, /No formal reviews on this Agreement/); assert.doesNotMatch(none, /couldn’t be loaded/);
   const failed = text(html(m.ReviewListView, { cases: { status: 'error' }, lookup, currentVersionId: null, onOpen() {} }));
   assert.match(failed, /Reviews couldn’t be loaded\. That doesn’t mean there are none\./); assert.doesNotMatch(failed, /No formal reviews/);
-  assert.match(none, /temporarily unavailable while SecurePay completes the participant handoff into the review/);
-  assert.match(failed, /temporarily unavailable while SecurePay completes the participant handoff/);
+  assert.match(none, /Starting a formal review isn’t available in SecurePay yet/);
+  assert.match(failed, /Starting a formal review isn’t available in SecurePay yet/);
 });
 test('list separates Active reviews from Review history and labels current / earlier / unknown Agreement version without ids', () => {
   const items = [sum({ reviewCaseId: 'a', state: 'UNDER_REVIEW' }), sum({ reviewCaseId: 'b', state: 'DECIDED', agreementVersionId: 'ver-1-secret', terminalOutcome: 'CASE_DISMISSED' }), sum({ reviewCaseId: 'c', state: 'WEIRD_STATE' })];
@@ -123,7 +126,7 @@ test('outcomes never say money moved, was released, frozen or settled', () => {
   for (const outcome of ['RELEASE_ALLOWED', 'RELEASE_BLOCKED']) {
     const h = html(m.CaseDetailView, { summary: sum({ state: 'DECIDED', terminalOutcome: outcome }), detail: ready(det({ state: 'DECIDED', terminalOutcome: outcome, decisionReasonCode: 'OBLIGATION_MET' })), evidence: ready([]), lookup, currentVersionId: 'ver-2-secret', onBack() {}, onRefresh() {}, onOpenMoney() {}, yourPart: null });
     const t = text(h);
-    assert.match(t, /What SecurePay decided/); assert.match(t, /does not move money by itself/);
+    assert.match(t, /Recorded outcome/); assert.doesNotMatch(t, /What SecurePay decided/); assert.match(t, /does not move money by itself/);
     assert.doesNotMatch(t, /money (was |has been )?(released|frozen|paid|settled)|KES|frozen|has been released/i);
     assert.match(t, /Open Money for the current financial effect/);
   }
@@ -141,7 +144,7 @@ test('case detail: subject, exact version context (no ids), state, deadline as a
   assert.match(t, /SecurePay hasn’t recorded a decision/);
   noSecrets(h);
   assert.doesNotMatch(h, /<input[^>]*type="file"|<a |download|<img|blob:/i);
-  assert.match(t, /Adding new evidence from this screen is temporarily unavailable until formal review evidence has durable storage and retrieval/);
+  assert.match(t, /Adding evidence isn’t open at this stage of the review/); // no addEvidence control passed: the view says so, never a dead button
 });
 test('earlier-version case is history, not "stale"; unknown version context is neutral', () => {
   const earlier = text(html(m.CaseDetailView, { summary: sum({ agreementVersionId: 'ver-1-secret' }), detail: ready(det({ agreementVersionId: 'ver-1-secret' })), evidence: ready([]), lookup, currentVersionId: 'ver-2-secret', onBack() {}, onRefresh() {}, yourPart: null }));

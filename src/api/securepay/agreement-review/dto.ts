@@ -67,6 +67,8 @@ export interface ReviewEvidenceItemResponse {
   contentLength: number;
   submittedAt: string;
   submittedByCaller: boolean;
+  /** Phase 7 Slice 6 -- the SHA-256 SecurePay computed and stored with the content. */
+  contentSha256Hex: string;
 }
 export interface ReviewEvidenceListResponse { items: ReviewEvidenceItemResponse[] }
 
@@ -77,3 +79,14 @@ export interface OpenReviewCaseResponse { [field: string]: unknown }
 export interface ReviewListParams { page?: number; size?: number; agreementId?: string; state?: ReviewCaseState; activeOnly?: boolean }
 export interface AcknowledgeReviewRequest { agreementId: string; expectedVersion: number }
 export interface SubmitReviewResponseRequest { agreementId: string; expectedVersion: number; responseType: ReviewResponseType; narrative: string }
+
+/** Phase 7 Slice 6 -- evidence types SecurePay accepts (`review_case_evidence_type_check`). */
+export type ReviewEvidenceType = 'DOCUMENT' | 'IMAGE' | 'RECEIPT' | 'DELIVERY_RECORD' | 'AGREEMENT_RECORD' | 'COMMUNICATION' | 'OTHER';
+export interface SubmitReviewEvidenceInput { agreementId: string; evidenceType: ReviewEvidenceType; narrativeDescription: string | null; contentSha256Hex: string; file: Blob; filename: string }
+/** Phase 7 Slice 6 -- `AgreementReviewEligibilityReadService.Eligibility`: backend truth, yes/no only; no balance is ever returned. */
+export interface ReviewEligibilityResponse {
+  agreementId: string;
+  formalOpeningAvailable: boolean;
+  formalOpeningUnavailableReason: string | null;
+  reviewReserve: { currency: string; minimumMinor: number; eligible: boolean; reasonCode: string };
+}

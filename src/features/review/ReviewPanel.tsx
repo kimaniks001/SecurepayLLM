@@ -5,8 +5,9 @@ import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse, ReviewEvidenc
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import { createAttemptStore } from '../money/attempt';
 import { ACK_WORDS, OUTCOME_WORDS, RESPOND_WORDS, runAcknowledge, runRespond, validateNarrative, type CaseContext, type ReviewOutcome } from './actions';
+import { AddEvidence, OpeningStatus } from './ReviewEvidence';
 import {
-  MONEY_MAY_BE_AFFECTED, OUTCOME_NOT_MONEY, RESPONSE_TYPE_WORDS, VERSION_SCOPE_WORDS, deadlineLine, evidenceSize, evidenceTypeWords, outcomeWords, participantActions,
+  EVIDENCE_NOT_OPEN, MONEY_MAY_BE_AFFECTED, OUTCOME_NOT_MONEY, REVIEW_OPENING_NOT_AVAILABLE, canAddEvidence, RESPONSE_TYPE_WORDS, VERSION_SCOPE_WORDS, deadlineLine, evidenceSize, evidenceTypeWords, outcomeWords, participantActions,
   reasonWords, roleWords, stateGroup, stateWords, subjectLabel, versionNumberWords, versionScope, type SubjectLookup,
 } from './display';
 
@@ -32,17 +33,16 @@ const Label = ({ children }: { children: React.ReactNode }) => <div className="t
 const btn = 'rounded-xl border border-cream-200 px-3 py-2 text-sm text-forest-800 hover:border-forest-300 hover:bg-cream-50 disabled:opacity-50 disabled:cursor-not-allowed';
 const btnPrimary = 'rounded-xl bg-forest-700 px-3 py-2 text-sm text-white hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed';
 
-export const REVIEW_OPEN_WITHHELD = 'Starting a formal review from this screen is temporarily unavailable while SecurePay completes the participant handoff into the review.';
-export const EVIDENCE_UPLOAD_WITHHELD = 'SecurePay can show evidence already recorded on this review. Adding new evidence from this screen is temporarily unavailable until formal review evidence has durable storage and retrieval.';
 const EVIDENCE_STATES = new Set(['OPENED', 'AWAITING_RESPONSE', 'EVIDENCE_COLLECTION', 'UNDER_REVIEW']);
 
 /**
  * The one canonical Agreement Review surface, reached from the Agreement's Support tab ("Reviews & issues"). Existing cases are read (list, detail,
- * evidence metadata) and the two participant commands the repository proves safe -- acknowledge and respond -- are offered. Opening a review, adding
- * evidence and requesting escalation are withheld (see docs/UI_COMPLETION_PHASE9_AGREEMENT_REVIEW.md). Nothing here computes or implies a financial effect.
+ * evidence metadata) and the participant commands are offered: acknowledge, respond and (Phase 7 Slice 6) add evidence, now stored durably. Opening a
+ * review (awaiting the v1/v2 opening decision) and requesting escalation (an internal senior-review request) stay withheld; whether a review could be
+ * opened, and what the Review Reserve requires, is read from SecurePay. Nothing here computes or implies a financial effect.
  */
 export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVersionId, onOpenMoney, onGetHelp, initialCaseId = null }: {
-  gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
+  gateway: Pick<AgreementReviewGateway, 'list' | 'detail' | 'evidence' | 'eligibility' | 'acknowledge' | 'respond' | 'submitEvidence'>;
   agreementGateway: Pick<AgreementGateway, 'obligations' | 'versions'>;
   agreementId: string;
   /** From the exact Agreement Detail read (Phase 5/8). null = couldn't be established -> neutral version wording. */
@@ -54,6 +54,7 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
   initialCaseId?: string | null;
 }) {
   const [cases, refreshCases] = useRead(() => gateway.list({ agreementId, size: 50 }), agreementId);
+  const [eligibility] = useRead(() => gateway.eligibility(agreementId), agreementId);
   const [versions] = useRead(async () => new Map((await agreementGateway.versions(agreementId)).map(v => [v.id, v.versionNumber] as const)), agreementId);
   const [obligations] = useRead(async () => new Map((await agreementGateway.obligations(agreementId)).map(o => [o.id, o.title] as const)), agreementId);
   const [selected, setSelected] = useState<string | null>(initialCaseId);
@@ -81,11 +82,14 @@ export function ReviewPanel({ gateway, agreementGateway, agreementId, currentVer
     return <CaseView key={chosen.reviewCaseId} gateway={gateway} summary={chosen} lookup={lookup} currentVersionId={currentVersionId} onBack={() => { setSelected(null); refreshCases(); }} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp} />;
   }
 
-  return <ReviewListView cases={merged} lookup={lookup} currentVersionId={currentVersionId} onOpen={setSelected} onMore={() => void loadMore()} moreState={moreState} />;
+  return <ReviewListView cases={merged} lookup={lookup} currentVersionId={currentVersionId} onOpen={setSelected} onMore={() => void loadMore()} moreState={moreState}
+    opening={<OpeningStatus eligibility={eligibility} />} />;
 }
 
-export function ReviewListView({ cases, lookup, currentVersionId, onOpen, onMore, moreState = 'idle' }: {
+export function ReviewListView({ cases, lookup, currentVersionId, onOpen, onMore, moreState = 'idle', opening }: {
   cases: Read<{ items: ReviewCaseSummaryResponse[]; totalElements: number }>; lookup: SubjectLookup; currentVersionId: string | null; onOpen: (reviewCaseId: string) => void; onMore?: () => void; moreState?: 'idle' | 'loading' | 'error';
+  /** Phase 7 Slice 6 -- SecurePay's own answer on starting a formal review here (never a start button yet). */
+  opening?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-4" data-testid="review-panel">
@@ -113,7 +117,7 @@ export function ReviewListView({ cases, lookup, currentVersionId, onOpen, onMore
           {moreState === 'error' && <Note tone="warn">More reviews couldn’t be loaded.</Note>}
         </div>
       )}
-      <Note>{REVIEW_OPEN_WITHHELD}</Note>
+      {opening ?? <Note>{REVIEW_OPENING_NOT_AVAILABLE}</Note>}
     </div>
   );
 }
@@ -132,7 +136,7 @@ function CaseRow({ c, lookup, currentVersionId, onOpen }: { c: ReviewCaseSummary
 
 /** Reads the exact case and renders it; the summary is built ONLY from that fresh read. */
 function ExactCase({ gateway, reviewCaseId, agreementId, ...rest }: {
-  gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond'>; reviewCaseId: string; agreementId: string;
+  gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond' | 'submitEvidence'>; reviewCaseId: string; agreementId: string;
   lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: (review: { reviewCaseId: string; agreementVersionId: string }) => void;
 }) {
   const [read] = useRead(() => gateway.detail(reviewCaseId, agreementId), reviewCaseId);
@@ -144,7 +148,7 @@ function ExactCase({ gateway, reviewCaseId, agreementId, ...rest }: {
 }
 
 function CaseView({ gateway, summary, lookup, currentVersionId, onBack, onOpenMoney, onGetHelp }: {
-  gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond'>;
+  gateway: Pick<AgreementReviewGateway, 'detail' | 'evidence' | 'acknowledge' | 'respond' | 'submitEvidence'>;
   summary: ReviewCaseSummaryResponse; lookup: SubjectLookup; currentVersionId: string | null; onBack: () => void; onOpenMoney?: () => void; onGetHelp?: (review: { reviewCaseId: string; agreementVersionId: string }) => void;
 }) {
   const [detail, refreshDetail] = useRead<ReviewCaseDetailResponse>(() => gateway.detail(summary.reviewCaseId, summary.agreementId), summary.reviewCaseId);
@@ -152,13 +156,17 @@ function CaseView({ gateway, summary, lookup, currentVersionId, onBack, onOpenMo
   const refreshAll = () => { refreshDetail(); refreshEvidence(); };
   return (
     <CaseDetailView summary={summary} detail={detail} evidence={evidence} lookup={lookup} currentVersionId={currentVersionId} onBack={onBack} onRefresh={refreshAll} onOpenMoney={onOpenMoney} onGetHelp={onGetHelp ? () => onGetHelp({ reviewCaseId: summary.reviewCaseId, agreementVersionId: summary.agreementVersionId }) : undefined}
-      yourPart={<YourPart gateway={gateway} summary={summary} d={detail.status === 'ready' ? detail.data : null} refreshing={detail.status === 'ready' && detail.refreshing} refresh={refreshAll} />} />
+      yourPart={<YourPart gateway={gateway} summary={summary} d={detail.status === 'ready' ? detail.data : null} refreshing={detail.status === 'ready' && detail.refreshing} refresh={refreshAll} />}
+      // Phase 7 Slice 6 -- offered only from a FRESH case read that says evidence is open; SecurePay re-checks everything.
+      addEvidence={detail.status === 'ready' && !detail.refreshing && canAddEvidence(detail.data)
+        ? <AddEvidence gateway={gateway} reviewCaseId={summary.reviewCaseId} agreementId={summary.agreementId} onRecorded={refreshAll} />
+        : undefined} />
   );
 }
 
-export function CaseDetailView({ summary, detail, evidence, lookup, currentVersionId, onBack, onRefresh, onOpenMoney, onGetHelp, yourPart, now = new Date() }: {
+export function CaseDetailView({ summary, detail, evidence, lookup, currentVersionId, onBack, onRefresh, onOpenMoney, onGetHelp, yourPart, addEvidence, now = new Date() }: {
   summary: ReviewCaseSummaryResponse; detail: Read<ReviewCaseDetailResponse>; evidence: Read<ReviewEvidenceItemResponse[]>; lookup: SubjectLookup; currentVersionId: string | null;
-  onBack: () => void; onRefresh: () => void; onOpenMoney?: () => void; onGetHelp?: () => void; yourPart: React.ReactNode; now?: Date;
+  onBack: () => void; onRefresh: () => void; onOpenMoney?: () => void; onGetHelp?: () => void; yourPart: React.ReactNode; addEvidence?: React.ReactNode; now?: Date;
 }) {
   // The list summary is enough to say WHAT and WHICH VERSION even if the detail read fails; the detail read adds the caller's own facts.
   const d = detail.status === 'ready' ? detail.data : null;
@@ -205,12 +213,12 @@ export function CaseDetailView({ summary, detail, evidence, lookup, currentVersi
         {evidence.status === 'ready' && (evidence.data.length === 0
           ? <Note>SecurePay shows no evidence recorded on this review.</Note>
           : <ul className="space-y-1">{evidence.data.map(e => <EvidenceRow key={e.evidenceId} e={e} />)}</ul>)}
-        {EVIDENCE_STATES.has(state) && <Note>{EVIDENCE_UPLOAD_WITHHELD}</Note>}
+        {addEvidence ?? (EVIDENCE_STATES.has(state) && <Note>{EVIDENCE_NOT_OPEN}</Note>)}
       </section>
 
       {outcome && (
         <section className="space-y-1" data-testid="review-decision">
-          <Label>What SecurePay decided</Label>
+          <Label>Recorded outcome</Label>
           <div className="text-sm text-forest-800 font-medium">{outcomeWords(outcome)}</div>
           {d?.decisionReasonCode && <div className="text-sm text-sand-700">{reasonWords(d.decisionReasonCode)}</div>}
           <Note>{OUTCOME_NOT_MONEY}</Note>

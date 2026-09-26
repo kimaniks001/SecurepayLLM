@@ -46,6 +46,8 @@ interface SignedInHomeProps {
   /** Phase 7 Slice 5B -- an optional lower-page doorway (The Trust Project), rendered BELOW the conversation
    *  and the person's own lists; omitted, the markup is unchanged. */
   belowHome?: ReactNode;
+  /** Phase 7 Slice 6 -- a Problem is a Review/dispute fact: open its Agreement on Support (Reviews &amp; issues). Defaults to onOpenAgreement. */
+  onOpenProblem?: (id: string) => void;
 }
 
 const fixtureGreeting = 'Welcome back, James';
@@ -69,6 +71,7 @@ export function SignedInHome({
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
   belowHome,
+  onOpenProblem,
 }: SignedInHomeProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   return (
@@ -118,7 +121,7 @@ export function SignedInHome({
             <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
             <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
             <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
-            <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
+            <ProblemsList items={problems} onOpenAgreement={onOpenProblem ?? onOpenAgreement} />
             <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
             <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
             <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
@@ -145,7 +148,7 @@ export function SignedInHome({
           <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
           <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
           <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
-          <ProblemsList items={problems} onOpenAgreement={onOpenAgreement} />
+          <ProblemsList items={problems} onOpenAgreement={onOpenProblem ?? onOpenAgreement} />
           <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
           <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
           <AgreementMoneyByCurrencySummary items={moneyByCurrency} />

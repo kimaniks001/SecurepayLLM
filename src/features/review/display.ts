@@ -1,4 +1,5 @@
-import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse } from '../../api/securepay/agreement-review/dto';
+import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse, ReviewEligibilityResponse, ReviewEvidenceType } from '../../api/securepay/agreement-review/dto';
+import { decimalMoney } from '../../decimalMoney';
 
 /**
  * Bounded customer language for SecurePay's closed Agreement Review vocabularies. An unknown value is never echoed as the message and never guessed.
@@ -139,3 +140,36 @@ export const RESPONSE_TYPE_WORDS: ReadonlyArray<{ value: 'DISPUTE_POSITION' | 'C
 ];
 
 export type CaseRow = Pick<ReviewCaseSummaryResponse, 'state' | 'openedAt'>;
+
+// ------------------------------------------------------------------------------------------------ Phase 7 Slice 6
+
+/** Evidence types a participant may choose when adding evidence (identity/location confirmations are not participant uploads). */
+export const PARTICIPANT_EVIDENCE_TYPES: readonly ReviewEvidenceType[] = ['DOCUMENT', 'IMAGE', 'RECEIPT', 'DELIVERY_RECORD', 'AGREEMENT_RECORD', 'COMMUNICATION', 'OTHER'];
+const EVIDENCE_CAPABLE_ROLES = new Set(['OPENER', 'RESPONDENT', 'AFFECTED_BENEFICIARY', 'AFFECTED_FUNDER']);
+const EVIDENCE_OPEN_STATES = new Set(['AWAITING_RESPONSE', 'EVIDENCE_COLLECTION']);
+
+/**
+ * Whether to OFFER "Add evidence" -- mirrors SecurePay's own policy (AgreementReviewEvidenceSubmissionPolicy + the participant access policy) from the
+ * FRESH case read: an evidence-capable role, a state that accepts participant evidence, and an evidence deadline not yet passed. SecurePay re-checks
+ * everything and stays authoritative; this only decides whether the control is shown.
+ */
+export function canAddEvidence(d: Pick<ReviewCaseDetailResponse, 'state' | 'callerRole' | 'evidenceDeadlineAt'> | null, now: Date = new Date()): boolean {
+  if (!d || !EVIDENCE_OPEN_STATES.has(d.state) || !EVIDENCE_CAPABLE_ROLES.has(d.callerRole)) return false;
+  if (d.evidenceDeadlineAt && new Date(d.evidenceDeadlineAt).getTime() < now.getTime()) return false;
+  return true;
+}
+
+export const EVIDENCE_NOT_OPEN = 'Adding evidence isn’t open at this stage of the review.';
+export const REVIEW_OPENING_NOT_AVAILABLE = 'Starting a formal review isn’t available in SecurePay yet. Existing reviews on this Agreement are shown here.';
+
+/**
+ * The Review Reserve in words, from SecurePay's eligibility read only (never computed here, and never a balance). The reserve is a standing,
+ * refundable deposit held while a review is open -- not a charge.
+ */
+export function reserveWords(e: ReviewEligibilityResponse): string {
+  const minimum = decimalMoney(String(e.reviewReserve.minimumMinor), e.reviewReserve.currency);
+  const lead = `A formal review holds a refundable Review Reserve of ${minimum} while it is open. It is not a charge.`;
+  return e.reviewReserve.eligible
+    ? `${lead} Your Review Reserve currently covers it.`
+    : `${lead} Your Review Reserve doesn’t currently cover it.`;
+}

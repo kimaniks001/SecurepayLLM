@@ -1,7 +1,7 @@
 import { ApiError } from '../../api/securepay/http';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
-import { REVIEW_MAX_NARRATIVE } from '../../api/securepay/agreement-review';
-import type { ReviewActionResponse, ReviewResponseType } from '../../api/securepay/agreement-review/dto';
+import { REVIEW_EVIDENCE_MAX_BYTES, REVIEW_EVIDENCE_MAX_DESCRIPTION, REVIEW_EVIDENCE_MEDIA_TYPES, REVIEW_MAX_NARRATIVE } from '../../api/securepay/agreement-review';
+import type { ReviewActionResponse, ReviewEvidenceItemResponse, ReviewEvidenceType, ReviewResponseType } from '../../api/securepay/agreement-review/dto';
 import { isUncertainFinancialError, type AttemptStore } from '../money/attempt';
 
 /**
@@ -22,11 +22,13 @@ export type ReviewOutcome =
 
 export interface CaseContext { reviewCaseId: string; agreementId: string; expectedVersion: number }
 
-function classify(error: unknown): ReviewOutcome {
+type ReviewFailure = Exclude<ReviewOutcome, { kind: 'ok' } | { kind: 'invalid' }>;
+
+function classify(error: unknown): ReviewFailure {
   if (isUncertainFinancialError(error)) return { kind: 'uncertain' };
   if (error instanceof ApiError) {
     if (error.code === 'AGREEMENT_REVIEW_STALE_VERSION') return { kind: 'stale' };
-    if (error.code === 'AGREEMENT_REVIEW_RESPONSE_DEADLINE_PASSED') return { kind: 'deadline' };
+    if (error.code === 'AGREEMENT_REVIEW_RESPONSE_DEADLINE_PASSED' || error.code === 'AGREEMENT_REVIEW_EVIDENCE_DEADLINE_PASSED') return { kind: 'deadline' };
     if (error.status === 404) return { kind: 'not-found' };
     if (error.status === 403) return { kind: 'forbidden' };
   }
@@ -71,6 +73,61 @@ export async function runRespond(
   }
 }
 
+/**
+ * Phase 7 Slice 6 -- one evidence file for a Review the caller is in. The request is bound to the exact bytes by their SHA-256 (computed here,
+ * recomputed and verified by SecurePay), so an uncertain upload retried with the same file is the SAME request and can't be recorded twice, and
+ * a different file while one is unresolved is refused. The pre-checks mirror SecurePay's bounds; SecurePay stays authoritative.
+ */
+export type EvidenceProblem = 'no-file' | 'too-large' | 'type' | 'description-too-long';
+export type EvidenceOutcome = { kind: 'ok'; result: ReviewEvidenceItemResponse } | { kind: 'invalid'; problem: EvidenceProblem } | ReviewFailure;
+export interface EvidenceFile { name: string; size: number; type: string; bytes: () => Promise<ArrayBuffer>; blob: Blob }
+
+export function validateEvidence(file: EvidenceFile | null, description: string): EvidenceProblem | null {
+  if (!file || file.size === 0) return 'no-file';
+  if (file.size > REVIEW_EVIDENCE_MAX_BYTES) return 'too-large';
+  if (!(REVIEW_EVIDENCE_MEDIA_TYPES as readonly string[]).includes(file.type.toLowerCase())) return 'type';
+  if (description.length > REVIEW_EVIDENCE_MAX_DESCRIPTION) return 'description-too-long';
+  return null;
+}
+
+export async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function runSubmitEvidence(
+  gateway: Pick<AgreementReviewGateway, 'submitEvidence'>, attempts: AttemptStore, ctx: Omit<CaseContext, 'expectedVersion'>,
+  input: { evidenceType: ReviewEvidenceType; description: string; file: EvidenceFile | null },
+): Promise<EvidenceOutcome> {
+  const problem = validateEvidence(input.file, input.description);
+  if (problem || !input.file) return { kind: 'invalid', problem: problem ?? 'no-file' };
+  const digest = await sha256Hex(await input.file.bytes());
+  const description = input.description.trim() || null;
+  const key = attempts.keyFor(JSON.stringify(['evidence', ctx.reviewCaseId, ctx.agreementId, input.evidenceType, description, input.file.name, input.file.type, input.file.size, digest]));
+  if (!key.ok) return { kind: 'refused' };
+  try {
+    const result = await gateway.submitEvidence(ctx.reviewCaseId, {
+      agreementId: ctx.agreementId, evidenceType: input.evidenceType, narrativeDescription: description, contentSha256Hex: digest, file: input.file.blob, filename: input.file.name,
+    }, key.key);
+    attempts.settle();
+    return { kind: 'ok', result };
+  } catch (error) {
+    const outcome = classify(error);
+    if (outcome.kind !== 'uncertain') attempts.settle();
+    return outcome;
+  }
+}
+
+export const EVIDENCE_WORDS = {
+  ok: 'SecurePay recorded your evidence on this review. Recording evidence does not decide the review and moves no money.',
+  problems: {
+    'no-file': 'Choose a file to add.',
+    'too-large': 'That file is larger than SecurePay accepts (10 MB).',
+    type: 'SecurePay accepts PDF, JPEG or PNG photos, or plain text files.',
+    'description-too-long': 'The description is longer than SecurePay accepts (1,024 characters).',
+  } satisfies Record<EvidenceProblem, string>,
+} as const;
+
 /** Customer wording for each outcome. Never says the review was decided, and never says money moved. */
 export const ACK_WORDS = {
   ok: 'SecurePay recorded that you have seen this review. This does not mean you agree with it or accept any outcome.',
@@ -84,7 +141,7 @@ export const OUTCOME_WORDS: Readonly<Record<Exclude<ReviewOutcome['kind'], 'ok' 
   uncertain: 'SecurePay is not yet sure whether that was recorded. Trying again sends the same request, so it can’t be recorded twice.',
   refused: 'An earlier request is still unresolved. Try that exact request again before making a different one.',
   stale: 'This review changed while you were looking at it. SecurePay refreshed the current review before you continue.',
-  deadline: 'The response deadline had passed, so SecurePay did not record your response.',
+  deadline: 'The deadline had passed, so SecurePay did not record it.',
   'not-found': 'SecurePay couldn’t find this review for your account.',
   forbidden: 'SecurePay says this account can’t do that on this review.',
   rejected: 'SecurePay did not record that. The review is shown as SecurePay currently has it.',

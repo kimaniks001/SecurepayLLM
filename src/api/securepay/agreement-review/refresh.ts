@@ -7,4 +7,4 @@ type Methods<F extends (...args: never[]) => unknown> = readonly (keyof ReturnTy
  * table; `tests/ui-phase9.test.mjs` parses the gateway source and fails if a method is added without being listed (no hand-copied list).
  * There are no public/unauthenticated Review methods.
  */
-export const REVIEW_AUTHENTICATED_METHODS = ['list', 'detail', 'evidence', 'acknowledge', 'respond', 'requestEscalation', 'openCase'] as const satisfies Methods<typeof createAgreementReviewGateway>;
+export const REVIEW_AUTHENTICATED_METHODS = ['list', 'detail', 'evidence', 'eligibility', 'acknowledge', 'respond', 'submitEvidence', 'requestEscalation', 'openCase'] as const satisfies Methods<typeof createAgreementReviewGateway>;
