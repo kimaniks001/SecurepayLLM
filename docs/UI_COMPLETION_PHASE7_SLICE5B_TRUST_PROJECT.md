@@ -47,7 +47,7 @@
   - `GET /api/v1/stores/{ks}` returns a Store (with `profile: null` and no offers) for **any ACTIVE identity**.
   - `GET /store/me/profile` returns defaults when no row exists.
 
-  So every active identity, and therefore every active member, already has a resolvable, empty-capable Store. No provisioning was needed, and none was faked.
+  Every ACTIVE SecurePay identity has a resolvable, empty-capable Store. Therefore, an active Trust Project member whose SecurePay identity is active can use that Store without separate provisioning. Membership itself does not create or guarantee the Store. No provisioning was needed, and none was faked.
 - **Plug:** Lifetime Share doctrine (10% of the SecurePay platform fee on explicitly attributed, settled KeyContract agreements). Unchanged.
 - **Master:** self-designated `community.master_profiles` with requests, advisory opinions and paid timed sessions. Opinions never mutate Agreements. Dispute escalation is a separate lifecycle.
 - **Skills Institute / training / practice canvases:** **not live.** They are absent by locked doctrine.
