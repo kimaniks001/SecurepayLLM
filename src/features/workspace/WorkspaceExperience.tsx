@@ -28,7 +28,7 @@ import { agreementCalendarView, agreementDetailView, agreementNextView, agreemen
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
-  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'applyAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'submitEvidence' | 'reviewEvidence' | 'myNextActions'
+  'currentUserActions' | 'hub' | 'home' | 'detail' | 'confirmations' | 'confirmationStatus' | 'milestoneEffectiveStates' | 'propose' | 'invitations' | 'revokeInvitation' | 'issueInvitation' | 'lookupInvitationTargetByKsNumber' | 'people' | 'amendments' | 'amendmentDiff' | 'amendmentOverview' | 'acceptAmendment' | 'rejectAmendment' | 'withdrawAmendment' | 'versions' | 'version' | 'confirmVersion' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'submitEvidence' | 'reviewEvidence' | 'myNextActions'
   | 'calendarEvents' | 'calendarConflicts' | 'tagsForAgreement' | 'tagAgreement' | 'untagAgreement' | 'myCalendar' | 'myInvitations'
   // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- the persistent Agreement workspace
   // SecureLink entry point (AgreementSecureLinkSection) needs these; every real caller already passes
@@ -120,7 +120,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   const amendmentsFor = (agreementId: string) => {
     let c = amendmentControllers.get(agreementId);
     if (!c) {
-      c = createAmendmentsController(gateway, agreementId, () => { const d = controller.getSnapshot().detail; return d.status === 'ready' ? d.data.dto.currentVersion?.versionId ?? null : null; }, () => controller.reloadDetailQuietly());
+      c = createAmendmentsController(gateway, agreementId, () => controller.reloadDetailQuietly());
       amendmentControllers.set(agreementId, c);
     }
     return c;
@@ -303,7 +303,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           onOpenHelp={onOpenSupport ? () => onOpenSupport({ kind: 'agreement', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null }) : undefined}
           reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} initialCaseId={tabHint?.agreementId === boltDetail.id ? tabHint.reviewCaseId ?? null : null} onGetHelp={onOpenSupport ? review => onOpenSupport({ kind: 'review', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null, reviewCaseId: review.reviewCaseId, reviewAgreementVersionId: review.agreementVersionId }) : undefined} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
-          changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} agreementStatus={dto.overview.status} />}
+          changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} />}
           topExtra={<>
             {/* Phase 6 Slice 4 (Community → Trade), item 19 -- quiet, provenance-only "Started from"
                 line, from the participant-safe GET .../source read. Present only once a real

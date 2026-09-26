@@ -63,3 +63,18 @@ export function trustedDiff(diff: AmendmentDiffDto | null | undefined, currency:
   }
   return { changes, hidden };
 }
+
+// Phase 7 Slice 5 -- the participant-safe overview in plain words.
+/** The fields SecurePay lets a change touch, in plain words. The backend's `field` is never shown raw. */
+const FIELD_WORDS: Record<string, string> = { title: 'Title', purpose: 'Purpose', description: 'Description', for: 'Who the work is for' };
+export const changeFieldWord = (field: string) => FIELD_WORDS[field] ?? 'Detail';
+export const RESPONSE_WORDS: Record<string, string> = { PENDING: 'hasn’t answered yet', ACCEPTED: 'agreed', REJECTED: 'declined' };
+
+/** Why nothing can be proposed right now, from SecurePay's own `changeability` (never derived here). */
+export const CHANGEABILITY_WORDS: Record<string, string> = {
+  CAN_PROPOSE: 'No change is waiting. A change is proposed by a participant and takes effect only when everyone else on the Agreement agrees to it.',
+  WORK_STARTED: 'Work has started under the current version, so SecurePay doesn’t allow this Agreement to be changed.',
+  FUNDED: 'Money has been paid in for this Agreement, so it can’t be changed.',
+  CLOSED: 'This Agreement can’t be changed in its current state.',
+  NO_COUNTERPARTY: 'A change needs another participant to agree to it, and nobody else has joined yet.',
+};

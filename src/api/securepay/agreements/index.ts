@@ -37,6 +37,14 @@ export interface NextActionDto { participantId: string; agreementId: string; cur
 export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
 export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
 export interface AmendmentDiffDto { amendmentId: string; sourceVersionId: string; changes: AmendmentFieldChangeDto[] }
+// Phase 7 Slice 5 -- the participant-safe amendment overview and the outcome of accept / reject / withdraw (AgreementController).
+export interface AmendmentChangeViewDto { type: string; field: string; subject: string; before: string | null; after: string | null }
+export interface AmendmentResponderDto { name: string; isCaller: boolean; decision: 'PENDING' | 'ACCEPTED' | 'REJECTED' | string }
+export interface AmendmentProposalDto { amendmentId: string; sourceVersionNumber: number; proposedByName: string; proposedByCaller: boolean; reason: string | null; proposedAt: string; changes: AmendmentChangeViewDto[]; responders: AmendmentResponderDto[]; callerMustRespond: boolean; callerCanWithdraw: boolean; liveWorkEffect: string }
+export interface AmendmentPastDto { amendmentId: string; outcome: string; proposedByName: string; sourceVersionNumber: number; resultingVersionNumber: number | null; closedAt: string; changes: AmendmentChangeViewDto[] }
+export interface AmendmentOverviewDto { agreementId: string; currentVersionId: string; currentVersionNumber: number; changeability: string; callerCanPropose: boolean; open: AmendmentProposalDto | null; history: AmendmentPastDto[] }
+export interface AmendmentDecisionDto { amendmentId: string; status: string; resultingVersionId: string | null; resultingVersionNumber: number | null; replayed: boolean }
+export interface AmendmentResponseBody { idempotencyKey: string; expectedAgreementVersionId: string }
 export interface AgreementInvitationDto { id: string; roleCode: string; status: string; issuedAt: string; expiresAt: string; revokedAt: string | null }
 export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
@@ -144,12 +152,13 @@ export function createAgreementGateway(http: HttpClient) {
     // NOT safe to render as "what will change" unless it contains no REMOVED entry (diff treats proposedTerms as a full
     // snapshot; apply merges it as a patch). See features/amendments/display.ts.
     amendmentDiff: (id: string, amendmentId: string) => http.request<AmendmentDiffDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/diff`, { auth: 'required' }),
-    // Returns the NEW canonical version. A replay of an already-applied amendment answers 422 "amendment not applicable"
-    // (the status check runs before the idempotency lookup), so an uncertain outcome must be settled by re-reading.
-    applyAmendment: (id: string, amendmentId: string, idempotencyKey: string) => http.request<AgreementVersionResponse>(`${agreement(id)}/amendments/${segment(amendmentId)}/apply`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
-    // Reject / withdraw return the amendment and are a silent no-op (200, unchanged status) when it is no longer PROPOSED.
-    rejectAmendment: (id: string, amendmentId: string) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/reject`, { method: 'POST', auth: 'required' }),
-    withdrawAmendment: (id: string, amendmentId: string) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/withdraw`, { method: 'POST', auth: 'required' }),
+    // Phase 7 Slice 5: the single-actor apply is gone. Every OTHER established participant explicitly accepts; the last
+    // acceptance creates the new version (status APPLIED + resultingVersion*). Each response is bound to the exact current
+    // version (409 when the Agreement moved) and is idempotent on its key. Always readable, whatever the Agreement status.
+    amendmentOverview: (id: string) => http.request<AmendmentOverviewDto>(`${agreement(id)}/amendments/overview`, { auth: 'required' }),
+    acceptAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/accept`, { method: 'POST', body, auth: 'required' }),
+    rejectAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/reject`, { method: 'POST', body, auth: 'required' }),
+    withdrawAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/withdraw`, { method: 'POST', body, auth: 'required' }),
     invitation: (token: string) => http.request<PublicInvitationViewResponse>(`/api/v1/agreement-invitations/${segment(token)}`, { auth: 'none' }),
     join: (token: string, idempotencyKey: string) => http.request<JoinAgreementResponse>(`/api/v1/agreement-invitations/${segment(token)}/join`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // KS001 Upgrade Phase 4 continuation (Section 21/23) -- the self-scoped invitation inbox. No

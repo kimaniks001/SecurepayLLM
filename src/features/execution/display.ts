@@ -24,6 +24,8 @@ export const NEXT_ACTION_WORDS: Readonly<Record<string, string>> = {
   REPLACE_EVIDENCE: 'Your evidence needs replacing. Submit new evidence in its place.',
   COMPLETE_OBLIGATION: 'SecurePay says this work is ready for you to complete.',
   FUND_AGREEMENT: 'This is a payment obligation. Money is handled in the Money area.',
+  // Phase 7 Slice 5 -- an Agreement-level signal: the change itself is shown (and answered) in Changes.
+  REVIEW_AMENDMENT: 'A proposed change to this Agreement is waiting for your answer. You can see it in Changes.',
 };
 export const nextActionWords = (action: NextActionDto) => {
   // Phase 7 Slice 3 -- review outcomes, from SecurePay's own next action (never inferred here).
@@ -32,6 +34,7 @@ export const nextActionWords = (action: NextActionDto) => {
   // Phase 7 Slice 4 -- completion signals, from SecurePay's own next action.
   if (action.actionType === 'COMPLETE_OBLIGATION' && action.actionReason.includes('overdue')) return 'This work is overdue, but it can still be completed now.';
   if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'BENEFICIARY_REQUIRED') return 'This work has no one who can accept its evidence, so it can’t be completed as it is set up.';
+  if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'AMENDMENT_AWAITING_RESPONSES') return 'Your proposed change is waiting for the other participants to answer.';
   if (action.actionType === 'WAIT_FOR_DEPENDENCY') return action.prerequisiteStatus === 'EVIDENCE_SUBMITTED' ? 'SecurePay is waiting for the evidence to be reviewed.' : 'This work is waiting on other work to finish first.';
   return NEXT_ACTION_WORDS[action.actionType] ?? 'SecurePay has an action for this work that this screen can’t show yet.';
 };
