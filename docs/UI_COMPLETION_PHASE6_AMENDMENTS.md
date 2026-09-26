@@ -1,5 +1,46 @@
 # UI Completion — Phase 6: Agreement Changes, Amendments, Version Review & Reconfirmation
 
+## KS001 Upgrade Phase 7 — Slice 5 (Amendments & Change): **Agree / Reject / Withdraw are wired; the single-actor Apply is gone**
+
+**Current architectural decision.** SecurePayAPI Phase 7 Slice 5 (branch `feat/phase7-amendments-change-slice5`) changes how a proposed change works:
+- A change is a **structured change set** bound to the exact current version. It can change the Agreement's title, purpose or description, the title or description of a piece of work, or who a piece of work is for.
+- It becomes a **new version only after every other established participant explicitly agrees**. The last agreement creates the version. The earlier version and all work history are kept.
+- Unstarted work carries over to the new version with recorded lineage.
+- Nothing can be changed once work has started or money is in (the locked "funded Agreement is immutable" rule).
+- `POST /amendments/{id}/apply` was **removed**. The new endpoints are:
+  - `GET /amendments/overview`
+  - `POST /amendments/{id}/accept`, `/reject` and `/withdraw`, each with `{idempotencyKey, expectedAgreementVersionId}`. A stale version returns 409.
+
+This UI:
+- **Changes panel** is driven by SecurePay's overview, not by client-side diffing. It shows:
+  - who proposed the change ("You proposed this" / "Peter proposed this");
+  - the source version and the reason;
+  - each change as **Now / Proposed** in plain words (never ids, KS Numbers or backend field codes);
+  - **who needs to agree**, with each person's answer;
+  - the live-work effect in SecurePay's own words;
+  - that agreeing to a change is not confirming the new version.
+- **Controls come only from SecurePay's flags.** A responder who hasn't answered gets **Agree to this change** and **Reject this change**; the proposer gets **Withdraw proposal**. A responder who already agreed, and a stale proposal, get nothing. With no open proposal, SecurePay's `changeability` is explained (work started / funded / closed / nobody else joined). Where a change could be proposed, the panel says honestly that proposing isn't available from this screen yet (see gaps).
+- **Controller** (`amendments/controller.ts`):
+  - Every response pins **one key and the exact current version** until SecurePay gives a definite answer, so an uncertain retry is the same request.
+  - An uncertain response is settled only from the overview. The caller shown as `ACCEPTED` means the acceptance was recorded; history `APPLIED` / `REJECTED` / `WITHDRAWN` is the outcome.
+  - A 409 re-reads the Agreement and the overview before saying nothing changed, and releases the key.
+  - 401 and 403 are definite and release the key.
+  - A 422 on a closed proposal reports its real outcome; backend wording is never echoed.
+  - The new version number comes only from SecurePay: the response, or the overview history when a replay returns none.
+- **Next-action words** for `REVIEW_AMENDMENT` and `AMENDMENT_AWAITING_RESPONSES`.
+- **Reconfirmation** is unchanged: a material new version still shows "Version N needs your review" through the same confirm flow.
+
+**KS001** explains a pending change in chat (backend read tool) and never proposes, accepts, rejects, withdraws or confirms.
+
+**Tests:** `tests/ui-phase6.test.mjs` (45) — contract, render, controller (version-binding, key pinning, settlement, 409/401/403/422) and scope guards. Full suite: 1270/1270; `tsc`, `eslint`, `vite build` clean.
+
+**Remaining gaps (registered in SecurePayAPI):**
+- There is no in-app proposal composer. The backend propose endpoint exists; the UI does not author changes yet.
+- Money terms can't be amended.
+- Amending once work has started is not supported (a product decision).
+
+The sections below are the Phase 6 boundary, kept for history. Where they say Apply is withheld or that the diff/row gaps remain, Slice 5 supersedes them.
+
 Branch `feat/ui-phase6-amendments` from UI `main` @ `0006d71bf5a691d996966c58485a852fe5aa6b32` (Phase 5 / PR #31 merged). SecurePayAPI `main` @ `75a490bc7bdbe0b213dad00037d7f72be579c13b` (read-only, **not modified**; the API was not run). Not merged, not deployed.
 
 Doctrine: *a proposed change is a conversation about the Agreement; an applied change creates a new version; a confirmation belongs to the exact version reviewed; history is never rewritten.*

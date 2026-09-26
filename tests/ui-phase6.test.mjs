@@ -29,35 +29,49 @@ const SNAP = { title: 'Bathroom retiling', purpose: 'Retile', description: 'Reti
 const am = (o = {}) => ({ id: 'am-1', sourceVersionId: 'v1', proposedTerms: { proposed_amount_minor: 4500050 }, reason: 'Extra work requested', status: 'PROPOSED', appliedVersionId: null, createdAt: '2026-09-20T10:00:00Z', updatedAt: '2026-09-20T10:00:00Z', ...o });
 const ver = (n, o = {}) => ({ id: `v${n}`, versionNumber: n, snapshot: { ...SNAP, version_number: n }, contentHash: `h${n}`, parentVersionId: null, amendmentReason: null, materialChange: false, versionStatus: 'CURRENT', createdAt: 'x', ...o });
 
-function setup(over = {}, current = { id: 'v1' }) {
-  const calls = []; let n = 0; const changed = []; const cur = { id: current.id };
+// Phase 7 Slice 5 -- the overview SecurePay returns (AgreementAmendmentReadService) and the decision response (AgreementController).
+const change = (o = {}) => ({ type: 'OBLIGATION_BENEFICIARY', field: 'for', subject: 'Build the fence', before: 'No one yet', after: 'Wanjiru', ...o });
+const open = (o = {}) => ({ amendmentId: 'am-1', sourceVersionNumber: 1, proposedByName: 'Peter', proposedByCaller: false, reason: 'Say who the fence is for', proposedAt: '2026-09-20T10:00:00Z', changes: [change()], responders: [{ name: 'Wanjiru', isCaller: true, decision: 'PENDING' }], callerMustRespond: true, callerCanWithdraw: false, liveWorkEffect: 'Nothing has started yet. Work that hasn’t started carries over to the new version unchanged unless this change names it.', ...o });
+const past = (o = {}) => ({ amendmentId: 'am-1', outcome: 'APPLIED', proposedByName: 'Peter', sourceVersionNumber: 1, resultingVersionNumber: 2, closedAt: '2026-09-21T10:00:00Z', changes: [change()], ...o });
+const ov = (o = {}) => ({ agreementId: 'agr-1', currentVersionId: 'v1', currentVersionNumber: 1, changeability: 'CHANGE_PENDING', callerCanPropose: false, open: open(), history: [], ...o });
+const decision = (o = {}) => ({ amendmentId: 'am-1', status: 'APPLIED', resultingVersionId: 'v2', resultingVersionNumber: 2, replayed: false, ...o });
+
+function setup(over = {}) {
+  const calls = []; let n = 0; const changed = [];
   const gateway = {
     amendments: async id => { calls.push(['amendments', id]); return [am()]; },
     amendmentDiff: async (id, a) => { calls.push(['diff', a]); return { amendmentId: a, sourceVersionId: 'v1', changes: [] }; },
-    applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); return ver(2); },
-    rejectAmendment: async (id, a) => { calls.push(['reject', a]); return am({ status: 'REJECTED' }); },
-    withdrawAmendment: async (id, a) => { calls.push(['withdraw', a]); return am({ status: 'WITHDRAWN' }); },
-    version: async (id, v) => { calls.push(['version', v]); return ver(Number(v.replace('v', ''))); },
+    amendmentOverview: async id => { calls.push(['overview', id]); return ov(); },
+    acceptAmendment: async (id, a, body) => { calls.push(['accept', a, body]); return decision(); },
+    rejectAmendment: async (id, a, body) => { calls.push(['reject', a, body]); return decision({ status: 'REJECTED', resultingVersionId: null, resultingVersionNumber: null }); },
+    withdrawAmendment: async (id, a, body) => { calls.push(['withdraw', a, body]); return decision({ status: 'WITHDRAWN', resultingVersionId: null, resultingVersionNumber: null }); },
     ...over,
   };
-  return { calls, changed, cur, controller: api.createAmendmentsController(gateway, 'agr-1', () => cur.id, () => { changed.push(1); if (cur.onChange) cur.onChange(); }, () => `key-${++n}`) };
+  return { calls, changed, controller: api.createAmendmentsController(gateway, 'agr-1', () => { changed.push(1); }, () => `key-${++n}`) };
 }
 const names = calls => calls.map(c => c[0]);
+const sent = (calls, what) => calls.filter(c => c[0] === what).map(c => c[2]);
 
 // ------------------------------------------------------------ contract / session boundary
-test('every amendment gateway method is authenticated and on the shared refresh list', async () => {
+test('every amendment gateway method is authenticated and on the shared refresh list; the single-actor apply is gone', async () => {
   const src = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
-  for (const m of ['amendments', 'amendmentDiff', 'applyAmendment', 'rejectAmendment', 'withdrawAmendment']) {
+  for (const m of ['amendments', 'amendmentDiff', 'amendmentOverview', 'acceptAmendment', 'rejectAmendment', 'withdrawAmendment']) {
     assert.ok(api.AUTHENTICATED_AGREEMENT_METHODS.includes(m), `${m} must be session-refreshed`);
     assert.match(src, new RegExp(`${m}: \\(.*?auth: 'required'`));
   }
-  assert.doesNotMatch(src, /proposeAmendment/); // authoring is deliberately not built (see doc): no unused mutation
+  assert.doesNotMatch(src, /applyAmendment|\/apply`/);
+  assert.equal(api.AUTHENTICATED_AGREEMENT_METHODS.includes('applyAmendment'), false);
+  assert.doesNotMatch(src, /proposeAmendment/); // authoring is deliberately not built (UR registered): no unused mutation
 });
 test('gateway DTOs match the real backend shapes', async () => {
   const src = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
   assert.match(src, /interface AgreementAmendmentDto \{ id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string \| null; status: string; appliedVersionId: string \| null; createdAt: string; updatedAt: string \}/);
   assert.match(src, /interface AmendmentDiffDto \{ amendmentId: string; sourceVersionId: string; changes: AmendmentFieldChangeDto\[\] \}/);
+  assert.match(src, /interface AmendmentDecisionDto \{ amendmentId: string; status: string; resultingVersionId: string \| null; resultingVersionNumber: number \| null; replayed: boolean \}/);
+  assert.match(src, /interface AmendmentResponseBody \{ idempotencyKey: string; expectedAgreementVersionId: string \}/);
+  assert.match(src, /interface AmendmentOverviewDto \{ agreementId: string; currentVersionId: string; currentVersionNumber: number; changeability: string; callerCanPropose: boolean; open: AmendmentProposalDto \| null; history: AmendmentPastDto\[\] \}/);
 });
+
 
 // ------------------------------------------------------------ diff semantics (the merge blocker)
 const source = { ...SNAP };
@@ -97,146 +111,180 @@ test('proposedFields shows only what a proposal SETS, hides internals, and forma
 
 // ------------------------------------------------------------ amendment statuses / render
 const detail = (over = {}) => ({ overview: { agreementId: 'agr-1', publicReference: 'A', title: 'T', purpose: '', description: '', agreementType: 'SERVICE', status: 'PARTICIPANTS_JOINING', currency: 'KES', proposedAmountMinor: '4000000', createdAt: 'x', updatedAt: 'x', expiresAt: null }, currentVersion: { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: '2026-09-01T00:00:00Z', amendmentReason: null, materialChange: false }, participants: [], milestones: [], terms: [], documents: [], activity: [], versionHistory: [{ versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: '2026-09-01T00:00:00Z', amendmentReason: null, materialChange: false }], money: { status: 'NO_EVALUATION_YET', outstandingReasons: [], moneyRecordCount: 0 }, ...over });
-const panel = (snapshot, d = detail(), status = 'PARTICIPANTS_JOINING') => html(api.ChangesPanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ list: { status: 'idle' }, diffs: {}, busy: null, notices: {}, applied: null, ...snapshot }), load() {}, loadDiff() {}, apply() {}, reject() {}, withdraw() {}, checkApply() {} }, detail: d, agreementStatus: status });
-test('statuses use SecurePay words only; an unknown status is "unavailable"; nothing is called "accepted"', () => {
+const panel = (snapshot, d = detail()) => html(api.ChangesPanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ list: { status: 'idle' }, diffs: {}, overview: { status: 'idle' }, busy: null, notices: {}, applied: null, ...snapshot }), loadOverview() {}, accept() {}, reject() {}, withdraw() {}, check() {} }, detail: d });
+const ready = o => ({ overview: { status: 'ready', overview: o } });
+test('statuses use SecurePay words only; an unknown status is "unavailable"', () => {
   for (const [s, w] of [['PROPOSED', 'Proposed'], ['APPLIED', 'Applied'], ['REJECTED', 'Rejected'], ['WITHDRAWN', 'Withdrawn'], ['SUPERSEDED', 'Superseded'], ['WEIRD', 'Status unavailable']]) assert.equal(api.amendmentStatusWord(s), w);
-  assert.doesNotMatch(Object.values({ a: 'Proposed', b: 'Applied' }).join(), /accepted/i);
+  assert.equal(api.changeFieldWord('for'), 'Who the work is for'); assert.equal(api.changeFieldWord('obligation_terms'), 'Detail');
 });
-test('Changes shows Versions and Proposed changes as separate concepts, with the source version and reason, and no invented "requested by"', () => {
-  const out = text(panel({ list: { status: 'ready', items: [am()] } }));
+test('a responder sees who proposed, what changes (now vs proposed), who must agree, the live-work effect, and Agree / Reject -- never raw ids', () => {
+  const out = text(panel(ready(ov())));
   assert.match(out, /Versions/); assert.match(out, /Proposed changes/); assert.match(out, /Version 1 · Current version/);
-  assert.match(out, /Proposed change/); assert.match(out, /Proposed against version 1/); assert.match(out, /Reason: Extra work requested/);
-  assert.match(out, /can.t safely apply it from this screen yet/); assert.doesNotMatch(out, /Apply change|Applying creates/);
-  assert.match(out, /Reject proposed change/); assert.match(out, /Rejecting keeps the current Agreement as it is/); assert.match(out, /Withdraw proposal/); assert.doesNotMatch(out, /Withdraw my proposal|my proposal/);
-  assert.match(out, /Only the person who proposed it can withdraw it; SecurePay will check that authority/);
-  assert.doesNotMatch(out, /requested by|Requested by|proposed by [A-Z]/i);
-  assert.doesNotMatch(out, /Accept change|Edit Agreement|Save changes|Update Agreement|updated contract/i);
+  assert.match(out, /Peter proposed this against version 1/); assert.match(out, /Reason: Say who the fence is for/);
+  assert.match(out, /Build the fence · Who the work is for/); assert.match(out, /Now: No one yet/); assert.match(out, /Proposed: Wanjiru/);
+  assert.match(out, /Who needs to agree/); assert.match(out, /You — hasn.t answered yet/);
+  assert.match(out, /Work already set up: Nothing has started yet/);
+  assert.match(out, /Agree to this change/); assert.match(out, /Reject this change/); assert.doesNotMatch(out, /Withdraw proposal/);
+  assert.match(out, /Nothing changes until everyone above has agreed/); assert.match(out, /Agreeing to the change is not confirming the new version/);
+  assert.doesNotMatch(out, /[0-9a-f]{8}-[0-9a-f]{4}|KS\d|OBLIGATION_BENEFICIARY|obligation_terms|am-1/);
+  assert.doesNotMatch(out, /can.t safely apply|Apply change|Edit Agreement|Save changes/i);
 });
-test('a proposal against an older version is shown as stale and offers NO Apply (competing proposals: the other one was applied)', () => {
-  const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'first', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'first', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
-  const out = text(panel({ list: { status: 'ready', items: [am({ id: 'B', sourceVersionId: 'v1', status: 'PROPOSED' }), am({ id: 'A', status: 'APPLIED', appliedVersionId: 'v2' })] } }, d));
-  assert.match(out, /moved on since this was proposed \(it was made against version 1\), so this proposal no longer matches the current version/);
-  assert.equal((out.match(/Apply change/g) ?? []).length, 0); assert.doesNotMatch(out, /can.t safely apply it from this screen yet/); // stale: no misleading "reviewable" line
-  assert.match(out, /Applying it created version 2/); assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/); assert.match(out, /SecurePay marked this a material change/);
+test('the proposer sees "You proposed this", everyone else\'s answers, and only Withdraw', () => {
+  const out = text(panel(ready(ov({ open: open({ proposedByCaller: true, proposedByName: 'Wanjiru', callerMustRespond: false, callerCanWithdraw: true, responders: [{ name: 'Peter', isCaller: false, decision: 'PENDING' }] }) }))));
+  assert.match(out, /You proposed this against version 1/); assert.match(out, /Peter — hasn.t answered yet/); assert.match(out, /Withdraw proposal/);
+  assert.doesNotMatch(out, /Agree to this change|Reject this change/);
 });
-test('the applied / rejected / withdrawn / superseded proposals offer no actions', () => {
-  const out = text(panel({ list: { status: 'ready', items: ['APPLIED', 'REJECTED', 'WITHDRAWN', 'SUPERSEDED'].map((s, i) => am({ id: `x${i}`, status: s })) } }));
-  assert.doesNotMatch(out, /Apply change|Reject proposed change|Withdraw proposal/);
+test('a responder who already agreed (others still to answer) gets no controls; a stale proposal offers nothing', () => {
+  const agreed = text(panel(ready(ov({ open: open({ callerMustRespond: false, responders: [{ name: 'Wanjiru', isCaller: true, decision: 'ACCEPTED' }, { name: 'Amina', isCaller: false, decision: 'PENDING' }] }) }))));
+  assert.match(agreed, /You — agreed/); assert.match(agreed, /Amina — hasn.t answered yet/); assert.doesNotMatch(agreed, /Agree to this change|Reject this change|Withdraw proposal/);
+  const stale = text(panel(ready(ov({ currentVersionNumber: 2, open: open() }))));
+  assert.match(stale, /moved on since this was proposed, so SecurePay won.t apply it/); assert.doesNotMatch(stale, /Agree to this change|Reject this change/);
 });
-test('Detail works while amendment history fails: "couldn\'t be loaded", never "no changes"; and it is honest when it can\'t be read at all', () => {
-  const bad = text(panel({ list: { status: 'error' } }));
-  assert.match(bad, /Change history couldn.t be loaded right now/); assert.doesNotMatch(bad, /Nobody has proposed/); assert.match(bad, /Version 1/); // versions still shown
-  const na = text(panel({ list: { status: 'unavailable', agreementStatus: 'CANCELLED' } }, detail(), 'CANCELLED'));
-  assert.match(na, /can.t be read while this Agreement is cancelled/); assert.match(na, /Nothing is being claimed about whether any exist/); assert.doesNotMatch(na, /Nobody has proposed/);
-  assert.match(text(panel({ list: { status: 'ready', items: [] } })), /Nobody has proposed a change/);
+test('with nothing waiting, SecurePay\'s own changeability is explained; nothing to propose from here is said honestly', () => {
+  for (const [c, re] of [['WORK_STARTED', /Work has started under the current version/], ['FUNDED', /Money has been paid in for this Agreement, so it can.t be changed/], ['CLOSED', /can.t be changed in its current state/], ['NO_COUNTERPARTY', /nobody else has joined yet/], ['WEIRD', /didn.t say whether this Agreement can be changed/]]) {
+    assert.match(text(panel(ready(ov({ changeability: c, open: null })))), re, c);
+  }
+  const can = text(panel(ready(ov({ changeability: 'CAN_PROPOSE', callerCanPropose: true, open: null }))));
+  assert.match(can, /No change is waiting/); assert.match(can, /takes effect only when everyone else on the Agreement agrees/); assert.match(can, /Proposing a change isn.t available from this screen yet/);
 });
-test('amendments succeed + diff fails: the proposal, reason and source stay; no invented changes', () => {
-  const out = text(panel({ list: { status: 'ready', items: [am()] }, diffs: { 'am-1': { status: 'error' } } }));
-  // The comparison section is collapsed until opened, but the proposal facts are already visible.
-  assert.match(out, /Proposed against version 1/); assert.match(out, /Extra work requested/);
+test('history shows each closed proposal with its outcome and the version it created; no actions', () => {
+  const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Say who the fence is for', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Say who the fence is for', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
+  const out = text(panel(ready(ov({ currentVersionId: 'v2', currentVersionNumber: 2, changeability: 'CAN_PROPOSE', open: null, history: [past(), past({ amendmentId: 'am-0', outcome: 'REJECTED', resultingVersionNumber: null })] })), d));
+  assert.match(out, /Applied · proposed by Peter against version 1/); assert.match(out, /Everyone agreed; it created version 2/); assert.match(out, /Rejected · proposed by Peter/);
+  assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/); assert.match(out, /SecurePay marked this a material change/);
+  assert.doesNotMatch(out, /Agree to this change|Reject this change|Withdraw proposal/);
+});
+test('a failed overview read is "couldn\'t be loaded", never "no changes"; versions still shown', () => {
+  const bad = text(panel({ overview: { status: 'error' } }));
+  assert.match(bad, /Changes couldn.t be loaded right now/); assert.match(bad, /Nothing is being claimed about whether any exist/); assert.doesNotMatch(bad, /No change is waiting/); assert.match(bad, /Version 1/);
+  assert.match(text(panel({ overview: { status: 'loading' } })), /Loading proposed changes/);
+});
+test('uncertain recovery is the uncertain action\'s own: Check what happened + the same action again', () => {
+  for (const [action, re, not] of [['accept', /Try accepting again/, /Try rejecting again|Try withdrawing again/], ['reject', /Try rejecting again/, /Try accepting again|Try withdrawing again/], ['withdraw', /Try withdrawing again/, /Try accepting again|Try rejecting again/]]) {
+    const out = text(panel({ ...ready(ov()), notices: { 'am-1': { kind: 'uncertain', action, text: 'SecurePay couldn’t confirm whether that went through.' } } }));
+    assert.match(out, /Check what happened/); assert.match(out, re); assert.doesNotMatch(out, not);
+  }
 });
 
-// ------------------------------------------------------------ amendments controller
-test('nothing is called for an Agreement that does not allow amendments, and nothing is claimed', async () => {
+
+// ------------------------------------------------------------ amendments controller (Phase 7 Slice 5)
+test('the raw list is not called for an Agreement that does not allow amendments; the overview is always readable', async () => {
   const { controller, calls } = setup();
   for (const s of ['DRAFT', 'PROPOSED', 'INVITATION_PENDING', 'CANCELLED', 'EXPIRED']) { await controller.load(s); assert.equal(controller.getSnapshot().list.status, 'unavailable'); }
   assert.equal(calls.length, 0);
   assert.equal(api.isAmendable('PARTICIPANTS_JOINING') && api.isAmendable('CONFIRMATION_PENDING'), true);
+  await controller.loadOverview(); assert.equal(controller.getSnapshot().overview.status, 'ready');
 });
-test('a failed list read is "error", not an empty list', async () => {
-  const { controller } = setup({ amendments: async () => { throw err('http', 500, 'x'); } }); await controller.load('PARTICIPANTS_JOINING');
-  assert.equal(controller.getSnapshot().list.status, 'error');
+test('a failed read is "error", not an empty answer', async () => {
+  const { controller } = setup({ amendments: async () => { throw err('http', 500, 'x'); }, amendmentOverview: async () => { throw err('network', null); } });
+  await controller.load('PARTICIPANTS_JOINING'); await controller.loadOverview();
+  assert.equal(controller.getSnapshot().list.status, 'error'); assert.equal(controller.getSnapshot().overview.status, 'error');
 });
-test('desktop and mobile both mount the panel at once: they share one read; a later mount reads fresh truth again', async () => {
+test('desktop and mobile both mount the panel at once: they share one list read; a later mount reads fresh truth again', async () => {
   const { controller, calls } = setup(); await Promise.all([controller.load('PARTICIPANTS_JOINING'), controller.load('PARTICIPANTS_JOINING')]);
   assert.equal(names(calls).filter(n => n === 'amendments').length, 1);
   await controller.load('PARTICIPANTS_JOINING'); assert.equal(names(calls).filter(n => n === 'amendments').length, 2);
 });
-test('apply is only ever an explicit call; loading, opening a diff or reading never applies', async () => {
-  const { controller, calls } = setup(); await controller.load('PARTICIPANTS_JOINING'); await controller.loadDiff('am-1');
-  assert.equal(calls.some(c => c[0] === 'apply'), false);
+test('reading never responds: loading the overview, list or a diff sends no accept / reject / withdraw', async () => {
+  const { controller, calls } = setup(); await controller.load('PARTICIPANTS_JOINING'); await controller.loadOverview(); await controller.loadDiff('am-1');
+  assert.equal(calls.some(c => ['accept', 'reject', 'withdraw'].includes(c[0])), false);
 });
-test('apply success uses the BACKEND-created version, refreshes the Agreement, and never fabricates one', async () => {
-  const { controller, calls, changed } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); return ver(7); } });
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1');
+test('nothing is sent before SecurePay\'s current version is known (the response must be version-bound)', async () => {
+  const { controller, calls } = setup(); await controller.accept('am-1');
+  assert.equal(calls.some(c => c[0] === 'accept'), false); assert.match(controller.getSnapshot().notices['am-1'].text, /current version isn.t loaded, so nothing was sent/);
+});
+test('accept is bound to the exact current version and one key; the LAST acceptance\'s new version comes from SecurePay and refreshes the Agreement', async () => {
+  const { controller, calls, changed } = setup({ acceptAmendment: async (id, a, body) => { calls.push(['accept', a, body]); return decision({ resultingVersionNumber: 7 }); } });
+  await controller.loadOverview(); await controller.accept('am-1');
+  assert.deepEqual(sent(calls, 'accept')[0], { idempotencyKey: 'key-1', expectedAgreementVersionId: 'v1' });
   assert.deepEqual(controller.getSnapshot().applied, { amendmentId: 'am-1', versionNumber: 7 });
-  assert.match(controller.getSnapshot().notices['am-1'].text, /now at version 7\. The earlier version stays in its history/);
-  assert.ok(changed.length >= 1);
-  assert.doesNotMatch(controller.getSnapshot().notices['am-1'].text, /saved|changes saved/i);
+  assert.match(controller.getSnapshot().notices['am-1'].text, /Everyone has agreed\. The Agreement is now at version 7; the earlier version stays in its history/);
+  assert.ok(changed.length >= 1); assert.ok(names(calls).filter(n => n === 'overview').length >= 2); // re-read after the decision
 });
-test('an uncertain apply keeps the SAME key and is never shown as applied; Check reads the amendment', async () => {
-  let first = true;
-  const { controller, calls } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); if (first) { first = false; throw err('timeout', null, 't'); } return ver(2); } });
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1');
-  const s = controller.getSnapshot(); assert.match(s.notices['am-1'].text, /We.re not sure whether the change was applied/); assert.equal(s.applied, null); assert.equal(s.notices['am-1'].kind, 'uncertain');
-  await controller.apply('am-1');
-  const keys = calls.filter(c => c[0] === 'apply').map(c => c[2]); assert.equal(keys.length, 2); assert.equal(keys[0], keys[1]);
+test('an acceptance while others still have to answer is recorded, not applied: no version is claimed and the Agreement is untouched', async () => {
+  const { controller, changed } = setup({ acceptAmendment: async () => decision({ status: 'PROPOSED', resultingVersionId: null, resultingVersionNumber: null }) });
+  await controller.loadOverview(); await controller.accept('am-1');
+  assert.equal(controller.getSnapshot().applied, null); assert.equal(changed.length, 0);
+  assert.match(controller.getSnapshot().notices['am-1'].text, /Your acceptance is recorded\. The change takes effect only when everyone else has agreed too/);
 });
-test('the backend answers a replay of an applied amendment with 422 "not applicable": that is settled by re-reading -- APPLIED + appliedVersionId is the proof, and it is one logical version', async () => {
-  let lists = 0;
-  const { controller, calls } = setup({
-    applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); throw err(calls.filter(c => c[0] === 'apply').length === 1 ? 'timeout' : 'http', calls.filter(c => c[0] === 'apply').length === 1 ? null : 422, 'amendment not applicable'); },
-    amendments: async () => { lists++; return [lists === 1 ? am() : am({ status: 'APPLIED', appliedVersionId: 'v2' })]; },
+test('a replayed final acceptance (resultingVersionNumber null) takes the version number from SecurePay\'s own history', async () => {
+  const { controller } = setup({
+    acceptAmendment: async () => decision({ resultingVersionNumber: null, replayed: true }),
+    amendmentOverview: async () => ov({ currentVersionId: 'v2', currentVersionNumber: 2, open: null, history: [past({ resultingVersionNumber: 2 })] }),
   });
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1'); await controller.apply('am-1');
+  await controller.loadOverview(); await controller.accept('am-1');
   assert.deepEqual(controller.getSnapshot().applied, { amendmentId: 'am-1', versionNumber: 2 });
-  const keys = calls.filter(c => c[0] === 'apply').map(c => c[2]); assert.equal(keys[0], keys[1]);
-  assert.equal(calls.filter(c => c[0] === 'apply').length, 2);
 });
-test('"check what happened" proves APPLIED from the amendment, or says SecurePay does not show it yet', async () => {
-  let applied = false;
-  const { controller } = setup({ applyAmendment: async () => { throw err('network', null); }, amendments: async () => [applied ? am({ status: 'APPLIED', appliedVersionId: 'v2' }) : am()] });
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1'); await controller.checkApply('am-1');
-  assert.equal(controller.getSnapshot().applied, null); assert.match(controller.getSnapshot().notices['am-1'].text, /doesn.t show this change as applied yet/);
-  applied = true; await controller.checkApply('am-1');
-  assert.equal(controller.getSnapshot().applied.versionNumber, 2);
+test('an uncertain accept keeps the SAME key AND the SAME expected version, and is never shown as agreed', async () => {
+  let first = true, version = 'v1';
+  const { controller, calls } = setup({
+    acceptAmendment: async (id, a, body) => { calls.push(['accept', a, body]); if (first) { first = false; throw err('timeout', null, 't'); } return decision(); },
+    amendmentOverview: async () => ov({ currentVersionId: version }),
+  });
+  await controller.loadOverview(); await controller.accept('am-1');
+  const n = controller.getSnapshot().notices['am-1']; assert.equal(n.kind, 'uncertain'); assert.equal(n.action, 'accept');
+  assert.match(n.text, /still shows this change as waiting, so your response isn.t recorded yet\. You can try accepting again/); assert.equal(controller.getSnapshot().applied, null);
+  version = 'v9'; await controller.loadOverview(); // even if the screen's view moved, the retry is the same request
+  await controller.accept('am-1');
+  const [a, b] = sent(calls, 'accept'); assert.deepEqual(a, b); assert.equal(a.expectedAgreementVersionId, 'v1');
 });
-test('a stale source is refused by SecurePay: the UI re-reads, says nothing was applied, never rebases, never mints a key twice', async () => {
-  const { controller, calls, cur } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); throw err('http', 422, 'stale amendment source version'); }, amendments: async () => [am({ sourceVersionId: 'v1' })] });
-  // The Agreement moved on; the on-screen current version only updates once the Agreement is re-read.
-  cur.onChange = () => { cur.id = 'v2'; };
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1');
-  const n = controller.getSnapshot().notices['am-1']; assert.equal(n.kind, 'error');
-  assert.match(n.text, /changed after this proposal was made, so it can no longer be applied\. Nothing was applied/);
-  assert.equal(controller.getSnapshot().applied, null);
-  assert.equal(calls.some(c => ['propose', 'proposeAmendment'].includes(c[0])), false); // no rebase / re-proposal
+test('an uncertain accept is settled from the overview: the caller shown as ACCEPTED proves it was recorded; APPLIED in history proves the new version', async () => {
+  const recorded = setup({ acceptAmendment: async () => { throw err('network', null); }, amendmentOverview: async () => ov({ open: open({ callerMustRespond: false, responders: [{ name: 'Wanjiru', isCaller: true, decision: 'ACCEPTED' }, { name: 'Amina', isCaller: false, decision: 'PENDING' }] }) }) });
+  await recorded.controller.loadOverview(); await recorded.controller.accept('am-1');
+  assert.equal(recorded.controller.getSnapshot().notices['am-1'].kind, 'done'); assert.match(recorded.controller.getSnapshot().notices['am-1'].text, /Your acceptance is recorded/);
+  let lists = 0;
+  const applied = setup({ acceptAmendment: async () => { throw err('timeout', null); }, amendmentOverview: async () => (++lists === 1 ? ov() : ov({ currentVersionId: 'v2', currentVersionNumber: 2, open: null, history: [past()] })) });
+  await applied.controller.loadOverview(); await applied.controller.accept('am-1');
+  assert.deepEqual(applied.controller.getSnapshot().applied, { amendmentId: 'am-1', versionNumber: 2 });
+  let reads = 0; const darkGw = setup({ acceptAmendment: async () => { throw err('timeout', null); }, amendmentOverview: async () => { if (++reads > 1) throw err('network', null); return ov(); } });
+  await darkGw.controller.loadOverview(); await darkGw.controller.accept('am-1');
+  assert.equal(darkGw.controller.getSnapshot().notices['am-1'].kind, 'uncertain'); assert.match(darkGw.controller.getSnapshot().notices['am-1'].text, /couldn.t be reached to check/);
 });
-test('apply 401 / 403 are definite, claim nothing was applied, and release the key', async () => {
-  for (const [status, re] of [[401, /session ended.*Nothing was applied/], [403, /can.t apply changes to this Agreement\. Nothing was applied/]]) {
-    const { controller, calls } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); throw err('http', status, 'x'); } });
-    await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1'); await controller.apply('am-1');
+test('409 (the Agreement moved): re-reads the Agreement and the overview first, says nothing was changed, releases the key, never rebases', async () => {
+  const { controller, calls, changed } = setup({ acceptAmendment: async (id, a, body) => { calls.push(['accept', a, body]); throw err('http', 409, 'the Agreement has changed since this was proposed'); } });
+  await controller.loadOverview(); await controller.accept('am-1'); await controller.accept('am-1');
+  const n = controller.getSnapshot().notices['am-1']; assert.equal(n.kind, 'error'); assert.match(n.text, /The Agreement changed since you last looked, so SecurePay didn.t record that\. Nothing was changed/);
+  assert.ok(changed.length >= 1); const [a, b] = sent(calls, 'accept'); assert.notEqual(a.idempotencyKey, b.idempotencyKey);
+  assert.equal(calls.some(c => ['propose', 'proposeAmendment'].includes(c[0])), false);
+});
+test('401 / 403 are definite, claim nothing changed, and release the key; a non-proposer withdraw is told plainly', async () => {
+  for (const [action, status, re] of [['accept', 401, /session ended.*Nothing was changed/], ['accept', 403, /didn.t let this account respond to this change\. Nothing was changed/], ['withdraw', 403, /Only the person who proposed this change can withdraw it\. Nothing was changed/]]) {
+    const { controller, calls } = setup({ [`${action}Amendment`]: async (id, a, body) => { calls.push([action, a, body]); throw err('http', status, 'x'); } });
+    await controller.loadOverview(); await controller[action]('am-1'); await controller[action]('am-1');
     assert.match(controller.getSnapshot().notices['am-1'].text, re);
-    const keys = calls.filter(c => c[0] === 'apply').map(c => c[2]); assert.notEqual(keys[0], keys[1]);
+    const [a, b] = sent(calls, action); assert.notEqual(a.idempotencyKey, b.idempotencyKey);
   }
 });
-test('reject: REJECTED is claimed only from the returned status; the Agreement is untouched (no apply, no version)', async () => {
-  const { controller, calls } = setup(); await controller.load('PARTICIPANTS_JOINING'); await controller.reject('am-1');
-  assert.match(controller.getSnapshot().notices['am-1'].text, /rejected\. The current Agreement stays as it is/);
-  assert.equal(calls.some(c => c[0] === 'apply' || c[0] === 'version'), false);
-  assert.doesNotMatch(controller.getSnapshot().notices['am-1'].text, /cancel|Agreement rejected/i);
+test('422 on a proposal that is already closed reports its real outcome; otherwise "couldn\'t do that", nothing changed', async () => {
+  let lists = 0;
+  const closed = setup({ rejectAmendment: async () => { throw err('http', 422, 'amendment is not open'); }, amendmentOverview: async () => (++lists === 1 ? ov() : ov({ open: null, history: [past({ outcome: 'WITHDRAWN', resultingVersionNumber: null })] })) });
+  await closed.controller.loadOverview(); await closed.controller.reject('am-1');
+  assert.equal(closed.controller.getSnapshot().notices['am-1'].kind, 'info'); assert.match(closed.controller.getSnapshot().notices['am-1'].text, /this proposal is withdrawn/);
+  const plain = setup({ acceptAmendment: async () => { throw err('http', 422, 'a funded Agreement cannot be changed'); } });
+  await plain.controller.loadOverview(); await plain.controller.accept('am-1');
+  assert.match(plain.controller.getSnapshot().notices['am-1'].text, /SecurePay couldn.t do that\. Nothing was changed/);
+  assert.doesNotMatch(plain.controller.getSnapshot().notices['am-1'].text, /funded Agreement cannot/); // backend wording is not echoed
 });
-test('reject/withdraw answer 200 with the UNCHANGED amendment when it is no longer PROPOSED: that is not a rejection', async () => {
-  const { controller } = setup({ rejectAmendment: async () => am({ status: 'APPLIED', appliedVersionId: 'v2' }), withdrawAmendment: async () => am({ status: 'REJECTED' }) });
-  await controller.load('PARTICIPANTS_JOINING');
-  await controller.reject('am-1'); assert.equal(controller.getSnapshot().notices['am-1'].kind, 'info'); assert.match(controller.getSnapshot().notices['am-1'].text, /Nothing was changed: this proposal is already applied/);
-  await controller.withdraw('am-1'); assert.match(controller.getSnapshot().notices['am-1'].text, /already rejected/);
+test('reject / withdraw claim success only from the returned status; the Agreement is untouched', async () => {
+  const r = setup(); await r.controller.loadOverview(); await r.controller.reject('am-1');
+  assert.match(r.controller.getSnapshot().notices['am-1'].text, /You rejected this proposed change\. The current Agreement stays as it is/);
+  assert.deepEqual(sent(r.calls, 'reject')[0], { idempotencyKey: 'key-1', expectedAgreementVersionId: 'v1' }); assert.equal(r.changed.length, 0);
+  const w = setup(); await w.controller.loadOverview(); await w.controller.withdraw('am-1');
+  assert.match(w.controller.getSnapshot().notices['am-1'].text, /This proposal was withdrawn\. The current Agreement stays as it is/);
+  const other = setup({ rejectAmendment: async () => decision({ status: 'APPLIED' }) }); await other.controller.loadOverview(); await other.controller.reject('am-1');
+  assert.equal(other.controller.getSnapshot().notices['am-1'].kind, 'info'); assert.match(other.controller.getSnapshot().notices['am-1'].text, /Nothing was changed: this proposal is already applied/);
 });
-test('withdraw: WITHDRAWN only from the returned status; a non-proposer gets SecurePay\'s refusal in plain words', async () => {
-  const ok = setup(); await ok.controller.load('PARTICIPANTS_JOINING'); await ok.controller.withdraw('am-1');
-  assert.match(ok.controller.getSnapshot().notices['am-1'].text, /This proposal was withdrawn\. The current Agreement stays as it is/);
-  const no = setup({ withdrawAmendment: async () => { throw err('http', 422, 'only proposer may withdraw'); } }); await no.controller.load('PARTICIPANTS_JOINING'); await no.controller.withdraw('am-1');
-  assert.match(no.controller.getSnapshot().notices['am-1'].text, /Only the person who proposed this change can withdraw it\. Nothing was changed/);
+test('check() re-reads and settles ONLY the uncertain action, and never sends anything', async () => {
+  const { controller, calls } = setup({ amendmentOverview: async () => ov({ open: null, history: [past({ outcome: 'REJECTED', resultingVersionNumber: null })] }) });
+  await controller.loadOverview(); await controller.check('am-1', 'reject');
+  assert.equal(controller.getSnapshot().notices['am-1'].kind, 'done'); assert.match(controller.getSnapshot().notices['am-1'].text, /You rejected this proposed change/);
+  assert.equal(calls.some(c => ['accept', 'reject', 'withdraw'].includes(c[0])), false);
 });
-test('an uncertain reject/withdraw is not claimed either way and re-reads the list', async () => {
-  const { controller, calls } = setup({ rejectAmendment: async () => { throw err('timeout', null); } }); await controller.load('PARTICIPANTS_JOINING'); const before = calls.filter(c => c[0] === 'amendments').length;
-  await controller.reject('am-1');
-  const n = controller.getSnapshot().notices['am-1']; assert.equal(n.kind, 'uncertain'); assert.doesNotMatch(n.text, /was rejected/);
-  assert.equal(calls.filter(c => c[0] === 'amendments').length, before + 1);
-});
-test('the controller has no way to propose, edit or rebase a proposal', async () => {
+test('the controller has no way to propose, edit or rebase a proposal, and no single-actor apply', async () => {
   const src = await readFile('src/features/amendments/controller.ts', 'utf8');
-  assert.doesNotMatch(src, /proposeAmendment|proposedTerms\s*=|rebase|putAll/);
+  assert.doesNotMatch(src, /proposeAmendment|proposedTerms\s*=|rebase|putAll|applyAmendment|checkApply/);
 });
+
 
 // ------------------------------------------------------------ People / confirmation after a new version
 //
@@ -353,83 +401,4 @@ test('no Money / execution affordances and no editable-document language in Phas
     const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     assert.doesNotMatch(src, /Pay now|Fund\b|STK|Wallet|\bsettlement\b|escrow|Edit Agreement|Save changes|Accept change|dangerouslySetInnerHTML|JSON\.stringify/i, f);
   }
-});
-
-// ------------------------------------------------------------ Phase 6 correction: action-specific recovery, no Apply
-const uncertainPanel = (action, calls) => html(api.ChangesPanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ list: { status: 'ready', items: [am()] }, diffs: {}, busy: null, notices: { 'am-1': { kind: 'uncertain', action, text: 'SecurePay couldn’t confirm whether that went through.' } }, applied: null }), load() {}, loadDiff() {}, apply: () => calls.push('apply'), reject: () => calls.push('reject'), withdraw: () => calls.push('withdraw'), checkApply: () => calls.push('checkApply'), checkTerminal: (id, a) => calls.push(['checkTerminal', a]) }, detail: detail(), agreementStatus: 'PARTICIPANTS_JOINING' });
-test('uncertain Reject renders Reject recovery only: no Apply control of any kind', () => {
-  const out = text(uncertainPanel('reject', []));
-  assert.match(out, /Check what happened/); assert.match(out, /Try rejecting again/);
-  assert.doesNotMatch(out, /Try applying again|Apply change|applying|applied/i); assert.doesNotMatch(out, /Try withdrawing again/);
-});
-test('uncertain Withdraw renders Withdraw recovery only: no Apply control of any kind', () => {
-  const out = text(uncertainPanel('withdraw', []));
-  assert.match(out, /Check what happened/); assert.match(out, /Try withdrawing again/);
-  assert.doesNotMatch(out, /Try applying again|Apply change|applying|applied/i); assert.doesNotMatch(out, /Try rejecting again/);
-});
-test('the production panel wires no Apply mutation at all (source-level guard while the backend gap remains)', async () => {
-  const src = (await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-  assert.doesNotMatch(src, /controller\.apply\(|controller\.checkApply\(|Try applying again|Apply change/);
-  const rc = (await readFile('src/features/amendments/ReconfirmPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-  assert.doesNotMatch(rc, /\.apply\(|checkApply/);
-  const ws = (await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8'));
-  assert.doesNotMatch(ws, /\.applyAmendment\(|amendmentsFor\([^)]*\)\.apply\(|\.checkApply\(/); // the Pick<> type may name it; no call site may
-  // The typed gateway method and the controller's own tested behaviour remain (archaeology), but nothing customer-facing calls them.
-  assert.match(await readFile('src/api/securepay/agreements/index.ts', 'utf8'), /applyAmendment:/);
-});
-test('a PROPOSED amendment can be inspected, and shows the calm limitation rather than an Apply', () => {
-  const out = text(panel({ list: { status: 'ready', items: [am()] }, diffs: { 'am-1': { status: 'ready', diff: backendDiff(source, { proposed_amount_minor: 4500050 }) } } }));
-  assert.match(out, /See what.s proposed/); assert.match(out, /This proposed change can be reviewed here, but SecurePay can.t safely apply it from this screen yet/);
-  assert.doesNotMatch(out, /inconsisten|read model|Agreement row|diverg/i); // no backend jargon in customer copy
-});
-test('an amendment ALREADY applied elsewhere is still shown: status, created version, version history, no actions', () => {
-  const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Extra work', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Extra work', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
-  const out = text(panel({ list: { status: 'ready', items: [am({ status: 'APPLIED', appliedVersionId: 'v2' })] } }, d));
-  assert.match(out, /Applied/); assert.match(out, /Applying it created version 2/); assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/);
-  assert.doesNotMatch(out, /Reject proposed change|Withdraw proposal/);
-});
-test('withdraw never claims ownership: neutral copy, no inference from the current session', async () => {
-  const src = (await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-  assert.doesNotMatch(src, /my proposal|Withdraw my|your proposal/i);
-});
-
-// Controller: uncertain reject / withdraw settle ONLY from the re-read amendment status and never touch apply.
-const terminalCase = async (action, statusAfter, readFails = false) => {
-  const calls = [];
-  const gw = { amendments: async () => { calls.push('amendments'); if (readFails && calls.filter(c => c === 'amendments').length > 1) throw err('network', null); return [am({ status: statusAfter })]; }, amendmentDiff: async () => ({}), applyAmendment: async () => { calls.push('APPLY-CALLED'); return ver(2); }, rejectAmendment: async () => { calls.push('reject'); throw err('timeout', null); }, withdrawAmendment: async () => { calls.push('withdraw'); throw err('timeout', null); }, version: async () => ver(2) };
-  const c = api.createAmendmentsController(gw, 'agr-1', () => 'v1', () => {}, () => 'k');
-  await c.load('PARTICIPANTS_JOINING'); await (action === 'reject' ? c.reject('am-1') : c.withdraw('am-1'));
-  return { c, calls };
-};
-test('uncertain Reject: the re-read settles it -- REJECTED proves success; another status is reported as it is; still PROPOSED stays unresolved; a failed read stays uncertain', async () => {
-  const proven = await terminalCase('reject', 'REJECTED'); assert.equal(proven.c.getSnapshot().notices['am-1'].kind, 'done'); assert.match(proven.c.getSnapshot().notices['am-1'].text, /was rejected\. The current Agreement stays as it is/);
-  const other = await terminalCase('reject', 'APPLIED'); assert.equal(other.c.getSnapshot().notices['am-1'].kind, 'info'); assert.match(other.c.getSnapshot().notices['am-1'].text, /this proposal is applied/); assert.doesNotMatch(other.c.getSnapshot().notices['am-1'].text, /was rejected/);
-  const still = await terminalCase('reject', 'PROPOSED'); const n = still.c.getSnapshot().notices['am-1']; assert.equal(n.kind, 'uncertain'); assert.equal(n.action, 'reject'); assert.match(n.text, /still shows this proposal as proposed, so it hasn.t been rejected\. You can try rejecting again/);
-  const dark = await terminalCase('reject', 'PROPOSED', true); assert.equal(dark.c.getSnapshot().notices['am-1'].kind, 'uncertain'); assert.match(dark.c.getSnapshot().notices['am-1'].text, /couldn.t be reached to check/);
-  for (const r of [proven, other, still, dark]) assert.equal(r.calls.includes('APPLY-CALLED'), false);
-});
-test('uncertain Withdraw: the same, from the re-read status only', async () => {
-  const proven = await terminalCase('withdraw', 'WITHDRAWN'); assert.equal(proven.c.getSnapshot().notices['am-1'].kind, 'done'); assert.match(proven.c.getSnapshot().notices['am-1'].text, /was withdrawn\. The current Agreement stays as it is/);
-  const other = await terminalCase('withdraw', 'REJECTED'); assert.match(other.c.getSnapshot().notices['am-1'].text, /this proposal is rejected/); assert.doesNotMatch(other.c.getSnapshot().notices['am-1'].text, /was withdrawn/);
-  const still = await terminalCase('withdraw', 'PROPOSED'); assert.equal(still.c.getSnapshot().notices['am-1'].action, 'withdraw'); assert.match(still.c.getSnapshot().notices['am-1'].text, /You can try withdrawing again/);
-  for (const r of [proven, other, still]) assert.equal(r.calls.includes('APPLY-CALLED'), false);
-});
-test('checkTerminal re-reads and settles without ever calling checkApply or apply; the UI action goes to it', async () => {
-  const calls = [];
-  const html2 = uncertainPanel('reject', calls);
-  assert.match(text(html2), /Check what happened/);
-  // The rendered button is bound to checkTerminal(id, action), never checkApply: assert on the source wiring.
-  const src = await readFile('src/features/amendments/ChangesPanel.tsx', 'utf8');
-  assert.match(src, /controller\.checkTerminal\(a\.id, notice\.action as 'reject' \| 'withdraw'\)/);
-  let applied = false;
-  const gw = { amendments: async () => [am({ status: 'REJECTED' })], amendmentDiff: async () => ({}), applyAmendment: async () => { applied = true; return ver(2); }, rejectAmendment: async () => am(), withdrawAmendment: async () => am(), version: async () => ver(2) };
-  const c = api.createAmendmentsController(gw, 'agr-1', () => 'v1'); await c.load('PARTICIPANTS_JOINING'); await c.checkTerminal('am-1', 'reject');
-  assert.equal(c.getSnapshot().notices['am-1'].kind, 'done'); assert.equal(applied, false);
-});
-test('Apply uncertainty keeps its own recovery (controller behaviour is unchanged, though no production control invokes it)', async () => {
-  let first = true;
-  const { controller, calls } = setup({ applyAmendment: async (id, a, key) => { calls.push(['apply', a, key]); if (first) { first = false; throw err('timeout', null); } return ver(2); } });
-  await controller.load('PARTICIPANTS_JOINING'); await controller.apply('am-1');
-  assert.equal(controller.getSnapshot().notices['am-1'].action, 'apply'); assert.equal(controller.getSnapshot().notices['am-1'].kind, 'uncertain');
-  await controller.checkApply('am-1'); assert.equal(controller.getSnapshot().notices['am-1'].action, 'apply');
 });
