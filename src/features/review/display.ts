@@ -1,4 +1,4 @@
-import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse } from '../../api/securepay/agreement-review/dto';
+import type { ReviewCaseDetailResponse, ReviewCaseSummaryResponse, ReviewEvidenceType } from '../../api/securepay/agreement-review/dto';
 
 /**
  * Bounded customer language for SecurePay's closed Agreement Review vocabularies. An unknown value is never echoed as the message and never guessed.
@@ -139,3 +139,81 @@ export const RESPONSE_TYPE_WORDS: ReadonlyArray<{ value: 'DISPUTE_POSITION' | 'C
 ];
 
 export type CaseRow = Pick<ReviewCaseSummaryResponse, 'state' | 'openedAt'>;
+
+// ------------------------------------------------------------------------------------------------ Phase 7 Slice 6
+
+/** Evidence types a participant may choose when adding evidence (identity/location confirmations are not participant uploads). */
+export const PARTICIPANT_EVIDENCE_TYPES: readonly ReviewEvidenceType[] = ['DOCUMENT', 'IMAGE', 'RECEIPT', 'DELIVERY_RECORD', 'AGREEMENT_RECORD', 'COMMUNICATION', 'OTHER'];
+const EVIDENCE_CAPABLE_ROLES = new Set(['OPENER', 'RESPONDENT', 'AFFECTED_BENEFICIARY', 'AFFECTED_FUNDER']);
+const EVIDENCE_OPEN_STATES = new Set(['AWAITING_RESPONSE', 'EVIDENCE_COLLECTION']);
+
+/**
+ * Whether to OFFER "Add evidence" -- mirrors SecurePay's own policy (AgreementReviewEvidenceSubmissionPolicy + the participant access policy) from the
+ * FRESH case read: an evidence-capable role, a state that accepts participant evidence, and an evidence deadline not yet passed. SecurePay re-checks
+ * everything and stays authoritative; this only decides whether the control is shown.
+ */
+export function canAddEvidence(d: Pick<ReviewCaseDetailResponse, 'state' | 'callerRole' | 'evidenceDeadlineAt'> | null, now: Date = new Date()): boolean {
+  if (!d || !EVIDENCE_OPEN_STATES.has(d.state) || !EVIDENCE_CAPABLE_ROLES.has(d.callerRole)) return false;
+  if (d.evidenceDeadlineAt && new Date(d.evidenceDeadlineAt).getTime() < now.getTime()) return false;
+  return true;
+}
+
+export const EVIDENCE_NOT_OPEN = 'Adding evidence isn’t open at this stage of the review.';
+
+// ------------------------------------------------------------------------------------------------ Phase 7 Slice 6B (v2 opening)
+/** Why nothing can be opened on this Agreement right now -- SecurePay's own reason, in words. Unknown -> fail closed. */
+const OPENING_UNAVAILABLE: Readonly<Record<string, string>> = {
+  AGREEMENT_CLOSED: 'This Agreement has ended, so a formal review can’t be started on it.',
+  CURRENCY_NOT_SUPPORTED: 'Formal reviews aren’t available for this Agreement’s currency yet.',
+  CONFIRM_THE_AGREEMENT_FIRST: 'Confirm the Agreement first. Only participants who have confirmed it can start a formal review.',
+  NO_SUBJECT_AVAILABLE: 'Nothing on this Agreement can be placed under a formal review right now. Each option below says why.',
+};
+export const openingUnavailableWords = (code: string | null) => (code && OPENING_UNAVAILABLE[code]) || 'SecurePay says a formal review can’t be started here right now.';
+
+const SUBJECT_UNAVAILABLE: Readonly<Record<string, string>> = {
+  NO_AMOUNT_UNDER_REVIEW: 'This Agreement has no amount that could be placed under review.',
+  NO_OTHER_PARTY: 'Nobody else is part of this, so there is no one to review it with.',
+  OTHER_PARTY_HAS_NOT_CONFIRMED: 'Someone whose position this affects hasn’t confirmed the Agreement yet, and nobody affected may be left out.',
+  REVIEW_ALREADY_OPEN: 'A formal review already covers this.',
+  REVIEW_RESERVE_NOT_READY: 'One or more of the people involved don’t have the Review Reserve this needs yet.',
+};
+export const subjectUnavailableWords = (code: string | null) => (code && SUBJECT_UNAVAILABLE[code]) || 'SecurePay says this can’t be placed under review right now.';
+
+/** The bounded reason categories (v2 open reason codes) in words. Only codes SecurePay offers are shown; unknown codes are not offered. */
+export const REVIEW_REASON_WORDS: Readonly<Record<string, string>> = {
+  PARTICIPANT_DISPUTE_OBLIGATION: 'The work or payment wasn’t done as agreed',
+  PARTICIPANT_DISPUTE_EVIDENCE: 'The evidence given isn’t right',
+  PARTICIPANT_DISPUTE_RELEASE_REQUIREMENT: 'A condition for releasing money isn’t met',
+  PARTICIPANT_DISPUTE_CONDITION: 'Another agreed condition isn’t met',
+};
+
+const V2_STATE: Readonly<Record<string, string>> = {
+  OPENED: 'Opened — waiting for the participants',
+  ACTIVE_NEGOTIATION: 'Participants are proposing how to settle it',
+  MAIN_ALLOCATION_MATCHED: 'The main settlement proposals match',
+  COMPLETE_SETTLEMENT_MATCHED: 'The full settlement matches',
+  CONFIRMATION_PENDING: 'Waiting for everyone to confirm the settlement',
+  RESOLVED_BY_MATCHING: 'Resolved — everyone confirmed the same settlement',
+  WITHDRAWN_BEFORE_RESPONSE: 'Withdrawn before anyone responded',
+  UNRESOLVED_INACTIVE: 'Unresolved — no recent activity',
+  LEGALLY_RESOLVED: 'Resolved by a verified legal direction',
+  SUPERSEDED: 'Replaced by another review of the same issue',
+};
+export const v2StateWords = (state: string) => V2_STATE[state] ?? UNKNOWN_STATE;
+
+const V2_ROLE: Readonly<Record<string, string>> = {
+  OPENER: 'Opened it', RESPONDENT: 'Asked to respond', AFFECTED_BENEFICIARY: 'Affected (receives under it)', AFFECTED_FUNDER: 'Affected (pays under it)',
+};
+export const v2RoleWords = (role: string | null) => (role && V2_ROLE[role]) || 'Taking part';
+
+/** What a subject option is, in words -- never an id. */
+export const v2SubjectWords = (s: { subjectType: string; workTitle: string | null }) =>
+  s.subjectType === 'AGREEMENT' ? 'The whole Agreement' : s.workTitle ? `Work: ${s.workTitle}` : 'A piece of work';
+
+/** What becomes restricted from release if this is opened (SecurePay's own isolation, never decided here). */
+export const v2RestrictedWords = (s: { wholeAgreementRestricted: boolean; subjectType: string; workTitle: string | null }) =>
+  s.wholeAgreementRestricted
+    ? (s.subjectType === 'AGREEMENT' ? 'The whole Agreement' : `The whole Agreement — “${s.workTitle ?? 'this work'}” has no separate amount, so it can’t be reviewed on its own`)
+    : `Only this work: “${s.workTitle ?? 'this work'}”`;
+
+export const V2_BOUNDARY = 'SecurePay records the review and restricts release of what it covers. SecurePay does not decide who is right, and opening a review does not move any money. It ends when everyone involved confirms the same settlement, or by a verified legal direction.';
