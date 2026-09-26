@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
@@ -43,6 +43,9 @@ interface SignedInHomeProps {
   greeting?: string;
   subheading?: string;
   suggestedPrompts?: string[];
+  /** Phase 7 Slice 5B -- an optional lower-page doorway (The Trust Project), rendered BELOW the conversation
+   *  and the person's own lists; omitted, the markup is unchanged. */
+  belowHome?: ReactNode;
 }
 
 const fixtureGreeting = 'Welcome back, James';
@@ -65,6 +68,7 @@ export function SignedInHome({
   greeting = fixtureGreeting,
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
+  belowHome,
 }: SignedInHomeProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   return (
@@ -125,6 +129,7 @@ export function SignedInHome({
               View all agreements
             </button>
           </div>
+          {belowHome}
         </div>
       </div>
 
