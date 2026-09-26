@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { SignedOutHome } from '../../components/SignedOutHome';
+import { TrustProjectSection } from '../../components/TrustProjectSection';
+import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { NavBar } from '../../components/NavBar';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { MessageBubble } from '../../components/MessageBubble';
@@ -226,12 +228,26 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // `ownerKsNumber` query parameter is required server-side, so this is the frontend-side equivalent).
   const [ownKsNumber, setOwnKsNumber] = useState<string | null>(null);
   useEffect(() => {
-    if (sessionState.status !== 'signed-in' || ownKsNumber) return;
+    // Phase 7 Slice 5B -- cleared on sign-out: Home now shows it as the member's identity, so it must
+    // never carry over to the next person who signs in on this device.
+    if (sessionState.status !== 'signed-in') { setOwnKsNumber(null); return; }
+    if (ownKsNumber) return;
     let cancelled = false;
     void circleGateway.me().then(profile => { if (!cancelled) setOwnKsNumber(profile.canonicalKsNumber); }).catch(() => { /* Projects still works with manual KS entry. */ });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionState.status]);
+  // Phase 7 Slice 5B -- the Home's Trust Project doorway reads the SAME self-scoped membership record
+  // Community uses. Unknown (signed out, or a failed read) shows no membership claim at all.
+  const [trustMembershipStatus, setTrustMembershipStatus] = useState<TrustProjectMembershipFact['status'] | undefined>(undefined);
+  useEffect(() => {
+    if (sessionState.status !== 'signed-in') { setTrustMembershipStatus(undefined); return; }
+    let cancelled = false;
+    if (community) return; // re-read on leaving Community, where accept / decline happen
+    void communityGateway.membership.me().then(m => { if (!cancelled) setTrustMembershipStatus(m.status); }).catch(() => { if (!cancelled) setTrustMembershipStatus(undefined); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState.status, community]);
   const reviewing = () => { void controller.review(); };
   const startNewConversation = () => {
     instruments.cancel();
@@ -508,6 +524,8 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
       onOpenStore={() => navigateTo('store')}
+      onOpenCommunity={() => navigateTo('community')}
+      trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
       onOpenReferral={openEcosystemForAgreement}
       onOpenProjects={() => navigateTo('projects')}
       onOpenVisionBoard={() => navigateTo('vision-board')}
@@ -619,6 +637,15 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
           }}
         />
       </div>}
+      {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
+          section, never a separate product surface, nav item or second Home. Signed-in people get a
+          smaller doorway with the full explanation one tap away. */}
+      <TrustProjectSection
+        compact={sessionState.status === 'signed-in'}
+        membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+        onExploreCommunity={() => navigateTo('community')}
+        onOpenStores={() => navigateTo('store')}
+      />
       {sessionState.status !== 'signed-in' && (
         <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
       )}

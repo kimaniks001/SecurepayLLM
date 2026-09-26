@@ -95,6 +95,9 @@ function TrustProjectBanner({
             Joining does not create any commercial obligation, and does not make you party to anyone else's Agreement.
             You remain independent — the community is guided by the 12 Principles above.
           </p>
+          <p className="text-[0.8rem] text-forest-700">
+            Joining gives you access to shared fair-trade technologies, systems and people while you remain independent.
+          </p>
           <div className="flex gap-2">
             <button onClick={onAccept} className="rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium px-4 py-2 hover:bg-forest-700 transition-colors">
               Accept

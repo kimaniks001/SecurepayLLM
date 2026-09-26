@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavBar } from '../../components/NavBar';
 import { SignedInHome } from '../../components/SignedInHome';
+import { TrustProjectSection } from '../../components/TrustProjectSection';
+import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { AgreementHub } from '../../components/AgreementHub';
 import { AgreementDetail } from '../../components/AgreementDetail';
 import { MoneyDoorway } from '../money/MoneyDoorway';
@@ -76,7 +78,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, trustProjectMembership = null, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -87,6 +89,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   agentController?: Pick<AgentController, 'getSnapshot' | 'subscribe' | 'ensureConversationId' | 'send'>;
   initialAgreementId?: string | null;
   onOpenStore?: () => void;
+  /** Phase 7 Slice 5B -- the real Community view (the Trust Project doorway and the nav item). Optional, mirroring onOpenStore. */
+  onOpenCommunity?: () => void;
+  /** Phase 7 Slice 5B -- the signed-in person's own membership + canonical KS Number; null when not known. */
+  trustProjectMembership?: TrustProjectMembershipFact | null;
   onOpenReferral?: (agreementId: string) => void;
   /** Final Completion Phase 5A -- private Projects organization view. Optional, mirroring onOpenStore. */
   onOpenProjects?: () => void;
@@ -203,6 +209,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
     else if (view === 'agreements') controller.goHub();
     else if (view === 'money') setNotice('Open Money from a specific agreement to view it.');
     else if (view === 'store' && onOpenStore) onOpenStore();
+    else if (view === 'community' && onOpenCommunity) onOpenCommunity();
     else if (view === 'projects' && onOpenProjects) onOpenProjects();
     else if (view === 'vision-board' && onOpenVisionBoard) onOpenVisionBoard();
     else setNotice('This area is not available yet.');
@@ -238,6 +245,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           // KS001 Upgrade Phase 4 final convergence (Section 4) -- the same top-level hash-route seam,
           // to the dedicated Invitations surface (RuntimeApp's own useInvitationInboxRoute).
           onViewAllInvitations={() => { window.location.hash = '#/invitations'; }}
+          // Phase 7 Slice 5B -- The Trust Project, as a small doorway BELOW the person's own Home.
+          belowHome={onOpenCommunity && onOpenStore
+            ? <div className="mt-16"><TrustProjectSection compact membership={trustProjectMembership} onExploreCommunity={onOpenCommunity} onOpenStores={onOpenStore} /></div>
+            : undefined}
         />
       );
     }
