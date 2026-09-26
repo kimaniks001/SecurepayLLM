@@ -1,5 +1,25 @@
 # UI Completion — Phase 7: Living Agreement Execution, Evidence, Milestones & Completion Truth
 
+## KS001 Upgrade Phase 7 — Slice 1 (Execution & Progress): **Start work is wired**; Review and Complete stay withheld
+
+**Current architectural decision.** SecurePayAPI Phase 7 Slice 1 (branch `feat/phase7-execution-progress-slice1`) made START an atomic, server-owned authority:
+
+- `POST …/obligations/{id}/start` now takes `{ idempotencyKey, expectedAgreementVersionId, expectedObligationVersion }`. SecurePay rejects a stale Agreement version or obligation state version with **409** (compare-and-swap inside the transaction), a closed (cancelled/expired) Agreement with **422**, and anyone who is not the obligation's responsible, established participant with **403** (dedicated `AGREEMENT_OBLIGATION_START` permission + per-object check). An identical retry replays; the same key with a different request is a 409.
+- Obligation reads now carry `stateVersion`.
+- SecurePay's next actions only advertise `START_OBLIGATION` for AVAILABLE (or unstarted OVERDUE) work; PENDING work is `WAIT_UNTIL_AVAILABLE`.
+
+Frontend changes in this slice:
+
+- `ObligationDto.stateVersion`; `startObligation(id, oid, { idempotencyKey, expectedAgreementVersionId, expectedObligationVersion })`.
+- The execution controller binds a first Start to the fresh preflight's current version id and the obligation's `stateVersion`, and **pins them with the key**: an uncertain retry resends the identical request (SecurePay's idempotency digest covers the expected versions). `startable` = AVAILABLE | OVERDUE (PENDING is never startable).
+- 409 → nothing started, the Agreement is reloaded, work re-read: "The Agreement or this work changed while you were looking at it, so nothing was started. Check what SecurePay shows now."
+- The Progress panel renders **Start work** only on SecurePay's own `START_OBLIGATION` signal for that current-version obligation; an uncertain start shows **Check with SecurePay** and **Try starting again** (same request).
+- `WAIT_UNTIL_AVAILABLE` has plain wording and is never a control.
+- **Still withheld:** Approve / Reject evidence and Complete this obligation — those endpoints are still not bound to the current version (later Phase 7 slices). The production guard tests now allow only the Progress panel to call `start` / `checkStart`, and still forbid any production call to review / complete.
+
+The section below is the earlier boundary, kept for history; where it says Start is withheld, Slice 1 supersedes it.
+
+
 Branch `feat/ui-phase7-execution` from UI `main` @ `bfb8bd0cd0996c9623eb01ee8ee5157b72a74e64` (Phase 6 / PR #32 merged). SecurePayAPI `main` @ `75a490bc7bdbe0b213dad00037d7f72be579c13b` (read-only, **not modified**; the API was not run). Not merged, not deployed.
 
 Doctrine: *evidence is a claim; review is a judgment about the claim; completion is backend evaluation over Agreement facts.* The UI reads and, only where SecurePay's own signals allow, records; it never decides what happened.

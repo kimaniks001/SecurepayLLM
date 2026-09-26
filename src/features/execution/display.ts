@@ -20,6 +20,7 @@ export const NEXT_ACTION_WORDS: Readonly<Record<string, string>> = {
   SUBMIT_EVIDENCE: 'SecurePay is waiting for evidence from you.',
   REVIEW_EVIDENCE: 'SecurePay says this evidence needs review.',
   WAIT_FOR_DEPENDENCY: 'SecurePay is waiting — there is nothing for you to do yet.',
+  WAIT_UNTIL_AVAILABLE: 'This work isn’t available to start yet — there is nothing for you to do yet.',
   FUND_AGREEMENT: 'This is a payment obligation. Money is handled in the Money area.',
 };
 export const nextActionWords = (action: NextActionDto) => {
