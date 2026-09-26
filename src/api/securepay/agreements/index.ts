@@ -23,6 +23,8 @@ export type EvidenceReviewState = 'AWAITING_REVIEW' | 'APPROVED' | 'REJECTED' | 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'NEEDS_MORE_INFORMATION';
 /** Phase 7 Slice 3: the reviewer (the obligation's beneficiary) is derived by SecurePay from the session, never sent. */
 export interface ReviewEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; decision: ReviewDecision; reason?: string }
+/** Phase 7 Slice 4: the completing participant is derived by SecurePay from the session, never sent. */
+export interface CompleteObligationRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number }
 export interface EvidenceReviewDto { evidenceId: string; obligationId: string; decision: ReviewDecision; reason: string | null; reviewedAt: string; replayed: boolean }
 /**
  * Phase 7 Slice 2: this app submits only WRITTEN STATEMENTS. SecurePay has no file storage, so nothing is uploaded; the statement text
@@ -122,8 +124,10 @@ export function createAgreementGateway(http: HttpClient) {
     // Phase 7 Slice 1: SecurePay checks the caller is the responsible, established participant and atomically binds the start to the
     // expected CURRENT Agreement version and obligation state version (stale -> 409, closed Agreement -> 422). Idempotent per key+body.
     startObligation: (id: string, obligationId: string, body: StartObligationRequest) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/start`, { method: 'POST', body, auth: 'required' }),
-    // The server checks no participant at all for completion; it only requires the completion requirements to be met.
-    completeObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/complete`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Phase 7 Slice 4: only the obligation's responsible participant (derived server-side) may complete it, only when SecurePay's
+    // completion evaluator says eligible (evidence accepted by the beneficiary, etc.); bound to the expected versions (stale -> 409),
+    // idempotent per key. Completion is not payment and moves no money.
+    completeObligation: (id: string, obligationId: string, body: CompleteObligationRequest) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/complete`, { method: 'POST', body, auth: 'required' }),
     // Phase 7 Slice 2: only the obligation's responsible participant may submit; bound to the expected current Agreement version and the
     // obligation's stateVersion (stale -> 409, closed Agreement -> 422); idempotent per key+body. Evidence is NOT approval or completion.
     submitEvidence: (id: string, obligationId: string, body: SubmitStatementEvidenceRequest) => http.request<EvidenceDto>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { method: 'POST', body, auth: 'required' }),

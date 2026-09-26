@@ -9,9 +9,6 @@ const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disa
 const SECONDARY = `${BTN} border border-cream-300 bg-white text-forest-700 hover:border-forest-300`;
 const PRIMARY = `${BTN} bg-forest-700 text-cream-50 hover:bg-forest-800`;
 const dateOf = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
-const LIMIT = {
-  complete: 'Completing it from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
-};
 const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 text-forest-800' : n.kind === 'info' ? 'border-cream-300 bg-cream-50 text-sand-800' : 'border-ember-200 bg-ember-50 text-sand-800';
 
 /**
@@ -101,7 +98,8 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
           checks the responsible participant itself, so it is offered only on SecurePay's own START_OBLIGATION signal.
           Review (Phase 7 Slice 3): offered only on SecurePay's own REVIEW_EVIDENCE signal (SecurePay decides who reviews -- the obligation's
           beneficiary -- and binds the decision to the current versions). A review is not completion and moves no money.
-          WITHHELD: Complete. That endpoint still has no responsibility/version binding (Slice 4); its fact is shown read-only. */}
+          Complete (Phase 7 Slice 4): offered only on SecurePay's own COMPLETE_OBLIGATION signal (SecurePay derives the responsible
+          participant, requires its evaluator to say eligible and binds the completion to the current versions). Not payment. */}
       {controller.canStart(o.id) && notice?.action !== 'start' && <button type="button" className={`${PRIMARY} mt-3`} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>{state.busy?.id === o.id && state.busy.action === 'start' ? 'Starting…' : 'Start work'}</button>}
       {review && notice?.action !== 'review' && <div className="mt-3 space-y-1.5">
         <p className="text-[0.8rem] font-medium text-forest-800">Review this evidence</p>
@@ -116,11 +114,19 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
           <button type="button" className={SECONDARY} disabled={!!state.busy || !controller.reviewReasonDraft(o.id).trim()} onClick={() => void controller.review(o.id, 'NEEDS_MORE_INFORMATION')}>Ask for more information</button>
         </div>
       </div>}
-      {comp?.status === 'ready' && comp.data.eligible && mine && (o.status === 'IN_PROGRESS' || o.status === 'EVIDENCE_SUBMITTED') && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.complete}</p>}
+      {controller.canComplete(o.id) && notice?.action !== 'complete' && <div className="mt-3 space-y-1.5">
+        {o.status === 'OVERDUE' && <p className="text-[0.8rem] text-sand-800">This work is overdue, but it can still be completed. SecurePay keeps a record that it was late.</p>}
+        <p className="text-[0.75rem] leading-snug text-sand-600">Completing records that this work is done. It isn’t payment and doesn’t release money.</p>
+        <button type="button" className={PRIMARY} disabled={!!state.busy} onClick={() => void controller.complete(o.id)}>{state.busy?.id === o.id && state.busy.action === 'complete' ? 'Completing…' : 'Complete this obligation'}</button>
+      </div>}
       {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}><p>{notice.text}</p>
         {notice.kind === 'uncertain' && notice.action === 'start' && <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkStart(o.id)}>Check with SecurePay</button>
           {controller.canStart(o.id) && <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>Try starting again</button>}
+        </div>}
+        {notice.kind === 'uncertain' && notice.action === 'complete' && <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkComplete(o.id)}>Check with SecurePay</button>
+          <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.complete(o.id)}>Try completing again</button>
         </div>}
         {notice.kind === 'uncertain' && notice.action === 'review' && <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkReview(o.id)}>Check with SecurePay</button>
