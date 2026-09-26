@@ -3,7 +3,7 @@ import { ApiError } from '../../api/securepay/http';
 import { currentVersionObligations } from './display';
 
 export type Remote<T> = { status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
-export type ExecAction = 'start' | 'complete' | 'review';
+export type ExecAction = 'start' | 'complete' | 'review' | 'evidence';
 export interface Notice { kind: 'done' | 'info' | 'uncertain' | 'error'; text: string; action?: ExecAction; /** How many more fresh looks (`load`) this outcome survives; the version-moved explanation must outlive the reload it triggers. */ ttl?: number }
 export interface ExecutionState {
   /** ALL obligations SecurePay returns (every version). Only `current(...)` may be treated as current work. */
@@ -15,8 +15,10 @@ export interface ExecutionState {
   notices: Record<string, Notice>;
   /** An uncertain review pins its decision until settled, so the opposite decision can't be offered meanwhile. */
   pendingReview: Record<string, 'APPROVED' | 'REJECTED'>;
+  /** Phase 7 Slice 2: the written statement being drafted per obligation (never persisted outside this controller). */
+  drafts: Record<string, string>;
 }
-const initial: ExecutionState = { obligations: { status: 'idle' }, nextActions: { status: 'idle' }, completion: {}, evidence: {}, busy: null, notices: {}, pendingReview: {} };
+const initial: ExecutionState = { obligations: { status: 'idle' }, nextActions: { status: 'idle' }, completion: {}, evidence: {}, busy: null, notices: {}, pendingReview: {}, drafts: {} };
 
 /** A client timeout / network failure / 5xx is not proof the step failed: SecurePay may already have recorded it. */
 const isUncertain = (error: unknown) => error instanceof ApiError && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500);
@@ -25,7 +27,9 @@ const ACTIVE = ['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'OVERDUE'];
 /** The only states SecurePay can start from (ObligationService#start); PENDING is never startable. */
 const startable = (status: string) => status === 'AVAILABLE' || status === 'OVERDUE';
 
-type Gateway = Pick<AgreementGateway, 'detail' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'>;
+type Gateway = Pick<AgreementGateway, 'detail' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions' | 'submitEvidence'>;
+/** SecurePay's own limit for a written statement. */
+export const STATEMENT_MAX = 2048;
 
 /**
  * Execution of the CURRENT version's obligations. It reads; it acts only where SecurePay's own signals allow, and never advances
@@ -36,6 +40,9 @@ type Gateway = Pick<AgreementGateway, 'detail' | 'obligations' | 'obligationComp
  *  - Review evidence: only when the caller's own next actions contain REVIEW_EVIDENCE naming that evidence. Approve and Reject only.
  *  - Complete this obligation: only when SecurePay's completion-status says eligible AND the obligation's responsible participant
  *    is the caller (the server checks no participant for completion; this only ever RESTRICTS).
+ *  - Submit evidence (Phase 7 Slice 2): only when the caller's own next actions contain SUBMIT_EVIDENCE for that obligation. It is a
+ *    WRITTEN STATEMENT only: SecurePay has no file storage, so nothing is uploaded. SecurePay derives the submitter, enforces the
+ *    responsible participant and binds the submission to the expected Agreement + obligation versions. Evidence is not approval.
  * There is no evidence upload (no storage exists) and no whole-Agreement completion command (it is a read model).
  */
 export function createExecutionController(gateway: Gateway, agreementId: string, currentVersionId: () => string | null, ownParticipantId: () => string | null, onChanged: () => void | Promise<void> = () => {}, id = () => crypto.randomUUID()) {
@@ -46,6 +53,8 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
   /** One key per consequential attempt, released on settle; an uncertain retry re-sends the SAME one. */
   /** Start pins the expected versions WITH its key: an uncertain retry must resend the identical request (SecurePay's idempotency digest covers them). */
   const startPins = new Map<string, { versionId: string; stateVersion: number }>();
+  /** Evidence pins the versions AND the exact text with its key, for the same reason. */
+  const evidencePins = new Map<string, { versionId: string; stateVersion: number; text: string }>();
   const keys = new Map<string, string>();
   const keyFor = (k: string) => { let v = keys.get(k); if (!v) { v = id(); keys.set(k, v); } return v; };
   let inflight: Promise<void> | null = null;
@@ -201,6 +210,65 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       void onChanged();
     },
 
+    // -------------------------------------------------------------- Submit evidence (a written statement; Phase 7 Slice 2)
+    canSubmitEvidence(oid: string): boolean {
+      const o = obligationById(oid);
+      return !!o && state.nextActions.status === 'ready' && state.nextActions.data.some(a => a.actionType === 'SUBMIT_EVIDENCE' && a.targetObligationId === oid) && (o.status === 'IN_PROGRESS' || o.status === 'OVERDUE');
+    },
+    /** The statement an unsettled (uncertain) submission is pinned to, if any; it can't be edited until settled. */
+    pendingStatement(oid: string): string | null { return evidencePins.get(oid)?.text ?? null; },
+    setDraft(oid: string, text: string) { if (!evidencePins.has(oid)) update({ drafts: { ...state.drafts, [oid]: text.slice(0, STATEMENT_MAX) } }); },
+    async submitStatement(oid: string) {
+      if (state.busy) return;
+      const pinned = evidencePins.get(oid);
+      const text = (pinned?.text ?? state.drafts[oid] ?? '').trim();
+      if (!text) { notice(oid, { kind: 'error', text: 'Write what you did before submitting it as evidence.' }); return; }
+      if (!pinned && !this.canSubmitEvidence(oid)) return;
+      update({ busy: { id: oid, action: 'evidence' } }); notice(oid, null);
+      const fresh = await freshAuthority(); update({ busy: null });
+      if (!fresh) { await blocked(oid, 'submitted', 'unreadable'); return; }
+      const target = inFreshVersion(fresh, oid);
+      if (!target) { await blocked(oid, 'submitted', 'version'); return; }
+      // A first submission needs SecurePay's SUBMIT_EVIDENCE signal. An uncertain RETRY may find it gone because the first attempt landed;
+      // it resends the pinned request unchanged and SecurePay replays it (or answers 409 if something else changed).
+      if (!pinned && (!fresh.next.some(a => a.actionType === 'SUBMIT_EVIDENCE' && a.targetObligationId === oid) || (target.status !== 'IN_PROGRESS' && target.status !== 'OVERDUE'))) { await blocked(oid, 'submitted', 'signal'); return; }
+      const key = keyFor(`evidence:${oid}`);
+      const pin = pinned ?? { versionId: fresh.versionId, stateVersion: target.stateVersion, text };
+      evidencePins.set(oid, pin);
+      const settle = () => { keys.delete(`evidence:${oid}`); evidencePins.delete(oid); };
+      update({ busy: { id: oid, action: 'evidence' } });
+      try {
+        await gateway.submitEvidence(agreementId, oid, { idempotencyKey: key, expectedAgreementVersionId: pin.versionId, expectedObligationVersion: pin.stateVersion, evidenceType: 'TEXT_STATEMENT', description: pin.text });
+        settle(); const d = { ...state.drafts }; delete d[oid]; update({ busy: null, drafts: d });
+        notice(oid, { kind: 'done', text: 'SecurePay recorded your evidence. It now waits for review — submitting it doesn’t approve it or complete the work.' });
+        await refreshAll(); void onChanged();
+      } catch (error) {
+        update({ busy: null });
+        if (isUncertain(error)) { notice(oid, { kind: 'uncertain', action: 'evidence', text: `We’re not sure whether SecurePay recorded your evidence. ${UNCERTAIN}` }); return; }
+        settle();
+        if (error instanceof ApiError && error.status === 401) { notice(oid, { kind: 'error', text: 'Your session ended before SecurePay could act on this. No evidence was submitted. Sign in again, then try again.' }); return; }
+        if (error instanceof ApiError && error.status === 403) { notice(oid, { kind: 'error', text: 'Only the person responsible for this work can submit evidence for it. No evidence was submitted.' }); return; }
+        const stale = error instanceof ApiError && error.status === 409;
+        if (stale) await onChanged();
+        await refreshAll();
+        notice(oid, stale
+          ? { kind: 'error', ttl: 2, text: 'The Agreement or this work changed while you were looking at it, so no evidence was submitted. Check what SecurePay shows now.' }
+          : { kind: 'error', text: 'SecurePay couldn’t accept that evidence. No evidence was submitted.' });
+      }
+    },
+    /** After an uncertain submission: only a re-read evidence record with exactly the pinned statement proves it was recorded. */
+    async checkEvidence(oid: string) {
+      if (state.busy) return;
+      const pin = evidencePins.get(oid);
+      const list = await readEvidence(oid); await Promise.all([readObligations(), readNext()]);
+      if (!list) { notice(oid, { kind: 'uncertain', action: 'evidence', text: 'SecurePay couldn’t be reached to check. Try again in a moment.' }); return; }
+      if (pin && list.some(e => e.status !== 'SUPERSEDED' && (e.description ?? '').trim() === pin.text)) {
+        keys.delete(`evidence:${oid}`); evidencePins.delete(oid); const d = { ...state.drafts }; delete d[oid]; update({ drafts: d });
+        notice(oid, { kind: 'done', text: 'SecurePay shows your evidence as submitted. It now waits for review.' }); void onChanged(); return;
+      }
+      notice(oid, { kind: 'uncertain', action: 'evidence', text: 'SecurePay doesn’t show that evidence yet. You can try again — it sends the same request, so it can’t be recorded twice.' });
+    },
+
     // -------------------------------------------------------------- Review evidence (Approve / Reject only)
     async review(oid: string, decision: 'APPROVED' | 'REJECTED', reason?: string) {
       const target = this.reviewTarget(oid);
@@ -286,7 +354,7 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       if (o?.status === 'COMPLETED') { keys.delete(`complete:${oid}`); notice(oid, { kind: 'done', text: 'SecurePay shows this obligation as complete.' }); await refreshAll(); await onChanged(); }
       else notice(oid, { kind: 'uncertain', action: 'complete', text: all ? 'SecurePay doesn’t show this obligation as complete yet. You can try again — it uses the same request, so it can’t be recorded twice.' : 'SecurePay couldn’t be reached to check. Try again in a moment.' });
     },
-    reset() { keys.clear(); startPins.clear(); inflight = null; update({ ...initial }); },
+    reset() { keys.clear(); startPins.clear(); evidencePins.clear(); inflight = null; update({ ...initial }); },
   };
 }
 export type ExecutionController = ReturnType<typeof createExecutionController>;

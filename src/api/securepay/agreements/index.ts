@@ -14,7 +14,14 @@ export interface ObligationDto { id: string; publicReference: string; agreementI
   stateVersion: number }
 export interface StartObligationRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number }
 export interface ObligationCompletionStatusDto { eligible: boolean; currentStatus: string; unmetRequirements: string[]; satisfiedRequirements: string[]; evidenceIds: string[]; explanationCodes: string[] }
-export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string }
+export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string;
+  /** Phase 7 Slice 2: STATEMENT (the text is the evidence) or DECLARED_REFERENCE (SecurePay holds no file). */
+  kind?: 'STATEMENT' | 'DECLARED_REFERENCE'; supersedesEvidenceId?: string | null }
+/**
+ * Phase 7 Slice 2: this app submits only WRITTEN STATEMENTS. SecurePay has no file storage, so nothing is uploaded; the statement text
+ * is the evidence. The submitting participant is derived by SecurePay from the session, never sent.
+ */
+export interface SubmitStatementEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; evidenceType: 'TEXT_STATEMENT'; description: string }
 export interface NextActionDto { participantId: string; agreementId: string; currentAgreementVersionId: string; actionType: string; targetObligationId: string | null; targetMilestoneId: string | null; actionReason: string; prerequisiteStatus: string | null; deadline: string | null; urgency: string; requiredEvidenceTypes: string[]; blockedByObligationIds: string[]; supportingEvidenceIds: string[] }
 export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
 export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
@@ -108,6 +115,9 @@ export function createAgreementGateway(http: HttpClient) {
     startObligation: (id: string, obligationId: string, body: StartObligationRequest) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/start`, { method: 'POST', body, auth: 'required' }),
     // The server checks no participant at all for completion; it only requires the completion requirements to be met.
     completeObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/complete`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Phase 7 Slice 2: only the obligation's responsible participant may submit; bound to the expected current Agreement version and the
+    // obligation's stateVersion (stale -> 409, closed Agreement -> 422); idempotent per key+body. Evidence is NOT approval or completion.
+    submitEvidence: (id: string, obligationId: string, body: SubmitStatementEvidenceRequest) => http.request<EvidenceDto>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { method: 'POST', body, auth: 'required' }),
     // Narrow evidence RECORD list (no filename, uploader, size, hash or object reference). There is no upload or retrieval API.
     obligationEvidence: (id: string, obligationId: string) => http.request<EvidenceDto[]>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { auth: 'required' }),
     // Records a review decision. It does NOT change the evidence's status (nothing in the backend ever moves it past SUBMITTED).

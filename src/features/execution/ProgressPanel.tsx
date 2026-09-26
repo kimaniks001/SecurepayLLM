@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import type { NextActionDto, ObligationDto } from '../../api/securepay/agreements';
 import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse } from '../../api/securepay/agreements/dto';
 import { completionFacts, evidenceTypeWords, milestoneReasonWords, milestoneStateWord, nextActionWords, obligationStatusWord, requirementWords, satisfiedWords } from './display';
-import type { ExecutionController, Notice } from './controller';
+import { STATEMENT_MAX, type ExecutionController, type Notice } from './controller';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
 const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disabled:opacity-40`;
@@ -56,7 +56,16 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       {o.status === 'OVERDUE' && <p className="text-[0.8rem] text-sand-800">This is past its expected time and still needs attention.</p>}
       {next && <p className="mt-1.5 text-[0.85rem] leading-snug text-forest-800">{nextActionWords(next)}</p>}
       {next?.actionType === 'WAIT_FOR_DEPENDENCY' && next.prerequisiteStatus === 'BLOCKED' && blockers.length > 0 && <p className="text-[0.8rem] text-sand-700">Waiting for {blockers.map(t => t ? `“${t}”` : 'other work').join(', ')} to be completed.</p>}
-      {next?.actionType === 'SUBMIT_EVIDENCE' && <p className="text-[0.8rem] leading-snug text-sand-700">Submitting evidence isn’t available in SecurePay yet, so it can’t be done from here.</p>}
+      {/* Submit evidence (Phase 7 Slice 2): a written statement only, offered only on SecurePay's own SUBMIT_EVIDENCE signal for the caller.
+          SecurePay derives the submitter, enforces responsibility and binds the submission to the current versions. No file upload exists. */}
+      {controller.canSubmitEvidence(o.id) && notice?.action !== 'evidence' && <div className="mt-2 space-y-1.5">
+        <label htmlFor={`evidence-${o.id}`} className="block text-[0.8rem] font-medium text-forest-800">Describe what you did, as your evidence</label>
+        <textarea id={`evidence-${o.id}`} rows={3} maxLength={STATEMENT_MAX} value={state.drafts[o.id] ?? ''} disabled={!!state.busy}
+          onChange={e => controller.setDraft(o.id, e.target.value)}
+          className={`w-full rounded-xl border border-cream-300 bg-white px-3 py-2 text-[0.85rem] text-forest-800 ${FOCUS}`} />
+        <p className="text-[0.75rem] leading-snug text-sand-600">Uploading files isn’t available in SecurePay yet, so your written statement is your evidence. Submitting it doesn’t approve it or complete the work — it waits for review.</p>
+        <button type="button" className={PRIMARY} disabled={!!state.busy || !(state.drafts[o.id] ?? '').trim()} onClick={() => void controller.submitStatement(o.id)}>{state.busy?.id === o.id && state.busy.action === 'evidence' ? 'Submitting…' : 'Submit evidence'}</button>
+      </div>}
       {next && next.requiredEvidenceTypes.length > 0 && <p className="text-[0.8rem] text-sand-700">Evidence asked for: {next.requiredEvidenceTypes.map(evidenceTypeWords).join(', ')}.</p>}
       {monetary && next?.actionType === 'FUND_AGREEMENT' && onOpenMoney && <button type="button" className={`${SECONDARY} mt-1.5`} onClick={onOpenMoney}>Open Money</button>}
 
@@ -67,7 +76,7 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
         {ev.status === 'error' && <p className="text-[0.82rem] text-sand-700">Evidence couldn’t be loaded right now.</p>}
         {ev.status === 'ready' && ev.data.length === 0 && <p className="text-[0.82rem] text-sand-600">No evidence has been submitted.</p>}
         {ev.status === 'ready' && ev.data.length > 0 && <ul className="mt-1 space-y-1.5">{ev.data.map(e => <li key={e.id} className="rounded-xl bg-cream-50 px-3 py-2">
-          <p className="break-words text-[0.85rem] text-forest-800">{evidenceTypeWords(e.evidenceType)}{e.description ? ` — ${e.description}` : ''}</p>
+          <p className="break-words text-[0.85rem] text-forest-800">{e.kind === 'STATEMENT' ? 'Written statement' : evidenceTypeWords(e.evidenceType)}{e.description ? ` — ${e.description}` : ''}</p>
           <p className="text-[0.75rem] text-sand-600">Submitted {dateOf(e.submittedAt)} · {approved(e.id) ? 'Approved in review' : comp?.status === 'ready' ? 'Not yet approved in review' : 'Review status unavailable'}</p>
         </li>)}</ul>}
       </div>}
@@ -92,6 +101,13 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
         {notice.kind === 'uncertain' && notice.action === 'start' && <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkStart(o.id)}>Check with SecurePay</button>
           {controller.canStart(o.id) && <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>Try starting again</button>}
+        </div>}
+        {notice.kind === 'uncertain' && notice.action === 'evidence' && <div className="mt-2 space-y-2">
+          {controller.pendingStatement(o.id) && <p className="break-words text-[0.8rem] text-sand-700">Your statement: “{controller.pendingStatement(o.id)}”</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkEvidence(o.id)}>Check with SecurePay</button>
+            <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.submitStatement(o.id)}>Try submitting again</button>
+          </div>
         </div>}
       </div>}
     </li>;

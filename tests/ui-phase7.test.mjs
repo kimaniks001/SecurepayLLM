@@ -42,6 +42,7 @@ function setup(over = {}, world = {}) {
     startObligation: async (id, oid, { idempotencyKey: key, ...expected }) => { calls.push(['start', oid, key, expected]); return ob({ status: 'IN_PROGRESS' }); },
     completeObligation: async (id, oid, key) => { calls.push(['complete', oid, key]); return ob({ status: 'COMPLETED' }); },
     reviewEvidence: async (id, eid, body) => { calls.push(['review', eid, body]); return ev(); },
+    submitEvidence: async (id, oid, body) => { calls.push(['submitEvidence', oid, body.idempotencyKey, body]); return ev({ evidenceType: 'TEXT_STATEMENT', kind: 'STATEMENT', description: body.description }); },
     ...over,
   };
   // The workspace hands the controller its CACHED detail: it only moves when onChanged reloads it (as the real workspace does).
@@ -117,20 +118,77 @@ test('Start 403 / 401 are definite and release the key; an already-started 422 i
 });
 
 // ------------------------------------------------------------ Evidence (record only; no upload)
-test('there is no evidence submission, upload, storage or download anywhere in the production execution code', async () => {
+test('evidence is a WRITTEN STATEMENT only: no upload, file, storage, object reference, digest or download anywhere in the execution code', async () => {
   const gw = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
-  assert.doesNotMatch(gw, /submitEvidence|uploadEvidence|objectReference|presign/i);
+  assert.doesNotMatch(gw, /uploadEvidence|presign|objectReference|\bcontentHash\b/i);
+  assert.match(gw, /evidenceType: 'TEXT_STATEMENT'/); // the only type this app can send
   for (const f of ['src/features/execution/controller.ts', 'src/features/execution/ProgressPanel.tsx', 'src/features/execution/display.ts']) {
     const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-    assert.doesNotMatch(src, /submitEvidence|<input[^>]*type="file"|URL\.createObjectURL|FileReader|localStorage|sessionStorage|indexedDB|btoa\(|base64|objectReference|contentHash|href=/i, f);
+    assert.doesNotMatch(src, /<input[^>]*type="file"|URL\.createObjectURL|FileReader|localStorage|sessionStorage|indexedDB|btoa\(|base64|objectReference|contentHash|href=/i, f);
   }
 });
-test('SUBMIT_EVIDENCE is shown as a fact with the honest limitation, never as a control', async () => {
-  const { controller } = setup({}, { obligations: [ob({ status: 'IN_PROGRESS' })], actions: [act({ actionType: 'SUBMIT_EVIDENCE', prerequisiteStatus: 'IN_PROGRESS', requiredEvidenceTypes: ['PHOTO'] })] });
+const inProgress = { obligations: [ob({ status: 'IN_PROGRESS', stateVersion: 4 })], actions: [act({ actionType: 'SUBMIT_EVIDENCE', prerequisiteStatus: 'IN_PROGRESS', requiredEvidenceTypes: ['PHOTO'] })] };
+test('SUBMIT_EVIDENCE offers a written-statement form with the honest storage limitation; it is never offered without SecurePay\'s signal', async () => {
+  const { controller } = setup({}, inProgress);
+  await controller.load(); const markup = panel(controller); const out = text(markup);
+  assert.match(out, /SecurePay is waiting for evidence from you/); assert.match(out, /Evidence asked for: Photo/);
+  assert.match(markup, /<textarea/); assert.match(markup, /<button[^>]*>Submit evidence<\/button>/);
+  assert.match(out, /Uploading files isn.t available in SecurePay yet, so your written statement is your evidence/);
+  assert.match(out, /doesn.t approve it or complete the work/);
+  assert.doesNotMatch(out, /Upload file|Choose file|Approve|Complete this obligation/);
+  for (const world of [{ ...inProgress, actions: [] }, { obligations: [ob({ status: 'IN_PROGRESS', responsibleParticipantId: OTHER })], actions: [act({ actionType: 'WAIT_FOR_DEPENDENCY' })] }, reviewWorld, { obligations: [ob({ status: 'EVIDENCE_SUBMITTED' })], actions: [act({ actionType: 'WAIT_FOR_DEPENDENCY', prerequisiteStatus: 'EVIDENCE_SUBMITTED' })] }]) {
+    const s = setup({}, world); await s.controller.load(); const m = panel(s.controller);
+    assert.doesNotMatch(m, /<textarea|>Submit evidence</);
+  }
+});
+test('Submit evidence sends only the statement, the key and the versions SecurePay just returned -- never a participant, source or file', async () => {
+  const { controller, calls, world } = setup({}, inProgress); await controller.load();
+  controller.setDraft('o1', '  Fitted all six cabinets  ');
+  world.obligations = [ob({ status: 'IN_PROGRESS', stateVersion: 7 })];
+  await controller.submitStatement('o1');
+  const [, oid, key, body] = calls.find(c => c[0] === 'submitEvidence');
+  assert.equal(oid, 'o1'); assert.ok(key);
+  assert.deepEqual(body, { idempotencyKey: key, expectedAgreementVersionId: V2, expectedObligationVersion: 7, evidenceType: 'TEXT_STATEMENT', description: 'Fitted all six cabinets' });
+  const n = controller.getSnapshot().notices.o1; assert.equal(n.kind, 'done'); assert.match(n.text, /waits for review/); assert.match(n.text, /doesn.t approve it or complete the work/); assert.doesNotMatch(n.text, /\bapproved\b|work is complete|completed/i);
+  assert.equal(controller.getSnapshot().drafts.o1, undefined);
+  assert.equal(names(calls).some(x => x === 'review' || x === 'complete'), false);
+});
+test('an empty statement sends nothing; a missing SUBMIT_EVIDENCE signal at press time sends nothing', async () => {
+  const a = setup({}, inProgress); await a.controller.load(); a.controller.setDraft('o1', '   '); await a.controller.submitStatement('o1'); assert.equal(sent(a.calls).length, 0);
+  const b = setup({}, inProgress); await b.controller.load(); b.controller.setDraft('o1', 'Done'); b.world.actions = []; await b.controller.submitStatement('o1'); assert.equal(sent(b.calls).length, 0);
+  assert.match(b.controller.getSnapshot().notices.o1.text, /no longer lists this as something for you to do, so nothing was submitted/);
+});
+test('an uncertain submission pins the statement: the retry resends the IDENTICAL request and the draft can\'t change it', async () => {
+  let first = true;
+  const { controller, calls, world } = setup({ submitEvidence: async (id, oid, body) => { calls.push(['submitEvidence', oid, body.idempotencyKey, body]); if (first) { first = false; throw err('timeout', null); } return ev(); } }, inProgress);
+  await controller.load(); controller.setDraft('o1', 'Original statement'); await controller.submitStatement('o1');
+  assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain');
+  const markup = panel(controller); assert.match(markup, /Check with SecurePay/); assert.match(markup, /Try submitting again/); assert.match(text(markup), /Your statement: “Original statement”/); assert.doesNotMatch(markup, /<textarea/);
+  controller.setDraft('o1', 'Edited afterwards'); world.obligations = [ob({ status: 'EVIDENCE_SUBMITTED', stateVersion: 9 })]; world.actions = [];
+  await controller.submitStatement('o1');
+  const sends = calls.filter(c => c[0] === 'submitEvidence'); assert.equal(sends.length, 2); assert.deepEqual(sends[0][3], sends[1][3]);
+});
+test('Check proves an uncertain submission only from a re-read record with exactly the pinned statement', async () => {
+  const { controller, world } = setup({ submitEvidence: async () => { throw err('network', null); } }, inProgress);
+  await controller.load(); controller.setDraft('o1', 'Pinned words'); await controller.submitStatement('o1');
+  world.evidence = [ev({ description: 'Other words' })]; await controller.checkEvidence('o1'); assert.equal(controller.getSnapshot().notices.o1.kind, 'uncertain');
+  world.evidence = [ev({ description: 'Pinned words' })]; await controller.checkEvidence('o1'); assert.equal(controller.getSnapshot().notices.o1.kind, 'done');
+});
+test('submission 403 / 409 / 422 are definite: nothing submitted, key released, 409 reloads and explains the change', async () => {
+  for (const [status, re] of [[403, /Only the person responsible for this work can submit evidence/], [409, /changed while you were looking at it, so no evidence was submitted/], [422, /couldn.t accept that evidence/]]) {
+    const { controller, calls, changed } = setup({ submitEvidence: async (id, oid, body) => { calls.push(['submitEvidence', oid, body.idempotencyKey, body]); throw err('http', status); } }, inProgress);
+    await controller.load(); controller.setDraft('o1', 'x'); const before = changed.length; await controller.submitStatement('o1');
+    assert.match(controller.getSnapshot().notices.o1.text, re);
+    if (status === 409) assert.ok(changed.length > before);
+    controller.setDraft('o1', 'x'); await controller.submitStatement('o1');
+    const keys = calls.filter(c => c[0] === 'submitEvidence').map(c => c[2]); assert.notEqual(keys[0], keys[1]);
+  }
+});
+test('submitted statements render as "Written statement" and stay "Not yet approved in review" until completion-status says otherwise', async () => {
+  const { controller } = setup({}, { obligations: [ob({ status: 'EVIDENCE_SUBMITTED' })], actions: [act({ actionType: 'WAIT_FOR_DEPENDENCY', prerequisiteStatus: 'EVIDENCE_SUBMITTED' })], evidence: [ev({ evidenceType: 'TEXT_STATEMENT', kind: 'STATEMENT', description: 'Fitted all six cabinets' })], completion: comp({ unmetRequirements: ['evidence_review_pending_e1'] }) });
   await controller.load(); const out = text(panel(controller));
-  assert.match(out, /SecurePay is waiting for evidence from you/); assert.match(out, /Submitting evidence isn.t available in SecurePay yet, so it can.t be done from here/); assert.match(out, /Evidence asked for: Photo/);
-  assert.doesNotMatch(out, /Upload|Submit evidence\b(?!s)/);
-  assert.equal(names([]).length, 0);
+  assert.match(out, /Written statement — Fitted all six cabinets/); assert.match(out, /Not yet approved in review/); assert.match(out, /waiting for the evidence to be reviewed/);
+  assert.doesNotMatch(out, /Approved in review/);
 });
 test('existing evidence renders from SecurePay with only the fields it returns; a failed read is not "no evidence"', async () => {
   const { controller } = setup({}, { obligations: [ob({ status: 'EVIDENCE_SUBMITTED' })], actions: [], evidence: [ev()] });
@@ -372,7 +430,7 @@ test('reopening the panel drops settled outcomes but keeps an unsettled (uncerta
 });
 
 // ------------------------------------------------------------ Phase 7 correction: action-time authority, honest settlement, fail-closed refresh
-const sent = calls => calls.filter(c => ['start', 'complete', 'review'].includes(c[0]));
+const sent = calls => calls.filter(c => ['start', 'complete', 'review', 'submitEvidence'].includes(c[0]));
 test('RACE Start: v1 rendered, v2 becomes current before the press -> ZERO start call; refreshed; old action not transplanted', async () => {
   const { controller, calls, world, changed } = setup(); await controller.load(); assert.equal(controller.canStart('o1'), true);
   world.current = 'v3'; // another client made v3 current; the obligation still belongs to V2 and SecurePay still lists the (stale) action
@@ -532,7 +590,7 @@ test('PRODUCTION GUARD: only the Progress panel wires Start; nothing outside the
       assert.doesNotMatch(src, /\.(review|complete|checkReview|checkComplete)\(/, f);
       if (f !== 'src/features/execution/ProgressPanel.tsx') assert.doesNotMatch(src, /\.(start|checkStart)\(/, f);
     }
-    assert.doesNotMatch(src, /\.(startObligation|completeObligation|reviewEvidence)\(/, f);
+    assert.doesNotMatch(src, /\.(startObligation|completeObligation|reviewEvidence|submitEvidence)\(/, f);
   }
 });
 test('PRODUCTION GUARD: the Progress panel has no Approve / Reject / Complete control, whatever the state', async () => {
