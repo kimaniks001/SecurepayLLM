@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import type { NextActionDto, ObligationDto } from '../../api/securepay/agreements';
+import type { EvidenceDto, NextActionDto, ObligationDto } from '../../api/securepay/agreements';
 import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse } from '../../api/securepay/agreements/dto';
 import { completionFacts, evidenceTypeWords, milestoneReasonWords, milestoneStateWord, nextActionWords, obligationStatusWord, requirementWords, satisfiedWords } from './display';
 import { STATEMENT_MAX, type ExecutionController, type Notice } from './controller';
@@ -10,7 +10,6 @@ const SECONDARY = `${BTN} border border-cream-300 bg-white text-forest-700 hover
 const PRIMARY = `${BTN} bg-forest-700 text-cream-50 hover:bg-forest-800`;
 const dateOf = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
 const LIMIT = {
-  review: 'Recording the review from this screen is temporarily unavailable until SecurePay can bind it safely to the current Agreement version.',
   complete: 'Completing it from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
 };
 const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 text-forest-800' : n.kind === 'info' ? 'border-cream-300 bg-cream-50 text-sand-800' : 'border-ember-200 bg-ember-50 text-sand-800';
@@ -43,6 +42,13 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
     const responsible = nameOf(o.responsibleParticipantId); const mine = !!me && o.responsibleParticipantId === me;
     const blockers = (next?.blockedByObligationIds ?? []).map(titleOfObligation);
     const review = controller.reviewTarget(o.id);
+    const replacing = controller.replacementTarget(o.id);
+    const reviewWords = (e: EvidenceDto) => e.reviewState === 'APPROVED' || (!e.reviewState && approved(e.id)) ? 'Approved in review'
+      : e.reviewState === 'REJECTED' ? 'Not accepted in review'
+      : e.reviewState === 'NEEDS_MORE_INFORMATION' ? 'More information requested'
+      : e.reviewState === 'SUPERSEDED' ? 'Replaced by newer evidence'
+      : e.reviewState === 'AWAITING_REVIEW' ? 'Awaiting review'
+      : comp?.status === 'ready' ? 'Not yet approved in review' : 'Review status unavailable';
     const approved = (eid: string) => comp?.status === 'ready' && comp.data.satisfiedRequirements.includes(`evidence_approved_${eid}`);
     const monetary = o.obligationType === 'MONETARY';
     const detailsLoaded = !!comp || !!ev;
@@ -58,13 +64,13 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       {next?.actionType === 'WAIT_FOR_DEPENDENCY' && next.prerequisiteStatus === 'BLOCKED' && blockers.length > 0 && <p className="text-[0.8rem] text-sand-700">Waiting for {blockers.map(t => t ? `“${t}”` : 'other work').join(', ')} to be completed.</p>}
       {/* Submit evidence (Phase 7 Slice 2): a written statement only, offered only on SecurePay's own SUBMIT_EVIDENCE signal for the caller.
           SecurePay derives the submitter, enforces responsibility and binds the submission to the current versions. No file upload exists. */}
-      {controller.canSubmitEvidence(o.id) && notice?.action !== 'evidence' && <div className="mt-2 space-y-1.5">
-        <label htmlFor={`evidence-${o.id}`} className="block text-[0.8rem] font-medium text-forest-800">Describe what you did, as your evidence</label>
+      {(controller.canSubmitEvidence(o.id) || !!replacing) && notice?.action !== 'evidence' && <div className="mt-2 space-y-1.5">
+        <label htmlFor={`evidence-${o.id}`} className="block text-[0.8rem] font-medium text-forest-800">{replacing ? 'Replace your evidence: describe what you did, with what was asked for' : 'Describe what you did, as your evidence'}</label>
         <textarea id={`evidence-${o.id}`} rows={3} maxLength={STATEMENT_MAX} value={state.drafts[o.id] ?? ''} disabled={!!state.busy}
           onChange={e => controller.setDraft(o.id, e.target.value)}
           className={`w-full rounded-xl border border-cream-300 bg-white px-3 py-2 text-[0.85rem] text-forest-800 ${FOCUS}`} />
         <p className="text-[0.75rem] leading-snug text-sand-600">Uploading files isn’t available in SecurePay yet, so your written statement is your evidence. Submitting it doesn’t approve it or complete the work — it waits for review.</p>
-        <button type="button" className={PRIMARY} disabled={!!state.busy || !(state.drafts[o.id] ?? '').trim()} onClick={() => void controller.submitStatement(o.id)}>{state.busy?.id === o.id && state.busy.action === 'evidence' ? 'Submitting…' : 'Submit evidence'}</button>
+        <button type="button" className={PRIMARY} disabled={!!state.busy || !(state.drafts[o.id] ?? '').trim()} onClick={() => void controller.submitStatement(o.id)}>{state.busy?.id === o.id && state.busy.action === 'evidence' ? 'Submitting…' : replacing ? 'Replace evidence' : 'Submit evidence'}</button>
       </div>}
       {next && next.requiredEvidenceTypes.length > 0 && <p className="text-[0.8rem] text-sand-700">Evidence asked for: {next.requiredEvidenceTypes.map(evidenceTypeWords).join(', ')}.</p>}
       {monetary && next?.actionType === 'FUND_AGREEMENT' && onOpenMoney && <button type="button" className={`${SECONDARY} mt-1.5`} onClick={onOpenMoney}>Open Money</button>}
@@ -77,7 +83,8 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
         {ev.status === 'ready' && ev.data.length === 0 && <p className="text-[0.82rem] text-sand-600">No evidence has been submitted.</p>}
         {ev.status === 'ready' && ev.data.length > 0 && <ul className="mt-1 space-y-1.5">{ev.data.map(e => <li key={e.id} className="rounded-xl bg-cream-50 px-3 py-2">
           <p className="break-words text-[0.85rem] text-forest-800">{e.kind === 'STATEMENT' ? 'Written statement' : evidenceTypeWords(e.evidenceType)}{e.description ? ` — ${e.description}` : ''}</p>
-          <p className="text-[0.75rem] text-sand-600">Submitted {dateOf(e.submittedAt)} · {approved(e.id) ? 'Approved in review' : comp?.status === 'ready' ? 'Not yet approved in review' : 'Review status unavailable'}</p>
+          <p className="text-[0.75rem] text-sand-600">Submitted {dateOf(e.submittedAt)} · {reviewWords(e)}</p>
+          {e.reviewReason && (e.reviewState === 'REJECTED' || e.reviewState === 'NEEDS_MORE_INFORMATION') && <p className="break-words text-[0.78rem] text-sand-800">Reason given: {e.reviewReason}</p>}
         </li>)}</ul>}
       </div>}
 
@@ -92,15 +99,32 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
 
       {/* Start work (Phase 7 Slice 1): SecurePay binds the start atomically to the current Agreement version and this work's state version, and
           checks the responsible participant itself, so it is offered only on SecurePay's own START_OBLIGATION signal.
-          WITHHELD: Approve/Reject and Complete. Those endpoints still don't require the target to belong to the CURRENT Agreement version at commit
-          time, so a frontend preflight can shrink but never close the race; these facts are shown read-only. */}
+          Review (Phase 7 Slice 3): offered only on SecurePay's own REVIEW_EVIDENCE signal (SecurePay decides who reviews -- the obligation's
+          beneficiary -- and binds the decision to the current versions). A review is not completion and moves no money.
+          WITHHELD: Complete. That endpoint still has no responsibility/version binding (Slice 4); its fact is shown read-only. */}
       {controller.canStart(o.id) && notice?.action !== 'start' && <button type="button" className={`${PRIMARY} mt-3`} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>{state.busy?.id === o.id && state.busy.action === 'start' ? 'Starting…' : 'Start work'}</button>}
-      {review && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.review}</p>}
+      {review && notice?.action !== 'review' && <div className="mt-3 space-y-1.5">
+        <p className="text-[0.8rem] font-medium text-forest-800">Review this evidence</p>
+        <p className="text-[0.75rem] leading-snug text-sand-600">This work is done for you, so you decide whether this evidence is acceptable. Approving it doesn’t by itself complete the work or release money.</p>
+        <label htmlFor={`review-${o.id}`} className="block text-[0.78rem] text-sand-700">Reason (needed if it isn’t accepted or you need more information)</label>
+        <textarea id={`review-${o.id}`} rows={2} maxLength={1024} value={controller.reviewReasonDraft(o.id)} disabled={!!state.busy}
+          onChange={e => controller.setReviewReason(o.id, e.target.value)}
+          className={`w-full rounded-xl border border-cream-300 bg-white px-3 py-2 text-[0.85rem] text-forest-800 ${FOCUS}`} />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={PRIMARY} disabled={!!state.busy} onClick={() => void controller.review(o.id, 'APPROVED')}>Approve evidence</button>
+          <button type="button" className={SECONDARY} disabled={!!state.busy || !controller.reviewReasonDraft(o.id).trim()} onClick={() => void controller.review(o.id, 'REJECTED')}>Not accepted</button>
+          <button type="button" className={SECONDARY} disabled={!!state.busy || !controller.reviewReasonDraft(o.id).trim()} onClick={() => void controller.review(o.id, 'NEEDS_MORE_INFORMATION')}>Ask for more information</button>
+        </div>
+      </div>}
       {comp?.status === 'ready' && comp.data.eligible && mine && (o.status === 'IN_PROGRESS' || o.status === 'EVIDENCE_SUBMITTED') && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.complete}</p>}
       {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}><p>{notice.text}</p>
         {notice.kind === 'uncertain' && notice.action === 'start' && <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkStart(o.id)}>Check with SecurePay</button>
           {controller.canStart(o.id) && <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>Try starting again</button>}
+        </div>}
+        {notice.kind === 'uncertain' && notice.action === 'review' && <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkReview(o.id)}>Check with SecurePay</button>
+          {controller.pendingReviewFor(o.id) && <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => { const p = controller.pendingReviewFor(o.id); if (p) void controller.review(o.id, p.decision); }}>Try recording the review again</button>}
         </div>}
         {notice.kind === 'uncertain' && notice.action === 'evidence' && <div className="mt-2 space-y-2">
           {controller.pendingStatement(o.id) && <p className="break-words text-[0.8rem] text-sand-700">Your statement: “{controller.pendingStatement(o.id)}”</p>}

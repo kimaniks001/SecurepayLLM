@@ -1,5 +1,16 @@
 # UI Completion — Phase 7: Living Agreement Execution, Evidence, Milestones & Completion Truth
 
+## KS001 Upgrade Phase 7 — Slice 3 (Evidence Review): **review and replacement are wired**; Complete stays withheld
+
+**Human decision 2026-09-26 (backend UR-187):** evidence is reviewed by the obligation's **beneficiary** (the person the work is done for); SecurePay does not adjudicate. The backend (`feat/phase7-evidence-review-slice3`) derives the reviewer from the session, binds the decision to the expected Agreement + obligation versions (stale / superseded / already reviewed → 409), records one immutable decision per evidence item (`APPROVED`, `REJECTED`, `NEEDS_MORE_INFORMATION`; a participant-facing reason is required unless approving), and exposes `reviewState` / `reviewedAt` / `reviewReason` on evidence (never the reviewer's identity). A review is not completion and moves no money.
+
+Frontend changes in this slice:
+- Gateway: `reviewEvidence(id, evidenceId, { idempotencyKey, expectedAgreementVersionId, expectedObligationVersion, decision, reason? })` → `EvidenceReviewDto` (no `reviewerParticipantId` any more); `SubmitStatementEvidenceRequest.supersedesEvidenceId`; `EvidenceDto.reviewState / reviewedAt / reviewReason`.
+- Controller: `review(oid, decision)` only on SecurePay's `REVIEW_EVIDENCE` for that evidence; pins key + versions + decision + reason for an uncertain retry; a reason is required before sending a rejection / more-information request. `checkReview` now settles from the re-read `reviewState` (rejections are readable), wording the OUTCOME, never "your". `replacementTarget(oid)` from `REPLACE_EVIDENCE`; `submitStatement` then sends `supersedesEvidenceId` for exactly that item.
+- Progress panel: "Review this evidence" with **Approve evidence / Not accepted / Ask for more information** (+ reason) for the beneficiary; **Replace evidence** form for the submitter; evidence rows show "Awaiting review / Approved in review / Not accepted in review / More information requested / Replaced by newer evidence" and the reason given; after approval: "Your evidence was approved. Completing the work comes later."
+- **Still withheld:** Complete this obligation (backend UR-181 `/complete` portion, Slice 4). Production guards: only the Progress panel may call start / review (+ recovery); no production code calls `complete`, and no component calls the gateway mutations directly.
+
+
 ## KS001 Upgrade Phase 7 — Slice 2 (Evidence): **written-statement evidence is wired**; Review and Complete stay withheld
 
 **Current architectural decision.** SecurePayAPI Phase 7 Slice 2 (branch `feat/phase7-evidence-slice2`) made evidence submission real authority:
