@@ -21,9 +21,13 @@ export const NEXT_ACTION_WORDS: Readonly<Record<string, string>> = {
   REVIEW_EVIDENCE: 'SecurePay says this evidence needs review.',
   WAIT_FOR_DEPENDENCY: 'SecurePay is waiting — there is nothing for you to do yet.',
   WAIT_UNTIL_AVAILABLE: 'This work isn’t available to start yet — there is nothing for you to do yet.',
+  REPLACE_EVIDENCE: 'Your evidence needs replacing. Submit new evidence in its place.',
   FUND_AGREEMENT: 'This is a payment obligation. Money is handled in the Money area.',
 };
 export const nextActionWords = (action: NextActionDto) => {
+  // Phase 7 Slice 3 -- review outcomes, from SecurePay's own next action (never inferred here).
+  if (action.actionType === 'REPLACE_EVIDENCE') return action.prerequisiteStatus === 'NEEDS_MORE_INFORMATION' ? 'More information was asked for. Replace your evidence with what was asked.' : 'Your evidence wasn’t accepted. Replace it with new evidence.';
+  if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'EVIDENCE_APPROVED') return 'Your evidence was approved. Completing the work comes later.';
   if (action.actionType === 'WAIT_FOR_DEPENDENCY') return action.prerequisiteStatus === 'EVIDENCE_SUBMITTED' ? 'SecurePay is waiting for the evidence to be reviewed.' : 'This work is waiting on other work to finish first.';
   return NEXT_ACTION_WORDS[action.actionType] ?? 'SecurePay has an action for this work that this screen can’t show yet.';
 };

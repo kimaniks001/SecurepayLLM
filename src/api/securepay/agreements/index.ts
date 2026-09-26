@@ -16,12 +16,21 @@ export interface StartObligationRequest { idempotencyKey: string; expectedAgreem
 export interface ObligationCompletionStatusDto { eligible: boolean; currentStatus: string; unmetRequirements: string[]; satisfiedRequirements: string[]; evidenceIds: string[]; explanationCodes: string[] }
 export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string;
   /** Phase 7 Slice 2: STATEMENT (the text is the evidence) or DECLARED_REFERENCE (SecurePay holds no file). */
-  kind?: 'STATEMENT' | 'DECLARED_REFERENCE'; supersedesEvidenceId?: string | null }
+  kind?: 'STATEMENT' | 'DECLARED_REFERENCE'; supersedesEvidenceId?: string | null;
+  /** Phase 7 Slice 3: from SecurePay's canonical review decision (never from `status`); the reviewer's identity is never sent. */
+  reviewState?: EvidenceReviewState; reviewedAt?: string | null; reviewReason?: string | null }
+export type EvidenceReviewState = 'AWAITING_REVIEW' | 'APPROVED' | 'REJECTED' | 'NEEDS_MORE_INFORMATION' | 'SUPERSEDED';
+export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'NEEDS_MORE_INFORMATION';
+/** Phase 7 Slice 3: the reviewer (the obligation's beneficiary) is derived by SecurePay from the session, never sent. */
+export interface ReviewEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; decision: ReviewDecision; reason?: string }
+export interface EvidenceReviewDto { evidenceId: string; obligationId: string; decision: ReviewDecision; reason: string | null; reviewedAt: string; replayed: boolean }
 /**
  * Phase 7 Slice 2: this app submits only WRITTEN STATEMENTS. SecurePay has no file storage, so nothing is uploaded; the statement text
  * is the evidence. The submitting participant is derived by SecurePay from the session, never sent.
  */
-export interface SubmitStatementEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; evidenceType: 'TEXT_STATEMENT'; description: string }
+export interface SubmitStatementEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; evidenceType: 'TEXT_STATEMENT'; description: string;
+  /** Phase 7 Slice 3: explicitly replaces the caller's own evidence that was not accepted or needs more information. */
+  supersedesEvidenceId?: string }
 export interface NextActionDto { participantId: string; agreementId: string; currentAgreementVersionId: string; actionType: string; targetObligationId: string | null; targetMilestoneId: string | null; actionReason: string; prerequisiteStatus: string | null; deadline: string | null; urgency: string; requiredEvidenceTypes: string[]; blockedByObligationIds: string[]; supportingEvidenceIds: string[] }
 export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
 export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
@@ -120,8 +129,10 @@ export function createAgreementGateway(http: HttpClient) {
     submitEvidence: (id: string, obligationId: string, body: SubmitStatementEvidenceRequest) => http.request<EvidenceDto>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { method: 'POST', body, auth: 'required' }),
     // Narrow evidence RECORD list (no filename, uploader, size, hash or object reference). There is no upload or retrieval API.
     obligationEvidence: (id: string, obligationId: string) => http.request<EvidenceDto[]>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { auth: 'required' }),
-    // Records a review decision. It does NOT change the evidence's status (nothing in the backend ever moves it past SUBMITTED).
-    reviewEvidence: (id: string, evidenceId: string, body: { idempotencyKey: string; decision: 'APPROVED' | 'REJECTED'; reason?: string; reviewerParticipantId?: string }) => http.request<EvidenceDto>(`${agreement(id)}/evidence/${segment(evidenceId)}/review`, { method: 'POST', body, auth: 'required' }),
+    // Phase 7 Slice 3: records ONE decision about one evidence item. Only the obligation's beneficiary may review (derived server-side);
+    // bound to the expected versions (stale / superseded / already reviewed -> 409); a reason is required unless approving. It does NOT
+    // change the evidence's status, complete anything or move money.
+    reviewEvidence: (id: string, evidenceId: string, body: ReviewEvidenceRequest) => http.request<EvidenceReviewDto>(`${agreement(id)}/evidence/${segment(evidenceId)}/review`, { method: 'POST', body, auth: 'required' }),
     myNextActions: (id: string) => http.request<{ actions: NextActionDto[] }>(`${agreement(id)}/participants/me/next-actions`, { auth: 'required' }),
     // Amendments. Real shapes verified against AgreementController / AgreementAmendmentService (read-only).
     // Listing works ONLY while the Agreement allows amendments (PARTICIPANTS_JOINING | CONFIRMATION_PENDING); otherwise 422.
