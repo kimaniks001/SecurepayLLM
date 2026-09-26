@@ -26,6 +26,8 @@ export const UNCERTAIN = 'SecurePay couldn’t confirm whether that went through
 const ACTIVE = ['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'OVERDUE'];
 /** The only states SecurePay can start from (ObligationService#start); PENDING is never startable. */
 const startable = (status: string) => status === 'AVAILABLE' || status === 'OVERDUE';
+/** Phase 7 Slice 4: the states SecurePay can complete from (started OVERDUE work included; lateness is kept). */
+const completable = (status: string) => status === 'IN_PROGRESS' || status === 'EVIDENCE_SUBMITTED' || status === 'OVERDUE';
 
 type Gateway = Pick<AgreementGateway, 'detail' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions' | 'submitEvidence'>;
 /** SecurePay's own limit for a written statement. */
@@ -42,8 +44,9 @@ export const STATEMENT_MAX = 2048;
  *    Approve, Not accepted, or Ask for more information (a reason is required unless approving). A review is never completion.
  *  - Replace evidence (Phase 7 Slice 3): only on SecurePay's REPLACE_EVIDENCE action; the written statement explicitly supersedes
  *    exactly the item that was not accepted / needs more information.
- *  - Complete this obligation: only when SecurePay's completion-status says eligible AND the obligation's responsible participant
- *    is the caller (the server checks no participant for completion; this only ever RESTRICTS).
+ *  - Complete this obligation (Phase 7 Slice 4): only on SecurePay's own COMPLETE_OBLIGATION action for that obligation. SecurePay
+ *    derives the completing participant (the responsible one), requires its completion evaluator to say eligible (evidence accepted
+ *    by the beneficiary, etc.), and binds the completion to the expected versions. Completion is not payment and moves no money.
  *  - Submit evidence (Phase 7 Slice 2): only when the caller's own next actions contain SUBMIT_EVIDENCE for that obligation. It is a
  *    WRITTEN STATEMENT only: SecurePay has no file storage, so nothing is uploaded. SecurePay derives the submitter, enforces the
  *    responsible participant and binds the submission to the expected Agreement + obligation versions. Evidence is not approval.
@@ -60,6 +63,8 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
   /** Evidence pins the versions AND the exact text with its key, for the same reason. */
   const evidencePins = new Map<string, { versionId: string; stateVersion: number; text: string; supersedes?: string }>();
   /** Review pins the versions, decision and reason with its key (per evidence item). */
+  /** Complete pins the expected versions with its key, like Start. */
+  const completePins = new Map<string, { versionId: string; stateVersion: number }>();
   const reviewPins = new Map<string, { versionId: string; stateVersion: number; decision: ReviewDecision; reason?: string }>();
   const replaceTargetIn = (next: NextActionDto[], oid: string) => next.find(a => a.actionType === 'REPLACE_EVIDENCE' && a.targetObligationId === oid && a.supportingEvidenceIds.length > 0)?.supportingEvidenceIds[0] ?? null;
   const keys = new Map<string, string>();
@@ -162,9 +167,8 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       return replaceTargetIn(state.nextActions.data, oid);
     },
     canComplete(oid: string): boolean {
-      const o = obligationById(oid); const c = state.completion[oid];
-      const me = ownParticipantId();
-      return !!o && !!me && o.responsibleParticipantId === me && c?.status === 'ready' && c.data.eligible === true && (o.status === 'IN_PROGRESS' || o.status === 'EVIDENCE_SUBMITTED');
+      const o = obligationById(oid);
+      return !!o && state.nextActions.status === 'ready' && state.nextActions.data.some(a => a.actionType === 'COMPLETE_OBLIGATION' && a.targetObligationId === oid) && completable(o.status);
     },
 
     // -------------------------------------------------------------- Start work
@@ -356,43 +360,48 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
 
     // -------------------------------------------------------------- Complete this obligation (obligation only)
     async complete(oid: string) {
-      if (state.busy || !this.canComplete(oid)) return;
+      const pinned = completePins.get(oid);
+      if (state.busy || (!pinned && !this.canComplete(oid))) return;
       update({ busy: { id: oid, action: 'complete' } }); notice(oid, null);
-      const fresh = await freshAuthority();
-      let fc: ObligationCompletionStatusDto | null = null;
-      if (fresh) { fc = await readCompletion(oid); }
-      update({ busy: null });
-      if (!fresh || !fc) { await blocked(oid, 'completed', 'unreadable'); return; }
+      const fresh = await freshAuthority(); update({ busy: null });
+      if (!fresh) { await blocked(oid, 'completed', 'unreadable'); return; }
       const target = inFreshVersion(fresh, oid);
       if (!target) { await blocked(oid, 'completed', 'version'); return; }
-      if (target.status === 'COMPLETED') { keys.delete(`complete:${oid}`); notice(oid, { kind: 'info', text: 'SecurePay now shows this obligation as completed. Nothing more was sent.' }); await refreshAll(); await onChanged(); return; }
-      if (target.responsibleParticipantId !== ownParticipantId() || fc.eligible !== true || (target.status !== 'IN_PROGRESS' && target.status !== 'EVIDENCE_SUBMITTED')) { await blocked(oid, 'completed', 'signal'); return; }
+      if (target.status === 'COMPLETED' && !pinned) { keys.delete(`complete:${oid}`); notice(oid, { kind: 'info', text: 'SecurePay now shows this obligation as completed. Nothing more was sent.' }); await refreshAll(); await onChanged(); return; }
+      // A first press needs SecurePay's own COMPLETE_OBLIGATION action; an uncertain RETRY resends the pinned request unchanged.
+      if (!pinned && (!fresh.next.some(a => a.actionType === 'COMPLETE_OBLIGATION' && a.targetObligationId === oid) || !completable(target.status))) { await blocked(oid, 'completed', 'signal'); return; }
       const key = keyFor(`complete:${oid}`);
+      const pin = pinned ?? { versionId: fresh.versionId, stateVersion: target.stateVersion };
+      completePins.set(oid, pin);
+      const settle = () => { keys.delete(`complete:${oid}`); completePins.delete(oid); };
       update({ busy: { id: oid, action: 'complete' } });
       try {
-        const result = await gateway.completeObligation(agreementId, oid, key);
-        keys.delete(`complete:${oid}`); update({ busy: null });
+        const result = await gateway.completeObligation(agreementId, oid, { idempotencyKey: key, expectedAgreementVersionId: pin.versionId, expectedObligationVersion: pin.stateVersion });
+        settle(); update({ busy: null });
         notice(oid, result.status === 'COMPLETED' ? { kind: 'done', text: 'SecurePay recorded this obligation as complete. That doesn’t by itself mean the whole Agreement is complete or that Money is released.' } : { kind: 'info', text: `SecurePay shows this work as ${result.status.toLowerCase().replace(/_/g, ' ')}.` });
         await refreshAll(); await onChanged(); // dependents, milestones, whole-Agreement completion are RE-READ, never advanced here
       } catch (error) {
         update({ busy: null });
         if (isUncertain(error)) { notice(oid, { kind: 'uncertain', action: 'complete', text: `We’re not sure whether SecurePay recorded the completion. ${UNCERTAIN}` }); return; }
-        keys.delete(`complete:${oid}`);
+        settle();
         if (error instanceof ApiError && error.status === 401) { notice(oid, { kind: 'error', text: 'Your session ended before SecurePay could act on this. Nothing was completed. Sign in again, then try again.' }); return; }
-        if (error instanceof ApiError && error.status === 403) { notice(oid, { kind: 'error', text: 'This account can’t complete this obligation. Nothing was completed.' }); return; }
+        if (error instanceof ApiError && error.status === 403) { notice(oid, { kind: 'error', text: 'Only the person responsible for this work can complete it. Nothing was completed.' }); return; }
+        const stale = error instanceof ApiError && error.status === 409;
         await refreshAll(); await onChanged();
         const o = obligationById(oid);
-        notice(oid, o?.status === 'COMPLETED' ? { kind: 'info', text: 'SecurePay shows this obligation as already complete.' } : { kind: 'error', text: 'SecurePay says this obligation’s completion requirements aren’t met yet. Nothing was completed.' });
+        notice(oid, o?.status === 'COMPLETED' ? { kind: 'info', text: 'SecurePay shows this obligation as already complete.' }
+          : stale ? { kind: 'error', ttl: 2, text: 'The Agreement or this work changed while you were looking at it, so nothing was completed. Check what SecurePay shows now.' }
+          : { kind: 'error', text: 'SecurePay says this obligation’s completion requirements aren’t met yet. Nothing was completed.' });
       }
     },
     async checkComplete(oid: string) {
       if (state.busy) return;
       const all = await readObligations();
       const o = all?.find(x => x.id === oid);
-      if (o?.status === 'COMPLETED') { keys.delete(`complete:${oid}`); notice(oid, { kind: 'done', text: 'SecurePay shows this obligation as complete.' }); await refreshAll(); await onChanged(); }
+      if (o?.status === 'COMPLETED') { keys.delete(`complete:${oid}`); completePins.delete(oid); notice(oid, { kind: 'done', text: 'SecurePay shows this obligation as complete.' }); await refreshAll(); await onChanged(); }
       else notice(oid, { kind: 'uncertain', action: 'complete', text: all ? 'SecurePay doesn’t show this obligation as complete yet. You can try again — it uses the same request, so it can’t be recorded twice.' : 'SecurePay couldn’t be reached to check. Try again in a moment.' });
     },
-    reset() { keys.clear(); startPins.clear(); evidencePins.clear(); reviewPins.clear(); inflight = null; update({ ...initial }); },
+    reset() { keys.clear(); startPins.clear(); evidencePins.clear(); reviewPins.clear(); completePins.clear(); inflight = null; update({ ...initial }); },
   };
 }
 export type ExecutionController = ReturnType<typeof createExecutionController>;

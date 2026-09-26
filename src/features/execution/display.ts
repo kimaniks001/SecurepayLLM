@@ -22,12 +22,16 @@ export const NEXT_ACTION_WORDS: Readonly<Record<string, string>> = {
   WAIT_FOR_DEPENDENCY: 'SecurePay is waiting — there is nothing for you to do yet.',
   WAIT_UNTIL_AVAILABLE: 'This work isn’t available to start yet — there is nothing for you to do yet.',
   REPLACE_EVIDENCE: 'Your evidence needs replacing. Submit new evidence in its place.',
+  COMPLETE_OBLIGATION: 'SecurePay says this work is ready for you to complete.',
   FUND_AGREEMENT: 'This is a payment obligation. Money is handled in the Money area.',
 };
 export const nextActionWords = (action: NextActionDto) => {
   // Phase 7 Slice 3 -- review outcomes, from SecurePay's own next action (never inferred here).
   if (action.actionType === 'REPLACE_EVIDENCE') return action.prerequisiteStatus === 'NEEDS_MORE_INFORMATION' ? 'More information was asked for. Replace your evidence with what was asked.' : 'Your evidence wasn’t accepted. Replace it with new evidence.';
-  if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'EVIDENCE_APPROVED') return 'Your evidence was approved. Completing the work comes later.';
+  if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'EVIDENCE_APPROVED') return 'Your evidence was approved. Something else still has to happen before the work can be completed.';
+  // Phase 7 Slice 4 -- completion signals, from SecurePay's own next action.
+  if (action.actionType === 'COMPLETE_OBLIGATION' && action.actionReason.includes('overdue')) return 'This work is overdue, but it can still be completed now.';
+  if (action.actionType === 'NO_ACTION_REQUIRED' && action.prerequisiteStatus === 'BENEFICIARY_REQUIRED') return 'This work has no one who can accept its evidence, so it can’t be completed as it is set up.';
   if (action.actionType === 'WAIT_FOR_DEPENDENCY') return action.prerequisiteStatus === 'EVIDENCE_SUBMITTED' ? 'SecurePay is waiting for the evidence to be reviewed.' : 'This work is waiting on other work to finish first.';
   return NEXT_ACTION_WORDS[action.actionType] ?? 'SecurePay has an action for this work that this screen can’t show yet.';
 };
@@ -42,6 +46,10 @@ export const evidenceTypeWords = (type: string) => { const w = type.toLowerCase(
  */
 export function requirementWords(code: string, titleOf: (obligationId: string) => string | null): string {
   if (code === 'evidence_required') return 'Evidence has to be submitted.';
+  // Phase 7 Slice 4 -- completion blockers from SecurePay's evaluator.
+  if (code === 'obligation_not_started') return 'The work has to be started first.';
+  if (code === 'beneficiary_required') return 'This work has no one set up to accept its evidence, so it can’t be completed as it is set up.';
+  if (code === 'beneficiary_is_responsible') return 'The person doing this work is also the one it’s for, so nobody else can accept its evidence.';
   if (code === 'obligation_not_completable') return 'This work can no longer be completed.';
   if (code.startsWith('evidence_review_pending_')) return 'Evidence is waiting for an approving review.';
   if (code.startsWith('dependency_obligation_')) { const t = titleOf(code.slice('dependency_obligation_'.length)); return t ? `“${t}” has to be completed first.` : 'Other work has to be completed first.'; }

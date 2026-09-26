@@ -1,5 +1,29 @@
 # UI Completion — Phase 7: Living Agreement Execution, Evidence, Milestones & Completion Truth
 
+## KS001 Upgrade Phase 7 — Slice 4 (Completion): **Complete this obligation is wired**
+
+The backend (`feat/phase7-completion-slice4`) hardens `/complete` (UR-181, the final part):
+- Only the obligation's **responsible** participant may complete it. SecurePay derives that participant from the session.
+- It requires a dedicated `AGREEMENT_OBLIGATION_COMPLETE` permission; `PROGRESS` stays ungranted.
+- It completes only when SecurePay's completion evaluator says eligible: the work was started, requirements are met, and every active evidence item was accepted by the beneficiary.
+- It is bound to the expected versions (stale → 409) and is idempotent.
+- Started **overdue** work may complete (UR-186), and its lateness (`overdueAt`) is kept.
+- Work with **no beneficiary** fails closed with an explicit `beneficiary_required` blocker (UR-188, escalated).
+- A new server-derived `COMPLETE_OBLIGATION` next action marks work ready to complete.
+- Completion is not payment and moves no money.
+
+Frontend changes in this slice:
+- **Gateway:** `completeObligation(id, oid, { idempotencyKey, expectedAgreementVersionId, expectedObligationVersion })`.
+- **Controller:** `canComplete` is driven **only** by SecurePay's `COMPLETE_OBLIGATION` action. There is no more client inference from completion-status plus participant IDs. `complete()` re-reads authority fresh and pins the key and versions for an uncertain retry. It treats 409 as a stale view (reload and explain), 403 as "only the person responsible…", and 422 as requirements not yet met.
+- **Progress panel:**
+  - The "temporarily unavailable" limitation is gone.
+  - **Complete this obligation** appears with "Completing records that this work is done. It isn't payment and doesn't release money."
+  - Overdue work adds "…can still be completed. SecurePay keeps a record that it was late."
+  - An uncertain completion offers Check / Try again.
+- **Wording:** `COMPLETE_OBLIGATION` (with an overdue variant); `BENEFICIARY_REQUIRED`; blockers `obligation_not_started`, `beneficiary_required` and `beneficiary_is_responsible`.
+- **Production guards:** only the Progress panel may call the execution mutations; no component calls the gateway mutations directly.
+
+
 ## KS001 Upgrade Phase 7 — Slice 3 (Evidence Review): **review and replacement are wired**; Complete stays withheld
 
 **Human decision 2026-09-26 (backend UR-187):** evidence is reviewed by the obligation's **beneficiary** (the person the work is done for); SecurePay does not adjudicate. The backend (`feat/phase7-evidence-review-slice3`) derives the reviewer from the session, binds the decision to the expected Agreement + obligation versions (stale / superseded / already reviewed → 409), records one immutable decision per evidence item (`APPROVED`, `REJECTED`, `NEEDS_MORE_INFORMATION`; a participant-facing reason is required unless approving), and exposes `reviewState` / `reviewedAt` / `reviewReason` on evidence (never the reviewer's identity). A review is not completion and moves no money.
