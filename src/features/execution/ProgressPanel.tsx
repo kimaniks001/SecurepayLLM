@@ -7,9 +7,9 @@ import type { ExecutionController, Notice } from './controller';
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
 const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disabled:opacity-40`;
 const SECONDARY = `${BTN} border border-cream-300 bg-white text-forest-700 hover:border-forest-300`;
+const PRIMARY = `${BTN} bg-forest-700 text-cream-50 hover:bg-forest-800`;
 const dateOf = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
 const LIMIT = {
-  start: 'Starting work from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
   review: 'Recording the review from this screen is temporarily unavailable until SecurePay can bind it safely to the current Agreement version.',
   complete: 'Completing it from this screen is temporarily unavailable until SecurePay can bind the action safely to the current Agreement version.',
 };
@@ -81,13 +81,19 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       </div>}
       {comp?.status === 'error' && <p className="mt-2 text-[0.82rem] text-sand-700">The completion requirements couldn’t be loaded right now, so nothing can be completed from here.</p>}
 
-      {/* WITHHELD: Start work, Approve/Reject and Complete. SecurePay's start / review / complete endpoints don't require the target to belong to the
-          CURRENT Agreement version at commit time, so a frontend preflight can shrink but never close the race. Until the backend binds the action
-          to the current version, these facts are shown read-only; no control here calls the controller's mutations. */}
-      {controller.canStart(o.id) && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.start}</p>}
+      {/* Start work (Phase 7 Slice 1): SecurePay binds the start atomically to the current Agreement version and this work's state version, and
+          checks the responsible participant itself, so it is offered only on SecurePay's own START_OBLIGATION signal.
+          WITHHELD: Approve/Reject and Complete. Those endpoints still don't require the target to belong to the CURRENT Agreement version at commit
+          time, so a frontend preflight can shrink but never close the race; these facts are shown read-only. */}
+      {controller.canStart(o.id) && notice?.action !== 'start' && <button type="button" className={`${PRIMARY} mt-3`} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>{state.busy?.id === o.id && state.busy.action === 'start' ? 'Starting…' : 'Start work'}</button>}
       {review && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.review}</p>}
       {comp?.status === 'ready' && comp.data.eligible && mine && (o.status === 'IN_PROGRESS' || o.status === 'EVIDENCE_SUBMITTED') && <p className="mt-3 text-[0.8rem] leading-snug text-sand-700">{LIMIT.complete}</p>}
-      {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}><p>{notice.text}</p></div>}
+      {notice && <div role={notice.kind === 'error' ? 'alert' : 'status'} className={`mt-2 rounded-xl border px-3 py-2 text-[0.82rem] ${tone(notice)}`}><p>{notice.text}</p>
+        {notice.kind === 'uncertain' && notice.action === 'start' && <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.checkStart(o.id)}>Check with SecurePay</button>
+          {controller.canStart(o.id) && <button type="button" className={SECONDARY} disabled={!!state.busy} onClick={() => void controller.start(o.id)}>Try starting again</button>}
+        </div>}
+      </div>}
     </li>;
   };
 

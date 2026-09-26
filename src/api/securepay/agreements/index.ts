@@ -9,7 +9,10 @@ export interface HubDto {
 }
 /** `invitationToken` is null on an idempotent REPLAY: SecurePay returns the existing invitation but never the raw token again. */
 export interface IssueInvitationDto { invitationId: string; status: string; invitationToken: string | null; replayed: boolean; targetKind: 'KS_NUMBER' | 'CONTACT' | 'OPEN'; targetHint: string | null }
-export interface ObligationDto { id: string; publicReference: string; agreementId: string; agreementVersionId: string; obligationType: string; title: string; description: string | null; responsibleParticipantId: string; beneficiaryParticipantId: string | null; currency: string | null; amountMinor: number | null; status: string; createdAt: string }
+export interface ObligationDto { id: string; publicReference: string; agreementId: string; agreementVersionId: string; obligationType: string; title: string; description: string | null; responsibleParticipantId: string; beneficiaryParticipantId: string | null; currency: string | null; amountMinor: number | null; status: string; createdAt: string;
+  /** Phase 7 Slice 1: the obligation's optimistic state version; Start must echo it (with the current Agreement version) or SecurePay answers 409. */
+  stateVersion: number }
+export interface StartObligationRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number }
 export interface ObligationCompletionStatusDto { eligible: boolean; currentStatus: string; unmetRequirements: string[]; satisfiedRequirements: string[]; evidenceIds: string[]; explanationCodes: string[] }
 export interface EvidenceDto { id: string; obligationId: string; evidenceType: string; description: string | null; contentType: string | null; status: string; submittedAt: string }
 export interface NextActionDto { participantId: string; agreementId: string; currentAgreementVersionId: string; actionType: string; targetObligationId: string | null; targetMilestoneId: string | null; actionReason: string; prerequisiteStatus: string | null; deadline: string | null; urgency: string; requiredEvidenceTypes: string[]; blockedByObligationIds: string[]; supportingEvidenceIds: string[] }
@@ -100,9 +103,9 @@ export function createAgreementGateway(http: HttpClient) {
     // NOTE: `obligations` returns EVERY obligation of the Agreement across ALL versions; scope by `agreementVersionId`.
     obligations: (id: string) => http.request<ObligationDto[]>(`${agreement(id)}/obligations`, { auth: 'required' }),
     obligationCompletionStatus: (id: string, obligationId: string) => http.request<ObligationCompletionStatusDto>(`${agreement(id)}/obligations/${segment(obligationId)}/completion-status`, { auth: 'required' }),
-    // The server's own "participant not responsible" check compares the responsible participant with ITSELF (never fails), so
-    // callers MUST gate on the participant's own START_OBLIGATION next action.
-    startObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/start`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
+    // Phase 7 Slice 1: SecurePay checks the caller is the responsible, established participant and atomically binds the start to the
+    // expected CURRENT Agreement version and obligation state version (stale -> 409, closed Agreement -> 422). Idempotent per key+body.
+    startObligation: (id: string, obligationId: string, body: StartObligationRequest) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/start`, { method: 'POST', body, auth: 'required' }),
     // The server checks no participant at all for completion; it only requires the completion requirements to be met.
     completeObligation: (id: string, obligationId: string, idempotencyKey: string) => http.request<ObligationDto>(`${agreement(id)}/obligations/${segment(obligationId)}/complete`, { method: 'POST', body: { idempotencyKey }, auth: 'required' }),
     // Narrow evidence RECORD list (no filename, uploader, size, hash or object reference). There is no upload or retrieval API.

@@ -22,14 +22,17 @@ const initial: ExecutionState = { obligations: { status: 'idle' }, nextActions: 
 const isUncertain = (error: unknown) => error instanceof ApiError && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500);
 export const UNCERTAIN = 'SecurePay couldn’t confirm whether that went through.';
 const ACTIVE = ['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'OVERDUE'];
+/** The only states SecurePay can start from (ObligationService#start); PENDING is never startable. */
+const startable = (status: string) => status === 'AVAILABLE' || status === 'OVERDUE';
 
 type Gateway = Pick<AgreementGateway, 'detail' | 'obligations' | 'obligationCompletionStatus' | 'startObligation' | 'completeObligation' | 'obligationEvidence' | 'reviewEvidence' | 'myNextActions'>;
 
 /**
  * Execution of the CURRENT version's obligations. It reads; it acts only where SecurePay's own signals allow, and never advances
  * anything locally:
- *  - Start work: only when the caller's own next actions contain START_OBLIGATION for that obligation (the server's own
- *    responsibility check for start compares the responsible participant with itself and can never fail).
+ *  - Start work: only when the caller's own next actions contain START_OBLIGATION for that obligation. Since Phase 7 Slice 1 the
+ *    server itself enforces the responsible participant and binds the start atomically to the expected Agreement + obligation
+ *    versions this controller sends; the next-action gate only decides whether to OFFER the control.
  *  - Review evidence: only when the caller's own next actions contain REVIEW_EVIDENCE naming that evidence. Approve and Reject only.
  *  - Complete this obligation: only when SecurePay's completion-status says eligible AND the obligation's responsible participant
  *    is the caller (the server checks no participant for completion; this only ever RESTRICTS).
@@ -41,6 +44,8 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
   const update = (patch: Partial<ExecutionState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
   const notice = (key: string, n: Notice | null) => { const next = { ...state.notices }; if (n) next[key] = n; else delete next[key]; update({ notices: next }); };
   /** One key per consequential attempt, released on settle; an uncertain retry re-sends the SAME one. */
+  /** Start pins the expected versions WITH its key: an uncertain retry must resend the identical request (SecurePay's idempotency digest covers them). */
+  const startPins = new Map<string, { versionId: string; stateVersion: number }>();
   const keys = new Map<string, string>();
   const keyFor = (k: string) => { let v = keys.get(k); if (!v) { v = id(); keys.set(k, v); } return v; };
   let inflight: Promise<void> | null = null;
@@ -72,9 +77,10 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
   /**
    * ACTION-TIME AUTHORITY. The backend's start / complete / review endpoints do not themselves reject work that belongs to a
    * SUPERSEDED version, so what rendered a button is never enough. THIS PREFLIGHT CANNOT ELIMINATE THE RACE: between the fresh read and
-   * the POST another client can make a new version current and the endpoint (which is not conditional on the current version) will still
-   * accept the old target. Only the backend can make that check atomic, so the production UI withholds Start / Review / Complete and this
-   * controller is unwired archaeology (see docs/UI_COMPLETION_PHASE7_EXECUTION.md). Immediately before a consequential call, ask SecurePay afresh
+   * the POST another client can make a new version current. Only the backend can make that check atomic. Since Phase 7 Slice 1 START
+   * is atomic server-side (expected Agreement version + obligation state version, stale -> 409), so Start is wired; the review and
+   * complete endpoints are still not conditional on the current version, so the production UI keeps withholding Review / Complete
+   * (see docs/UI_COMPLETION_PHASE7_EXECUTION.md). Immediately before a consequential call, ask SecurePay afresh
    * which version is current, which obligations exist, and what the caller's next actions are. Any read that fails means the
    * version can't be established, so nothing is sent.
    */
@@ -118,7 +124,7 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
     // -------------------------------------------------------------- authority gates (pure, from SecurePay's own signals)
     canStart(oid: string): boolean {
       const o = obligationById(oid);
-      return !!o && state.nextActions.status === 'ready' && state.nextActions.data.some(a => a.actionType === 'START_OBLIGATION' && a.targetObligationId === oid) && (o.status === 'AVAILABLE' || o.status === 'PENDING');
+      return !!o && state.nextActions.status === 'ready' && state.nextActions.data.some(a => a.actionType === 'START_OBLIGATION' && a.targetObligationId === oid) && startable(o.status);
     },
     /** The evidence of this obligation whose review is unsettled after an uncertain attempt (by exact evidence id). */
     pendingReviewFor(oid: string): { evidenceId: string; decision: 'APPROVED' | 'REJECTED' } | null {
@@ -148,24 +154,33 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       if (!fresh) { await blocked(oid, 'started', 'unreadable'); return; }
       const target = inFreshVersion(fresh, oid);
       if (!target) { await blocked(oid, 'started', 'version'); return; }
-      if (!fresh.next.some(a => a.actionType === 'START_OBLIGATION' && a.targetObligationId === oid) || (target.status !== 'AVAILABLE' && target.status !== 'PENDING')) { await blocked(oid, 'started', 'signal'); return; }
+      if (!fresh.next.some(a => a.actionType === 'START_OBLIGATION' && a.targetObligationId === oid) || !startable(target.status)) { await blocked(oid, 'started', 'signal'); return; }
       const key = keyFor(`start:${oid}`);
+      // A first attempt binds to what SecurePay just said is current; an uncertain retry resends the pinned request unchanged.
+      let pin = startPins.get(oid);
+      if (!pin) { pin = { versionId: fresh.versionId, stateVersion: target.stateVersion }; startPins.set(oid, pin); }
+      const settle = () => { keys.delete(`start:${oid}`); startPins.delete(oid); };
       update({ busy: { id: oid, action: 'start' } });
       try {
-        const result = await gateway.startObligation(agreementId, oid, key);
-        keys.delete(`start:${oid}`); update({ busy: null });
+        const result = await gateway.startObligation(agreementId, oid, { idempotencyKey: key, expectedAgreementVersionId: pin.versionId, expectedObligationVersion: pin.stateVersion });
+        settle(); update({ busy: null });
         // Claimed only from what SecurePay returns; then everything is re-read (nothing advanced locally).
         notice(oid, result.status === 'IN_PROGRESS' ? { kind: 'done', text: 'SecurePay recorded that this work is in progress.' } : { kind: 'info', text: `SecurePay shows this work as ${result.status.toLowerCase().replace(/_/g, ' ')}.` });
         await refreshAll(); void onChanged();
       } catch (error) {
         update({ busy: null });
         if (isUncertain(error)) { notice(oid, { kind: 'uncertain', action: 'start', text: `We’re not sure whether SecurePay recorded the start. ${UNCERTAIN}` }); return; }
-        keys.delete(`start:${oid}`);
+        settle();
         if (error instanceof ApiError && error.status === 401) { notice(oid, { kind: 'error', text: 'Your session ended before SecurePay could act on this. Nothing was started. Sign in again, then try again.' }); return; }
         if (error instanceof ApiError && error.status === 403) { notice(oid, { kind: 'error', text: 'This account can’t start this work. Nothing was started.' }); return; }
-        await refreshAll(); // 422 covers "not responsible", "invalid transition": ask SecurePay what is true now
+        // 409: the Agreement or this work changed since it was read (stale view); 422: the Agreement is closed. Ask SecurePay what is true now.
+        const stale = error instanceof ApiError && error.status === 409;
+        if (stale) await onChanged();
+        await refreshAll();
         const o = obligationById(oid);
-        notice(oid, o?.status === 'IN_PROGRESS' ? { kind: 'info', text: 'SecurePay shows this work as already in progress.' } : { kind: 'error', text: 'SecurePay couldn’t start this work. Nothing was started.' });
+        notice(oid, o?.status === 'IN_PROGRESS' ? { kind: 'info', text: 'SecurePay shows this work as already in progress.' }
+          : stale ? { kind: 'error', ttl: 2, text: 'The Agreement or this work changed while you were looking at it, so nothing was started. Check what SecurePay shows now.' }
+          : { kind: 'error', text: 'SecurePay couldn’t start this work. Nothing was started.' });
       }
     },
     /**
@@ -179,9 +194,9 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       const o = all?.find(x => x.id === oid);
       const words = (st: string) => st.toLowerCase().replace(/_/g, ' ');
       if (!o) { notice(oid, { kind: 'uncertain', action: 'start', text: 'SecurePay couldn’t be reached to check. Try again in a moment.' }); return; }
-      if (['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'COMPLETED', 'REJECTED'].includes(o.status)) { keys.delete(`start:${oid}`); notice(oid, { kind: 'done', text: `SecurePay now shows this work as ${words(o.status)}.` }); void onChanged(); return; }
+      if (['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'COMPLETED', 'REJECTED'].includes(o.status)) { keys.delete(`start:${oid}`); startPins.delete(oid); notice(oid, { kind: 'done', text: `SecurePay now shows this work as ${words(o.status)}.` }); void onChanged(); return; }
       if (o.status === 'AVAILABLE' || o.status === 'PENDING') { notice(oid, { kind: 'uncertain', action: 'start', text: 'SecurePay doesn’t show this work as started yet. You can try again — it uses the same request, so it can’t start twice.' }); return; }
-      keys.delete(`start:${oid}`);
+      keys.delete(`start:${oid}`); startPins.delete(oid);
       notice(oid, { kind: 'info', text: `SecurePay now shows this work as ${words(o.status)}. SecurePay can’t establish from this read whether the earlier start request was recorded. Start isn’t available from this state.` });
       void onChanged();
     },
@@ -271,7 +286,7 @@ export function createExecutionController(gateway: Gateway, agreementId: string,
       if (o?.status === 'COMPLETED') { keys.delete(`complete:${oid}`); notice(oid, { kind: 'done', text: 'SecurePay shows this obligation as complete.' }); await refreshAll(); await onChanged(); }
       else notice(oid, { kind: 'uncertain', action: 'complete', text: all ? 'SecurePay doesn’t show this obligation as complete yet. You can try again — it uses the same request, so it can’t be recorded twice.' : 'SecurePay couldn’t be reached to check. Try again in a moment.' });
     },
-    reset() { keys.clear(); inflight = null; update({ ...initial }); },
+    reset() { keys.clear(); startPins.clear(); inflight = null; update({ ...initial }); },
   };
 }
 export type ExecutionController = ReturnType<typeof createExecutionController>;
