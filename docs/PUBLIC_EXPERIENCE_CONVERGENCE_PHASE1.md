@@ -4,7 +4,20 @@
 **Backend companions (SecurePayAPI, branch `docs/public-experience-convergence-phase1`):**
 - `docs/architecture/PUBLIC_EXPERIENCE_CONVERGENCE_PHASE1_API_CONTRACT.md` — the **API contract**. It holds the signup, membership, continuity, source-matrix, Join-authority and identity-model diagrams.
 - `docs/decisions/ADR-0021-PUBLIC-TRUST-PROJECT-JOIN-OVER-EXISTING-KS-IDENTITY.md`
-- UR-203 … UR-215 in `docs/operations/UNRESOLVED_ITEMS_REGISTER.md`
+- UR-203 … UR-220 in `docs/operations/UNRESOLVED_ITEMS_REGISTER.md`
+
+**Correction pass (2026-09-27, after human review).** These human decisions are applied throughout; they are no longer pending:
+
+| Decision | Resolves |
+| --- | --- |
+| Direct public Join is approved. Membership always needs explicit acceptance, which may start from a direct Join or an invitation. | UR-205 |
+| Eligible Business (and Organization) KS identities may be Members. | UR-206 |
+| DECLINED may later Join directly. | UR-206 |
+| REVOKED cannot self-reactivate. | UR-206 |
+| The public spelling is "KS Number". | UR-214 |
+| A legacy tokenless conversation can never be claimed by its UUID. | UR-203 |
+| Public Join must never lead to a "coming soon" placeholder. | — |
+| The public Home is its own `PublicHome` composition. | — |
 
 **Labels:**
 
@@ -61,7 +74,7 @@ It reveals value before asking for anything. That centre stays byte-identical: i
 | 2 | Most of those items dead-end. | `navigateTo` bounces signed-out people to Home with "Sign in through "Review this" to view your …". **"Review this" exists only inside a conversation**, never on Home. | UR-213 |
 | 3 | There is no public *Sign in* and no *Join*. | The only Home CTA is "Activate SecurePay" → `#/activate` → `ActivationExperience`: sign-in **plus** plan choice **plus** activation funding. That is financial activation presented as the front door. | UR-213 |
 | 4 | A new person cannot get a KS Number from Home. | `createSignupController` is mounted only in `RecipientExperience` (Agreement invitation `#/invitation/{token}`) and `SecureLinkExperience`. The "Review this" handoff identity step (`HandoffPanel`) offers sign-in only. | UR-213 |
-| 5 | The Trust Project can be read about but not joined. | `TrustProjectSection` sits below Home. `CommunityExperience` tells non-members "The Trust Project is invitation-based…". The backend has no self-join (API contract §3). | UR-205 |
+| 5 | The Trust Project can be read about but not joined. | `TrustProjectSection` sits below Home. `CommunityExperience` tells non-members "The Trust Project is invitation-based…". The backend has no self-join yet (API contract §3). Direct Join is now approved (ADR-0021) and is Phase 4 work. | UR-205 (resolved) |
 | 6 | Anonymous continuity is memory-only, and ownership proof is "knows the UUID". | There is no `localStorage` or `sessionStorage` anywhere in `src`. `AgentConversationAccessPolicy` + first-saver-wins (API contract §5). | UR-203 |
 | 7 | Build-era vocabulary is visible. | "Read into BUILD", "Reading this into BUILD…", "N useful details added to BUILD", "Nothing from this reached BUILD yet", "backend" in five rendered strings (§10). | — |
 | 8 | Contrast fails AA. | Secondary Home text uses `text-sand-500` on cream ≈ **3.05:1**. Inactive mobile nav labels use `text-sand-400` ≈ **2.07:1** at `0.6rem`. There is no reduced-motion guard. | §17 |
@@ -73,7 +86,7 @@ It reveals value before asking for anything. That centre stays byte-identical: i
 | --- | --- |
 | 2 | Public shell, copy and accessibility — UI only |
 | 3 | Continuity token, rate limits and new sources — API + UI |
-| 4 | Join over the existing KS identity — API + UI, needing ADR-0021 confirmation |
+| 4 | Join over the existing KS identity (individuals, and Businesses through a server-checked representative) — API + UI. ADR-0021 is confirmed; the Join CTA goes live only here. |
 
 ## 3. Current signed-out architecture
 
@@ -112,19 +125,21 @@ flowchart TB
     subgraph Public["Signed-out shell — PublicNav (Phase 2)"]
       PN["SecurePay logo · How it works · The Trust Project · For Business · Sign in · Join"]
     end
-    PN --> H["#/ — Public Home, chapters 1–13 (§6)<br/>hero + composer + intake UNCHANGED"]
+    PN --> H["#/ — PublicHome composition, chapters 1–13 (§6)<br/>reuses the existing hero + composer + intake UNCHANGED"]
     PN --> HIW["How it works → #how-it-works anchor"]
     PN --> TP["The Trust Project → #trust-project anchor"]
     PN --> FB["For Business → #for-business anchor"]
     PN --> SI["#/sign-in — SecureAuth + createIdentityController<br/>(no plan, no funding)"]
-    PN --> J["#/join — Phase 2: honest interim panel · Phase 4: Join flow"]
+    PN --> J["#/join — Join flow<br/>(the CTA is live only once Phase 4 Join authority exists)"]
     H -->|type · plan · document · photo| C["KS001 conversation (unchanged)"]
     C -->|Review this| HO["Handoff identity step:<br/>Sign in · (Phase 4) Join"]
-    J --> NEW["New person → signup (unchanged API) → membership join"]
-    J --> OLD["Existing KS → sign in → membership join"]
+    J --> NEW["New individual → signup (unchanged API) → membership join"]
+    J --> OLD["Existing KS (individual) → sign in → membership join"]
+    J --> BIZ["Existing Business KS → authorised representative signs in<br/>→ join on behalf of the Business (server-checked authority)"]
     SI --> APP["Signed-in shell — existing NavBar (unchanged)"]
     NEW --> APP
     OLD --> APP
+    BIZ --> APP
     APP -.->|Account / Money| ACT["#/activate — financial activation (unchanged, no longer the public CTA)"]
     classDef keep fill:#e7f0ea,stroke:#2f5d44;
     class C,H,ACT keep;
@@ -134,7 +149,9 @@ flowchart TB
 - The first screen belongs to SecurePay + KS001.
 - The Trust Project neither swallows SecurePay nor hides behind it.
 - Signed-out visitors never see Agreements, Money, Store, Community, Account or Notifications as navigation. Store and Community appear only as Home glimpses (§6 ch. 9).
-- "Join" means **Join The Trust Project**, and it is transparent: "The Trust Project is powered by SecurePay. Your KS Number is your identity across both." Joining is never disguised account creation. The Join screen says plainly that it creates, or uses, your SecurePay KS identity. (Spelling of "KS Number": UR-214.)
+- "Join" means **Join The Trust Project**, and it is transparent: "The Trust Project is powered by SecurePay. Your KS Number is your identity across both." Joining is never disguised account creation. The Join screen says plainly that it creates, or uses, your SecurePay KS identity.
+- **Public spelling is "KS Number"** (UR-214, resolved). Code identifiers (`KSNumber`, `canonicalKsNumber`) are not renamed.
+- **No construction notices on the public surface.** A Join CTA that resolves to "opens soon", "coming soon" or "not ready yet" is forbidden. The public Join CTA becomes a live, deployable acquisition entry **only when Phase 4 Join authority exists**. Until then, Phase 2 may build the Join entry and route structure but must not ship it live. The mechanism is implementation-owned: a feature gate, branch-only UI, a CTA hidden until the capability is readable, or a coordinated Phase 2 + Phase 4 release.
 
 ## 5. Route and navigation map
 
@@ -142,7 +159,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | `#/` default | `AgentExperience` Home | same; `PublicNav` when not signed in | 2 |
 | `#/sign-in` | — (sign-in exists only inside `#/activate`, `HandoffPanel`, `SavedBuildPanel`, invitations, SecureLink, Referral) | new route: `createIdentityController` + `SecureAuth`. Afterwards it returns to the origin view (held in memory, never a URL-borne secret). It does no plan or funding step. | 2 |
-| `#/join` | — | Phase 2: an honest panel — "Joining The Trust Project opens soon. You can already use SecurePay without joining." — plus Sign in. Phase 4: the full Join (§13–15). | 2 → 4 |
+| `#/join` | — | The Join flow (§13–15). Phase 2 may build its visual structure and route, but **the route and every Join CTA stay unreachable in any deployable build until Phase 4 Join authority is live**. There is never an interim "opens soon" panel. | 2 (structure, not live) → 4 (live) |
 | `#how-it-works`, `#trust-project`, `#for-business` | — | in-page anchors on Home: scroll, then focus the chapter `<h2>`. They must not collide with the hash router: use `data-anchor` and `scrollIntoView`, and do not change `location.hash` for anchors. | 2 |
 | `#/activate` | the public CTA target | unchanged behaviour; linked from the signed-in Account/Money only | 2 (entry only) |
 | `#/invitation/{token}`, `#/my-invitations/{id}`, `#/invitations`, `/r…`, `#/money*`, `#/store/{ks}/offer/{id}` | existing | **unchanged** | — |
@@ -151,7 +168,7 @@ flowchart TB
 
 | Viewport | Layout |
 | --- | --- |
-| Desktop | Brand (mark + wordmark → `#/`) · How it works · The Trust Project · For Business · spacer · **Sign in** (`Button` secondary) · **Join** (`Button` primary). Sticky, `bg-cream-50/80 backdrop-blur-sm`, the same as today's bar. |
+| Desktop | Brand (mark + wordmark → `#/`) · How it works · The Trust Project · For Business · spacer · **Sign in** (`Button` secondary) · **Join** (`Button` primary; rendered only when the Join capability is live, see §4). Sticky, `bg-cream-50/80 backdrop-blur-sm`, the same as today's bar. |
 | Mobile | Top bar: brand · Sign in (text) · Join (primary, compact) · menu button (`aria-expanded`) that opens a top sheet with the three section links. **No bottom bar** when signed out, so the signed-out `pb-16` on the AgentExperience root is removed. |
 
 The signed-in `NavBar` is unchanged.
@@ -243,7 +260,7 @@ The signed-in `NavBar` is unchanged.
 | Secondary copy | the existing pillars (Technologies · Systems · People) and the origin story from `TrustProjectSection`, trimmed. Purpose through concrete possibilities, not a mission wall (§11). |
 | CTA | Join · "Read the 12 Principles" |
 | Live truth | none for signed-out visitors |
-| Must not claim | member counts, "verified community", invitation-only (after ADR-0021) |
+| Must not claim | member counts, "verified community", invitation-only (superseded by ADR-0021), that only individuals can belong, that joining turns on payments |
 | Desktop | a text column with pillars as three quiet cards |
 | Mobile | stacked, with the origin collapsed ("What The Trust Project is", the existing expander) |
 
@@ -253,9 +270,10 @@ See §12.
 
 | Field | Contract |
 | --- | --- |
-| Purpose | the capacities |
-| Question | "Do I have to become something?" |
-| Must not claim | ranks, income |
+| Purpose | membership and capacities |
+| Question | "Do I have to become something? Can my business belong?" |
+| Primary copy | Member card first and centred as the heart of the Project; Plug and Master cards beside it (never above it) |
+| Must not claim | ranks, a Member → Plug → Master ladder, income, a Business or Organization being a Plug or a Master |
 | Desktop | 3 equal cards |
 | Mobile | 3 stacked cards, identical treatment |
 
@@ -297,8 +315,8 @@ The mapping is in §6.2.
 | Purpose | the business doorway |
 | Question | "Can my business use this?" |
 | Primary copy | "Use SecurePay directly or build it into how your business already works." |
-| Secondary copy | "A Business KS Number, a Store for your offers, and — once set up — tools to connect SecurePay to your own systems." |
-| CTA | signed out: "Sign in to set up a Business" |
+| Secondary copy | "A Business KS Number, a Store for your offers, a place in The Trust Project, and — once set up — tools to connect SecurePay to your own systems." |
+| CTA | signed out: "Sign in to set up a Business". A Business joins The Trust Project with its own Business KS Number, through an authorised representative (§14.1). |
 | Must not claim | API availability to the public, SLAs, pricing numbers not shown by the backend |
 | Desktop | a text block plus 3 small feature lines |
 | Mobile | stacked |
@@ -323,10 +341,10 @@ The contract is in §6.3.
 | Purpose | the acquisition doorway |
 | Question | "How do I join, and what does it cost me?" |
 | Primary copy | "Join The Trust Project" |
-| Secondary copy | "One KS Number for SecurePay and The Trust Project. You never have to invite, teach or sell. Joining doesn't turn on payments or fees." |
-| CTA | **Join** · "I already have a KS Number" |
+| Secondary copy | "People, businesses and organizations can belong. One KS Number for SecurePay and The Trust Project. You never have to invite, teach or sell. Joining doesn't turn on payments, fees, bank accounts or subscriptions." |
+| CTA | **Join** · "I already have a KS Number". These render **only when Phase 4 Join authority is live** (§4). Before that, the chapter is not shipped in a deployable build; there is no placeholder. |
 | Live truth | none |
-| Must not claim | rewards, status |
+| Must not claim | rewards, status, financial activation |
 | Desktop | a centred band on `bg-cream-50` with a soft `ks001-surface` light |
 | Mobile | full-width buttons |
 
@@ -360,6 +378,8 @@ The contract is in §6.3.
 | "For Business" plan (`BUSINESS`) with a Business KS identity | yes (`ActivationExperience` PlanCard: "subject to the authority and entitlement checks that apply") | named publicly in ch. 10; configured signed-in via `#/activate` |
 | Business identity, members and roles (maker-checker) | partial (`BusinessExperience`: role assignment limited to the caller's own request) | signed-in Account → Business; **not** on the public Home |
 | Store for Business offers | yes | ch. 9 / ch. 10 mention |
+| How a Business KS comes to exist | **privileged only.** It is issued by `POST /api/v1/identities` with `IDENTITY_ISSUE` (trusted actor). There is no customer self-service Business issuance, and only signup (INDIVIDUAL) enrols credentials, so a Business KS cannot sign in as itself. `BusinessExperience`'s own copy says activation needs exactly that sign-in (UR-219). | Public copy must not promise "create your Business KS Number here". |
+| Business Trust Project membership | decided: eligible (ADR-0021). Phase 4 builds it through a server-checked representative authority (API contract §7.2, UR-218). | ch. 10 mention; the action lives signed-in |
 | Developer / Connect: app registration (SANDBOX/PRODUCTION), credentials, webhooks, SecureCode | yes, owned by the Business KS | named generically in ch. 10 ("tools to connect SecurePay to your own systems"); details only in signed-in Account → Developer / Connect |
 | Must not clutter the consumer Home | API docs links, environment names, webhook or credential terms, pricing tables | — |
 
@@ -418,16 +438,45 @@ flowchart LR
 
 **The rule:** if a shared component changes for the public journey and visibly affects a signed-in page, the impact is listed here before Phase 2 starts.
 
+### 8.1 Public Home is a distinct composition [Decision]
+
+Phase 2 does **not** grow `SignedOutHome.tsx` into the whole website with `if signedIn / if signedOut` branches. `SignedOutHome` is not semantically isolated: `AgentExperience` renders it for signed-in people too. The public site is a separate composition. The names below are conceptual; the exact extraction is implementation-owned.
+
+```
+PublicHome
+ ├── PublicNav
+ ├── SecurePayHero          (the existing KS001 hero — extracted/reused, byte-identical copy)
+ ├── PublicIntake           (the existing composer + Bring plan / Document / Show me — reused)
+ ├── HumanPossibilities     (ch. 4 prompts)
+ ├── HowSecurePayWorks      (ch. 5)
+ ├── TrustProjectPublicSection (ch. 6)
+ ├── MemberPlugMaster       (ch. 7)
+ ├── RealPossibilities      (ch. 8)
+ ├── StoreCommunityGlimpse  (ch. 9)
+ ├── ForBusiness            (ch. 10)
+ ├── FairTradeSection       (ch. 11, reusing FairTradePrinciplesPanel)
+ ├── JoinTrustProjectSection (ch. 12, live only with Phase 4 authority)
+ └── PublicFooter           (ch. 13)
+```
+
+**Principles:**
+1. `PublicHome` is a distinct composition, selected by the app shell when the session is not signed in.
+2. The hero and intake are shared components. If `SignedOutHome` is renamed or split to extract them, the extraction must preserve their tested behaviour and byte-pinned copy (`phase6-convergence` J/R1, `ui-phase7-trust-project`). Update the pinned tests' file paths only if the files move. Do not rewrite working KS001 intake.
+3. The signed-in Home remains its own experience: `AgentExperience`'s signed-in Home branch and `WorkspaceExperience` → `SignedInHome`.
+4. No component carries large session-state branches for the whole website.
+5. Shared primitives are reused. Public-only content (chapters 4–13, PublicNav, PublicFooter) lives in public-only components, so it cannot leak into signed-in surfaces by accident. A Phase 2 test asserts that signed-in renders include none of them.
+
 | Component | Class | Change / reason | Signed-in impact |
 | --- | --- | --- | --- |
 | `components/NavBar.tsx` | **A** | signed-out branch or a new `PublicNav` (desktop + mobile) | none if the branch is on session state; the signed-in items are unchanged |
-| `features/agent/AgentExperience.tsx` (public branch, `navigateTo` notices, root `pb-16`) | **A** | shell selection, dead-end notices → Sign in, Join/Sign-in wiring | the notices only fire when signed out; the `ContinueBuildingList` branch is untouched |
-| `components/SignedOutHome.tsx` | **A** | "Activate SecurePay" CTA → Sign in / Join (signed out only); new prompt set; chapters 4–13 below the hero | **Yes: it is rendered for signed-in people too.** New chapters render only when signed out. The hero, intake, Fair Trade and trust line stay byte-identical. |
+| **new** `PublicHome` + its chapter components + `PublicNav` + `PublicFooter` (§8.1) | **A (new)** | the public website | none — public-only by construction |
+| `features/agent/AgentExperience.tsx` (public branch, `navigateTo` notices, root `pb-16`) | **A** | shell selection (`PublicHome` when not signed in), dead-end notices → Sign in, Sign-in wiring (Join wiring only with Phase 4) | the notices only fire when signed out; the `ContinueBuildingList` branch is untouched |
+| `components/SignedOutHome.tsx` | **B** (extract / reuse) | Its hero + intake are extracted or reused by `PublicHome`. The public "Activate SecurePay" CTA and the old prompt list leave the **public** path (`PublicHome` has its own CTAs and ch. 4 prompts). Chapters 4–13 are **not** added here. | **Yes: it is rendered for signed-in people.** The signed-in rendering keeps working; whether the signed-in view keeps the prompts and the activation CTA is decided in Phase 2 against the signed-in Home, with no accidental change. |
 | `components/TrustProjectSection.tsx` | **A** | Member/Plug/Master copy (§12); the "powered by SecurePay" line | **Yes: the compact variant shows on the signed-in Homes** (`AgentExperience`, `SignedInHome` `belowHome`). The copy change is intended for both; layout stays. |
 | `features/sources/ui/BringPlanPanel.tsx`, `SourceCard.tsx` (+ `SourcesList`) | **A** | BUILD vocabulary (§10) | **Yes: used in signed-in conversations too.** An intended copy-only change. |
 | `features/sources/controller.ts` (error text) | **A** | "…added to your agreement…" → "…to this conversation…" | both; copy only |
-| `features/community/CommunityExperience.tsx` (non-member copy) | **A (Phase 4 only)** | "invitation-based" → Join, after ADR-0021 is confirmed | signed-in non-members |
-| `RuntimeApp.tsx` | **A** | `#/sign-in`, `#/join` hooks, added **before** the default | none |
+| `features/community/CommunityExperience.tsx` (non-member copy) | **A (Phase 4 only)** | "invitation-based" → Join (ADR-0021 confirmed; the copy changes when Join is live) | signed-in non-members |
+| `RuntimeApp.tsx` | **A** | `#/sign-in` hook (Phase 2). The `#/join` hook is built in Phase 2 but reachable only when Join authority is live (§4). Both are added **before** the default. | none |
 | `features/sources/ui/AttachSourceMenu.tsx` | **D** | Phase 3 may add kinds; Phase 2 doesn't touch it | the conversation composer |
 | `components/ConversationInput.tsx` | **C** | unchanged (the placeholder is passed by the caller) | — |
 | `components/FairTradePrinciples.tsx` (`FairTradeAffordance`, `FairTradePrinciplesPanel`) | **B** | capitalisation "Principles"; colour `sand-500` → `sand-600` for AA | **Yes:** the affordance also shows on `SignedInHome`; an intended AA fix |
@@ -438,7 +487,7 @@ flowchart LR
 | `features/recipient/*`, `features/securelink/*`, `features/handoff/*` (authority flow), `features/activation/*`, `features/money/*`, `features/review/*`, `features/amendments/*`, `features/execution/*`, `features/workspace/*`, `SignedInHome.tsx` | **C** | authority or pinned behaviour | — |
 | `features/store/*`, `components/StoreHome.tsx` | **C** / **D** | the public search is reused as is; styling reviewed later | — |
 | Fixture App: `App.tsx`, `demoData.ts`, `ecosystemData.ts`, `storeData.ts`, `ReferralHistoryView.tsx`, `DisputeMaster*.tsx`, `AgreementBuilderView.tsx` | **C** | must never feed public UI | — |
-| `features/plug/*`, `features/master/*`, `features/referral/*`, `features/business/*`, `features/developer/*`, `features/invitation-inbox/*` | **D** | public framing depends on UR-207/208; copy leaks in §10 | — |
+| `features/plug/*`, `features/master/*`, `features/referral/*`, `features/business/*` (+ Phase 4 "Join The Trust Project for this Business" action), `features/developer/*`, `features/invitation-inbox/*` | **D** | public framing depends on UR-207/208; copy leaks in §10 | — |
 | `tailwind.config.js`, `src/index.css` | **B** | optional *new* tokens only (e.g. a `public-chapter` background); existing tokens unchanged; a reduced-motion rule in CSS | the reduced-motion rule affects every page (intended) |
 
 ## 9. Visual convergence specification
@@ -501,7 +550,7 @@ flowchart LR
 | 1 | internal only | not listed |
 | 2 | valid | 4 |
 | 3 | BUILD or build scaffold | 9 |
-| 4 | required limitation, rewrite | 9 |
+| 4 | required limitation, rewrite | 10 (incl. 18a, added in the correction pass) |
 | 5 | fixture leak risk | 1 group |
 
 | # | File | Component | Exact rendered phrase | Cat. | Why | Direction | Phase |
@@ -511,7 +560,7 @@ flowchart LR
 | 3 | `features/sources/ui/SourceCard.tsx` | status | "Reading this into BUILD…" | 3 | same | "Reading this…" | 2 |
 | 4 | `features/sources/ui/SourceCard.tsx` | summary | "N useful detail(s) added to BUILD" | 3 | same; also over-claims (these are suggestions) | "N detail(s) found to check" | 2 |
 | 5 | `features/sources/ui/SourceCard.tsx` | summary | "Nothing from this reached BUILD yet" | 3 | same | "Nothing useful found in this yet" | 2 |
-| 6 | `features/money/MoneyExperience.tsx` | SectionCard | "The backend derives your identity and KSNumber — you only tell it about the account you want paid into." | 3 | engineering term | "SecurePay already knows who you are — just tell it where you want to be paid." | 2 |
+| 6 | `features/money/MoneyExperience.tsx` | SectionCard | "The backend derives your identity and KSNumber — you only tell it about the account you want paid into." | 3 | engineering term; also the non-public spelling "KSNumber" (public spelling is "KS Number") | "SecurePay already knows who you are — just tell it where you want to be paid." | 2 |
 | 7 | `features/developer/DeveloperExperience.tsx` | PageHeader | "…Only real, backend-verified capability is shown here." | 3 | engineering term | "…Only what's available to your Business is shown here." | 2 |
 | 8 | `features/business/BusinessExperience.tsx` | Role management | "SecurePay's backend has real maker-checker role-assignment authority… The current participant-facing contract does not yet support…" | 3 | build/contract language | "Assigning roles to other members isn't available here yet. You can request a role for yourself." | 2 |
 | 9 | `features/activation/ActivationExperience.tsx` | fallback | "This application does not recognize the backend's reported next action and will not guess…" | 3 | engineering | "SecurePay has a next step this screen can't show yet. Check again, or contact support." | 2 |
@@ -523,6 +572,7 @@ flowchart LR
 | 15 | `components/TrustProjectSection.tsx` | Plug card | "Connect useful people, needs and opportunities. … When a real commercial introduction qualifies under SecurePay's existing referral rules, part of the value it created can be shared. Inviting someone to join is not an introduction and earns nothing." | 4 | narrower than the locked Plug definition (practical help, paid work); leads with referral value | §12 copy | 2 |
 | 16 | `features/sources/controller.ts` | error | "SecurePay received this, but couldn't read it right now. Nothing from it has been added to your agreement yet." | 4 | nothing is an agreement yet | "…Nothing from it has been added yet." | 2 |
 | 17 | `components/NavBar.tsx` | nav | Agreements / Money / Account / Notifications for signed-out visitors | 4 | public nav leak | `PublicNav` | 2 |
+| 18a | `features/business/BusinessExperience.tsx` | activation helper | "…activation currently requires signing in as the Business KS identity itself, or an authorised internal actor. Signing in as a personal identity that administers this Business through Organization membership is not the same thing and will not succeed here." | 4 | Truthful but unusable: no customer path lets a Business KS sign in as itself (only signup enrols credentials, for INDIVIDUAL). This is a real product gap. | Rewrite once UR-219 is decided; not in Phase 2 unless UR-219 is | D |
 | 18 | `components/OfferBuilderView.tsx` | placeholder | "Media reference (URL or asset id)" | 4 | technical id | "Photo link" (review with Store media) | D |
 | 19 | `components/SignedOutHome.tsx` | trust line | "Start without a KS Number. Nothing becomes an agreement until you review and confirm it." | 2 | true and locked | keep (pinned) | — |
 | 20 | `components/TrustProjectSection.tsx` | Learn | "…The Skills Institute, for structured training and practice, is not open yet." | 2 | a truthful limitation | keep | — |
@@ -546,12 +596,13 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 
 **Must say:**
 - "The Trust Project is powered by SecurePay. Your KS Number is your identity across both."
-- There is one KS Number and no Trust Project number.
+- One person or entity, one KS Number, one place in the ecosystem, many capacities. There is no Trust Project identity or number, and no Member, Plug or Master number.
+- People, businesses and organizations can belong, each with its own KS Number.
 - Joining creates or uses your SecurePay KS identity (transparent, not disguised).
 - You never have to invite, teach or sell. A quiet member is a complete member (existing copy).
 - Belonging is not a certificate that someone is trustworthy (existing copy).
 - You can use SecurePay without joining.
-- Joining doesn't turn on payments, fees, bank or regulated accounts, or settlement, and does no KYC beyond the contact check at signup.
+- Joining doesn't turn on payments, fees, subscriptions, bank or regulated accounts, or settlement, and does no KYC beyond the contact check at signup.
 - The Skills Institute is not open yet.
 
 **Must not say:**
@@ -559,7 +610,8 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 - "verified members";
 - tiers, levels or "upgrade to Plug/Master";
 - income tied to joining or inviting;
-- "invitation-only" (after ADR-0021 is confirmed).
+- "invitation-only" or "you need an invitation" (superseded by ADR-0021: membership needs explicit acceptance, starting from a direct Join or an invitation);
+- that a Business or Organization is a Plug or a Master.
 
 **CTAs:**
 
@@ -567,31 +619,46 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 | --- | --- |
 | Signed out | Join · Read the 12 Principles · Browse Stores |
 | Signed-in member | Explore Community |
-| Signed-in non-member | Join (Phase 4) |
+| Signed-in non-member | Join (only once Phase 4 authority is live) |
+| Signed-in representative of a Business | "Join The Trust Project for {Business}" in Account → Business (Phase 4, server-checked authority) |
 
 ## 12. Member / Plug / Master contract
 
-Three capacities of one KS identity, **side by side**. Member is the centre; none of them is an identity; nothing is "above" Member.
+**The model** [Locked]:
+
+| Concept | Meaning |
+| --- | --- |
+| **Identity type** | what kind of participant this is |
+| **Membership** | whether that KS identity belongs to The Trust Project |
+| **Capacity** | additional roles the participant may perform |
+
+- Member is the heart of the Project and applies to eligible individual, business and organization KS identities.
+- Plug and Master are **individual human capacities** for this programme. A Business may engage, employ, host or work with Plugs and Masters, but it is never itself called a Plug or a Master.
+- There is no ladder: Member → Plug → Master is forbidden.
 
 ```mermaid
 flowchart TB
-    KS["KS IDENTITY / KS Number"]
-    KS --- TPM["Trust Project membership"]
-    KS --- SP["Store / profile"]
-    KS --- AP["Agreement participation"]
-    KS --- FA["Financial activation / regulated mapping where eligible"]
-    KS --- CAP["Capacities"]
-    CAP --- M["Member — belongs and participates"]
-    CAP --- P["Plug — helps people use the ecosystem and connect to opportunity"]
-    CAP --- MA["Master — brings deep experience and judgement"]
+    KS["KS IDENTITY / KS Number<br/>one person or entity · one place · many capacities"]
+    KS --> TYPE["Identity type"]
+    KS --> MEM["Trust Project membership<br/>(state on this identity)"]
+    KS --> OTH["Other authority<br/>Agreements · Store · Money · Governance …"]
+    TYPE --> TI["Individual"]
+    TYPE --> TB["Business"]
+    TYPE --> TO["Organization<br/>(where the identity model supports it)"]
+    TI --> CI["ACTIVE member → Member<br/>+ may also become Plug<br/>+ may also become Master<br/>Store/profile · Agreements"]
+    TB --> CB["ACTIVE member → Member<br/>Store/profile · Community · opportunities<br/>Agreements · governance / representatives<br/>engages Plugs and Masters"]
+    TO --> CO["ACTIVE member → Member<br/>Community · Store/profile where supported<br/>projects / opportunities · Agreements · governance<br/>engages Plugs and Masters"]
 ```
+
+**Code fact:** `IdentityType` today is `INDIVIDUAL | BUSINESS | SYSTEM | TEST`. There is no distinct ORGANIZATION type yet; organizations are modelled as a BUSINESS KS linked to an RBAC organization (`authorization.business_organizations`). The eligibility decision covers Organization identities as and when the identity model supports them (API contract §7, UR-220).
 
 | | Member | Plug | Master |
 | --- | --- | --- | --- |
+| Who | eligible individuals, businesses and organizations | an identifiable individual person | an identifiable individual person |
 | Card line | "Belong and take part." | "Help people use the ecosystem and reach opportunity." | "Bring deep practical experience." |
-| Card detail | "Ask, help, learn, offer work, use Community, keep a Store where eligible, discover opportunities, make Agreements, find a Plug or a Master, share what you know. A quiet member is a complete member — you never need to become anything else." | "A practical guide who understands The Trust Project and its tools, and can help someone get started, set up a profile or Store, photograph and list products, find people, resources, Masters and opportunities, and understand SecurePay — in person or online. Plugs may also do separately agreed paid work. Income is never guaranteed, inviting people earns nothing, and a Plug can only manage what someone has explicitly delegated." | "Someone with real, demonstrable experience in a field, who can offer consultation, a Master Opinion or second opinion, teaching, mentoring, practical sessions, apprenticeship and project supervision, or real professional work. Paid help is agreed separately. A Master is not a judge: being a Master never decides Agreements, disputes or releases money." |
-| Is not | a lowest tier; recruitment duty; required to become Plug or Master | a recruiter; an Agreement or money authority; a guaranteed income | a judge; an Agreement authority; Payment Ready or release authority; a trust score |
-| Backend truth | an ACTIVE membership row | market-network Plug participation (Market Ready → explicit entry). A separate Agreement Plug Lifetime Share exists **only** through explicit Agreement attribution and is a backend entitlement, not a promise (UR-208). | a Master profile by **self-designation** (`/master/me/designate`, unverified). Do not say "verified" or "certified" (UR-207). |
+| Card detail | "People, businesses and organizations belong through their own KS Number. Ask, help, offer, find, learn, publish opportunities, keep a Store, take part in Community, trade, work with people, and engage Plugs or Masters. A quiet member is a complete member — you never need to become anything else." | "A Plug is an identifiable person who understands The Trust Project and helps people use the ecosystem and make useful things happen: getting started, set up a profile or Store, photograph and list products, Community research, finding opportunities, making connections, locating Masters, explaining SecurePay, and practical digital or physical help. Plugs may also do separately agreed paid work. An invitation is not a referral, recruiting members earns nothing automatically, income is never guaranteed, and delegated tasks never create Agreement or money authority." | "A Master is an identifiable person with meaningful, demonstrable practical experience in a specific field: consultation, a Master Opinion or second opinion, teaching, mentoring, practical sessions, supervised work, apprenticeship, project support, or real professional work. A business may have Masters working for or with it. Paid help is agreed separately. Being a Master never changes an Agreement, confirms for someone else, decides Payment Ready, releases money, adjudicates or imposes liability." |
+| Is not | a lowest tier; recruitment duty; individual-only; required to become Plug or Master | a recruiter; an Agreement or money authority; a guaranteed income; a business or organization capacity | a judge; an Agreement authority; Payment Ready or release authority; a trust score; a business or organization capacity |
+| Backend truth | an ACTIVE membership row on the identity (any eligible type) | market-network Plug participation (Market Ready → explicit entry). A separate Agreement Plug Lifetime Share exists **only** through explicit Agreement attribution and is a backend entitlement, not a promise (UR-208). | a Master profile by **self-designation** (`/master/me/designate`, unverified). Do not say "verified" or "certified" (UR-207). |
 | Public CTA | Join | none on the public Home (existing flows are signed-in) | none on the public Home until UR-207 is resolved |
 
 Skills Institute: "not open yet" (keep).
@@ -643,13 +710,47 @@ sequenceDiagram
    | ACTIVE | "You're already a member · KS…". No write. |
    | INVITED | "{inviter} invited you to The Trust Project." Join (= accept). |
    | none | Join |
-   | DECLINED | Join, per UR-206 |
-   | REVOKED | "Joining isn't available for this KS Number. Contact support if you think this is a mistake." No reason text. |
+   | DECLINED | Join. Declining earlier is not a ban; the earlier decline stays on record (`DIRECT_JOIN_AFTER_DECLINE`). |
+   | REVOKED | No Join button. "Joining isn't available for this KS Number. Contact support if you think this is a mistake." No reason text. Pressing Join again never reactivates; restoring access is a separate process (UR-217). |
 
 3. **A signed-in person is never offered signup.** There is no second identity.
 4. **The "I'm new" path by someone who already has a KS Number.** Signup sends an OTP and then fails generically (anti-enumeration, UR-209). The Join error panel must then offer "Already have a KS Number? Sign in" and "Recover your account", and must never say "this contact is registered".
 
 The authority sequence is in API contract §7.1 ("TARGET — existing KS holder Joins").
+
+### 14.1 Business and Organization Join
+
+- **New business.** There is no customer self-service Business KS issuance today: a Business KS is issued by a privileged actor (`IDENTITY_ISSUE`), and it cannot sign in as itself (UR-219). The public Home therefore **never** offers "create your Business KS Number here". It must also never issue an individual KS as a workaround for a business.
+- **Existing Business KS.**
+  1. An authorised representative signs in with their own individual KS Number.
+  2. In Account → Business they choose "Join The Trust Project for {Business}".
+  3. They review and accept the current Principles *on behalf of the Business*.
+  4. The server proves the representative's authority over that Business: the linked organization plus an org-scoped permission, the Vision Board / Projects pattern (API contract §7.2, UR-218).
+  5. The Business membership becomes ACTIVE, and the Business is a Member.
+- **Guardrails.**
+  - Knowing a Business KS Number is never enough.
+  - The browser never decides who represents a Business.
+  - Any employee without that authority sees no Join-for-Business action. If one is attempted, the server refuses it.
+  - The representative's own individual membership is unaffected, and so is the Business's.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    title TARGET UX — existing Business KS joins through an authorised representative (Phase 4)
+    actor A as Representative (individual KS)
+    participant UI as Account → Business
+    participant M as Membership API
+    participant Z as Business authority (server)
+    A->>UI: signed in as own individual KS
+    UI->>M: GET business membership for Business KS
+    M->>Z: resolve Business → linked organization → org-scoped permission?
+    Z-->>M: authorised (else: action not offered / refused)
+    UI-->>A: "Join The Trust Project for {Business}" + what it means + 12 Principles
+    A->>UI: accepts on behalf of the Business
+    UI->>M: POST join for Business KS {acceptPrinciples, principlesVersion} + Idempotency-Key
+    M->>Z: re-check authority (never trust the client)
+    M-->>UI: Business membership ACTIVE (audit: acting individual + member Business)
+```
 
 ## 15. Invited-person sequence
 
@@ -722,10 +823,16 @@ sequenceDiagram
    - Test: the signed-in NavBar is unchanged.
 2. **`#/sign-in`** (`createIdentityController` + `SecureAuth`), returning to the origin. Replace the §10 #10 notices with a Sign in action.
    - Test: `#/sign-in` never calls the subscription or activation gateways.
-3. **`#/join` interim panel.** Honest, no signup yet. Signup lives on Join only from Phase 4, once ADR-0021 is confirmed.
-4. **Home chapters 4–13**, rendered only when signed out, below the unchanged hero.
-   - Replace the CTA and the prompts.
-   - Tests: the hero, supporting text and trust line are byte-identical; the principles come from `FAIR_TRADE_PRINCIPLES` (no new list); no public component imports fixture modules; no digits-followed-by-"members/people/stores" patterns on Home.
+3. **Join structure without a live Join.**
+   - Phase 2 may build the `#/join` route, the Join screens' visual structure and the ch. 12 section.
+   - None of it is reachable in a deployable build until Phase 4 authority is live: no Join CTA in PublicNav, the hero area or ch. 12, and no "opens soon" panel.
+   - The release mechanism is implementation-owned (§4).
+   - Test: a deployable Phase 2 build renders no Join CTA and no "soon / coming / not ready" copy.
+4. **`PublicHome` composition (§8.1)** with chapters 1–11 and 13 (ch. 12 follows the Join rule above).
+   - Reuse the existing hero and intake, extracted from `SignedOutHome` without changing their behaviour or pinned copy.
+   - Do **not** add chapters into `SignedOutHome`.
+   - The public CTA is Sign in, plus Join once live.
+   - Tests: signed-in renders include no public-only component; the hero, supporting text and trust line are byte-identical; the principles come from `FAIR_TRADE_PRINCIPLES` (no new list); no public component imports fixture modules; no digits-followed-by-"members/people/stores" patterns on Home.
 5. **Copy register** rows marked Phase 2 (§10: 1–13, 15–17, 22). Update the tests that pin old strings.
 6. **Accessibility** (§17) on public surfaces, plus the shared `FairTradeAffordance` colour.
 7. **Browser verification** against the real backend at the §16 widths, signed out and signed in (no regressions on `SignedInHome` / `WorkspaceExperience`).
@@ -738,7 +845,8 @@ sequenceDiagram
 
 **Phase 4** (API + UI):
 - `POST /community/membership/join` and the versioned principles;
-- Join flows §13–15;
+- the Business on-behalf Join with server-checked authority (§14.1);
+- Join flows §13–15, and switching the Join CTA live;
 - the Community copy (§10 #14);
 - the signup error context (#13).
 
@@ -751,9 +859,13 @@ sequenceDiagram
 - no change to anonymous ownership or ingestion;
 - no change to Store or Community access, financial activation or Agreement authority;
 - no fake preview data, no restyling, and no removal of BUILD wording.
+- The 2026-09-27 correction pass is also documentation only.
 
 **Never, in any phase, without a new decision:**
-- a Trust Project number or a second identity;
+- a Trust Project number or a second identity (including a second identity for an organization);
+- a "Join opens soon" or other construction notice behind a public CTA;
+- a Business or Organization described as a Plug or a Master;
+- self-reactivation of a REVOKED membership;
 - ranks or tiers;
 - membership-gated SecurePay usage;
 - membership → financial activation;
