@@ -8,7 +8,8 @@ import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `
 export { SourceCard, SourcesList } from './src/features/sources/ui/SourceCard';
 export { AI_HANDOFF_PROMPT, BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
-export { AttachSourceMenu } from './src/features/sources/ui/AttachSourceMenu';
+export { SourceMenu } from './src/features/sources/ui/SourceMenu';
+export { DeclaredSourcePanel } from './src/features/sources/ui/DeclaredSourcePanel';
 export { SignedOutHome } from './src/components/SignedOutHome';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
@@ -108,15 +109,20 @@ test('BringPlanPanel: a submission error is shown plainly, never silently swallo
   assert.match(out, /doesn.t support this file type/);
 });
 
-// ---------------------------------------------------------------- AttachSourceMenu
-test('AttachSourceMenu: reveals exactly three quiet options -- never a toolbar jungle', () => {
-  const out = text(html(api.AttachSourceMenu, { onPickDocument() {}, onPickPhoto() {}, onBringPlan() {} }));
-  // Collapsed by default -- the menu itself is one button until opened; assert the hidden file inputs
-  // exist (real upload capability) even before the menu is opened.
-  const raw = html(api.AttachSourceMenu, { onPickDocument() {}, onPickPhoto() {}, onBringPlan() {} });
+// ---------------------------------------------------------------- SourceMenu (Public Experience Convergence Phase 3)
+test('SourceMenu: one quiet "+" control, collapsed by default, with the real pickers already present', () => {
+  // Collapsed by default -- the menu itself is one button until opened; the hidden file inputs exist
+  // (real upload capability) even before the menu is opened.
+  const raw = html(api.SourceMenu, { onPickDocument() {}, onPickPhoto() {}, onBringPlan() {} });
+  assert.match(raw, /aria-label="Add a source"/);
+  assert.match(raw, /aria-haspopup="menu"/);
+  assert.match(raw, /aria-expanded="false"/);
+  assert.doesNotMatch(raw, /role="menu"/);
   assert.match(raw, /type="file"/);
   assert.match(raw, /accept="[^"]*application\/pdf/);
-  assert.match(raw, /accept="image\/jpeg/);
+  assert.match(raw, /accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
+  assert.match(raw, /accept="image\/jpeg,image\/png"/);
+  assert.match(raw, /accept="image\/jpeg,image\/png" capture="environment"/);
 });
 
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
@@ -127,20 +133,64 @@ test('SignedOutHome: carries the exact Phase 3 headline, supporting text, and tr
   assert.match(out, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
-  // Checked against the RAW markup, not the text-stripped version: the example-prompt chip "Show me the
-  // agreement where Peter renovated my kitchen" also contains the substring "Show me" and would otherwise
-  // false-positive; the intake button's own markup is the exact, standalone ">Show me<".
+  // Public Experience Convergence Phase 3 -- the intake is now the ONE shared "+" SourceMenu.
   const withoutIntake = html(api.SignedOutHome, { onStart() {} });
-  assert.doesNotMatch(withoutIntake, /Bring your plan/);
-  assert.doesNotMatch(withoutIntake, /Give me a document/);
-  assert.doesNotMatch(withoutIntake, />Show me</);
+  assert.doesNotMatch(withoutIntake, /data-source-menu/);
+  assert.doesNotMatch(withoutIntake, /Add what you have/);
+  assert.doesNotMatch(withoutIntake, /type="file"/);
   const withIntake = html(api.SignedOutHome, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} });
-  assert.match(withIntake, /Bring your plan/);
-  assert.match(withIntake, /Give me a document/);
-  assert.match(withIntake, />Show me</);
+  assert.match(withIntake, /data-source-menu/);
+  assert.match(text(withIntake), /Add what you have/);
+  assert.match(withIntake, /type="file"/);
 });
 test('SignedOutHome: the trust line explicitly says a KS Number is not required to start -- signed-out value first (Section 39)', () => {
   const out = text(html(api.SignedOutHome, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} }));
   assert.match(out, /Start without a KS Number/);
   assert.doesNotMatch(out, /sign in|log in/i, 'Home itself must never put a sign-in requirement in front of intake');
+});
+
+test('SourceMenu: nothing unwired renders -- no dead controls, no pickers without a handler', () => {
+  assert.equal(html(api.SourceMenu, {}), '');
+  const planOnly = html(api.SourceMenu, { onBringPlan() {} });
+  assert.doesNotMatch(planOnly, /type="file"/);
+});
+test('SourceMenu: Voice note never renders without an approved transcriber (none exists), and no audio picker exists', () => {
+  const raw = html(api.SourceMenu, { onPickDocument() {}, onPickPhoto() {}, onBringPlan() {}, onAddLink() {}, onAddPlace() {} });
+  assert.doesNotMatch(raw, /audio\//);
+  assert.doesNotMatch(raw, /Voice/);
+});
+test('DeclaredSourcePanel: a link is kept as typed and never opened; a place is words, never device location', () => {
+  const link = text(html(api.DeclaredSourcePanel, { kind: 'link', busy: false, error: null, onSubmit() {}, onClose() {} }));
+  assert.match(link, /Share a link/);
+  assert.match(link, /never opens the page/);
+  const place = text(html(api.DeclaredSourcePanel, { kind: 'place', busy: false, error: null, onSubmit() {}, onClose() {} }));
+  assert.match(place, /in your own words/);
+  assert.match(place, /doesn.t use your device location/);
+  const raw = html(api.DeclaredSourcePanel, { kind: 'link', busy: false, error: null, onSubmit() {}, onClose() {} });
+  assert.match(raw, /type="url"/);
+  assert.match(raw, /min-h-11/);
+});
+test('SourceCard: a LINK shows the declared address as plain text (never a clickable anchor) with the honest note', () => {
+  const raw = html(api.SourceCard, { source: source({ sourceKind: 'LINK', originalName: '', label: '', mediaType: 'text/plain', documentType: '', declaredText: 'https://supplier.example/quote', extractionStatus: 'FAILED', summary: '', failureReason: 'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to this conversation.' }), onRetry() {}, onRemove() {}, busy: false });
+  assert.doesNotMatch(raw, /<a /);
+  assert.match(raw, /data-declared-link[^>]*>https:\/\/supplier\.example\/quote/);
+  assert.match(text(raw), /Link you shared/);
+  assert.match(text(raw), /SecurePay doesn.t open links/);
+  assert.match(text(raw), /Try again/);
+});
+test('SourceCard: a PLACE is titled by the words typed and says SecurePay does not look it up', () => {
+  const out = text(html(api.SourceCard, { source: source({ sourceKind: 'PLACE', originalName: '', label: '', mediaType: 'text/plain', documentType: '', declaredText: 'Westlands, Nairobi', extractionStatus: 'RECEIVED', summary: '' }), onRetry() {}, onRemove() {}, busy: false }));
+  assert.match(out, /Westlands, Nairobi/);
+  assert.match(out, /doesn.t look up locations/);
+  assert.match(out, /Received/);
+});
+test('SourceCard: a spreadsheet is named as one and says values only; states are human words, never raw statuses', () => {
+  const out = text(html(api.SourceCard, { source: source({ originalName: 'prices.xlsx', mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', extractionStatus: 'PARTIAL' }), onRetry() {}, onRemove() {}, busy: false }));
+  assert.match(out, /Values only/);
+  assert.match(out, /Partly read — suggestions to check/);
+  assert.doesNotMatch(out, /\bPARTIAL\b|\bREADY\b|\bRECEIVED\b/);
+});
+test('SourceCard: the remove control is a real 44px touch target', () => {
+  const raw = html(api.SourceCard, { source: source(), onRetry() {}, onRemove() {}, busy: false });
+  assert.match(raw, /aria-label="Remove quotation\.pdf"[^>]*class="[^"]*w-11 h-11/);
 });

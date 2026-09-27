@@ -1,10 +1,57 @@
-import { segment, type HttpClient } from '../http';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatePastedTextSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
-export function createAgentGateway(http: HttpClient) {
+import { ApiError, segment, type HttpClient, type RequestOptions } from '../http';
+import { CONVERSATION_TOKEN_HEADER, conversationAccess, type ConversationAccessStore } from './continuity';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
+/**
+ * Public Experience Convergence Phase 3 (Slice 3A) -- the gateway is the ONE place the anonymous
+ * conversation token travels. It attaches `X-SecurePay-Conversation-Token` (a header, never a URL) only to
+ * requests for the conversation the token belongs to, plus that conversation's handoff reads; it forgets
+ * the token after a claim (save / signed-in handoff) and on the server's non-leaking 404.
+ */
+export function createAgentGateway(rawHttp: HttpClient, access: ConversationAccessStore = conversationAccess) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
+  const tokenFor = (conversationId: string | null): Record<string, string> | undefined => {
+    const record = access.current();
+    if (!record || (conversationId !== null && record.conversationId !== conversationId)) return undefined;
+    return { [CONVERSATION_TOKEN_HEADER]: record.secret };
+  };
+  const withToken = (conversationId: string | null, options: RequestOptions): RequestOptions => {
+    const token = tokenFor(conversationId);
+    return token ? { ...options, headers: { ...options.headers, ...token } } : options;
+  };
+  const forgetOnNotFound = (conversationId: string | null, error: unknown) => {
+    if (error instanceof ApiError && error.status === 404 && error.code === 'AGENT_CONVERSATION_NOT_FOUND') {
+      if (conversationId === null) access.forget(); else access.forget(conversationId);
+    }
+  };
+  // Every conversation-scoped path carries the matching token; a handoff path carries the current one.
+  const http: HttpClient = {
+    async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+      const match = /^\/api\/agent\/conversations\/([^/?]+)/.exec(path);
+      const isHandoff = path.startsWith('/api/agent/agreement-handoffs/');
+      if (!match && !isHandoff) return rawHttp.request<T>(path, options);
+      const conversationId = match ? decodeURIComponent(match[1]) : null;
+      try {
+        return await rawHttp.request<T>(path, withToken(conversationId, options));
+      } catch (error) {
+        forgetOnNotFound(conversationId, error);
+        throw error;
+      }
+    },
+  };
   return {
-    createConversation: () => http.request<ConversationDto>('/api/agent/conversations', { method: 'POST', auth: 'none' }),
+    createConversation: async (): Promise<ConversationDto> => {
+      const created = await rawHttp.request<CreatedConversationDto>('/api/agent/conversations', { method: 'POST', auth: 'none' });
+      const { conversationAccessSecret, anonymousExpiresAt, ...conversationDto } = created ?? ({} as CreatedConversationDto);
+      if (conversationDto.conversationId && conversationAccessSecret && anonymousExpiresAt) {
+        access.remember({ conversationId: conversationDto.conversationId, secret: conversationAccessSecret, anonymousExpiresAt });
+      }
+      return conversationDto as ConversationDto;
+    },
+    /** Phase 3 -- the tab's resumable anonymous conversation id (never the secret), if any. */
+    resumableConversationId: (): string | null => access.current()?.conversationId ?? null,
+    /** Phase 3 -- "Start new conversation" leaves the previous anonymous one behind on purpose. */
+    forgetResumableConversation: (): void => access.forget(),
     // Final Phase 3 correction (Section 4/6/9): the ONE place a bounded Agent access grant for an
     // existing, private Agreement is created. Idempotent for a retry of the same conversation/
     // owner/Agreement (the backend reuses the existing live grant); a live grant already pointed
@@ -64,9 +111,22 @@ export function createAgentGateway(http: HttpClient) {
       }),
     submitDate: (id: string, body: ExternalFactRequest & { date: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/date`, { method: 'POST', body, auth: 'optional' }),
     lookupPriorTerm: (id: string, body: { sourceAgreementPublicReference: string; termQuery: string; clientTurnId?: string }) => http.request<TradeContextDto>(`${conversation(id)}/prior-agreement-terms`, { method: 'POST', body, auth: 'required' }),
-    createHandoff: (id: string, clientActionId?: string) => http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' }),
+    // Phase 3 final hardening -- a signed-in "Continue with this" makes the server claim the conversation
+    // and retire its digest. The server says so in `conversationClaimed` (read from its own ownership
+    // record); only then is the now-powerless secret dropped. A signed-out create never claims, so the
+    // visitor keeps the token they still need; a failed create throws before this and keeps it too.
+    createHandoff: async (id: string, clientActionId?: string) => {
+      const created = await http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' });
+      if (created?.conversationClaimed === true) access.forget(id);
+      return created;
+    },
     readHandoff: (id: string) => http.request<HandoffDto>(handoff(id), { auth: 'optional' }),
-    adoptHandoff: (id: string) => http.request<HandoffDto>(`${handoff(id)}/adopt`, { method: 'POST', auth: 'required' }),
+    // Phase 3 -- adopting claims the conversation (token retired server-side), so forget it here too.
+    adoptHandoff: async (id: string) => {
+      const adopted = await http.request<HandoffDto>(`${handoff(id)}/adopt`, { method: 'POST', auth: 'required' });
+      access.forget(adopted?.conversationId);
+      return adopted;
+    },
     reviewHandoff: (id: string) => http.request<AgreementReviewResponseDto>(`${handoff(id)}/review`, { auth: 'required' }),
     continueHandoff: (id: string, body: ContinueHandoffRequest) => http.request<HandoffDto>(`${handoff(id)}/continue`, { method: 'POST', body, auth: 'required' }),
     // Final Phase 4 Economy Turn 3 (Section 7) -- "review/use current source": never mutates the
@@ -87,8 +147,12 @@ export function createAgentGateway(http: HttpClient) {
     // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Requires authentication; the backend
     // enforces every ownership boundary (AgentSavedBuildService), this is a thin transport only. Not part
     // of the public OpenAPI contract, matching createHandoff/readHandoff's own First-Party precedent.
-    saveBuild: (conversationId: string) =>
-      http.request<SavedBuildDto>(`${conversation(conversationId)}/saved-build`, { method: 'POST', auth: 'required' }),
+    // Phase 3 -- saving is a claim-with-token; once claimed the token is retired server-side, so forget it.
+    saveBuild: async (conversationId: string) => {
+      const saved = await http.request<SavedBuildDto>(`${conversation(conversationId)}/saved-build`, { method: 'POST', auth: 'required' });
+      access.forget(conversationId);
+      return saved;
+    },
     listSavedBuilds: (limit = 50, offset = 0) =>
       http.request<SavedBuildDto[]>(`/api/agent/saved-builds?limit=${limit}&offset=${offset}`, { auth: 'required' }),
     resumeSavedBuild: (savedBuildId: string) =>
@@ -106,6 +170,11 @@ export function createAgentGateway(http: HttpClient) {
      * multipart form data (see the http client's own FormData handling) -- never base64-encoded into a
      * JSON body, which would risk enormous request sizes for an ordinary photo.
      */
+    // Phase 3 (Slice 3B) -- declared text only: the link is never opened, the place never located.
+    createLinkSource: (conversationId: string, body: CreateLinkSourceRequest) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/link`, { method: 'POST', body, auth: 'optional' }),
+    createPlaceSource: (conversationId: string, body: CreatePlaceSourceRequest) =>
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/place`, { method: 'POST', body, auth: 'optional' }),
     uploadSource: (conversationId: string, sourceKind: 'DOCUMENT' | 'PHOTO', file: File, label?: string) => {
       const form = new FormData();
       form.append('sourceKind', sourceKind);

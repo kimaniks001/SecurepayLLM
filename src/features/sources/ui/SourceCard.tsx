@@ -1,7 +1,22 @@
-import { FileText, RefreshCw, X } from 'lucide-react';
+import { FileSpreadsheet, FileText, Image, Link2, MapPin, Mic, RefreshCw, X } from 'lucide-react';
 import type { AgentSourceArtifactView } from '../controller';
+import { SPREADSHEET_MEDIA_TYPE, sourceKindNote, sourceStatusText } from '../presentation';
 
-const KIND_LABEL: Record<string, string> = { PASTED_TEXT: 'Pasted plan', DOCUMENT: 'Document', PHOTO: 'Photo' };
+const KIND_LABEL: Record<string, string> = {
+  PASTED_TEXT: 'Pasted plan', DOCUMENT: 'Document', PHOTO: 'Photo', LINK: 'Link you shared', PLACE: 'Place', AUDIO: 'Voice note',
+};
+
+
+
+function KindIcon({ source }: { source: AgentSourceArtifactView }) {
+  const className = 'w-3.5 h-3.5 text-forest-500 shrink-0';
+  if (source.sourceKind === 'LINK') return <Link2 className={className} aria-hidden="true" />;
+  if (source.sourceKind === 'PLACE') return <MapPin className={className} aria-hidden="true" />;
+  if (source.sourceKind === 'PHOTO') return <Image className={className} aria-hidden="true" />;
+  if (source.sourceKind === 'AUDIO') return <Mic className={className} aria-hidden="true" />;
+  if (source.mediaType === SPREADSHEET_MEDIA_TYPE) return <FileSpreadsheet className={className} aria-hidden="true" />;
+  return <FileText className={className} aria-hidden="true" />;
+}
 
 /**
  * KS001 Upgrade Phase 3 (Section 41) -- a calm, first-class source card. Never exposes provider JSON,
@@ -23,26 +38,40 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
   factCount?: number;
 }) {
   if (source.extractionStatus === 'REMOVED') return null;
-  const title = source.originalName || KIND_LABEL[source.sourceKind] || 'Source';
+  const declared = source.sourceKind === 'LINK' || source.sourceKind === 'PLACE';
+  const kindLabel = source.mediaType === SPREADSHEET_MEDIA_TYPE ? 'Spreadsheet' : KIND_LABEL[source.sourceKind];
+  const title = declared
+    ? (source.label || (source.sourceKind === 'PLACE' ? source.declaredText : '') || kindLabel || 'Source')
+    : (source.originalName || source.label || kindLabel || 'Source');
+  const note = sourceKindNote(source);
+  const statusText = sourceStatusText(source);
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   return (
     <div className="rounded-2xl border border-cream-200 bg-white/80 shadow-soft px-4 py-3 space-y-1.5 animate-fade-in-up">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <FileText className="w-3.5 h-3.5 text-forest-500 shrink-0" aria-hidden="true" />
+          <KindIcon source={source} />
           <span className="text-[0.85rem] font-medium text-forest-800 truncate">{title}</span>
-          {source.documentType && <span className="text-[0.7rem] text-sand-500 shrink-0">· {source.documentType}</span>}
+          {source.documentType && <span className="text-[0.7rem] text-sand-600 shrink-0">· {source.documentType}</span>}
         </div>
         <button
           type="button" disabled={busy} onClick={onRemove} aria-label={`Remove ${title}`}
-          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sand-400 hover:text-ember-700 hover:bg-ember-50 disabled:opacity-40"
+          className="shrink-0 w-11 h-11 -mr-3 -mt-3 -mb-2 rounded-full flex items-center justify-center text-sand-500 hover:text-ember-700 hover:bg-ember-50 disabled:opacity-40"
         >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
+      {/* A link is shown as plain text, never a clickable anchor: SecurePay has not checked where it goes. */}
+      {source.sourceKind === 'LINK' && source.declaredText && (
+        <p className="text-[0.78rem] text-forest-700 break-all" data-declared-link>{source.declaredText}</p>
+      )}
+      {note && <p className="text-[0.75rem] text-sand-600">{note}</p>}
+      {statusText && source.extractionStatus !== 'PROCESSING' && source.extractionStatus !== 'RECEIVED' && (
+        <p className="text-[0.72rem] font-medium text-forest-600" data-source-state>{statusText}</p>
+      )}
 
       {source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' ? (
-        <p className="text-[0.8rem] text-sand-600">Reading this…</p>
+        <p className="text-[0.8rem] text-sand-600" data-source-state>{statusText}</p>
       ) : source.extractionStatus === 'FAILED' ? (
         <div className="space-y-1.5">
           <p className="text-[0.8rem] text-ember-700">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>

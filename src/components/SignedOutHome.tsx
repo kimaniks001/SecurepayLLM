@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
-import { Camera, FileText, PenLine } from 'lucide-react';
+import { useState } from 'react';
 import securepayLockup from '../assets/brand/securepay/securepay-lockup-by-keyman.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
+import { SourceMenu } from '../features/sources/ui/SourceMenu';
 
 interface SignedOutHomeProps {
   onStart: (text: string) => void;
@@ -13,12 +13,10 @@ interface SignedOutHomeProps {
   onBringPlan?: () => void;
   onPickDocument?: (file: File) => void;
   onPickPhoto?: (file: File) => void;
+  /** Public Experience Convergence Phase 3 (Slice 3B) -- declared-text sources (never fetched / located). */
+  onAddLink?: () => void;
+  onAddPlace?: () => void;
 }
-
-const DOCUMENT_ACCEPT = '.pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv';
-// KS001 Upgrade Phase 3 final merge-readiness correction (item 4) -- WebP deliberately not offered here;
-// see AttachSourceMenu's own note (the backend has no safe, bounded WebP dimension parser).
-const PHOTO_ACCEPT = 'image/jpeg,image/png';
 
 interface SecurePayHeroProps extends SignedOutHomeProps {
   /**
@@ -41,14 +39,9 @@ interface SecurePayHeroProps extends SignedOutHomeProps {
  * SignedInHome's own heading), but never again as the ONLY signed-out home proposition. Hierarchy
  * remains: headline -> supporting text -> conversation input -> intake modes -> Fair Trade line.
  */
-export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, variant = 'app' }: SecurePayHeroProps) {
+export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, variant = 'app' }: SecurePayHeroProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
-  const documentInput = useRef<HTMLInputElement>(null);
-  const photoInput = useRef<HTMLInputElement>(null);
   const isPublic = variant === 'public';
-  const intakeClass = isPublic
-    ? 'inline-flex min-h-11 items-center gap-2 rounded-full border border-cream-300 bg-white/80 px-4 text-[0.85rem] font-medium text-forest-800 shadow-soft transition-colors hover:border-forest-300 hover:bg-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300'
-    : 'text-[0.8rem] text-forest-600 hover:text-forest-800 underline disabled:opacity-40';
   return (
     <div className="max-w-2xl w-full text-center">
       {/* SecurePay brand lockup */}
@@ -78,30 +71,16 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
         />
       </div>
 
-      {/* KS001 Upgrade Phase 3 (Section 37) -- quiet intake-mode entries, never four giant marketing
-          cards: a small row beneath the composer. Each transitions straight into the SAME conversation
-          experience the free-text composer would. */}
-      {(onBringPlan || onPickDocument || onPickPhoto) && (
-        <div className={`${isPublic ? 'mt-4 gap-2' : 'mt-3 gap-x-4 gap-y-1.5'} flex flex-wrap items-center justify-center animate-fade-in-up`} style={{ animationDelay: '0.22s' }}>
-          {onBringPlan && (
-            <button type="button" disabled={disabled} onClick={onBringPlan} className={intakeClass}>
-              {isPublic && <PenLine className="h-4 w-4 text-forest-600" aria-hidden="true" />}Bring your plan
-            </button>
-          )}
-          {onPickDocument && (
-            <button type="button" disabled={disabled} onClick={() => documentInput.current?.click()} aria-label="Give me a document — choose a file" className={intakeClass}>
-              {isPublic && <FileText className="h-4 w-4 text-forest-600" aria-hidden="true" />}Give me a document
-            </button>
-          )}
-          {onPickPhoto && (
-            <button type="button" disabled={disabled} onClick={() => photoInput.current?.click()} aria-label="Show me — take or choose a photo" className={intakeClass}>
-              {isPublic && <Camera className="h-4 w-4 text-forest-600" aria-hidden="true" />}Show me
-            </button>
-          )}
-          <input ref={documentInput} type="file" accept={DOCUMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true"
-            onChange={e => { const file = e.target.files?.[0]; if (file) onPickDocument?.(file); e.target.value = ''; }} />
-          <input ref={photoInput} type="file" accept={PHOTO_ACCEPT} capture="environment" className="hidden" tabIndex={-1} aria-hidden="true"
-            onChange={e => { const file = e.target.files?.[0]; if (file) onPickPhoto?.(file); e.target.value = ''; }} />
+      {/* Public Experience Convergence Phase 3 (Slice 3B) -- the ONE quiet "+" source menu, the same
+          component the conversation composer uses: paste a plan, a document or spreadsheet, a photo or
+          camera, a link or a place. Each lands in the SAME conversation the composer would start. */}
+      {(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace) && (
+        <div className={`${isPublic ? 'mt-4' : 'mt-3'} flex justify-center animate-fade-in-up`} style={{ animationDelay: '0.22s' }}>
+          <SourceMenu
+            variant={isPublic ? 'public' : 'app'} placement="below" disabled={disabled}
+            onBringPlan={onBringPlan} onPickDocument={onPickDocument} onPickPhoto={onPickPhoto}
+            onAddLink={onAddLink} onAddPlace={onAddPlace}
+          />
         </div>
       )}
 

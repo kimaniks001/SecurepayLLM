@@ -219,7 +219,8 @@ test('source intake copy never names the internal BUILD workspace', async () => 
   assert.match(panel, /SecurePay will pick out useful details as suggestions for you to check\./);
   assert.doesNotMatch(panel, /BUILD/);
   const unreachable = api.sourceIngestionErrorText(new api.ApiError('network', 'offline'));
-  assert.match(unreachable, /Nothing from it has been added to this conversation yet\./);
+  // Phase 3 -- the one mandated sentence (no trailing "yet"), shared with the backend's failure reason.
+  assert.match(unreachable, /Nothing from it has been added to this conversation\./);
   assert.doesNotMatch(unreachable, /agreement/i);
   const card = strip(await readFile('src/features/sources/ui/SourceCard.tsx', 'utf8'));
   assert.doesNotMatch(card, /Read into BUILD|Reading this into BUILD|added to BUILD|reached BUILD/);
@@ -268,8 +269,9 @@ test('the composer, file pickers and sign-in fields have accessible names', () =
   assert.match(input, /aria-label="Send"/);
   assert.match(input, /data-ks001-composer/);
   const hero = html(h(api.SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant: 'public' }));
-  assert.match(hero, /aria-label="Give me a document — choose a file"/);
-  assert.match(hero, /aria-label="Show me — take or choose a photo"/);
+  // Phase 3 -- one visible, named "+" trigger; every picker behind it is a hidden, non-focusable input.
+  assert.match(hero, /aria-haspopup="menu"[^>]*>.*Add what you have/s);
+  for (const input of hero.match(/<input[^>]*type="file"[^>]*>/g) ?? []) assert.match(input, /tabindex="-1"/);
   const auth = html(h(api.SecureAuthCard, { data: { type: 'SECURE_AUTH', title: 'Sign in', identityName: '', identityKsn: '', reason: 'r', fields: [{ label: 'One-time code', placeholder: '', type: 'otp' }], primaryLabel: 'Verify', primaryValue: 'v', secondaryLabel: 'Back', secondaryValue: 'b' }, values: [''], onFieldChange: noop, onChoice: noop, errorText: 'That didn’t work.' }));
   assert.match(auth, /inputMode="numeric"/);
   assert.match(auth, /autoComplete="one-time-code"/);
@@ -284,7 +286,8 @@ test('the KS001 intake keeps its file types, photo capture and conversation path
     const hero = html(h(api.SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant }));
     assert.match(hero, /accept="\.pdf,\.docx,\.txt,\.md,\.csv,application\/pdf,application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document,text\/plain,text\/markdown,text\/csv"/, variant);
     assert.match(hero, /accept="image\/jpeg,image\/png" capture="environment"/, variant);
-    for (const label of ['Bring your plan', 'Give me a document', 'Show me']) assert.match(text(hero), new RegExp(label), variant);
+    // Phase 3 -- the intake is the ONE shared SourceMenu; its choices render when it opens.
+    assert.match(text(hero), /Add what you have/, variant);
   }
 });
 test('the public screens a signed-out visitor can reach drop the bottom-navigation padding only in the public shell', async () => {
@@ -499,5 +502,8 @@ test('the "Coming soon" Agreement Support branch is fixture-only and unreachable
 test('Agreement Support gains no support authority', async () => {
   const src = strip(await readFile('src/components/AgreementSupport.tsx', 'utf8'));
   assert.doesNotMatch(src, /from '\.\.\/api|Gateway|fetch\(|http\.request|supportContext|SupportContext|ticket|escalat|localStorage|sessionStorage/i);
-  assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), '', 'no API client changes in Phase 2');
+  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place), never support.
+  const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
+  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/agent\//, 'only the agent gateway may change after Phase 2');
+  assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
 });
