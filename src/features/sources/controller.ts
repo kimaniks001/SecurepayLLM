@@ -15,9 +15,13 @@ export function sourceIngestionErrorText(error: unknown): string {
     if (error.code === 'AGENT_SOURCE_UNSUPPORTED_MEDIA_TYPE') return 'SecurePay doesn’t support this file type yet.';
     if (error.code === 'AGENT_SOURCE_TOO_LARGE') return 'This file is too large for SecurePay to read.';
     if (error.code === 'AGENT_SOURCE_NOT_FOUND') return 'This source could not be found. It may have been removed.';
+    // Public Experience Convergence Phase 3 -- abuse limits (UR-204) and unavailable kinds, said plainly.
+    if (error.status === 429 || error.code === 'RATE_LIMIT_EXCEEDED') return 'SecurePay needs a short pause before taking more. Try again in a little while.';
+    if (error.code === 'AGENT_SOURCE_CAPABILITY_UNAVAILABLE') return 'This kind of source isn’t available yet.';
+    if (error.code === 'AGENT_CONVERSATION_NOT_FOUND') return 'This conversation is no longer available here. Start a new one to continue.';
     if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this just now.';
     if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) {
-      return 'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to this conversation yet.';
+      return 'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to this conversation.';
     }
     return error.message;
   }
@@ -48,7 +52,7 @@ export interface SourceControllerCallbacks {
   onSourceChanged?: () => void;
 }
 export function createSourceController(
-    gateway: Pick<AgentGateway, 'createPastedTextSource' | 'uploadSource' | 'listSources' | 'getSource' | 'retrySource' | 'removeSource'>,
+    gateway: Pick<AgentGateway, 'createPastedTextSource' | 'uploadSource' | 'listSources' | 'getSource' | 'retrySource' | 'removeSource'> & Partial<Pick<AgentGateway, 'createLinkSource' | 'createPlaceSource'>>,
     ensureConversationId: () => Promise<string>,
     callbacks?: SourceControllerCallbacks,
 ) {
@@ -60,6 +64,25 @@ export function createSourceController(
   function upsert(artifact: AgentSourceArtifactView) {
     const withoutExisting = state.sources.filter(s => s.sourceArtifactId !== artifact.sourceArtifactId);
     update({ sources: [...withoutExisting, artifact] });
+  }
+
+  async function submit(
+      value: string, call: (conversationId: string) => Promise<Parameters<typeof sourceArtifactView>[0]>,
+  ): Promise<{ ok: true; source: AgentSourceArtifactView } | { ok: false; error: string }> {
+    if (state.phase === 'submitting' || !value.trim()) return { ok: false, error: 'Nothing to add yet.' };
+    update({ phase: 'submitting', error: null });
+    try {
+      const conversationId = await ensureConversationId();
+      const artifact = sourceArtifactView(await call(conversationId));
+      upsert(artifact);
+      update({ phase: 'list-ready' });
+      onSourceIngested?.();
+      return { ok: true, source: artifact };
+    } catch (error) {
+      const message = sourceIngestionErrorText(error);
+      update({ phase: 'error', error: message });
+      return { ok: false, error: message };
+    }
   }
 
   return {
@@ -94,6 +117,23 @@ export function createSourceController(
         update({ phase: 'error', error: message });
         return { ok: false, error: message };
       }
+    },
+
+    /**
+     * Public Experience Convergence Phase 3 (Slice 3B) -- "a link you shared": kept as the words the person
+     * typed. SecurePay never opens the page, so nothing on it is read.
+     */
+    async addLink(url: string, label?: string): Promise<{ ok: true; source: AgentSourceArtifactView } | { ok: false; error: string }> {
+      if (!gateway.createLinkSource) return { ok: false, error: 'This kind of source isn’t available yet.' };
+      const create = gateway.createLinkSource;
+      return submit(url, conversationId => create(conversationId, { url: url.trim(), label: label?.trim() || undefined }));
+    },
+
+    /** Phase 3 (Slice 3B) -- a place in the person's own words; never a device location or coordinates. */
+    async addPlace(text: string): Promise<{ ok: true; source: AgentSourceArtifactView } | { ok: false; error: string }> {
+      if (!gateway.createPlaceSource) return { ok: false, error: 'This kind of source isn’t available yet.' };
+      const create = gateway.createPlaceSource;
+      return submit(text, conversationId => create(conversationId, { text: text.trim() }));
     },
 
     /** Section 6/19/20/65 -- a real upload; resolves only after SecurePay has really received the bytes. */

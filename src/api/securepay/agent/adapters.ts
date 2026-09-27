@@ -204,7 +204,7 @@ export type ConversationHistoryView = ReturnType<typeof conversationHistoryView>
 // an unrecognized value degrades to 'FAILED' (the safe, never-silently-successful default) rather than
 // being trusted as-is.
 const sourceExtractionStatuses: readonly string[] = ['RECEIVED', 'PROCESSING', 'READY', 'PARTIAL', 'FAILED', 'REMOVED'];
-const sourceKinds: readonly string[] = ['PASTED_TEXT', 'DOCUMENT', 'PHOTO'];
+const sourceKinds: readonly string[] = ['PASTED_TEXT', 'DOCUMENT', 'PHOTO', 'LINK', 'PLACE', 'AUDIO'];
 export function sourceArtifactView(dto: AgentSourceArtifactDto) {
   return {
     sourceArtifactId: dto.sourceArtifactId,
@@ -216,6 +216,7 @@ export function sourceArtifactView(dto: AgentSourceArtifactDto) {
     extractionGeneration: dto.extractionGeneration, summary: dto.summary,
     uncertainties: Array.isArray(dto.uncertainties) ? dto.uncertainties.filter((u): u is string => typeof u === 'string') : [],
     failureReason: dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
+    declaredText: typeof dto.declaredText === 'string' ? dto.declaredText : '',
   };
 }
 export type AgentSourceArtifactView = ReturnType<typeof sourceArtifactView>;

@@ -50,7 +50,8 @@ import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
 import { createSourceController } from '../sources/controller';
-import { AttachSourceMenu } from '../sources/ui/AttachSourceMenu';
+import { SourceMenu } from '../sources/ui/SourceMenu';
+import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/DeclaredSourcePanel';
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
@@ -179,6 +180,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }));
   const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
+  // Public Experience Convergence Phase 3 (Slice 3B) -- the Link / Place form, one at a time.
+  const [declaredOpen, setDeclaredOpen] = useState<DeclaredSourceKind | null>(null);
+  const openBringPlan = () => { setDeclaredOpen(null); setBringPlanOpen(true); };
+  const openDeclared = (kind: DeclaredSourceKind) => { setBringPlanOpen(false); setDeclaredOpen(kind); };
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -302,8 +307,28 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onSourceChanged: () => void freshController.review(),
     }));
     setBringPlanOpen(false);
+    setDeclaredOpen(null);
     setNotice(null);
+    // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
+    gateway.forgetResumableConversation?.();
   };
+
+  // Public Experience Convergence Phase 3 (Slice 3A) -- same-tab continuity. A reload in THIS tab finds the
+  // tab-scoped record (kept only by the agent gateway's continuity module) and resumes that conversation;
+  // another tab never has it. The
+  // context read proves the token still works first -- a 404 (expired, claimed, or legacy) forgets the
+  // record in the gateway and the person simply starts fresh on Home.
+  useEffect(() => {
+    const resumable = gateway.resumableConversationId?.();
+    if (!resumable || controller.getSnapshot().conversationId) return;
+    let cancelled = false;
+    void gateway.readContext(resumable).then(
+      () => { if (!cancelled && !controller.getSnapshot().conversationId) void controller.resumeConversation(resumable); },
+      () => { /* not resumable any more -- the gateway already forgot it on a 404 */ },
+    );
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // KS001 Upgrade Phase 3 -- keeps the visible source list in step with whichever conversation is
   // actually current (a fresh one, a resumed saved build, or one seeded from a Store offer/AI handoff).
@@ -677,6 +702,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       }}
     />
   ) : null;
+  const declaredPanel = declaredOpen ? (
+    <DeclaredSourcePanel
+      key={declaredOpen}
+      kind={declaredOpen}
+      busy={sourcesState.phase === 'submitting'}
+      error={sourcesState.phase === 'error' ? sourcesState.error : null}
+      onClose={() => setDeclaredOpen(null)}
+      onSubmit={(value, label) => {
+        const outcome = declaredOpen === 'link' ? sourceController.addLink(value, label || undefined) : sourceController.addPlace(value);
+        void outcome.then(result => { if (result.ok) { setDeclaredOpen(null); setHome(false); } });
+      }}
+    />
+  ) : null;
   const startFromHome = (text: string) => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); };
   // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions straight into
   // the SAME conversation experience the free-text composer would, then immediately opens the relevant
@@ -702,11 +740,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         <SignedOutHome
           disabled={state.busy || !!state.pending}
           onStart={startFromHome}
-          onBringPlan={() => setBringPlanOpen(true)}
+          onBringPlan={openBringPlan}
           onPickDocument={pickDocument}
           onPickPhoto={pickPhoto}
+          onAddLink={() => openDeclared('link')}
+          onAddPlace={() => openDeclared('place')}
         />
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
+        {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
         {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
             section, never a separate product surface, nav item or second Home. Signed-in people get a
             smaller doorway with the full explanation one tap away. */}
@@ -722,10 +763,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         <PublicHome
           disabled={state.busy || !!state.pending}
           onStart={startFromHome}
-          onBringPlan={() => setBringPlanOpen(true)}
+          onBringPlan={openBringPlan}
           onPickDocument={pickDocument}
           onPickPhoto={pickPhoto}
+          onAddLink={() => openDeclared('link')}
+          onAddPlace={() => openDeclared('place')}
           bringPlanPanel={bringPlanPanel}
+          declaredPanel={declaredPanel}
           onFocusComposer={() => { focusKs001Composer(); }}
           onBrowseStores={() => navigateTo('store')}
           onSignIn={() => signInRoute.open(null)}
@@ -816,11 +860,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     control (Document / Photo / Paste a plan), never a toolbar jungle. Real bytes only
                     reach SecurePay once the person actually picks a file -- never a local preview shown as
                     success (Section 65). */}
-                <AttachSourceMenu
+                {/* Opens downward: this row sits at the TOP of the scrolling conversation panel, where an upward
+                    menu would be clipped (found in live Phase 3 verification). */}
+                <SourceMenu
+                  placement="below"
                   disabled={state.busy || sourcesState.phase === 'submitting'}
-                  onBringPlan={() => setBringPlanOpen(true)}
+                  onBringPlan={openBringPlan}
                   onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
                   onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+                  onAddLink={() => openDeclared('link')}
+                  onAddPlace={() => openDeclared('place')}
                 />
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
                 <button
@@ -872,6 +921,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   }}
                 />
               )}
+              {declaredPanel}
               {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
                   extraction-debug screen. BUILD itself remains the primary structured view. */}
               <SourcesList
@@ -881,7 +931,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
                 factCountsBySourceId={sourceFactCounts}
               />
-              {sourcesState.phase === 'error' && !bringPlanOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
+              {sourcesState.phase === 'error' && !bringPlanOpen && !declaredOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
             </div>}>

@@ -85,7 +85,11 @@ test('C. No source file anywhere writes to localStorage/sessionStorage, and no s
   const tokenInQueryOffenders = [];
   for (const file of SRC_FILES) {
     const contents = await readFile(file, 'utf8');
-    if (/localStorage|sessionStorage/.test(contents)) storageOffenders.push(file);
+    // Public Experience Convergence Phase 3 (human decision, Phase 1 contract §5) -- exactly ONE module may
+    // keep ONE tab-scoped record in sessionStorage: the anonymous conversation continuity record. Never
+    // localStorage, anywhere.
+    if (/localStorage/.test(contents)) storageOffenders.push(file);
+    else if (/sessionStorage/.test(contents) && file !== 'src/api/securepay/agent/continuity.ts') storageOffenders.push(file);
     if (/URLSearchParams/.test(contents) && /(token|secret|password|otp|clientId|signingSecret|secureCode)/i.test(contents)) {
       // URLSearchParams is legitimately used elsewhere (e.g. Projects' ownerKsNumber/active/query
       // filters) -- only flag a file that ALSO mentions a token-shaped identifier near it.
@@ -93,6 +97,9 @@ test('C. No source file anywhere writes to localStorage/sessionStorage, and no s
     }
   }
   assert.deepEqual(storageOffenders, [], `Found localStorage/sessionStorage usage in: ${storageOffenders.join(', ')}`);
+  const continuity = await readFile('src/api/securepay/agent/continuity.ts', 'utf8');
+  assert.match(continuity, /ANONYMOUS_CONVERSATION_KEY = 'securepay\.agent\.anonymous\.v1'/);
+  assert.equal((continuity.match(/window\.sessionStorage/g) ?? []).length, 2, 'one guarded sessionStorage lookup, nothing else');
   assert.deepEqual(tokenInQueryOffenders, [], `Found a token-shaped identifier alongside URLSearchParams in: ${tokenInQueryOffenders.join(', ')}`);
 });
 

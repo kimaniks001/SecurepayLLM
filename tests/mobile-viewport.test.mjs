@@ -16,13 +16,18 @@ import { readFile } from 'node:fs/promises';
 // was taken at 375/320px; it claims (and proves) that the exact CSS/markup properties a 375/320px viewport
 // depends on are genuinely present in the production source.
 
-test('Home intake row: the three source-intake entries wrap instead of forcing horizontal overflow at a narrow width', async () => {
+test('Home intake: the one shared "+" menu is centred and its popover never exceeds a narrow viewport', async () => {
+  // Public Experience Convergence Phase 3 -- the three intake buttons became ONE SourceMenu trigger, so
+  // there is no row left to wrap; what must hold at 320/375px is that the opened menu fits the screen.
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
   const introIdx = contents.indexOf('onBringPlan || onPickDocument || onPickPhoto');
-  assert.ok(introIdx > -1, 'expected the intake-mode entries block to exist');
+  assert.ok(introIdx > -1, 'expected the intake block to exist');
   const block = contents.slice(introIdx, introIdx + 800);
-  assert.match(block, /flex-wrap/, 'the intake row must wrap at a narrow width, never force horizontal scroll');
   assert.match(block, /justify-center/);
+  assert.match(block, /<SourceMenu/);
+  const menu = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf8');
+  assert.match(menu, /role="menu"[\s\S]{0,300}max-w-\[calc\(100vw-2rem\)\]/, 'the popover must never be wider than the viewport minus its gutter');
+  assert.match(menu, /min-h-11 flex items-center/, 'every menu item is a real 44px touch target');
 });
 
 test('BringPlanPanel: the paste surface and its own action buttons are fluid width and real touch targets, never a fixed desktop-only size', async () => {
@@ -40,11 +45,13 @@ test('BringPlanPanel: the paste surface and its own action buttons are fluid wid
   assert.match(buttonSection, /min-h-11.*Add to this conversation/s);
 });
 
-test('AttachSourceMenu: the attach control is never hidden behind a desktop-only breakpoint, and the photo picker uses a camera-first mobile flow', async () => {
-  const contents = await readFile('src/features/sources/ui/AttachSourceMenu.tsx', 'utf8');
-  const attachButtonIdx = contents.indexOf('aria-label="Attach a source"');
+test('SourceMenu: the "+" control is never hidden behind a desktop-only breakpoint, and Camera uses a camera-first mobile flow', async () => {
+  const contents = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf8');
+  const attachButtonIdx = contents.indexOf("'Add a source'");
   const buttonStart = contents.lastIndexOf('<button', attachButtonIdx);
   const buttonBlock = contents.slice(buttonStart, contents.indexOf('>', attachButtonIdx));
+  const triggerClasses = contents.slice(contents.indexOf('const triggerClass'), contents.indexOf('const onFile'));
+  assert.doesNotMatch(triggerClasses, /hidden md:|md:hidden|lg:hidden|sm:hidden/);
   assert.doesNotMatch(buttonBlock, /hidden md:|md:hidden|lg:hidden|sm:hidden/,
     'the attach control must remain reachable on a mobile viewport, never gated behind a desktop-only class');
   assert.match(contents, /capture="environment"/, 'the photo picker must open the camera first on a mobile device, not only a file browser');

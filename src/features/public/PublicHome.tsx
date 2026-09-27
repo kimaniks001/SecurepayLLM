@@ -19,8 +19,12 @@ export interface PublicHomeProps {
   onBringPlan: () => void;
   onPickDocument: (file: File) => void;
   onPickPhoto: (file: File) => void;
+  onAddLink?: () => void;
+  onAddPlace?: () => void;
   /** The "Bring your plan" panel, rendered right under the intake when open. */
   bringPlanPanel?: ReactNode;
+  /** Phase 3 -- the Link / Place form, rendered in the same place when open. */
+  declaredPanel?: ReactNode;
   onFocusComposer: () => void;
   onBrowseStores: () => void;
   onSignIn: () => void;
@@ -51,8 +55,11 @@ export function PublicHome(props: PublicHomeProps) {
             onBringPlan={props.onBringPlan}
             onPickDocument={props.onPickDocument}
             onPickPhoto={props.onPickPhoto}
+            onAddLink={props.onAddLink}
+            onAddPlace={props.onAddPlace}
           />
           {props.bringPlanPanel && <div className="mt-6 w-full max-w-xl text-left">{props.bringPlanPanel}</div>}
+          {props.declaredPanel && <div className="mt-6 w-full max-w-xl text-left">{props.declaredPanel}</div>}
         </div>
 
         {/* 4 · Try asking */}

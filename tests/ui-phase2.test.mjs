@@ -359,8 +359,10 @@ test('Save for later consults the server-owned sufficiency.canSave, never only l
 // is separately proven in tests/sources.test.mjs's own addPastedText coverage.
 test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- never gated behind a conversation that does not exist yet', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const onBringPlanIdx = agent.indexOf('onBringPlan={() => setBringPlanOpen(true)}');
+  // Public Experience Convergence Phase 3 -- openBringPlan also closes the Link/Place form (one at a time).
+  const onBringPlanIdx = agent.indexOf('onBringPlan={openBringPlan}');
   assert.ok(onBringPlanIdx > 0, 'expected onBringPlan to open the panel directly, never behind setHome(false) alone');
+  assert.match(agent, /const openBringPlan = \(\) => \{ setDeclaredOpen\(null\); setBringPlanOpen\(true\); \};/);
   // The Home branch (the JSX returned before the `showHome ? ... : <conversation>` else) must itself
   // render BringPlanPanel gated on bringPlanOpen -- not only the conversation branch below it.
   const showHomeElseIdx = agent.indexOf('</div> : <>');

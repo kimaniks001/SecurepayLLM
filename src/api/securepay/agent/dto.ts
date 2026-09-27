@@ -1,5 +1,10 @@
 // AgentApiModels / AgentAgreementHandoffApiModels and agent.protocol at backend SHA in the audit.
 export interface ConversationDto { conversationId: string; createdAt: string; contextVersion: number }
+/**
+ * Public Experience Convergence Phase 3 (Slice 3A) -- the raw create response. `conversationAccessSecret`
+ * is consumed by the gateway (tab-scoped continuity) and never returned to callers.
+ */
+export interface CreatedConversationDto extends ConversationDto { conversationAccessSecret?: string; anonymousExpiresAt?: string }
 export interface ComponentDto { type: string; data: Record<string, unknown> }
 export interface AgentResponseDto {
   protocolVersion: string; message: string;
@@ -225,16 +230,22 @@ export interface ConversationHistoryResponseDto { entries: ConversationHistoryEn
 // brought into one Agent conversation. Mirrors AgentSourceApiModels.AgentSourceArtifactResponse exactly.
 // Never a provider's raw JSON, confidence decimals, internal entity ids, or model/provider name --
 // `uncertainties` carries short, human-readable descriptions only.
-export type AgentSourceKind = 'PASTED_TEXT' | 'DOCUMENT' | 'PHOTO';
+export type AgentSourceKind = 'PASTED_TEXT' | 'DOCUMENT' | 'PHOTO' | 'LINK' | 'PLACE' | 'AUDIO';
 export type AgentSourceExtractionStatus = 'RECEIVED' | 'PROCESSING' | 'READY' | 'PARTIAL' | 'FAILED' | 'REMOVED';
 export interface AgentSourceArtifactDto {
   sourceArtifactId: string; conversationId: string; sourceKind: string; originalName: string; label: string;
   mediaType: string; byteSize: number | null; documentType: string; extractionStatus: string;
   extractionGeneration: number; summary: string; uncertainties: string[]; failureReason: string;
   createdAt: string; updatedAt: string;
+  /** Phase 3 -- LINK url / PLACE words exactly as declared; empty for other kinds and after removal. */
+  declaredText?: string;
 }
 export interface AgentSourceArtifactListDto { sources: AgentSourceArtifactDto[] }
 export interface CreatePastedTextSourceRequest { text: string; label?: string }
+/** Phase 3 (Slice 3B) -- a link is kept as declared text only; SecurePay never opens it. */
+export interface CreateLinkSourceRequest { url: string; label?: string }
+/** Phase 3 (Slice 3B) -- a place in the person's own words; no coordinates. */
+export interface CreatePlaceSourceRequest { text: string }
 
 // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later." Mirrors AgentSavedBuildApiModels.
 // SavedBuildResponse exactly. `savedAt` never changes after the first save; `buildUpdatedAt` is the
