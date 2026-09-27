@@ -49,7 +49,8 @@ export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled
             return (
               <div key={i}>
                 <label htmlFor={`${baseId}-field-${i}`} className="text-[0.75rem] font-medium text-sand-600 uppercase tracking-wide">{field.label}</label>
-                <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-cream-300 bg-cream-50 px-3.5 py-2.5 focus-within:border-forest-400 focus-within:ring-2 focus-within:ring-forest-200">
+                {/* Public Experience Convergence Phase 4 -- the INPUT itself is the 44px target (min-h-11); the wrapper adds no vertical padding. */}
+                <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-cream-300 bg-cream-50 px-3.5 focus-within:border-forest-400 focus-within:ring-2 focus-within:ring-forest-200">
                   <Icon className="w-4 h-4 text-sand-400" aria-hidden="true" />
                   <input
                     id={`${baseId}-field-${i}`}
@@ -58,7 +59,7 @@ export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled
                     type={field.type === 'password' ? 'password' : field.type === 'otp' ? 'text' : 'text'}
                     inputMode={field.type === 'otp' ? 'numeric' : undefined}
                     placeholder={field.placeholder}
-                    className="flex-1 bg-transparent text-[0.875rem] text-forest-800 placeholder:text-sand-400 outline-none disabled:opacity-50"
+                    className="flex-1 min-w-0 min-h-11 bg-transparent text-[0.875rem] text-forest-800 placeholder:text-sand-400 outline-none disabled:opacity-50"
                     readOnly={!live}
                     disabled={live && disabled}
                     value={live ? values?.[i] ?? '' : undefined}

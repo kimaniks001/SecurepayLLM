@@ -214,6 +214,11 @@ export function RecipientExperience({ token, invitationId, gateway, auth, sessio
       <div className="space-y-3">
         <NoticeCard data={confirmedView(state.confirmation)} />
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Done', value: 'done' }] }} onChoice={leave} />
+        {/* Public Experience Convergence Phase 4 -- a quiet, optional doorway. The Agreement never depends on
+            Trust Project membership, and joining it is always a separate, explicit choice. */}
+        <p className="text-center text-[0.85rem] text-sand-700" data-optional-trust-project-join>
+          <a href="#/join" className="inline-flex min-h-11 items-center underline text-forest-700 hover:text-forest-800">You can also join The Trust Project.</a>
+        </p>
       </div>
     );
   } else if (state.phase === 'error' && state.join) {

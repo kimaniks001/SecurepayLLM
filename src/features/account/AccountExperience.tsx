@@ -105,7 +105,7 @@ export function AccountExperience({ controller, onNavigate }: {
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
-      <NavBar view="signed-in" onNavigate={onNavigate} />
+      <NavBar view="account" onNavigate={onNavigate} />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
         <PageHeader title="Account" description="Your identity, your Businesses, and your security — not a settings dumping ground." />
 

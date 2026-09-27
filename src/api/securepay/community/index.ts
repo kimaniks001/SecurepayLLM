@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type {
+import type { CurrentPrinciplesResponse,
   CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
@@ -57,7 +57,17 @@ export function createCommunityGateway(http: HttpClient) {
           auth: 'required',
           headers: { 'Idempotency-Key': idempotencyKey },
         }),
-      accept: () => http.request<MembershipResponse>('/api/v1/community/membership/accept', { method: 'POST', auth: 'required' }),
+      // Public Experience Convergence Phase 4 -- invitation acceptance names the exact Principles version too.
+      accept: (principlesVersion: string) => http.request<MembershipResponse>('/api/v1/community/membership/accept', {
+        method: 'POST', body: { principlesVersion }, auth: 'required',
+      }),
+      /**
+       * Phase 4 (ADR-0021) -- the explicit Join under the exact current 12 Principles. Membership only; idempotent
+       * by state and by `Idempotency-Key`.
+       */
+      join: (principlesVersion: string, idempotencyKey: string) => http.request<MembershipResponse>('/api/v1/community/membership/join', {
+        method: 'POST', body: { principlesVersion }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+      }),
       decline: () => http.request<MembershipResponse>('/api/v1/community/membership/decline', { method: 'POST', auth: 'required' }),
     },
 
@@ -86,6 +96,8 @@ export function createCommunityGateway(http: HttpClient) {
     // Our 12 Principles (Slice 2) -- read-only, unauthenticated: an invitee must be able to see
     // these before deciding whether to accept, and they are not private Community content.
     principles: () => http.request<FairTradePrincipleResponse[]>('/api/v1/community/principles', { auth: 'none' }),
+    /** Phase 4 -- the versioned canonical Principles (public). */
+    currentPrinciples: () => http.request<CurrentPrinciplesResponse>('/api/v1/community/principles/current', { auth: 'none' }),
 
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
     // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real

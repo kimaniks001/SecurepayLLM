@@ -13,13 +13,15 @@ import { secureAuthView } from '../identity/view';
  * anything, creates or joins an Agreement, or joins The Trust Project -- it receives only the auth gateway
  * and the session, nothing else.
  */
-export function SignInExperience({ auth, session, onSignedIn, onCancel, onRecover }: {
+export function SignInExperience({ auth, session, onSignedIn, onCancel, onRecover, onGetKsNumber }: {
   auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp'>;
   session: Pick<SessionStore, 'setTokens'>;
   /** Called once SecurePay has confirmed the person and the session is established. */
   onSignedIn: () => void;
   onCancel: () => void;
   onRecover: () => void;
+  /** Public Experience Convergence Phase 4 -- the generic, identity-only signup (`#/sign-up`). */
+  onGetKsNumber?: () => void;
 }) {
   const [identity, setIdentity] = useState(() => createIdentityController(auth, session));
   const state = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
@@ -78,7 +80,16 @@ export function SignInExperience({ auth, session, onSignedIn, onCancel, onRecove
             </button>
           </p>
         )}
-        <p className="mt-6 text-center">
+        {onGetKsNumber && state.phase !== 'otp' && (
+          <p className="mt-6 text-center text-[0.9rem] text-sand-700" data-get-ks-number>
+            Don’t have a KS Number?{' '}
+            <button type="button" onClick={onGetKsNumber}
+              className="min-h-11 rounded-lg px-1 font-medium text-forest-700 underline hover:text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              Get one
+            </button>
+          </p>
+        )}
+        <p className="mt-3 text-center">
           <button type="button" onClick={onRecover}
             className="min-h-11 rounded-lg px-2 text-[0.85rem] text-forest-700 underline hover:text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
             Trouble signing in? Recover your account

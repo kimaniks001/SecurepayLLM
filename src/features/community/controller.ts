@@ -79,18 +79,27 @@ export type MembershipUiState =
   | { kind: 'signed-out' }
   | { kind: 'loading' }
   | { kind: 'none' }
+  /** The membership read failed: the state is UNKNOWN -- never presented as a non-member, never offered Join. */
+  | { kind: 'unknown' }
   | { kind: 'invited'; membership: MembershipResponse }
   | { kind: 'active'; membership: MembershipResponse }
   | { kind: 'declined'; membership: MembershipResponse }
   | { kind: 'revoked'; membership: MembershipResponse };
 
-function toMembershipUiState(membership: MembershipResponse): MembershipUiState {
-  switch (membership.status) {
-    case null: return { kind: 'none' };
-    case 'INVITED': return { kind: 'invited', membership };
-    case 'ACTIVE': return { kind: 'active', membership };
-    case 'DECLINED': return { kind: 'declined', membership };
-    case 'REVOKED': return { kind: 'revoked', membership };
+/**
+ * The backend serialises with `non_null` inclusion, so a caller with no membership record receives no
+ * `status` field at all (undefined), not `status: null` -- both are a KNOWN non-member. A status value this
+ * client does not recognise is UNKNOWN (no membership claim, no Join), never a crash or an inferred state.
+ */
+export function toMembershipUiState(membership: MembershipResponse | null | undefined): MembershipUiState {
+  switch (membership?.status) {
+    case 'INVITED': return { kind: 'invited', membership: membership! };
+    case 'ACTIVE': return { kind: 'active', membership: membership! };
+    case 'DECLINED': return { kind: 'declined', membership: membership! };
+    case 'REVOKED': return { kind: 'revoked', membership: membership! };
+    case null: case undefined: return { kind: 'none' };
+    // A status this client does not know is not a non-member either -- never infer, never offer Join.
+    default: return { kind: 'unknown' };
   }
 }
 
@@ -344,7 +353,7 @@ export function createCommunityController(
       if (apiError.status === 401 || apiError.code === 'AUTHENTICATION_REQUIRED') {
         update({ membership: { kind: 'signed-out' } });
       } else {
-        update({ membership: { kind: 'none' }, notice: errorText(apiError) });
+        update({ membership: { kind: 'unknown' }, notice: errorText(apiError) });
       }
     }
   }
@@ -646,15 +655,8 @@ export function createCommunityController(
 
     // ─── The Trust Project membership (Slice 2) ─────────────────────────
 
-    async acceptInvitation() {
-      try {
-        const membership = await community.membership.accept();
-        update({ membership: toMembershipUiState(membership) });
-        if (membership.status === 'ACTIVE') await this.enter();
-      } catch (error) {
-        update({ notice: errorText(error) });
-      }
-    },
+    // Public Experience Convergence Phase 4 -- accepting an invitation happens on the Join page (`#/join`),
+    // under an explicit acceptance of the exact current 12 Principles; there is no one-tap accept here.
     async declineInvitation() {
       try {
         const membership = await community.membership.decline();

@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { membershipLine, type TrustProjectMembershipFact } from './trustProject';
 import { CAPACITIES as SHARED_CAPACITIES, ORIGIN, PILLARS } from '../features/public/publicContent';
+import { ShareInvitation } from '../features/join/ShareInvitation';
+import { SHARE_PROMPT, type JoinInterest } from '../features/join/share';
+
+/** Which capacity card carries which (presentation-only) share context. */
+const CAPACITY_INTEREST: Record<string, JoinInterest> = { Member: 'member', Plug: 'plug', Master: 'master' };
 
 /**
  * Phase 7 Slice 5B (The Trust Project convergence) -- the low-on-Home "About / Why this exists" section.
@@ -29,11 +34,26 @@ interface TrustProjectSectionProps {
   onOpenStores: () => void;
   /** Signed-in members get a smaller doorway; the full explanation stays one tap away. */
   compact?: boolean;
+  /**
+   * The signed-in person's membership fact. `null`/absent = UNKNOWN (still loading, or the read failed): no
+   * membership claim and no Join -- it could be any state. A fact with `status: null` = a KNOWN non-member
+   * (a successful `/membership/me` read with no record).
+   */
   membership?: TrustProjectMembershipFact | null;
+  /** Public Experience Convergence Phase 4 -- the live Join page (membership states are resolved there). */
+  onJoin?: () => void;
 }
 
-export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact = false, membership = null }: TrustProjectSectionProps) {
+export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact = false, membership = null, onJoin }: TrustProjectSectionProps) {
   const [principlesOpen, setPrinciplesOpen] = useState(false);
+  // Phase 4 -- quick share invitations (ACTIVE members only). The interest is presentation context only.
+  const [sharing, setSharing] = useState<JoinInterest | null>(null);
+  // Phase 4 final correction -- three states, never collapsed: UNKNOWN (no fact) offers only neutral actions;
+  // a KNOWN non-member or DECLINED gets Join; INVITED gets Review invitation; REVOKED gets nothing.
+  const known = membership != null;
+  const status = membership?.status ?? null;
+  const isActive = known && status === 'ACTIVE';
+  const canJoin = !!onJoin && known && status !== 'ACTIVE' && status !== 'REVOKED';
   const [expanded, setExpanded] = useState(!compact);
   const memberLine = membershipLine(membership);
 
@@ -48,7 +68,7 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
           A community of people choosing to trade fairly — using shared tools, practical systems and one another’s knowledge to learn, adapt and make useful things happen.
         </p>
         {memberLine && <p className="mt-2 text-[0.8rem] font-medium text-forest-700">{memberLine}</p>}
-        {membership?.status === 'INVITED' && <p className="mt-2 text-[0.8rem] text-forest-700">You’ve been invited to The Trust Project. You can accept or decline in Community.</p>}
+        {status === 'INVITED' && <p className="mt-2 text-[0.8rem] text-forest-700">You’ve been invited to The Trust Project. Review the invitation and the 12 Principles, then choose whether to join.</p>}
 
         {compact && (
           <button type="button" aria-expanded={expanded} onClick={() => setExpanded(e => !e)} className="mt-2 text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
@@ -83,6 +103,15 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
                   <h4 className="font-display text-[0.95rem] text-forest-800">{c.name}</h4>
                   <p className="text-[0.8rem] text-forest-700">{c.line}</p>
                   <p className="mt-1 text-[0.76rem] text-sand-600 leading-relaxed">{c.detail} {c.boundary}</p>
+                  {isActive && CAPACITY_INTEREST[c.name] && (
+                    <div className="mt-2 border-t border-cream-200 pt-2" data-share-prompt={CAPACITY_INTEREST[c.name]}>
+                      <p className="text-[0.76rem] text-sand-700">{SHARE_PROMPT[CAPACITY_INTEREST[c.name]]}</p>
+                      <button type="button" onClick={() => setSharing(CAPACITY_INTEREST[c.name])}
+                        className="mt-1 min-h-11 rounded-lg text-[0.8rem] font-medium text-forest-700 underline hover:text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+                        Invite them
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -116,10 +145,23 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
           <p className="mt-5 text-[0.78rem] text-sand-600">Money should follow the agreement.</p>
         </>}
 
+        {sharing && <div className="mt-5"><ShareInvitation interest={sharing} onClose={() => setSharing(null)} /></div>}
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <button type="button" onClick={onExploreCommunity} className="rounded-xl bg-forest-600 text-cream-50 text-[0.85rem] font-medium px-4 py-2.5 hover:bg-forest-700 transition-colors">
-            Explore Community
-          </button>
+          {canJoin && (
+            <button type="button" onClick={onJoin} className="min-h-11 rounded-xl bg-forest-600 text-cream-50 text-[0.85rem] font-medium px-4 py-2.5 hover:bg-forest-700 transition-colors">
+              {status === 'INVITED' ? 'Review invitation' : 'Join The Trust Project'}
+            </button>
+          )}
+          {(isActive || !onJoin) && (
+            <button type="button" onClick={onExploreCommunity} className="min-h-11 rounded-xl bg-forest-600 text-cream-50 text-[0.85rem] font-medium px-4 py-2.5 hover:bg-forest-700 transition-colors">
+              Explore Community
+            </button>
+          )}
+          {isActive && (
+            <button type="button" onClick={() => setSharing('member')} className="min-h-11 text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
+              Invite someone
+            </button>
+          )}
           <button type="button" onClick={() => setPrinciplesOpen(true)} className="text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
             Read the 12 Principles
           </button>

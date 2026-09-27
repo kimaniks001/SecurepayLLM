@@ -11,7 +11,7 @@ export function FairTradeAffordance({ onOpen }: { onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
-      className="text-[0.8rem] text-sand-700 hover:text-forest-700 transition-colors underline decoration-sand-300 underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+      className="inline-flex min-h-11 items-center text-[0.8rem] text-sand-700 hover:text-forest-700 transition-colors underline decoration-sand-300 underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
     >
       Guided by the 12 Principles of Fair Trade ›
     </button>
@@ -43,9 +43,9 @@ export function FairTradePrinciplesPanel({ onClose }: { onClose: () => void }) {
         aria-labelledby="fair-trade-principles-title"
         className="relative w-full md:max-w-lg max-h-[85vh] md:max-h-[80vh] overflow-y-auto rounded-t-3xl md:rounded-2xl bg-cream-50 border border-cream-200 shadow-lifted animate-fade-in-up"
       >
-        <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-cream-200/70 bg-cream-50/95 backdrop-blur-sm">
+        <div className="sticky top-0 flex items-center justify-between px-5 py-2.5 border-b border-cream-200/70 bg-cream-50/95 backdrop-blur-sm">
           <h2 id="fair-trade-principles-title" className="font-display text-lg text-forest-800">The 12 Principles of Fair Trade</h2>
-          <button ref={closeButtonRef} onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-sand-500 hover:text-forest-700 hover:bg-cream-100">
+          <button ref={closeButtonRef} onClick={onClose} aria-label="Close" className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sand-500 hover:text-forest-700 hover:bg-cream-100">
             <X className="w-5 h-5" />
           </button>
         </div>

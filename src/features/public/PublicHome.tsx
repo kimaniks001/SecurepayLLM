@@ -10,6 +10,7 @@ const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-fo
 const chapterHeading = 'font-display text-2xl md:text-4xl font-medium tracking-tight text-forest-800 text-balance scroll-mt-28 focus:outline-none';
 const body = 'text-[0.95rem] leading-relaxed text-sand-700';
 const eyebrow = 'text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-forest-600';
+const primaryButton = `inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-600 px-6 text-[0.9rem] font-medium text-cream-50 transition-colors hover:bg-forest-700 ${focusRing}`;
 const secondaryButton = `inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-white/80 px-4 text-[0.875rem] font-medium text-forest-800 transition-colors hover:border-forest-300 hover:bg-white ${focusRing}`;
 const linkButton = `min-h-11 rounded-lg px-1 text-[0.875rem] text-forest-700 underline decoration-forest-200 underline-offset-4 hover:text-forest-800 ${focusRing}`;
 
@@ -31,6 +32,8 @@ export interface PublicHomeProps {
   onRecover: () => void;
   onHelp: () => void;
   onSection: (id: PublicSectionId) => void;
+  /** Public Experience Convergence Phase 4 -- the live Join route. */
+  onJoin: () => void;
 }
 
 /**
@@ -236,6 +239,21 @@ export function PublicHome(props: PublicHomeProps) {
         </div>
       </section>
 
+      {/* 12 · Join The Trust Project — live since Phase 4 (individual Join; no Business or Organization Join) */}
+      <section data-public-section="join" aria-labelledby="public-join" className="bg-cream-100 px-4 sm:px-6 py-16 md:py-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className={eyebrow}>The Trust Project</p>
+          <h2 id="public-join" tabIndex={-1} className={`mt-2 ${chapterHeading}`}>Join The Trust Project</h2>
+          <p className={`mt-4 ${body}`}>People and businesses can belong. One KS Number for SecurePay and The Trust Project.</p>
+          <p className="mt-3 text-[0.9rem] leading-relaxed text-sand-700">You never have to invite, teach or sell.</p>
+          <p className="mt-1 text-[0.9rem] leading-relaxed text-sand-700">Joining doesn’t turn on payments, fees, bank accounts or subscriptions.</p>
+          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button type="button" onClick={props.onJoin} className={primaryButton}>Join</button>
+            <button type="button" onClick={props.onSignIn} className={secondaryButton}>I already have a KS Number</button>
+          </div>
+        </div>
+      </section>
+
       {/* 13 · Footer — real destinations only */}
       <footer className="border-t border-cream-200 bg-cream-100 px-4 sm:px-6 py-10">
         <div className="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row md:items-start md:justify-between">
@@ -246,6 +264,7 @@ export function PublicHome(props: PublicHomeProps) {
           </div>
           <nav aria-label="Footer">
             <ul className="flex flex-wrap gap-x-5 gap-y-1">
+              <li><button type="button" onClick={props.onJoin} className={linkButton}>Join The Trust Project</button></li>
               <li><button type="button" onClick={props.onSignIn} className={linkButton}>Sign in</button></li>
               <li><button type="button" onClick={() => props.onSection('for-business')} className={linkButton}>For Business</button></li>
               <li><button type="button" onClick={() => setPrinciplesOpen(true)} className={linkButton}>The 12 Principles</button></li>

@@ -34,11 +34,25 @@ export interface CommunityObjectResponse {
  * other status.
  */
 export interface MembershipResponse {
-  status: 'INVITED' | 'ACTIVE' | 'DECLINED' | 'REVOKED' | null;
+  /** Omitted (undefined) on the wire when absent -- the backend uses `non_null` inclusion. */
+  status?: 'INVITED' | 'ACTIVE' | 'DECLINED' | 'REVOKED' | null;
   invitedByCanonicalKsNumber: string | null;
   invitedByDisplayName: string | null;
   invitedAt: string | null;
   respondedAt: string | null;
+  /** Public Experience Convergence Phase 4 -- provenance only; never referral, reward, rank or capacity. */
+  origin?: 'FOUNDING_BOOTSTRAP' | 'INVITATION' | 'DIRECT_JOIN' | 'DIRECT_JOIN_AFTER_DECLINE' | null;
+  /** The exact 12 Principles version accepted on becoming ACTIVE (null for memberships that predate recording it). */
+  principlesVersion?: string | null;
+  joinedAt?: string | null;
+  declinedAt?: string | null;
+}
+
+/** Phase 4 -- `GET /api/v1/community/principles/current`: the exact version a Join must accept. */
+export interface CurrentPrinciplesResponse {
+  version: string;
+  label: string;
+  principles: FairTradePrincipleResponse[];
 }
 
 /**

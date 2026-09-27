@@ -1,3 +1,4 @@
+import { ShareInvitation } from '../join/ShareInvitation';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
@@ -35,10 +36,11 @@ function errorView(message: string): ErrorStateResponse {
  * own, separate public authority) -- only the real Community feed/composer are membership-gated.
  */
 function TrustProjectBanner({
-  membership, onAccept, onDecline, onOpenInvite, principlesOpen, onTogglePrinciples, principles, principlesLoading,
+  membership, onJoin, onDecline, onOpenInvite, principlesOpen, onTogglePrinciples, principles, principlesLoading,
 }: {
   membership: MembershipUiState;
-  onAccept: () => void;
+  /** Public Experience Convergence Phase 4 -- the Join page (direct Join, or accepting an invitation). */
+  onJoin: () => void;
   onDecline: () => void;
   onOpenInvite: () => void;
   principlesOpen: boolean;
@@ -79,14 +81,20 @@ function TrustProjectBanner({
 
       {membership.kind === 'signed-out' && (
         <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
-          <p className="text-[0.8rem] text-forest-800">Sign in to see what the community is sharing.</p>
+          <p className="text-[0.8rem] text-forest-800">Sign in or join The Trust Project to take part in Community.</p>
+        </div>
+      )}
+      {membership.kind === 'unknown' && (
+        <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
+          <p className="text-[0.8rem] text-sand-600">SecurePay couldn’t check your Trust Project membership just now.</p>
         </div>
       )}
       {membership.kind === 'none' && (
-        <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
-          <p className="text-[0.8rem] text-forest-800">
-            The Trust Project is invitation-based. You'll see Community posts once someone already here invites you.
-          </p>
+        <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3 space-y-2">
+          <p className="text-[0.8rem] text-forest-800">You’re not a member of The Trust Project yet.</p>
+          <button onClick={onJoin} className="min-h-11 rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium px-4 py-2 hover:bg-forest-700 transition-colors">
+            Join The Trust Project
+          </button>
         </div>
       )}
       {membership.kind === 'invited' && (
@@ -100,8 +108,8 @@ function TrustProjectBanner({
             Joining gives you access to shared fair-trade technologies, systems and people while you remain independent.
           </p>
           <div className="flex gap-2">
-            <button onClick={onAccept} className="rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium px-4 py-2 hover:bg-forest-700 transition-colors">
-              Accept
+            <button onClick={onJoin} className="min-h-11 rounded-xl bg-forest-600 text-cream-50 text-[0.82rem] font-medium px-4 py-2 hover:bg-forest-700 transition-colors">
+              Review invitation
             </button>
             <button onClick={onDecline} className="rounded-xl border border-cream-200 text-forest-700 text-[0.82rem] font-medium px-4 py-2 hover:bg-cream-50 transition-colors">
               Decline
@@ -111,12 +119,15 @@ function TrustProjectBanner({
       )}
       {membership.kind === 'declined' && (
         <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
-          <p className="text-[0.8rem] text-sand-600">You declined this invitation.</p>
+          <p className="text-[0.8rem] text-sand-600">You declined an invitation earlier. You can still choose to join.</p>
+          <button onClick={onJoin} className="mt-2 min-h-11 rounded-xl border border-forest-200 text-forest-800 text-[0.82rem] font-medium px-4 py-2 hover:bg-forest-50 transition-colors">
+            Join The Trust Project
+          </button>
         </div>
       )}
       {membership.kind === 'revoked' && (
         <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
-          <p className="text-[0.8rem] text-sand-600">Your Trust Project membership is no longer active.</p>
+          <p className="text-[0.8rem] text-sand-600">Your Trust Project membership is no longer active. If you think this is a mistake, use Help & Support.</p>
         </div>
       )}
     </div>
@@ -857,7 +868,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -875,7 +886,12 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
    * owner, or candidate.
    */
   onUseThis: (fact: CommunitySourceFact) => void;
+  /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
+  onJoinTrustProject: () => void;
 }) {
+  // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
+  // Number, or a quick share link (no membership row, no referral, no capacity).
+  const [inviteMode, setInviteMode] = useState<'choose' | 'ks' | 'share'>('choose');
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, discoveryGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -930,9 +946,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
     <>
       <TrustProjectBanner
         membership={state.membership}
-        onAccept={() => void controller.acceptInvitation()}
+        onJoin={onJoinTrustProject}
         onDecline={() => void controller.declineInvitation()}
-        onOpenInvite={() => controller.openInvite()}
+        onOpenInvite={() => { setInviteMode('choose'); controller.openInvite(); }}
         principlesOpen={state.principlesOpen}
         onTogglePrinciples={() => void controller.togglePrinciples()}
         principles={state.principles.status === 'ready' ? state.principles.data : []}
@@ -1221,9 +1237,22 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm" onClick={() => controller.cancelInvite()}>
           <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
             <h2 className="font-display text-base text-forest-800 mb-1">Invite someone</h2>
-            <p className="text-[0.75rem] text-sand-500 mb-3">
-              Invite someone you believe would add something useful to a community that chooses to trade fairly.
+            <p className="text-[0.75rem] text-sand-600 mb-3">
+              Invite someone you believe would add something useful to a community that chooses to trade fairly. An invitation is not a referral, and recruiting members earns nothing automatically.
             </p>
+            {inviteMode === 'choose' && (
+              <div className="space-y-2">
+                <button onClick={() => setInviteMode('ks')} className="w-full min-h-11 rounded-xl border border-cream-200 px-4 text-left text-[0.85rem] font-medium text-forest-800 hover:bg-cream-50">
+                  They already have a KS Number
+                </button>
+                <button onClick={() => setInviteMode('share')} className="w-full min-h-11 rounded-xl border border-cream-200 px-4 text-left text-[0.85rem] font-medium text-forest-800 hover:bg-cream-50">
+                  Share an invitation
+                </button>
+                <button onClick={() => controller.cancelInvite()} className="w-full min-h-11 rounded-xl text-[0.82rem] text-forest-700 hover:bg-cream-50">Cancel</button>
+              </div>
+            )}
+            {inviteMode === 'share' && <ShareInvitation interest="member" onClose={() => controller.cancelInvite()} />}
+            {inviteMode === 'ks' && <>
             <input
               type="text"
               value={state.inviteDraft.ksNumber}
@@ -1255,6 +1284,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                 Cancel
               </button>
             </div>
+            </>}
           </div>
         </div>
       )}

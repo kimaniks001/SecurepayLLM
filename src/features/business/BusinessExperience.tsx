@@ -27,7 +27,7 @@ export function BusinessExperience({ controller, onNavigate }: {
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
-      <NavBar view="signed-in" onNavigate={onNavigate} />
+      <NavBar view="business" onNavigate={onNavigate} />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
         <button onClick={() => onNavigate('account')} className="flex items-center gap-1.5 text-sand-500 hover:text-forest-600 text-[0.8rem]">
           <ArrowLeft className="w-3.5 h-3.5" /> Account
