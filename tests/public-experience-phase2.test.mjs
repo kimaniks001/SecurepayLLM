@@ -511,9 +511,10 @@ test('the "Coming soon" Agreement Support branch is fixture-only and unreachable
 test('Agreement Support gains no support authority', async () => {
   const src = strip(await readFile('src/components/AgreementSupport.tsx', 'utf8'));
   assert.doesNotMatch(src, /from '\.\.\/api|Gateway|fetch\(|http\.request|supportContext|SupportContext|ticket|escalat|localStorage|sessionStorage/i);
-  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place) and Phase 4
-  // only the community gateway (Join / versioned Principles) -- never support.
+  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place), Phase 4
+  // only the community gateway (Join / versioned Principles), and Phase 4B only the business gateway
+  // (create / mine / representation, ADR-0022) -- never support.
   const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
-  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/(agent|community)\//, 'only the agent (Phase 3) and community (Phase 4) gateways may change after Phase 2');
+  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$/, 'only the agent (Phase 3), community (Phase 4) and business (Phase 4B) gateways may change after Phase 2');
   assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
 });

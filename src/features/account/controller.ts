@@ -1,7 +1,5 @@
 import type { CircleGateway } from '../../api/securepay/circle';
 import { circleProfileView, type CircleProfileView } from '../../api/securepay/circle/adapters';
-import type { BusinessGateway, BusinessOrganizationDto } from '../../api/securepay/business';
-import type { AuthorizationGateway, AuthoritySummaryDto } from '../../api/securepay/authorization';
 import type { SubscriptionGateway, SubscriptionStatusResponse } from '../../api/securepay/subscription';
 import { ApiError } from '../../api/securepay/http';
 import { errorText } from '../agent/controller';
@@ -20,9 +18,6 @@ const idleSubscription = (): SubscriptionLoadable => ({ status: 'idle', data: nu
 
 export interface AccountState {
   identity: Loadable<CircleProfileView>;
-  businessKsInput: string;
-  business: Loadable<BusinessOrganizationDto>;
-  authority: Loadable<AuthoritySummaryDto>;
   logoutAllBusy: boolean;
   logoutAllError: string | null;
   logoutAllDone: boolean;
@@ -35,12 +30,11 @@ export interface AccountState {
 /**
  * Phase 5 -- Account. Personal identity is read once via the existing, already-proven, self-scoped
  * `GET /circle/me` (the closest real "who am I" read this codebase already trusts elsewhere -- see
- * CircleExperience). A Business membership is a SEPARATE, explicit lookup -- there is no backend index
- * of "which Businesses do I belong to" (confirmed absent -- see docs/PHASE5_LIFE_BUSINESS_WORLD.md),
- * so the person names the Business KS Number they administer, exactly like Projects/Vision Board's
- * own "manage a different KS" convention. `authoritySummary` always resolves to the caller's own
- * identity server-side (`rejectUntrustedActorSubstitution`) -- it can never be used to read someone
- * else's permissions.
+ * CircleExperience).
+ *
+ * Phase 4B (ADR-0022) -- the typed "Business KS Number" lookup is gone. Knowing a Business KS Number was
+ * never authority, and SecurePay now lists the Businesses a person can act for (`GET /business/mine`), so
+ * Account only offers the doorway to the Business area, which reads that list.
  *
  * Phase 6 final correction adds two real, previously-unwired capabilities: Plan & Subscription
  * (`subscription.myStatus`) and Change Password (`changePassword`, the real
@@ -59,14 +53,12 @@ export interface AccountState {
  */
 export function createAccountController(gateway: {
   circle: Pick<CircleGateway, 'me'>;
-  business: Pick<BusinessGateway, 'get'>;
-  authorization: Pick<AuthorizationGateway, 'authoritySummary'>;
   logoutAll: () => Promise<void>;
   subscription: Pick<SubscriptionGateway, 'myStatus'>;
   changePassword: (body: { currentPassword: string; newPassword: string }) => Promise<void>;
 }, onPasswordChanged: () => void) {
   let state: AccountState = {
-    identity: idle(), businessKsInput: '', business: idle(), authority: idle(),
+    identity: idle(),
     logoutAllBusy: false, logoutAllError: null, logoutAllDone: false,
     subscription: idleSubscription(),
     changePasswordBusy: false, changePasswordError: null, changePasswordDone: false,
@@ -99,31 +91,6 @@ export function createAccountController(gateway: {
           return;
         }
         update({ subscription: { status: 'error', data: null, error: errorText(error) } });
-      }
-    },
-
-    setBusinessKsInput(value: string) { update({ businessKsInput: value }); },
-
-    async checkBusiness() {
-      const businessKsNumber = state.businessKsInput.trim();
-      if (!businessKsNumber) return;
-      update({ business: { status: 'loading', data: null, error: null }, authority: idle() });
-      try {
-        const organization = await gateway.business.get(businessKsNumber);
-        // Correction: reading this organization's name is not proof of authority for it --
-        // `requireLink` (the backend behind this read) performs no authorization check of its own
-        // (confirmed by reading BusinessAdministrationService directly). authoritySummary is
-        // therefore checked immediately and unconditionally, before this Business is ever presented
-        // as one the person administers -- see AccountExperience's fail-closed rendering.
-        update({ business: { status: 'ready', data: organization, error: null }, authority: { status: 'loading', data: null, error: null } });
-        try {
-          const summary = await gateway.authorization.authoritySummary(organization.organizationId);
-          update({ authority: { status: 'ready', data: summary, error: null } });
-        } catch (error) {
-          update({ authority: { status: 'error', data: null, error: errorText(error) } });
-        }
-      } catch (error) {
-        update({ business: { status: 'error', data: null, error: errorText(error) } });
       }
     },
 

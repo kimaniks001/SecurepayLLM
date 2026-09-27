@@ -144,7 +144,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -272,13 +272,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // "sign in to view your account" elsewhere in this router) avoids building a new flash-message
   // mechanism for one narrow case.
   const [accountController] = useState(() => createAccountController(
-    { circle: circleGateway, business: businessGateway, authorization: authorizationGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword },
+    { circle: circleGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword },
     () => { session.clear(); setNotice('Password changed. Sign in again with your new password.'); },
   ));
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));
-  const [businessController] = useState(() => createBusinessController({ business: businessGateway, authorization: authorizationGateway }));
+  const [businessController] = useState(() => createBusinessController({ business: businessGateway, circle: circleGateway }));
   const [developerController] = useState(() => createDeveloperController(developerGateway));
   // Phase 5 -- resolved once via the same real, self-scoped `/circle/me` read Account/Circle already
   // use, so Projects never forces the person to type their own KS Number for the common case (Vision
@@ -288,7 +288,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   useEffect(() => {
     // Phase 7 Slice 5B -- cleared on sign-out: Home now shows it as the member's identity, so it must
     // never carry over to the next person who signs in on this device.
-    if (sessionState.status !== 'signed-in') { setOwnKsNumber(null); return; }
+    // Phase 4B -- the Business list and any "acting as" capacity belong to this person only.
+    if (sessionState.status !== 'signed-in') { setOwnKsNumber(null); businessController.reset(); return; }
     if (ownKsNumber) return;
     let cancelled = false;
     void circleGateway.me().then(profile => { if (!cancelled) setOwnKsNumber(profile.canonicalKsNumber); }).catch(() => { /* Projects still works with manual KS entry. */ });
