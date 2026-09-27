@@ -261,3 +261,10 @@ test('the Business area shows the Business’s own membership and one doorway to
   unjoined.actAsSelf();
   assert.equal(unjoined.getSnapshot().trustProject.status, 'idle', 'switching to yourself forgets the Business membership');
 });
+
+test('the acceptance label is a 44px target on both paths (live verification at 1440–320)', async () => {
+  const source = strip(await readFile('src/features/join/JoinExperience.tsx', 'utf8'));
+  const label = source.match(/<label htmlFor=\{acceptId\} className="([^"]*)"/);
+  assert.ok(label, 'one acceptance label, shared by the personal and the Business Join');
+  assert.match(label[1], /\bmin-h-\[44px\]/);
+});

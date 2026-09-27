@@ -235,10 +235,10 @@ export function JoinExperience({
                   id={acceptId} type="checkbox" checked={state.accepted}
                   disabled={state.phase === 'joining' || state.principles.status !== 'ready'}
                   onChange={event => controller.setAccepted(event.target.checked)}
-                  className="mt-0.5 h-5 w-5 shrink-0 accent-forest-600"
+                  className="mt-3 h-5 w-5 shrink-0 accent-forest-600"
                   aria-describedby={state.error ? `${acceptId}-error` : undefined}
                 />
-                <label htmlFor={acceptId} className="text-[0.9rem] leading-snug text-forest-800 break-words">{business ? businessAcceptanceLabel(businessName!) : ACCEPTANCE_LABEL}</label>
+                <label htmlFor={acceptId} className="min-h-[44px] cursor-pointer py-2.5 text-[0.9rem] leading-snug text-forest-800 break-words">{business ? businessAcceptanceLabel(businessName!) : ACCEPTANCE_LABEL}</label>
               </div>
               {state.error && <p id={`${acceptId}-error`} role="alert" className="text-[0.85rem] text-ember-700">{state.error}</p>}
               <button
