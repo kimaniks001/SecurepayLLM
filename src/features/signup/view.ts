@@ -1,5 +1,12 @@
 import type { SecureAuthResponse } from '../../types';
-import type { SignupState } from './controller';
+import type { SignupContext, SignupState } from './controller';
+
+/** What creating an identity does NOT do, said plainly for the place signup started. */
+const FORM_REASON: Record<SignupContext, string> = {
+  GENERIC: 'This creates your SecurePay identity. It does not join The Trust Project or any Agreement.',
+  TRUST_PROJECT_JOIN: 'This creates your SecurePay identity — your KS Number. You’ll choose whether to join The Trust Project next; nothing is joined yet.',
+  AGREEMENT_INVITATION: 'Creating your SecurePay identity does not join or confirm this Agreement. You’ll come straight back here to decide that yourself.',
+};
 
 /**
  * KS001 Upgrade Phase 4 continuation (Section 14/15) — reuses the SAME locked SecureAuth card shape the
@@ -7,7 +14,7 @@ import type { SignupState } from './controller';
  * component. The channel choice (phone/email) is rendered separately by the caller before this view's
  * fields, since `SecureAuthResponse.fields` only models text/password/otp inputs.
  */
-export function signupView(state: SignupState): SecureAuthResponse {
+export function signupView(state: SignupState, context: SignupContext = 'AGREEMENT_INVITATION'): SecureAuthResponse {
   if (state.phase === 'otp') {
     return {
       type: 'SECURE_AUTH',
@@ -27,7 +34,7 @@ export function signupView(state: SignupState): SecureAuthResponse {
     title: 'Get your KS Number',
     identityName: '',
     identityKsn: '',
-    reason: 'Creating your SecurePay identity does not join or confirm this Agreement. You’ll come straight back here to decide that yourself.',
+    reason: FORM_REASON[context],
     fields: [
       { label: 'Your name', placeholder: 'Full name', type: 'text' },
       { label: state.channelType === 'EMAIL' ? 'Email' : 'Phone number', placeholder: state.channelType === 'EMAIL' ? 'you@example.com' : '07XXXXXXXX', type: 'text' },

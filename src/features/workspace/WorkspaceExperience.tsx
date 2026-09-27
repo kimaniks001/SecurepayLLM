@@ -78,7 +78,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, trustProjectMembership = null, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -91,6 +91,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   onOpenStore?: () => void;
   /** Phase 7 Slice 5B -- the real Community view (the Trust Project doorway and the nav item). Optional, mirroring onOpenStore. */
   onOpenCommunity?: () => void;
+  /** Public Experience Convergence Phase 4 -- the live Join page; membership states are resolved there. */
+  onJoinTrustProject?: () => void;
   /** Phase 7 Slice 5B -- the signed-in person's own membership + canonical KS Number; null when not known. */
   trustProjectMembership?: TrustProjectMembershipFact | null;
   onOpenReferral?: (agreementId: string) => void;
@@ -249,7 +251,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           onViewAllInvitations={() => { window.location.hash = '#/invitations'; }}
           // Phase 7 Slice 5B -- The Trust Project, as a small doorway BELOW the person's own Home.
           belowHome={onOpenCommunity && onOpenStore
-            ? <div className="mt-16"><TrustProjectSection compact membership={trustProjectMembership} onExploreCommunity={onOpenCommunity} onOpenStores={onOpenStore} /></div>
+            ? <div className="mt-16"><TrustProjectSection compact membership={trustProjectMembership} onExploreCommunity={onOpenCommunity} onOpenStores={onOpenStore} onJoin={onJoinTrustProject} /></div>
             : undefined}
         />
       );

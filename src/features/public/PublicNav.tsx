@@ -54,9 +54,9 @@ export function PublicNav({ actions }: { actions: PublicShellActions }) {
         Skip to KS001
       </a>
       <nav aria-label="SecurePay" className="flex items-center justify-between gap-3 px-4 md:px-6 lg:px-10 py-3 md:py-3.5">
-        <button type="button" onClick={() => { setMenuOpen(false); actions.home(); }} aria-label="SecurePay home" className={`flex min-h-11 items-center gap-2 rounded-lg ${focusRing}`}>
+        <button type="button" onClick={() => { setMenuOpen(false); actions.home(); }} aria-label="SecurePay home" className={`flex min-h-11 shrink-0 items-center gap-2 rounded-lg ${focusRing}`}>
           <img src={securepayMark} alt="" className="h-7 w-7" />
-          <img src={securepayWordmark} alt="" className="h-6 w-auto" />
+          <img src={securepayWordmark} alt="" className="hidden min-[400px]:block h-6 w-auto" />
         </button>
 
         <div className="hidden md:flex items-center gap-1">
@@ -69,9 +69,14 @@ export function PublicNav({ actions }: { actions: PublicShellActions }) {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Phase 4 -- Sign in is secondary, Join is primary. */}
           <button type="button" onClick={() => { setMenuOpen(false); actions.signIn(); }}
-            className={`min-h-11 rounded-xl border border-forest-200 bg-white/70 px-4 text-[0.875rem] font-medium text-forest-800 hover:bg-forest-50 transition-colors ${focusRing}`}>
+            className={`min-h-11 rounded-xl border border-forest-200 bg-white/70 px-3 sm:px-4 text-[0.875rem] font-medium text-forest-800 hover:bg-forest-50 transition-colors ${focusRing}`}>
             Sign in
+          </button>
+          <button type="button" onClick={() => { setMenuOpen(false); actions.join(); }} data-public-join-cta
+            className={`min-h-11 rounded-xl bg-forest-600 px-3 sm:px-4 text-[0.875rem] font-medium text-cream-50 hover:bg-forest-700 transition-colors ${focusRing}`}>
+            Join
           </button>
           <button
             ref={triggerRef}

@@ -3,6 +3,12 @@ import type { SessionStore } from '../../api/securepay/session';
 import { ApiError } from '../../api/securepay/http';
 
 export type SignupPhase = 'form' | 'otp' | 'completed';
+/**
+ * Public Experience Convergence Phase 4 -- where signup was started. It changes ONLY the honest wording of
+ * what did not happen; the backend call, anti-enumeration and the "signup is identity only" rule are the same
+ * for every context.
+ */
+export type SignupContext = 'GENERIC' | 'AGREEMENT_INVITATION' | 'TRUST_PROJECT_JOIN';
 export interface SignupState {
   phase: SignupPhase;
   busy: boolean;
@@ -41,7 +47,9 @@ const initial: SignupState = {
 export function createSignupController(
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>,
   session: Pick<SessionStore, 'setTokens'>,
+  context: SignupContext = 'AGREEMENT_INVITATION',
 ) {
+  const errorText = (error: unknown) => signupErrorText(error, context);
   let state: SignupState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<SignupState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -73,7 +81,7 @@ export function createSignupController(
           maskedDestination: pending.maskedDestination, password: '', otp: '', error: null,
         });
       } catch (error) {
-        update({ busy: false, error: signupErrorText(error) });
+        update({ busy: false, error: errorText(error) });
       }
     },
 
@@ -84,7 +92,7 @@ export function createSignupController(
         await auth.signupResend(state.challengeToken);
         update({ busy: false });
       } catch (error) {
-        update({ busy: false, error: signupErrorText(error) });
+        update({ busy: false, error: errorText(error) });
       }
     },
 
@@ -96,7 +104,7 @@ export function createSignupController(
         session.setTokens(completed);
         update({ ...initial, phase: 'completed' });
       } catch (error) {
-        update({ busy: false, otp: '', error: signupErrorText(error) });
+        update({ busy: false, otp: '', error: errorText(error) });
       }
     },
 
@@ -107,14 +115,22 @@ export function createSignupController(
 export type SignupController = ReturnType<typeof createSignupController>;
 
 /**
- * Deliberately ONE generic message for every 4xx cause (see this module's own doctrine comment above).
- * Only a genuine delivery/network failure gets different, honest wording.
+ * Deliberately ONE generic message for every 4xx cause (see this module's own doctrine comment above) --
+ * never "this contact is already registered". Only a genuine delivery/network failure gets different, honest
+ * wording. The second sentence says truthfully what did NOT happen in this context.
  */
-function signupErrorText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) {
-      return 'SecurePay couldn’t send or check that code right now. Nothing has been joined. Your invitation is still available.';
-    }
+export function signupErrorText(error: unknown, context: SignupContext = 'AGREEMENT_INVITATION'): string {
+  const network = error instanceof ApiError
+    && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500);
+  const lead = network ? 'SecurePay couldn’t send or check that code right now.' : 'That didn’t work.';
+  switch (context) {
+    case 'GENERIC':
+      return `${lead} Your SecurePay identity has not been created.`;
+    case 'TRUST_PROJECT_JOIN':
+      return `${lead} Your SecurePay identity has not been created, and you haven’t joined The Trust Project.`;
+    default:
+      return network
+        ? `${lead} Nothing has been joined. Your invitation is still available.`
+        : `${lead} Nothing has been joined. Your invitation is still available if it hasn’t expired.`;
   }
-  return 'That didn’t work. Nothing has been joined. Your invitation is still available if it hasn’t expired.';
 }

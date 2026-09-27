@@ -16,6 +16,8 @@ export interface PublicShellActions {
   home: () => void;
   /** The public Sign in route (`#/sign-in`). Authentication only. */
   signIn: () => void;
+  /** Public Experience Convergence Phase 4 -- the live `#/join` route. */
+  join: () => void;
   /** Scroll to a public Home chapter and move focus to its heading (never changes `location.hash`). */
   section: (id: PublicSectionId) => void;
   /** Move focus to the KS001 composer ("Skip to KS001"). */
@@ -52,6 +54,7 @@ export function createPublicShellBridge(): PublicShellActions & { bind: (actions
     bind: actions => { current = actions; },
     home: () => current?.home(),
     signIn: () => current?.signIn(),
+    join: () => current?.join(),
     section: id => current?.section(id),
     skipToKs001: () => current?.skipToKs001(),
   };

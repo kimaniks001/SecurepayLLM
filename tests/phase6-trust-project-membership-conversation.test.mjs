@@ -133,26 +133,16 @@ test('controller: an ACTIVE membership loads the real feed', async () => {
   assert.ok(calls.some(c => c[0] === 'feed'));
 });
 
-test('controller.acceptInvitation transitions membership to ACTIVE on explicit action, then loads the real feed', async () => {
-  // Stateful mock: membershipMe reflects INVITED until accept() has actually been called, matching
-  // the real backend's own sequencing -- acceptInvitation() re-runs enter() afterward, which must see
-  // the NEW state, not the pre-acceptance snapshot.
-  let accepted = false;
-  const { gateway, calls } = fakeCommunityGateway({
-    membershipMe: async () => accepted
-      ? { status: 'ACTIVE', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-02T00:00:00Z' }
-      : { status: 'INVITED', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: null },
-    accept: async () => { accepted = true; return { status: 'ACTIVE', invitedByCanonicalKsNumber: null, invitedByDisplayName: null, invitedAt: '2026-09-01T00:00:00Z', respondedAt: '2026-09-02T00:00:00Z' }; },
+// Public Experience Convergence Phase 4 -- acceptance moved to the Join page, under an explicit acceptance of
+// the exact current 12 Principles. Community can no longer accept in one tap (no invisible acceptance).
+test('Community has no one-tap Trust Project accept any more; acceptance happens on the Join page', async () => {
+  const { gateway } = fakeCommunityGateway({
+    membershipMe: async () => ({ status: 'INVITED', invitedByCanonicalKsNumber: null, invitedByDisplayName: 'Mary', invitedAt: '2026-09-01T00:00:00Z', respondedAt: null }),
   });
   const controller = api.communityController.createCommunityController(storeGatewayStub, gateway);
   await controller.enter();
   assert.equal(controller.getSnapshot().membership.kind, 'invited');
-
-  await controller.acceptInvitation();
-
-  assert.equal(controller.getSnapshot().membership.kind, 'active');
-  assert.ok(calls.some(c => c[0] === 'membership.accept'));
-  assert.ok(calls.some(c => c[0] === 'feed')); // enter() re-runs after acceptance, loading the real feed
+  assert.equal(controller.acceptInvitation, undefined);
 });
 
 test('controller.declineInvitation transitions membership to DECLINED, never touching the feed', async () => {

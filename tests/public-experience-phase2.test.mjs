@@ -92,17 +92,16 @@ test('chapter navigation scrolls and focuses the heading and never changes locat
 });
 
 // ------------------------------------------------------------------ JOIN GATE
-test('no live Join CTA, route or placeholder anywhere in the deployable public experience', async () => {
+// Phase 2 kept Join unavailable. Public Experience Convergence Phase 4 made it REAL (ADR-0021, real
+// `/membership/join` authority), so the gate now pins the opposite: Join is live, never a placeholder, and
+// never an Organization or Business Join.
+test('Join is live in the public experience (Phase 4) and never a placeholder or an Organization/Business Join', async () => {
   const nav = text(html(h(api.PublicNav, { actions })));
+  assert.match(nav, /\bJoin\b/);
+  assert.match(publicHomeText, /Join The Trust Project/);
   for (const out of [nav, publicHomeText]) {
-    assert.doesNotMatch(out, /\bJoin\b/, 'no Join control or chapter');
     assert.doesNotMatch(out, /coming soon|opens soon|not ready yet/i);
-  }
-  const everything = [...await publicFiles(), 'src/features/agent/AgentExperience.tsx', 'src/RuntimeApp.tsx', 'src/components/NavBar.tsx'];
-  for (const file of everything) {
-    const src = strip(await readFile(file, 'utf8'));
-    assert.doesNotMatch(src, /#\/join/, `${file} must not route to #/join`);
-    assert.doesNotMatch(src, /membership\.join|\/membership\/join/, `${file} must not call a Join endpoint`);
+    assert.doesNotMatch(out, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)/i);
   }
 });
 
@@ -407,15 +406,21 @@ test('signed-out Community renders no low-contrast text (banner, home, store-off
   for (const object of extra.demoCommunityObjects) assert.deepEqual(lowContrastText(xr(extra.CommunityObjectCard, { object, onClick: noop })), [], object.id);
   const src = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
   assert.match(src, /<p className="text-\[0\.78rem\] text-sand-600">A community of people choosing to trade fairly\.<\/p>/);
-  // The signed-out prompt stays at full contrast; the invitation-based membership copy is untouched until Phase 4.
-  assert.match(src, /<p className="text-\[0\.8rem\] text-forest-800">Sign in to see what the community is sharing\.<\/p>/);
-  assert.match(src, /The Trust Project is invitation-based\./);
+  // The signed-out prompt stays at full contrast. Phase 4 replaced the superseded invitation-only copy with
+  // direct-Join truth (ADR-0021).
+  assert.match(src, /<p className="text-\[0\.8rem\] text-forest-800">Sign in or join The Trust Project to take part in Community\.<\/p>/);
+  assert.doesNotMatch(src, /invitation-based/);
+  assert.match(src, /You’re not a member of The Trust Project yet\./);
 });
 
 test('Circle-level Join authority is untouched by the Phase 2 Join gate', async () => {
   const circle = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
   const community = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
-  assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/components/CircleJoinFlow.tsx', 'src/features/circle/controller.ts', 'src/features/community/controller.ts'], { encoding: 'utf8' }), '');
+  assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/components/CircleJoinFlow.tsx', 'src/features/circle/controller.ts'], { encoding: 'utf8' }), '');
+  // Phase 4 changed the Community controller only to remove the one-tap Trust Project accept (it moved to the
+  // Join page); every Circle method there is untouched.
+  const communityDiff = execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/features/community/controller.ts'], { encoding: 'utf8' });
+  for (const line of communityDiff.split('\n').filter(l => /^[+-][^+-]/.test(l))) assert.doesNotMatch(line, /[Cc]ircle/, line);
   assert.ok(circle.length > 0 && community.length > 0);
   assert.match(community, /REQUEST_TO_JOIN|requestToJoin|joinCircle/);
 });
@@ -502,8 +507,9 @@ test('the "Coming soon" Agreement Support branch is fixture-only and unreachable
 test('Agreement Support gains no support authority', async () => {
   const src = strip(await readFile('src/components/AgreementSupport.tsx', 'utf8'));
   assert.doesNotMatch(src, /from '\.\.\/api|Gateway|fetch\(|http\.request|supportContext|SupportContext|ticket|escalat|localStorage|sessionStorage/i);
-  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place), never support.
+  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place) and Phase 4
+  // only the community gateway (Join / versioned Principles) -- never support.
   const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
-  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/agent\//, 'only the agent gateway may change after Phase 2');
+  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/(agent|community)\//, 'only the agent (Phase 3) and community (Phase 4) gateways may change after Phase 2');
   assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
 });

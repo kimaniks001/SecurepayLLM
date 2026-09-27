@@ -117,7 +117,7 @@ test('"Trust Project member · KS…" only for an ACTIVE member whose canonical 
   }
   assert.match(render({ compact: true, membership: { status: 'ACTIVE', canonicalKsNumber: 'KS123' } }), /Trust Project member · KS123/);
   assert.doesNotMatch(render({ membership: { status: 'REVOKED', canonicalKsNumber: 'KS123' } }), /Trust Project member ·/);
-  assert.match(render({ compact: true, membership: { status: 'INVITED', canonicalKsNumber: 'KS9' } }), /You’ve been invited to The Trust Project\. You can accept or decline in Community\./);
+  assert.match(render({ compact: true, membership: { status: 'INVITED', canonicalKsNumber: 'KS9' } }), /You’ve been invited to The Trust Project\. Review the invitation and the 12 Principles, then choose whether to join\./);
 });
 test('the Home reads membership from the existing self-scoped record and the KS Number from /circle/me; stale identity is cleared on sign-out', async () => {
   const src = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
@@ -144,7 +144,10 @@ test('the real signed-in Home (Workspace) keeps its own headline and adds only t
   assert.match(ws, /else if \(view === 'community' && onOpenCommunity\) onOpenCommunity\(\);/);
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(agent, /onOpenCommunity=\{\(\) => navigateTo\('community'\)\}/);
-  assert.match(agent, /if \(community\) return; \/\/ re-read on leaving Community/);
+  // Phase 4: membership is re-read on leaving Community AND on leaving the Join page.
+  assert.match(agent, /if \(community \|\| onJoinPage\) return;/);
+  assert.match(agent, /setTrustMembershipStatus\(m\.status \?\? null\)/);
+  assert.match(ws, /onJoin=\{onJoinTrustProject\}/);
 });
 
 test('Developer / Connect is named only as the existing Account integration capability, owned by the Business -- no new route, nav item or action', async () => {

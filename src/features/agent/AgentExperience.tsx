@@ -6,6 +6,10 @@ import { NavBar } from '../../components/NavBar';
 import { PublicHome } from '../public/PublicHome';
 import { SignInExperience } from '../public/SignInExperience';
 import { useSignInRoute } from '../public/signInRoute';
+import { JoinExperience } from '../join/JoinExperience';
+import { SignUpExperience } from '../join/SignUpExperience';
+import { useJoinRoute, useSignUpRoute, SIGN_UP_HASH } from '../join/route';
+import type { ContinuationOutcome } from '../join/controller';
 import { PublicShellProvider, createPublicShellBridge, focusKs001Composer, focusPublicSection, type PublicSectionId } from '../public/publicShell';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { MessageBubble } from '../../components/MessageBubble';
@@ -209,6 +213,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const signedIn = sessionState.status === 'signed-in';
   // Public Experience Convergence Phase 2 -- the public Sign in route and in-page chapter navigation.
   const signInRoute = useSignInRoute();
+  // Public Experience Convergence Phase 4 -- the live Join route and the identity-only signup route.
+  const joinRoute = useJoinRoute();
+  const signUpRoute = useSignUpRoute();
+  // A signed-in person is never offered signup: once identity exists, leave #/sign-up.
+  useEffect(() => {
+    if (signedIn && signUpRoute.value) signUpRoute.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, signUpRoute.value]);
   const [pendingSection, setPendingSection] = useState<PublicSectionId | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
   // Once SecurePay confirms the person, leave Sign in for where they came from, or the area they asked
@@ -284,15 +296,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [sessionState.status]);
   // Phase 7 Slice 5B -- the Home's Trust Project doorway reads the SAME self-scoped membership record
   // Community uses. Unknown (signed out, or a failed read) shows no membership claim at all.
+  const onJoinPage = !!joinRoute.value;
   const [trustMembershipStatus, setTrustMembershipStatus] = useState<TrustProjectMembershipFact['status'] | undefined>(undefined);
   useEffect(() => {
     if (sessionState.status !== 'signed-in') { setTrustMembershipStatus(undefined); return; }
     let cancelled = false;
-    if (community) return; // re-read on leaving Community, where accept / decline happen
-    void communityGateway.membership.me().then(m => { if (!cancelled) setTrustMembershipStatus(m.status); }).catch(() => { if (!cancelled) setTrustMembershipStatus(undefined); });
+    // Re-read on leaving Community (decline happens there) and on leaving the Join page (Phase 4).
+    if (community || onJoinPage) return;
+    // The backend omits a null `status` (non_null inclusion): an absent status is a known non-member (null),
+    // distinct from a failed read (undefined, which makes no membership claim at all).
+    void communityGateway.membership.me().then(m => { if (!cancelled) setTrustMembershipStatus(m.status ?? null); }).catch(() => { if (!cancelled) setTrustMembershipStatus(undefined); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionState.status, community]);
+  }, [sessionState.status, community, onJoinPage]);
   const reviewing = () => { void controller.review(); };
   const startNewConversation = () => {
     instruments.cancel();
@@ -457,11 +473,66 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // always acts on this router's current state.
   const leaveSignIn = () => { if (signInRoute.active) signInRoute.close(); };
   publicShell.bind({
-    home: () => { leaveSignIn(); navigateTo('signed-in'); },
+    home: () => { leaveSignIn(); joinRoute.close(); navigateTo('signed-in'); },
     signIn: () => signInRoute.open(null),
+    join: () => { leaveSignIn(); joinRoute.open(); },
     section: id => { leaveSignIn(); navigateTo('signed-in'); setPendingSection(id); },
     skipToKs001: () => { if (focusKs001Composer()) return; leaveSignIn(); navigateTo('signed-in'); setPendingComposerFocus(true); },
   });
+
+  // Public Experience Convergence Phase 4 -- conversation continuity through Join is a SEPARATE authority:
+  // only after membership succeeds, the tab's anonymous conversation (if any) is claimed with its Phase 3
+  // possession token; a failure here never rolls membership back.
+  const continueConversationAfterJoin = async (): Promise<ContinuationOutcome> => {
+    const conversationId = gateway.resumableConversationId?.();
+    if (!conversationId) return { kind: 'none' };
+    try {
+      await gateway.saveBuild(conversationId);
+      return { kind: 'claimed', conversationId };
+    } catch {
+      return { kind: 'failed' };
+    }
+  };
+
+  if (joinRoute.value) {
+    return (
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
+        <NavBar view="community" onNavigate={view => { joinRoute.close(); navigateTo(view); }} />
+        <JoinExperience
+          key={signedIn ? 'signed-in' : 'signed-out'}
+          communityGateway={communityGateway}
+          auth={auth}
+          session={session}
+          signedIn={signedIn}
+          interest={joinRoute.value.interest}
+          continueConversation={continueConversationAfterJoin}
+          onExploreCommunity={() => { joinRoute.close(); navigateTo('community'); }}
+          onReturnToConversation={conversationId => {
+            joinRoute.close();
+            setHome(false);
+            if (controller.getSnapshot().conversationId !== conversationId) void controller.resumeConversation(conversationId);
+            else void controller.review();
+          }}
+          onHelp={() => { joinRoute.close(); navigateTo(signedIn ? 'support' : 'recovery'); }}
+          onDone={() => { joinRoute.close(); navigateTo('signed-in'); }}
+        />
+      </div>
+    );
+  }
+
+  if (signUpRoute.value && !signedIn) {
+    return (
+      <div className="min-h-dvh flex flex-col bg-cream-100">
+        <NavBar view="signed-out" onNavigate={navigateTo} />
+        <SignUpExperience
+          auth={auth}
+          session={session}
+          onSignIn={() => { signUpRoute.close(); signInRoute.open(null); }}
+          onCancel={() => { signUpRoute.close(); }}
+        />
+      </div>
+    );
+  }
 
   if (signInRoute.active && !signedIn) {
     return (
@@ -473,6 +544,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onSignedIn={noop}
           onCancel={() => { signInRoute.close(); }}
           onRecover={() => { signInRoute.close(); navigateTo('recovery'); }}
+          onGetKsNumber={() => { window.location.hash = SIGN_UP_HASH; }}
         />
       </div>
     );
@@ -505,6 +577,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // Phase 6 Slice 4 (Community → Trade) -- mirrors onUseOffer's own pattern exactly: leave
         // Community, then let the SAME real Agent conversation controller select the source.
         onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
+        onJoinTrustProject={() => { setCommunity(false); joinRoute.open(); }}
       />
     );
   }
@@ -616,6 +689,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       initialAgreementId={workspaceAgreementId}
       onOpenStore={() => navigateTo('store')}
       onOpenCommunity={() => navigateTo('community')}
+      onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
       onOpenReferral={openEcosystemForAgreement}
       onOpenProjects={() => navigateTo('projects')}
@@ -756,6 +830,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
           onExploreCommunity={() => navigateTo('community')}
           onOpenStores={() => navigateTo('store')}
+          onJoin={() => joinRoute.open()}
         />
       </> : (
         // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
@@ -776,6 +851,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onRecover={() => navigateTo('recovery')}
           onHelp={() => navigateTo('support')}
           onSection={id => { focusPublicSection(id); }}
+          onJoin={() => joinRoute.open()}
         />
       )}
     </div> : <>

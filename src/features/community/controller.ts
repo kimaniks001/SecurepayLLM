@@ -84,13 +84,18 @@ export type MembershipUiState =
   | { kind: 'declined'; membership: MembershipResponse }
   | { kind: 'revoked'; membership: MembershipResponse };
 
-function toMembershipUiState(membership: MembershipResponse): MembershipUiState {
-  switch (membership.status) {
-    case null: return { kind: 'none' };
-    case 'INVITED': return { kind: 'invited', membership };
-    case 'ACTIVE': return { kind: 'active', membership };
-    case 'DECLINED': return { kind: 'declined', membership };
-    case 'REVOKED': return { kind: 'revoked', membership };
+/**
+ * The backend serialises with `non_null` inclusion, so a caller with no membership record receives no
+ * `status` field at all (undefined), not `status: null`. Anything that is not a known status is treated
+ * as "no membership" -- fail closed onto the non-member gate, never a crash or an implied membership.
+ */
+export function toMembershipUiState(membership: MembershipResponse | null | undefined): MembershipUiState {
+  switch (membership?.status) {
+    case 'INVITED': return { kind: 'invited', membership: membership! };
+    case 'ACTIVE': return { kind: 'active', membership: membership! };
+    case 'DECLINED': return { kind: 'declined', membership: membership! };
+    case 'REVOKED': return { kind: 'revoked', membership: membership! };
+    default: return { kind: 'none' };
   }
 }
 
@@ -646,15 +651,8 @@ export function createCommunityController(
 
     // ─── The Trust Project membership (Slice 2) ─────────────────────────
 
-    async acceptInvitation() {
-      try {
-        const membership = await community.membership.accept();
-        update({ membership: toMembershipUiState(membership) });
-        if (membership.status === 'ACTIVE') await this.enter();
-      } catch (error) {
-        update({ notice: errorText(error) });
-      }
-    },
+    // Public Experience Convergence Phase 4 -- accepting an invitation happens on the Join page (`#/join`),
+    // under an explicit acceptance of the exact current 12 Principles; there is no one-tap accept here.
     async declineInvitation() {
       try {
         const membership = await community.membership.decline();
