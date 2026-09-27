@@ -9,6 +9,9 @@ const bundle = await build({ stdin: { contents: `
 export { createJoinController, membershipKind } from './src/features/join/controller';
 export { toMembershipUiState } from './src/features/community/controller';
 export { createSignInFlow, authLegFor } from './src/features/public/signInFlow';
+export { createWorkspaceController, workspaceEntryFor } from './src/features/workspace/controller';
+export { WorkspaceExperience } from './src/features/workspace/WorkspaceExperience';
+export { SecureAuthCard } from './src/components/SecureAuth';
 export { JoinExperience } from './src/features/join/JoinExperience';
 export { SignUpExperience } from './src/features/join/SignUpExperience';
 export { ShareInvitation } from './src/features/join/ShareInvitation';
@@ -497,4 +500,123 @@ test('Community: a FAILED membership read is UNKNOWN -- a restrained line, no �
   const block = view.slice(view.indexOf("membership.kind === 'unknown' && ("), view.indexOf("membership.kind === 'none' && ("));
   assert.match(block, /SecurePay couldn’t check your Trust Project membership just now\./);
   assert.doesNotMatch(block, /Join|not a member|onJoin/);
+});
+
+// ------------------------------------------------------------------ Phase 4 final navigation + auth control correction
+// Issue 1 -- `agreements` is a real Workspace entry: the Agreements Hub, not Signed-in Home.
+const wsSummary = (over = {}) => ({ agreementId: 'agr-1', publicReference: 'AGR-1', title: 'Roof repair', purpose: '', status: 'PROPOSED', agreementType: 'SERVICE', proposedAmountMinor: null, currency: 'KES', createdAt: 'x', updatedAt: 'x', currentActor: { roleCode: 'PROPOSER', participantStatus: 'CREATOR' }, counterparty: null, nextDeadline: null, attentionRequired: false, nextActions: [], currentAgreementVersionId: 'v1', completion: { completed: false, status: 'X', reasonCodes: [], agreementVersionId: 'v1', completedAt: null }, ...over });
+const wsHub = items => ({ needsMe: items, waitingOnOthers: [], takingShape: [], active: [], changedReviewRequired: [], completed: [], cancelled: [], expired: [] });
+const wsTick = () => new Promise(r => setTimeout(r, 0));
+function wsGateway(calls = []) {
+  return {
+    hub: async () => { calls.push('hub'); return wsHub([wsSummary()]); },
+    home: async () => { calls.push('home'); return { problems: [], recentActivity: [], moneyByCurrency: [] }; },
+    myCalendar: async () => [], myInvitations: async () => ({ items: [] }),
+    detail: async () => { throw new Error('not needed'); }, confirmations: async () => [], confirmationStatus: async () => [], people: async () => null,
+    milestoneEffectiveStates: async () => null, calendarEvents: async () => [], calendarConflicts: async () => [], tagsForAgreement: async () => [], source: async () => null,
+    currentUserActions: async () => ({ items: [], page: 0, size: 100, totalElements: 0 }),
+    money: { status: async () => { throw new Error('x'); }, records: async () => [] },
+  };
+}
+// Renders the REAL WorkspaceExperience at the entry a destination maps to (what is visible at mount).
+const renderWorkspace = entry => text(html(api.WorkspaceExperience, { gateway: wsGateway(), initialView: entry, onLeave: noop }));
+const HUB_VISIBLE = /Loading your agreements…/;          // the Agreements Hub branch
+const HOME_VISIBLE = /Loading your SecurePay agreements…/; // the Signed-in Home branch
+
+test("navigateTo('signed-in') enters Workspace HOME and navigateTo('agreements') enters the Agreements HUB -- explicitly different", () => {
+  assert.equal(api.workspaceEntryFor('signed-in'), 'home');
+  assert.equal(api.workspaceEntryFor('agreements'), 'hub');
+  assert.equal(api.workspaceEntryFor('money'), 'home');
+  assert.equal(api.workspaceEntryFor('agreement-detail'), 'home', 'a specific Agreement uses initialAgreementId, never the Hub entry');
+  const home = renderWorkspace(api.workspaceEntryFor('signed-in'));
+  assert.match(home, HOME_VISIBLE); assert.doesNotMatch(home, HUB_VISIBLE);
+  const hub = renderWorkspace(api.workspaceEntryFor('agreements'));
+  assert.match(hub, HUB_VISIBLE); assert.doesNotMatch(hub, HOME_VISIBLE);
+  assert.match(text(html(api.WorkspaceExperience, { gateway: wsGateway(), onLeave: noop })), HOME_VISIBLE, 'the default entry stays Home');
+});
+
+test('the Hub entry loads the Hub (not Home) and is one-shot: Home, Hub, Detail and Back all work afterwards', async () => {
+  const calls = [];
+  const c = api.createWorkspaceController(wsGateway(calls), 'hub');
+  assert.equal(c.getSnapshot().view, 'hub');
+  c.enter(); await wsTick(); await wsTick();
+  assert.equal(c.getSnapshot().view, 'hub');
+  assert.equal(c.getSnapshot().hub.status, 'ready');
+  assert.deepEqual(calls.filter(x => x === 'home'), [], 'Home extras are not loaded for a Hub entry');
+  c.enter(); await wsTick();                               // a second enter never re-forces anything
+  c.goHome(); await wsTick(); await wsTick();
+  assert.equal(c.getSnapshot().view, 'home');
+  c.goHub(); await wsTick(); await wsTick();
+  assert.equal(c.getSnapshot().view, 'hub');
+  c.openFromHub('agr-1'); await wsTick();
+  assert.equal(c.getSnapshot().view, 'detail');
+  c.backToHub?.(); await wsTick(); await wsTick();
+  assert.equal(c.getSnapshot().view, 'hub');
+});
+
+test('initialAgreementId restoration is unchanged: a Home entry still opens the real Agreement Detail', async () => {
+  const c = api.createWorkspaceController(wsGateway(), 'home');
+  c.enter(); await wsTick(); await wsTick();
+  assert.equal(c.getSnapshot().view, 'home');
+  c.openFromHome('agr-1'); await wsTick();
+  assert.equal(c.getSnapshot().view, 'detail');
+  assert.equal(c.getSnapshot().selectedAgreementId, 'agr-1');
+  const ws = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
+  assert.match(ws, /if \(restorationConsumed\.current \|\| !initialAgreementId \|\| state\.hub\.status !== 'ready'\) return;/);
+  assert.match(ws, /const \[controller\] = useState\(\(\) => createWorkspaceController\(gateway, initialView\)\);/, 'entry read once, at mount');
+});
+
+for (const [name, path] of [
+  ['Sign in', flow => { /* credentials + OTP on #/sign-in */ }],
+  ['Get one → signup', flow => { flow.toSignUp(); flow.sync(); }],
+  ['Get one → Back → Sign in', flow => { flow.toSignUp(); flow.sync(); flow.toSignIn(); flow.sync(); }],
+]) {
+  test(`signed-out Agreements → ${name} → authenticated → the Agreements HUB is what renders`, async () => {
+    const flow = api.createSignInFlow(fakeLocation(''));
+    flow.open('agreements');                                // requestSignIn('agreements')
+    path(flow);
+    if (name.includes('signup')) await completeGenericSignup([]);
+    let rendered = null;
+    // AgentExperience: close() -> navigateTo(intent) -> setWorkspaceEntry(workspaceEntryFor(view)) -> <WorkspaceExperience initialView>
+    returnAfterAuthentication(flow, true, view => { rendered = renderWorkspace(api.workspaceEntryFor(view)); });
+    assert.ok(rendered, 'navigateTo ran');
+    assert.match(rendered, HUB_VISIBLE);
+    assert.doesNotMatch(rendered, HOME_VISIBLE);
+  });
+}
+
+test('AgentExperience: every App-level Workspace entry sets an explicit entry; Store/Community/Account → Agreements reach the Hub', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  // the ONE workspace branch of navigateTo (used by NavBar from Store, Community, Account, Help and the sign-in return)
+  assert.match(agent, /if \(sessionState\.status === 'signed-in'\) \{\s*setWorkspaceAgreementId\(returningAgreementId\);\s*setWorkspaceEntry\(workspaceEntryFor\(view\)\);\s*setWorkspace\(true\);/);
+  assert.match(agent, /initialAgreementId=\{workspaceAgreementId\}\s*initialView=\{workspaceEntry\}/);
+  // specific-Agreement openings keep the Home entry + initialAgreementId (never the Hub, never inferred from a null id)
+  assert.equal((agent.match(/setWorkspaceAgreementId\(agreementId\);\s*setWorkspaceEntry\('home'\);\s*setWorkspace\(true\);/g) ?? []).length, 2);
+  // Store / Community / Account leave the Workspace, so re-entering mounts it fresh on its entry view
+  assert.match(agent, /if \(view === 'store'\) \{ setWorkspace\(false\);/);
+  assert.match(agent, /if \(view === 'community'\) \{ setWorkspace\(false\);/);
+  assert.doesNotMatch(agent, /setTimeout\([^)]*goHub|querySelector\([^)]*Agreements/);
+});
+
+// Issue 2 -- the real SecureAuth <input> is the 44px target.
+test('SecureAuth: every text, password and OTP input is itself >= 44px (min-h-11), with no wrapper vertical padding', async () => {
+  const data = { type: 'SECURE_AUTH', title: 'Sign in', reason: 'r', identityKsn: null, primaryLabel: 'Go', primaryValue: 'go', secondaryLabel: 'Back', secondaryValue: 'back',
+    identityName: '', fields: [{ type: 'text', label: 'KS Number', placeholder: 'KS-000000' }, { type: 'text', label: 'Your name', placeholder: '' }, { type: 'password', label: 'Password', placeholder: '' }, { type: 'otp', label: 'One-time code', placeholder: '' }] };
+  const out = html(api.SecureAuthCard, { data, onChoice: noop, values: ['', '', '', ''], onFieldChange: noop });
+  const inputs = out.match(/<input[^>]*>/g) ?? [];
+  assert.equal(inputs.length, 4);
+  for (const input of inputs) {
+    assert.match(input, /class="[^"]*\bmin-h-11\b/, input);
+    assert.match(input, /class="[^"]*\bmin-w-0\b/, 'can shrink at 320px instead of overflowing');
+  }
+  // OTP keyboard and autocomplete unchanged
+  assert.match(inputs[3], /inputMode="numeric"/); assert.match(inputs[3], /autoComplete="one-time-code"/);
+  assert.match(inputs[2], /type="password"/); assert.match(inputs[2], /autoComplete="current-password"/);
+  // the icon/border wrapper no longer adds vertical padding (no 64-70px giant fields)
+  const wrappers = out.match(/<div class="mt-1 flex items-center[^"]*"/g) ?? [];
+  assert.equal(wrappers.length, 4);
+  for (const w of wrappers) assert.doesNotMatch(w, /\bpy-\d/);
+  // min-h-11 really is 44px: Tailwind's default spacing (2.75rem at 16px root) is not overridden
+  const tw = await readFile('tailwind.config.js', 'utf8').catch(() => readFile('tailwind.config.ts', 'utf8'));
+  assert.doesNotMatch(tw, /minHeight\s*:|spacing\s*:\s*\{/, 'default spacing scale (min-h-11 = 2.75rem = 44px)');
 });

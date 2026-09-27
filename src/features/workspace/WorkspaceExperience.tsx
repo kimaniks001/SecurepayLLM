@@ -25,7 +25,7 @@ import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
-import { createWorkspaceController, errorText } from './controller';
+import { createWorkspaceController, errorText, type WorkspaceEntry } from './controller';
 import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, invitationsForYouView, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 import type { AgentController } from '../agent/controller';
 
@@ -78,7 +78,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -88,6 +88,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   agentGateway?: AgentAskGateway;
   agentController?: Pick<AgentController, 'getSnapshot' | 'subscribe' | 'ensureConversationId' | 'send'>;
   initialAgreementId?: string | null;
+  /** Phase 4 final navigation correction -- the one-shot entry view: 'home' (default) or 'hub' (Agreements). Read at mount only. */
+  initialView?: WorkspaceEntry;
   onOpenStore?: () => void;
   /** Phase 7 Slice 5B -- the real Community view (the Trust Project doorway and the nav item). Optional, mirroring onOpenStore. */
   onOpenCommunity?: () => void;
@@ -102,7 +104,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   onOpenVisionBoard?: () => void;
   onLeave: (startText?: string) => void;
 }) {
-  const [controller] = useState(() => createWorkspaceController(gateway));
+  const [controller] = useState(() => createWorkspaceController(gateway, initialView));
   // One-shot navigation hint from Help ("Reviews & issues"): captured at mount, cleared right after. Never Agreement truth.
   const [tabHint, setTabHint] = useState(() => peekDetailTabHint());
   useEffect(() => { clearDetailTabHint(); }, []);
@@ -143,9 +145,12 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
     if (!c) { c = createInviteController(gateway, agreementId, window.location.origin, () => void controller.reloadDetailQuietly()); invites.set(agreementId, c); }
     return c;
   };
-  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  // The same snapshot doubles as the server snapshot (no client behaviour change), so the real Workspace
+  // entry view can be rendered and asserted outside a browser.
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const agentState = useSyncExternalStore(
     agentController?.subscribe ?? (() => () => {}),
+    agentController?.getSnapshot ?? (() => null),
     agentController?.getSnapshot ?? (() => null),
   );
   const [notice, setNotice] = useState<string | null>(null);

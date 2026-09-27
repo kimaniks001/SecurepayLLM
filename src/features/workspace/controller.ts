@@ -25,6 +25,16 @@ function asApiError(error: unknown): ApiError {
 
 export type WorkspaceView = 'home' | 'hub' | 'detail' | 'money';
 
+/**
+ * Public Experience Convergence Phase 4 final navigation correction -- the explicit, one-shot view the
+ * Workspace is ENTERED on: 'home' (Signed-in Home) or 'hub' (the Agreements Hub). Applied only when the
+ * controller is created (i.e. when the Workspace mounts); after that, normal Home/Hub/Detail navigation owns
+ * the state. It never carries an Agreement id -- a specific Agreement uses `initialAgreementId`.
+ */
+export type WorkspaceEntry = 'home' | 'hub';
+/** The App-level destinations that open the Workspace, mapped to their entry view. */
+export const workspaceEntryFor = (view: string): WorkspaceEntry => (view === 'agreements' ? 'hub' : 'home');
+
 export interface DetailData {
   dto: AgreementDetailResponse;
   /** null = the confirmations read FAILED (unknown), never an empty list, so a failure can't render as "nobody confirmed". */
@@ -143,8 +153,8 @@ async function bestEffort<T>(read: () => Promise<T>, fallback: T): Promise<T> {
  * fails the whole Detail load closed rather than rendering participant confirmation state as if it were
  * known.
  */
-export function createWorkspaceController(gateway: Gateway) {
-  let state: WorkspaceState = { ...initial };
+export function createWorkspaceController(gateway: Gateway, entry: WorkspaceEntry = 'home') {
+  let state: WorkspaceState = { ...initial, view: entry };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<WorkspaceState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
@@ -219,7 +229,8 @@ export function createWorkspaceController(gateway: Gateway) {
     getSnapshot: (): WorkspaceState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
-    enter() { if (state.hub.status === 'idle') void loadHub('home'); },
+    /** Loads the entry view (Home or the Agreements Hub) once; later navigation uses goHome()/goHub(). */
+    enter() { if (state.hub.status === 'idle') void loadHub(state.view === 'hub' ? 'hub' : 'home'); },
     goHome() { void loadHub('home'); },
     goHub() { void loadHub('hub'); },
 

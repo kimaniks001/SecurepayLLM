@@ -59,6 +59,7 @@ import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/Decl
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
+import { workspaceEntryFor, type WorkspaceEntry } from '../workspace/controller';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
 import { setDetailTabHint } from '../support/tabHint';
@@ -242,6 +243,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
+  // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
+  // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
+  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>('home');
   const [store, setStore] = useState(!!initialStoreOfferRoute);
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [community, setCommunity] = useState(false);
@@ -432,6 +436,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'signed-in' || view === 'agreements' || view === 'money' || view === 'agreement-detail') {
       if (sessionState.status === 'signed-in') {
         setWorkspaceAgreementId(returningAgreementId);
+        setWorkspaceEntry(workspaceEntryFor(view));
         setWorkspace(true);
         return;
       }
@@ -452,6 +457,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setNotificationsView(false);
     setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
     setWorkspaceAgreementId(agreementId);
+    setWorkspaceEntry('home');
     setWorkspace(true);
   };
   /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
@@ -684,6 +690,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       agentGateway={gateway}
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
+      initialView={workspaceEntry}
       onOpenStore={() => navigateTo('store')}
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
@@ -1026,7 +1033,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspace(true); }} agreementGateway={agreementGateway} />
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} />
               </div>,
             ]}
           </ConversationSurface>

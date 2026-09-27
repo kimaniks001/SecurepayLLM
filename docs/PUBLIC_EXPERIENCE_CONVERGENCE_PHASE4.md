@@ -117,6 +117,28 @@ This was a narrow, UI-only pass. **SecurePayAPI is unchanged** (#263 stays at `5
    - A status value this client does not recognise is also UNKNOWN.
 3. **Invitation and referral copy is restored to the locked doctrine.** ShareInvitation and the Community invite panel now say "An invitation is not a referral, and recruiting members earns nothing automatically." A test forbids any "invitation … earns nothing" that lacks "automatically".
 
-**Pre-existing observations, left unchanged (out of scope):**
-- The Workspace always mounts on its Home tab. So `navigateTo('agreements' | 'money')` opens the signed-in Workspace but not the Agreements hub or Money tab. This is equally true of plain Sign in and of a signed-in click on Agreements from Store. The returned intent is delivered; the Workspace does not select the tab.
-- The shared signup form's inputs are under 44px tall (UR-223 class).
+## 10. Final navigation + auth control correction (2026-09-27)
+
+This pass is UI only. **SecurePayAPI is unchanged** (#263 stays at `5f47a107`).
+
+1. **`agreements` is a real Workspace entry intent.**
+   - Before: the remembered `agreements` destination reached `navigateTo('agreements')`, but the Workspace always mounted on Signed-in Home. The same happened for signed-in Store/Community/Account → Agreements.
+   - Now the Workspace controller takes an explicit, one-shot entry view:
+     - `createWorkspaceController(gateway, entry)`, where the entry is `WorkspaceEntry = 'home' | 'hub'`;
+     - `WorkspaceExperience` reads `initialView` once, at mount;
+     - `enter()` loads that view through the canonical `loadHub('home' | 'hub')`;
+     - after that, `goHome()`, `goHub()`, Detail and Back own the state. There is no timer, DOM click, URL or storage.
+   - `AgentExperience.navigateTo` sets the entry explicitly: `workspaceEntryFor(view)` gives `'agreements'` → `hub` and everything else (`signed-in`, `money`, `agreement-detail`) → `home`.
+   - Specific-Agreement openings (notifications, handoff) keep the `home` entry plus `initialAgreementId`, so restoration is unchanged. The Hub entry is never inferred from a null Agreement id.
+   - Sign in, signup ("Get one") and "Get one → Back → Sign in" all end on the visible Agreements Hub (live-verified at 1440/768/390/320).
+2. **SecureAuth input targets are 44px.**
+   - The real `<input>` now carries `min-h-11` (44px) and `min-w-0`. The icon/border wrapper lost its vertical padding (`py-2.5`), so a field measures 44px input / 46px outer instead of ~42px, with no giant fields.
+   - Measured live, all at 44/46 with no overflow, icons centred, and labels, autocomplete, numeric one-time-code keyboard and Enter-to-submit unchanged:
+     - public Sign in: KS Number, Password, one-time code;
+     - generic signup: Name, Phone/Email, Password, one-time code;
+     - Join signup and Join sign-in;
+     - Agreement-invitation signup and sign-in.
+   - The Phone/Email choice buttons stay at 44px.
+3. `WorkspaceExperience` passes its snapshot as the `useSyncExternalStore` server snapshot too. This changes nothing in the browser; it lets tests render the real Workspace entry state.
+
+**UR-223 stays open** for the other three pre-existing polish items: KS001 Send height, the "Guided by the 12 Principles" link target, and signed-in nav crowding at 768px.
