@@ -84,6 +84,11 @@ function TrustProjectBanner({
           <p className="text-[0.8rem] text-forest-800">Sign in or join The Trust Project to take part in Community.</p>
         </div>
       )}
+      {membership.kind === 'unknown' && (
+        <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3">
+          <p className="text-[0.8rem] text-sand-600">SecurePay couldn’t check your Trust Project membership just now.</p>
+        </div>
+      )}
       {membership.kind === 'none' && (
         <div className="mt-3 rounded-xl border border-cream-200 bg-white px-4 py-3 space-y-2">
           <p className="text-[0.8rem] text-forest-800">You’re not a member of The Trust Project yet.</p>
@@ -1233,7 +1238,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
             <h2 className="font-display text-base text-forest-800 mb-1">Invite someone</h2>
             <p className="text-[0.75rem] text-sand-600 mb-3">
-              Invite someone you believe would add something useful to a community that chooses to trade fairly. An invitation is not a referral and earns nothing.
+              Invite someone you believe would add something useful to a community that chooses to trade fairly. An invitation is not a referral, and recruiting members earns nothing automatically.
             </p>
             {inviteMode === 'choose' && (
               <div className="space-y-2">

@@ -79,6 +79,8 @@ export type MembershipUiState =
   | { kind: 'signed-out' }
   | { kind: 'loading' }
   | { kind: 'none' }
+  /** The membership read failed: the state is UNKNOWN -- never presented as a non-member, never offered Join. */
+  | { kind: 'unknown' }
   | { kind: 'invited'; membership: MembershipResponse }
   | { kind: 'active'; membership: MembershipResponse }
   | { kind: 'declined'; membership: MembershipResponse }
@@ -86,8 +88,8 @@ export type MembershipUiState =
 
 /**
  * The backend serialises with `non_null` inclusion, so a caller with no membership record receives no
- * `status` field at all (undefined), not `status: null`. Anything that is not a known status is treated
- * as "no membership" -- fail closed onto the non-member gate, never a crash or an implied membership.
+ * `status` field at all (undefined), not `status: null` -- both are a KNOWN non-member. A status value this
+ * client does not recognise is UNKNOWN (no membership claim, no Join), never a crash or an inferred state.
  */
 export function toMembershipUiState(membership: MembershipResponse | null | undefined): MembershipUiState {
   switch (membership?.status) {
@@ -95,7 +97,9 @@ export function toMembershipUiState(membership: MembershipResponse | null | unde
     case 'ACTIVE': return { kind: 'active', membership: membership! };
     case 'DECLINED': return { kind: 'declined', membership: membership! };
     case 'REVOKED': return { kind: 'revoked', membership: membership! };
-    default: return { kind: 'none' };
+    case null: case undefined: return { kind: 'none' };
+    // A status this client does not know is not a non-member either -- never infer, never offer Join.
+    default: return { kind: 'unknown' };
   }
 }
 
@@ -349,7 +353,7 @@ export function createCommunityController(
       if (apiError.status === 401 || apiError.code === 'AUTHENTICATION_REQUIRED') {
         update({ membership: { kind: 'signed-out' } });
       } else {
-        update({ membership: { kind: 'none' }, notice: errorText(apiError) });
+        update({ membership: { kind: 'unknown' }, notice: errorText(apiError) });
       }
     }
   }

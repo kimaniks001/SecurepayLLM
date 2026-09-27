@@ -34,6 +34,11 @@ interface TrustProjectSectionProps {
   onOpenStores: () => void;
   /** Signed-in members get a smaller doorway; the full explanation stays one tap away. */
   compact?: boolean;
+  /**
+   * The signed-in person's membership fact. `null`/absent = UNKNOWN (still loading, or the read failed): no
+   * membership claim and no Join -- it could be any state. A fact with `status: null` = a KNOWN non-member
+   * (a successful `/membership/me` read with no record).
+   */
   membership?: TrustProjectMembershipFact | null;
   /** Public Experience Convergence Phase 4 -- the live Join page (membership states are resolved there). */
   onJoin?: () => void;
@@ -43,9 +48,12 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
   const [principlesOpen, setPrinciplesOpen] = useState(false);
   // Phase 4 -- quick share invitations (ACTIVE members only). The interest is presentation context only.
   const [sharing, setSharing] = useState<JoinInterest | null>(null);
+  // Phase 4 final correction -- three states, never collapsed: UNKNOWN (no fact) offers only neutral actions;
+  // a KNOWN non-member or DECLINED gets Join; INVITED gets Review invitation; REVOKED gets nothing.
+  const known = membership != null;
   const status = membership?.status ?? null;
-  const isActive = status === 'ACTIVE';
-  const canJoin = !!onJoin && status !== 'ACTIVE' && status !== 'REVOKED';
+  const isActive = known && status === 'ACTIVE';
+  const canJoin = !!onJoin && known && status !== 'ACTIVE' && status !== 'REVOKED';
   const [expanded, setExpanded] = useState(!compact);
   const memberLine = membershipLine(membership);
 

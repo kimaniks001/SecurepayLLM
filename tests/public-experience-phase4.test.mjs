@@ -8,6 +8,7 @@ import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `
 export { createJoinController, membershipKind } from './src/features/join/controller';
 export { toMembershipUiState } from './src/features/community/controller';
+export { createSignInFlow, authLegFor } from './src/features/public/signInFlow';
 export { JoinExperience } from './src/features/join/JoinExperience';
 export { SignUpExperience } from './src/features/join/SignUpExperience';
 export { ShareInvitation } from './src/features/join/ShareInvitation';
@@ -290,7 +291,10 @@ test('the share sheet offers WhatsApp and Copy link, and states that sharing gra
   assert.match(out, /href="https:\/\/wa\.me\/\?text=[^"]*interest%3Dmaster"/);
   assert.match(out, /rel="noopener noreferrer"/);
   assert.match(text(out), /Copy link/);
-  assert.match(text(out), /An invitation is not a referral and earns nothing\./);
+  // Locked Phase 2 wording (not the over-broad "earns nothing"): SecurePay has separate backend-authoritative
+  // commercial referral economics, so only RECRUITING MEMBERS earns nothing AUTOMATICALLY.
+  assert.match(text(out), /Sharing only sends a link\. They choose whether to join, and everyone joins as a Member\. An invitation is not a referral, and recruiting members earns nothing automatically\./);
+  assert.doesNotMatch(text(out), /invitation[^.]*earns nothing(?! automatically)/i);
   assert.match(out, /role="status"/);
 });
 
@@ -338,7 +342,159 @@ test('a non-member whose status is OMITTED on the wire (backend non_null inclusi
   assert.deepEqual(api.toMembershipUiState(wire), { kind: 'none' });
   assert.deepEqual(api.toMembershipUiState({}), { kind: 'none' });
   assert.deepEqual(api.toMembershipUiState(undefined), { kind: 'none' });
-  assert.deepEqual(api.toMembershipUiState({ status: 'SOMETHING_NEW' }), { kind: 'none' });
+  assert.deepEqual(api.toMembershipUiState({ status: 'SOMETHING_NEW' }), { kind: 'unknown' }, 'an unrecognised status is never inferred as a non-member');
   assert.equal(api.toMembershipUiState({ status: 'ACTIVE' }).kind, 'active');
   assert.equal(api.membershipKind(wire), 'none');
+});
+
+// ------------------------------------------------------------------ Phase 4 final correction pass
+// Correction 1 -- Sign in → "Get one" → signup keeps the SAME in-memory origin + intent.
+function fakeLocation(start = '') {
+  const history = [start];
+  return { history, get: () => history[history.length - 1], set: h => history.push(h) };
+}
+async function completeGenericSignup(tokens) {
+  const auth = {
+    signupStart: async () => ({ signupChallengeToken: 't', maskedDestination: '07••••' }),
+    signupResend: async () => {},
+    signupVerify: async () => ({ ksNumber: 'KS901', accessToken: 'a', refreshToken: 'r' }),
+  };
+  const c = api.createSignupController(auth, { setTokens: t => tokens.push(t) }, 'GENERIC');
+  c.setDisplayName('Wanjiru'); c.setDestination('0700000001'); c.setPassword('long-enough-password');
+  await c.start(); c.setOtp('123456'); await c.verify();
+  assert.equal(c.getSnapshot().phase, 'completed');
+}
+// Mirrors AgentExperience's return effect exactly: signed in while either identity leg shows → close → navigate.
+function returnAfterAuthentication(flow, signedIn, navigateTo) {
+  if (!signedIn || !flow.leg()) return;
+  const intent = flow.close();
+  if (intent) navigateTo(intent);
+}
+
+for (const [intent, start] of [['agreements', ''], ['projects', ''], ['account', ''], ['money', '#/'], [null, '']]) {
+  test(`requestSignIn(${intent}) → Get one → signup → signed in → ${intent ?? 'where they were'} (intent held in memory only)`, async () => {
+    const loc = fakeLocation(start);
+    const flow = api.createSignInFlow(loc);
+    const navigated = [];
+    flow.open(intent);                        // requestSignIn(intent) / public Sign in
+    assert.equal(flow.leg(), 'sign-in');
+    flow.toSignUp();                          // SignInExperience onGetKsNumber
+    assert.equal(flow.leg(), 'sign-up');
+    flow.sync();                              // the hashchange to #/sign-up must not forget the journey
+    assert.equal(flow.intent(), intent);
+    const tokens = [];
+    await completeGenericSignup(tokens);      // the REAL generic signup controller → session established
+    assert.equal(tokens.length, 1);
+    returnAfterAuthentication(flow, true, v => navigated.push(v));
+    assert.deepEqual(navigated, intent ? [intent] : []);
+    assert.equal(loc.get(), start, 'returned to where they came from');
+    for (const h of loc.history) assert.doesNotMatch(h, /agreements|projects|account|money|return|intent/i, `no intent in the URL: ${h}`);
+    flow.sync();
+    assert.equal(flow.intent(), null, 'the journey is over and nothing is remembered');
+  });
+}
+
+test('Get one → Back (cancel) → Sign in keeps the original destination; a successful sign-in still goes there', () => {
+  const loc = fakeLocation('');
+  const flow = api.createSignInFlow(loc);
+  const navigated = [];
+  flow.open('agreements'); flow.toSignUp(); flow.sync();
+  flow.toSignIn();                            // SignUpExperience onCancel
+  flow.sync();
+  assert.equal(flow.leg(), 'sign-in');
+  assert.equal(flow.intent(), 'agreements');
+  returnAfterAuthentication(flow, true, v => navigated.push(v));
+  assert.deepEqual(navigated, ['agreements']);
+});
+
+test('Get one → “I have a KS Number” → Sign in keeps the original destination', () => {
+  const loc = fakeLocation('');
+  const flow = api.createSignInFlow(loc);
+  const navigated = [];
+  flow.open('projects'); flow.toSignUp(); flow.toSignIn(); flow.toSignUp(); flow.toSignIn();
+  assert.equal(flow.intent(), 'projects');
+  returnAfterAuthentication(flow, true, v => navigated.push(v));
+  assert.deepEqual(navigated, ['projects']);
+});
+
+test('leaving both identity legs forgets the journey; a later direct #/sign-up never inherits a stale intent', () => {
+  const loc = fakeLocation('');
+  const flow = api.createSignInFlow(loc);
+  flow.open('agreements');
+  loc.set('#/store'); flow.sync();           // walked away
+  loc.set('#/sign-up'); flow.sync();
+  const navigated = [];
+  returnAfterAuthentication(flow, true, v => navigated.push(v));
+  assert.deepEqual(navigated, []);
+  assert.equal(api.authLegFor('#/sign-in'), 'sign-in');
+  assert.equal(api.authLegFor('#/sign-up'), 'sign-up');
+  assert.equal(api.authLegFor('#/join'), null, 'Join is never part of the Sign in journey');
+});
+
+test('AgentExperience wires the generic signup through the ONE Sign in route; Join keeps its own continuation', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(agent, /onGetKsNumber=\{\(\) => \{ signInRoute\.toSignUp\(\); \}\}/);
+  assert.match(agent, /if \(signInRoute\.signingUp && !signedIn\)[\s\S]*?<SignUpExperience[\s\S]*?onSignIn=\{\(\) => \{ signInRoute\.toSignIn\(\); \}\}\s*onCancel=\{\(\) => \{ signInRoute\.toSignIn\(\); \}\}/);
+  assert.match(agent, /if \(!signedIn \|\| !\(signInRoute\.active \|\| signInRoute\.signingUp\)\) return;\s*const intent = signInRoute\.close\(\);\s*if \(intent\) navigateTo\(intent\);/);
+  assert.doesNotMatch(agent, /SIGN_UP_HASH|useSignUpRoute|signUpRoute/);
+  const route = await readFile('src/features/join/route.ts', 'utf8');
+  assert.doesNotMatch(route, /useSignUpRoute/);
+  const flow = (await readFile('src/features/public/signInFlow.ts', 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  assert.doesNotMatch(flow, /localStorage|sessionStorage|URLSearchParams|\?return|encodeURIComponent/);
+  // Join's inline signup stays inside #/join and never touches the Sign in journey.
+  const join = await readFile('src/features/join/JoinExperience.tsx', 'utf8');
+  assert.doesNotMatch(join, /signInRoute|signInFlow|toSignUp/);
+});
+
+// Correction 2 -- UNKNOWN membership is never a known non-member.
+test('TrustProjectSection: UNKNOWN (no fact) offers no Join and makes no membership claim; KNOWN NONE offers Join', () => {
+  for (const membership of [null, undefined]) {
+    const out = section({ membership });
+    assert.doesNotMatch(out, /Join The Trust Project|Review invitation|Invite someone|Invite them|not a member|Trust Project member ·/, String(membership));
+    assert.match(out, /Read the 12 Principles/);
+    assert.match(out, /Stores/);
+  }
+  assert.match(section({ membership: { status: null, canonicalKsNumber: 'KS1' } }), /Join The Trust Project/);
+  assert.match(section({ membership: { status: 'DECLINED', canonicalKsNumber: 'KS1' } }), /Join The Trust Project/);
+  assert.match(section({ membership: { status: 'INVITED', canonicalKsNumber: 'KS1' } }), /Review invitation/);
+  assert.match(section({ membership: { status: 'ACTIVE', canonicalKsNumber: 'KS1' } }), /Explore Community[\s\S]*Invite someone/);
+  assert.doesNotMatch(section({ membership: { status: 'REVOKED', canonicalKsNumber: 'KS1' } }), /Join The Trust Project/);
+});
+
+test('a failed /membership/me read reaches TrustProjectSection as UNKNOWN, never as a known non-member', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  // success: an absent status is a KNOWN non-member (null); failure: undefined (unknown).
+  assert.match(agent, /\.then\(m => \{ if \(!cancelled\) setTrustMembershipStatus\(m\.status \?\? null\); \}\)\.catch\(\(\) => \{ if \(!cancelled\) setTrustMembershipStatus\(undefined\); \}\)/);
+  // unknown is passed on as NO fact (null), on both signed-in Homes.
+  assert.equal((agent.match(/trustMembershipStatus !== undefined \? \{ status: trustMembershipStatus, canonicalKsNumber: ownKsNumber \} : null/g) ?? []).length, 2);
+  // …and a NO-fact section renders no Join (proved above); the equivalent render of the failure path:
+  let status = 'pending';
+  await Promise.reject(new Error('503')).then(() => { status = null; }).catch(() => { status = undefined; });
+  const membership = status !== undefined ? { status, canonicalKsNumber: 'KS1' } : null;
+  assert.doesNotMatch(section({ membership }), /Join The Trust Project/);
+});
+
+// Correction 3 -- the locked invitation / referral wording on both Phase 4 invitation surfaces.
+test('Phase 4 invitation surfaces use the locked Phase 2 sentence, never a blanket “earns nothing”', async () => {
+  const LOCKED = /An invitation is not a referral, and recruiting members earns nothing automatically\./;
+  const strip = src => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  const share = strip(await readFile('src/features/join/ShareInvitation.tsx', 'utf8'));
+  const community = strip(await readFile('src/features/community/CommunityExperience.tsx', 'utf8'));
+  assert.match(share, LOCKED);
+  assert.match(community, /Invite someone you believe would add something useful to a community that chooses to trade fairly\. An invitation is not a referral, and recruiting members earns nothing automatically\./);
+  for (const src of [share, community]) {
+    assert.doesNotMatch(src, /invitation[^.]*earns nothing(?! automatically)/i);
+    assert.doesNotMatch(src, /(invites|introductions|inviting people) earn(s)? nothing/i);
+  }
+});
+
+test('Community: a FAILED membership read is UNKNOWN -- a restrained line, no “not a member” and no Join', async () => {
+  const community = await readFile('src/features/community/controller.ts', 'utf8');
+  // the non-auth failure path of loadMembership
+  assert.match(community, /update\(\{ membership: \{ kind: 'unknown' \}, notice: errorText\(apiError\) \}\);/);
+  assert.doesNotMatch(community, /update\(\{ membership: \{ kind: 'none' \}, notice/);
+  const view = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  const block = view.slice(view.indexOf("membership.kind === 'unknown' && ("), view.indexOf("membership.kind === 'none' && ("));
+  assert.match(block, /SecurePay couldn’t check your Trust Project membership just now\./);
+  assert.doesNotMatch(block, /Join|not a member|onJoin/);
 });

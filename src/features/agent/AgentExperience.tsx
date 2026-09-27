@@ -8,7 +8,7 @@ import { SignInExperience } from '../public/SignInExperience';
 import { useSignInRoute } from '../public/signInRoute';
 import { JoinExperience } from '../join/JoinExperience';
 import { SignUpExperience } from '../join/SignUpExperience';
-import { useJoinRoute, useSignUpRoute, SIGN_UP_HASH } from '../join/route';
+import { useJoinRoute } from '../join/route';
 import type { ContinuationOutcome } from '../join/controller';
 import { PublicShellProvider, createPublicShellBridge, focusKs001Composer, focusPublicSection, type PublicSectionId } from '../public/publicShell';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
@@ -214,23 +214,20 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Public Experience Convergence Phase 2 -- the public Sign in route and in-page chapter navigation.
   const signInRoute = useSignInRoute();
   // Public Experience Convergence Phase 4 -- the live Join route and the identity-only signup route.
+  // The generic signup (#/sign-up, "Get one") is the second leg of the Sign in journey: it shares Sign in's
+  // one in-memory origin + intent (signInRoute), so a KS Number created there returns the person to the
+  // same place Sign in would have. Join owns its own continuation and never uses it.
   const joinRoute = useJoinRoute();
-  const signUpRoute = useSignUpRoute();
-  // A signed-in person is never offered signup: once identity exists, leave #/sign-up.
-  useEffect(() => {
-    if (signedIn && signUpRoute.value) signUpRoute.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, signUpRoute.value]);
   const [pendingSection, setPendingSection] = useState<PublicSectionId | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
   // Once SecurePay confirms the person, leave Sign in for where they came from, or the area they asked
   // for. A signed-in person who lands on #/sign-in is simply returned too.
   useEffect(() => {
-    if (!signedIn || !signInRoute.active) return;
+    if (!signedIn || !(signInRoute.active || signInRoute.signingUp)) return;
     const intent = signInRoute.close();
     if (intent) navigateTo(intent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, signInRoute.active]);
+  }, [signedIn, signInRoute.active, signInRoute.signingUp]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   // Public Experience Convergence Phase 2 -- once the public Home is showing, finish a pending chapter/composer focus.
@@ -471,7 +468,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   // Public Experience Convergence Phase 2 -- what the public navigation does, bound on every render so it
   // always acts on this router's current state.
-  const leaveSignIn = () => { if (signInRoute.active) signInRoute.close(); };
+  const leaveSignIn = () => { if (signInRoute.active || signInRoute.signingUp) signInRoute.close(); };
   publicShell.bind({
     home: () => { leaveSignIn(); joinRoute.close(); navigateTo('signed-in'); },
     signIn: () => signInRoute.open(null),
@@ -520,15 +517,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     );
   }
 
-  if (signUpRoute.value && !signedIn) {
+  if (signInRoute.signingUp && !signedIn) {
     return (
       <div className="min-h-dvh flex flex-col bg-cream-100">
         <NavBar view="signed-out" onNavigate={navigateTo} />
         <SignUpExperience
           auth={auth}
           session={session}
-          onSignIn={() => { signUpRoute.close(); signInRoute.open(null); }}
-          onCancel={() => { signUpRoute.close(); }}
+          onSignIn={() => { signInRoute.toSignIn(); }}
+          onCancel={() => { signInRoute.toSignIn(); }}
         />
       </div>
     );
@@ -544,7 +541,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onSignedIn={noop}
           onCancel={() => { signInRoute.close(); }}
           onRecover={() => { signInRoute.close(); navigateTo('recovery'); }}
-          onGetKsNumber={() => { window.location.hash = SIGN_UP_HASH; }}
+          onGetKsNumber={() => { signInRoute.toSignUp(); }}
         />
       </div>
     );

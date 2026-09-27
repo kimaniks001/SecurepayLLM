@@ -53,7 +53,7 @@ The routes are parsed in `features/join/route.ts` and rendered by `AgentExperien
   - gives ACTIVE members per-capacity prompts (Member / Plug / Master), each with **Invite them**.
 - `ShareInvitation`:
   - offers a WhatsApp composer link (`https://wa.me/?text=`, which reads no contacts), Share (only where `navigator.share` exists) and Copy link ("Link copied", or the link as text if the clipboard is blocked);
-  - states: "Sharing only sends a link… An invitation is not a referral and earns nothing."
+  - states: "Sharing only sends a link. They choose whether to join, and everyone joins as a Member. An invitation is not a referral, and recruiting members earns nothing automatically." (the locked Phase 2 wording; see §9).
 - Share copy is human. It makes no income, work, rank or recruitment promise.
 - Community:
   - the invitation-only copy is gone;
@@ -92,3 +92,31 @@ These were checked live with same-origin iframes at 1440/1280/1024/768/390/360/3
 - It shows no Business or Organization Join, and never grants Plug or Master.
 - It never calls a referral API from Join or share.
 - It never changes the Agreement invitation authority.
+
+## 9. Final UI correction pass (2026-09-27)
+
+This was a narrow, UI-only pass. **SecurePayAPI is unchanged** (#263 stays at `5f47a107`). **4B and 4C remain blocked.**
+
+1. **Generic signup preserves the Sign in origin and AppView intent.**
+   - Before: "Get one" set `#/sign-up` directly, which abandoned Sign in's in-memory origin. After signup the person landed on Home whatever they had asked for, and "I have a KS Number" or Back reopened Sign in with no intent.
+   - Now: `features/public/signInFlow.ts` is the one framework-free, in-memory memory of `{origin hash, intent}`. It spans **both** identity legs, `#/sign-in` and `#/sign-up`, and `useSignInRoute` wraps it. The separate `useSignUpRoute` is removed.
+   - "Get one" → `toSignUp()`. Signup "I have a KS Number" and Back → `toSignIn()`. Both keep the same origin and intent.
+   - Once the session exists on either leg, the existing return effect calls `close()` → `navigateTo(intent)`.
+   - Leaving both legs forgets the memory, so a later direct `#/sign-up` never inherits a stale intent.
+   - The intent is never in the URL and never in browser storage.
+   - Join (`#/join`) and Agreement-invitation signup keep their own continuation and never touch this flow.
+2. **Unknown membership is not treated as a non-member.** Three states are kept apart:
+
+   | State | Meaning | Section actions |
+   | --- | --- | --- |
+   | UNKNOWN | no membership fact: still loading, or the read failed | neutral only (explanation, Read the 12 Principles, Stores); no Join, no claim |
+   | KNOWN NONE | a successful read with no status | Join |
+   | Lifecycle state | INVITED / DECLINED / ACTIVE / REVOKED | Review invitation / Join / Explore + Invite + prompts / nothing |
+
+   - Community's own failed read (non-auth error) is now `{ kind: 'unknown' }`. It shows only "SecurePay couldn't check your Trust Project membership just now." and no Join. Previously it became `none`, which Phase 4 had turned into "not a member" + Join.
+   - A status value this client does not recognise is also UNKNOWN.
+3. **Invitation and referral copy is restored to the locked doctrine.** ShareInvitation and the Community invite panel now say "An invitation is not a referral, and recruiting members earns nothing automatically." A test forbids any "invitation … earns nothing" that lacks "automatically".
+
+**Pre-existing observations, left unchanged (out of scope):**
+- The Workspace always mounts on its Home tab. So `navigateTo('agreements' | 'money')` opens the signed-in Workspace but not the Agreements hub or Money tab. This is equally true of plain Sign in and of a signed-in click on Agreements from Store. The returned intent is delivered; the Workspace does not select the tab.
+- The shared signup form's inputs are under 44px tall (UR-223 class).

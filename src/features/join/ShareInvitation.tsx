@@ -79,7 +79,7 @@ export function ShareInvitation({ interest, onClose, origin }: {
         {copied ? 'Link copied' : copyFailed ? `Copy this link: ${url}` : ''}
       </p>
       <p className="text-[0.75rem] text-sand-600">
-        Sharing only sends a link. They choose whether to join, and everyone joins as a Member. An invitation is not a referral and earns nothing.
+        Sharing only sends a link. They choose whether to join, and everyone joins as a Member. An invitation is not a referral, and recruiting members earns nothing automatically.
       </p>
     </div>
   );

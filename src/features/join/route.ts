@@ -18,6 +18,10 @@ export function parseJoinRoute(hash: string): { interest: JoinInterest | null } 
   return { interest: parseJoinInterest(params.get('interest')) };
 }
 
+/**
+ * `#/sign-up` is the generic signup leg of the Sign in journey; its in-memory origin + intent live in
+ * `features/public/signInFlow.ts` (one navigation memory, never the URL). Only the pattern lives here.
+ */
 export const isSignUpHash = (hash: string) => SIGN_UP_PATTERN.test(hash);
 
 function useHash(): string {
@@ -42,14 +46,5 @@ export function useJoinRoute(): HashRoute<{ interest: JoinInterest | null } | nu
     value,
     open: () => { if (!parseJoinRoute(window.location.hash)) window.location.hash = JOIN_HASH; },
     close: () => { if (parseJoinRoute(window.location.hash)) window.location.hash = ''; },
-  };
-}
-
-export function useSignUpRoute(): HashRoute<boolean> {
-  const value = isSignUpHash(useHash());
-  return {
-    value,
-    open: () => { if (!isSignUpHash(window.location.hash)) window.location.hash = SIGN_UP_HASH; },
-    close: () => { if (isSignUpHash(window.location.hash)) window.location.hash = ''; },
   };
 }
