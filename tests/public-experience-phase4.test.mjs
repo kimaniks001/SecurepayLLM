@@ -16,6 +16,7 @@ export { SecureAuthCard } from './src/components/SecureAuth';
 export { ConversationInput } from './src/components/ConversationInput';
 export { FairTradeAffordance, FairTradePrinciplesPanel } from './src/components/FairTradePrinciples';
 export { NavBar } from './src/components/NavBar';
+export { navigateWorkspace, WORKSPACE_UNAVAILABLE_NOTICE } from './src/features/workspace/navigation';
 export { JoinExperience } from './src/features/join/JoinExperience';
 export { SignUpExperience } from './src/features/join/SignUpExperience';
 export { ShareInvitation } from './src/features/join/ShareInvitation';
@@ -676,4 +677,112 @@ test('signed-in mobile bottom nav: every item is 44px high and shares the width 
   assert.equal(buttons.length, 7);
   for (const b of buttons) for (const c of ['flex-auto', 'min-h-11', 'justify-center']) assert.ok(cls(b).includes(c), `${c} in ${b}`);
   assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications'], 'no label hidden or abbreviated');
+});
+
+// ------------------------------------------------------------------ Phase 4A final Workspace navigation closure
+function workspaceNavHarness(controller) {
+  const calls = []; const notices = [];
+  const cb = name => () => calls.push(name);
+  const nav = {
+    goHome: () => { calls.push('goHome'); controller.goHome(); }, goHub: () => { calls.push('goHub'); controller.goHub(); },
+    setNotice: n => notices.push(n),
+    onOpenStore: cb('store'), onOpenCommunity: cb('community'), onOpenProjects: cb('projects'), onOpenVisionBoard: cb('vision-board'),
+    onOpenAccount: cb('account'), onOpenNotifications: cb('notifications'),
+  };
+  return { calls, notices, nav };
+}
+async function workspaceAt(where) {
+  const c = api.createWorkspaceController(wsGateway(), where === 'home' ? 'home' : 'hub');
+  c.enter(); await wsTick(); await wsTick();
+  if (where === 'detail') { c.openFromHub('agr-1'); await wsTick(); }
+  assert.equal(c.getSnapshot().view, where);
+  return c;
+}
+
+for (const where of ['home', 'hub', 'detail']) {
+  test(`Workspace ${where.toUpperCase()}: Account, Notifications, Store, Community, Projects and Vision Board each open their real destination exactly once -- never the unavailable notice`, async () => {
+    for (const dest of ['account', 'notifications', 'store', 'community', 'projects', 'vision-board']) {
+      const c = await workspaceAt(where);
+      const h = workspaceNavHarness(c);
+      api.navigateWorkspace(dest, h.nav);
+      assert.deepEqual(h.calls, [dest], `${where} -> ${dest}`);
+      assert.ok(!h.notices.includes(api.WORKSPACE_UNAVAILABLE_NOTICE), `${where} -> ${dest} must not say unavailable`);
+      assert.equal(c.getSnapshot().view, where, 'the Workspace state is left untouched; the top-level router takes over');
+    }
+  });
+}
+
+test('Workspace Home/Agreements stay internal; Money keeps its contextual notice; an unwired or unknown destination still fails closed', async () => {
+  const c = await workspaceAt('hub');
+  let h = workspaceNavHarness(c);
+  api.navigateWorkspace('signed-in', h.nav); await wsTick(); await wsTick();
+  assert.deepEqual(h.calls, ['goHome']); assert.equal(c.getSnapshot().view, 'home');
+  h = workspaceNavHarness(c);
+  api.navigateWorkspace('agreements', h.nav); await wsTick(); await wsTick();
+  assert.deepEqual(h.calls, ['goHub']); assert.equal(c.getSnapshot().view, 'hub');
+  h = workspaceNavHarness(c);
+  api.navigateWorkspace('money', h.nav);
+  assert.deepEqual(h.calls, []); assert.deepEqual(h.notices, [null, 'Open Money from a specific agreement to view it.']);
+  for (const dest of ['dispute', 'agreement-builder']) {
+    h = workspaceNavHarness(c);
+    api.navigateWorkspace(dest, h.nav);
+    assert.deepEqual(h.calls, []); assert.equal(h.notices.at(-1), api.WORKSPACE_UNAVAILABLE_NOTICE, dest);
+  }
+  // not wired (e.g. an embedding without the callback) -> fail closed, never a silent no-op
+  h = workspaceNavHarness(c); delete h.nav.onOpenAccount;
+  api.navigateWorkspace('account', h.nav);
+  assert.equal(h.notices.at(-1), api.WORKSPACE_UNAVAILABLE_NOTICE);
+});
+
+// The REAL WorkspaceExperience seam: its NavBar is handed a router that reaches the new callbacks.
+const seam = await build({ stdin: { contents: `
+export { WorkspaceExperience } from './src/features/workspace/WorkspaceExperience';
+export { createElement } from 'react';
+export { renderToStaticMarkup } from 'react-dom/server';
+export const captured = globalThis.__capturedNav = [];
+`, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl', '.jpg': 'dataurl', '.svg': 'dataurl' },
+  plugins: [{ name: 'spy-navbar', setup(b) { b.onLoad({ filter: /src\/components\/NavBar\.tsx$/ }, () => ({ loader: 'tsx', contents: 'export function NavBar(props) { globalThis.__capturedNav.push(props); return null; }' })); } }] });
+const seamMod = { exports: {} };
+new Function('require', 'module', 'exports', seam.outputFiles[0].text)(createRequire(import.meta.url), seamMod, seamMod.exports);
+
+for (const entry of ['home', 'hub']) {
+  test(`the real WorkspaceExperience (${entry}) wires its shared NavBar to onOpenAccount / onOpenNotifications`, () => {
+    const W = seamMod.exports;
+    const called = [];
+    W.captured.length = 0;
+    W.renderToStaticMarkup(W.createElement(W.WorkspaceExperience, {
+      gateway: wsGateway(), initialView: entry, onLeave: noop,
+      onOpenStore: () => called.push('store'), onOpenCommunity: () => called.push('community'),
+      onOpenAccount: () => called.push('account'), onOpenNotifications: () => called.push('notifications'),
+    }));
+    const navProps = W.captured.at(-1);
+    assert.equal(navProps.view, entry === 'hub' ? 'agreements' : 'signed-in', 'active nav: Home on Home, Agreements on the Hub');
+    for (const dest of ['account', 'notifications', 'store', 'community']) navProps.onNavigate(dest);
+    assert.deepEqual(called, ['account', 'notifications', 'store', 'community']);
+  });
+}
+
+test('AgentExperience wires the Workspace callbacks to the EXISTING Account / Notifications destination states', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(agent, /<WorkspaceExperience[\s\S]*?onOpenAccount=\{\(\) => navigateTo\('account'\)\}\s*onOpenNotifications=\{\(\) => navigateTo\('notifications'\)\}/);
+  // navigateTo('account' | 'notifications') leaves the Workspace and sets the real view state…
+  assert.match(agent, /if \(view === 'account' \|\| view === 'settings'[\s\S]*?setWorkspace\(false\);[\s\S]*?if \(view === 'account'\) setAccount\(true\);/);
+  assert.match(agent, /if \(view === 'notifications'\) \{[\s\S]*?setWorkspace\(false\);[\s\S]*?setNotificationsView\(true\);/);
+  // …which renders the real experiences
+  assert.match(agent, /if \(account && sessionState\.status === 'signed-in'\) \{\s*return <AccountExperience/);
+  assert.match(agent, /if \(notificationsView && sessionState\.status === 'signed-in'\) \{\s*return <NotificationsExperience[^>]*onOpenAgreement=\{openAgreementFromNotification\}/);
+});
+
+test('the Account area highlights Account (not Home) in the shared NavBar; NavBar active-state doctrine itself is unchanged', async () => {
+  for (const [file, view] of [['account/AccountExperience', 'account'], ['settings/SettingsExperience', 'settings'], ['business/BusinessExperience', 'business'], ['developer/DeveloperExperience', 'developer']]) {
+    const src = await readFile(`src/features/${file}.tsx`, 'utf8');
+    assert.match(src, new RegExp(`<NavBar view="${view}" onNavigate=\\{onNavigate\\} />`), file);
+    assert.doesNotMatch(src, /<NavBar view="signed-in"/, file);
+  }
+  for (const view of ['account', 'settings', 'business', 'developer']) {
+    const desktop = html(api.NavBar, { view, onNavigate: noop });
+    const active = [...desktop.slice(0, desktop.indexOf('<nav', 5)).matchAll(/<button[^>]*class="([^"]*)"[^>]*>(?:<svg[\s\S]*?<\/svg>)?([^<]*)<\/button>/g)]
+      .filter(m => /text-forest-700 bg-forest-50/.test(m[1])).map(m => m[2]);
+    assert.deepEqual(active, ['Account'], view);
+  }
 });

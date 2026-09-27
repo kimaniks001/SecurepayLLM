@@ -26,6 +26,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText, type WorkspaceEntry } from './controller';
+import { navigateWorkspace } from './navigation';
 import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, invitationsForYouView, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 import type { AgentController } from '../agent/controller';
 
@@ -78,7 +79,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -102,6 +103,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   onOpenProjects?: () => void;
   /** Final Completion Phase 5B -- private Vision Board operating memory. Optional, mirroring onOpenProjects. */
   onOpenVisionBoard?: () => void;
+  /** Phase 4A final navigation closure -- the real Account view (shared NavBar item). Optional, mirroring onOpenStore. */
+  onOpenAccount?: () => void;
+  /** Phase 4A final navigation closure -- the real Notifications view (shared NavBar item). Optional, mirroring onOpenStore. */
+  onOpenNotifications?: () => void;
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway, initialView));
@@ -210,17 +215,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   const askBusy = agentState?.busy ?? false;
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
-  const handleNavigate = (view: AppView) => {
-    setNotice(null);
-    if (view === 'signed-in') controller.goHome();
-    else if (view === 'agreements') controller.goHub();
-    else if (view === 'money') setNotice('Open Money from a specific agreement to view it.');
-    else if (view === 'store' && onOpenStore) onOpenStore();
-    else if (view === 'community' && onOpenCommunity) onOpenCommunity();
-    else if (view === 'projects' && onOpenProjects) onOpenProjects();
-    else if (view === 'vision-board' && onOpenVisionBoard) onOpenVisionBoard();
-    else setNotice('This area is not available yet.');
-  };
+  const handleNavigate = (view: AppView) => navigateWorkspace(view, {
+    goHome: () => controller.goHome(), goHub: () => controller.goHub(), setNotice,
+    onOpenStore, onOpenCommunity, onOpenProjects, onOpenVisionBoard, onOpenAccount, onOpenNotifications,
+  });
 
   let body: React.ReactNode;
 

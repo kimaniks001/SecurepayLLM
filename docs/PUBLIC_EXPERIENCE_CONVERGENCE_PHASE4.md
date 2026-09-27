@@ -159,4 +159,18 @@ This is a presentation and accessibility pass only. There is no authority, API, 
 
 The register row lives in the API repository, which this pass must not change. It should be marked RESOLVED the next time SecurePayAPI docs are edited.
 
-**Observed, pre-existing, unchanged (navigation, out of scope):** inside the Workspace, the nav's Account and Notifications items show "This area is not available yet." The same items work from Store, Community and elsewhere. The cause is on `main`: `WorkspaceExperience.handleNavigate` has no `account`/`notifications` case.
+## 12. Final Workspace navigation closure (2026-09-27)
+
+This pass is UI only. The SecurePayAPI change is docs only: the UR-223 register row is marked RESOLVED.
+
+1. **Root cause.** Inside the Workspace (Home, Hub, Agreement Detail), `WorkspaceExperience.handleNavigate` had no `account` or `notifications` case. The shared NavBar's Account and Notifications items therefore fell through to "This area is not available yet." This was pre-existing on `main`.
+2. **Fix.**
+   - The Workspace's NavBar routing moved into `src/features/workspace/navigation.ts` (`navigateWorkspace`), with new `account` → `onOpenAccount()` and `notifications` → `onOpenNotifications()` branches.
+   - The new optional `WorkspaceExperience` props mirror `onOpenStore`.
+   - `AgentExperience`, which remains the top-level routing authority, wires them to `navigateTo('account')` and `navigateTo('notifications')`.
+   - Home and Agreements stay internal, and Money keeps its contextual notice. An unwired or unknown destination still fails closed to the notice.
+3. **Active state.** Account and its sub-pages (Settings, Business, Developer) passed `view="signed-in"` to the NavBar, so Home stayed highlighted. They now pass their own view, which the unchanged NavBar already maps to Account.
+4. **Verified live** at 1440, 1024, 768, 390, 360 and 320, against the real backend:
+   - Home, Hub and Detail → Account, Notifications, Store and Community (plus Projects and Vision Board from Home) each open the real destination with the correct active item. There is never an unavailable notice.
+   - Returns work: Account/Store/Community → Agreements gives the Hub; Notifications → Home gives Home; Notifications → "Open Agreement" gives the right Agreement Detail; Detail → Back gives the Hub.
+   - There is no overflow at any width. At 768 the bar shows the mark only; from 1024 the full brand shows. The mobile nav shows all seven items at 44px high.

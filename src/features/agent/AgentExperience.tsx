@@ -698,6 +698,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenReferral={openEcosystemForAgreement}
       onOpenProjects={() => navigateTo('projects')}
       onOpenVisionBoard={() => navigateTo('vision-board')}
+      onOpenAccount={() => navigateTo('account')}
+      onOpenNotifications={() => navigateTo('notifications')}
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);

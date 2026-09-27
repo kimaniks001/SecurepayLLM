@@ -141,7 +141,10 @@ test('the real signed-in Home (Workspace) keeps its own headline and adds only t
   assert.doesNotMatch(strip(home), /Trust Project/, 'SignedInHome itself carries no Trust Project copy');
   const ws = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
   assert.match(ws, /belowHome=\{onOpenCommunity && onOpenStore\s*\? <div className="mt-16"><TrustProjectSection compact membership=\{trustProjectMembership\}/);
-  assert.match(ws, /else if \(view === 'community' && onOpenCommunity\) onOpenCommunity\(\);/);
+  // Phase 4A final navigation closure: the Workspace's NavBar routing moved into navigation.ts, still wired from WorkspaceExperience.
+  assert.match(ws, /navigateWorkspace\(view, \{[\s\S]*onOpenCommunity/);
+  const wsNav = await readFile('src/features/workspace/navigation.ts', 'utf8');
+  assert.match(wsNav, /else if \(view === 'community' && nav\.onOpenCommunity\) nav\.onOpenCommunity\(\);/);
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(agent, /onOpenCommunity=\{\(\) => navigateTo\('community'\)\}/);
   // Phase 4: membership is re-read on leaving Community AND on leaving the Join page.
