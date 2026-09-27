@@ -106,7 +106,7 @@ test('4. the page names the Business in the identity line, the acceptance and th
   assert.equal(api.businessAcceptanceLabel('Keyman Oak'), 'I choose, for Keyman Oak, to join The Trust Project under these 12 Principles.');
   assert.equal(api.businessJoinButton('Keyman Oak'), 'Join for Keyman Oak');
   const src = await readFile('src/features/join/JoinExperience.tsx', 'utf8');
-  assert.match(src, /aria-describedby=\{identityId\}/, 'the Join button is described by the identity statement');
+  assert.match(src, /aria-describedby=\{business \? `\$\{identityId\} \$\{identityId\}-ks` : identityId\}/, 'the Join button is described by who is joining (and the Business KS), never by other controls');
   assert.match(src, /\{businessName\} has not joined The Trust Project yet\./);
   assert.match(src, /You can join for this Business because you are authorized to act for it\./);
 });

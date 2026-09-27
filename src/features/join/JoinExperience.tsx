@@ -137,9 +137,9 @@ export function JoinExperience({
             </p>
           )}
           {signedIn && business && (
-            <div id={identityId} className="mb-4 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3" data-join-identity="business">
-              <p className="text-[0.9rem] text-forest-800">You are acting for <span className="font-medium break-words">{businessName}</span></p>
-              <p className="text-[0.75rem] text-sand-600 break-all">Business KS Number {business.businessKsNumber}</p>
+            <div className="mb-4 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3" data-join-identity="business">
+              <p id={identityId} className="text-[0.9rem] text-forest-800">You are acting for <span className="font-medium break-words">{businessName}</span></p>
+              <p id={`${identityId}-ks`} className="text-[0.75rem] text-sand-600 break-all">Business KS Number {business.businessKsNumber}</p>
               {onSwitchToSelf && <button type="button" className={`${quiet} -ml-2`} onClick={onSwitchToSelf}>Switch back to yourself</button>}
             </div>
           )}
@@ -245,7 +245,7 @@ export function JoinExperience({
                 type="button" className={primary}
                 disabled={!state.accepted || state.phase === 'joining' || state.principles.status !== 'ready'}
                 onClick={() => void controller.join()}
-                aria-describedby={identityId}
+                aria-describedby={business ? `${identityId} ${identityId}-ks` : identityId}
               >
                 {state.phase === 'joining' ? 'Joining…' : business ? businessJoinButton(businessName!) : 'Join The Trust Project'}
               </button>
