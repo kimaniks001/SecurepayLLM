@@ -52,7 +52,11 @@ test('signed out: NavBar renders the public navigation and none of the signed-in
   for (const label of APP_NAV) assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} must not appear in the public nav`);
   assert.doesNotMatch(markup, /fixed bottom-0/, 'no signed-out bottom navigation');
 });
-test('signed in (no public shell): NavBar markup is byte-identical to main', async () => {
+// Phase 4 final UI polish (UR-223, explicitly authorised): the signed-in NavBar's PRESENTATION changed (44px targets,
+// mark-only brand at md, the wordmark's alt moved to the button's aria-label). Its information architecture must not:
+// destinations, labels, order and element structure stay identical to main once presentational attributes are removed.
+const structural = markup => markup.replace(/ class="[^"]*"/g, '').replace(/ alt="[^"]*"/g, '').replace(/ aria-label="SecurePay"/g, '');
+test('signed in (no public shell): NavBar structure is identical to main (presentation-only Phase 4 polish)', async () => {
   const baseline = await bundleOf(`
 export { NavBar } from './src/components/NavBar';
 export { createElement } from 'react';
@@ -60,7 +64,7 @@ export { renderToStaticMarkup } from 'react-dom/server';`, [{ name: 'main-navbar
   for (const view of ['signed-in', 'agreements', 'money', 'store', 'community', 'account', 'notifications']) {
     const now = html(h(api.NavBar, { view, onNavigate: noop }));
     const then = baseline.renderToStaticMarkup(baseline.createElement(baseline.NavBar, { view, onNavigate: noop }));
-    assert.equal(now, then, `signed-in NavBar changed for view ${view}`);
+    assert.equal(structural(now), structural(then), `signed-in NavBar structure changed for view ${view}`);
   }
 });
 test('the mobile menu button exposes its state and controls the sheet', () => {

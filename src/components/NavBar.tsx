@@ -44,17 +44,18 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
   return (
     <>
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center justify-between px-6 lg:px-10 py-4 border-b border-cream-200/60 bg-cream-50/80 backdrop-blur-sm sticky top-0 z-30">
-        <button onClick={() => onNavigate('signed-in')} className="flex items-center gap-2">
+      <nav className="hidden md:flex items-center justify-between gap-3 px-6 lg:px-10 py-3 border-b border-cream-200/60 bg-cream-50/80 backdrop-blur-sm sticky top-0 z-30">
+        {/* Phase 4 (UR-223): at md the full brand crowded Home -- the mark alone there, mark + wordmark from lg. */}
+        <button onClick={() => onNavigate('signed-in')} aria-label="SecurePay" className="flex min-h-11 shrink-0 items-center gap-2">
           <img src={securepayMark} alt="" className="h-7 w-7" />
-          <img src={securepayWordmark} alt="SecurePay" className="h-6 w-auto" />
+          <img src={securepayWordmark} alt="" className="hidden lg:block h-6 w-auto" />
         </button>
         <div className="flex items-center gap-1">
           {navItems.map((item) => (
             <button
               key={item.label}
               onClick={() => onNavigate(item.view)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.825rem] font-medium transition-all ${
+              className={`flex min-h-11 items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.825rem] font-medium transition-all ${
                 isActive(item.view)
                   ? 'text-forest-700 bg-forest-50'
                   : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'
@@ -70,7 +71,7 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
           <button
             onClick={() => onNavigate('notifications')}
             aria-label="Notifications"
-            className={`ml-1 p-2 rounded-lg transition-all ${notificationsActive ? 'text-forest-700 bg-forest-50' : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'}`}
+            className={`ml-1 inline-flex h-11 w-11 items-center justify-center rounded-lg transition-all ${notificationsActive ? 'text-forest-700 bg-forest-50' : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'}`}
           >
             <Bell className="w-4 h-4" />
           </button>
@@ -78,12 +79,13 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
       </nav>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-2 py-2 flex items-center justify-around">
+      {/* Phase 4 (UR-223): 44px-high targets that share the width (content + leftover), so all seven fit at 320px -- same icons, labels and order. */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-1 py-1.5 flex items-center justify-around">
         {navItems.map((item) => (
           <button
             key={item.label}
             onClick={() => onNavigate(item.view)}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${
               isActive(item.view) ? 'text-forest-600' : 'text-sand-400'
             }`}
           >
@@ -93,7 +95,7 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
         ))}
         <button
           onClick={() => onNavigate('notifications')}
-          className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
+          className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
         >
           <Bell style={{ width: 18, height: 18 }} />
           <span className="text-[0.55rem] font-medium leading-tight">Notifications</span>

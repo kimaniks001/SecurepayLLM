@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
+import { execFileSync } from 'node:child_process';
 
 // Public Experience Convergence Phase 4 -- Join, identity-only signup and human invitations (ADR-0021).
 const bundle = await build({ stdin: { contents: `
@@ -12,6 +13,9 @@ export { createSignInFlow, authLegFor } from './src/features/public/signInFlow';
 export { createWorkspaceController, workspaceEntryFor } from './src/features/workspace/controller';
 export { WorkspaceExperience } from './src/features/workspace/WorkspaceExperience';
 export { SecureAuthCard } from './src/components/SecureAuth';
+export { ConversationInput } from './src/components/ConversationInput';
+export { FairTradeAffordance, FairTradePrinciplesPanel } from './src/components/FairTradePrinciples';
+export { NavBar } from './src/components/NavBar';
 export { JoinExperience } from './src/features/join/JoinExperience';
 export { SignUpExperience } from './src/features/join/SignUpExperience';
 export { ShareInvitation } from './src/features/join/ShareInvitation';
@@ -619,4 +623,57 @@ test('SecureAuth: every text, password and OTP input is itself >= 44px (min-h-11
   // min-h-11 really is 44px: Tailwind's default spacing (2.75rem at 16px root) is not overridden
   const tw = await readFile('tailwind.config.js', 'utf8').catch(() => readFile('tailwind.config.ts', 'utf8'));
   assert.doesNotMatch(tw, /minHeight\s*:|spacing\s*:\s*\{/, 'default spacing scale (min-h-11 = 2.75rem = 44px)');
+});
+
+// ------------------------------------------------------------------ Phase 4 final UI polish (UR-223)
+const cls = el => (el.match(/class="([^"]*)"/) ?? [, ''])[1].split(/\s+/);
+test('KS001 Send is a 44×44 target (h-11 w-11), with its hover/active scale guarded for reduced motion', () => {
+  const out = html(api.ConversationInput, { onSend: noop });
+  const send = out.match(/<button[^>]*aria-label="Send"[^>]*>/)[0];
+  for (const c of ['h-11', 'w-11', 'motion-reduce:hover:scale-100', 'motion-reduce:active:scale-100']) assert.ok(cls(send).includes(c), c);
+  assert.ok(!cls(send).includes('h-9') && !cls(send).includes('w-9'));
+  // the textarea carries the vertical padding so the composer keeps its height and the text stays centred
+  assert.ok(cls(out.match(/<textarea[^>]*>/)[0]).includes('py-2.5'));
+});
+
+test('the Fair Trade affordance keeps its quiet underline and is a 44px target; the panel Close is 44×44', () => {
+  const link = html(api.FairTradeAffordance, { onOpen: noop }).match(/<button[^>]*>/)[0];
+  for (const c of ['inline-flex', 'min-h-11', 'items-center', 'underline']) assert.ok(cls(link).includes(c), c);
+  assert.ok(!cls(link).some(c => /^(bg-|border|shadow|px-[3-9])/.test(c)), 'not a pill, card or heavy button');
+  const panel = html(api.FairTradePrinciplesPanel, { onClose: noop });
+  const close = panel.match(/<button[^>]*aria-label="Close"[^>]*>/)[0];
+  for (const c of ['inline-flex', 'h-11', 'w-11', 'shrink-0', 'items-center', 'justify-center']) assert.ok(cls(close).includes(c), c);
+  assert.match(panel, /<svg[^>]*class="[^"]*\bw-5 h-5\b/, 'the X itself stays small');
+});
+
+test('signed-in NavBar: mark-only brand at md, wordmark from lg; every desktop control is >= 44px; Notifications 44×44', () => {
+  const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
+  const desktop = out.slice(0, out.indexOf('<nav', 5));
+  const brand = desktop.match(/<button[^>]*aria-label="SecurePay"[^>]*>/)[0];
+  assert.ok(cls(brand).includes('min-h-11') && cls(brand).includes('shrink-0'));
+  const imgs = desktop.match(/<img[^>]*>/g);
+  assert.equal(imgs.length, 2);
+  assert.ok(!cls(imgs[0]).includes('hidden'), 'the mark is always visible');
+  assert.ok(cls(imgs[1]).includes('hidden') && cls(imgs[1]).includes('lg:block'), 'the wordmark returns at lg');
+  const items = desktop.match(/<button(?![^>]*aria-label)[^>]*>/g);
+  assert.equal(items.length, 6);
+  for (const b of items) assert.ok(cls(b).includes('min-h-11'), b);
+  const bell = desktop.match(/<button[^>]*aria-label="Notifications"[^>]*>/)[0];
+  for (const c of ['h-11', 'w-11', 'inline-flex', 'items-center', 'justify-center']) assert.ok(cls(bell).includes(c), c);
+  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(desktop, new RegExp(`>${label}</button>`), `${label} is never hidden or abbreviated`);
+});
+
+test('PublicNav is untouched by the UR-223 polish', () => {
+  const now = execFileSync('git', ['diff', '533f259faafc2884395454c61009f67d536015b7', '--', 'src/features/public/PublicNav.tsx'], { encoding: 'utf8' });
+  assert.equal(now, '');
+});
+
+test('signed-in mobile bottom nav: every item is 44px high and shares the width (all seven fit at 320px); same labels, icons and order', () => {
+  const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
+  const mobile = out.slice(out.indexOf('<nav', 5));
+  assert.match(mobile, /<nav class="[^"]*\bmd:hidden fixed bottom-0\b[^"]*\bpx-1\b/);
+  const buttons = mobile.match(/<button[^>]*>/g);
+  assert.equal(buttons.length, 7);
+  for (const b of buttons) for (const c of ['flex-auto', 'min-h-11', 'justify-center']) assert.ok(cls(b).includes(c), `${c} in ${b}`);
+  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications'], 'no label hidden or abbreviated');
 });

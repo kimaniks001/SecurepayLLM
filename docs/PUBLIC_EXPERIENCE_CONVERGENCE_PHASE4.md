@@ -141,4 +141,22 @@ This pass is UI only. **SecurePayAPI is unchanged** (#263 stays at `5f47a107`).
    - The Phone/Email choice buttons stay at 44px.
 3. `WorkspaceExperience` passes its snapshot as the `useSyncExternalStore` server snapshot too. This changes nothing in the browser; it lets tests render the real Workspace entry state.
 
-**UR-223 stays open** for the other three pre-existing polish items: KS001 Send height, the "Guided by the 12 Principles" link target, and signed-in nav crowding at 768px.
+UR-223's remaining items were closed in §11.
+
+## 11. Final UR-223 visual / accessibility closure (2026-09-27)
+
+This is a presentation and accessibility pass only. There is no authority, API, membership or navigation-semantics change. **SecurePayAPI is unchanged** (#263 stays at `5f47a107`).
+
+| Item | Before | After | Measured (rendered) |
+| --- | --- | --- | --- |
+| KS001 Send | `w-9 h-9` (36×36) | `w-11 h-11`. The textarea now carries the composer's vertical padding (`py-2.5`, wrapper `py-1.5`), so the composer keeps its 58px height with the text centred. The hover/active scale has a `motion-reduce:` guard, because the global reduced-motion rule shortens transitions but not the scale itself. | 44×44 at every width |
+| "Guided by the 12 Principles of Fair Trade ›" | about 19px high | `inline-flex min-h-11 items-center`; still the quiet underlined line, not a pill or card | 253×44 |
+| Fair Trade panel Close | `p-1.5` (32×32) | `inline-flex h-11 w-11 shrink-0`; the X stays `w-5 h-5`; header `py-4 → py-2.5`, so the header height is unchanged (65px) | 44×44 at 1440→320. Esc, overlay and Close all close it; focus starts on Close. |
+| Signed-in desktop nav at 768px | mark + wordmark crowded Home | the wordmark is `hidden lg:block` (the mark alone at md, the full brand from lg). The brand button keeps its accessible name through `aria-label="SecurePay"`. Items get `min-h-11` and Notifications `h-11 w-11`. The bar goes `py-4 → py-3`, so its height is unchanged (69px). | at 768: brand 28×44, 12px clear of Home, all six labels and Notifications visible, no overflow; from 1024: full brand 108×44. Items 44px high, Notifications 44×44. |
+| Signed-in mobile bottom nav | 395px wide at every phone width: overflow at 390, and at 320 Account was clipped and **Notifications was off-screen**; Notifications 43px high | items `flex-auto min-h-11` with `px-0.5`, nav `px-1 py-1.5`. Same icons, labels, sizes and order. | 390/360/320: 0 overflow, every item 44px high, all seven visible and unclipped. Widths are content-bound at 320 (narrowest is Store at 28px, which is above the WCAG 2.2 minimum of 24px). Seven unabbreviated labels cannot each be 44px wide in 312px. |
+
+**UR-223 is resolved:** all recorded items (Send, the Principles link, the 768 nav collision), plus the Close and mobile-nav findings, are fixed and measured.
+
+The register row lives in the API repository, which this pass must not change. It should be marked RESOLVED the next time SecurePayAPI docs are edited.
+
+**Observed, pre-existing, unchanged (navigation, out of scope):** inside the Workspace, the nav's Account and Notifications items show "This area is not available yet." The same items work from Store, Community and elsewhere. The cause is on `main`: `WorkspaceExperience.handleNavigate` has no `account`/`notifications` case.
