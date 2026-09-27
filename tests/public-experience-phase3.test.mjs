@@ -11,6 +11,7 @@ export { createAgentGateway } from './src/api/securepay/agent';
 export { createHttpClient, ApiError } from './src/api/securepay/http';
 export { createSourceController, sourceIngestionErrorText } from './src/features/sources/controller';
 export { declaredSourceProblem, sourceKindNote, sourceStatusText } from './src/features/sources/presentation';
+export { handoffView } from './src/api/securepay/agent/adapters';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'esm', platform: 'node' });
 const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
@@ -227,4 +228,84 @@ test('Phase 3 introduces no Phase 4 surface: no Join route, no invitation links,
     const src = await readFile(file, 'utf8');
     assert.doesNotMatch(src, /#\/join|membership\/join|invite-link|referral/i, file);
   }
+});
+
+// ------------------------------------------------------------------ Phase 3 final hardening: secret lifecycle
+const handoffBody = (claimed, status) => ({ handoffId: 'h-1', conversationId: CONVERSATION, status, agreementCandidateSummary: { title: 'Tiling', description: '', amountMinor: null, currency: null, participants: [], responsibilities: [], conditions: [] }, reviewedSource: null, mustResolve: [], stillToDecide: [], guidanceNotes: [], tradeContextVersion: 3, candidateDigest: 'd', expiresAt: FUTURE, progressedAgreementId: null, ...(claimed === undefined ? {} : { conversationClaimed: claimed }) });
+
+function lifecycle(handoffReply) {
+  const storage = memoryStorage();
+  const store = api.createConversationAccessStore(storage);
+  const requests = [];
+  const http = api.createHttpClient('https://api.example', () => null, async (url, init) => {
+    requests.push({ url, headers: Object.fromEntries(init.headers.entries()) });
+    const reply = url.endsWith('/api/agent/conversations') ? created() : handoffReply(url);
+    return new Response(JSON.stringify(reply.body), { status: reply.status });
+  });
+  return { storage, store, requests, gateway: api.createAgentGateway(http, store) };
+}
+
+test('signed-out createHandoff never claims, so the anonymous record is kept (and a reload still resumes)', async () => {
+  const { gateway, store, storage } = lifecycle(() => ({ status: 201, body: handoffBody(false, 'IDENTITY_REQUIRED') }));
+  await gateway.createConversation();
+  await gateway.createHandoff(CONVERSATION, 'continue-1');
+  assert.equal(store.current()?.conversationId, CONVERSATION);
+  // Same-tab reload: a fresh store over the same tab storage still finds it.
+  assert.equal(api.createConversationAccessStore(storage).current()?.conversationId, CONVERSATION);
+});
+
+test('an older server that omits the claim signal is treated as NOT claimed (the token is kept)', async () => {
+  const { gateway, store } = lifecycle(() => ({ status: 201, body: handoffBody(undefined, 'READY_FOR_REVIEW') }));
+  await gateway.createConversation();
+  await gateway.createHandoff(CONVERSATION);
+  assert.equal(store.current()?.conversationId, CONVERSATION, 'never guessed from status or local session state');
+});
+
+test('a signed-in createHandoff that the server reports as claimed drops the secret immediately', async () => {
+  const { gateway, store, storage } = lifecycle(() => ({ status: 201, body: handoffBody(true, 'READY_FOR_REVIEW') }));
+  await gateway.createConversation();
+  await gateway.createHandoff(CONVERSATION, 'continue-2');
+  assert.equal(store.current(), null);
+  assert.equal(storage.raw(api.ANONYMOUS_CONVERSATION_KEY), undefined, 'no plaintext left in sessionStorage');
+  // A reload now has nothing to resume from the retired secret -- the owner continues via their session.
+  assert.equal(gateway.resumableConversationId(), null);
+});
+
+test('a failed createHandoff keeps the record: an attempt alone never clears it', async () => {
+  for (const status of [404, 500, 409]) {
+    const { gateway, store } = lifecycle(() => ({ status, body: { code: status === 404 ? 'OTHER_NOT_FOUND' : 'X', message: 'm' } }));
+    await gateway.createConversation();
+    await assert.rejects(gateway.createHandoff(CONVERSATION));
+    assert.equal(store.current()?.conversationId, CONVERSATION, String(status));
+  }
+});
+
+test('save and explicit adopt still clear the record after success, and only after success', async () => {
+  for (const claim of ['save', 'adopt']) {
+    let ok = false;
+    const { store } = lifecycle(() => ({ status: 200, body: {} }));
+    const http = api.createHttpClient('https://api.example', () => 'session', async (url) => {
+      if (url.endsWith('/api/agent/conversations')) return new Response(JSON.stringify(created().body), { status: 201 });
+      return ok ? new Response(JSON.stringify({ conversationId: CONVERSATION, savedBuildId: 's', handoffId: 'h-1' }), { status: 200 })
+        : new Response(JSON.stringify({ code: 'X', message: 'm' }), { status: 500 });
+    });
+    const gateway = api.createAgentGateway(http, store);
+    await gateway.createConversation();
+    await assert.rejects(claim === 'save' ? gateway.saveBuild(CONVERSATION) : gateway.adoptHandoff('h-1'));
+    assert.equal(store.current()?.conversationId, CONVERSATION, `${claim}: failure keeps it`);
+    ok = true;
+    await (claim === 'save' ? gateway.saveBuild(CONVERSATION) : gateway.adoptHandoff('h-1'));
+    assert.equal(store.current(), null, `${claim}: success clears it`);
+  }
+});
+
+test('the possession secret never reaches React-visible handoff state or a request URL', async () => {
+  const { gateway, requests } = lifecycle(() => ({ status: 201, body: handoffBody(false, 'IDENTITY_REQUIRED') }));
+  await gateway.createConversation();
+  const handoff = await gateway.createHandoff(CONVERSATION);
+  assert.equal(JSON.stringify(api.handoffView(handoff)).includes(SECRET), false);
+  for (const request of requests) assert.equal(request.url.includes(SECRET), false);
+  const gatewaySource = await readFile('src/api/securepay/agent/index.ts', 'utf8');
+  const continuitySource = await readFile('src/api/securepay/agent/continuity.ts', 'utf8');
+  assert.doesNotMatch(gatewaySource + continuitySource, /console\./);
 });

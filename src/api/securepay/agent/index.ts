@@ -111,9 +111,15 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
       }),
     submitDate: (id: string, body: ExternalFactRequest & { date: string }) => http.request<TradeContextDto>(`${conversation(id)}/external-facts/date`, { method: 'POST', body, auth: 'optional' }),
     lookupPriorTerm: (id: string, body: { sourceAgreementPublicReference: string; termQuery: string; clientTurnId?: string }) => http.request<TradeContextDto>(`${conversation(id)}/prior-agreement-terms`, { method: 'POST', body, auth: 'required' }),
-    // Phase 3 -- a signed-in "Continue with this" claims the conversation server-side and retires the
-    // token; the stale local record is harmless and is forgotten on the next non-leaking 404.
-    createHandoff: (id: string, clientActionId?: string) => http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' }),
+    // Phase 3 final hardening -- a signed-in "Continue with this" makes the server claim the conversation
+    // and retire its digest. The server says so in `conversationClaimed` (read from its own ownership
+    // record); only then is the now-powerless secret dropped. A signed-out create never claims, so the
+    // visitor keeps the token they still need; a failed create throws before this and keeps it too.
+    createHandoff: async (id: string, clientActionId?: string) => {
+      const created = await http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' });
+      if (created?.conversationClaimed === true) access.forget(id);
+      return created;
+    },
     readHandoff: (id: string) => http.request<HandoffDto>(handoff(id), { auth: 'optional' }),
     // Phase 3 -- adopting claims the conversation (token retired server-side), so forget it here too.
     adoptHandoff: async (id: string) => {

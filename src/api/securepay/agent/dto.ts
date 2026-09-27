@@ -106,6 +106,12 @@ export interface HandoffDto {
   mustResolve: HandoffOpenMatterDto[]; stillToDecide: HandoffOpenMatterDto[];
   guidanceNotes: string[]; tradeContextVersion: number;
   candidateDigest: string; expiresAt: string; progressedAgreementId: string | null;
+  /**
+   * Phase 3 final hardening -- true only when the server records the signed-in caller as the owner of this
+   * handoff's conversation (its anonymous possession digest is retired). Informational: used only to drop
+   * the local secret; it never grants anything.
+   */
+  conversationClaimed?: boolean;
 }
 export interface ContinueHandoffRequest { expectedTradeContextVersion: number; expectedCandidateDigest: string }
 
