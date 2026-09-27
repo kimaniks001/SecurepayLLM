@@ -310,6 +310,8 @@ export { ResultCard } from './src/features/discovery/ui/ResultCard';
 export { CommunityHome } from './src/components/CommunityHome';
 export { CommunityObjectCard } from './src/components/CommunityObjectCard';
 export { PublicShellProvider } from './src/features/public/publicShell';
+export { SupportExperience, HUMAN_SUPPORT_UNAVAILABLE } from './src/features/support/SupportExperience';
+export { secureAuthView } from './src/features/identity/view';
 export { demoOffers, demoStores } from './src/storeData';
 export { demoCommunityObjects } from './src/communityData';
 export { createElement } from 'react';
@@ -412,4 +414,55 @@ test('Circle-level Join authority is untouched by the Phase 2 Join gate', async 
   assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/components/CircleJoinFlow.tsx', 'src/features/circle/controller.ts', 'src/features/community/controller.ts'], { encoding: 'utf8' }), '');
   assert.ok(circle.length > 0 && community.length > 0);
   assert.match(community, /REQUEST_TO_JOIN|requestToJoin|joinCircle/);
+});
+
+// ================================================================== Phase 2 public shell closure
+const helpNav = { openAgreement: noop, openAgreementReviews: noop, openMoney: noop, askAgent: noop, recovery: noop, notifications: noop, account: noop, agreements: noop, money: noop, store: noop, community: noop };
+const noGateway = { detail: async () => { throw new Error('no read expected'); }, list: async () => { throw new Error('no read expected'); }, status: async () => { throw new Error('no read expected'); } };
+const renderHelp = (signedIn, inPublicShell) => {
+  const help = extra.createElement(extra.SupportExperience, { ctx: null, signedIn, agreementGateway: noGateway, reviewGateway: noGateway, moneyGateway: noGateway, nav: helpNav, navigate: noop, onBack: noop });
+  return extra.renderToStaticMarkup(inPublicShell ? extra.createElement(extra.PublicShellProvider, { value: actions }, help) : help);
+};
+
+test('signed-out Help renders the public navigation through the shared public shell', async () => {
+  const markup = renderHelp(false, true);
+  const out = text(markup);
+  for (const label of ['How it works', 'The Trust Project', 'For Business', 'Sign in', 'Skip to KS001']) assert.match(out, new RegExp(label));
+  for (const label of ['Agreements', 'Money', 'Account', 'Notifications']) assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} leaked into signed-out Help`);
+  assert.match(markup, /data-public-nav/);
+  assert.doesNotMatch(markup, /fixed bottom-0/, 'no signed-out bottom navigation');
+  assert.match(out, /Help &amp; Support|Help & Support/);
+  // Help does not choose a navigation itself: it always renders NavBar and never imports PublicNav.
+  const src = strip(await readFile('src/features/support/SupportExperience.tsx', 'utf8'));
+  assert.match(src, /navBar=\{nb\(\)\}/);
+  assert.doesNotMatch(src, /PublicNav|usePublicShell/);
+});
+
+test('signed-in Help keeps the unchanged app navigation and its signed-in actions', () => {
+  const out = text(renderHelp(true, false));
+  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(out, new RegExp(`\\b${label}\\b`));
+  assert.doesNotMatch(out, /Skip to KS001|For Business/);
+  for (const action of ['An Agreement', 'A formal review', 'Open notifications', 'Account &amp; security|Account & security']) assert.match(out, new RegExp(action));
+});
+
+test('Help speaks in present tense and claims no support capability', () => {
+  for (const markup of [renderHelp(false, true), renderHelp(true, false)]) {
+    const out = text(markup);
+    assert.match(out, /Getting more help/);
+    assert.match(out, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask KS001 for the next step\./);
+    assert.doesNotMatch(out, /not yet available|not yet|coming soon|not ready|Talking to a person/i);
+    assert.doesNotMatch(out, /ticket number|case number|support hours|live chat|call us|response time|escalat/i);
+  }
+});
+
+test('the signed-out network-activity gate uses contextual sign-in copy on the shared SecureAuth', async () => {
+  const src = strip(await readFile('src/features/circle/CircleExperience.tsx', 'utf8'));
+  assert.match(src, /secureAuthView\(identityState, \{\s*title: 'Sign in to see your network activity',\s*reason: 'SecurePay needs to confirm who you are before showing your network activity\.',\s*\}\)/);
+  assert.match(src, /createIdentityController\(auth, session\)/);
+  assert.match(src, /<SecureAuthCard/);
+  const view = extra.secureAuthView({ phase: 'credentials', busy: false, ksNumber: '', password: '', otp: '', challengeToken: null, error: null }, { title: 'Sign in to see your network activity', reason: 'SecurePay needs to confirm who you are before showing your network activity.' });
+  assert.equal(view.title, 'Sign in to see your network activity');
+  assert.doesNotMatch(view.title + view.reason, /review this/i);
+  // Signed-in loading is unchanged: the self-scoped profile is (re)loaded only when the session is signed in.
+  assert.match(src, /if \(sessionState\.status === 'signed-in'\) void controller\.load\(\);/);
 });

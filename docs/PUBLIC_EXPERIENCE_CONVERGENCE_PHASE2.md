@@ -245,8 +245,6 @@ The backend was SecurePayAPI main `80ff7a24` in local sandbox mode (PostgreSQL +
 
 ## 11. Findings deferred (not fixed here)
 
-- **Help has no navigation when signed out.** `SupportView` renders only its Back link, and "Human support requests are not yet available from this screen" is shown. Both are pre-existing and outside this correction's four findings.
-- **The Circle sign-in gate** reuses the generic "Sign in to review this" title (pre-existing).
 
 - **Backend source failure text.** It reads "SecurePay received the file, but couldn't read it right now. Nothing from it has been added to your **agreement** yet." It comes from SecurePayAPI (`AgentSourceIngestionService`) and is rendered as returned, so it overstates the stage for a pasted plan too. **Phase 3** (source convergence) should change it in the API.
 - **Phase 3:**
@@ -338,3 +336,38 @@ The body is unchanged ("Your KS identity gives you a digital Store while your Se
   - Circle Join authority untouched.
 - Updated: `ui-phase7-trust-project` and `community-circles` T1.
 - Totals: 1340/1340 tests; typecheck clean; lint 0 errors / 7 warnings (baseline); build OK.
+
+## 13. Public shell closure
+
+- **Signed-out Help now inherits `PublicNav`.**
+  - Before, `SupportExperience` passed its `NavBar` only when signed in, so signed-out Help, reached from the public Home footer, had no navigation at all.
+  - It now always passes `<NavBar …/>`. Inside the public shell that renders `PublicNav`; signed in, it is the unchanged app navigation.
+  - Help never chooses a navigation itself, and does not import `PublicNav` (tested).
+- **Present-tense Help copy.**
+  - Before: "Human support requests are not yet available from this screen. SecurePay can still help you inspect the Agreement, Money and formal Review state here."
+  - After: "This Help page doesn’t create a support request or contact a person. Use the options above, or ask KS001 for the next step."
+  - The section label moved from "Talking to a person" to "Getting more help".
+  - No ticket, case, hours, live chat or escalation is claimed.
+  - The separate, signed-in-only Agreement Support tab keeps its own inline sentence; it is outside this pass.
+- **Contextual network-activity sign-in.**
+  - Before: "Sign in to review this".
+  - After: "Sign in to see your network activity", with the reason "SecurePay needs to confirm who you are before showing your network activity."
+  - It uses the same identity controller and `SecureAuth`, and signed-in loading of the network activity is unchanged.
+- **Verified in the browser** (real backend):
+  - Home → Help shows the public nav at 1440, a true 768 (desktop nav), 390 and 320 (mobile bar and menu), with no bottom navigation and no overflow.
+  - From Help, How it works, The Trust Project and For Business return to Home and focus their chapter. Sign in → Cancel returns to Help, and Back returns to Home.
+  - The signed-out network-activity gate shows the contextual title, and signing in through it loads the network activity.
+  - Signed-in Help keeps the app navigation and all signed-in actions.
+- **Scope held:**
+  - No authority or backend call changed.
+  - No support-case behaviour was added.
+  - Circle and Community membership are untouched.
+  - No Trust Project Join.
+  - SecurePayAPI unchanged.
+- **Tests:** four new checks in `tests/public-experience-phase2.test.mjs`:
+  - signed-out Help renders the public nav;
+  - signed-in Help keeps the app nav and its actions;
+  - Help copy is present-tense, with no fake capability;
+  - the contextual network-activity sign-in.
+
+  `tests/ui-phase10.test.mjs` is updated to the new wording, and its no-ticket and no-escalation guards are kept.

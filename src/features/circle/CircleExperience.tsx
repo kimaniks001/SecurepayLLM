@@ -65,7 +65,11 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   const navBarView: AppView = 'community';
 
   if (sessionState.status !== 'signed-in') {
-    const authData = secureAuthView(identityState);
+    // Contextual sign-in copy for this screen (the person is opening their own network activity).
+    const authData = secureAuthView(identityState, {
+      title: 'Sign in to see your network activity',
+      reason: 'SecurePay needs to confirm who you are before showing your network activity.',
+    });
     return (
       <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
         <NavBar view={navBarView} onNavigate={onNavigate} />
