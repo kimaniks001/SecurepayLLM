@@ -123,7 +123,8 @@ test('the Home reads membership from the existing self-scoped record and the KS 
   const src = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(src, /communityGateway\.membership\.me\(\)/);
   assert.match(src, /circleGateway\.me\(\)\.then\(profile => \{ if \(!cancelled\) setOwnKsNumber\(profile\.canonicalKsNumber\)/);
-  assert.match(src, /if \(sessionState\.status !== 'signed-in'\) \{ setOwnKsNumber\(null\); return; \}/);
+  // Phase 4B: the same sign-out branch also resets the Business area (Businesses + acting capacity).
+  assert.match(src, /if \(sessionState\.status !== 'signed-in'\) \{ setOwnKsNumber\(null\); businessController\.reset\(\); return; \}/);
   assert.match(src, /membership=\{sessionState\.status === 'signed-in' && trustMembershipStatus !== undefined/);
   assert.doesNotMatch(await readFile('src/components/trustProject.ts', 'utf8'), /membershipNumber|memberNumber|TP-/);
 });

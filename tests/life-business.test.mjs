@@ -234,9 +234,13 @@ test('J1. Business Home never claims actions happen "as this Business" -- the au
   assert.match(contents, /you are signed in as yourself/i);
 });
 
-test('J2. Business activation copy states the exact current requirement (signing in as the Business KS identity itself) rather than equating "owner" with Organization admin/membership', async () => {
+test('J2. Phase 4B (ADR-0022): the legacy "activate as the Business KS identity itself" affordance and the typed Business KS lookup are gone -- Businesses come only from SecurePay', async () => {
   const contents = await readFile('src/features/business/BusinessExperience.tsx', 'utf8');
-  assert.match(contents, /signing in as the business ks identity itself/i);
+  assert.doesNotMatch(contents, /Activate this Business KS Number|signing in as the business ks identity itself/i);
+  assert.doesNotMatch(contents, /controller\.activate\(|placeholder="Business KS Number"/);
+  const controller = await readFile('src/features/business/controller.ts', 'utf8');
+  assert.doesNotMatch(controller, /\bactivate\b\s*[:(]|setBusinessKsNumber/);
+  assert.match(controller, /gateway\.business\.mine\(\)/);
 });
 
 test('J3. Developer/Connect never claims Organization admin/membership is sufficient for application ownership -- the exact actorKsNumber requirement is stated instead', async () => {
@@ -402,17 +406,18 @@ test('L4. Recovery controller never references browser storage or the URL/query 
 
 // ─── M. Account Business lookup fails closed on authority ─────────────────────────
 
-test('M1. AccountExperience never presents a Business as one the person administers from business.get() succeeding alone -- "Your authority for this Business" only appears once authoritySummary is ready', async () => {
+test('M1. Phase 4B (ADR-0022): Account never looks a Business up by a typed KS Number -- it only opens the Business area, which lists what SecurePay confirms', async () => {
   const contents = await readFile('src/features/account/AccountExperience.tsx', 'utf8');
   assert.doesNotMatch(contents, /a business you administer/i);
-  assert.match(contents, /open a business/i);
-  assert.match(contents, /your authority for this business/i);
-  assert.match(contents, /could not confirm your authority/i);
+  assert.doesNotMatch(contents, /placeholder="Business KS Number"|checkBusiness|businessKsInput/);
+  assert.match(contents, /Your Businesses/);
+  assert.match(contents, /onNavigate\('business'\)/);
+  assert.match(contents, /You always stay signed in as yourself\./);
 });
 
-test('M2. Account controller requests authoritySummary immediately and unconditionally once the organization read succeeds -- never gated on a separate user action', async () => {
+test('M2. Phase 4B: the Account controller no longer reads a Business or its authority at all -- that is the Business area\'s job, from backend truth', async () => {
   const contents = await readFile('src/features/account/controller.ts', 'utf8');
-  assert.match(contents, /business:\s*\{\s*status:\s*'ready'[\s\S]{0,80}authority:\s*\{\s*status:\s*'loading'/);
+  assert.doesNotMatch(contents, /business\.get|authoritySummary|checkBusiness/);
 });
 
 // ─── N. Vision/Project doctrine wording matches the corrected architecture rule exactly ─────────────────────────
