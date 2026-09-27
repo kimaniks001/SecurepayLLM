@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { membershipLine, type TrustProjectMembershipFact } from './trustProject';
+import { CAPACITIES as SHARED_CAPACITIES, ORIGIN, PILLARS } from '../features/public/publicContent';
 
 /**
  * Phase 7 Slice 5B (The Trust Project convergence) -- the low-on-Home "About / Why this exists" section.
@@ -18,49 +19,8 @@ import { membershipLine, type TrustProjectMembershipFact } from './trustProject'
  * invitation to join is never an introduction and earns nothing.
  */
 
-const PILLARS = [
-  {
-    title: 'Technologies',
-    line: 'Tools that make fair trade practical.',
-    detail: 'SecurePay and KS001 to shape clear agreements, a Store for what you offer, SecureLinks to share it, and Community to ask and help. For businesses and builders, Developer / Connect in Account provides SecurePay integration tools such as API credentials and webhooks, managed by the Business that owns them.',
-  },
-  {
-    title: 'Systems',
-    line: 'Shared principles and ways of working that make fair trade repeatable.',
-    detail: 'The 12 Principles of Fair Trade, turned into practical methods: clear agreements, changes everyone explicitly agrees to, evidence for work done, and honest handling of what is still uncertain.',
-  },
-  {
-    title: 'People',
-    line: 'People bringing skills, knowledge, needs and opportunities.',
-    detail: 'Members asking and helping in Community LIVE and in Circles, and people who connect or teach. Belonging is not a certificate that someone is trustworthy — trust comes from what people actually do.',
-  },
-] as const;
-
-const CAPACITIES = [
-  {
-    name: 'Member',
-    line: 'Use, learn, contribute and trade.',
-    detail: 'Ask and help in Community, join Circles, keep a Store, and make agreements through SecurePay. A quiet member is a complete member — nobody has to invite anyone, teach, or take on another role.',
-  },
-  {
-    name: 'Plug',
-    line: 'Connect useful people, needs and opportunities.',
-    detail: 'A Plug helps a good opportunity move beyond one person’s own contacts. When a real commercial introduction qualifies under SecurePay’s existing referral rules, part of the value it created can be shared. Inviting someone to join is not an introduction and earns nothing.',
-  },
-  {
-    name: 'Master',
-    line: 'Share deeper knowledge, teach and mentor.',
-    detail: 'A Master answers hard questions, teaches and mentors. Some help is freely given; paid teaching, mentoring or professional work is agreed separately, like any other work on SecurePay. Being a Master does not decide agreements, disputes or money.',
-  },
-] as const;
-
-const ORIGIN = [
-  'The Trust Project began with a practical question: how can trust be made visible, practical and repeatable in ordinary trade?',
-  'That work produced the 12 Principles of Fair Trade.',
-  'SecurePay was built to turn those principles into tools people could actually use.',
-  'Technology alone was not enough — people also need knowledge, connection and one another.',
-  'The Trust Project therefore grew into the community around those shared technologies, systems and people.',
-] as const;
+// The capacities' meaning is shared with the public Home (Public Experience Convergence Phase 2) so it never drifts.
+const CAPACITIES = SHARED_CAPACITIES;
 
 interface TrustProjectSectionProps {
   /** The primary doorway: the real Community view (Community LIVE and Circles). */
@@ -116,13 +76,13 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
 
           <div className="mt-6">
             <h3 className="font-display text-[1.05rem] text-forest-800">How people take part</h3>
-            <p className="text-[0.82rem] text-forest-700">Members belong. Plugs connect. Masters know.</p>
+            <p className="text-[0.82rem] text-forest-700">Members belong. Plugs help. Masters bring experience.</p>
             <ul aria-label="Ways to take part" className="mt-3 grid gap-3 md:grid-cols-3">
               {CAPACITIES.map(c => (
                 <li key={c.name} className="rounded-2xl border border-cream-200 bg-white/70 px-4 py-3">
                   <h4 className="font-display text-[0.95rem] text-forest-800">{c.name}</h4>
                   <p className="text-[0.8rem] text-forest-700">{c.line}</p>
-                  <p className="mt-1 text-[0.76rem] text-sand-600 leading-relaxed">{c.detail}</p>
+                  <p className="mt-1 text-[0.76rem] text-sand-600 leading-relaxed">{c.detail} {c.boundary}</p>
                 </li>
               ))}
             </ul>
@@ -133,7 +93,7 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
 
           <div className="mt-6 grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3">
-              <h3 className="font-display text-[0.95rem] text-forest-800">A Store for every member</h3>
+              <h3 className="font-display text-[0.95rem] text-forest-800">Your KS Store</h3>
               <p className="mt-1 text-[0.78rem] text-sand-600 leading-relaxed">
                 Your KS identity gives you a digital Store while your SecurePay identity is active. It can start empty — nothing is published until you publish it. A Store is not an endorsement.
               </p>
@@ -153,7 +113,7 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
             </ol>
           </details>
 
-          <p className="mt-5 text-[0.78rem] text-sand-500">Money should follow the agreement.</p>
+          <p className="mt-5 text-[0.78rem] text-sand-600">Money should follow the agreement.</p>
         </>}
 
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">

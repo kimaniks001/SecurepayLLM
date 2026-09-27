@@ -369,7 +369,7 @@ export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { o
   assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
   assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
   assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
-  assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
+  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'), 'expected the quiet Fair Trade affordance beneath the input (Phase 2 capitalisation)');
   // Everything else — greeting, subheading, conversation input — must be untouched.
   for (const text of [
     'Welcome back, James',

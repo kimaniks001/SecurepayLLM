@@ -37,7 +37,7 @@ test('BringPlanPanel: the paste surface and its own action buttons are fluid wid
   // repo's own established convention for that, used identically throughout UnderstoodWorkbench/instruments.
   const buttonSection = contents.slice(contents.indexOf('flex justify-end gap-2'));
   assert.match(buttonSection, /min-h-11.*Cancel/s);
-  assert.match(buttonSection, /min-h-11.*Read into BUILD/s);
+  assert.match(buttonSection, /min-h-11.*Add to this conversation/s);
 });
 
 test('AttachSourceMenu: the attach control is never hidden behind a desktop-only breakpoint, and the photo picker uses a camera-first mobile flow', async () => {

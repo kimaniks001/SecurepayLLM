@@ -17,12 +17,12 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[0.8rem] text-sand-500 hover:text-forest-600 transition-colors mb-2">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-[0.8rem] text-sand-600 hover:text-forest-600 transition-colors mb-2">
           <ArrowLeft className="w-3.5 h-3.5" />
           Store
         </button>
         <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">{offer.title}</h1>
-        <button onClick={() => onViewStore(offer.storeId)} className="flex items-center gap-1.5 text-[0.78rem] text-sand-500 hover:text-forest-600 mt-1">
+        <button onClick={() => onViewStore(offer.storeId)} className="flex items-center gap-1.5 text-[0.78rem] text-sand-600 hover:text-forest-600 mt-1">
           <Store className="w-3.5 h-3.5" />
           {offer.storeName}
         </button>
@@ -46,27 +46,27 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
             <img src={offer.media[0].url} alt={offer.title} className="w-full h-full object-cover" />
           </div>
         ) : (
-          <p className="px-1 text-[0.75rem] text-sand-400">No photos available{offer.media.length > 0 && offer.media[0].isExample ? ' · Previous work example' : ''}</p>
+          <p className="px-1 text-[0.75rem] text-sand-600">No photos available{offer.media.length > 0 && offer.media[0].isExample ? ' · Previous work example' : ''}</p>
         )}
 
         {/* Price */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
           <div className="flex items-baseline justify-between">
             <div>
-              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Price</div>
+              <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide">Price</div>
               <div className="font-display text-xl text-forest-800 font-medium mt-0.5">{offer.price}</div>
-              {offer.priceUnit && <div className="text-[0.72rem] text-sand-500 mt-0.5">{offer.priceUnit}</div>}
+              {offer.priceUnit && <div className="text-[0.72rem] text-sand-600 mt-0.5">{offer.priceUnit}</div>}
             </div>
             <div className="text-right">
-              {offer.priceType !== 'fixed' && <div className="text-[0.68rem] text-sand-400">{offer.priceType.replace(/_/g, ' ')}</div>}
-              <div className="text-[0.72rem] text-sand-500 mt-0.5">{offer.availability}</div>
+              {offer.priceType !== 'fixed' && <div className="text-[0.68rem] text-sand-600">{offer.priceType.replace(/_/g, ' ')}</div>}
+              <div className="text-[0.72rem] text-sand-600 mt-0.5">{offer.availability}</div>
             </div>
           </div>
         </div>
 
         {/* Seller of record */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-          <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Seller of record</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Seller of record</div>
           {offer.isExternalReference && offer.externalSellerName ? (
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -75,7 +75,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
               </div>
               <p className="text-[0.78rem] text-sand-600">{offer.externalSellerIdentity}</p>
               <p className="text-[0.72rem] text-ember-600 mt-1.5">{offer.provenanceLabel}</p>
-              <p className="text-[0.72rem] text-sand-400 mt-1">The actual contracting party is {offer.externalSellerName}, not {offer.storeName}. Do not settle to {offer.storeName} merely because the offer was discovered here.</p>
+              <p className="text-[0.72rem] text-sand-600 mt-1">The actual contracting party is {offer.externalSellerName}, not {offer.storeName}. Do not settle to {offer.storeName} merely because the offer was discovered here.</p>
             </div>
           ) : (
             <div>
@@ -89,16 +89,16 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
 
         {/* Description */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-          <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Description</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Description</div>
           <p className="text-[0.875rem] text-forest-800 leading-relaxed">{offer.description}</p>
         </div>
 
         {/* Scope */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-          <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Scope</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Scope</div>
           <div className="space-y-3">
             <div>
-              <div className="text-[0.72rem] text-sand-500 mb-1">Included</div>
+              <div className="text-[0.72rem] text-sand-600 mb-1">Included</div>
               <ul className="space-y-1">
                 {offer.scope.included.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-[0.825rem] text-forest-800">
@@ -106,11 +106,11 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
                     {item}
                   </li>
                 ))}
-                {offer.scope.included.length === 0 && <li className="text-[0.78rem] text-sand-400">No items listed</li>}
+                {offer.scope.included.length === 0 && <li className="text-[0.78rem] text-sand-600">No items listed</li>}
               </ul>
             </div>
             <div>
-              <div className="text-[0.72rem] text-sand-500 mb-1">Not included</div>
+              <div className="text-[0.72rem] text-sand-600 mb-1">Not included</div>
               <ul className="space-y-1">
                 {offer.scope.excluded.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-[0.825rem] text-sand-600">
@@ -118,7 +118,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
                     {item}
                   </li>
                 ))}
-                {offer.scope.excluded.length === 0 && <li className="text-[0.78rem] text-sand-400">None specified</li>}
+                {offer.scope.excluded.length === 0 && <li className="text-[0.78rem] text-sand-600">None specified</li>}
               </ul>
             </div>
           </div>
@@ -127,7 +127,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
         {/* Conditions */}
         {offer.conditions.length > 0 && (
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Important conditions</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Important conditions</div>
             <ul className="space-y-1">
               {offer.conditions.map((cond, i) => (
                 <li key={i} className="text-[0.825rem] text-forest-800 flex items-start gap-2">
@@ -176,13 +176,13 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
         {/* Milestone seeds */}
         {offer.milestoneSeeds.length > 0 && (
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Proposed structure</div>
-            <p className="text-[0.72rem] text-sand-400 mb-2">This is a proposed structure. Your agreement may differ after customization.</p>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Proposed structure</div>
+            <p className="text-[0.72rem] text-sand-600 mb-2">This is a proposed structure. Your agreement may differ after customization.</p>
             <div className="space-y-2">
               {offer.milestoneSeeds.map((ms, i) => (
                 <div key={i} className="rounded-lg bg-cream-50 px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[0.68rem] font-medium text-sand-400">{i + 1}.</span>
+                    <span className="text-[0.68rem] font-medium text-sand-600">{i + 1}.</span>
                     <span className="text-[0.825rem] font-medium text-forest-800">{ms.title}</span>
                   </div>
                   {ms.work.length > 0 && (
@@ -193,7 +193,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
                     </ul>
                   )}
                   {ms.completionCondition && (
-                    <div className="text-[0.72rem] text-sand-400 mt-1 ml-5">Condition: {ms.completionCondition}</div>
+                    <div className="text-[0.72rem] text-sand-600 mt-1 ml-5">Condition: {ms.completionCondition}</div>
                   )}
                 </div>
               ))}
@@ -205,7 +205,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
           <div className="flex items-center gap-2 mb-2">
             <Link2 className="w-4 h-4 text-forest-500" />
-            <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Offer SecureLink</span>
+            <span className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide">Offer SecureLink</span>
           </div>
           <div className="rounded-lg bg-cream-50 px-3 py-2 text-[0.825rem] text-forest-700 font-mono">
             {offer.secureLink.url}
@@ -220,7 +220,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
         </div>
 
         {/* Provenance */}
-        <div className="text-[0.68rem] text-sand-400 italic px-2">
+        <div className="text-[0.68rem] text-sand-600 italic px-2">
           {offer.isDemoState ? `Offer ${offer.version}` : `Updated ${offer.version}`} · {offer.storeName} · {offer.isDemoState ? 'Demo offer state' : 'Authoritative offer'}
         </div>
 
@@ -242,7 +242,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
             </button>
             <button
               onClick={onAskSecurePay}
-              className="w-full flex items-center justify-center gap-2 text-[0.78rem] text-sand-500 hover:text-forest-600 py-1"
+              className="w-full flex items-center justify-center gap-2 text-[0.78rem] text-sand-600 hover:text-forest-600 py-1"
             >
               <Edit3 className="w-3.5 h-3.5" />
               Ask SecurePay about this offer

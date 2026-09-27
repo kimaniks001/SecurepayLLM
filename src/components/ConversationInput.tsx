@@ -5,12 +5,15 @@ interface ConversationInputProps {
   onSend: (text: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Accessible name for the text box. */
+  label?: string;
 }
 
 export function ConversationInput({
   onSend,
   placeholder = 'Tell SecurePay what you are trying to make happen...',
   disabled,
+  label = 'Message KS001',
 }: ConversationInputProps) {
   const [text, setText] = useState('');
 
@@ -36,17 +39,21 @@ export function ConversationInput({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          aria-label={label}
+          data-ks001-composer
           disabled={disabled}
           rows={1}
           className="flex-1 resize-none bg-transparent text-[0.9rem] text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin disabled:opacity-50"
           style={{ minHeight: '24px' }}
         />
         <button
+          type="button"
+          aria-label="Send"
           onClick={handleSend}
           disabled={!text.trim() || disabled}
           className="w-9 h-9 rounded-xl bg-forest-600 text-cream-50 flex items-center justify-center shrink-0 hover:bg-forest-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95"
         >
-          <ArrowUp className="w-4 h-4" />
+          <ArrowUp className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>

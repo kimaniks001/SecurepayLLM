@@ -33,12 +33,12 @@ export function CommunityObjectCard({ object, onOpen }: CommunityObjectCardProps
           <div className="flex items-center gap-2 mb-0.5">
             <span className={`text-[0.65rem] font-medium rounded-full px-2 py-0.5 ${config.classes}`}>{config.label}</span>
             {object.status !== 'active' && (
-              <span className="text-[0.65rem] font-medium text-sand-400 bg-cream-50 rounded-full px-2 py-0.5 capitalize">{object.status}</span>
+              <span className="text-[0.65rem] font-medium text-sand-600 bg-cream-50 rounded-full px-2 py-0.5 capitalize">{object.status}</span>
             )}
           </div>
           <div className="text-[0.875rem] font-medium text-forest-800 leading-tight">{object.title}</div>
-          <div className="text-[0.72rem] text-sand-500 mt-0.5 line-clamp-2">{object.body}</div>
-          <div className="flex items-center gap-3 mt-1.5 text-[0.68rem] text-sand-400">
+          <div className="text-[0.72rem] text-sand-600 mt-0.5 line-clamp-2">{object.body}</div>
+          <div className="flex items-center gap-3 mt-1.5 text-[0.68rem] text-sand-600">
             <span>{object.author}</span>
             {object.generalLocation && (
               <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{object.generalLocation}</span>

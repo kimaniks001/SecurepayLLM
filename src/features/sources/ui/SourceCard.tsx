@@ -42,7 +42,7 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
       </div>
 
       {source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' ? (
-        <p className="text-[0.8rem] text-sand-500">Reading this into BUILD…</p>
+        <p className="text-[0.8rem] text-sand-600">Reading this…</p>
       ) : source.extractionStatus === 'FAILED' ? (
         <div className="space-y-1.5">
           <p className="text-[0.8rem] text-ember-700">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>
@@ -59,8 +59,8 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
           {isReadable && (typeof factCount === 'number' || source.uncertainties.length > 0) && (
             <p className="text-[0.78rem] text-sand-600">
               {typeof factCount === 'number' && (factCount > 0
-                ? `${factCount} useful ${factCount === 1 ? 'detail' : 'details'} added to BUILD`
-                : 'Nothing from this reached BUILD yet')}
+                ? `${factCount} ${factCount === 1 ? 'detail' : 'details'} found to check`
+                : 'Nothing useful found in this yet')}
               {typeof factCount === 'number' && source.uncertainties.length > 0 ? ' · ' : ''}
               {source.uncertainties.length > 0
                 ? `${source.uncertainties.length} ${source.uncertainties.length === 1 ? 'thing needs' : 'things need'} clarification`

@@ -22,7 +22,7 @@ export function ResultCard({ offer, onOpen, compare, actionLabel = 'View details
   const closed = offer.tone === 'closed';
   return <article className={`group relative rounded-2xl border border-cream-200 bg-white/85 p-4 shadow-soft transition-colors hover:border-forest-300 ${closed ? 'opacity-90' : ''}`}>
     <div className="flex items-start justify-between gap-3">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">{offer.kind === 'SERVICE' ? 'Service' : offer.kind === 'PRODUCT' ? 'Product' : 'Listing'}</p>
+      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">{offer.kind === 'SERVICE' ? 'Service' : offer.kind === 'PRODUCT' ? 'Product' : 'Listing'}</p>
       {compare && <label className={`relative z-10 -mr-1 -mt-1 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1.5 text-[0.78rem] text-sand-600 ${compare.disabled && !compare.selected ? 'opacity-50' : ''}`}>
         <input type="checkbox" checked={compare.selected} disabled={compare.disabled && !compare.selected} onChange={compare.onToggle} className="h-4 w-4 rounded border-cream-400 text-forest-600 focus:ring-forest-300" />
         Compare<span className="sr-only">: {offer.title}</span>
@@ -31,14 +31,14 @@ export function ResultCard({ offer, onOpen, compare, actionLabel = 'View details
     <h3 className="mt-0.5 font-display text-[1.08rem] leading-snug text-forest-800">
       <button type="button" onClick={onOpen} className={`text-left after:absolute after:inset-0 after:rounded-2xl ${FOCUS}`} aria-label={`${actionLabel}: ${offer.title}, ${offer.ownerName}`}>{offer.title}</button>
     </h3>
-    <p className="mt-0.5 text-[0.82rem] text-sand-600">{offer.ownerName} <span className="text-sand-400">· {offer.ownerKs}</span></p>
+    <p className="mt-0.5 text-[0.82rem] text-sand-600">{offer.ownerName} <span className="text-sand-600">· {offer.ownerKs}</span></p>
     <div className="mt-3 flex items-end justify-between gap-3">
       {offer.priceLabel
         ? <p className="shrink-0 whitespace-nowrap font-display text-[1.3rem] leading-none tabular-nums text-forest-800">{offer.priceLabel}</p>
-        : <p className="text-[0.85rem] text-sand-500">No price listed</p>}
+        : <p className="text-[0.85rem] text-sand-600">No price listed</p>}
       <p className="min-w-0 text-right text-[0.78rem] leading-snug text-sand-600"><span aria-hidden="true" className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${DOT[offer.tone]}`} />{offer.availabilityLabel}</p>
     </div>
-    {offer.place && <p className="mt-2 text-[0.78rem] text-sand-500">{offer.place}</p>}
+    {offer.place && <p className="mt-2 text-[0.78rem] text-sand-600">{offer.place}</p>}
     {offer.mediaUrl && <OfferPhoto url={offer.mediaUrl} title={offer.title} seller={offer.ownerName} className="mt-3 h-28" />}
   </article>;
 }

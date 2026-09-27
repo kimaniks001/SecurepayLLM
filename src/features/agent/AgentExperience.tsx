@@ -3,6 +3,10 @@ import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { NavBar } from '../../components/NavBar';
+import { PublicHome } from '../public/PublicHome';
+import { SignInExperience } from '../public/SignInExperience';
+import { useSignInRoute } from '../public/signInRoute';
+import { PublicShellProvider, createPublicShellBridge, focusKs001Composer, focusPublicSection, type PublicSectionId } from '../public/publicShell';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { MessageBubble } from '../../components/MessageBubble';
 import { AgreementPreviewCard } from '../../components/AgreementPreview';
@@ -117,7 +121,24 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
   </div>;
 }
 const noop = () => {};
-export function AgentExperience({ gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+type PublicShellBridge = ReturnType<typeof createPublicShellBridge>;
+
+/**
+ * Public Experience Convergence Phase 2 -- the public shell is provided here, OUTSIDE the router below, so
+ * every screen the router can return (Home, a conversation, Store, Community, Recovery, Help, Sign in) gets
+ * the public navigation while nobody is signed in, and the unchanged app navigation once someone is.
+ */
+export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRouter>[0], 'publicShell'>) {
+  const sessionState = useSyncExternalStore(props.session.subscribe, props.session.getSnapshot);
+  const [bridge] = useState(createPublicShellBridge);
+  return (
+    <PublicShellProvider value={sessionState.status === 'signed-in' ? null : bridge}>
+      <AgentExperienceRouter {...props} publicShell={bridge} />
+    </PublicShellProvider>
+  );
+}
+
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, authorizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -130,6 +151,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   trustedMediaOrigin: string | null;
+  publicShell: PublicShellBridge;
 }) {
   const [controller, setController] = useState(() => createAgentController(gateway));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
@@ -179,8 +201,26 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   }, [foundFocusKey]);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const signedIn = sessionState.status === 'signed-in';
+  // Public Experience Convergence Phase 2 -- the public Sign in route and in-page chapter navigation.
+  const signInRoute = useSignInRoute();
+  const [pendingSection, setPendingSection] = useState<PublicSectionId | null>(null);
+  const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
+  // Once SecurePay confirms the person, leave Sign in for where they came from, or the area they asked
+  // for. A signed-in person who lands on #/sign-in is simply returned too.
+  useEffect(() => {
+    if (!signedIn || !signInRoute.active) return;
+    const intent = signInRoute.close();
+    if (intent) navigateTo(intent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, signInRoute.active]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
+  // Public Experience Convergence Phase 2 -- once the public Home is showing, finish a pending chapter/composer focus.
+  useEffect(() => {
+    if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
+    if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
+  }, [pendingSection, pendingComposerFocus, home]);
   const [workspace, setWorkspace] = useState(false);
   // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
   // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
@@ -271,6 +311,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     void sourceController.list(state.conversationId);
   }, [state.conversationId, sourceController]);
 
+  /**
+   * Public Experience Convergence Phase 2 -- a signed-out person asking for a private area is taken to the
+   * public Sign in route (never a dead-end notice), then on to that area once SecurePay confirms them.
+   */
+  const requestSignIn = (intent: AppView) => { setHome(true); signInRoute.open(intent); };
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
@@ -294,8 +339,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     if (view === 'projects') {
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setVisionBoard(false);
       if (sessionState.status === 'signed-in') { setProjects(true); return; }
-      setHome(true);
-      setNotice('Sign in through "Review this" to view your Projects.');
+      requestSignIn('projects');
       return;
     }
     // Final Completion Phase 5B -- the Vision Board is a private, authenticated-only KS operating
@@ -304,8 +348,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     if (view === 'vision-board') {
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false);
       if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
-      setHome(true);
-      setNotice('Sign in through "Review this" to view your Vision Board.');
+      requestSignIn('vision-board');
       return;
     }
     // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly
@@ -320,8 +363,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
         else setDeveloperView(true);
         return;
       }
-      setHome(true);
-      setNotice('Sign in through "Review this" to view your account.');
+      requestSignIn('account');
       return;
     }
     // Notifications is the canonical in-app attention centre -- private and authenticated-only,
@@ -329,8 +371,7 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     if (view === 'notifications') {
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false); setVisionBoard(false);
       if (sessionState.status === 'signed-in') { setNotificationsView(true); return; }
-      setHome(true);
-      setNotice('Sign in through "Review this" to view your notifications.');
+      requestSignIn('notifications');
       return;
     }
     // Help & Support is reachable signed in or out ("Trouble signing in" must work signed out); its own content is scoped by what the person can read as themselves.
@@ -358,11 +399,11 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
       }
       setWorkspaceAgreementId(null);
       setHome(true);
-      if (view !== 'signed-in') setNotice('Sign in through "Review this" to view your agreements.');
+      if (view !== 'signed-in') requestSignIn(view);
       return;
     }
     setWorkspaceAgreementId(null);
-    setNotice('This area is not available yet. You can keep talking with SecurePay.');
+    setNotice('That isn’t available here. You can keep talking with KS001.');
   };
   /** Opens the given Agreement directly in the Workspace -- the same real mechanism
    * WorkspaceExperience's own controller uses internally, not a new one. PHASE 4 Care convergence:
@@ -386,6 +427,31 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
     setEcosystemAgreementId(agreementId);
     setEcosystem(true);
   };
+
+  // Public Experience Convergence Phase 2 -- what the public navigation does, bound on every render so it
+  // always acts on this router's current state.
+  const leaveSignIn = () => { if (signInRoute.active) signInRoute.close(); };
+  publicShell.bind({
+    home: () => { leaveSignIn(); navigateTo('signed-in'); },
+    signIn: () => signInRoute.open(null),
+    section: id => { leaveSignIn(); navigateTo('signed-in'); setPendingSection(id); },
+    skipToKs001: () => { if (focusKs001Composer()) return; leaveSignIn(); navigateTo('signed-in'); setPendingComposerFocus(true); },
+  });
+
+  if (signInRoute.active && !signedIn) {
+    return (
+      <div className="min-h-dvh flex flex-col bg-cream-100">
+        <NavBar view="signed-out" onNavigate={navigateTo} />
+        <SignInExperience
+          auth={auth}
+          session={session}
+          onSignedIn={noop}
+          onCancel={() => { signInRoute.close(); }}
+          onRecover={() => { signInRoute.close(); navigateTo('recovery'); }}
+        />
+      </div>
+    );
+  }
 
   if (store) {
     return (
@@ -600,54 +666,73 @@ export function AgentExperience({ gateway, agreementGateway, moneyGateway, agree
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
   const showHome = home || (state.turns.length === 0 && !state.conversationId);
-  return <div className="h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+  // The "Bring your plan" panel, opened from either Home's intake.
+  const bringPlanPanel = bringPlanOpen ? (
+    <BringPlanPanel
+      busy={sourcesState.phase === 'submitting'}
+      error={sourcesState.phase === 'error' ? sourcesState.error : null}
+      onClose={() => setBringPlanOpen(false)}
+      onSubmit={(text, label) => {
+        void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+      }}
+    />
+  ) : null;
+  const startFromHome = (text: string) => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); };
+  // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions straight into
+  // the SAME conversation experience the free-text composer would, then immediately opens the relevant
+  // source-ingestion path -- never a sign-in wall in front of BUILD.
+  //
+  // KS001 Upgrade Phase 3 completion correction (item 6) -- "Bring your plan" opens BringPlanPanel directly
+  // ON Home; submitting it calls sourceController.addPastedText, whose own ensureConversationId creates the
+  // ONE real conversation and updates state.conversationId, which is what naturally flips showHome to false
+  // and lands the person in BUILD -- exactly the same real transition Document/Photo already produce.
+  const pickDocument = (file: File) => { setHome(false); void sourceController.addUpload('DOCUMENT', file); };
+  const pickPhoto = (file: File) => { setHome(false); void sourceController.addUpload('PHOTO', file); };
+  // Public Experience Convergence Phase 2 -- the signed-in app reserves room for its mobile bottom
+  // navigation; the public shell has none.
+  return <div className={`h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
-    {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
+    {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
       {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}
-      {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
-          Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
-      {sessionState.status === 'signed-in' && <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>}
-      <SignedOutHome
-        disabled={state.busy || !!state.pending}
-        onStart={text => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); }}
-        // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions
-        // straight into the SAME conversation experience the free-text composer would, then immediately
-        // opens the relevant source-ingestion path -- never a sign-in wall in front of BUILD.
-        //
-        // KS001 Upgrade Phase 3 completion correction (item 6) -- "Bring your plan" previously called
-        // setHome(false) here, but showHome (below) stays true regardless while there is still no
-        // conversation/turns, so BringPlanPanel (rendered only in the conversation branch) never actually
-        // appeared -- a real dead control. The fix: open BringPlanPanel directly ON Home (rendered right
-        // below, gated on bringPlanOpen alone); submitting it calls sourceController.addPastedText, whose
-        // own ensureConversationId creates the ONE real conversation and updates state.conversationId,
-        // which is what naturally flips showHome to false and lands the person in BUILD -- exactly the
-        // same real transition Document/Photo already produce, never a fabricated chat turn.
-        onBringPlan={() => setBringPlanOpen(true)}
-        onPickDocument={file => { setHome(false); void sourceController.addUpload('DOCUMENT', file); }}
-        onPickPhoto={file => { setHome(false); void sourceController.addUpload('PHOTO', file); }}
-      />
-      {bringPlanOpen && <div className="px-4 md:px-6 pb-6">
-        <BringPlanPanel
-          busy={sourcesState.phase === 'submitting'}
-          error={sourcesState.phase === 'error' ? sourcesState.error : null}
-          onClose={() => setBringPlanOpen(false)}
-          onSubmit={(text, label) => {
-            void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
-          }}
+      {signedIn ? <>
+        {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
+            Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
+        <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>
+        <SignedOutHome
+          disabled={state.busy || !!state.pending}
+          onStart={startFromHome}
+          onBringPlan={() => setBringPlanOpen(true)}
+          onPickDocument={pickDocument}
+          onPickPhoto={pickPhoto}
         />
-      </div>}
-      {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
-          section, never a separate product surface, nav item or second Home. Signed-in people get a
-          smaller doorway with the full explanation one tap away. */}
-      <TrustProjectSection
-        compact={sessionState.status === 'signed-in'}
-        membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-        onExploreCommunity={() => navigateTo('community')}
-        onOpenStores={() => navigateTo('store')}
-      />
-      {sessionState.status !== 'signed-in' && (
-        <p className="text-center pb-6"><button onClick={() => navigateTo('recovery')} className="text-[0.8rem] text-forest-700 underline">Trouble signing in? Recover your account</button></p>
+        {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
+        {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
+            section, never a separate product surface, nav item or second Home. Signed-in people get a
+            smaller doorway with the full explanation one tap away. */}
+        <TrustProjectSection
+          compact={sessionState.status === 'signed-in'}
+          membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+          onExploreCommunity={() => navigateTo('community')}
+          onOpenStores={() => navigateTo('store')}
+        />
+      </> : (
+        // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
+        // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
+        <PublicHome
+          disabled={state.busy || !!state.pending}
+          onStart={startFromHome}
+          onBringPlan={() => setBringPlanOpen(true)}
+          onPickDocument={pickDocument}
+          onPickPhoto={pickPhoto}
+          bringPlanPanel={bringPlanPanel}
+          onFocusComposer={() => { focusKs001Composer(); }}
+          onBrowseStores={() => navigateTo('store')}
+          onSignIn={() => signInRoute.open(null)}
+          onRecover={() => navigateTo('recovery')}
+          onHelp={() => navigateTo('support')}
+          onSection={id => { focusPublicSection(id); }}
+        />
       )}
     </div> : <>
       {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD.

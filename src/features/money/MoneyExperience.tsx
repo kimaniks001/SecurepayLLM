@@ -586,7 +586,7 @@ function SettlementDestinationSection({ gateway }: { gateway: SettlementDestinat
   };
 
   return (
-    <SectionCard title="Where your money goes" description="The backend derives your identity and KSNumber -- you only tell it about the account you want paid into.">
+    <SectionCard title="Where your money goes" description="SecurePay already knows who you are — just tell it where you want to be paid.">
       {error && <ErrorBanner message={error} />}
       <label className="block text-xs text-sand-600">Settlement currency
         <input disabled={uncertain} value={currency} onChange={e => changeCurrency(e.target.value)} maxLength={3} autoComplete="off" aria-label="Settlement currency" className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-sm uppercase" />

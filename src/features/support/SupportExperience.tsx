@@ -25,11 +25,11 @@ function useRead<T>(load: (() => Promise<T>) | null, key: string): Read<T> | nul
 }
 const Note = ({ children }: { children: React.ReactNode }) => <p className="text-sm text-sand-600">{children}</p>;
 const Unknown = ({ children }: { children: React.ReactNode }) => <p role="alert" className="text-sm text-ember-700">{children}</p>;
-const Label = ({ children }: { children: React.ReactNode }) => <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">{children}</div>;
+const Label = ({ children }: { children: React.ReactNode }) => <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide">{children}</div>;
 const card = 'rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-3';
 const rowBtn = 'w-full text-left rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all';
 
-export const HUMAN_SUPPORT_UNAVAILABLE = 'Human support requests are not yet available from this screen. SecurePay can still help you inspect the Agreement, Money and formal Review state here.';
+export const HUMAN_SUPPORT_UNAVAILABLE = 'This Help page doesn’t create a support request or contact a person. Use the options above, or ask KS001 for the next step.';
 export const HELP_IS_NOT = 'Help & Support is a guide to where SecurePay already shows what it knows. It isn’t a support ticket: opening it doesn’t start a review, contact a person or change anything.';
 
 export interface HelpNav {
@@ -56,7 +56,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
   reviews: Read<{ active: number }> | null; reviewCase?: Read<{ state: string; agreementVersionId: string }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-cream-100 pb-16 md:pb-8">
+    <div className={`min-h-dvh bg-cream-100 ${signedIn ? 'pb-16 md:pb-8' : 'pb-8'}`}>
       {navBar}
       <div className="px-4 md:px-8 py-6 space-y-5 max-w-2xl mx-auto w-full" data-testid="help">
         {onBack && <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm text-sand-600 hover:text-forest-700"><ArrowLeft className="w-4 h-4" /> Back</button>}
@@ -147,7 +147,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
         </section>
 
         <section className={card}>
-          <Label>Talking to a person</Label>
+          <Label>Getting more help</Label>
           <Note>{HUMAN_SUPPORT_UNAVAILABLE}</Note>
         </section>
 
@@ -190,5 +190,7 @@ export function SupportExperience({ ctx, signedIn, agreementGateway, reviewGatew
   const money = useRead(signedIn && agreementId ? async () => { const st = await moneyGateway.status(agreementId); return { headline: paymentReadyFacts(st.paymentReadyStatus, st.paymentReady).headline }; } : null, `m:${agreementId}`);
   const label = ctx ? resolveHelpLabel(ctx, detail) : null;
   const nb = useCallback(() => <NavBar view="signed-in" onNavigate={navigate} />, [navigate]);
-  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} reviewCase={reviewCase} money={money} nav={nav} onBack={onBack} navBar={signedIn ? nb() : undefined} />;
+  // Public Experience Convergence Phase 2 -- always render NavBar: inside the public shell (signed out) it becomes
+  // PublicNav; signed in it is the unchanged app navigation. Help never picks a navigation itself.
+  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} reviewCase={reviewCase} money={money} nav={nav} onBack={onBack} navBar={nb()} />;
 }

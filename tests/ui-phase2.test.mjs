@@ -366,10 +366,15 @@ test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- neve
   const showHomeElseIdx = agent.indexOf('</div> : <>');
   assert.ok(showHomeElseIdx > onBringPlanIdx, 'expected the Home branch to end after onBringPlan');
   const homeBranch = agent.slice(onBringPlanIdx, showHomeElseIdx);
-  assert.match(homeBranch, /\{bringPlanOpen && <div[\s\S]*<BringPlanPanel/, 'expected BringPlanPanel to render on Home itself, gated on bringPlanOpen');
+  // Public Experience Convergence Phase 2 -- the panel is built once (gated on bringPlanOpen) and rendered on
+  // BOTH Homes: the signed-in Home directly, and the public Home through its bringPlanPanel slot.
+  const panelDecl = agent.slice(agent.indexOf('const bringPlanPanel = bringPlanOpen ?'), showHomeElseIdx);
+  assert.match(panelDecl, /^const bringPlanPanel = bringPlanOpen \? \(\s*<BringPlanPanel/, 'expected BringPlanPanel to be gated on bringPlanOpen');
+  assert.match(homeBranch, /\{bringPlanPanel && <div[\s\S]*\{bringPlanPanel\}/, 'expected the signed-in Home to render the panel');
+  assert.match(homeBranch, /<PublicHome[\s\S]*bringPlanPanel=\{bringPlanPanel\}/, 'expected the public Home to render the panel');
   // Submitting it must go through sourceController.addPastedText -- the SAME real ingestion path that
   // creates the ONE real conversation (via ensureConversationId), never a fabricated human chat turn.
-  assert.match(homeBranch, /sourceController\.addPastedText/);
+  assert.match(panelDecl, /sourceController\.addPastedText/);
 });
 
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS

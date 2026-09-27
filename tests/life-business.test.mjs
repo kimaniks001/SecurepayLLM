@@ -124,7 +124,9 @@ test('D2. Business Home never claims a role assignment takes effect immediately,
   // controller.initiateRoleAssignment() call are gone -- replaced with a truthful capability note.
   assert.doesNotMatch(contents, /initiateRoleAssignment/);
   assert.doesNotMatch(contents, /Member's identity id/);
-  assert.match(contents, /does not\s+yet\s+support\s+an\s+administrator\s+assigning\s+a\s+role\s+to\s+a/i);
+  // Public Experience Convergence Phase 2 -- the same truthful capability note, in customer language.
+  assert.match(contents, /Assigning roles to other members isn.t available here yet\./);
+  assert.doesNotMatch(contents.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), /backend|participant-facing contract/i, 'no engineering language in the rendered Business copy');
 });
 
 test('D3. Business/Account controllers never derive what a person can do from which screen they are on -- every permission list is sourced only from an authoritySummary read, never a client-side computed set', async () => {

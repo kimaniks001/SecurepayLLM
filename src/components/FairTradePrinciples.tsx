@@ -11,9 +11,9 @@ export function FairTradeAffordance({ onOpen }: { onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
-      className="text-[0.78rem] text-sand-500 hover:text-forest-600 transition-colors underline decoration-sand-300 underline-offset-2"
+      className="text-[0.8rem] text-sand-700 hover:text-forest-700 transition-colors underline decoration-sand-300 underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
     >
-      Guided by the 12 principles of fair trade ›
+      Guided by the 12 Principles of Fair Trade ›
     </button>
   );
 }

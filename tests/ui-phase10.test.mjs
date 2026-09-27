@@ -136,7 +136,9 @@ test('human support: an explicit limitation, never a button, ticket, number, ass
   for (const ctx of [null, CTX]) {
     const h = help({ ctx, label: ctx && L({ versionLabel: 'version 2', currentVersionId: 'v2' }) });
     const t = text(h).replace(m.HELP_IS_NOT, '').replace('They aren’t support cases and don’t mean anyone is handling something.', '');
-    assert.match(t, /Human support requests are not yet available from this screen\. SecurePay can still help you inspect the Agreement, Money and formal Review state here\./);
+    // Public Experience Convergence Phase 2 closure -- present-tense product language, still no fake support capability.
+    assert.match(t, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask KS001 for the next step\./);
+    assert.doesNotMatch(t, /not yet available|not yet|coming soon|not ready/i);
     assert.doesNotMatch(t, /Coming soon|Request human support|Contact support|Open a ticket|ticket|case number|reference number|Support case|assigned|escalat|under investigation|working on (it|this)|OPEN \/ IN PROGRESS/i);
     assert.doesNotMatch(h, /<button[^>]*>[^<]*(human support|ticket)/i);
   }
@@ -185,7 +187,10 @@ test('context and tab hint are in memory only', async () => {
 test('Agreement Support (real path): Ask KS001, Reviews & issues, Money, Help & Support, and an honest human-support limitation -- no "Coming soon"', () => {
   const t = text(html(m.AgreementSupport, { onAskAgent() {}, reviewPanel: m.createElement('div', null, 'PANEL'), onOpenMoney() {}, onOpenHelp() {} }));
   assert.match(t, /Ask KS001/); assert.match(t, /Reviews & issues/); assert.match(t, /Money Funding, Payment Ready, release and settlement truth/); assert.match(t, /Help & Support/);
-  assert.match(t, /Human support requests are not yet available from this screen/); assert.doesNotMatch(t, /Coming soon|Request human support/);
+  // Public Experience Convergence Phase 2 -- the real path now speaks the same present-tense support doctrine as Help.
+  assert.match(t, /Need more help\?/);
+  assert.match(t, /Nothing here creates a support request or contacts a person\. Use Help (?:&amp;|&) Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001\./);
+  assert.doesNotMatch(t, /not yet available|not yet|Coming soon|Request human support|under development|ticket|case number|escalat|will contact you/i);
   const fixture = text(html(m.AgreementSupport, { onAskAgent() {} }));
   assert.match(fixture, /Request human support/); assert.match(fixture, /Coming soon/); assert.match(fixture, /Ask SecurePay/);   // fixture path untouched
 });
@@ -237,7 +242,8 @@ test('notifications stay attention, not case management: no review or support-ca
   // remains genuinely forbidden is inventing a review-case or support-case deep link, which this screen
   // still has no concept of at all.
   assert.doesNotMatch(n, /supportCase|ticket|reviewCaseId/i);
-  assert.match(m.HUMAN_SUPPORT_UNAVAILABLE, /not yet available/);
+  assert.match(m.HUMAN_SUPPORT_UNAVAILABLE, /doesn’t create a support request or contact a person/);
+  assert.doesNotMatch(m.HUMAN_SUPPORT_UNAVAILABLE, /not yet|coming soon/i);
 });
 
 test('a scoped Help context is cleared on every navigation, so Account -> Help is global (no stale Agreement)', async () => {

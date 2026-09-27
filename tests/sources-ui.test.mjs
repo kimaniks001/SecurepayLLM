@@ -38,29 +38,33 @@ test('SourceCard: a READY source shows its name, document type, and summary -- n
 });
 
 // ---------------------------------------------------------------- KS001 Upgrade Phase 3 completion correction (item 9)
-test('SourceCard: shows a bounded "N useful details added to BUILD / N things need clarification" summary, never a debug screen', () => {
+test('SourceCard: shows a bounded "N details found to check / N things need clarification" summary, never a debug screen', () => {
   const out = text(html(api.SourceCard, {
     source: source({ uncertainties: ['Quantity of tile adhesive is unclear.'] }), onRetry() {}, onRemove() {}, busy: false, factCount: 3,
   }));
-  assert.match(out, /3 useful details added to BUILD/);
+  assert.match(out, /3 details found to check/);
+  // Public Experience Convergence Phase 2 -- customer copy never names the internal BUILD workspace.
+  assert.doesNotMatch(out, /BUILD/);
   assert.match(out, /1 thing needs clarification/);
 });
 test('SourceCard: a singular fact/uncertainty count uses singular wording', () => {
   const out = text(html(api.SourceCard, { source: source({ uncertainties: [] }), onRetry() {}, onRemove() {}, busy: false, factCount: 1 }));
-  assert.match(out, /1 useful detail added to BUILD/);
+  assert.match(out, /1 detail found to check/);
 });
-test('SourceCard: zero facts reaching BUILD is stated plainly, never silently omitted', () => {
+test('SourceCard: zero facts found is stated plainly, never silently omitted', () => {
   const out = text(html(api.SourceCard, { source: source({ uncertainties: [] }), onRetry() {}, onRemove() {}, busy: false, factCount: 0 }));
-  assert.match(out, /Nothing from this reached BUILD yet/);
+  assert.match(out, /Nothing useful found in this yet/);
+  assert.doesNotMatch(out, /BUILD/);
 });
 test('SourceCard: an unknown factCount (caller has not computed it yet) shows no fabricated 0', () => {
   const out = text(html(api.SourceCard, { source: source({ uncertainties: [] }), onRetry() {}, onRemove() {}, busy: false }));
-  assert.doesNotMatch(out, /useful detail|Nothing from this reached BUILD/);
+  assert.doesNotMatch(out, /found to check|Nothing useful found/);
 });
 
 test('SourceCard: a PROCESSING source shows a calm "reading" state, never a fake success', () => {
   const out = text(html(api.SourceCard, { source: source({ extractionStatus: 'PROCESSING', summary: '' }), onRetry() {}, onRemove() {}, busy: false }));
-  assert.match(out, /Reading this into BUILD/);
+  assert.match(out, /Reading this…/);
+  assert.doesNotMatch(out, /BUILD/);
 });
 
 test('SourceCard: a FAILED source shows the real failure reason and a Try again action, never invented content', () => {

@@ -17,7 +17,7 @@ export function sourceIngestionErrorText(error: unknown): string {
     if (error.code === 'AGENT_SOURCE_NOT_FOUND') return 'This source could not be found. It may have been removed.';
     if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this just now.';
     if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) {
-      return 'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to your agreement yet.';
+      return 'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to this conversation yet.';
     }
     return error.message;
   }

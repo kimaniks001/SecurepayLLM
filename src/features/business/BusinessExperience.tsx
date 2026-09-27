@@ -105,12 +105,7 @@ export function BusinessExperience({ controller, onNavigate }: {
               <SurfaceBody>
                 <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Role management</div>
                 <p className="text-[0.78rem] text-sand-600">
-                  SecurePay's backend has real maker-checker role-assignment authority for
-                  Organizations. The current participant-facing contract does not yet support an
-                  administrator assigning a role to a <em>different</em> Business member from this
-                  screen — the underlying endpoint only accepts a request for the signed-in person's
-                  own identity, and there is no backend listing of role-assignment requests waiting
-                  for approval. Assigning roles to other members is not available here yet.
+                  Assigning roles to other members isn’t available here yet.
                 </p>
               </SurfaceBody>
             </Surface>

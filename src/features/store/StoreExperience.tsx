@@ -17,6 +17,7 @@ import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { useAppNavPadding } from '../public/publicShell';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability'>;
 
@@ -43,6 +44,7 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
   onNavigate: (view: AppView) => void;
 }) {
+  const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
@@ -97,7 +99,7 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   if (signInGate) {
     const authData = secureAuthView(identityState);
     return (
-      <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
         <NavBar view={navBarView} onNavigate={handleNavigate} />
         <div className="flex-1 flex items-center justify-center p-6">
           <SecureAuthCard
@@ -214,7 +216,7 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+    <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={navBarView} onNavigate={handleNavigate} />
       <div className="flex-1 flex flex-col overflow-hidden">{body}</div>
     </div>

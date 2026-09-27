@@ -47,7 +47,7 @@ export function DeveloperExperience({ controller, onNavigate }: {
         <button onClick={() => onNavigate('account')} className="flex items-center gap-1.5 text-sand-500 hover:text-forest-600 text-[0.8rem]">
           <ArrowLeft className="w-3.5 h-3.5" /> Account
         </button>
-        <PageHeader title="Developer / Connect" description="Bring SecurePay into your own product: register an application, issue credentials, and receive webhooks. Only real, backend-verified capability is shown here." />
+        <PageHeader title="Developer / Connect" description="Bring SecurePay into your own product: register an application, issue credentials, and receive webhooks. Only what’s available to your Business is shown here." />
 
         {!application && (
           <Surface>
