@@ -11,7 +11,8 @@
 | Decision | Resolves |
 | --- | --- |
 | Direct public Join is approved. Membership always needs explicit acceptance, which may start from a direct Join or an invitation. | UR-205 |
-| Eligible Business (and Organization) KS identities may be Members. | UR-206 |
+| Eligible Business KS identities may be Members; a future Organization KS may be too (it does not exist yet). | UR-206 |
+| **Final Business-authority correction:** a Business KS is an identity, not a login principal. An authorised person acts for the Business under server-proven authority, using the Business-specific permission direction `TRUST_PROJECT_MEMBERSHIP_MANAGE_FOR_BUSINESS`. RBAC Organization ≠ Organization KS. Phase 4 is sliced 4A–4D. | UR-218, UR-219, UR-220 |
 | DECLINED may later Join directly. | UR-206 |
 | REVOKED cannot self-reactivate. | UR-206 |
 | The public spelling is "KS Number". | UR-214 |
@@ -86,7 +87,7 @@ It reveals value before asking for anything. That centre stays byte-identical: i
 | --- | --- |
 | 2 | Public shell, copy and accessibility — UI only |
 | 3 | Continuity token, rate limits and new sources — API + UI |
-| 4 | Join over the existing KS identity (individuals, and Businesses through a server-checked representative) — API + UI. ADR-0021 is confirmed; the Join CTA goes live only here. |
+| 4 | Join over the existing KS identity — API + UI, one phase with internal slices: **4A** individual Join; **4B** Business onboarding / represented authority; **4C** Business Trust Project Join; **4D** Organization KS (conditional). ADR-0021 is confirmed. The individual Join CTA goes live with 4A, Business Join with 4B + 4C, and Organization Join only if 4D is approved and implemented. |
 
 ## 3. Current signed-out architecture
 
@@ -135,7 +136,7 @@ flowchart TB
     C -->|Review this| HO["Handoff identity step:<br/>Sign in · (Phase 4) Join"]
     J --> NEW["New individual → signup (unchanged API) → membership join"]
     J --> OLD["Existing KS (individual) → sign in → membership join"]
-    J --> BIZ["Existing Business KS → authorised representative signs in<br/>→ join on behalf of the Business (server-checked authority)"]
+    J --> BIZ["Authorised person (signed in as themselves)<br/>acts for a Business KS under server-proven authority<br/>→ membership on the Business KS (4B + 4C)"]
     SI --> APP["Signed-in shell — existing NavBar (unchanged)"]
     NEW --> APP
     OLD --> APP
@@ -316,7 +317,7 @@ The mapping is in §6.2.
 | Question | "Can my business use this?" |
 | Primary copy | "Use SecurePay directly or build it into how your business already works." |
 | Secondary copy | "A Business KS Number, a Store for your offers, a place in The Trust Project, and — once set up — tools to connect SecurePay to your own systems." |
-| CTA | signed out: "Sign in to set up a Business". A Business joins The Trust Project with its own Business KS Number, through an authorised representative (§14.1). |
+| CTA | signed out: "Sign in to set up a Business". An authorised person acts for the Business; the Business joins The Trust Project with its own Business KS Number (§14.1). This is live only when Phases 4B + 4C are real, and nothing is exposed before then. |
 | Must not claim | API availability to the public, SLAs, pricing numbers not shown by the backend |
 | Desktop | a text block plus 3 small feature lines |
 | Mobile | stacked |
@@ -341,8 +342,8 @@ The contract is in §6.3.
 | Purpose | the acquisition doorway |
 | Question | "How do I join, and what does it cost me?" |
 | Primary copy | "Join The Trust Project" |
-| Secondary copy | "People, businesses and organizations can belong. One KS Number for SecurePay and The Trust Project. You never have to invite, teach or sell. Joining doesn't turn on payments, fees, bank accounts or subscriptions." |
-| CTA | **Join** · "I already have a KS Number". These render **only when Phase 4 Join authority is live** (§4). Before that, the chapter is not shipped in a deployable build; there is no placeholder. |
+| Secondary copy | "People and businesses can belong. One KS Number for SecurePay and The Trust Project. You never have to invite, teach or sell. Joining doesn't turn on payments, fees, bank accounts or subscriptions." |
+| CTA | **Join** · "I already have a KS Number". These render **only when Phase 4A individual Join is live** (§4). Before that, the chapter is not shipped in a deployable build; there is no placeholder. There is never an Organization Join action or an "organizations coming soon" line. Organizations may appear in *purpose* copy (ch. 6/8) but not as an actionable capability until an Organization KS exists (4D). |
 | Live truth | none |
 | Must not claim | rewards, status, financial activation |
 | Desktop | a centred band on `bg-cream-50` with a soft `ks001-surface` light |
@@ -378,8 +379,8 @@ The contract is in §6.3.
 | "For Business" plan (`BUSINESS`) with a Business KS identity | yes (`ActivationExperience` PlanCard: "subject to the authority and entitlement checks that apply") | named publicly in ch. 10; configured signed-in via `#/activate` |
 | Business identity, members and roles (maker-checker) | partial (`BusinessExperience`: role assignment limited to the caller's own request) | signed-in Account → Business; **not** on the public Home |
 | Store for Business offers | yes | ch. 9 / ch. 10 mention |
-| How a Business KS comes to exist | **privileged only.** It is issued by `POST /api/v1/identities` with `IDENTITY_ISSUE` (trusted actor). There is no customer self-service Business issuance, and only signup (INDIVIDUAL) enrols credentials, so a Business KS cannot sign in as itself. `BusinessExperience`'s own copy says activation needs exactly that sign-in (UR-219). | Public copy must not promise "create your Business KS Number here". |
-| Business Trust Project membership | decided: eligible (ADR-0021). Phase 4 builds it through a server-checked representative authority (API contract §7.2, UR-218). | ch. 10 mention; the action lives signed-in |
+| How a Business KS comes to exist | **privileged only, today.** It is issued by `POST /api/v1/identities` with `IDENTITY_ISSUE` (trusted actor). There is no customer journey to a Business KS with server-recognised authority for a person. The governance bootstrap (`requireOwnerOrInternalActor`) still expects a Business-self actor, a **legacy incompatibility** (UR-219). Target model: **a Business KS is an identity, not a login principal**; an authenticated individual acts for it under server-proven authority (Phase 4B). | Public copy must not promise "create your Business KS Number here". |
+| Business Trust Project membership | decided: eligible (ADR-0021). An authorised person acts for the Business under the Business-specific permission direction `TRUST_PROJECT_MEMBERSHIP_MANAGE_FOR_BUSINESS` (API contract §7.2, UR-218). Phase 4C. | ch. 10 mention; the action lives signed-in in Account → Business |
 | Developer / Connect: app registration (SANDBOX/PRODUCTION), credentials, webhooks, SecureCode | yes, owned by the Business KS | named generically in ch. 10 ("tools to connect SecurePay to your own systems"); details only in signed-in Account → Developer / Connect |
 | Must not clutter the consumer Home | API docs links, environment names, webhook or credential terms, pricing tables | — |
 
@@ -487,7 +488,7 @@ PublicHome
 | `features/recipient/*`, `features/securelink/*`, `features/handoff/*` (authority flow), `features/activation/*`, `features/money/*`, `features/review/*`, `features/amendments/*`, `features/execution/*`, `features/workspace/*`, `SignedInHome.tsx` | **C** | authority or pinned behaviour | — |
 | `features/store/*`, `components/StoreHome.tsx` | **C** / **D** | the public search is reused as is; styling reviewed later | — |
 | Fixture App: `App.tsx`, `demoData.ts`, `ecosystemData.ts`, `storeData.ts`, `ReferralHistoryView.tsx`, `DisputeMaster*.tsx`, `AgreementBuilderView.tsx` | **C** | must never feed public UI | — |
-| `features/plug/*`, `features/master/*`, `features/referral/*`, `features/business/*` (+ Phase 4 "Join The Trust Project for this Business" action), `features/developer/*`, `features/invitation-inbox/*` | **D** | public framing depends on UR-207/208; copy leaks in §10 | — |
+| `features/plug/*`, `features/master/*`, `features/referral/*`, `features/business/*` (+ Phase 4B/4C: represented-authority onboarding and "Join The Trust Project for this Business"), `features/developer/*`, `features/invitation-inbox/*` | **D** | public framing depends on UR-207/208; copy leaks in §10 | — |
 | `tailwind.config.js`, `src/index.css` | **B** | optional *new* tokens only (e.g. a `public-chapter` background); existing tokens unchanged; a reduced-motion rule in CSS | the reduced-motion rule affects every page (intended) |
 
 ## 9. Visual convergence specification
@@ -572,7 +573,7 @@ PublicHome
 | 15 | `components/TrustProjectSection.tsx` | Plug card | "Connect useful people, needs and opportunities. … When a real commercial introduction qualifies under SecurePay's existing referral rules, part of the value it created can be shared. Inviting someone to join is not an introduction and earns nothing." | 4 | narrower than the locked Plug definition (practical help, paid work); leads with referral value | §12 copy | 2 |
 | 16 | `features/sources/controller.ts` | error | "SecurePay received this, but couldn't read it right now. Nothing from it has been added to your agreement yet." | 4 | nothing is an agreement yet | "…Nothing from it has been added yet." | 2 |
 | 17 | `components/NavBar.tsx` | nav | Agreements / Money / Account / Notifications for signed-out visitors | 4 | public nav leak | `PublicNav` | 2 |
-| 18a | `features/business/BusinessExperience.tsx` | activation helper | "…activation currently requires signing in as the Business KS identity itself, or an authorised internal actor. Signing in as a personal identity that administers this Business through Organization membership is not the same thing and will not succeed here." | 4 | Truthful but unusable: no customer path lets a Business KS sign in as itself (only signup enrols credentials, for INDIVIDUAL). This is a real product gap. | Rewrite once UR-219 is decided; not in Phase 2 unless UR-219 is | D |
+| 18a | `features/business/BusinessExperience.tsx` | activation helper | "…activation currently requires signing in as the Business KS identity itself, or an authorised internal actor. Signing in as a personal identity that administers this Business through Organization membership is not the same thing and will not succeed here." | 4 | This quotes **current legacy behaviour** (`requireOwnerOrInternalActor`). The target model is represented authority, as the same page's header already says ("You are signed in as yourself…"). The copy describes an incompatibility, not a way forward. | Rewrite when Phase 4B replaces the bootstrap (UR-219) | 4B |
 | 18 | `components/OfferBuilderView.tsx` | placeholder | "Media reference (URL or asset id)" | 4 | technical id | "Photo link" (review with Store media) | D |
 | 19 | `components/SignedOutHome.tsx` | trust line | "Start without a KS Number. Nothing becomes an agreement until you review and confirm it." | 2 | true and locked | keep (pinned) | — |
 | 20 | `components/TrustProjectSection.tsx` | Learn | "…The Skills Institute, for structured training and practice, is not open yet." | 2 | a truthful limitation | keep | — |
@@ -597,7 +598,7 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 **Must say:**
 - "The Trust Project is powered by SecurePay. Your KS Number is your identity across both."
 - One person or entity, one KS Number, one place in the ecosystem, many capacities. There is no Trust Project identity or number, and no Member, Plug or Master number.
-- People, businesses and organizations can belong, each with its own KS Number.
+- People and businesses can belong, each with its own KS Number. Organizations may be mentioned as part of the Project's purpose, but no Organization action is offered until an Organization KS exists (UR-220).
 - Joining creates or uses your SecurePay KS identity (transparent, not disguised).
 - You never have to invite, teach or sell. A quiet member is a complete member (existing copy).
 - Belonging is not a certificate that someone is trustworthy (existing copy).
@@ -620,7 +621,7 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 | Signed out | Join · Read the 12 Principles · Browse Stores |
 | Signed-in member | Explore Community |
 | Signed-in non-member | Join (only once Phase 4 authority is live) |
-| Signed-in representative of a Business | "Join The Trust Project for {Business}" in Account → Business (Phase 4, server-checked authority) |
+| Signed-in person with authority for a Business | "Join The Trust Project for {Business}" in Account → Business (Phase 4C, after 4B; server-proven authority, the person stays signed in as themselves) |
 
 ## 12. Member / Plug / Master contract
 
@@ -632,31 +633,42 @@ These appear as the ch. 8 vignettes, not as a slogan list.
 | **Membership** | whether that KS identity belongs to The Trust Project |
 | **Capacity** | additional roles the participant may perform |
 
-- Member is the heart of the Project and applies to eligible individual, business and organization KS identities.
+- Member is the heart of the Project. It applies to eligible INDIVIDUAL and BUSINESS KS identities now, and to a future Organization KS.
 - Plug and Master are **individual human capacities** for this programme. A Business may engage, employ, host or work with Plugs and Masters, but it is never itself called a Plug or a Master.
 - There is no ladder: Member → Plug → Master is forbidden.
 
 ```mermaid
 flowchart TB
     KS["KS IDENTITY / KS Number<br/>one person or entity · one place · many capacities"]
-    KS --> TYPE["Identity type"]
-    KS --> MEM["Trust Project membership<br/>(state on this identity)"]
-    KS --> OTH["Other authority<br/>Agreements · Store · Money · Governance …"]
-    TYPE --> TI["Individual"]
-    TYPE --> TB["Business"]
-    TYPE --> TO["Organization<br/>(where the identity model supports it)"]
-    TI --> CI["ACTIVE member → Member<br/>+ may also become Plug<br/>+ may also become Master<br/>Store/profile · Agreements"]
-    TB --> CB["ACTIVE member → Member<br/>Store/profile · Community · opportunities<br/>Agreements · governance / representatives<br/>engages Plugs and Masters"]
-    TO --> CO["ACTIVE member → Member<br/>Community · Store/profile where supported<br/>projects / opportunities · Agreements · governance<br/>engages Plugs and Masters"]
+    KS --> I["INDIVIDUAL<br/>(live)"]
+    KS --> B["BUSINESS<br/>(live)"]
+    KS --> O["ORGANIZATION KS<br/>(future — not in the identity model yet)"]
+    I --> TPM["TRUST PROJECT MEMBERSHIP → Member"]
+    B --> TPM
+    O -.->|future| TPM
+    I --> CAP["Individual-only capacities: Plug · Master"]
+    B -. "hires / engages / hosts" .-> CAP
 ```
 
-**Code fact:** `IdentityType` today is `INDIVIDUAL | BUSINESS | SYSTEM | TEST`. There is no distinct ORGANIZATION type yet; organizations are modelled as a BUSINESS KS linked to an RBAC organization (`authorization.business_organizations`). The eligibility decision covers Organization identities as and when the identity model supports them (API contract §7, UR-220).
+```mermaid
+flowchart TB
+    H["AUTHENTICATED INDIVIDUAL KS<br/>(signed in as themselves — the actor)"]
+    H -->|"server-proven authority<br/>(representation, not ownership)"| BK["BUSINESS KS<br/>(represented identity — never logs in)"]
+    BK --> G[Governance]
+    BK --> S[Store]
+    BK --> T[Trust Project membership]
+```
+
+**Code facts:**
+- `IdentityType` today is `INDIVIDUAL | BUSINESS | SYSTEM | TEST`. There is **no** Organization identity type.
+- The **RBAC Organization** (`authorization.organizations`, linked to a Business KS through `authorization.business_organizations`) is an authorization/governance container. It is **not** an Organization KS and is no evidence that one exists.
+- Non-business organizations must not be forced into BUSINESS. An Organization KS is product direction only (API contract §7, UR-220; Phase 4D, conditional).
 
 | | Member | Plug | Master |
 | --- | --- | --- | --- |
-| Who | eligible individuals, businesses and organizations | an identifiable individual person | an identifiable individual person |
+| Who | eligible individuals and businesses (future Organization KS) | an identifiable individual person | an identifiable individual person |
 | Card line | "Belong and take part." | "Help people use the ecosystem and reach opportunity." | "Bring deep practical experience." |
-| Card detail | "People, businesses and organizations belong through their own KS Number. Ask, help, offer, find, learn, publish opportunities, keep a Store, take part in Community, trade, work with people, and engage Plugs or Masters. A quiet member is a complete member — you never need to become anything else." | "A Plug is an identifiable person who understands The Trust Project and helps people use the ecosystem and make useful things happen: getting started, set up a profile or Store, photograph and list products, Community research, finding opportunities, making connections, locating Masters, explaining SecurePay, and practical digital or physical help. Plugs may also do separately agreed paid work. An invitation is not a referral, recruiting members earns nothing automatically, income is never guaranteed, and delegated tasks never create Agreement or money authority." | "A Master is an identifiable person with meaningful, demonstrable practical experience in a specific field: consultation, a Master Opinion or second opinion, teaching, mentoring, practical sessions, supervised work, apprenticeship, project support, or real professional work. A business may have Masters working for or with it. Paid help is agreed separately. Being a Master never changes an Agreement, confirms for someone else, decides Payment Ready, releases money, adjudicates or imposes liability." |
+| Card detail | "People and businesses belong through their own KS Number. Ask, help, offer, find, learn, publish opportunities, keep a Store, take part in Community, trade, work with people, and engage Plugs or Masters. A quiet member is a complete member — you never need to become anything else." | "A Plug is an identifiable person who understands The Trust Project and helps people use the ecosystem and make useful things happen: getting started, set up a profile or Store, photograph and list products, Community research, finding opportunities, making connections, locating Masters, explaining SecurePay, and practical digital or physical help. Plugs may also do separately agreed paid work. An invitation is not a referral, recruiting members earns nothing automatically, income is never guaranteed, and delegated tasks never create Agreement or money authority." | "A Master is an identifiable person with meaningful, demonstrable practical experience in a specific field: consultation, a Master Opinion or second opinion, teaching, mentoring, practical sessions, supervised work, apprenticeship, project support, or real professional work. A business may hire, engage or work with Masters. Paid help is agreed separately. Being a Master never changes an Agreement, confirms for someone else, decides Payment Ready, releases money, adjudicates or imposes liability." |
 | Is not | a lowest tier; recruitment duty; individual-only; required to become Plug or Master | a recruiter; an Agreement or money authority; a guaranteed income; a business or organization capacity | a judge; an Agreement authority; Payment Ready or release authority; a trust score; a business or organization capacity |
 | Backend truth | an ACTIVE membership row on the identity (any eligible type) | market-network Plug participation (Market Ready → explicit entry). A separate Agreement Plug Lifetime Share exists **only** through explicit Agreement attribution and is a backend entitlement, not a promise (UR-208). | a Master profile by **self-designation** (`/master/me/designate`, unverified). Do not say "verified" or "certified" (UR-207). |
 | Public CTA | Join | none on the public Home (existing flows are signed-in) | none on the public Home until UR-207 is resolved |
@@ -718,38 +730,51 @@ sequenceDiagram
 
 The authority sequence is in API contract §7.1 ("TARGET — existing KS holder Joins").
 
-### 14.1 Business and Organization Join
+### 14.1 Business Join (and why there is no Organization Join)
 
-- **New business.** There is no customer self-service Business KS issuance today: a Business KS is issued by a privileged actor (`IDENTITY_ISSUE`), and it cannot sign in as itself (UR-219). The public Home therefore **never** offers "create your Business KS Number here". It must also never issue an individual KS as a workaround for a business.
-- **Existing Business KS.**
-  1. An authorised representative signs in with their own individual KS Number.
-  2. In Account → Business they choose "Join The Trust Project for {Business}".
-  3. They review and accept the current Principles *on behalf of the Business*.
-  4. The server proves the representative's authority over that Business: the linked organization plus an org-scoped permission, the Vision Board / Projects pattern (API contract §7.2, UR-218).
-  5. The Business membership becomes ACTIVE, and the Business is a Member.
-- **Guardrails.**
-  - Knowing a Business KS Number is never enough.
-  - The browser never decides who represents a Business.
-  - Any employee without that authority sees no Join-for-Business action. If one is attempted, the server refuses it.
-  - The representative's own individual membership is unaffected, and so is the Business's.
+**Model** [Locked]:
+- A Business KS is an identity, **not a login principal**. People authenticate; Businesses are represented.
+- An authorised person acts for the Business while signed in as themselves.
+- The membership belongs to the Business KS.
+- The audit records both the actor and the represented Business.
+
+- **New business (today).** There is no customer journey to a Business KS with server-recognised authority for a person. Business KS issuance is privileged (`IDENTITY_ISSUE`), and the governance bootstrap still expects a Business-self actor (legacy incompatibility, UR-219).
+  - The public Home therefore **never** offers "create your Business KS Number here".
+  - It never issues an individual KS as a workaround for a business.
+  - **Phase 4B** builds customer Business onboarding with represented authority.
+- **Existing Business KS (Phase 4C, after 4B):**
+  1. An authorised person signs in **as themselves** with their own individual KS Number.
+  2. In Account → Business they address a Business KS they may represent and choose "Join The Trust Project for {Business}".
+  3. They see the current 12 Principles version and accept it **for the Business**.
+  4. The server resolves the Business KS and its governance link, and proves the person's representative authority under the Business-specific permission direction `TRUST_PROJECT_MEMBERSHIP_MANAGE_FOR_BUSINESS` (API contract §7.2, UR-218).
+  5. The membership is created on the **Business KS**, and the Business becomes an ACTIVE Member.
+- **Never authority:**
+  - knowing the Business KS Number;
+  - being listed in the Business's RBAC Organization;
+  - "being in the same organization";
+  - a selection in the UI.
+
+  Anyone without authority sees no Join-for-Business action, and the server refuses any attempt. The person's own individual membership is unaffected.
+- **Organization Join:** not offered. There is no Organization KS today (UR-220). No action and no placeholder copy appear until Phase 4D is explicitly approved and implemented.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    title TARGET UX — existing Business KS joins through an authorised representative (Phase 4)
-    actor A as Representative (individual KS)
+    title TARGET UX — an authorised person joins The Trust Project for a Business (Phase 4C)
+    actor A as Authorised person (signed in as themselves)
     participant UI as Account → Business
     participant M as Membership API
     participant Z as Business authority (server)
-    A->>UI: signed in as own individual KS
-    UI->>M: GET business membership for Business KS
-    M->>Z: resolve Business → linked organization → org-scoped permission?
+    A->>UI: addresses a Business KS they may represent
+    UI->>M: GET Trust Project membership for that Business KS
+    M->>Z: resolve Business KS → governance link → TRUST_PROJECT_MEMBERSHIP_MANAGE_FOR_BUSINESS?
     Z-->>M: authorised (else: action not offered / refused)
-    UI-->>A: "Join The Trust Project for {Business}" + what it means + 12 Principles
-    A->>UI: accepts on behalf of the Business
-    UI->>M: POST join for Business KS {acceptPrinciples, principlesVersion} + Idempotency-Key
+    UI-->>A: "Join The Trust Project for {Business}" + what it means + current 12 Principles
+    A->>UI: accepts FOR the Business
+    UI->>M: POST join for the Business KS {acceptPrinciples, principlesVersion} + Idempotency-Key
     M->>Z: re-check authority (never trust the client)
-    M-->>UI: Business membership ACTIVE (audit: acting individual + member Business)
+    M-->>UI: Business KS membership ACTIVE
+    Note over M: audit — actor individual · represented Business · principles version · origin · time
 ```
 
 ## 15. Invited-person sequence
@@ -845,8 +870,11 @@ sequenceDiagram
 
 **Phase 4** (API + UI):
 - `POST /community/membership/join` and the versioned principles;
-- the Business on-behalf Join with server-checked authority (§14.1);
-- Join flows §13–15, and switching the Join CTA live;
+- the internal slices:
+  - **4A** individual Join (§13–15), switching the individual Join CTA live;
+  - **4B** Business onboarding / represented authority (UR-219);
+  - **4C** Business Trust Project Join (§14.1, UR-218);
+  - **4D** Organization KS, only if explicitly required for launch (UR-220). Otherwise no Organization action is exposed.
 - the Community copy (§10 #14);
 - the signup error context (#13).
 
@@ -865,6 +893,9 @@ sequenceDiagram
 - a Trust Project number or a second identity (including a second identity for an organization);
 - a "Join opens soon" or other construction notice behind a public CTA;
 - a Business or Organization described as a Plug or a Master;
+- a Business KS as a login principal, or "sign in as the Business";
+- the RBAC Organization treated as an Organization KS;
+- an Organization Join action or placeholder before an Organization KS exists;
 - self-reactivation of a REVOKED membership;
 - ranks or tiers;
 - membership-gated SecurePay usage;
