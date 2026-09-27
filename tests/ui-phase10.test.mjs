@@ -187,7 +187,10 @@ test('context and tab hint are in memory only', async () => {
 test('Agreement Support (real path): Ask KS001, Reviews & issues, Money, Help & Support, and an honest human-support limitation -- no "Coming soon"', () => {
   const t = text(html(m.AgreementSupport, { onAskAgent() {}, reviewPanel: m.createElement('div', null, 'PANEL'), onOpenMoney() {}, onOpenHelp() {} }));
   assert.match(t, /Ask KS001/); assert.match(t, /Reviews & issues/); assert.match(t, /Money Funding, Payment Ready, release and settlement truth/); assert.match(t, /Help & Support/);
-  assert.match(t, /Human support requests are not yet available from this screen/); assert.doesNotMatch(t, /Coming soon|Request human support/);
+  // Public Experience Convergence Phase 2 -- the real path now speaks the same present-tense support doctrine as Help.
+  assert.match(t, /Need more help\?/);
+  assert.match(t, /Nothing here creates a support request or contacts a person\. Use Help (?:&amp;|&) Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001\./);
+  assert.doesNotMatch(t, /not yet available|not yet|Coming soon|Request human support|under development|ticket|case number|escalat|will contact you/i);
   const fixture = text(html(m.AgreementSupport, { onAskAgent() {} }));
   assert.match(fixture, /Request human support/); assert.match(fixture, /Coming soon/); assert.match(fixture, /Ask SecurePay/);   // fixture path untouched
 });

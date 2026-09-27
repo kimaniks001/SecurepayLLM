@@ -311,6 +311,7 @@ export { CommunityHome } from './src/components/CommunityHome';
 export { CommunityObjectCard } from './src/components/CommunityObjectCard';
 export { PublicShellProvider } from './src/features/public/publicShell';
 export { SupportExperience, HUMAN_SUPPORT_UNAVAILABLE } from './src/features/support/SupportExperience';
+export { AgreementSupport } from './src/components/AgreementSupport';
 export { secureAuthView } from './src/features/identity/view';
 export { demoOffers, demoStores } from './src/storeData';
 export { demoCommunityObjects } from './src/communityData';
@@ -465,4 +466,38 @@ test('the signed-out network-activity gate uses contextual sign-in copy on the s
   assert.doesNotMatch(view.title + view.reason, /review this/i);
   // Signed-in loading is unchanged: the self-scoped profile is (re)loaded only when the session is signed in.
   assert.match(src, /if \(sessionState\.status === 'signed-in'\) void controller\.load\(\);/);
+});
+
+// ================================================================== Agreement Support copy consistency
+test('real Agreement Support speaks the same present-tense support doctrine as Help, at AA contrast', () => {
+  const markup = xr(extra.AgreementSupport, { onAskAgent: noop, reviewPanel: extra.createElement('div', null, 'PANEL'), onOpenMoney: noop, onOpenHelp: noop });
+  const out = text(markup);
+  assert.match(out, /Need more help\?/);
+  assert.match(out, /Nothing here creates a support request or contacts a person\. Use Help & Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001\./);
+  assert.doesNotMatch(out, /not yet available|not yet|Coming soon|Request human support|under development|request submitted|ticket|case number|agent assigned|escalat|will contact you/i);
+  for (const action of ['Ask KS001', 'Reviews & issues', 'Money', 'Help & Support']) assert.match(out, new RegExp(action));
+  assert.match(markup, /<div class="text-\[0\.72rem\] text-sand-600">Nothing here creates a support request/);
+  assert.deepEqual(lowContrastText(markup), [], 'no sand-400/500 text on the real Agreement Support card');
+});
+
+test('the "Coming soon" Agreement Support branch is fixture-only and unreachable in production', async () => {
+  // Real path: the only production caller always passes reviewPanel, which selects the real branch.
+  const workspace = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
+  assert.match(workspace, /reviewPanel=\{<ReviewPanel /);
+  const callers = execFileSync('git', ['grep', '-l', '<AgreementDetail\\b', '--', 'src'], { encoding: 'utf8' }).trim().split('\n').sort();
+  assert.deepEqual(callers, ['src/App.tsx', 'src/features/workspace/WorkspaceExperience.tsx'], 'no other AgreementDetail caller');
+  // src/App.tsx is the fixture App: loaded only in DEV fixture mode, and fixture mode throws in production.
+  const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
+  assert.match(runtime, /const FixtureApp = import\.meta\.env\.DEV && import\.meta\.env\.VITE_SECUREPAY_MODE === 'fixture'/);
+  assert.match(await readFile('src/config/securepay.ts', 'utf8'), /if \(production && value === 'fixture'\) throw new Error\('Fixtures are disabled in production'\)/);
+  // The fixture branch itself is intentionally unchanged (still pinned by ui-phase10).
+  const fixture = text(xr(extra.AgreementSupport, { onAskAgent: noop }));
+  assert.match(fixture, /Request human support/);
+  assert.match(fixture, /Coming soon/);
+});
+
+test('Agreement Support gains no support authority', async () => {
+  const src = strip(await readFile('src/components/AgreementSupport.tsx', 'utf8'));
+  assert.doesNotMatch(src, /from '\.\.\/api|Gateway|fetch\(|http\.request|supportContext|SupportContext|ticket|escalat|localStorage|sessionStorage/i);
+  assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), '', 'no API client changes in Phase 2');
 });

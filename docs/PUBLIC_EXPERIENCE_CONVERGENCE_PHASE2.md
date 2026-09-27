@@ -371,3 +371,20 @@ The body is unchanged ("Your KS identity gives you a digital Store while your Se
   - the contextual network-activity sign-in.
 
   `tests/ui-phase10.test.mjs` is updated to the new wording, and its no-ticket and no-escalation guards are kept.
+
+## 14. Agreement Support copy consistency
+
+- **Real Agreement Support now follows the same present-tense support doctrine as Help & Support.**
+  - Before: "Human support — Human support requests are not yet available from this screen. SecurePay can still help you inspect the Agreement, Money and formal Review state here."
+  - After: "Need more help? — Nothing here creates a support request or contacts a person. Use Help & Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001."
+  - It complements the Help page wording rather than repeating it.
+- **No support authority was added:** no API client, support-case, ticket, staff Support Context, escalation or persistence (tested).
+- **AA text.**
+  - The new line is `text-sand-600` (4.85:1 on white).
+  - The rendered audit of the real card also found the "Support" label and five action helper lines at 3.27:1; they are promoted to `sand-600`.
+  - Zero failures remain at 1440, 768, 390 and 320 (signed in, real Agreement → Support).
+- **The fixture-only branch is retained unchanged.** It shows "Request human support / Coming soon" and "Raise an issue", and renders only when `reviewPanel` is absent.
+  - The only production caller, `WorkspaceExperience`, always passes `reviewPanel`.
+  - The only other caller, `src/App.tsx`, is the fixture App, loaded only in DEV fixture mode; fixture mode throws in production.
+  - This is tested, and the branch stays pinned by `ui-phase10`.
+- **Copy search.** "not yet available from this screen", "Human support requests are not yet available", "Request human support" and "Coming soon" appear in production source only in that fixture-only branch. Other hits are tests and docs.
