@@ -20,6 +20,7 @@ import {
   type CommunityHomeTab, type CircleMembershipMode, type CircleVisibility, type MembershipUiState,
 } from './controller';
 import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
+import { useAppNavPadding } from '../public/publicShell';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
@@ -875,6 +876,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
    */
   onUseThis: (fact: CommunitySourceFact) => void;
 }) {
+  const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, discoveryGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
@@ -1206,7 +1208,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+    <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={'community' as AppView} onNavigate={onNavigate} />
       {state.notice && (
         <div className="px-4 py-2">

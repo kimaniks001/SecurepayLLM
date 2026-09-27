@@ -58,7 +58,7 @@ export function BringPlanPanel({ busy, error, onSubmit, onClose }: {
           <X className="w-4 h-4" />
         </button>
       </div>
-      <p className="text-[0.8rem] text-sand-600 leading-snug">Paste text from notes, email, WhatsApp, or another AI. SecurePay will read the useful parts into BUILD as suggestions.</p>
+      <p className="text-[0.8rem] text-sand-600 leading-snug">Paste text from notes, email, WhatsApp, or another AI. SecurePay will pick out useful details as suggestions for you to check.</p>
       <textarea
         value={text} onChange={e => setText(e.target.value)} disabled={busy} rows={8}
         placeholder="Paste your plan here…"
@@ -78,7 +78,7 @@ export function BringPlanPanel({ busy, error, onSubmit, onClose }: {
           onClick={() => onSubmit(text.trim(), label.trim())}
           className="min-h-11 rounded-full bg-forest-600 px-5 text-[0.85rem] font-medium text-cream-50 hover:bg-forest-700 disabled:opacity-40"
         >
-          {busy ? 'Reading…' : 'Read into BUILD'}
+          {busy ? 'Reading…' : 'Add to this conversation'}
         </button>
       </div>
     </div>

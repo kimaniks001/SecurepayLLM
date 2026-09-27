@@ -513,7 +513,7 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
   assert.ok(current.includes('Bring the plan. Leave with an agreement.'), 'expected the exact Phase 3 headline');
   assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed.'), 'expected the exact Phase 3 supporting text');
   assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'), 'expected the exact Phase 3 trust line');
-  assert.ok(current.includes('Guided by the 12 principles of fair trade'), 'expected the quiet Fair Trade affordance beneath the input');
+  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'), 'expected the quiet Fair Trade affordance beneath the input (Phase 2 capitalisation)');
   assert.ok(!current.includes('Fair trader score') && !/\d+\/12/.test(current), 'must never grade the person with a fair trade score');
   for (const text of ['I need someone to tile my bathroom']) {
     assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);

@@ -7,6 +7,7 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
 import type { RecoveryController } from './controller';
+import { useAppNavPadding } from '../public/publicShell';
 
 /**
  * Phase 5 -- Account recovery (`AuthenticationController.requestRecovery/verifyRecovery/
@@ -21,10 +22,11 @@ export function RecoveryExperience({ controller, onNavigate, onSignIn }: {
   /** Recovery succeeded -- return to ordinary sign-in with the new password. */
   onSignIn: () => void;
 }) {
+  const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+    <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view="signed-out" onNavigate={onNavigate} />
       <div className="flex-1 flex items-start justify-center p-6">
         <div className="w-full max-w-md space-y-4">

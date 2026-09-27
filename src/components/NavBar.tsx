@@ -2,6 +2,8 @@ import { Home, FileText, Wallet, Store, Users, User, Bell } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
+import { usePublicShell } from '../features/public/publicShell';
+import { PublicNav } from '../features/public/PublicNav';
 
 interface NavBarProps {
   view: AppView;
@@ -17,7 +19,17 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: User, label: 'Account', view: 'account' },
 ];
 
-export function NavBar({ view, onNavigate }: NavBarProps) {
+/**
+ * Public Experience Convergence Phase 2 -- signed-out visitors get the public navigation (see
+ * `PublicShell`); the signed-in app navigation below is unchanged.
+ */
+export function NavBar(props: NavBarProps) {
+  const publicShell = usePublicShell();
+  if (publicShell) return <PublicNav actions={publicShell} />;
+  return <AppNavBar {...props} />;
+}
+
+function AppNavBar({ view, onNavigate }: NavBarProps) {
   const isActive = (itemView: AppView) => {
     if (itemView === 'signed-in' && (view === 'signed-in' || view === 'conversation')) return true;
     if (itemView === 'agreements' && (view === 'agreements' || view === 'agreement-detail' || view === 'agreement-builder')) return true;

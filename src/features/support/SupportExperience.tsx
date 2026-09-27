@@ -56,7 +56,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
   reviews: Read<{ active: number }> | null; reviewCase?: Read<{ state: string; agreementVersionId: string }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-cream-100 pb-16 md:pb-8">
+    <div className={`min-h-dvh bg-cream-100 ${signedIn ? 'pb-16 md:pb-8' : 'pb-8'}`}>
       {navBar}
       <div className="px-4 md:px-8 py-6 space-y-5 max-w-2xl mx-auto w-full" data-testid="help">
         {onBack && <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm text-sand-600 hover:text-forest-700"><ArrowLeft className="w-4 h-4" /> Back</button>}

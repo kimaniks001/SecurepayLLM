@@ -41,7 +41,7 @@ test('no Trust Project nav item, tab, route, view or page exists', async () => {
 
 // ------------------------------------------------------------ the proposition
 test('it explains the three shared assets, why join, and participation, in that restrained order', () => {
-  const order = ['The Trust Project', 'Shared fair-trade technologies, systems and people.', 'Technologies', 'Systems', 'People', 'Why join', 'How people take part', 'Members belong. Plugs connect. Masters know.'];
+  const order = ['The Trust Project', 'Shared fair-trade technologies, systems and people.', 'Technologies', 'Systems', 'People', 'Why join', 'How people take part', 'Members belong. Plugs help. Masters bring experience.'];
   let at = -1; for (const s of order) { const i = full.indexOf(s, at + 1); assert.ok(i > at, `"${s}" out of order or missing`); at = i; }
   assert.match(full, /Tools that make fair trade practical\./);
   assert.match(full, /Shared principles and ways of working that make fair trade repeatable\./);
@@ -51,12 +51,17 @@ test('it explains the three shared assets, why join, and participation, in that 
   assert.match(full, /Money should follow the agreement\./);
 });
 test('Member / Plug / Master are capacities, not ranks, and none carries agreement, dispute or money authority', () => {
-  assert.match(full, /A quiet member is a complete member — nobody has to invite anyone, teach, or take on another role/);
-  assert.match(full, /Inviting someone to join is not an introduction and earns nothing/);
-  assert.match(full, /qualifies under SecurePay’s existing referral rules/);
-  assert.match(full, /Being a Master does not decide agreements, disputes or money/);
-  assert.match(full, /paid teaching, mentoring or professional work is agreed separately/);
+  // Public Experience Convergence Phase 2 -- the Phase 1 §12 contract copy (shared with the public Home).
+  assert.match(full, /A quiet Member is still a complete Member\./);
+  assert.match(full, /People and businesses belong through their own KS Number\./);
+  assert.match(full, /inviting people earns nothing/);
+  assert.match(full, /Income is never guaranteed/);
+  assert.match(full, /helping never gives a Plug authority over anyone’s agreement or money/);
+  assert.match(full, /A Master never judges who is right, never changes or confirms an agreement for someone else, and never releases money\./);
+  assert.match(full, /Paid help is agreed separately\./);
   assert.match(full, /one person can be both a Plug and a Master\. They are not ranks\./);
+  // A Plug is a practical helper, not defined by referral rewards.
+  assert.doesNotMatch(full, /referral rules|part of the value it created can be shared/);
 });
 test('membership is belonging, never certification; a Store is not an endorsement', () => {
   assert.match(full, /Belonging is not a certificate that someone is trustworthy/);
@@ -72,7 +77,8 @@ test('the Skills Institute is named but NOT presented as available (locked Phase
   assert.doesNotMatch(full, /enrol|course catalogue|our courses|earn a certificate|certified|practice lab|book a mentor/i);
 });
 test('forbidden claims and language never appear', () => {
-  for (const bad of [/guarantee/i, /\belite\b/i, /exclusive/i, /trusted (people|member)/i, /verified trusted/i, /protected from/i, /future-proof/i, /join and earn/i, /recruit/i, /passive income/i, /downline/i, /escrow/i, /custody/i, /\bfrozen\b/i, /trust score/i, /reputation/i, /\bbank\b/i, /survive/i, /AI will/i, /community-approved/i, /TP-\d/]) {
+  // "never guaranteed" / "not a guarantee" are disclaimers; any positive guarantee claim still fails.
+  for (const bad of [/(?<!(never |not a |no ))guarantee/i, /\belite\b/i, /exclusive/i, /trusted (people|member)/i, /verified trusted/i, /protected from/i, /future-proof/i, /join and earn/i, /recruit/i, /passive income/i, /downline/i, /escrow/i, /custody/i, /\bfrozen\b/i, /trust score/i, /reputation/i, /\bbank\b/i, /survive/i, /AI will/i, /community-approved/i, /TP-\d/]) {
     assert.doesNotMatch(full, bad, String(bad));
   }
 });

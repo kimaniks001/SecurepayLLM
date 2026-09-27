@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Lock, User, KeyRound } from 'lucide-react';
 import type { SecureAuthResponse } from '../types';
 import { ChoiceButtons } from './ChoiceButtons';
@@ -20,13 +21,16 @@ const fieldIcons: Record<string, typeof Lock> = {
 
 export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled, errorText }: SecureAuthCardProps) {
   const live = !!onFieldChange;
+  const baseId = useId();
+  const errorId = `${baseId}-error`;
+  const hasError = live && !!errorText;
   return (
     <div className="rounded-2xl border border-forest-200 bg-white shadow-lifted overflow-hidden max-w-md mx-auto animate-quiet-in">
       <div className="px-6 py-5">
         <div className="text-center mb-5">
           <div className="flex justify-center mb-3">
             <div className="w-10 h-10 rounded-full bg-forest-50 flex items-center justify-center">
-              <Lock className="w-5 h-5 text-forest-600" />
+              <Lock className="w-5 h-5 text-forest-600" aria-hidden="true" />
             </div>
           </div>
           <h2 className="font-display text-lg text-forest-800">{data.title}</h2>
@@ -44,10 +48,13 @@ export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled
             const Icon = fieldIcons[field.type] || Lock;
             return (
               <div key={i}>
-                <label className="text-[0.75rem] font-medium text-sand-600 uppercase tracking-wide">{field.label}</label>
-                <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-cream-300 bg-cream-50 px-3.5 py-2.5">
-                  <Icon className="w-4 h-4 text-sand-400" />
+                <label htmlFor={`${baseId}-field-${i}`} className="text-[0.75rem] font-medium text-sand-600 uppercase tracking-wide">{field.label}</label>
+                <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-cream-300 bg-cream-50 px-3.5 py-2.5 focus-within:border-forest-400 focus-within:ring-2 focus-within:ring-forest-200">
+                  <Icon className="w-4 h-4 text-sand-400" aria-hidden="true" />
                   <input
+                    id={`${baseId}-field-${i}`}
+                    aria-invalid={hasError || undefined}
+                    aria-describedby={hasError ? errorId : undefined}
                     type={field.type === 'password' ? 'password' : field.type === 'otp' ? 'text' : 'text'}
                     inputMode={field.type === 'otp' ? 'numeric' : undefined}
                     placeholder={field.placeholder}
@@ -65,7 +72,7 @@ export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled
         </div>
 
         {live ? (
-          errorText && <p role="alert" className="mt-3 text-[0.78rem] text-ember-600 text-center">{errorText}</p>
+          errorText && <p id={errorId} role="alert" className="mt-3 text-[0.78rem] text-ember-700 text-center">{errorText}</p>
         ) : (
           <p className="mt-3 text-[0.7rem] text-sand-400 text-center">Demo identity — no real authentication occurs</p>
         )}

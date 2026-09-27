@@ -13,6 +13,7 @@ import { createCircleController, errorText } from './controller';
 import { circleVerificationStatusLabel } from '../../circleLabels';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { useAppNavPadding } from '../public/publicShell';
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load your network activity', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -43,6 +44,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   onNavigate: (view: AppView) => void;
   onAskAgent: () => void;
 }) {
+  const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createCircleController(gateway));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
@@ -65,7 +67,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   if (sessionState.status !== 'signed-in') {
     const authData = secureAuthView(identityState);
     return (
-      <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
         <NavBar view={navBarView} onNavigate={onNavigate} />
         <div className="flex-1 flex items-center justify-center p-6">
           <SecureAuthCard
@@ -178,7 +180,7 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
+    <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={navBarView} onNavigate={onNavigate} />
       <div className="flex-1 flex flex-col overflow-hidden">{body}</div>
     </div>

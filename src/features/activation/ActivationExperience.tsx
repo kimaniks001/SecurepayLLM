@@ -523,7 +523,7 @@ function FundingNextActionPanel({ funding, loading, onAction, onRefresh }: {
       return (
         <UnavailableActionState
           title="SecurePay reported an unrecognized activation state"
-          explanation="This application does not recognize the backend's reported next action and will not guess. Check status again, or contact support if this persists."
+          explanation="SecurePay has a next step this screen can’t show yet. Check again, or contact support."
           onRefresh={onRefresh}
           loading={loading}
         />
