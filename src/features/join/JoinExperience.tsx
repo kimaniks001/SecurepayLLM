@@ -7,9 +7,9 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { createSignupController } from '../signup/controller';
 import { signupView } from '../signup/view';
-import { createJoinController, membershipKind, type ContinuationOutcome } from './controller';
+import { createJoinController, membershipKind, type ContinuationOutcome, type JoinTarget } from './controller';
 import { INTEREST_CONTEXT, type JoinInterest } from './share';
-import { ACCEPTANCE_LABEL, JOIN_IS_NOT } from './copy';
+import { ACCEPTANCE_LABEL, JOIN_IS_NOT, NO_LONGER_AUTHORISED, businessAcceptanceLabel, businessJoinButton } from './copy';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
 const primary = `inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-600 px-5 text-[0.9rem] font-medium text-cream-50 hover:bg-forest-700 disabled:opacity-40 transition-colors ${focusRing}`;
@@ -23,12 +23,19 @@ const quiet = `min-h-11 rounded-lg px-2 text-[0.85rem] text-forest-700 underline
  * or sign in) handled right here. Signed in: the person's own membership state and, where allowed, an explicit
  * acceptance control and a separate "Join The Trust Project" action. A signed-in person is never offered signup.
  * Signup and sign-in complete identity only; nothing joins until the final, explicit action.
+ *
+ * Phase 4C (API ADR-0023) -- the same page adapts to who the person is acting as. Acting for a Business (a capacity
+ * SecurePay confirmed in the Business area), it names that Business and its KS Number, reads and changes THE
+ * BUSINESS's membership, and says "Join for {Business}". SecurePay re-proves the right to decide on every read and
+ * Join; if it no longer does, nothing joins and the person can continue as themself.
  */
 export function JoinExperience({
   communityGateway, auth, session, signedIn, interest, continueConversation,
-  onExploreCommunity, onReturnToConversation, onHelp, onDone,
+  onExploreCommunity, onReturnToConversation, onHelp, onDone, actingFor = null, selfName = null, onSwitchToSelf,
 }: {
-  communityGateway: Pick<CommunityGateway, 'currentPrinciples'> & { membership: Pick<CommunityGateway['membership'], 'me' | 'join'> };
+  communityGateway: Pick<CommunityGateway, 'currentPrinciples'> & {
+    membership: Pick<CommunityGateway['membership'], 'me' | 'join'> & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness'>>;
+  };
   auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp' | 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   signedIn: boolean;
@@ -38,8 +45,15 @@ export function JoinExperience({
   onReturnToConversation: (conversationId: string) => void;
   onHelp: () => void;
   onDone: () => void;
+  /** Phase 4C -- the Business the person is acting for, if any (from the confirmed Business-area capacity). */
+  actingFor?: { businessKsNumber: string; displayName: string | null } | null;
+  selfName?: string | null;
+  onSwitchToSelf?: () => void;
 }) {
-  const [controller] = useState(() => createJoinController(communityGateway, continueConversation));
+  const [target] = useState<JoinTarget>(() => signedIn && actingFor
+    ? { kind: 'business', businessKsNumber: actingFor.businessKsNumber, displayName: actingFor.displayName }
+    : { kind: 'self' });
+  const [controller] = useState(() => createJoinController(communityGateway, continueConversation, undefined, target));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [identityPath, setIdentityPath] = useState<'choose' | 'signup' | 'signin'>('choose');
   const statusRef = useRef<HTMLDivElement>(null);
@@ -56,6 +70,9 @@ export function JoinExperience({
   }, [state.phase, state.staleNotice, state.error]);
 
   const kind = membershipKind(state.membership.value);
+  const business = target.kind === 'business' ? target : null;
+  const businessName = business ? business.displayName ?? business.businessKsNumber : null;
+  const identityId = `${acceptId}-identity`;
   const inviter = state.membership.value?.invitedByDisplayName ?? null;
 
   return (
@@ -114,6 +131,19 @@ export function JoinExperience({
         <section aria-labelledby="join-action" className="mt-5 rounded-2xl border border-forest-200 bg-white p-5 md:p-6 shadow-soft" data-join-state={signedIn ? kind : 'signed-out'}>
           <h2 id="join-action" className="sr-only">Your choice</h2>
 
+          {signedIn && !business && (
+            <p id={identityId} className="mb-3 text-[0.85rem] text-sand-700" data-join-identity="self">
+              You are joining as <span className="font-medium text-forest-800 break-words">{selfName || 'yourself'}</span>
+            </p>
+          )}
+          {signedIn && business && (
+            <div id={identityId} className="mb-4 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3" data-join-identity="business">
+              <p className="text-[0.9rem] text-forest-800">You are acting for <span className="font-medium break-words">{businessName}</span></p>
+              <p className="text-[0.75rem] text-sand-600 break-all">Business KS Number {business.businessKsNumber}</p>
+              {onSwitchToSelf && <button type="button" className={`${quiet} -ml-2`} onClick={onSwitchToSelf}>Switch back to yourself</button>}
+            </div>
+          )}
+
           {!signedIn && identityPath === 'choose' && (
             <div className="space-y-3">
               <p className="text-[0.9rem] text-forest-800">First, your SecurePay identity. Joining comes after, as its own choice.</p>
@@ -126,15 +156,34 @@ export function JoinExperience({
           {!signedIn && identityPath === 'signup' && <JoinSignup auth={auth} session={session} onUseExisting={() => setIdentityPath('signin')} onBack={() => setIdentityPath('choose')} />}
           {!signedIn && identityPath === 'signin' && <JoinSignIn auth={auth} session={session} onBack={() => setIdentityPath('choose')} onHelp={onHelp} />}
 
-          {signedIn && state.membership.status === 'loading' && state.phase !== 'joined' && <p className="text-[0.88rem] text-sand-600">Checking your membership…</p>}
+          {signedIn && state.membership.status === 'loading' && state.phase !== 'joined' && <p className="text-[0.88rem] text-sand-600">{business ? `Checking ${businessName}’s membership…` : 'Checking your membership…'}</p>}
           {signedIn && state.membership.status === 'error' && (
             <p role="alert" className="text-[0.88rem] text-ember-700">
-              SecurePay couldn’t check your membership just now.{' '}
+              {business ? `SecurePay couldn’t check ${businessName}’s membership just now.` : 'SecurePay couldn’t check your membership just now.'}{' '}
               <button type="button" className={quiet} onClick={() => void controller.loadMembership()}>Try again</button>
             </p>
           )}
 
-          {signedIn && state.phase === 'joined' && (
+          {signedIn && business && state.authorityLost && (
+            <div className="space-y-3" role="alert">
+              <p className="text-[0.9rem] text-forest-800">{NO_LONGER_AUTHORISED}</p>
+              <p className="text-[0.85rem] text-sand-700">Nothing was joined for {businessName}.</p>
+              {onSwitchToSelf && <button type="button" className={secondary} onClick={onSwitchToSelf}>Continue as yourself</button>}
+            </div>
+          )}
+
+          {signedIn && business && state.phase === 'joined' && (
+            <div className="space-y-3" role="status">
+              <p className="font-display text-lg text-forest-800 break-words">{businessName} has joined The Trust Project.</p>
+              <p className="text-[0.88rem] text-sand-700">Only {businessName}’s membership changed. Your own membership is unchanged, and no Agreement, payment, subscription or capacity was created.</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button type="button" className={primary} onClick={onExploreCommunity}>Explore Community</button>
+                <button type="button" className={secondary} onClick={onDone}>Back</button>
+              </div>
+            </div>
+          )}
+
+          {signedIn && !business && state.phase === 'joined' && (
             <div className="space-y-3" role="status">
               <p className="font-display text-lg text-forest-800">You’re a Member of The Trust Project.</p>
               <p className="text-[0.88rem] text-sand-700">Nothing else changed: no Agreement, payment, subscription or capacity was created.</p>
@@ -150,9 +199,9 @@ export function JoinExperience({
             </div>
           )}
 
-          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && kind === 'active' && (
+          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && !state.authorityLost && kind === 'active' && (
             <div className="space-y-3">
-              <p className="font-display text-lg text-forest-800">You’re already a Member.</p>
+              <p className="font-display text-lg text-forest-800 break-words">{business ? `${businessName} is already a Member.` : 'You’re already a Member.'}</p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button type="button" className={primary} onClick={onExploreCommunity}>Explore Community</button>
                 <button type="button" className={secondary} onClick={onDone}>Back</button>
@@ -160,17 +209,27 @@ export function JoinExperience({
             </div>
           )}
 
-          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && kind === 'revoked' && (
+          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && !state.authorityLost && kind === 'revoked' && (
             <div className="space-y-3">
-              <p className="text-[0.9rem] text-forest-800">Joining isn’t available for this KS Number. If you think this is a mistake, use Help & Support.</p>
+              <p className="text-[0.9rem] text-forest-800">{business ? `Joining isn’t available for ${businessName}.` : 'Joining isn’t available for this KS Number.'} If you think this is a mistake, use Help & Support.</p>
               <button type="button" className={secondary} onClick={onHelp}>Help & Support</button>
             </div>
           )}
 
-          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && (kind === 'none' || kind === 'invited' || kind === 'declined') && (
+          {signedIn && business && state.phase !== 'joined' && state.membership.status === 'ready' && !state.authorityLost && state.canManage === false && (kind === 'none' || kind === 'invited' || kind === 'declined') && (
+            <p className="text-[0.9rem] text-forest-800">You can act for {businessName}, but you can’t make its Trust Project decision.</p>
+          )}
+
+          {signedIn && state.phase !== 'joined' && state.membership.status === 'ready' && !state.authorityLost && (!business || state.canManage === true) && (kind === 'none' || kind === 'invited' || kind === 'declined') && (
             <div className="space-y-4">
-              {kind === 'invited' && <p className="text-[0.9rem] text-forest-800">{inviter ?? 'Someone in the community'} invited you to The Trust Project.</p>}
-              {kind === 'declined' && <p className="text-[0.9rem] text-forest-800">You declined an invitation earlier. You can still choose to join; that earlier choice stays on record.</p>}
+              {business && kind === 'none' && (
+                <div className="space-y-1">
+                  <p className="text-[0.9rem] text-forest-800 break-words">{businessName} has not joined The Trust Project yet.</p>
+                  <p className="text-[0.85rem] text-sand-700">You can join for this Business because you are authorized to act for it. Review the 12 Principles above before joining for {businessName}.</p>
+                </div>
+              )}
+              {kind === 'invited' && <p className="text-[0.9rem] text-forest-800">{inviter ?? 'Someone in the community'} invited {business ? businessName : 'you'} to The Trust Project.</p>}
+              {kind === 'declined' && <p className="text-[0.9rem] text-forest-800">{business ? `${businessName} declined an invitation earlier. It can still join; that earlier choice stays on record.` : 'You declined an invitation earlier. You can still choose to join; that earlier choice stays on record.'}</p>}
               <div className="flex items-start gap-3">
                 <input
                   id={acceptId} type="checkbox" checked={state.accepted}
@@ -179,15 +238,16 @@ export function JoinExperience({
                   className="mt-0.5 h-5 w-5 shrink-0 accent-forest-600"
                   aria-describedby={state.error ? `${acceptId}-error` : undefined}
                 />
-                <label htmlFor={acceptId} className="text-[0.9rem] leading-snug text-forest-800">{ACCEPTANCE_LABEL}</label>
+                <label htmlFor={acceptId} className="text-[0.9rem] leading-snug text-forest-800 break-words">{business ? businessAcceptanceLabel(businessName!) : ACCEPTANCE_LABEL}</label>
               </div>
               {state.error && <p id={`${acceptId}-error`} role="alert" className="text-[0.85rem] text-ember-700">{state.error}</p>}
               <button
                 type="button" className={primary}
                 disabled={!state.accepted || state.phase === 'joining' || state.principles.status !== 'ready'}
                 onClick={() => void controller.join()}
+                aria-describedby={identityId}
               >
-                {state.phase === 'joining' ? 'Joining…' : 'Join The Trust Project'}
+                {state.phase === 'joining' ? 'Joining…' : business ? businessJoinButton(businessName!) : 'Join The Trust Project'}
               </button>
             </div>
           )}

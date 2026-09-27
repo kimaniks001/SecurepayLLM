@@ -1,5 +1,5 @@
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { FairTradePrincipleResponse, MembershipResponse } from '../../api/securepay/community/dto';
+import type { BusinessMembershipResponse, FairTradePrincipleResponse, MembershipResponse } from '../../api/securepay/community/dto';
 import { ApiError } from '../../api/securepay/http';
 
 /**
@@ -18,6 +18,15 @@ export type ContinuationOutcome =
   | { kind: 'claimed'; conversationId: string }
   | { kind: 'failed' };
 
+/**
+ * Phase 4C (API ADR-0023) -- whose membership this page decides. `self` is the signed-in person (the Phase 4A Join,
+ * unchanged). `business` is a Business the person acts for, taken from the capacity SecurePay confirmed in the
+ * Business area. It only NAMES the Business: SecurePay re-proves the right to decide on every read and Join.
+ */
+export type JoinTarget =
+  | { kind: 'self' }
+  | { kind: 'business'; businessKsNumber: string; displayName: string | null };
+
 export interface JoinState {
   principles: { status: 'loading' | 'ready' | 'error'; version: string | null; label: string | null; items: FairTradePrincipleResponse[] };
   membership: { status: 'idle' | 'loading' | 'ready' | 'error'; value: MembershipResponse | null };
@@ -26,6 +35,10 @@ export interface JoinState {
   error: string | null;
   staleNotice: boolean;
   continuation: ContinuationOutcome | { kind: 'claiming' } | null;
+  /** Business target only: whether SecurePay says this person may make the Business's decision (null = unknown). */
+  canManage: boolean | null;
+  /** Business target only: SecurePay no longer confirms this person acts for the Business (404/403). */
+  authorityLost: boolean;
 }
 
 const initial: JoinState = {
@@ -36,6 +49,8 @@ const initial: JoinState = {
   error: null,
   staleNotice: false,
   continuation: null,
+  canManage: null,
+  authorityLost: false,
 };
 
 export type MembershipKind = 'none' | 'invited' | 'active' | 'declined' | 'revoked';
@@ -59,10 +74,15 @@ function joinErrorText(error: unknown): string {
   return 'That didn’t work. You haven’t joined yet.';
 }
 
+const lostAuthority = (error: unknown) => error instanceof ApiError && (error.status === 404 || error.status === 403);
+
 export function createJoinController(
-  community: Pick<CommunityGateway, 'currentPrinciples'> & { membership: Pick<CommunityGateway['membership'], 'me' | 'join'> },
+  community: Pick<CommunityGateway, 'currentPrinciples'> & {
+    membership: Pick<CommunityGateway['membership'], 'me' | 'join'> & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness'>>;
+  },
   continueConversation: () => Promise<ContinuationOutcome> = async () => ({ kind: 'none' }),
   newKey: () => string = () => `trust-project-join-${crypto.randomUUID()}`,
+  target: JoinTarget = { kind: 'self' },
 ) {
   let state: JoinState = { ...initial };
   const listeners = new Set<() => void>();
@@ -81,6 +101,7 @@ export function createJoinController(
   }
 
   return {
+    target,
     getSnapshot: (): JoinState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     loadPrinciples,
@@ -88,6 +109,16 @@ export function createJoinController(
     /** Signed-in only. Never mutates. */
     async loadMembership() {
       update({ membership: { status: 'loading', value: state.membership.value } });
+      if (target.kind === 'business') {
+        try {
+          const read: BusinessMembershipResponse = await community.membership.business!(target.businessKsNumber);
+          update({ membership: { status: 'ready', value: read.membership }, canManage: read.canManage, authorityLost: false });
+        } catch (error) {
+          if (lostAuthority(error)) update({ membership: { status: 'ready', value: null }, canManage: false, authorityLost: true });
+          else update({ membership: { status: 'error', value: null } });
+        }
+        return;
+      }
       try {
         update({ membership: { status: 'ready', value: await community.membership.me() } });
       } catch {
@@ -98,7 +129,7 @@ export function createJoinController(
     /** Signing out (or a different person signing in) forgets everything personal. */
     resetPersonal() {
       attemptKey = null;
-      update({ membership: { status: 'idle', value: null }, accepted: false, phase: 'idle', error: null, continuation: null });
+      update({ membership: { status: 'idle', value: null }, accepted: false, phase: 'idle', error: null, continuation: null, canManage: null, authorityLost: false });
     },
 
     setAccepted(accepted: boolean) {
@@ -111,12 +142,21 @@ export function createJoinController(
       if (state.phase !== 'idle' || !state.accepted || !version) return;
       const kind = membershipKind(state.membership.value);
       if (kind === 'active' || kind === 'revoked') return;
+      if (target.kind === 'business' && (state.canManage !== true || state.authorityLost)) return;
       attemptKey ??= newKey();
       update({ phase: 'joining', error: null, staleNotice: false });
       let joined: MembershipResponse;
       try {
-        joined = await community.membership.join(version, attemptKey);
+        joined = target.kind === 'business'
+          ? (await community.membership.joinBusiness!(target.businessKsNumber, version, attemptKey)).membership
+          : await community.membership.join(version, attemptKey);
       } catch (error) {
+        if (target.kind === 'business' && lostAuthority(error)) {
+          // SecurePay no longer confirms this person may decide for the Business: nothing was joined.
+          attemptKey = null;
+          update({ phase: 'idle', accepted: false, canManage: false, authorityLost: true, error: null });
+          return;
+        }
         if (error instanceof ApiError && error.code === 'TRUST_PROJECT_PRINCIPLES_VERSION_STALE') {
           attemptKey = null;
           update({ phase: 'idle', accepted: false, staleNotice: true });
@@ -131,6 +171,11 @@ export function createJoinController(
         return;
       }
       attemptKey = null;
+      if (target.kind === 'business') {
+        // Conversation continuity belongs to the person, never to a Business decision.
+        update({ phase: 'joined', membership: { status: 'ready', value: joined }, continuation: { kind: 'none' } });
+        return;
+      }
       update({ phase: 'joined', membership: { status: 'ready', value: joined }, continuation: { kind: 'claiming' } });
       // Separate authority: whatever happens here, the membership above stands.
       let outcome: ContinuationOutcome;

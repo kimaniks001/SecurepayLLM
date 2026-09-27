@@ -278,7 +278,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));
-  const [businessController] = useState(() => createBusinessController({ business: businessGateway, circle: circleGateway }));
+  const [businessController] = useState(() => createBusinessController({ business: businessGateway, circle: circleGateway, trustProject: communityGateway.membership }));
+  // Phase 4C -- the Join page adapts to the capacity SecurePay confirmed in the Business area (never to local state).
+  const businessState = useSyncExternalStore(businessController.subscribe, businessController.getSnapshot, businessController.getSnapshot);
+  const actingForBusiness = businessState.acting.kind === 'business'
+    ? { businessKsNumber: businessState.acting.business.businessKsNumber, displayName: businessState.acting.business.displayName }
+    : null;
   const [developerController] = useState(() => createDeveloperController(developerGateway));
   // Phase 5 -- resolved once via the same real, self-scoped `/circle/me` read Account/Circle already
   // use, so Projects never forces the person to type their own KS Number for the common case (Vision
@@ -503,7 +508,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <div className={`min-h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
         <NavBar view="community" onNavigate={view => { joinRoute.close(); navigateTo(view); }} />
         <JoinExperience
-          key={signedIn ? 'signed-in' : 'signed-out'}
+          key={signedIn ? `signed-in:${actingForBusiness?.businessKsNumber ?? 'self'}` : 'signed-out'}
+          actingFor={actingForBusiness}
+          selfName={businessState.self.data?.displayName ?? null}
+          onSwitchToSelf={() => { businessController.actAsSelf(); void businessController.loadMine(); }}
           communityGateway={communityGateway}
           auth={auth}
           session={session}
@@ -645,7 +653,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }
 
   if (businessView && sessionState.status === 'signed-in') {
-    return <BusinessExperience controller={businessController} onNavigate={navigateTo} />;
+    return <BusinessExperience controller={businessController} onNavigate={navigateTo} onOpenJoin={() => { setBusinessView(false); joinRoute.open(); }} />;
   }
 
   if (developerView && sessionState.status === 'signed-in') {

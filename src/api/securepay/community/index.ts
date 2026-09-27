@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { CurrentPrinciplesResponse,
+import type { BusinessMembershipResponse, CurrentPrinciplesResponse,
   CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
@@ -69,6 +69,20 @@ export function createCommunityGateway(http: HttpClient) {
         method: 'POST', body: { principlesVersion }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
       }),
       decline: () => http.request<MembershipResponse>('/api/v1/community/membership/decline', { method: 'POST', auth: 'required' }),
+      /**
+       * Phase 4C (ADR-0023) -- a represented Business's own membership. The KS Number only names the Business;
+       * SecurePay proves the caller acts for it. Missing and not-yours are one 404.
+       */
+      business: (businessKsNumber: string) => http.request<BusinessMembershipResponse>(
+        `/api/v1/community/membership/business/${segment(businessKsNumber)}`, { auth: 'required' }),
+      /**
+       * Phase 4C -- the explicit Join FOR a represented Business under the exact current 12 Principles. SecurePay
+       * re-checks, every time, that the caller acts for this Business and may make its membership decision.
+       */
+      joinBusiness: (businessKsNumber: string, principlesVersion: string, idempotencyKey: string) =>
+        http.request<BusinessMembershipResponse>(`/api/v1/community/membership/business/${segment(businessKsNumber)}/join`, {
+          method: 'POST', body: { principlesVersion }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+        }),
     },
 
     // Conversation & Help (Slice 2)
