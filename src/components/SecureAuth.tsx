@@ -37,7 +37,7 @@ export function SecureAuthCard({ data, onChoice, values, onFieldChange, disabled
           {(data.identityName || data.identityKsn) && (
             <div className="mt-3 rounded-xl bg-cream-50 border border-cream-200 px-4 py-2.5 text-center">
               <div className="text-[0.875rem] font-medium text-forest-800">{data.identityName}</div>
-              <div className="text-[0.78rem] text-sand-500 mt-0.5">{data.identityKsn}</div>
+              <div className="text-[0.78rem] text-sand-600 mt-0.5">{data.identityKsn}</div>
             </div>
           )}
           <p className="mt-3 text-[0.825rem] text-sand-600 leading-relaxed">{data.reason}</p>

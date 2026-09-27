@@ -54,9 +54,12 @@ test('Member / Plug / Master are capacities, not ranks, and none carries agreeme
   // Public Experience Convergence Phase 2 -- the Phase 1 §12 contract copy (shared with the public Home).
   assert.match(full, /A quiet Member is still a complete Member\./);
   assert.match(full, /People and businesses belong through their own KS Number\./);
-  assert.match(full, /inviting people earns nothing/);
+  // A membership invitation is not a commercial referral; recruiting members earns nothing automatically.
+  // The blanket "inviting people earns nothing" would deny the backend-authoritative referral model.
+  assert.match(full, /An invitation is not a referral, and recruiting members earns nothing automatically\./);
+  assert.doesNotMatch(full, /inviting people earns nothing/i);
   assert.match(full, /Income is never guaranteed/);
-  assert.match(full, /helping never gives a Plug authority over anyone’s agreement or money/);
+  assert.match(full, /Helping never gives a Plug authority over anyone’s agreement or money\./);
   assert.match(full, /A Master never judges who is right, never changes or confirms an agreement for someone else, and never releases money\./);
   assert.match(full, /Paid help is agreed separately\./);
   assert.match(full, /one person can be both a Plug and a Master\. They are not ranks\./);
@@ -69,6 +72,9 @@ test('membership is belonging, never certification; a Store is not an endorsemen
   assert.match(full, /It can start empty — nothing is published until you publish it/);
   // The Store comes from the active KS identity, never from Trust Project membership itself.
   assert.match(full, /Your KS identity gives you a digital Store while your SecurePay identity is active\./);
+  // The Store follows the KS identity, never Trust Project membership.
+  assert.match(full, /Your KS Store/);
+  assert.doesNotMatch(full, /A Store for every member/);
   assert.doesNotMatch(full, /membership (gives|provisions|creates|guarantees)[^.]*Store|joining (gives|creates)[^.]*Store|every member (gets|is guaranteed)[^.]*Store/i);
 });
 test('the Skills Institute is named but NOT presented as available (locked Phase 11D capability truth)', () => {
@@ -77,8 +83,9 @@ test('the Skills Institute is named but NOT presented as available (locked Phase
   assert.doesNotMatch(full, /enrol|course catalogue|our courses|earn a certificate|certified|practice lab|book a mentor/i);
 });
 test('forbidden claims and language never appear', () => {
-  // "never guaranteed" / "not a guarantee" are disclaimers; any positive guarantee claim still fails.
-  for (const bad of [/(?<!(never |not a |no ))guarantee/i, /\belite\b/i, /exclusive/i, /trusted (people|member)/i, /verified trusted/i, /protected from/i, /future-proof/i, /join and earn/i, /recruit/i, /passive income/i, /downline/i, /escrow/i, /custody/i, /\bfrozen\b/i, /trust score/i, /reputation/i, /\bbank\b/i, /survive/i, /AI will/i, /community-approved/i, /TP-\d/]) {
+  // "never guaranteed" / "not a guarantee" and "recruiting members earns nothing automatically" are disclaimers;
+  // any positive guarantee or recruitment pitch still fails.
+  for (const bad of [/(?<!(never |not a |no ))guarantee/i, /\belite\b/i, /exclusive/i, /trusted (people|member)/i, /verified trusted/i, /protected from/i, /future-proof/i, /join and earn/i, /recruit(?!ing members earns nothing automatically)/i, /passive income/i, /downline/i, /escrow/i, /custody/i, /\bfrozen\b/i, /trust score/i, /reputation/i, /\bbank\b/i, /survive/i, /AI will/i, /community-approved/i, /TP-\d/]) {
     assert.doesNotMatch(full, bad, String(bad));
   }
 });

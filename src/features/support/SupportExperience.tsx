@@ -25,7 +25,7 @@ function useRead<T>(load: (() => Promise<T>) | null, key: string): Read<T> | nul
 }
 const Note = ({ children }: { children: React.ReactNode }) => <p className="text-sm text-sand-600">{children}</p>;
 const Unknown = ({ children }: { children: React.ReactNode }) => <p role="alert" className="text-sm text-ember-700">{children}</p>;
-const Label = ({ children }: { children: React.ReactNode }) => <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">{children}</div>;
+const Label = ({ children }: { children: React.ReactNode }) => <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide">{children}</div>;
 const card = 'rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-3';
 const rowBtn = 'w-full text-left rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all';
 

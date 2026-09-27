@@ -319,7 +319,19 @@ export const markup = [
     return mod.exports.markup;
   }
   const [current, baseline] = await Promise.all([render(false), render(true)]);
-  assert.deepEqual(current, baseline);
+  // Public Experience Convergence Phase 2 final correction -- the ONLY permitted difference: CommunityObjectCard's
+  // status pill, body and metadata text were promoted from sand-400/500 to sand-600 for WCAG AA contrast on the
+  // signed-out Community. Everything else must stay byte-identical to the Bolt reference.
+  const promoted = [
+    ['text-[0.65rem] font-medium text-sand-600 bg-cream-50', 'text-[0.65rem] font-medium text-sand-400 bg-cream-50'],
+    ['text-[0.72rem] text-sand-600 mt-0.5 line-clamp-2', 'text-[0.72rem] text-sand-500 mt-0.5 line-clamp-2'],
+    ['flex items-center gap-3 mt-1.5 text-[0.68rem] text-sand-600', 'flex items-center gap-3 mt-1.5 text-[0.68rem] text-sand-400'],
+  ];
+  const joined = current.join('\n');
+  // The status pill only renders for objects with a status; the body and metadata always render.
+  for (const [now] of promoted.slice(1)) assert.ok(joined.includes(now), `expected the AA-promoted class ${now}`);
+  const normalised = current.map(markup => promoted.reduce((m, [now, then]) => m.split(now).join(then), markup));
+  assert.deepEqual(normalised, baseline);
 });
 
 test('T2. Rewritten fixture-mode CommunityHome/CommunityObjectDetail still render the same real Bolt fixture content', async () => {

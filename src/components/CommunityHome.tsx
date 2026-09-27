@@ -54,7 +54,7 @@ export function CommunityHome({
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1 className="font-display text-xl text-forest-800 font-medium">Community</h1>
-          <p className="text-[0.85rem] text-sand-500 mt-0.5">The trade neighbourhood. Find help, ask questions, share work, discover opportunities.</p>
+          <p className="text-[0.85rem] text-sand-600 mt-0.5">The trade neighbourhood. Find help, ask questions, share work, discover opportunities.</p>
         </div>
 
         {/* Search */}
@@ -78,7 +78,7 @@ export function CommunityHome({
             <Users className="w-3.5 h-3.5" />
             {circlesEntryLabel}
           </span>
-          <p className="text-[0.72rem] text-sand-400 mt-0.5">{circlesEntryDescription}</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">{circlesEntryDescription}</p>
         </button>
 
         {onOpenEcosystem && (
@@ -90,7 +90,7 @@ export function CommunityHome({
               <HandHelping className="w-3.5 h-3.5" />
               Help this trade happen
             </span>
-            <p className="text-[0.72rem] text-sand-400 mt-0.5">People who can connect, expert Masters, and your referral history</p>
+            <p className="text-[0.72rem] text-sand-600 mt-0.5">People who can connect, expert Masters, and your referral history</p>
           </button>
         )}
 
@@ -103,13 +103,13 @@ export function CommunityHome({
             <Sparkles className="w-3.5 h-3.5" />
             What would you like to share with the community?
           </span>
-          <p className="text-[0.72rem] text-sand-400 mt-0.5">Ask a question, post a need, share work, or offer an opportunity</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">Ask a question, post a need, share work, or offer an opportunity</p>
         </button>
 
         {/* Needs & Opportunities */}
         {needs.length > 0 && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Needs & opportunities</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Needs & opportunities</div>
             <div className="space-y-2">
               {needs.map((obj: CommunityObject) => (
                 <CommunityObjectCard key={obj.id} object={obj} onOpen={onOpenObject} />
@@ -121,7 +121,7 @@ export function CommunityHome({
         {/* Questions */}
         {questions.length > 0 && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Questions & discussions</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Questions & discussions</div>
             <div className="space-y-2">
               {questions.map((obj: CommunityObject) => (
                 <CommunityObjectCard key={obj.id} object={obj} onOpen={onOpenObject} />
@@ -133,7 +133,7 @@ export function CommunityHome({
         {/* Work Stories */}
         {stories.length > 0 && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Work stories</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Work stories</div>
             <div className="space-y-2">
               {stories.map((obj: CommunityObject) => (
                 <CommunityObjectCard key={obj.id} object={obj} onOpen={onOpenObject} />
@@ -145,12 +145,12 @@ export function CommunityHome({
         {/* Store Offers */}
         {(offers.length > 0 || storeSearchStatus === 'loading' || storeSearchStatus === 'error') && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offers from stores</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Offers from stores</div>
             {storeSearchStatus === 'loading' && offers.length === 0 && (
-              <p role="status" className="text-[0.78rem] text-sand-500">Loading store offers…</p>
+              <p role="status" className="text-[0.78rem] text-sand-600">Loading store offers…</p>
             )}
             {storeSearchStatus === 'error' && (
-              <p role="alert" className="text-[0.78rem] text-sand-500">{storeSearchErrorText || 'Store offers could not be loaded.'}</p>
+              <p role="alert" className="text-[0.78rem] text-sand-600">{storeSearchErrorText || 'Store offers could not be loaded.'}</p>
             )}
             <div className="space-y-2">
               {offers.map((obj: CommunityObject) => (
@@ -163,7 +163,7 @@ export function CommunityHome({
         {/* Learning */}
         {learning.length > 0 && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Learn from the community</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Learn from the community</div>
             <div className="space-y-2">
               {learning.map((obj: CommunityObject) => (
                 <CommunityObjectCard key={obj.id} object={obj} onOpen={onOpenObject} />
@@ -175,7 +175,7 @@ export function CommunityHome({
         {/* People & Businesses */}
         {(people.length > 0 || businesses.length > 0) && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">People & businesses</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">People & businesses</div>
             <div className="space-y-2">
               {people.map((person) => (
                 <button
@@ -188,7 +188,7 @@ export function CommunityHome({
                   </div>
                   <div className="flex-1">
                     <div className="text-[0.875rem] font-medium text-forest-800">{person.name}</div>
-                    <div className="text-[0.72rem] text-sand-500">{person.capabilities.join(' · ')}</div>
+                    <div className="text-[0.72rem] text-sand-600">{person.capabilities.join(' · ')}</div>
                   </div>
                   {person.verifiedQualification && <span className="text-[0.6rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">Verified</span>}
                 </button>
@@ -204,7 +204,7 @@ export function CommunityHome({
                   </div>
                   <div className="flex-1">
                     <div className="text-[0.875rem] font-medium text-forest-800">{biz.name}</div>
-                    <div className="text-[0.72rem] text-sand-500">{biz.whatTheyDo}</div>
+                    <div className="text-[0.72rem] text-sand-600">{biz.whatTheyDo}</div>
                   </div>
                 </button>
               ))}
@@ -232,7 +232,7 @@ export function CommunityHome({
             <MessageCircle className="w-3.5 h-3.5" />
             Ask SecurePay to find help in the community
           </span>
-          <p className="text-[0.72rem] text-sand-400 mt-0.5">SecurePay can surface people, businesses, and offers that match what you need</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">SecurePay can surface people, businesses, and offers that match what you need</p>
         </button>
       </div>
     </div>

@@ -296,3 +296,120 @@ test('the public screens a signed-out visitor can reach drop the bottom-navigati
   const shell = await readFile('src/features/public/publicShell.ts', 'utf8');
   assert.match(shell, /return usePublicShell\(\) \? '' : 'pb-16 md:pb-0';/);
 });
+
+// ================================================================== Phase 2 final correction pass
+const extra = await bundleOf(`
+export { ChoiceButtons } from './src/components/ChoiceButtons';
+export { TrustProjectSection } from './src/components/TrustProjectSection';
+export { RecoveryExperience } from './src/features/recovery/RecoveryExperience';
+export { createRecoveryController } from './src/features/recovery/controller';
+export { SupportView } from './src/features/support/SupportExperience';
+export { StoreHome } from './src/components/StoreHome';
+export { OfferDetail } from './src/components/OfferDetail';
+export { ResultCard } from './src/features/discovery/ui/ResultCard';
+export { CommunityHome } from './src/components/CommunityHome';
+export { CommunityObjectCard } from './src/components/CommunityObjectCard';
+export { PublicShellProvider } from './src/features/public/publicShell';
+export { demoOffers, demoStores } from './src/storeData';
+export { demoCommunityObjects } from './src/communityData';
+export { createElement } from 'react';
+export { renderToStaticMarkup } from 'react-dom/server';
+`);
+const xr = (component, props = {}) => extra.renderToStaticMarkup(extra.createElement(component, props));
+/**
+ * Rendered-state contrast check: every NON-icon element in the rendered markup whose own class sets a text colour
+ * of sand-400 or sand-500 (below AA 4.5:1 at these small sizes on cream/white). Icons (<svg>) and placeholder:
+ * modifiers are decorative/exempt and ignored.
+ */
+const lowContrastText = markup => [...markup.matchAll(/<(\w+)\b[^>]*\bclass="([^"]*)"[^>]*>/g)]
+  .filter(([, tag, cls]) => tag !== 'svg' && /(?:^|\s)text-sand-(400|500)(?:\s|$)/.test(cls))
+  .map(([whole]) => whole.slice(0, 120));
+
+test('ChoiceButtons give every choice a 44px minimum target without losing the pill styling', () => {
+  const markup = xr(extra.ChoiceButtons, { data: { type: 'CHOICE_BUTTONS', choices: [{ label: 'Yes', value: 'y' }, { label: 'Not yet', value: 'n' }] }, onChoice: noop });
+  const buttons = [...markup.matchAll(/<button[^>]*class="([^"]*)"/g)].map(m => m[1]);
+  assert.equal(buttons.length, 2);
+  for (const cls of buttons) {
+    assert.match(cls, /(?:^|\s)min-h-11(?:\s|$)/, '44px minimum target');
+    assert.match(cls, /rounded-full/, 'still a pill');
+    assert.match(cls, /focus-visible:ring-2/);
+    assert.doesNotMatch(cls, /min-h-(1[2-9]|[2-9]\d)|py-(3|4|5)\b|text-(base|lg|xl)/, 'not an oversized CTA');
+  }
+  assert.match(buttons[0], /bg-forest-600 text-cream-50/, 'primary choice keeps its style');
+  assert.match(buttons[1], /bg-white text-forest-700 border/, 'secondary choice keeps its style');
+});
+
+test('Plug copy separates a membership invitation from a commercial referral, on the public Home and the signed-in doorway', () => {
+  const doorway = text(xr(extra.TrustProjectSection, { onExploreCommunity: noop, onOpenStores: noop }));
+  for (const out of [publicHomeText, doorway]) {
+    assert.match(out, /An invitation is not a referral, and recruiting members earns nothing automatically\./);
+    assert.match(out, /Income is never guaranteed\./);
+    assert.match(out, /Helping never gives a Plug authority over anyone’s agreement or money\./);
+    assert.doesNotMatch(out, /inviting people earns nothing/i, 'no blanket rule denying qualifying commercial referrals');
+    assert.doesNotMatch(out, /\d+\s?%|per cent|percent|guaranteed (income|reward|commission)/i, 'no percentages or promised rewards');
+  }
+});
+
+test('the Store follows the KS identity, not Trust Project membership', () => {
+  const doorway = text(xr(extra.TrustProjectSection, { onExploreCommunity: noop, onOpenStores: noop }));
+  assert.match(doorway, /Your KS Store/);
+  assert.doesNotMatch(doorway, /A Store for every member/);
+  assert.match(doorway, /Your KS identity gives you a digital Store while your SecurePay identity is active\./);
+  assert.doesNotMatch(doorway, /(membership|joining|member) (gives|creates|activates|provides)[^.]*Store/i);
+});
+
+test('signed-out Recovery renders no low-contrast text in any step', async () => {
+  // Recovery is reachable only signed out and every one of its steps is a signed-out state, so the whole file is
+  // the state under test. (It uses useSyncExternalStore without a server snapshot, so it cannot be SSR-rendered
+  // here; the rendered page was audited in the browser.)
+  const src = strip(await readFile('src/features/recovery/RecoveryExperience.tsx', 'utf8'));
+  assert.doesNotMatch(src, /(?<![:\w-])text-sand-(400|500)\b/);
+  assert.match(src, /text-sand-600/);
+});
+
+test('signed-out Help renders no low-contrast text', () => {
+  const nav = { openAgreement: noop, openAgreementReviews: noop, openMoney: noop, askAgent: noop, recovery: noop, notifications: noop, account: noop, agreements: noop, money: noop, store: noop, community: noop };
+  const markup = xr(extra.SupportView, { signedIn: false, ctx: null, label: null, reviews: null, reviewCase: null, money: null, nav });
+  assert.match(text(markup), /What do you need help with\?/);
+  assert.deepEqual(lowContrastText(markup), []);
+});
+
+test('Sign in (credentials and one-time code) renders no low-contrast text', () => {
+  const base = { type: 'SECURE_AUTH', title: 'Enter the code sent to you', identityName: '', reason: 'r', primaryLabel: 'Verify', primaryValue: 'v', secondaryLabel: 'Start over', secondaryValue: 's' };
+  const otp = html(h(api.SecureAuthCard, { data: { ...base, identityKsn: 'KS018', fields: [{ label: 'One-time code', placeholder: '6-digit code', type: 'otp' }] }, values: [''], onFieldChange: noop, onChoice: noop }));
+  assert.match(text(otp), /KS018/);
+  assert.deepEqual(lowContrastText(otp), []);
+  const signIn = html(h(api.SignInExperience, { auth: { signIn: noop, completeOtp: noop, resendOtp: noop }, session: { setTokens: noop }, onSignedIn: noop, onCancel: noop, onRecover: noop }));
+  assert.deepEqual(lowContrastText(signIn), []);
+});
+
+test('signed-out Store browse, result cards and offer detail render no low-contrast text', () => {
+  const home = xr(extra.StoreHome, { onOpenOffer: noop, onOpenStore: noop, onManageStore: noop, onCreateOffer: noop, onStartConversation: noop, offers: [], stores: [], query: '', onQueryChange: noop, searchStatus: 'ready' });
+  assert.deepEqual(lowContrastText(home), []);
+  const card = xr(extra.ResultCard, { offer: { key: 'k', offerId: 'o', ownerKs: 'KS012', ownerName: 'A seller', kind: 'SERVICE', title: 'Plumbing', description: 'Fix leaks', priceMinor: null, currency: 'KES', priceLabel: null, availabilityState: 'AVAILABLE', availabilityLabel: 'Taking work', tone: 'open', quantity: null, place: 'Othaya', updatedAt: null }, onOpen: noop });
+  assert.match(text(card), /KS012/);
+  assert.deepEqual(lowContrastText(card), []);
+  for (const offer of extra.demoOffers) {
+    const detail = xr(extra.OfferDetail, { offer, onBack: noop, onInterested: noop, onUseThis: noop, onAskSecurePay: noop, onShare: noop, onViewStore: noop });
+    assert.deepEqual(lowContrastText(detail), [], `offer ${offer.id}`);
+  }
+});
+
+test('signed-out Community renders no low-contrast text (banner, home, store-offer cards)', async () => {
+  const community = xr(extra.CommunityHome, { query: '', onQueryChange: noop, objects: extra.demoCommunityObjects, people: [], businesses: [], onOpenObject: noop, onOpenPerson: noop, onOpenBusiness: noop, onCreate: noop, onStartConversation: noop, onOpenCircles: noop, storeSearchStatus: 'ready' });
+  assert.deepEqual(lowContrastText(community), []);
+  for (const object of extra.demoCommunityObjects) assert.deepEqual(lowContrastText(xr(extra.CommunityObjectCard, { object, onClick: noop })), [], object.id);
+  const src = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.match(src, /<p className="text-\[0\.78rem\] text-sand-600">A community of people choosing to trade fairly\.<\/p>/);
+  // The signed-out prompt stays at full contrast; the invitation-based membership copy is untouched until Phase 4.
+  assert.match(src, /<p className="text-\[0\.8rem\] text-forest-800">Sign in to see what the community is sharing\.<\/p>/);
+  assert.match(src, /The Trust Project is invitation-based\./);
+});
+
+test('Circle-level Join authority is untouched by the Phase 2 Join gate', async () => {
+  const circle = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
+  const community = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
+  assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/components/CircleJoinFlow.tsx', 'src/features/circle/controller.ts', 'src/features/community/controller.ts'], { encoding: 'utf8' }), '');
+  assert.ok(circle.length > 0 && community.length > 0);
+  assert.match(community, /REQUEST_TO_JOIN|requestToJoin|joinCircle/);
+});

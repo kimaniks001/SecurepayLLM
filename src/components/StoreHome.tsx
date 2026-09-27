@@ -31,7 +31,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1 className="font-display text-xl text-forest-800 font-medium">Store</h1>
-          <p className="text-[0.85rem] text-sand-500 mt-0.5">What sellers have published on SecurePay. Any offer can become the start of your own agreement.</p>
+          <p className="text-[0.85rem] text-sand-600 mt-0.5">What sellers have published on SecurePay. Any offer can become the start of your own agreement.</p>
         </div>
 
         {/* Search */}
@@ -49,7 +49,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
         {/* Stores */}
         {stores.length > 0 && (
           <div className="mb-5">
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Stores</div>
+            <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Stores</div>
             <div className="space-y-2">
               {stores.map((store) => (
                 <button
@@ -73,7 +73,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         {/* Offers */}
         <div className="mb-5">
-          <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offers</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Offers</div>
           {searchStatus === 'loading' ? (
             <p role="status" className="text-[0.825rem] text-sand-500 text-center py-8">Searching…</p>
           ) : searchStatus === 'error' ? (
@@ -99,7 +99,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         {/* Trader actions */}
         <div className="rounded-2xl border border-cream-200 bg-cream-50/50 px-4 py-3">
-          <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">For traders</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">For traders</div>
           <div className="flex flex-col gap-2">
             <button
               onClick={onCreateOffer}
@@ -127,7 +127,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             <MessageCircle className="w-3.5 h-3.5" />
             Ask SecurePay to find an offer
           </span>
-          <p className="text-[0.72rem] text-sand-400 mt-0.5">Describe what you need and SecurePay will search for matching offers</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">Describe what you need and SecurePay will search for matching offers</p>
         </button>
       </div>
     </div>

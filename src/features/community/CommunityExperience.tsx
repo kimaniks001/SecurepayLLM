@@ -51,7 +51,7 @@ function TrustProjectBanner({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <p className="text-[0.68rem] uppercase tracking-wide text-forest-600 font-semibold">The Trust Project</p>
-          <p className="text-[0.78rem] text-sand-500">A community of people choosing to trade fairly.</p>
+          <p className="text-[0.78rem] text-sand-600">A community of people choosing to trade fairly.</p>
         </div>
         <div className="flex items-center gap-3">
           {membership.kind === 'active' && (

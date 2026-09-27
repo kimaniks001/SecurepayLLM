@@ -93,7 +93,7 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
 
           <div className="mt-6 grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl bg-cream-50 border border-cream-200 px-4 py-3">
-              <h3 className="font-display text-[0.95rem] text-forest-800">A Store for every member</h3>
+              <h3 className="font-display text-[0.95rem] text-forest-800">Your KS Store</h3>
               <p className="mt-1 text-[0.78rem] text-sand-600 leading-relaxed">
                 Your KS identity gives you a digital Store while your SecurePay identity is active. It can start empty — nothing is published until you publish it. A Store is not an endorsement.
               </p>

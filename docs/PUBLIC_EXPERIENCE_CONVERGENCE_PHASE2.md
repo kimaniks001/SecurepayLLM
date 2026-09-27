@@ -139,7 +139,7 @@ AgentExperience            (thin wrapper: provides the public shell while nobody
 | Activation fallback | This application does not recognize the backend's reported next action… | SecurePay has a next step this screen can't show yet. Check again, or contact support. |
 | Signed-out private areas | Sign in through "Review this" to view your … (a dead end on Home) | The public Sign in route, then the requested area |
 | Router fallback | This area is not available yet. … | That isn't available here. You can keep talking with KS001. |
-| Trust Project Plug | referral-led "Connect useful people…" | The Phase 1 §12 contract (practical help; income never guaranteed; inviting earns nothing; no authority) |
+| Trust Project Plug | referral-led "Connect useful people…" | The Phase 1 §12 contract (practical help; income never guaranteed; an invitation is not a referral and recruiting members earns nothing automatically; no authority). Final wording in §12. |
 | Fair Trade affordance | Guided by the 12 principles of fair trade (sand-500) | Guided by the 12 Principles of Fair Trade (sand-700) |
 | Tab title | SecurePay — What are you trying to make happen? | SecurePay — Bring the plan. Leave with an agreement. |
 
@@ -160,10 +160,9 @@ AgentExperience            (thin wrapper: provides the public shell while nobody
   - Errors are linked with `aria-describedby`, marked `aria-invalid` and announced with `role="alert"`, at `ember-700` contrast.
   - Inputs show a focus-within ring. The OTP field keeps `inputMode="numeric"` and `autocomplete="one-time-code"`.
   - On the Sign in page, Enter submits.
-- **ChoiceButtons.** They get a focus-visible ring and `type="button"`.
+- **ChoiceButtons.** They get a focus-visible ring, `type="button"`, and a 44 px minimum target (`inline-flex min-h-11 items-center`; final correction, §12).
 - **Reduced motion.** It is honoured everywhere. `lang="en"` is kept.
 - **Remaining:**
-  - `ChoiceButtons` pills stay about 36 px tall. That meets 2.5.8 AA (24 px) but not the 44 px contract target; they are shared by chat, so they were left untouched.
   - SecureAuth has no password show/hide, because it never had one.
   - The signed-in mobile bottom-nav labels stay `sand-400`, because the signed-in NavBar was kept unchanged by mandate.
 
@@ -175,7 +174,8 @@ AgentExperience            (thin wrapper: provides the public shell while nobody
 | Trust line and "Ready to use…" `sand-500 → sand-600` | Signed-in Home (intended, AA) |
 | TrustProjectSection capacities copy and "Members belong. Plugs help. Masters bring experience." | Compact doorway, when expanded (intended contract copy) |
 | Source copy | Signed-in conversations (intended) |
-| SecureAuth, ChoiceButtons, ConversationInput | Accessibility attributes and focus rings only; no layout change |
+| SecureAuth, ConversationInput | Accessibility attributes and focus rings only; no layout change |
+| ChoiceButtons | 44 px minimum height on every choice (chat, auth, handoff, recipient); still compact pills (§12) |
 | Global reduced-motion rule | All screens, only when the person asks for reduced motion |
 | Signed-in NavBar | **Unchanged**: byte-identical markup (tested) |
 
@@ -245,6 +245,9 @@ The backend was SecurePayAPI main `80ff7a24` in local sandbox mode (PostgreSQL +
 
 ## 11. Findings deferred (not fixed here)
 
+- **Help has no navigation when signed out.** `SupportView` renders only its Back link, and "Human support requests are not yet available from this screen" is shown. Both are pre-existing and outside this correction's four findings.
+- **The Circle sign-in gate** reuses the generic "Sign in to review this" title (pre-existing).
+
 - **Backend source failure text.** It reads "SecurePay received the file, but couldn't read it right now. Nothing from it has been added to your **agreement** yet." It comes from SecurePayAPI (`AgentSourceIngestionService`) and is rendered as returned, so it overstates the stage for a pasted plan too. **Phase 3** (source convergence) should change it in the API.
 - **Phase 3:**
   - source convergence and new source kinds (XLSX, AUDIO, LINK, PLACE);
@@ -258,3 +261,80 @@ The backend was SecurePayAPI main `80ff7a24` in local sandbox mode (PostgreSQL +
   - the signup error context;
   - the Community "invitation-based" copy;
   - the Business activation helper copy.
+
+## 12. Final correction pass (after architectural review)
+
+Scope: exactly four review findings. The public shell, sign-in, PublicHome, the Join gate, Store navigation and Business information architecture are unchanged.
+
+### 12.1 ChoiceButtons — 44 px targets
+
+- **Change:** each choice gets `inline-flex min-h-11 items-center`, so the effective height is **44 px**.
+- **Unchanged:** the pill shape, wrapping, primary/secondary styling, focus ring, active scale, text size and click behaviour.
+- **Measured in the real KS001 conversation** ("Save for later" → the conversation's sign-in card): 44 px at 1440, 390, 360 and 320.
+  - At 320 the two choices wrap onto two lines cleanly, with no page overflow.
+  - They still read as compact conversational pills, not CTAs.
+
+### 12.2 Plug wording
+
+| | Wording |
+| --- | --- |
+| Before | "Paid help is agreed separately. Income is never guaranteed, inviting people earns nothing, and helping never gives a Plug authority over anyone’s agreement or money." |
+| After | "Paid help is agreed separately. Income is never guaranteed. An invitation is not a referral, and recruiting members earns nothing automatically. Helping never gives a Plug authority over anyone’s agreement or money." |
+
+- **Why:** a Trust Project membership invitation is not a qualifying commercial referral. The blanket "inviting people earns nothing" could be read as denying the backend-authoritative Agreement Plug attribution and Lifetime Share model.
+- The new wording promises nothing and states no percentage.
+- `CAPACITIES` is shared, so the change renders on both the public Home and the signed-in Trust Project doorway (tested on both).
+
+### 12.3 Store heading
+
+| | Heading |
+| --- | --- |
+| Before | "A Store for every member" |
+| After | "Your KS Store" |
+
+The body is unchanged ("Your KS identity gives you a digital Store while your SecurePay identity is active…"). The Store follows the KS identity, never Trust Project membership (tested).
+
+### 12.4 Signed-out public-route contrast audit
+
+**Method.** An in-page auditor walked every visible text node. For each it computed the rendered text colour against the resolved background, and applied AA thresholds (4.5:1 normal; 3:1 for ≥24 px or ≥18.66 px bold).
+- It ran on the real signed-out render of each screen against a live SecurePayAPI, at 1440, 768, 390 and 320.
+- Community and Circle have no signed-out entry point in the Phase 2 public shell, so they were opened through the router's own `navigateTo` for the audit only. They can still render signed out, for example when a session ends mid-visit.
+
+**Failures found, and the fix** (all promoted to `sand-600`: 4.53:1 on cream-100, 4.85:1 on white):
+
+| Screen | Failing text (before) | Fixed in |
+| --- | --- | --- |
+| Help | section labels "What do you need help with?", "Talking to a person" (`sand-500`, 3.27:1) | `SupportView` `Label` |
+| Recovery | "Back to sign in", field labels, the privacy and sign-out notes (`sand-500`, 3.05–3.27:1) | every step of `RecoveryExperience` (all signed-out states) |
+| Sign in, one-time-code step | KS Number chip (`sand-500`, 3.18:1) | `SecureAuth` identity line |
+| Store browse | intro, "Offers", "For traders", the Ask-SecurePay hint (`sand-400/500`, 2.1–3.1:1) | `StoreHome` |
+| Store result cards | kind label, `· KS…`, place, "No price listed" | `ResultCard` |
+| Store offer detail | section labels, availability, empty-scope lines, "No photos available", the metadata line, back/store/ask links (`sand-400/500`, 2.07–3.27:1) | `OfferDetail` (text only) |
+| Community | "A community of people choosing to trade fairly." (3.05:1) | `CommunityExperience` banner |
+| Community | page intro, entry-card helper lines, section labels, loading/error lines, people/business lines | `CommunityHome` (text only) |
+| Community | store-offer card body and metadata, status pill | `CommunityObjectCard` |
+| Circle (signed out) | none: it is the SecureAuth sign-in gate (covered by the SecureAuth fix) | — |
+| Public Home | none | — |
+
+**After the fix:** zero AA failures on every audited screen at 1440, 768, 390 and 320.
+
+**Deliberately retained `sand-400/500`:**
+- Decorative icons (`<svg>`: search, map pin, clock, shield, file, users, chevrons, dots).
+- Input `placeholder:` styling.
+- Help's context-only labels ("What is needed", "From Formal Review", "From Money"), which render only for a signed-in Help context.
+- Every signed-in-only screen, and the signed-in mobile bottom navigation.
+- Circle and Community membership actions (OPEN join, REQUEST_TO_JOIN, invitation acceptance) were not touched. "Sign in to see what the community is sharing." was already `forest-800` on white. The invitation-based membership copy stays until Phase 4.
+
+**Bolt pin.** `CommunityObjectCard` is byte-pinned to the Bolt reference in `tests/community-circles.test.mjs` (T1). The test now permits exactly the three AA-promoted class strings and still requires everything else to be byte-identical.
+
+### 12.5 Tests and validation
+
+- New tests in `tests/public-experience-phase2.test.mjs`:
+  - ChoiceButtons 44 px and preserved styling;
+  - the Plug invitation ≠ referral wording, on both renders;
+  - the Store heading;
+  - rendered-state contrast checks for signed-out Help, Sign in (both steps), Store browse, result cards, every offer detail, and Community (home, cards, banner);
+  - a Recovery state-scoped check;
+  - Circle Join authority untouched.
+- Updated: `ui-phase7-trust-project` and `community-circles` T1.
+- Totals: 1340/1340 tests; typecheck clean; lint 0 errors / 7 warnings (baseline); build OK.

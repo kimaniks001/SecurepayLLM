@@ -79,7 +79,7 @@ export const CAPACITIES = [
     name: 'Plug',
     line: 'Help people use the ecosystem and reach opportunity.',
     detail: 'A person who understands The Trust Project and helps others make useful things happen: getting started, a Store or profile, product photos and listings, finding people, opportunities and Masters, Community research, understanding SecurePay, and practical help in person or online.',
-    boundary: 'Paid help is agreed separately. Income is never guaranteed, inviting people earns nothing, and helping never gives a Plug authority over anyone’s agreement or money.',
+    boundary: 'Paid help is agreed separately. Income is never guaranteed. An invitation is not a referral, and recruiting members earns nothing automatically. Helping never gives a Plug authority over anyone’s agreement or money.',
   },
   {
     name: 'Master',
