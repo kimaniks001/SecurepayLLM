@@ -16,7 +16,7 @@ export interface AgreementFormation {
   conversationId: string; version: number; digest: string;
   stage: 'NOTHING_YET' | 'BUILD' | 'UNDERSTOOD'; reviewable: boolean; confirmable: boolean;
   reviewBlockedReason: string | null; confirmationBlockedReason: string | null; summary: string | null;
-  what: FormationTerm[]; who: { key: string; name: string; role: string | null; identity: 'VERIFIED' | 'DESCRIBED' | 'MISSING'; ksNumber: string | null; describedAs: string | null }[];
+  what: FormationTerm[]; who: { key: string; name: string; role: string | null; identity: 'VERIFIED' | 'DESCRIBED' | 'MISSING'; ksNumber: string | null; describedAs: string | null; linked: boolean }[];
   money: FormationTerm[]; when: FormationTerm[]; responsibilities: { party: string; duties: FormationTerm[] }[];
   conditions: FormationTerm[]; notIncluded: FormationTerm[];
   origin: { type: string; title: string; offeredBy: string | null; priceNow: string | null; priceChanged: boolean } | null;
@@ -44,6 +44,8 @@ export function agreementFormationView(dto: AgreementFormationDto): AgreementFor
       key: String(p.key), name: p.name, role: str(p.role),
       identity: p.identity === 'VERIFIED' ? 'VERIFIED' : p.identity === 'MISSING' ? 'MISSING' : 'DESCRIBED',
       ksNumber: p.identity === 'VERIFIED' ? str(p.ksNumber) : null, describedAs: str(p.describedAs),
+      // Entry Perfection Phase 8 -- only a server-VERIFIED party is linked; anything else (including a missing field) is not.
+      linked: p.identity === 'VERIFIED' && !!str(p.ksNumber),
     })) : [],
     money: terms(dto.money), when: terms(dto.when),
     responsibilities: Array.isArray(dto.responsibilities) ? dto.responsibilities.filter(g => g && typeof g.party === 'string').map(g => ({ party: g.party, duties: terms(g.duties) })) : [],

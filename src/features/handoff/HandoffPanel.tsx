@@ -190,5 +190,6 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
 
   if (state.phase === 'expired') return <ErrorStateCard data={expiredHandoffView()} onChoice={leave} />;
 
-  return <ErrorStateCard data={handoffErrorView(state.error ?? 'SecurePay could not complete this step.')} onChoice={leave} />;
+  // Entry Perfection Phase 8 (§53) -- a refused or failed set-up is announced, not only shown.
+  return <div role="alert"><ErrorStateCard data={handoffErrorView(state.error ?? 'SecurePay could not complete this step.')} onChoice={leave} /></div>;
 }

@@ -284,7 +284,9 @@ export interface SavedBuildDto {
 // authority: every term is still SecurePay's understanding until the person sets it up securely.
 export interface FormationEvidenceDto { sourceArtifactId: string; sourceName: string; locator: string; removed: boolean }
 export interface FormationTermDto { key: string; label: string; value: string; detail?: string | null; basis: string; needsChecking: boolean; evidence: FormationEvidenceDto[]; history?: string | null }
-export interface FormationPartyDto { key: string; name: string; role?: string | null; identity: string; ksNumber?: string | null; describedAs?: string | null; evidence: FormationEvidenceDto[] }
+export interface FormationPartyDto { key: string; name: string; role?: string | null; identity: string; ksNumber?: string | null; describedAs?: string | null; evidence: FormationEvidenceDto[];
+  /** Entry Perfection Phase 8: LINKED | NOT_LINKED | NOT_NAMED, and NOT_JOINED while the agreement is forming (nobody else agreed). */
+  link?: string; participation?: string }
 export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName?: string | null;
   /** Entry Perfection Phase 7 (UR-259): UNRESOLVED or ACKNOWLEDGED -- a checked point is still open, never "resolved". */
   topic?: string; state?: string; acknowledgedAtVersion?: number | null }

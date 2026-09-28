@@ -2,7 +2,15 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { agreementReviewView, handoffView } from '../../api/securepay/agent/adapters';
 import type { HandoffDto } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
-import { errorText } from '../agent/controller';
+import { errorText as agentErrorText } from '../agent/controller';
+
+/**
+ * Entry Perfection Phase 8 -- a set-up the LIVE authority check refuses (the permission was removed, or the person can't create
+ * agreements) keeps the work and says so calmly -- never "403 Forbidden".
+ */
+export const SET_UP_NOT_ALLOWED_TEXT = 'You can’t set this up with your current permissions. Your agreement is still here — nothing was lost.';
+const errorText = (error: unknown): string =>
+  error instanceof ApiError && error.status === 403 ? SET_UP_NOT_ALLOWED_TEXT : agentErrorText(error);
 
 export type HandoffView = ReturnType<typeof handoffView>;
 export type HandoffReviewView = ReturnType<typeof agreementReviewView>;
