@@ -157,10 +157,12 @@ test('link and place are sent as declared text to their own endpoints, with the 
   assert.equal(requests[1].headers['x-securepay-conversation-token'], SECRET);
 });
 
+// Entry Perfection Phase 2 -- DELIBERATELY RESTATED: the fixture returned RECEIVED from a create call, which the real (synchronous) server never does and which is now
+// correctly treated as "still being read", never success. Only READY/PARTIAL is success.
 test('the source controller adds a link and a place into the SAME conversation and refreshes it', async () => {
   const calls = [];
   let ingested = 0;
-  const artifact = kind => ({ sourceArtifactId: `s-${kind}`, conversationId: CONVERSATION, sourceKind: kind, originalName: '', label: '', mediaType: 'text/plain', byteSize: 10, documentType: '', extractionStatus: 'RECEIVED', extractionGeneration: 0, summary: '', uncertainties: [], failureReason: '', createdAt: 'x', updatedAt: 'x', declaredText: kind === 'LINK' ? 'https://a.example' : 'Kisumu' });
+  const artifact = kind => ({ sourceArtifactId: `s-${kind}`, conversationId: CONVERSATION, sourceKind: kind, originalName: '', label: '', mediaType: 'text/plain', byteSize: 10, documentType: '', extractionStatus: 'READY', extractionGeneration: 1, summary: '', uncertainties: [], failureReason: '', createdAt: 'x', updatedAt: 'x', declaredText: kind === 'LINK' ? 'https://a.example' : 'Kisumu' });
   const controller = api.createSourceController({
     createLinkSource: async (id, body) => { calls.push(['link', id, body]); return artifact('LINK'); },
     createPlaceSource: async (id, body) => { calls.push(['place', id, body]); return artifact('PLACE'); },
@@ -180,8 +182,9 @@ test('limits and unavailable kinds are said plainly', () => {
   assert.match(api.sourceIngestionErrorText(new api.ApiError('http', 'Too many requests', 429, 'RATE_LIMIT_EXCEEDED')), /short pause/);
   assert.match(api.sourceIngestionErrorText(new api.ApiError('http', 'x', 422, 'AGENT_SOURCE_CAPABILITY_UNAVAILABLE')), /isn.t available yet/);
   assert.match(api.sourceIngestionErrorText(new api.ApiError('http', 'x', 404, 'AGENT_CONVERSATION_NOT_FOUND')), /no longer available here/);
+  // Entry Perfection Phase 2 -- DELIBERATELY RESTATED (H6): a 5xx after the request left the browser is an UNKNOWN outcome, never "nothing was added".
   assert.equal(api.sourceIngestionErrorText(new api.ApiError('http', 'x', 503)),
-    'SecurePay received this, but couldn’t read it right now. Nothing from it has been added to this conversation.');
+    'The connection was interrupted, so SecurePay couldn’t confirm whether it read this. Trying again is safe — it won’t be added twice.');
 });
 
 test('the declared-text hints mirror the server rules without replacing them', () => {

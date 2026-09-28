@@ -7,6 +7,9 @@ import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWork
  * requests for the conversation the token belongs to, plus that conversation's handoff reads; it forgets
  * the token after a claim (save / signed-in handoff) and on the server's non-leaking 404.
  */
+/** Entry Perfection Phase 2 -- above one source read (5 s + 30 s) and a typical turn; Phase 9 owns the real budget (UR-241). */
+export const LONG_OPERATION_TIMEOUT_MS = 45_000;
+
 export function createAgentGateway(rawHttp: HttpClient, access: ConversationAccessStore = conversationAccess) {
   const conversation = (id: string) => `/api/agent/conversations/${segment(id)}`;
   const handoff = (id: string) => `/api/agent/agreement-handoffs/${segment(id)}`;
@@ -74,7 +77,9 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // turn carries their existing session so the backend can obtain the actual current actor for
     // private Agreement/Home tools. The model never supplies identity; this is purely a transport
     // concern, matching the existing createHandoff/readHandoff convention below.
-    submitTurn: (id: string, body: TurnRequest) => http.request<AgentResponseDto>(`${conversation(id)}/turns`, { method: 'POST', body, auth: 'optional' }),
+    // Entry Perfection Phase 2 -- a turn and a source read are bounded server-side above the default wait; a timeout
+    // is reconciled by the caller (same clientTurnId / same content), never treated as a definite failure.
+    submitTurn: (id: string, body: TurnRequest) => http.request<AgentResponseDto>(`${conversation(id)}/turns`, { method: 'POST', body, auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS }),
     // KS001 Upgrade Phase 2 final acceptance correction (item 1) -- FIX: these six calls were `auth:
     // 'none'`, which explicitly strips the token even for a signed-in caller (see http client: 'none'
     // forces token = null, unlike 'optional' which attaches one when present but never requires it).
@@ -163,7 +168,7 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // as every other conversation-scoped call above (Section 39 -- signed-out value first; Section 34's
     // ratchet still applies once the conversation is saved).
     createPastedTextSource: (conversationId: string, body: CreatePastedTextSourceRequest) =>
-      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/pasted-text`, { method: 'POST', body, auth: 'optional' }),
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/pasted-text`, { method: 'POST', body, auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS }),
     /**
      * Section 65 -- success is reported ONLY after SecurePay has really received the bytes; this call
      * resolves (or rejects) based on the REAL upload, never a local blob URL. `file` is sent as real
@@ -172,22 +177,22 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
      */
     // Phase 3 (Slice 3B) -- declared text only: the link is never opened, the place never located.
     createLinkSource: (conversationId: string, body: CreateLinkSourceRequest) =>
-      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/link`, { method: 'POST', body, auth: 'optional' }),
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/link`, { method: 'POST', body, auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS }),
     createPlaceSource: (conversationId: string, body: CreatePlaceSourceRequest) =>
-      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/place`, { method: 'POST', body, auth: 'optional' }),
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/place`, { method: 'POST', body, auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS }),
     uploadSource: (conversationId: string, sourceKind: 'DOCUMENT' | 'PHOTO', file: File, label?: string) => {
       const form = new FormData();
       form.append('sourceKind', sourceKind);
       if (label) form.append('label', label);
       form.append('file', file, file.name);
-      return http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/upload`, { method: 'POST', body: form, auth: 'optional' });
+      return http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/upload`, { method: 'POST', body: form, auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS });
     },
     listSources: (conversationId: string) =>
       http.request<AgentSourceArtifactListDto>(`${conversation(conversationId)}/sources`, { auth: 'optional' }),
     getSource: (conversationId: string, sourceArtifactId: string) =>
       http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}`, { auth: 'optional' }),
     retrySource: (conversationId: string, sourceArtifactId: string) =>
-      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}/retry`, { method: 'POST', auth: 'optional' }),
+      http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}/retry`, { method: 'POST', auth: 'optional', timeoutMs: LONG_OPERATION_TIMEOUT_MS }),
     removeSource: (conversationId: string, sourceArtifactId: string) =>
       http.request<AgentSourceArtifactDto>(`${conversation(conversationId)}/sources/${segment(sourceArtifactId)}`, { method: 'DELETE', auth: 'optional' }),
   };

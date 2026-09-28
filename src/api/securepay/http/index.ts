@@ -16,6 +16,11 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Extra request headers (e.g. `Idempotency-Key`). Never used for Authorization/Content-Type. */
   headers?: Record<string, string>;
+  /**
+   * Entry Perfection Phase 2 -- a per-request wait for operations the server itself bounds above the default
+   * (a KS001 turn, reading a source). A timeout still means "outcome unknown", never "failed": callers reconcile.
+   */
+  timeoutMs?: number;
 }
 export interface HttpClient { request<T>(path: string, options?: RequestOptions): Promise<T> }
 export type AccessTokenProvider = () => string | null;
@@ -42,7 +47,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
       const abort = () => controller.abort();
       options.signal?.addEventListener('abort', abort, { once: true });
       if (options.signal?.aborted) abort();
-      const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+      const timer = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeoutMs ?? timeoutMs);
       let status: number | null = null;
       try {
         const response = await fetcher(`${validatedBaseUrl}${path}`, {

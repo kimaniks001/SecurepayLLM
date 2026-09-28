@@ -74,6 +74,12 @@ export interface AgentState {
    * display priority over this list once it contains the same id.
    */
   offeredDiscoveryEntityIds: string[];
+  /**
+   * Entry Perfection Phase 2 -- the pending turn's outcome is UNKNOWN (the connection dropped or the server is still
+   * working), as opposed to a definite failure. While true, SecurePay is checking by re-sending the SAME clientTurnId
+   * (the server returns the real reply, "in progress", or runs it exactly once), so nothing is ever sent twice.
+   */
+  outcomeUnknown: boolean;
 }
 /**
  * The outcome of ONE attempted "Use this" / retry, returned by the operation itself so no caller ever has to
@@ -94,18 +100,31 @@ export type SourceSelectionResult =
   | { status: 'busy' }
   | { status: 'no-source' };
 /** Truthful wording for retrying whatever is pending -- an amount submission is not a conversational turn. */
-export function retryLabel(pending: AgentState['pending']): string {
+export function retryLabel(pending: AgentState['pending'], outcomeUnknown = false): string {
+  if (outcomeUnknown && pending?.kind === 'turn') return 'Check again';
   return pending?.kind === 'adopt' ? 'Retry Use this' : pending?.kind === 'external-amount' ? 'Retry amount' : 'Retry message';
+}
+
+/** Entry Perfection Phase 2 -- shown while SecurePay reconciles a turn whose outcome is not known yet. Not a failure. */
+export const TURN_CHECKING_TEXT = 'The connection was interrupted, so SecurePay is checking whether your message went through. It won’t be sent twice.';
+export const TURN_STILL_WORKING_TEXT = 'SecurePay is still working on your message. Check again in a moment — it won’t be sent twice.';
+/** A request whose outcome is not known: never a definite failure (the server may have finished). */
+export function isTurnOutcomeUnknown(error: unknown): boolean {
+  return error instanceof ApiError
+    && (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500 || error.code === 'AGENT_TURN_IN_PROGRESS');
 }
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === 'AGENT_TURN_IN_PROGRESS') return TURN_STILL_WORKING_TEXT;
+    if (error.status === 429 || error.code === 'RATE_LIMIT_EXCEEDED') return 'SecurePay needs a short pause. Your message is kept — try again in a little while.';
     if (error.status === 404) return 'This conversation or candidate could not be found. You can retry or start a new conversation.';
     if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request. Your message is still here.';
     if (error.status === 409) return 'The source or request has changed. Refresh what SecurePay understands before continuing.';
     if (error.status === 410) return 'This reference has expired. Refresh what SecurePay understands.';
     // CLIENT FAILURE != PROOF OF NON-DELIVERY: a timeout/network error/5xx can happen AFTER SecurePay committed the step.
     if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay could not confirm whether this step completed. Your message is kept — retry to check; the same step is never applied twice.';
-    return error.message;
+    // Entry Perfection Phase 2 -- never raw server/implementation text in front of the person.
+    return 'SecurePay could not complete this step. Your message is kept — please try again.';
   }
   return 'SecurePay could not complete this step. Please try again.';
 }
@@ -149,15 +168,48 @@ const isStaleVersionError = (error: unknown): boolean => error instanceof ApiErr
 function historyReplyResponseView(text: string): ResponseView {
   return {
     message: { type: 'MESSAGE', text } satisfies MessageResponse,
-    components: [], panel: null, contextUpdates: [], suggestedActions: [], offeredDiscoveryEntityIds: [],
+    components: [], panel: null, contextUpdates: [], suggestedActions: [], offeredDiscoveryEntityIds: [], replyId: null, understandingChanged: null,
   };
 }
 
 /** Session-local orchestration. No identity, Agreement or financial authority. No automatic POST retries. */
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID()) {
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [] };
+/** Entry Perfection Phase 2 -- injectable timing, so reconciliation is testable without real waits. */
+export interface AgentControllerOptions {
+  sleep?: (ms: number) => Promise<void>;
+  /** Backoff (ms) between re-sends of a turn whose outcome is unknown. */
+  turnReconcileScheduleMs?: number[];
+}
+const defaultSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+const DEFAULT_TURN_RECONCILE_SCHEDULE_MS = [1000, 3000, 6000, 12000, 25000];
+
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
+  const sleep = options.sleep ?? defaultSleep;
+  const turnReconcileSchedule = options.turnReconcileScheduleMs ?? DEFAULT_TURN_RECONCILE_SCHEDULE_MS;
+  /**
+   * Entry Perfection Phase 2 (H2) -- a canonical re-read requested while another operation is running is DEFERRED,
+   * never discarded: it runs as soon as the controller is idle again. Reads only; writes are never queued.
+   */
+  let reconcileDeferred = false;
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], outcomeUnknown: false };
   const listeners = new Set<() => void>();
-  const update = (patch: Partial<AgentState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
+  const update = (patch: Partial<AgentState>) => {
+    state = { ...state, ...patch };
+    listeners.forEach(listener => listener());
+    if (patch.busy === false && reconcileDeferred) {
+      reconcileDeferred = false;
+      queueMicrotask(() => { void runDeferredReconcile(); });
+    }
+  };
+  async function runDeferredReconcile() {
+    if (state.busy) { reconcileDeferred = true; return; }
+    update({ busy: true });
+    try { await readContext(); } finally { update({ busy: false }); }
+  }
+  /** Entry Perfection Phase 2 (H5) -- KS001 turns are keyed by the server's canonical reply id; never duplicated. */
+  function appendAgentReplyOnce(replyId: string, text: string) {
+    if (state.turns.some(turn => turn.id === replyId)) return;
+    update({ turns: [...state.turns, { id: replyId, sender: 'agent', response: historyReplyResponseView(text) }] });
+  }
   async function readContext() {
     if (!state.conversationId) return;
     update({ context: { status: 'loading', data: state.context.data, error: null } });
@@ -181,13 +233,16 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
         update({ conversationId });
       }
       if (pending.kind === 'turn') {
-        const response = agentResponseView(await gateway.submitTurn(conversationId, pending.body));
+        const response = agentResponseView(await submitTurnReconciling(conversationId, pending.body));
         // KS001 Upgrade Phase 1 final integration fix -- record DISCOVERY OFFERED (never DISCOVERY
         // INVITED) for every real, server-verified target this turn offered, deduplicated.
         const offeredDiscoveryEntityIds = response.offeredDiscoveryEntityIds.length > 0
           ? Array.from(new Set([...state.offeredDiscoveryEntityIds, ...response.offeredDiscoveryEntityIds]))
           : state.offeredDiscoveryEntityIds;
-        update({ turns: [...state.turns, { id: id(), sender: 'agent', response }], offeredDiscoveryEntityIds });
+        // Entry Perfection Phase 2 (H5) -- the server's canonical reply id, so history never duplicates this reply.
+        const replyId = response.replyId ?? id();
+        const turns = state.turns.some(turn => turn.id === replyId) ? state.turns : [...state.turns, { id: replyId, sender: 'agent' as const, response }];
+        update({ turns, offeredDiscoveryEntityIds, outcomeUnknown: false });
       } else if (pending.kind === 'adopt') {
         await gateway.adoptFact(conversationId, pending.body);
       } else {
@@ -199,9 +254,37 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       return true;
     } catch (error) {
       // The request itself failed, so SecurePay's understanding is exactly what it was: keep showing it.
-      update({ error: errorText(error), context: contextBefore });
+      const unknown = pending.kind === 'turn' && isTurnOutcomeUnknown(error);
+      update({ error: unknown ? TURN_STILL_WORKING_TEXT : errorText(error), context: contextBefore, outcomeUnknown: unknown });
       return false;
     } finally { update({ busy: false }); }
+  }
+  /**
+   * Entry Perfection Phase 2 (H4/H6) -- a turn whose outcome is unknown (timeout, dropped connection, 5xx, or
+   * "still in progress") is reconciled by re-sending the SAME body (same clientTurnId) on a bounded backoff. The server
+   * answers with KS001's real recorded reply, says it is still in progress, or runs it exactly once if it never
+   * arrived -- so this can never send the person's message twice. A definite error ends it immediately.
+   */
+  async function submitTurnReconciling(conversationId: string, body: TurnRequest) {
+    try {
+      return await gateway.submitTurn(conversationId, body);
+    } catch (first) {
+      if (!isTurnOutcomeUnknown(first)) throw first;
+      let last: unknown = first;
+      for (const wait of turnReconcileSchedule) {
+        update({ outcomeUnknown: true, error: TURN_CHECKING_TEXT });
+        await sleep(wait);
+        try {
+          const response = await gateway.submitTurn(conversationId, body);
+          update({ error: null });
+          return response;
+        } catch (error) {
+          if (!isTurnOutcomeUnknown(error)) throw error;
+          last = error;
+        }
+      }
+      throw last;
+    }
   }
   /**
    * Final Phase 3 correction (Section 9/13): the ONE persistent SecurePay conversation, made
@@ -318,20 +401,16 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * or duplicated (matched by id); a history read failure degrades to the same behaviour `review()`
      * already has (BUILD itself still refreshes via readContext below).
      */
-    async refreshAfterSourceIngestion() {
-      if (state.busy || !state.conversationId) return;
+    async refreshAfterSourceIngestion(source?: { acknowledgement: { replyId: string; text: string } | null } | null) {
+      // Entry Perfection Phase 2 (H2/H3/H5) -- KS001's canonical acknowledgement arrives IN the source response and is
+      // shown at once, keyed by its canonical reply id (so a later history read can never duplicate it, and nothing
+      // depends on a best-effort history refresh finding it). The canonical Trade Context re-read is never dropped:
+      // if another operation is running it is DEFERRED and runs as soon as the controller is idle.
+      if (source?.acknowledgement) appendAgentReplyOnce(source.acknowledgement.replyId, source.acknowledgement.text);
+      if (!state.conversationId) return;
+      if (state.busy) { reconcileDeferred = true; return; }
       update({ busy: true });
-      try {
-        try {
-          const entries = conversationHistoryView(await gateway.conversationHistory(state.conversationId));
-          const existingIds = new Set(state.turns.map(turn => turn.id));
-          const newReplies: Turn[] = entries
-            .filter(entry => entry.sender === 'KS001' && !existingIds.has(entry.id))
-            .map(entry => ({ id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) }));
-          if (newReplies.length > 0) update({ turns: [...state.turns, ...newReplies] });
-        } catch { /* presentation-only; the Trade Context refresh below remains the canonical understanding */ }
-        await readContext();
-      } finally { update({ busy: false }); }
+      try { await readContext(); } finally { update({ busy: false }); }
     },
     async adopt(targetId: string, targetKind: AdoptFactRequest['targetKind']) {
       if (state.busy || state.pending || state.context.status !== 'ready') return;

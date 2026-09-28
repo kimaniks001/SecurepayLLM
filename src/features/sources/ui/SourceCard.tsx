@@ -3,7 +3,7 @@ import type { AgentSourceArtifactView } from '../controller';
 import { SPREADSHEET_MEDIA_TYPE, sourceKindNote, sourceStatusText } from '../presentation';
 
 const KIND_LABEL: Record<string, string> = {
-  PASTED_TEXT: 'Pasted plan', DOCUMENT: 'Document', PHOTO: 'Photo', LINK: 'Link you shared', PLACE: 'Place', AUDIO: 'Voice note',
+  PASTED_TEXT: 'Pasted text', DOCUMENT: 'Document', PHOTO: 'Photo', LINK: 'Link you shared', PLACE: 'Place', AUDIO: 'Voice note',
 };
 
 

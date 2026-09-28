@@ -231,8 +231,10 @@ test('source intake copy never names the internal BUILD workspace', async () => 
   assert.match(panel, /SecurePay will pick out useful details as suggestions for you to check\./);
   assert.doesNotMatch(panel, /BUILD/);
   const unreachable = api.sourceIngestionErrorText(new api.ApiError('network', 'offline'));
-  // Phase 3 -- the one mandated sentence (no trailing "yet"), shared with the backend's failure reason.
-  assert.match(unreachable, /Nothing from it has been added to this conversation\./);
+  // Entry Perfection Phase 2 -- DELIBERATELY RESTATED (Phase 1 H6): a dropped connection is an UNKNOWN outcome, not "nothing was added" (the server may have
+  // finished). The backend's own FAILED reason keeps the Phase 3 sentence; this is the transport case only.
+  assert.match(unreachable, /couldn’t confirm whether it read this\. Trying again is safe/);
+  assert.doesNotMatch(unreachable, /BUILD/);
   assert.doesNotMatch(unreachable, /agreement/i);
   const card = strip(await readFile('src/features/sources/ui/SourceCard.tsx', 'utf8'));
   assert.doesNotMatch(card, /Read into BUILD|Reading this into BUILD|added to BUILD|reached BUILD/);
@@ -525,7 +527,8 @@ test('Agreement Support gains no support authority', async () => {
   // (create / mine / representation, ADR-0022) -- never support.
   const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
   // Phase 4D (ADR-0024) adds the Organization gateway and registers it (and nothing else) in the gateway index.
-  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/index\.ts$/, 'only the agent (Phase 3), community (Phase 4), business (Phase 4B) and organization (Phase 4D) gateways may change after Phase 2');
+  // Entry Perfection Phase 2 adds only an optional per-request timeout to the HTTP client (never support).
+  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/index\.ts$/, 'only the agent (Phase 3), community (Phase 4), business (Phase 4B) and organization (Phase 4D) gateways may change after Phase 2');
   const registry = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api/securepay/index.ts'], { encoding: 'utf8' })
     .split('\n').filter(line => /^[+-](?![+-])/.test(line));
   assert.ok(registry.every(line => line.startsWith('+') && /createOrganizationGateway/.test(line)), 'the gateway index only gains the Organization gateway');
