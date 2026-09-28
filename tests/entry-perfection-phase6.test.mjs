@@ -80,8 +80,9 @@ test('Review answers "what are we agreeing?" in human language, with calm open p
   assert.match(out, /Maji Bora Drillers Ltd will Responsibility supply and install the pump/); // the label is screen-reader only
   assert.doesNotMatch(out, / will Does /);
   assert.match(out, /Not included Not included for Maji Bora Drillers Ltd tank stand · you'll provide this yourself/);
-  assert.match(out, /Maji Bora Drillers Ltd · Provider as named in minutes\.pdf/);
-  assert.match(out, /KS000077 · verified on SecurePay/);
+  assert.match(out, /Maji Bora Drillers Ltd · Provider as named in minutes\.pdf · not yet linked to a SecurePay identity/);
+  // Phase 8 restatement: verified is "linked", and never implies the party has joined or agreed.
+  assert.match(out, /KS000077 · linked to a verified SecurePay identity · hasn’t joined yet/);
   assert.doesNotMatch(out, /CANDIDATE|CONFIRMED|moneyRole|currencyBasis|INFERRED|YOURS|BLOCKS_CONFIRMATION|conflict:1|s-minutes/);
 });
 

@@ -7,10 +7,13 @@ import type { AgreementFormation, FormationTerm } from './view';
  * history, never the value), calm "Needs checking" points, evidence one tap away, corrections in plain words to KS001, and
  * the one explicit action that can lead to confirmation: "Set this up securely" (pinned to the version shown here).
  */
-export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onSetUp, onAcknowledgeChanges, setUp }: {
+export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onSetUp, onAcknowledgeChanges, setUp, settingUpAs }: {
   formation: AgreementFormation; changes: string[]; busy: boolean; checking: string | null; error: string | null;
   onBack: () => void; onCheck: (openPointId: string) => void; onCorrect: (text: string) => void; onSetUp: (version: number) => void;
   onAcknowledgeChanges: () => void; setUp: ReactNode;
+  /** Entry Perfection Phase 8 -- who the set-up is FOR: always the signed-in person; `actingFor` is a Business/Organization they
+   *  currently act as elsewhere in SecurePay, named so it is never silently assumed. Absent while signed out. */
+  settingUpAs?: { signedIn: boolean; actingFor: string | null };
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [correction, setCorrection] = useState('');
@@ -30,7 +33,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     </div>}
 
     {formation.summary && <p className="rounded-xl bg-white/80 px-3.5 py-3 text-[0.95rem] leading-snug text-forest-900 shadow-soft">{formation.summary}</p>}
-    {formation.origin && <p className="text-[0.8rem] text-sand-600">Started from the {formation.origin.type.toLowerCase()} offer “{formation.origin.title}”{formation.origin.offeredBy ? ` offered by ${formation.origin.offeredBy}` : ''}{formation.origin.priceNow ? ` · current price ${formation.origin.priceNow}` : ''}.</p>}
+    {formation.origin && <p className="text-[0.8rem] text-sand-600">Started from the {formation.origin.type.toLowerCase()} offer “{formation.origin.title}”{formation.origin.offeredBy ? ` offered by ${formation.origin.offeredBy} (not a participant yet)` : ''}{formation.origin.priceNow ? ` · current price ${formation.origin.priceNow}` : ''}.</p>}
 
     {needsChecking.length > 0 && <div aria-labelledby="review-open-points" className="rounded-2xl border border-ember-200 bg-ember-50/60 px-4 py-3">
       <h3 id="review-open-points" className="text-[0.8rem] font-semibold uppercase tracking-wide text-sand-700">Needs checking</h3>
@@ -52,9 +55,13 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
       <ul className="divide-y divide-cream-100 overflow-hidden rounded-2xl border border-cream-200 bg-white/85">
         {formation.who.map(p => <li key={p.key} className="px-4 py-2.5 text-[0.9rem]">
           <span className="text-forest-800">{p.name}</span>{p.role && <span className="text-sand-600"> · {p.role}</span>}
-          <span className="block text-[0.78rem] text-sand-500">{p.identity === 'VERIFIED' ? `${p.ksNumber} · verified on SecurePay` : p.describedAs}</span>
+          {/* Entry Perfection Phase 8 -- described is never shown as verified; verified is never shown as having agreed. */}
+          <span className="block text-[0.78rem] text-sand-500">{p.identity === 'VERIFIED'
+            ? `${p.ksNumber} · linked to a verified SecurePay identity · hasn’t joined yet`
+            : p.identity === 'MISSING' ? p.describedAs : `${p.describedAs ? `${p.describedAs} · ` : ''}not yet linked to a SecurePay identity`}</span>
         </li>)}
       </ul>
+      <p className="px-1 pt-1.5 text-[0.75rem] text-sand-500">Nobody else has joined or agreed yet. You can link or invite them after you set this up.</p>
     </div>}
     <Section title="Money" terms={formation.money} />
     <Section title="When" terms={formation.when} />
@@ -81,6 +88,11 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
         Set this up securely
       </button>
       <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'You’ll sign in if you haven’t already. Nothing is agreed until you set it up.' : formation.confirmationBlockedReason}</p>
+      {settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
+        {settingUpAs.actingFor
+          ? `You’ll set this up as yourself, not as ${settingUpAs.actingFor} — setting up an agreement for a business or organization from a conversation isn’t available yet.`
+          : 'You’ll set this up as yourself.'}
+      </p>}
       {setUp}
     </div>
   </section>;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
@@ -368,6 +368,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
     gateway.forgetResumableConversation?.();
   };
+
+  // Entry Perfection Phase 8 (§28) -- signing out leaves the conversation behind: an unsaved conversation's possession secret
+  // must never carry over to the next person on this device (a saved one is already unreachable once signed out).
+  const previousSessionStatus = useRef(sessionState.status);
+  useEffect(() => {
+    const was = previousSessionStatus.current;
+    previousSessionStatus.current = sessionState.status;
+    if (was === 'signed-in' && sessionState.status === 'signed-out') startNewConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState.status]);
 
   // Public Experience Convergence Phase 3 (Slice 3A) -- same-tab continuity. A reload in THIS tab finds the
   // tab-scoped record (kept only by the agent gateway's continuity module) and resumes that conversation;
@@ -965,6 +975,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             onCorrect={text => void controller.send(text)}
             onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
             onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
+            settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
             setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
         </div> : <div className="flex-1 overflow-hidden">
           <ConversationSurface
