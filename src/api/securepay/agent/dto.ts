@@ -285,7 +285,11 @@ export interface SavedBuildDto {
 export interface FormationEvidenceDto { sourceArtifactId: string; sourceName: string; locator: string; removed: boolean }
 export interface FormationTermDto { key: string; label: string; value: string; detail?: string | null; basis: string; needsChecking: boolean; evidence: FormationEvidenceDto[]; history?: string | null }
 export interface FormationPartyDto { key: string; name: string; role?: string | null; identity: string; ksNumber?: string | null; describedAs?: string | null; evidence: FormationEvidenceDto[] }
-export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName?: string | null }
+export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName?: string | null;
+  /** Entry Perfection Phase 7 (UR-259): UNRESOLVED or ACKNOWLEDGED -- a checked point is still open, never "resolved". */
+  topic?: string; state?: string; acknowledgedAtVersion?: number | null }
+/** Entry Perfection Phase 7 -- the ONE question SecurePay needs next (server-planned), or none (ask=false is the common case). */
+export interface FormationQuestionDto { ask: boolean; id?: string | null; text?: string | null; choices?: string[]; openPointIds?: string[]; blocksSetUp?: boolean; alreadyAsked?: boolean; reason?: string | null }
 export interface AgreementFormationDto {
   conversationId: string; version: number; digest: string; stage: string; reviewable: boolean; confirmable: boolean;
   reviewBlockedReason?: string | null; confirmationBlockedReason?: string | null; summary?: string | null;
@@ -293,4 +297,5 @@ export interface AgreementFormationDto {
   responsibilities: { party: string; duties: FormationTermDto[] }[]; conditions: FormationTermDto[]; notIncluded: FormationTermDto[];
   origin?: { type: string; title: string; offeredBy?: string | null; priceNow?: string | null; priceWhenChosen?: string | null; priceChanged: boolean; availability?: string | null } | null;
   openPoints: FormationOpenPointDto[];
+  question?: FormationQuestionDto | null;
 }

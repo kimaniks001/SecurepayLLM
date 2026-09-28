@@ -62,7 +62,8 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     <Section title="Conditions" terms={formation.conditions} />
     <Section title="Not included" terms={formation.notIncluded} />
 
-    {checked.length > 0 && <p className="text-[0.78rem] text-sand-500">Checked by you: {checked.map(p => p.text).join(' · ')}</p>}
+    {/* Entry Perfection Phase 7 (UR-259) -- checked is "I've seen it", not "it's settled": it stays visibly open. */}
+    {checked.length > 0 && <p className="text-[0.78rem] text-sand-500">Checked by you — still open: {checked.map(p => p.text).join(' · ')}</p>}
 
     <form className="rounded-2xl border border-cream-200 bg-white/85 p-3" onSubmit={e => { e.preventDefault(); if (correction.trim()) { onCorrect(correction.trim()); setCorrection(''); } }}>
       <label htmlFor="review-correction" className="block text-[0.82rem] text-forest-800">Something not right? Tell KS001 in your own words.</label>

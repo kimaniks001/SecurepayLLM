@@ -228,6 +228,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   useEffect(() => {
     if (state.conversationId && contextVersion !== undefined) void formationController.load(state.conversationId);
   }, [state.conversationId, contextVersion, formationController]);
+  // Entry Perfection Phase 7 -- a finished turn can change what SecurePay needs to ask without changing the agreement itself
+  // ("I don't know" leaves the point open), so the question is re-read after every completed turn too.
+  const lastTurnId = state.turns.length > 0 ? state.turns[state.turns.length - 1].id : null;
+  useEffect(() => {
+    if (state.conversationId && lastTurnId && !state.busy && !state.pending) void formationController.load(state.conversationId);
+  }, [state.conversationId, lastTurnId, state.busy, state.pending, formationController]);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const signedIn = sessionState.status === 'signed-in';
   // Public Experience Convergence Phase 2 -- the public Sign in route and in-page chapter navigation.
@@ -967,7 +973,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             disabled={state.busy || !!state.pending} onSend={text => void controller.send(text)} composerFocusKey={composerFocusKey}
             status={<div className="space-y-3">
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
-              <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)} />
+              <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)}
+                onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}

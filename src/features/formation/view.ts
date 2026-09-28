@@ -7,6 +7,11 @@ import type { AgreementFormationDto, FormationEvidenceDto, FormationTermDto } fr
  */
 export interface FormationTerm { key: string; label: string; value: string; detail: string | null; basis: 'STATED' | 'INFERRED' | 'YOURS'; needsChecking: boolean; evidence: FormationEvidenceDto[]; history: string | null }
 export interface FormationOpenPoint { id: string; kind: string; blocksConfirmation: boolean; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName: string | null }
+/**
+ * Entry Perfection Phase 7 -- the one question SecurePay needs next, planned by the server (never the client or the model). Only
+ * present when SecurePay genuinely needs to ask; {@code choices} only when the evidence bounds the answer (free text always works).
+ */
+export interface FormationQuestion { id: string; text: string; choices: string[]; blocksSetUp: boolean; alreadyAsked: boolean }
 export interface AgreementFormation {
   conversationId: string; version: number; digest: string;
   stage: 'NOTHING_YET' | 'BUILD' | 'UNDERSTOOD'; reviewable: boolean; confirmable: boolean;
@@ -16,6 +21,7 @@ export interface AgreementFormation {
   conditions: FormationTerm[]; notIncluded: FormationTerm[];
   origin: { type: string; title: string; offeredBy: string | null; priceNow: string | null; priceChanged: boolean } | null;
   openPoints: FormationOpenPoint[];
+  question: FormationQuestion | null;
 }
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
@@ -50,7 +56,15 @@ export function agreementFormationView(dto: AgreementFormationDto): AgreementFor
       sides: Array.isArray(p.sides) ? p.sides.filter(s => s && typeof s.value === 'string') : [], checkable: p.checkable === true && p.effect !== 'BLOCKS_CONFIRMATION',
       checked: p.checked === true, sourceName: str(p.sourceName),
     })) : [],
+    question: question(dto.question),
   };
+}
+
+const MAX_CHOICES = 3;
+function question(q: AgreementFormationDto['question']): FormationQuestion | null {
+  if (!q || q.ask !== true || typeof q.id !== 'string' || !str(q.text)) return null;
+  const choices = Array.isArray(q.choices) ? q.choices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0 && c.length <= 60) : [];
+  return { id: q.id, text: String(q.text), choices: choices.slice(0, MAX_CHOICES), blocksSetUp: q.blocksSetUp === true, alreadyAsked: q.alreadyAsked === true };
 }
 
 /** Every term, flattened, for comparing two versions of the agreement. */
