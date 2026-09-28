@@ -1,4 +1,5 @@
-// Entry Perfection Phase 2 -- real-browser Input Perfection checks (headless Chrome via the DevTools Protocol, no deps).
+// Entry Perfection Phase 2 -- real-browser Input Perfection checks (Phase 4: provider-none reply is now
+// "Your message is here, but I can't work on it in this setup yet." instead of "Got it — thanks for the detail.") (headless Chrome via the DevTools Protocol, no deps).
 //
 // Classification: measurement tooling, local/sandbox only. Drives the REAL SecurepayLLM UI against a REAL local
 // SecurePayAPI. With the agent model provider `none` (no credential, UR-240) every source ends FAILED at understanding,
@@ -154,7 +155,7 @@ await journey('P5', async () => {
   await p.goto(URL_);
   await p.setText('textarea', 'I need my bathroom tiled');
   await p.click('button[aria-label="Send"]');
-  await p.waitFor(`/Got it/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
+  await p.waitFor(`/Your message is here/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
   let dropped = 0;
   const stop = await p.intercept('*/turns', (params, s) => {
     if (dropped++ === 0) s('Fetch.failRequest', { requestId: params.requestId, errorReason: 'ConnectionReset' }); // server committed; response lost
@@ -164,14 +165,14 @@ await journey('P5', async () => {
   await p.setText('[data-ks001-composer]', 'It is in Kileleshwa, about 18 square metres');
   await p.click('button[aria-label="Send message"]');
   const sawChecking = await p.waitFor(`/checking whether your message went through/.test(document.body.innerText)`, 5000);
-  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Got it/g) || []).length >= 2`, 20000);
+  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Your message is here/g) || []).length >= 2`, 20000);
   const ms = Date.now() - t0;
   await sleep(300);
   await stop();
   const log = await p.evaluate(`document.querySelector('[role=log]').innerText`);
   results.push({ journey: 'P5', title: 'Turn response lost after the server committed it', droppedResponses: 1, sawCheckingState: sawChecking !== null,
     msToRealReply: ms, alreadyProcessedShown: /already been processed/.test(log), errorLeftOnScreen: /could not confirm|still working/.test(await p.bodyText()),
-    kilelshwaMessageCount: (log.match(/It is in Kileleshwa/g) || []).length, gotItCount: (log.match(/Got it/g) || []).length });
+    kilelshwaMessageCount: (log.match(/It is in Kileleshwa/g) || []).length, replyCount: (log.match(/Your message is here/g) || []).length });
   await p.close();
 });
 
@@ -181,7 +182,7 @@ await journey('P6', async () => {
   await p.goto(URL_);
   await p.setText('textarea', 'Borehole pump replacement');
   await p.click('button[aria-label="Send"]');
-  await p.waitFor(`/Got it/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
+  await p.waitFor(`/Your message is here/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
   let held = null;
   const stop = await p.intercept('*/sources/pasted-text', params => { held = params.requestId; });
   await p.openPastePanel();
@@ -191,14 +192,14 @@ await journey('P6', async () => {
   await p.setText('[data-ks001-composer]', 'The committee meets on Saturday');
   const sendEnabled = await p.evaluate(`!document.querySelector('button[aria-label="Send message"]').disabled`);
   await p.click('button[aria-label="Send message"]');
-  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Got it/g) || []).length >= 2`, 15000);
+  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Your message is here/g) || []).length >= 2`, 15000);
   const turnAnsweredWhileSourceHeld = held !== null;
   await p.s('Fetch.continueRequest', { requestId: held });
   await p.waitFor(`[...document.querySelectorAll('[role=alert]')].some(a => a.innerText.trim().length > 0)`, 15000);
   await stop();
   const log = await p.evaluate(`document.querySelector('[role=log]').innerText`);
   results.push({ journey: 'P6', title: 'A message sent while a source is still being read', sendEnabledWhileSourceReading: sendEnabled,
-    turnAnsweredWhileSourceHeld, sourceOutcome: await p.alerts(), gotItCount: (log.match(/Got it/g) || []).length, canonical: await p.apiSources() });
+    turnAnsweredWhileSourceHeld, sourceOutcome: await p.alerts(), replyCount: (log.match(/Your message is here/g) || []).length, canonical: await p.apiSources() });
   await p.close();
 });
 
@@ -208,7 +209,7 @@ await journey('P7', async () => {
   await p.goto(URL_);
   await p.setText('textarea', 'Borehole pump replacement');
   await p.click('button[aria-label="Send"]');
-  await p.waitFor(`/Got it/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
+  await p.waitFor(`/Your message is here/.test((document.querySelector('[role=log]')||{}).innerText||'')`);
   let heldTurn = null;
   const stop = await p.intercept('*/turns', params => { heldTurn = params.requestId; });
   await p.setText('[data-ks001-composer]', 'Also the tank');
@@ -218,7 +219,7 @@ await journey('P7', async () => {
   results.push({ journey: 'P7', title: 'Adding a source while KS001 is still answering', addSourceEnabledWhileTurnRunning: addSourceEnabled,
     note: 'The intake is disabled while a turn runs (state.busy) -- the person cannot start a racing source write from this UI; the backend race itself is covered by the harness (J25).' });
   if (heldTurn) await p.s('Fetch.continueRequest', { requestId: heldTurn });
-  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Got it/g) || []).length >= 2`, 15000);
+  await p.waitFor(`(document.querySelector('[role=log]').innerText.match(/Your message is here/g) || []).length >= 2`, 15000);
   await stop();
   await p.close();
 });

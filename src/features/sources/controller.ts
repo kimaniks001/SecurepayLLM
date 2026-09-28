@@ -23,7 +23,7 @@ export function sourceIngestionErrorText(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
       case 'AGENT_SOURCE_UNSUPPORTED_MEDIA_TYPE': return 'SecurePay doesn’t support this file type yet. Try a PDF, Word, Excel, text or CSV file, or a JPEG or PNG photo.';
-      case 'AGENT_SOURCE_CONTENT_MISMATCH': return 'This file doesn’t look like the kind of file it says it is, or it may be damaged. Try saving or exporting it again, then add it.';
+      case 'AGENT_SOURCE_CONTENT_MISMATCH': return 'This file doesn’t look like the kind of file it says it is, or it may be damaged. Try the original file, or paste the text here.';
       case 'AGENT_SOURCE_TOO_LARGE': return 'This file is too large for SecurePay to read. Try a smaller file, or paste the important part.';
       case 'AGENT_SOURCE_IMAGE_TOO_LARGE': return 'This photo is too large for SecurePay to read. Try a smaller photo or a screenshot.';
       case 'AGENT_SOURCE_NOT_FOUND': return 'This source could not be found. It may have been removed — you can add it again.';
