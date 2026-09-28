@@ -178,6 +178,21 @@ export interface AgentControllerOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Backoff (ms) between re-sends of a turn whose outcome is unknown. */
   turnReconcileScheduleMs?: number[];
+  /**
+   * Entry Perfection Phase 3 -- the person's device time zone (IANA id), sent with each turn so KS001 can resolve
+   * "tomorrow" / "this Friday" correctly. Absent means "not known": SecurePay never assumes a zone.
+   */
+  timeZone?: () => string | undefined;
+}
+
+/** Entry Perfection Phase 3 -- the zone the browser reports, or undefined when it can't say. */
+export function deviceTimeZone(): string | undefined {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof zone === 'string' && zone.length > 0 && zone.length <= 64 ? zone : undefined;
+  } catch {
+    return undefined;
+  }
 }
 const defaultSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const DEFAULT_TURN_RECONCILE_SCHEDULE_MS = [1000, 3000, 6000, 12000, 25000];
@@ -185,6 +200,10 @@ const DEFAULT_TURN_RECONCILE_SCHEDULE_MS = [1000, 3000, 6000, 12000, 25000];
 export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
   const sleep = options.sleep ?? defaultSleep;
   const turnReconcileSchedule = options.turnReconcileScheduleMs ?? DEFAULT_TURN_RECONCILE_SCHEDULE_MS;
+  const withZone = (body: TurnRequest): TurnRequest => {
+    const zone = options.timeZone?.();
+    return zone ? { ...body, clientTimeZone: zone } : body;
+  };
   /**
    * Entry Perfection Phase 2 (H2) -- a canonical re-read requested while another operation is running is DEFERRED,
    * never discarded: it runs as soon as the controller is idle again. Reads only; writes are never queued.
@@ -360,7 +379,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (state.busy || state.pending || !text.trim()) return;
       const clientTurnId = id();
       update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: text.trim() }] });
-      await run({ kind: 'turn', body: { message: text.trim(), clientTurnId } });
+      await run({ kind: 'turn', body: withZone({ message: text.trim(), clientTurnId }) });
     },
     async retry() { if (!state.busy && state.pending) await run(state.pending); },
     /**
@@ -382,7 +401,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (state.busy || state.pending || !statement) return { ok: false, error: 'SecurePay is still working on the previous step.' };
       const clientTurnId = id();
       update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: statement }] });
-      const ok = await run({ kind: 'turn', body: { message: statement, clientTurnId } });
+      const ok = await run({ kind: 'turn', body: withZone({ message: statement, clientTurnId }) });
       if (!ok) return { ok: false, error: state.error ?? 'SecurePay could not complete this step.' };
       return { ok: true, context: state.context.status === 'ready' ? state.context.data : null };
     },
