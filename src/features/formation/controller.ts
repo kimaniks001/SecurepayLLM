@@ -19,7 +19,7 @@ const zone = (): string | undefined => {
  * Entry Perfection Phase 6 -- reads the server-owned emerging agreement for the current conversation. Never computes a
  * term itself; "what changed" compares two SERVER projections by their semantic keys.
  */
-export function createFormationController(gateway: Pick<AgentGateway, 'readAgreementFormation' | 'checkOpenPoint'>) {
+export function createFormationController(gateway: Pick<AgentGateway, 'readAgreementFormation' | 'checkOpenPoint'> & Partial<Pick<AgentGateway, 'unlinkParty'>>) {
   let state: FormationState = { status: 'idle', data: null, changes: [], error: null, checking: null };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<FormationState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
@@ -48,6 +48,20 @@ export function createFormationController(gateway: Pick<AgentGateway, 'readAgree
       update({ checking: openPointId, error: null });
       try {
         const next = agreementFormationView(await gateway.checkOpenPoint(conversationId, openPointId, zone()));
+        update({ status: 'ready', data: next, checking: null });
+      } catch (error) {
+        update({ checking: null, error: errorText(error) });
+      }
+    },
+
+    /** Entry Perfection Phase 9 (UR-266) -- "Not this person": pinned to the version the person is looking at. */
+    async unlink(conversationId: string, partyKey: string) {
+      const version = state.data?.version;
+      if (version === undefined || !gateway.unlinkParty) return;
+      const unlinkParty = gateway.unlinkParty;
+      update({ checking: partyKey, error: null });
+      try {
+        const next = agreementFormationView(await unlinkParty(conversationId, partyKey, version, zone()));
         update({ status: 'ready', data: next, checking: null });
       } catch (error) {
         update({ checking: null, error: errorText(error) });

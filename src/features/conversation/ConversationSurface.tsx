@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState, 
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { AgentTyping } from '../../components/MessageBubble';
 import { bottomTop, followReducer, initialFollow, replyScrollTop } from './follow';
+import { readDraft, writeDraft } from './drafts';
 
 export interface ConversationTail { id: string; sender: 'user' | 'agent' }
 
@@ -13,7 +14,7 @@ export interface ConversationTail { id: string; sender: 'user' | 'agent' }
  * never pulls them back, and a quiet "New reply" control appears instead. Driven entirely by
  * layout effects, refs and a ResizeObserver -- no timeouts.
  */
-export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder }: {
+export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder, draftKey }: {
   /** The last transcript entry -- the only thing that decides whether to follow. */
   tail: ConversationTail | null;
   thinking: boolean;
@@ -22,6 +23,8 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   status?: ReactNode;
   disabled: boolean;
   onSend: (text: string) => void;
+  /** Entry Perfection Phase 9 -- keeps unsent text for THIS conversation in this tab's memory (see drafts.ts). */
+  draftKey?: string;
   /** Bumping this focuses the composer (e.g. after an instrument sends the person back to talking). */
   composerFocusKey?: number;
   placeholder?: string;
@@ -100,17 +103,36 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
       </button>
     </div>}
     </div>
-    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} />
+    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} draftKey={draftKey} />
   </div>;
 }
 
-function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…' }: { disabled: boolean; onSend: (text: string) => void; focusKey?: number; placeholder?: string }) {
-  const [text, setText] = useState('');
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…', draftKey }: { disabled: boolean; onSend: (text: string) => void; focusKey?: number; placeholder?: string; draftKey?: string }) {
+  const [text, setTextState] = useState(() => readDraft(draftKey));
+  const [offline, setOffline] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
+  const setText = (value: string) => { setTextState(value); writeDraft(draftKey, value); };
   useEffect(() => { if (focusKey) field.current?.focus(); }, [focusKey]);
-  const send = () => { const value = text.trim(); if (value && !disabled) { onSend(value); setText(''); } };
+  useEffect(() => { setTextState(readDraft(draftKey)); }, [draftKey]);
+  useEffect(() => {
+    const online = () => setOffline(false);
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, []);
+  // Entry Perfection Phase 9 -- offline: never submit (no retry storm, no "failed" turn); keep the words and say so plainly.
+  const send = () => {
+    const value = text.trim();
+    if (!value || disabled) return;
+    if (isOffline()) { setOffline(true); return; }
+    setOffline(false);
+    onSend(value);
+    setText('');
+  };
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } };
   return <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/70 backdrop-blur-sm">
+    {offline && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">You’re offline. Your message is kept here — send it when you’re back online.</p>}
     <div className="flex items-end gap-2 rounded-2xl border border-cream-200 bg-white shadow-card px-3 py-2 focus-within:border-forest-300 focus-within:shadow-lifted transition-shadow duration-300">
       <textarea ref={field} value={text} onChange={event => setText(event.target.value)} onKeyDown={onKey} rows={1} maxLength={1200}
         aria-label="Message KS001" data-ks001-composer enterKeyHint="send" placeholder={placeholder}

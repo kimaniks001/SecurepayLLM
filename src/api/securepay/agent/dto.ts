@@ -253,6 +253,8 @@ export type AgentSourceExtractionStatus = 'RECEIVED' | 'PROCESSING' | 'READY' | 
 export interface AgentSourceArtifactDto {
   sourceArtifactId: string; conversationId: string; sourceKind: string; originalName: string; label: string;
   mediaType: string; byteSize: number | null; documentType: string; extractionStatus: string;
+  /** Entry Perfection Phase 9 -- still RECEIVED/PROCESSING long after any read could run (e.g. a restart): recoverable. */
+  stalled?: boolean;
   extractionGeneration: number; summary: string; uncertainties: string[]; failureReason: string;
   createdAt: string; updatedAt: string;
   /** Phase 3 -- LINK url / PLACE words exactly as declared; empty for other kinds and after removal. */
@@ -300,4 +302,6 @@ export interface AgreementFormationDto {
   origin?: { type: string; title: string; offeredBy?: string | null; priceNow?: string | null; priceWhenChosen?: string | null; priceChanged: boolean; availability?: string | null } | null;
   openPoints: FormationOpenPointDto[];
   question?: FormationQuestionDto | null;
+  /** Entry Perfection Phase 9 -- sources still being read: Review shows what is known so far; set-up waits for them. */
+  readingSources?: string[];
 }

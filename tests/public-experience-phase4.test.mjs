@@ -344,7 +344,10 @@ test('represented Joins only through their own targets, no Plug/Master grant and
 test('the conversation token never enters a Join URL; continuity claims through the Phase 3 gateway only', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.match(agent, /gateway\.resumableConversationId\?\.\(\)/);
-  assert.match(agent, /await gateway\.saveBuild\(conversationId\)/);
+  // Entry Perfection Phase 9 restatement (UR-267): the claim is still ONLY through the Phase 3 gateway (saveBuild with the tab's
+  // possession proof) -- but never silently after Join; it happens on the person's explicit "Continue with it".
+  assert.match(agent, /await gateway\.saveBuild\(resumableAnonymous\)/);
+  assert.match(agent, /const continueConversationAfterJoin = async \(\): Promise<ContinuationOutcome> => \(\{ kind: 'none' \}\);/);
   for (const file of ['src/features/join/route.ts', 'src/features/join/share.ts']) {
     const code = (await readFile(file, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     assert.doesNotMatch(code, /conversation|secret|X-SecurePay/i, file);

@@ -228,6 +228,8 @@ export type ConversationHistoryView = ReturnType<typeof conversationHistoryView>
 // being trusted as-is.
 const sourceExtractionStatuses: readonly string[] = ['RECEIVED', 'PROCESSING', 'READY', 'PARTIAL', 'FAILED', 'REMOVED'];
 const sourceKinds: readonly string[] = ['PASTED_TEXT', 'DOCUMENT', 'PHOTO', 'LINK', 'PLACE', 'AUDIO'];
+/** Entry Perfection Phase 9 -- a read interrupted (e.g. SecurePay restarted): the file is kept and can be read again. */
+export const STALLED_TEXT = 'I couldn’t finish reading this. Your file is still here — try again.';
 export function sourceArtifactView(dto: AgentSourceArtifactDto) {
   return {
     sourceArtifactId: dto.sourceArtifactId,
@@ -247,7 +249,9 @@ export function sourceArtifactView(dto: AgentSourceArtifactDto) {
       ? dto.uncertaintyDetails.filter(u => u && u.material === true && typeof u.description === 'string' && typeof u.kind === 'string')
         .map(u => ({ kind: u.kind, description: u.description }))
       : [],
-    failureReason: dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
+    failureReason: dto.stalled === true && !dto.failureReason ? STALLED_TEXT : dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
+    // Entry Perfection Phase 9 -- a read that can no longer be running is a recoverable failure, never "reading" forever.
+    stalled: dto.stalled === true,
     declaredText: typeof dto.declaredText === 'string' ? dto.declaredText : '',
     // Entry Perfection Phase 2 -- KS001's canonical acknowledgement of this attempt, when the server recorded one.
     acknowledgement: typeof dto.acknowledgement === 'string' && dto.acknowledgement && typeof dto.acknowledgementReplyId === 'string' && dto.acknowledgementReplyId

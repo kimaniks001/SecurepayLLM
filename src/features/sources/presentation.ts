@@ -15,7 +15,9 @@ export type DeclaredSourceKind = 'link' | 'place';
  *  - 'inactive'   REMOVED: no longer current evidence.
  */
 export type SourceOutcome = 'progressed' | 'attention' | 'failed' | 'working' | 'inactive';
-export function sourceOutcome(source: Pick<AgentSourceArtifactView, 'extractionStatus' | 'uncertainties'>): SourceOutcome {
+export function sourceOutcome(source: Pick<AgentSourceArtifactView, 'extractionStatus' | 'uncertainties'> & { stalled?: boolean }): SourceOutcome {
+  // Entry Perfection Phase 9 -- a stalled read is a recoverable failure (Try again), never "still reading" forever.
+  if (source.stalled && (source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING')) return 'failed';
   switch (source.extractionStatus) {
     case 'READY': return source.uncertainties.length > 0 ? 'attention' : 'progressed';
     case 'PARTIAL': return 'attention';
@@ -35,7 +37,8 @@ export function sourceKindNote(source: AgentSourceArtifactView): string | null {
 }
 
 /** Human states only -- never a raw extraction status. FAILED/REMOVED have no status line: the card itself says. */
-export function sourceStatusText(source: Pick<AgentSourceArtifactView, 'extractionStatus'>): string | null {
+export function sourceStatusText(source: Pick<AgentSourceArtifactView, 'extractionStatus'> & { stalled?: boolean }): string | null {
+  if (source.stalled) return null;
   switch (source.extractionStatus) {
     case 'RECEIVED': return 'Received — reading next';
     case 'PROCESSING': return 'Reading this…';

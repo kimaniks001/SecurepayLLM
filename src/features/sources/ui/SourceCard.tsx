@@ -70,9 +70,10 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
         <p className="text-[0.72rem] font-medium text-forest-600" data-source-state>{statusText}</p>
       )}
 
-      {source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' ? (
-        <p className="text-[0.8rem] text-sand-600" data-source-state>{statusText}</p>
-      ) : source.extractionStatus === 'FAILED' ? (
+      {/* Entry Perfection Phase 9 -- a stalled read (e.g. a restart) is the recoverable-failure branch, never "reading" forever. */}
+      {(source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING') && !source.stalled ? (
+        <p className="text-[0.8rem] text-sand-600" data-source-state role="status">{statusText}</p>
+      ) : source.extractionStatus === 'FAILED' || source.stalled ? (
         <div className="space-y-1.5">
           <p className="text-[0.8rem] text-ember-700">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>
           <button type="button" disabled={busy} onClick={onRetry} className="inline-flex items-center gap-1 text-[0.78rem] text-forest-700 underline disabled:opacity-40">
