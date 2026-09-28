@@ -43,7 +43,8 @@ export interface TradeContextDto {
   conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[];
   interactionState?: InteractionStateDto; sufficiency?: AgreementSufficiencyDto;
 }
-export interface TurnRequest { message: string; clientTurnId?: string }
+/** Entry Perfection Phase 3 -- `clientTimeZone`: the IANA zone the device reports, so KS001 never assumes one. */
+export interface TurnRequest { message: string; clientTurnId?: string; clientTimeZone?: string }
 export interface AdoptFactRequest { targetId: string; targetKind: 'ENTITY' | 'RELATIONSHIP'; clientTurnId?: string }
 export type SourceKind = 'QUOTATION' | 'DOCUMENT_EXTRACTION' | 'PHOTO_OBSERVATION' | 'PROVIDER_PROFILE' | 'STORE_LISTING' | 'LOCATION_RESULT' | 'PREVIOUS_AGREEMENT' | 'COMMUNITY_KNOWLEDGE' | 'PARTNER_INFORMATION' | 'MASTER_OPINION';
 export interface ExternalFactRequest { sourceKind: SourceKind; sourceDescription?: string; clientTurnId?: string }

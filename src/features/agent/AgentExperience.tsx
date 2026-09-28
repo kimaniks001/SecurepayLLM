@@ -33,7 +33,7 @@ import type { ReferralGateway } from '../../api/securepay/referral';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
-import { createAgentController, retryLabel } from './controller';
+import { deviceTimeZone, createAgentController, retryLabel } from './controller';
 import { ConversationSurface } from '../conversation/ConversationSurface';
 import { createInstrumentController } from '../instruments/controller';
 import { InstrumentHost } from '../instruments/ui/InstrumentHost';
@@ -162,7 +162,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   trustedMediaOrigin: string | null;
   publicShell: PublicShellBridge;
 }) {
-  const [controller, setController] = useState(() => createAgentController(gateway));
+  const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later" / "Continue Building". Reuses the SAME
@@ -329,7 +329,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const startNewConversation = () => {
     instruments.cancel();
     discovery.close();
-    const freshController = createAgentController(gateway);
+    const freshController = createAgentController(gateway, undefined, { timeZone: deviceTimeZone });
     setController(freshController);
     setHandoffController(createHandoffController(gateway));
     setIdentityController(createIdentityController(auth, session));
