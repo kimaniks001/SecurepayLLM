@@ -66,7 +66,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
 
         {/* Seller of record */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">
-          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Seller of record</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Who offers this</div>
           {offer.isExternalReference && offer.externalSellerName ? (
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -75,14 +75,14 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
               </div>
               <p className="text-[0.78rem] text-sand-600">{offer.externalSellerIdentity}</p>
               <p className="text-[0.72rem] text-ember-600 mt-1.5">{offer.provenanceLabel}</p>
-              <p className="text-[0.72rem] text-sand-600 mt-1">The actual contracting party is {offer.externalSellerName}, not {offer.storeName}. Do not settle to {offer.storeName} merely because the offer was discovered here.</p>
+              <p className="text-[0.72rem] text-sand-600 mt-1">{offer.storeName} only shows this offer. If you go ahead, you agree it with {offer.externalSellerName}, not {offer.storeName}.</p>
             </div>
           ) : (
             <div>
               <div className="mb-1">
                 <span className="text-[0.825rem] font-medium text-forest-800">{offer.storeName}</span>
               </div>
-              <p className="text-[0.78rem] text-sand-600">Store-owned offer. {offer.storeName} is the actual seller and contracting counterparty.</p>
+              <p className="text-[0.78rem] text-sand-600">Offered by {offer.storeName} in their own Store. If you go ahead, you agree it with {offer.storeName}.</p>
             </div>
           )}
         </div>
@@ -221,7 +221,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
 
         {/* Provenance */}
         <div className="text-[0.68rem] text-sand-600 italic px-2">
-          {offer.isDemoState ? `Offer ${offer.version}` : `Updated ${offer.version}`} · {offer.storeName} · {offer.isDemoState ? 'Demo offer state' : 'Authoritative offer'}
+          {offer.isDemoState ? `Offer ${offer.version}` : `Updated ${offer.version}`} · {offer.storeName} · {offer.isDemoState ? 'Demo offer state' : 'Current offer'}
         </div>
 
         {/* Actions */}

@@ -158,7 +158,7 @@ const joinPage = (props = {}) => html(api.JoinExperience, {
 test('signed out, the Join page explains membership, what it is not, and offers identity first -- never a Join button', () => {
   const out = text(joinPage());
   assert.match(out, /Join The Trust Project/);
-  assert.match(out, /People and businesses can belong\. One KS Number for SecurePay and The Trust Project\./);
+  assert.match(out, /People, businesses and organizations can belong\. Each has its own KS Number for SecurePay and The Trust Project\./);
   assert.match(out, /The Trust Project is powered by SecurePay, and your KS Number is your identity across both\./);
   for (const line of api.JOIN_IS_NOT) assert.ok(out.includes(line), line);
   assert.match(out, /You never have to invite, teach or sell\./);
@@ -252,11 +252,11 @@ test('PublicNav: Sign in is secondary and Join is primary, on desktop and mobile
 test('the public Home Join chapter is live, truthful and offers no Business or Organization Join', () => {
   const home = text(html(api.PublicHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, onFocusComposer: noop, onBrowseStores: noop, onSignIn: noop, onRecover: noop, onHelp: noop, onSection: noop, onJoin: noop }));
   assert.match(home, /Join The Trust Project/);
-  assert.match(home, /People and businesses can belong\. One KS Number for SecurePay and The Trust Project\./);
+  assert.match(home, /People, businesses and organizations can belong\. Each has its own KS Number for SecurePay and The Trust Project\./);
   assert.match(home, /You never have to invite, teach or sell\./);
   assert.match(home, /Joining doesn’t turn on payments, fees, bank accounts or subscriptions\./);
   assert.match(home, /I already have a KS Number/);
-  assert.match(home, /Bring the plan\. Leave with an agreement\./);
+  assert.match(home, /Tell SecurePay what you’re trying to make happen\./);
   assert.doesNotMatch(home, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)|coming soon|opens soon/i);
 });
 

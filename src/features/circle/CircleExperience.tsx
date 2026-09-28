@@ -175,8 +175,8 @@ export function CircleExperience({ gateway, auth, session, onNavigate, onAskAgen
           </Surface>
 
           <p className="text-[0.68rem] text-sand-400 italic px-2">
-            Referred trader count ≠ followers. Activated referrals ≠ reputation. Agreements brought in ≠
-            revenue. Identity status ≠ professional qualification.
+            These numbers show activity, not reputation: people you referred aren’t followers, agreements
+            brought in aren’t your revenue, and a verified identity isn’t a professional qualification.
           </p>
         </div>
       </div>

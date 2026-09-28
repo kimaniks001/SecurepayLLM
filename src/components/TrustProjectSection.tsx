@@ -65,13 +65,13 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
           Shared fair-trade technologies, systems and people.
         </h2>
         <p className="mt-2 text-[0.88rem] text-sand-600 leading-relaxed max-w-2xl">
-          A community of people choosing to trade fairly — using shared tools, practical systems and one another’s knowledge to learn, adapt and make useful things happen.
+          A community of people, businesses and organizations choosing to trade fairly — using shared tools, practical systems and one another’s knowledge to learn, adapt and make useful things happen.
         </p>
         {memberLine && <p className="mt-2 text-[0.8rem] font-medium text-forest-700">{memberLine}</p>}
         {status === 'INVITED' && <p className="mt-2 text-[0.8rem] text-forest-700">You’ve been invited to The Trust Project. Review the invitation and the 12 Principles, then choose whether to join.</p>}
 
         {compact && (
-          <button type="button" aria-expanded={expanded} onClick={() => setExpanded(e => !e)} className="mt-2 text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
+          <button type="button" aria-expanded={expanded} onClick={() => setExpanded(e => !e)} className="mt-2 inline-flex min-h-11 items-center text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
             {expanded ? 'Show less' : 'What The Trust Project is'}
           </button>
         )}
@@ -162,10 +162,10 @@ export function TrustProjectSection({ onExploreCommunity, onOpenStores, compact 
               Invite someone
             </button>
           )}
-          <button type="button" onClick={() => setPrinciplesOpen(true)} className="text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
+          <button type="button" onClick={() => setPrinciplesOpen(true)} className="inline-flex min-h-11 items-center text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
             Read the 12 Principles
           </button>
-          <button type="button" onClick={onOpenStores} className="text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
+          <button type="button" onClick={onOpenStores} className="inline-flex min-h-11 items-center text-[0.8rem] text-forest-600 hover:text-forest-800 underline">
             Stores
           </button>
         </div>

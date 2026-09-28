@@ -117,7 +117,7 @@ export function PublicHome(props: PublicHomeProps) {
                 The Trust Project is powered by SecurePay. Your KS Number is your identity across both.
               </p>
               <p className={`mt-4 ${body}`}>
-                A community of people and businesses choosing to trade fairly — using shared tools, practical systems and one another’s knowledge to learn, adapt and make useful things happen, while staying independent.
+                A community of people, businesses and organizations choosing to trade fairly — using shared tools, practical systems and one another’s knowledge to learn, adapt and make useful things happen, while staying independent.
               </p>
             </div>
             <ul className="grid gap-6 self-end" aria-label="What The Trust Project shares">
@@ -158,7 +158,7 @@ export function PublicHome(props: PublicHomeProps) {
             ))}
           </ul>
           <p className="mt-6 max-w-3xl text-[0.88rem] leading-relaxed text-sand-700">
-            Plugs and Masters are individual people. Businesses belong as Members, and can work with Plugs and Masters.
+            Plugs and Masters are individual people. Businesses and organizations belong as Members, and can work with Plugs and Masters.
           </p>
         </div>
       </section>
@@ -244,7 +244,7 @@ export function PublicHome(props: PublicHomeProps) {
         <div className="mx-auto max-w-2xl text-center">
           <p className={eyebrow}>The Trust Project</p>
           <h2 id="public-join" tabIndex={-1} className={`mt-2 ${chapterHeading}`}>Join The Trust Project</h2>
-          <p className={`mt-4 ${body}`}>People and businesses can belong. One KS Number for SecurePay and The Trust Project.</p>
+          <p className={`mt-4 ${body}`}>People, businesses and organizations can belong. Each has its own KS Number for SecurePay and The Trust Project.</p>
           <p className="mt-3 text-[0.9rem] leading-relaxed text-sand-700">You never have to invite, teach or sell.</p>
           <p className="mt-1 text-[0.9rem] leading-relaxed text-sand-700">Joining doesn’t turn on payments, fees, bank accounts or subscriptions.</p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">

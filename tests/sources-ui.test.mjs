@@ -10,7 +10,7 @@ export { SourceCard, SourcesList } from './src/features/sources/ui/SourceCard';
 export { AI_HANDOFF_PROMPT, BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
 export { SourceMenu } from './src/features/sources/ui/SourceMenu';
 export { DeclaredSourcePanel } from './src/features/sources/ui/DeclaredSourcePanel';
-export { SignedOutHome } from './src/components/SignedOutHome';
+export { SignedOutHome, SecurePayHero } from './src/components/SignedOutHome';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
@@ -126,11 +126,12 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 });
 
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
-test('SignedOutHome: carries the exact Phase 3 headline, supporting text, and trust line', () => {
+test('SignedOutHome: carries the exact Trust Community Phase 5 headline, supporting text, and trust line', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
-  assert.match(out, /Bring the plan\. Leave with an agreement\./);
-  assert.match(out, /paste what you already have, or give KS001 a document or photo/);
-  assert.match(out, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
+  assert.ok(out.includes('Tell SecurePay what you’re trying to make happen.'));
+  assert.ok(out.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'));
+  assert.match(out, /Nothing becomes an agreement until you review and confirm it\./);
+  assert.doesNotMatch(out, /Bring the plan\. Leave with an agreement\./);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
   // Public Experience Convergence Phase 3 -- the intake is now the ONE shared "+" SourceMenu.
@@ -143,9 +144,10 @@ test('SignedOutHome: intake-mode entries only render when their callback is actu
   assert.match(text(withIntake), /Add what you have/);
   assert.match(withIntake, /type="file"/);
 });
-test('SignedOutHome: the trust line explicitly says a KS Number is not required to start -- signed-out value first (Section 39)', () => {
-  const out = text(html(api.SignedOutHome, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} }));
+test('the public hero says a KS Number is not required to start; the signed-in app hero does not repeat it (Trust Community Phase 5)', () => {
+  const out = text(html(api.SecurePayHero, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {}, variant: 'public' }));
   assert.match(out, /Start without a KS Number/);
+  assert.doesNotMatch(text(html(api.SignedOutHome, { onStart() {} })), /Start without a KS Number/);
   assert.doesNotMatch(out, /sign in|log in/i, 'Home itself must never put a sign-in requirement in front of intake');
 });
 

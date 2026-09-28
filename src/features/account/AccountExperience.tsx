@@ -38,7 +38,7 @@ function ChangePasswordForm({ controller }: { controller: AccountController }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="flex items-center gap-2 text-[0.82rem] text-forest-700 underline mt-3">
+      <button onClick={() => setOpen(true)} className="flex min-h-11 items-center gap-2 text-[0.82rem] text-forest-700 underline mt-3">
         <KeyRound className="w-3.5 h-3.5" /> Change password
       </button>
     );
@@ -107,7 +107,7 @@ export function AccountExperience({ controller, onNavigate }: {
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="account" onNavigate={onNavigate} />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
-        <PageHeader title="Account" description="Your identity, your Businesses, and your security — not a settings dumping ground." />
+        <PageHeader title="Account" description="Your identity, the Businesses and Organizations you act for, and your security." />
 
         {state.identity.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your identity…</p>}
         {state.identity.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.identity.error}</StatusNotice>}
@@ -135,7 +135,7 @@ export function AccountExperience({ controller, onNavigate }: {
             {state.subscription.status === 'none' && (
               <>
                 <p className="text-[0.78rem] text-sand-600 mb-2">You haven't activated a SecurePay subscription yet.</p>
-                <a href="#/activate" className="inline-flex items-center justify-center rounded-xl border border-forest-200 bg-forest-50 px-4 py-2.5 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100 transition-colors">
+                <a href="#/activate" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-forest-200 bg-forest-50 px-4 py-2.5 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100 transition-colors">
                   Activate SecurePay
                 </a>
               </>
@@ -163,13 +163,13 @@ export function AccountExperience({ controller, onNavigate }: {
         <Surface>
           <SurfaceBody>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => onNavigate('notifications')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Bell className="w-4 h-4 text-forest-500" /> Notifications</button>
-              <button onClick={() => onNavigate('settings')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><SettingsIcon className="w-4 h-4 text-forest-500" /> Settings</button>
-              <button onClick={() => onNavigate('projects')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><FolderOpen className="w-4 h-4 text-forest-500" /> Projects</button>
-              <button onClick={() => onNavigate('vision-board')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Sparkles className="w-4 h-4 text-forest-500" /> Vision Board</button>
-              <button onClick={() => onNavigate('business')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Briefcase className="w-4 h-4 text-forest-500" /> Business</button>
-              <button onClick={() => onNavigate('developer')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><Code2 className="w-4 h-4 text-forest-500" /> Developer / Connect</button>
-              <button onClick={() => onNavigate('support')} className="flex items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><LifeBuoy className="w-4 h-4 text-forest-600" /> Help &amp; Support</button>
+              <button onClick={() => onNavigate('notifications')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Bell className="w-4 h-4 text-forest-500" /> Notifications</button>
+              <button onClick={() => onNavigate('settings')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><SettingsIcon className="w-4 h-4 text-forest-500" /> Settings</button>
+              <button onClick={() => onNavigate('projects')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><FolderOpen className="w-4 h-4 text-forest-500" /> Projects</button>
+              <button onClick={() => onNavigate('vision-board')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300"><Sparkles className="w-4 h-4 text-forest-500" /> Vision Board</button>
+              <button onClick={() => onNavigate('business')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><Briefcase className="w-4 h-4 text-forest-500" /> Businesses &amp; Organizations</button>
+              <button onClick={() => onNavigate('developer')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><Code2 className="w-4 h-4 text-forest-500" /> Developer / Connect</button>
+              <button onClick={() => onNavigate('support')} className="flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 px-3 py-2.5 text-[0.82rem] text-forest-800 hover:border-forest-300 col-span-2"><LifeBuoy className="w-4 h-4 text-forest-600" /> Help &amp; Support</button>
             </div>
           </SurfaceBody>
         </Surface>
@@ -189,12 +189,12 @@ export function AccountExperience({ controller, onNavigate }: {
             <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Security</div>
             <p className="text-[0.78rem] text-sand-600 mb-3">If you believe another device or session has access you don't recognise, sign out everywhere. This ends every active session and refresh token for your account.</p>
             {state.logoutAllError && <StatusNotice tone="warning" icon={false} className="mb-2">{state.logoutAllError}</StatusNotice>}
-            {state.logoutAllDone && <StatusNotice tone="success" icon={false} className="mb-2">You've been signed out everywhere. This device will need to sign in again shortly.</StatusNotice>}
+            {state.logoutAllDone && <StatusNotice tone="success" icon={false} className="mb-2">You’ve been signed out everywhere, including here.</StatusNotice>}
             <Button variant="secondary" onClick={() => void controller.signOutEverywhere()} disabled={state.logoutAllBusy} className="w-full py-2.5 flex items-center justify-center gap-2">
               <LogOut className="w-4 h-4" /> {state.logoutAllBusy ? 'Signing out…' : 'Sign out everywhere'}
             </Button>
             <ChangePasswordForm controller={controller} />
-            <button onClick={() => onNavigate('recovery')} className="text-[0.78rem] text-forest-700 underline mt-3 block">Forgot your password? Recover your account</button>
+            <button onClick={() => onNavigate('recovery')} className="inline-flex min-h-11 items-center text-[0.78rem] text-forest-700 underline mt-3">Forgot your password? Recover your account</button>
           </SurfaceBody>
         </Surface>
       </div>

@@ -13,7 +13,8 @@ export function createOfferTradeSnapshot(offer: StoreOffer): OfferTradeSnapshot 
     : offer.storeName;
   const sellerOfRecordIdentity = offer.isExternalReference && offer.externalSellerIdentity
     ? offer.externalSellerIdentity
-    : 'Business KS identity — authoritative';
+    // Trust Community Phase 5 -- never claim an identity type the offer read doesn't carry (a Store may be a person's).
+    : '';
 
   return {
     offerId: offer.id,

@@ -27,7 +27,7 @@ test('the section renders AFTER the untouched KS001 Home, inside the same Home b
   assert.ok(home > 0 && section > home, 'TrustProjectSection must come after SignedOutHome');
   assert.ok(src.lastIndexOf('showHome ?', section) > 0 && src.indexOf('</div> : <>', home) > section, 'it must live in the Home branch only');
   const hero = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(hero, /Bring the plan\. Leave with an agreement\./);
+  assert.ok(hero.includes('Tell SecurePay what you’re trying to make happen.'));
   assert.doesNotMatch(hero, /Trust Project/, 'the KS001 hero itself is not changed or pushed down by Trust Project copy');
 });
 test('no Trust Project nav item, tab, route, view or page exists', async () => {
@@ -53,7 +53,7 @@ test('it explains the three shared assets, why join, and participation, in that 
 test('Member / Plug / Master are capacities, not ranks, and none carries agreement, dispute or money authority', () => {
   // Public Experience Convergence Phase 2 -- the Phase 1 §12 contract copy (shared with the public Home).
   assert.match(full, /A quiet Member is still a complete Member\./);
-  assert.match(full, /People and businesses belong through their own KS Number\./);
+  assert.match(full, /People, businesses and organizations belong through their own KS Number\./);
   // A membership invitation is not a commercial referral; recruiting members earns nothing automatically.
   // The blanket "inviting people earns nothing" would deny the backend-authoritative referral model.
   assert.match(full, /An invitation is not a referral, and recruiting members earns nothing automatically\./);

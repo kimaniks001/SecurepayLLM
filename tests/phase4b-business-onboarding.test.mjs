@@ -212,8 +212,11 @@ test('7/8. the Business area never joins anything itself (Phase 4C: one doorway 
 // ------------------------------------------------------------------ 9. individual Join unchanged
 test('9. the Phase 4A personal Join is unchanged (Phase 4C only adds a separately named Business target)', async () => {
   // signInFlow is untouched; the personal gateway calls, acceptance label and button are byte-identical.
-  const changed = execFileSync('git', ['diff', '--name-only', '85fc228434ea1ef6ea654395f63bc70bc4465e5d', '--', 'src/features/public/signInFlow.ts', 'src/features/community'], { encoding: 'utf8' }).trim();
+  const changed = execFileSync('git', ['diff', '--name-only', '85fc228434ea1ef6ea654395f63bc70bc4465e5d', '--', 'src/features/public/signInFlow.ts'], { encoding: 'utf8' }).trim();
   assert.equal(changed, '');
+  // Trust Community Phase 5 changed Community copy, target sizes and the store-reference open path -- never a Join line.
+  const community = execFileSync('git', ['diff', '-U0', '85fc228434ea1ef6ea654395f63bc70bc4465e5d', '--', 'src/features/community'], { encoding: 'utf8' });
+  assert.deepEqual(community.split('\n').filter(line => /^[+-](?![+-])/.test(line) && /join/i.test(line)), [], 'no Community Join line changed');
   const gateway = await readFile('src/api/securepay/community/index.ts', 'utf8');
   assert.match(gateway, /join: \(principlesVersion: string, idempotencyKey: string\) => http\.request<MembershipResponse>\('\/api\/v1\/community\/membership\/join'/);
   assert.match(await readFile('src/features/join/copy.ts', 'utf8'), /export const ACCEPTANCE_LABEL = 'I choose to join The Trust Project under these 12 Principles\.';/);

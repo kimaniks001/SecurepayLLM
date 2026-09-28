@@ -210,7 +210,7 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
             </div>
           </div>
           <div className="text-[0.68rem] text-sand-400 italic">
-            Offer ≠ Agreement. This structured offer answers "what I generally offer." Each customer creates their own agreement.
+            An offer isn’t an agreement. It shows what you generally offer; each customer agrees their own terms with you.
           </div>
         </div>
       </div>

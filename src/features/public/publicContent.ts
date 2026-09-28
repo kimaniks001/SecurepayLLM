@@ -72,7 +72,7 @@ export const CAPACITIES = [
   {
     name: 'Member',
     line: 'Belong and take part.',
-    detail: 'People and businesses belong through their own KS Number. Ask, help, learn, offer work, use Community, keep a Store where eligible, discover opportunities, trade, find a Plug or a Master, and share what you know.',
+    detail: 'People, businesses and organizations belong through their own KS Number. Ask, help, learn, offer work, use Community, keep a Store where eligible, discover opportunities, trade, find a Plug or a Master, and share what you know.',
     boundary: 'A quiet Member is still a complete Member.',
   },
   {

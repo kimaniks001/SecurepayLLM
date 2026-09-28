@@ -70,7 +70,7 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }:
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by person, subject, amount, date, location..."
-            className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 transition-colors"
+            className="w-full min-h-11 rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 transition-colors"
           />
         </div>
 
@@ -80,7 +80,7 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }:
             <button
               key={opt.value}
               onClick={() => setFilter(opt.value)}
-              className={`text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-all ${
+              className={`inline-flex min-h-11 items-center text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-all ${
                 filter === opt.value
                   ? 'bg-forest-600 text-cream-50'
                   : 'bg-white text-sand-600 border border-cream-200 hover:border-forest-300'
@@ -94,7 +94,7 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }:
         {/* Results */}
         {filtered.length === 0 ? (
           <AgreementEmptyState
-            variant={search.trim() ? 'search' : 'filter'}
+            variant={search.trim() ? 'search' : agreements.length === 0 ? 'no-agreements' : 'filter'}
             searchQuery={search}
           />
         ) : (

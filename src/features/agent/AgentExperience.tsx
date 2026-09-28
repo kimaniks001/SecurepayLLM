@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
@@ -277,6 +277,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [accountController] = useState(() => createAccountController(
     { circle: circleGateway, logoutAll: auth.logoutAll, subscription: subscriptionGateway, changePassword: auth.changePassword },
     () => { session.clear(); setNotice('Password changed. Sign in again with your new password.'); },
+    () => { session.clear(); setNotice('You’ve been signed out everywhere, including here.'); },
   ));
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
@@ -311,6 +312,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Phase 7 Slice 5B -- the Home's Trust Project doorway reads the SAME self-scoped membership record
   // Community uses. Unknown (signed out, or a failed read) shows no membership claim at all.
   const onJoinPage = !!joinRoute.value;
+  // Trust Community Phase 5 -- the Join page always says who you are and who you act for, from backend truth: opening it
+  // signed in re-reads yourself and what you may act for (a capacity SecurePay no longer lists is dropped at once).
+  useEffect(() => {
+    if (onJoinPage && signedIn) void businessController.enter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onJoinPage, signedIn]);
   const [trustMembershipStatus, setTrustMembershipStatus] = useState<TrustProjectMembershipFact['status'] | undefined>(undefined);
   useEffect(() => {
     if (sessionState.status !== 'signed-in') { setTrustMembershipStatus(undefined); return; }
@@ -342,6 +349,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
     gateway.forgetResumableConversation?.();
   };
+
+  // Trust Community Phase 5 live finding -- when a session ENDS (sign-out or expiry), the conversation and its tab-scoped
+  // access token belong to the person who just left: forget both, so the next person in this tab never resumes it.
+  // Only the signed-in -> signed-out transition: an anonymous visitor's own conversation is never touched on load.
+  const wasSignedInRef = useRef(sessionState.status === 'signed-in');
+  useEffect(() => {
+    const nowSignedIn = sessionState.status === 'signed-in';
+    if (wasSignedInRef.current && !nowSignedIn) startNewConversation();
+    wasSignedInRef.current = nowSignedIn;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionState.status]);
 
   // Public Experience Convergence Phase 3 (Slice 3A) -- same-tab continuity. A reload in THIS tab finds the
   // tab-scoped record (kept only by the agent gateway's continuity module) and resumes that conversation;
@@ -721,7 +739,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         setWorkspaceAgreementId(null);
         setWorkspace(false);
         setHome(false);
-        if (startText) void controller.send(startText);
+        // Trust Community Phase 5 -- keyboard focus follows the person into the conversation composer.
+        if (startText) { setComposerFocusKey(key => key + 1); void controller.send(startText); }
       }}
     />;
   }
@@ -812,7 +831,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       }}
     />
   ) : null;
-  const startFromHome = (text: string) => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); };
+  // Trust Community Phase 5 -- starting from Home moves keyboard focus into the conversation composer (it was lost to <body>).
+  const startFromHome = (text: string) => { setHome(false); setComposerFocusKey(key => key + 1); if (!state.busy && !state.pending) void controller.send(text); };
   // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions straight into
   // the SAME conversation experience the free-text composer would, then immediately opens the relevant
   // source-ingestion path -- never a sign-in wall in front of BUILD.
@@ -892,14 +912,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <button
             onClick={() => setMobileTab('build')}
             aria-current={mobileTab === 'build'}
-            className={`flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+            className={`flex-1 min-h-11 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
           >
             Build
           </button>
           <button
             onClick={openUnderstood}
             aria-current={mobileTab === 'understood'}
-            className={`relative flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
+            className={`relative flex-1 min-h-11 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
           >
             Understood
             {hasUnseenUnderstood && <span className="absolute top-2 right-[calc(50%-2.2rem)] w-1.5 h-1.5 rounded-full bg-ember-500" aria-label="New structured content" />}

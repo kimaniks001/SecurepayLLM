@@ -56,7 +56,7 @@ export function createAccountController(gateway: {
   logoutAll: () => Promise<void>;
   subscription: Pick<SubscriptionGateway, 'myStatus'>;
   changePassword: (body: { currentPassword: string; newPassword: string }) => Promise<void>;
-}, onPasswordChanged: () => void) {
+}, onPasswordChanged: () => void, onSignedOutEverywhere: () => void = () => {}) {
   let state: AccountState = {
     identity: idle(),
     logoutAllBusy: false, logoutAllError: null, logoutAllDone: false,
@@ -100,6 +100,8 @@ export function createAccountController(gateway: {
       try {
         await gateway.logoutAll();
         update({ logoutAllBusy: false, logoutAllDone: true });
+        // Trust Community Phase 5 -- this device's session was revoked too: end it now, never leave a stale signed-in UI.
+        onSignedOutEverywhere();
       } catch (error) {
         update({ logoutAllBusy: false, logoutAllError: errorText(error) });
       }

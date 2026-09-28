@@ -199,9 +199,11 @@ test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the S
 
 test('J. The Home hero (SignedOutHome) uses the exact KS001 Upgrade Phase 3 headline/supporting/trust copy (deliberately superseding the earlier locked copy -- Section 36), and a Fair Trade affordance beneath the input that never grades the person', async () => {
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(contents, /Bring the plan\. Leave with an agreement\./, 'exact Phase 3 headline');
-  assert.match(contents, /Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo\. It helps you make the important details clear and shows how the money should follow what was agreed\./, 'exact Phase 3 supporting text');
-  assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./, 'exact Phase 3 trust line');
+  // Trust Community Phase 5 (human decision, 2026-09-28) supersedes the Phase 3 hero copy.
+  assert.ok(contents.includes('Tell SecurePay what you’re trying to make happen.'), 'exact Phase 5 headline');
+  assert.ok(contents.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'), 'exact Phase 5 supporting text');
+  assert.ok(contents.includes("{isPublic ? 'Start without a KS Number. ' : ''}Nothing becomes an agreement until you review and confirm it."), 'trust line; KS Number line on the public Home only');
+  assert.doesNotMatch(contents, /Bring the plan\. Leave with an agreement\./, 'the Phase 3 headline is superseded');
   assert.doesNotMatch(contents, /What are you trying to make happen\?/, 'the old paraphrased headline must be gone');
   assert.match(contents, /FairTradeAffordance/, 'must render the Fair Trade affordance');
 });
@@ -332,7 +334,7 @@ test('R1. SignedInHome keeps the earlier headline as its own conversational-mode
   assert.match(signedIn, /Tell SecurePay what you're trying to make happen\./, 'SignedInHome may keep the earlier phrase as its own mode label');
   assert.match(signedIn, /FairTradeAffordance/, 'SignedInHome must keep the Fair Trade affordance');
   const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(signedOut, /Bring the plan\. Leave with an agreement\./, 'SignedOutHome must carry the Phase 3 hero headline, not only the earlier phrase');
+  assert.ok(signedOut.includes('Tell SecurePay what you’re trying to make happen.'), 'SignedOutHome carries the Phase 5 hero headline (Trust Community Phase 5 decision)');
   assert.match(signedOut, /FairTradeAffordance/, 'SignedOutHome must keep the Fair Trade affordance');
 });
 

@@ -141,8 +141,8 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
         <PageHeader title="Notifications" description="What needs your attention in SecurePay." />
 
         <div className="flex border-b border-cream-200/60">
-          <button onClick={() => setTab('inbox')} aria-current={tab === 'inbox'} className={`flex-1 py-2 text-[0.8rem] font-medium ${tab === 'inbox' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Inbox</button>
-          <button onClick={() => setTab('preferences')} aria-current={tab === 'preferences'} className={`flex-1 py-2 text-[0.8rem] font-medium ${tab === 'preferences' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Preferences</button>
+          <button onClick={() => setTab('inbox')} aria-current={tab === 'inbox'} className={`flex-1 min-h-11 py-2 text-[0.8rem] font-medium ${tab === 'inbox' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Inbox</button>
+          <button onClick={() => setTab('preferences')} aria-current={tab === 'preferences'} className={`flex-1 min-h-11 py-2 text-[0.8rem] font-medium ${tab === 'preferences' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Preferences</button>
         </div>
 
         {tab === 'inbox' && (
@@ -150,7 +150,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => controller.setCategoryFilter(null)}
-                className={`text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === null ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
+                className={`inline-flex min-h-11 items-center text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === null ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
               >
                 All
               </button>
@@ -158,12 +158,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                 <button
                   key={category}
                   onClick={() => controller.setCategoryFilter(category)}
-                  className={`text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === category ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
+                  className={`inline-flex min-h-11 items-center text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === category ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
                 >
                   {CATEGORY_LABEL[category]}
                 </button>
               ))}
-              <label className="flex items-center gap-1.5 text-[0.75rem] text-sand-600 ml-1">
+              <label className="flex min-h-11 items-center gap-1.5 text-[0.75rem] text-sand-600 ml-1 cursor-pointer">
                 <input type="checkbox" checked={state.unreadOnly} onChange={e => controller.setUnreadOnly(e.target.checked)} /> Unread only
               </label>
             </div>

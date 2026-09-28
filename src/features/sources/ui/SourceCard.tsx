@@ -75,7 +75,7 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
       ) : source.extractionStatus === 'FAILED' ? (
         <div className="space-y-1.5">
           <p className="text-[0.8rem] text-ember-700">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>
-          <button type="button" disabled={busy} onClick={onRetry} className="inline-flex items-center gap-1 text-[0.78rem] text-forest-700 underline disabled:opacity-40">
+          <button type="button" disabled={busy} onClick={onRetry} className="inline-flex min-h-11 items-center gap-1 text-[0.78rem] text-forest-700 underline disabled:opacity-40">
             <RefreshCw className="w-3 h-3" aria-hidden="true" />Try again
           </button>
         </div>
