@@ -51,6 +51,8 @@ import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
+import { ContinuityChoice } from './ContinuityChoice';
+import { clearComposerDrafts } from '../conversation/drafts';
 import { AgreementReview } from '../formation/AgreementReview';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
@@ -367,6 +369,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setNotice(null);
     // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
     gateway.forgetResumableConversation?.();
+    // Entry Perfection Phase 9 -- and any unsent words from it (a shared device's next person never sees them).
+    clearComposerDrafts();
+    setContinuityDismissed(false);
   };
 
   // Entry Perfection Phase 8 (§28) -- signing out leaves the conversation behind: an unsaved conversation's possession secret
@@ -535,14 +540,26 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Public Experience Convergence Phase 4 -- conversation continuity through Join is a SEPARATE authority:
   // only after membership succeeds, the tab's anonymous conversation (if any) is claimed with its Phase 3
   // possession token; a failure here never rolls membership back.
-  const continueConversationAfterJoin = async (): Promise<ContinuationOutcome> => {
-    const conversationId = gateway.resumableConversationId?.();
-    if (!conversationId) return { kind: 'none' };
+  // Entry Perfection Phase 9 (UR-267) -- Join never claims the tab's anonymous conversation silently: possessing the tab is not
+  // proof that the person joining is the one who typed it. The explicit "Continue with the agreement you started in this tab?"
+  // choice (below, shown to any signed-in person while an unsaved conversation is in this tab) is the only claim.
+  const continueConversationAfterJoin = async (): Promise<ContinuationOutcome> => ({ kind: 'none' });
+
+  const [continuityDismissed, setContinuityDismissed] = useState(false);
+  const [continuityBusy, setContinuityBusy] = useState(false);
+  const resumableAnonymous = gateway.resumableConversationId?.() ?? null;
+  const continuityChoice = signedIn && !continuityDismissed && !!resumableAnonymous && resumableAnonymous === state.conversationId
+    && handoffState.phase === 'idle';
+  const continueWithThisTab = async () => {
+    if (!resumableAnonymous) return;
+    setContinuityBusy(true);
     try {
-      await gateway.saveBuild(conversationId);
-      return { kind: 'claimed', conversationId };
+      await gateway.saveBuild(resumableAnonymous); // the ONE claim: explicit, with the possession proof, exactly once
+      setContinuityDismissed(true);
     } catch {
-      return { kind: 'failed' };
+      setNotice('SecurePay couldn’t save this to your account just now. It’s still here — try again.');
+    } finally {
+      setContinuityBusy(false);
     }
   };
 
@@ -976,14 +993,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
             onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
             settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
+            onUnlink={partyKey => { if (state.conversationId) void formationController.unlink(state.conversationId, partyKey); }}
             setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
         </div> : <div className="flex-1 overflow-hidden">
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
             thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
             disabled={state.busy || !!state.pending} onSend={text => void controller.send(text)} composerFocusKey={composerFocusKey}
+            draftKey={state.conversationId ?? 'new'}
             status={<div className="space-y-3">
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
+              {continuityChoice && <ContinuityChoice busy={continuityBusy} onContinue={() => void continueWithThisTab()}
+                onStartFresh={() => startNewConversation()} />}
               <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)}
                 onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never

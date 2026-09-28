@@ -93,6 +93,9 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // Entry Perfection Phase 6 -- the emerging agreement (Review), readable before sign-in by whoever holds the conversation.
     readAgreementFormation: (id: string, timeZone?: string) =>
       http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { auth: 'optional' }),
+    // Entry Perfection Phase 9 (UR-266) -- "that's not the right person": the linked party goes back to being described.
+    unlinkParty: (id: string, partyKey: string, expectedVersion: number, timeZone?: string) =>
+      http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation/parties/${encodeURIComponent(partyKey)}/unlink?expectedVersion=${expectedVersion}${timeZone ? `&timeZone=${encodeURIComponent(timeZone)}` : ''}`, { method: 'POST', auth: 'optional' }),
     checkOpenPoint: (id: string, openPointId: string, timeZone?: string) =>
       http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation/open-points/${encodeURIComponent(openPointId)}/check${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { method: 'POST', auth: 'optional' }),
     // KS001 Upgrade Phase 2 final acceptance correction (item 1) -- the user-visible dialogue history

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { ArrowUp } from 'lucide-react';
 
 interface ConversationInputProps {
@@ -16,12 +16,20 @@ export function ConversationInput({
   label = 'Message KS001',
 }: ConversationInputProps) {
   const [text, setText] = useState('');
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const online = () => setOffline(false);
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, []);
 
+  // Entry Perfection Phase 9 -- offline: never submit, keep the words, say so plainly (the same rule as the conversation composer).
   const handleSend = () => {
-    if (text.trim() && !disabled) {
-      onSend(text.trim());
-      setText('');
-    }
+    if (!text.trim() || disabled) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setOffline(true); return; }
+    setOffline(false);
+    onSend(text.trim());
+    setText('');
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -33,6 +41,7 @@ export function ConversationInput({
 
   return (
     <div className="relative">
+      {offline && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">You’re offline. Your message is kept here — send it when you’re back online.</p>}
       <div className="flex items-end gap-2 rounded-2xl border border-cream-200 bg-white shadow-card px-3 py-1.5 focus-within:border-forest-300 focus-within:shadow-lifted transition-all duration-300">
         <textarea
           value={text}

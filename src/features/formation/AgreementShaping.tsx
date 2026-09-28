@@ -18,6 +18,7 @@ export function AgreementShaping({ formation, onReview, onAnswer, answering = fa
   return <section aria-labelledby="agreement-shaping-title" className="rounded-2xl border border-forest-200 bg-white/90 px-4 py-3.5 shadow-soft">
     <h2 id="agreement-shaping-title" className="font-display text-[0.95rem] text-forest-800">Your agreement is taking shape</h2>
     {formation.summary && <p className="mt-1 text-[0.85rem] leading-snug text-sand-700">{formation.summary}</p>}
+    {formation.readingSources.length > 0 && <p className="mt-1 text-[0.78rem] text-sand-600">Still reading {formation.readingSources.join(', ')}…</p>}
     {keyTerms.length > 0 && <dl className="mt-2 grid gap-x-4 gap-y-1 text-[0.82rem] sm:grid-cols-3">
       {keyTerms.map(t => <div key={t.label} className="min-w-0"><dt className="text-[0.7rem] uppercase tracking-wide text-sand-500">{t.label}</dt><dd className="break-words text-forest-800">{t.value}</dd></div>)}
     </dl>}

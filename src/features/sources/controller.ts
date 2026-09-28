@@ -135,6 +135,29 @@ export function createSourceController(
     }
   }
 
+  /** Entry Perfection Phase 9 -- quietly follows a source found still being read (e.g. after a reload). Never re-submits. */
+  const resuming = new Set<string>();
+  async function resume(conversationId: string, source: AgentSourceArtifactView) {
+    if (resuming.has(source.sourceArtifactId)) return;
+    resuming.add(source.sourceArtifactId);
+    let current = source;
+    try {
+      for (let i = 0; sourceOutcome(current) === 'working' && i < pollSchedule.length; i++) {
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        await sleep(hidden ? pollSchedule[i] * 3 : pollSchedule[i]);
+        try {
+          current = sourceArtifactView(await gateway.getSource(conversationId, current.sourceArtifactId));
+          upsert(current);
+        } catch {
+          // an unknown read is not a result: keep what we showed and try on the next step
+        }
+      }
+      if (sourceOutcome(current) === 'progressed' || sourceOutcome(current) === 'attention') await onSourceIngested?.(current);
+    } finally {
+      resuming.delete(source.sourceArtifactId);
+    }
+  }
+
   function fail(error: string, outcome: 'failed' | 'refused' | 'unknown', source?: AgentSourceArtifactView): SourceActionResult {
     update({ phase: 'error', error });
     return { ok: false, error, outcome, source };
@@ -176,7 +199,11 @@ export function createSourceController(
       update({ phase: 'listing', error: null });
       try {
         const response = await gateway.listSources(conversationId);
-        update({ phase: 'list-ready', sources: response.sources.map(sourceArtifactView) });
+        const sources = response.sources.map(sourceArtifactView);
+        update({ phase: 'list-ready', sources });
+        // Entry Perfection Phase 9 -- after a reload a source may still be being read on the server: follow it to its true end
+        // (bounded backoff, slower while the tab is hidden) instead of showing "reading" forever or forgetting it.
+        for (const source of sources) if (sourceOutcome(source) === 'working') void resume(conversationId, source);
       } catch (error) {
         update({ phase: 'error', error: sourceIngestionErrorText(error) });
       }

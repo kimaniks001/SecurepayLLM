@@ -22,6 +22,8 @@ export interface AgreementFormation {
   origin: { type: string; title: string; offeredBy: string | null; priceNow: string | null; priceChanged: boolean } | null;
   openPoints: FormationOpenPoint[];
   question: FormationQuestion | null;
+  /** Entry Perfection Phase 9 -- still being read; Review shows what is known so far. */
+  readingSources: string[];
 }
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
@@ -59,6 +61,7 @@ export function agreementFormationView(dto: AgreementFormationDto): AgreementFor
       checked: p.checked === true, sourceName: str(p.sourceName),
     })) : [],
     question: question(dto.question),
+    readingSources: Array.isArray(dto.readingSources) ? dto.readingSources.filter((n): n is string => typeof n === 'string' && n.length > 0).slice(0, 5) : [],
   };
 }
 
