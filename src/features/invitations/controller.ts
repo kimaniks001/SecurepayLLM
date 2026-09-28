@@ -32,6 +32,11 @@ export type KsPreviewState =
   | { status: 'checking'; checked: string }
   | { status: 'found'; checked: string; target: InvitationTargetResponse }
   | { status: 'not-found'; checked: string }
+  /**
+   * Trust Community Phase 5 (UR-231) -- the KS Number is a Business (or another non-person identity). Nobody can
+   * accept an Agreement invitation on a Business's behalf yet, so issuing one would create a dead end: fail closed.
+   */
+  | { status: 'not-a-person'; checked: string; target: InvitationTargetResponse }
   | { status: 'error'; checked: string };
 
 /** KS001 Upgrade Phase 4 continuation (Section 8) -- how the creator identifies the person they're inviting. */
@@ -138,6 +143,10 @@ export function createInviteController(gateway: Pick<AgreementGateway, 'propose'
       try {
         const target = await gateway.lookupInvitationTargetByKsNumber(agreementId, normalized);
         if (token !== previewToken) return; // superseded by a later edit/check
+        if (target.identityType && target.identityType !== 'INDIVIDUAL') {
+          update({ ksPreview: { status: 'not-a-person', checked: normalized, target } });
+          return;
+        }
         update({ ksPreview: { status: 'found', checked: normalized, target } });
       } catch (error) {
         if (token !== previewToken) return;

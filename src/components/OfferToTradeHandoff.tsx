@@ -41,36 +41,37 @@ export function OfferToTradeHandoff({ offer, onBack, onProceed }: OfferToTradeHa
               <span className="text-sand-600">{offer.isDemoState ? 'Offer version' : 'Offer updated'}</span>
               <span className="text-forest-800">{snapshot.offerVersion}</span>
             </div>
-            <div className="flex items-baseline justify-between text-[0.78rem]">
-              <span className="text-sand-600">Display source</span>
-              <span className="text-forest-800">{snapshot.displaySource}</span>
-            </div>
+            {snapshot.isExternalReference && (
+              <div className="flex items-baseline justify-between text-[0.78rem]">
+                <span className="text-sand-600">Shown in</span>
+                <span className="text-forest-800">{snapshot.displaySource}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Seller of record → counterparty */}
+        {/* Who you would agree with */}
         <div className={`rounded-2xl border px-5 py-4 animate-quiet-in ${snapshot.isExternalReference ? 'border-ember-200 bg-ember-50/20' : 'border-forest-200 bg-forest-50/20'}`}>
           <div className="flex items-center gap-2 mb-3">
             {snapshot.isExternalReference ? <AlertTriangle className="w-4 h-4 text-ember-600" /> : <ShieldCheck className="w-4 h-4 text-forest-600" />}
-            <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Seller of record → trade counterparty</span>
+            <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Who you would agree with</span>
           </div>
           <div className="space-y-2">
             <div className="flex items-baseline justify-between text-[0.78rem]">
-              <span className="text-sand-600">Seller of record</span>
+              <span className="text-sand-600">Offered by</span>
               <span className="text-forest-800 font-medium">{snapshot.sellerOfRecord}</span>
             </div>
-            <div className="flex items-baseline justify-between text-[0.78rem]">
-              <span className="text-sand-600">Identity</span>
-              <span className="text-forest-800 text-right">{snapshot.sellerOfRecordIdentity}</span>
-            </div>
-            <div className="flex items-baseline justify-between text-[0.78rem]">
-              <span className="text-sand-600">Trade counterparty</span>
-              <span className="text-forest-800 font-medium">{snapshot.sellerOfRecord}</span>
-            </div>
+            {snapshot.sellerOfRecordIdentity && (
+              <div className="flex items-baseline justify-between text-[0.78rem]">
+                <span className="text-sand-600">Identity</span>
+                <span className="text-forest-800 text-right">{snapshot.sellerOfRecordIdentity}</span>
+              </div>
+            )}
           </div>
+          <p className="text-[0.72rem] text-sand-600 mt-2">If you go ahead, you agree this trade with {snapshot.sellerOfRecord}.</p>
           {snapshot.isExternalReference && (
             <p className="text-[0.72rem] text-ember-600 mt-2">
-              {snapshot.storeName} is distribution provenance only, not the contractual counterparty. Do not settle to {snapshot.storeName}.
+              {snapshot.storeName} only shows this offer. You would agree with {snapshot.sellerOfRecord}, not {snapshot.storeName}.
             </p>
           )}
         </div>
@@ -79,7 +80,7 @@ export function OfferToTradeHandoff({ offer, onBack, onProceed }: OfferToTradeHa
         <div className="rounded-2xl border border-forest-300 bg-forest-50/30 px-5 py-4 animate-quiet-in">
           <div className="flex items-center gap-2 mb-3">
             <FileText className="w-4 h-4 text-forest-600" />
-            <span className="text-[0.7rem] font-medium text-forest-700 uppercase tracking-wide">Adopted facts from offer{offer.isDemoState ? ` ${snapshot.offerVersion}` : ` (updated ${snapshot.offerVersion})`}</span>
+            <span className="text-[0.7rem] font-medium text-forest-700 uppercase tracking-wide">What the offer says{offer.isDemoState ? ` ${snapshot.offerVersion}` : ` (updated ${snapshot.offerVersion})`}</span>
           </div>
           <div className="space-y-2 mb-3">
             {snapshot.adoptedFacts.map((fact, i) => (
@@ -90,26 +91,25 @@ export function OfferToTradeHandoff({ offer, onBack, onProceed }: OfferToTradeHa
             ))}
           </div>
           <p className="text-[0.78rem] text-sand-600 mb-2">
-            Nothing is authoritative yet. These facts remain candidate trade understanding until the agreement process crosses the established authority boundary.
+            Nothing is agreed yet. These details come from the offer — you can change them before anything is confirmed.
           </p>
           <p className="text-[0.72rem] text-sand-400 mb-3">
-            You can customize this trade. The original Store offer remains unchanged. Your trade is independent. If the Store later publishes a new offer version, your trade keeps these adopted facts.
+            The Store offer itself doesn’t change. If the Store updates its offer later, your trade keeps these details.
           </p>
           <button
             onClick={onProceed}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3 hover:bg-forest-700 transition-colors"
           >
-            Continue to agreement
+            Talk it through with KS001
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
 
         {/* Doctrine */}
         <div className="text-[0.68rem] text-sand-400 italic px-2 space-y-0.5">
-          <p>Store offer ≠ Agreement</p>
-          <p>Offer SecureLink ≠ Agreement invitation</p>
-          <p>Store price ≠ Agreed price</p>
-          <p>One offer → many independent agreements</p>
+          <p>An offer isn’t an agreement, and sharing an offer isn’t an invitation to one.</p>
+          <p>The price you agree is decided together — it may differ from the Store price.</p>
+          <p>Many people can each make their own agreement from the same offer.</p>
         </div>
       </div>
     </div>

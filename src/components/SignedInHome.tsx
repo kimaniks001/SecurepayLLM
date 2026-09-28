@@ -108,7 +108,7 @@ export function SignedInHome({
                 <button
                   key={prompt}
                   onClick={() => onStart(prompt)}
-                  className="text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
+                  className="inline-flex min-h-11 items-center text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
                 >
                   {prompt}
                 </button>
@@ -127,7 +127,7 @@ export function SignedInHome({
             <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
             <button
               onClick={onNavigateAgreements}
-              className="w-full text-center text-[0.85rem] font-medium text-forest-600 hover:text-forest-700 py-2"
+              className="w-full min-h-11 text-center text-[0.85rem] font-medium text-forest-600 hover:text-forest-700 py-2"
             >
               View all agreements
             </button>

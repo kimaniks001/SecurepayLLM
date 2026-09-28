@@ -377,8 +377,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           component, so it never affects fixture parity. */}
       {(state.view === 'home' || state.view === 'hub') && (onOpenProjects || onOpenVisionBoard) && (
         <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex justify-end gap-4">
-          {onOpenProjects && <button onClick={onOpenProjects} className="text-[0.8rem] text-forest-700 underline">My Projects</button>}
-          {onOpenVisionBoard && <button onClick={onOpenVisionBoard} className="text-[0.8rem] text-forest-700 underline">My Vision Board</button>}
+          {onOpenProjects && <button onClick={onOpenProjects} className="inline-flex min-h-11 items-center text-[0.8rem] text-forest-700 underline">My Projects</button>}
+          {onOpenVisionBoard && <button onClick={onOpenVisionBoard} className="inline-flex min-h-11 items-center text-[0.8rem] text-forest-700 underline">My Vision Board</button>}
         </div>
       )}
       {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}

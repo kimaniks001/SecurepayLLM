@@ -531,9 +531,14 @@ export const markup = [
   }
   const [current, baseline] = await Promise.all([render(false), render(true)]);
   // StoreHome/StoreManagementHome gained small truthful-hide guards (task section 3/10); their markup
-  // is compared field-by-field rather than byte-for-byte. OfferToTradeHandoff only moved its pure-logic
-  // import and must remain fully byte-identical.
-  assert.equal(current[2], baseline[2]);
+  // is compared field-by-field rather than byte-for-byte. Trust Community Phase 5 deliberately changed
+  // OfferToTradeHandoff: it claimed every seller was a "Business KS identity — authoritative" (a person's Store
+  // is not) and spoke in internal doctrine. It is now field-checked for that truth instead of byte-compared.
+  assert.ok(baseline[2].length > 0);
+  assert.doesNotMatch(current[2], /Business KS identity — authoritative|Seller of record|crosses the established authority boundary|≠/);
+  assert.match(current[2], /Who you would agree with/);
+  assert.match(current[2], /Nothing is agreed yet\./);
+  assert.match(current[2], /Talk it through with KS001/);
   assert.match(current[0], /Keyman Security/);
   assert.match(current[1], /Acting as/); // store.operator is non-empty in this fixture, so the guarded line still renders
 });

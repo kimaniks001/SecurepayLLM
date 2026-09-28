@@ -53,15 +53,15 @@ function TrustProjectBanner({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <p className="text-[0.68rem] uppercase tracking-wide text-forest-600 font-semibold">The Trust Project</p>
-          <p className="text-[0.78rem] text-sand-600">A community of people choosing to trade fairly.</p>
+          <p className="text-[0.78rem] text-sand-600">A community of people, businesses and organizations choosing to trade fairly.</p>
         </div>
         <div className="flex items-center gap-3">
           {membership.kind === 'active' && (
-            <button onClick={onOpenInvite} className="text-[0.75rem] font-medium text-forest-600 hover:text-forest-700">
+            <button onClick={onOpenInvite} className="inline-flex min-h-11 items-center text-[0.75rem] font-medium text-forest-600 hover:text-forest-700">
               Invite someone
             </button>
           )}
-          <button onClick={onTogglePrinciples} className="text-[0.75rem] font-medium text-forest-600 hover:text-forest-700">
+          <button onClick={onTogglePrinciples} className="inline-flex min-h-11 items-center text-[0.75rem] font-medium text-forest-600 hover:text-forest-700">
             {principlesOpen ? 'Hide' : 'Our 12 Principles'}
           </button>
         </div>
@@ -152,7 +152,7 @@ function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect:
         <button
           key={t.value}
           onClick={() => onSelect(t.value)}
-          className={`text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-colors ${
+          className={`inline-flex min-h-11 items-center text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-colors ${
             tab === t.value ? 'bg-forest-600 text-cream-50' : 'text-forest-700 bg-cream-50 hover:bg-cream-100'
           }`}
         >
@@ -639,7 +639,7 @@ function CommunitySearchView({
             <button
               key={s.value}
               onClick={() => onScopeChange(s.value)}
-              className={`text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-colors ${
+              className={`inline-flex min-h-11 items-center text-[0.78rem] font-medium rounded-full px-3 py-1.5 transition-colors ${
                 scope === s.value ? 'bg-forest-600 text-cream-50' : 'text-forest-700 bg-cream-50 hover:bg-cream-100'
               }`}
             >
@@ -958,7 +958,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3">
           <button
             onClick={() => controller.openSearch()}
-            className="w-full flex items-center gap-2 rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 text-[0.82rem] text-sand-500 hover:border-forest-300 transition-colors"
+            className="w-full flex min-h-11 items-center gap-2 rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 text-[0.82rem] text-sand-500 hover:border-forest-300 transition-colors"
           >
             <Search className="w-4 h-4 shrink-0" aria-hidden="true" />
             Search Community, Circles, Stores, people &amp; businesses

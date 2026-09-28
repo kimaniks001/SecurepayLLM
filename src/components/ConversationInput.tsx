@@ -44,7 +44,7 @@ export function ConversationInput({
           disabled={disabled}
           rows={1}
           className="flex-1 resize-none bg-transparent py-2.5 text-[0.9rem] text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin disabled:opacity-50"
-          style={{ minHeight: '24px' }}
+          style={{ minHeight: '44px' }}
         />
         <button
           type="button"

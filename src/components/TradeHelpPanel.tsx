@@ -123,7 +123,7 @@ export function TradeHelpPanel({ onBack, onPlugs, onMasters, onSolutions, onPart
         </button>
 
         <p className="text-[0.68rem] text-sand-400 italic px-2">
-          Discovery ≠ endorsement. The people who help a trade happen must remain distinct from the parties who actually agree the trade.
+          Finding someone here isn’t an endorsement. People who help a trade happen stay separate from the people who agree it.
         </p>
       </div>
     </div>

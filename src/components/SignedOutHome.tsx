@@ -53,13 +53,13 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
         />
       </div>
 
-      {/* Headline -- KS001 Upgrade Phase 3 copy (Section 36) */}
+      {/* Headline -- Trust Community Phase 5 (human decision, 2026-09-28) supersedes the Phase 1 hero contract. */}
       <h1 className="font-display text-3xl md:text-5xl text-forest-800 font-medium leading-tight text-balance animate-fade-in-up">
-        Bring the plan. Leave with an agreement.
+        Tell SecurePay what you’re trying to make happen.
       </h1>
 
       <p className={`mt-4 text-[0.95rem] md:text-base ${isPublic ? 'text-sand-700' : 'text-sand-600'} leading-relaxed max-w-lg mx-auto animate-fade-in-up`} style={{ animationDelay: '0.1s' }}>
-        Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed.
+        It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.
       </p>
 
       {/* Input */}
@@ -92,7 +92,8 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
       {/* KS001 Upgrade Phase 3 (Section 36) -- the trust line: identity remains unnecessary for
           ingestion/BUILD; nothing becomes a real Agreement without an explicit human review/confirm. */}
       <p className="mt-4 text-[0.78rem] text-sand-600 animate-fade-in-up" style={{ animationDelay: '0.27s' }}>
-        Start without a KS Number. Nothing becomes an agreement until you review and confirm it.
+        {/* Trust Community Phase 5 -- a signed-in person already has a KS Number, so only the public Home says so. */}
+        {isPublic ? 'Start without a KS Number. ' : ''}Nothing becomes an agreement until you review and confirm it.
       </p>
       {fairTradeOpen && <FairTradePrinciplesPanel onClose={() => setFairTradeOpen(false)} />}
     </div>
@@ -126,7 +127,7 @@ export function SignedOutHome(props: SignedOutHomeProps) {
               key={prompt}
               disabled={disabled}
               onClick={() => onStart(prompt)}
-              className="text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
+              className="inline-flex min-h-11 items-center text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
             >
               {prompt}
             </button>

@@ -42,7 +42,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search by a word or a place…" aria-label="Search the Store"
-            className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
+            className="w-full min-h-11 rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
           />
         </div>
 
@@ -103,14 +103,14 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           <div className="flex flex-col gap-2">
             <button
               onClick={onCreateOffer}
-              className="flex items-center gap-2 text-[0.825rem] font-medium text-forest-700 bg-forest-50 hover:bg-forest-100 rounded-lg px-3 py-2 transition-colors"
+              className="flex min-h-11 items-center gap-2 text-[0.825rem] font-medium text-forest-700 bg-forest-50 hover:bg-forest-100 rounded-lg px-3 py-2 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               Create an offer
             </button>
             <button
               onClick={onManageStore}
-              className="flex items-center gap-2 text-[0.825rem] font-medium text-sand-600 hover:text-forest-600 transition-colors"
+              className="flex min-h-11 items-center gap-2 text-[0.825rem] font-medium text-sand-600 hover:text-forest-600 transition-colors"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               Manage my store

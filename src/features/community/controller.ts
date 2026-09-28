@@ -9,6 +9,7 @@ import type { DiscoveryGateway } from '../../api/securepay/discovery';
 import type { DiscoveryResults, DiscoveryScope, PublicProfileResponse } from '../../api/securepay/discovery/dto';
 import { searchResultsView, type StoreSearchResult } from '../../api/securepay/store/adapters';
 import { searchRequests, mergeSearchResults } from '../store/view';
+import { parseStoreOfferCommunityObjectId } from './view';
 import type { StoreReadGateway } from '../store/view';
 import type { CommunityObjectType } from '../../types';
 
@@ -589,6 +590,9 @@ export function createCommunityController(
         helpError: null, helpIntentKey: newIdempotencyKey('community-help'),
       });
       if (real) { await loadObjectConversation(id); return; }
+      // Trust Community Phase 5 -- a Store offer shown in Community is a REFERENCE to the Store, rendered from the
+      // list data; it is not a Community object, so there is nothing to fetch (a fetch 400s and shows an error).
+      if (parseStoreOfferCommunityObjectId(id)) return;
       // Phase 6 Slice 5 (Discovery & Identity) -- opening a search result that is not already in the
       // locally-loaded LIVE feed (e.g. an older post, or one reached from Search rather than the
       // home feed) now falls back to a real fetch by id, mirroring `openCircle`'s own existing

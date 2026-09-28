@@ -88,6 +88,11 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
               <p className="text-[0.75rem] text-sand-600">{state.ksPreview.target.canonicalKsNumber ?? state.ksPreview.checked}</p>
             </div>
           )}
+          {state.ksPreview.status === 'not-a-person' && state.ksPreview.checked === normalizeKs(state.ksNumber) && (
+            <p role="alert" className="mt-2 text-[0.8rem] text-sand-700">
+              {state.ksPreview.target.displayName ?? 'This KS Number'} is a {state.ksPreview.target.identityType === 'BUSINESS' ? 'Business' : 'SecurePay account that isn’t a person'}. Businesses can’t take part in agreements on SecurePay yet — invite the person you’re dealing with, using their own KS Number. Nothing was sent.
+            </p>
+          )}
           {state.ksPreview.status === 'not-found' && state.ksPreview.checked === normalizeKs(state.ksNumber) && (
             <p role="alert" className="mt-2 text-[0.8rem] text-ember-700">SecurePay couldn’t find an active identity with that KS Number. Check it carefully, or ask them to bring a KS Number first.</p>
           )}

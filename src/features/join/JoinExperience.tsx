@@ -95,7 +95,7 @@ export function JoinExperience({
         <p className="text-center text-[0.75rem] font-semibold uppercase tracking-wide text-forest-600">The Trust Project · powered by SecurePay</p>
         <h1 className="mt-2 text-center font-display text-3xl md:text-4xl font-medium tracking-tight text-forest-800">Join The Trust Project</h1>
         <p className="mx-auto mt-3 max-w-xl text-center text-[0.95rem] leading-relaxed text-sand-700">
-          People and businesses can belong. One KS Number for SecurePay and The Trust Project.
+          People, businesses and organizations can belong. Each has its own KS Number for SecurePay and The Trust Project.
         </p>
 
         <section aria-labelledby="join-what" className="mt-8 rounded-2xl border border-cream-200 bg-white/85 p-5 md:p-6 shadow-soft">

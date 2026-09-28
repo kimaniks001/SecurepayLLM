@@ -100,7 +100,7 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
                 <div className="text-[0.8rem] text-sand-600 mt-1">Referral reward: <MoneyValue amount={decimalMoney(referral.reward.amountMinor, referral.reward.currency)} size="sm" /></div>
               )}
               <p className="text-[0.72rem] text-sand-500 mt-1">Reward earned: {referral.rewardEarned ? 'yes' : 'no'} · Reward paid: {referral.rewardPaid ? 'yes' : 'no'}</p>
-              <p className="text-[0.68rem] text-sand-400 mt-2 italic">Referral reward ≠ wallet balance, settlement balance, or Payment Ready. It is never released from this screen.</p>
+              <p className="text-[0.68rem] text-sand-400 mt-2 italic">A referral reward isn’t a balance you can spend, and nothing is paid out from this screen.</p>
             </SurfaceBody>
           </Surface>
         )}
@@ -130,7 +130,7 @@ export function PlugExperience({ gateway, attributionGateway, auth, session, agr
             </Button>
           </>
         )}
-        <p className="text-[0.68rem] text-sand-400 italic px-2">Plug ≠ Agreement party. An introduction is not selection, acceptance, or Agreement confirmation.</p>
+        <p className="text-[0.68rem] text-sand-400 italic px-2">A Plug is never a party to your agreement. An introduction isn’t a choice, an acceptance or a confirmation.</p>
       </div>
     );
   } else if (state.candidates.status === 'ready' || state.candidates.status === 'empty') {

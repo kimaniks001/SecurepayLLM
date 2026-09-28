@@ -150,7 +150,7 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
               <div className="text-[0.825rem] text-sand-600">{offer.storeName} · {offer.price}</div>
             </div>
             <p className="text-[0.72rem] text-sand-400 mb-3">
-              This is a reference to the canonical Store offer. Community does not copy or recreate the offer. Opening it takes you to the Store.
+              This points to the offer in its Store. The Store always has the current details — opening it takes you there.
             </p>
             <button
               onClick={() => onViewOffer(offer.id)}
@@ -312,9 +312,9 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
 
         {/* Doctrine */}
         <div className="text-[0.68rem] text-sand-400 italic px-2 space-y-0.5">
-          {isNeedOrOpp && <p>Need ≠ Agreement. "I can help" ≠ Agreement. Only explicit adoption into Trade Taking Shape begins that journey.</p>}
-          {isStoreRef && <p>Community Store reference ≠ copy of Store Offer. Store remains canonical Offer authority.</p>}
-          {object.objectType === 'work_story' && <p>Work Story ≠ review score. This is shared experience, not a rating.</p>}
+          {isNeedOrOpp && <p>A need, or an offer to help, isn’t an agreement. An agreement only starts when you choose to take it forward and confirm it.</p>}
+          {isStoreRef && <p>Offers and prices always come from the Store itself.</p>}
+          {object.objectType === 'work_story' && <p>A work story is shared experience, not a rating.</p>}
         </div>
       </div>
     </div>

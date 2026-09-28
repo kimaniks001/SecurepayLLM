@@ -48,7 +48,7 @@ const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list',
 const visionBoardGateway = api ? withSessionRefresh(api.visionBoard, ['shelves', 'items', 'get', 'create', 'update', 'lock', 'unlock', 'supersede', 'generateQuotation', 'generateInvoice', 'generateReceipt'], session, api.auth) : undefined;
 const settingsGateway = api ? withSessionRefresh(api.settings, ['get', 'update'], session, api.auth) : undefined;
 const notificationsGateway = api ? withSessionRefresh(api.notifications, ['list', 'get', 'markRead', 'resolve', 'getPreferences', 'updatePreferences'], session, api.auth) : undefined;
-const businessGateway = api ? withSessionRefresh(api.business, ['activate', 'get', 'members', 'inviteMember', 'acceptInvitation', 'removeMember'], session, api.auth) : undefined;
+const businessGateway = api ? withSessionRefresh(api.business, ['activate', 'get', 'members', 'inviteMember', 'acceptInvitation', 'removeMember', 'mine', 'representation'], session, api.auth) : undefined;
 // Phase 4D (API ADR-0024) -- Organization KS onboarding and representation (reads refresh the session; create reuses one key).
 const organizationGateway = api ? withSessionRefresh(api.organization, ['mine', 'representation'], session, api.auth) : undefined;
 const authorizationGateway = api ? withSessionRefresh(api.authorization, ['authoritySummary', 'initiateRoleAssignment', 'executeRoleAssignment', 'approveProtectedAction', 'rejectProtectedAction', 'createDelegation', 'revokeDelegation'], session, api.auth) : undefined;

@@ -54,7 +54,8 @@ export function AgreementEmptyState({ variant, searchQuery }: AgreementEmptyStat
           <FileText className="w-5 h-5 text-forest-500" />
         </div>
       </div>
-      <p className="text-[0.9rem] text-sand-600">You don't have any SecurePay agreements yet.</p>
+      <p className="text-[0.9rem] text-sand-600">You don’t have any agreements yet.</p>
+      <p className="mt-1 text-[0.8rem] text-sand-500">Tell SecurePay on Home what you’re trying to make happen. It becomes an agreement only when you review and confirm it.</p>
     </div>
   );
 }

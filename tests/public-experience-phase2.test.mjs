@@ -111,13 +111,14 @@ test('Join is live in the public experience (Phase 4) and never a placeholder or
 
 // ------------------------------------------------------------------ PUBLIC HOME
 test('the public Home keeps the exact SecurePay + KS001 hero, supporting copy and trust line', () => {
-  assert.ok(publicHomeText.includes('Bring the plan. Leave with an agreement.'));
-  assert.ok(publicHomeText.includes("Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed."));
+  // Trust Community Phase 5 (human decision, 2026-09-28) supersedes the Phase 3 hero copy.
+  assert.ok(publicHomeText.includes('Tell SecurePay what you’re trying to make happen.'));
+  assert.ok(publicHomeText.includes('It helps you bring the people, plans and agreements together so everyone knows what happens next — and money can follow what was agreed.'));
   assert.ok(publicHomeText.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
   assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1, 'exactly one h1');
 });
 test('chapters are in the contract order with semantic h2 headings', () => {
-  const order = ['Bring the plan. Leave with an agreement.', 'Try asking', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
+  const order = ['Tell SecurePay what you’re trying to make happen.', 'Try asking', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
   let at = -1;
   for (const s of order) { const i = publicHomeText.indexOf(s, at + 1); assert.ok(i > at, `"${s}" missing or out of order`); at = i; }
   const levels = [...publicHome.matchAll(/<h([1-6])\b/g)].map(m => Number(m[1]));
@@ -135,7 +136,8 @@ test('Member, Plug and Master are equal, not ranked, and carry no authority; bus
   const cards = [...publicHome.matchAll(/<li class="([^"]*)" data-capacity="(\w+)"/g)];
   assert.equal(cards.length, 3);
   assert.ok(cards.every(c => c[1] === cards[0][1]), 'the three cards share one visual treatment');
-  assert.match(publicHomeText, /People and businesses belong through their own KS Number/);
+  assert.match(publicHomeText, /People, businesses and organizations belong through their own KS Number/); // Trust Community Phase 5 (Organizations, ADR-0024)
+  assert.match(publicHomeText, /Businesses and organizations belong as Members, and can work with Plugs and Masters\./);
   assert.match(publicHomeText, /Plugs and Masters are individual people/);
   assert.match(publicHomeText, /never ranks/);
   assert.doesNotMatch(publicHomeText, /Member\s*→\s*Plug|upgrade to|level up|\btier\b/i);
@@ -215,9 +217,11 @@ test('Activation stays a signed-in destination and is untouched', async () => {
   const changed = diff.split('\n').filter(line => /^[+-](?![+-])/.test(line));
   const removed = changed.filter(line => line.startsWith('-')).map(line => line.slice(1));
   const added = changed.filter(line => line.startsWith('+')).map(line => line.slice(1));
-  assert.ok(added.every(line => /organizationGateway|Phase 4D/.test(line)), 'RuntimeApp only gains the Organization gateway');
-  assert.deepEqual(removed.map(line => line.replace(' organizationGateway={organizationGateway}', '')),
-    added.filter(line => line.includes('<AgentExperience')).map(line => line.replace(' organizationGateway={organizationGateway}', '')),
+  // Trust Community Phase 5 -- the Business gateway's 4C/4D reads ('mine', 'representation') also refresh the session.
+  const businessLine = line => line.replace(", 'mine', 'representation']", ']');
+  assert.ok(added.every(line => /organizationGateway|Phase 4D/.test(line) || (line.startsWith('const businessGateway') && businessLine(line) !== line)), 'RuntimeApp only gains the Organization gateway and the Business refresh reads');
+  assert.deepEqual(removed.map(line => businessLine(line).replace(' organizationGateway={organizationGateway}', '')),
+    added.filter(line => line.includes('<AgentExperience') || line.startsWith('const businessGateway')).map(line => businessLine(line).replace(' organizationGateway={organizationGateway}', '')),
     'the only replaced line is the AgentExperience call, which gains exactly the Organization gateway');
   const signedInHome = text(html(h(api.SignedOutHome, { onStart: noop })));
   assert.match(signedInHome, /Activate SecurePay/, 'the signed-in Home keeps its Activation entry');
@@ -418,7 +422,7 @@ test('signed-out Community renders no low-contrast text (banner, home, store-off
   assert.deepEqual(lowContrastText(community), []);
   for (const object of extra.demoCommunityObjects) assert.deepEqual(lowContrastText(xr(extra.CommunityObjectCard, { object, onClick: noop })), [], object.id);
   const src = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
-  assert.match(src, /<p className="text-\[0\.78rem\] text-sand-600">A community of people choosing to trade fairly\.<\/p>/);
+  assert.match(src, /<p className="text-\[0\.78rem\] text-sand-600">A community of people, businesses and organizations choosing to trade fairly\.<\/p>/);
   // The signed-out prompt stays at full contrast. Phase 4 replaced the superseded invitation-only copy with
   // direct-Join truth (ADR-0021).
   assert.match(src, /<p className="text-\[0\.8rem\] text-forest-800">Sign in or join The Trust Project to take part in Community\.<\/p>/);

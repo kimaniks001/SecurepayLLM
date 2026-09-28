@@ -107,16 +107,21 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
 function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…' }: { disabled: boolean; onSend: (text: string) => void; focusKey?: number; placeholder?: string }) {
   const [text, setText] = useState('');
   const field = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { if (focusKey) field.current?.focus(); }, [focusKey]);
+  // Deferred one frame: when the conversation replaces Home, the layout is still settling on mount (Trust Community Phase 5).
+  useEffect(() => {
+    if (!focusKey) return;
+    const frame = requestAnimationFrame(() => field.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [focusKey]);
   const send = () => { const value = text.trim(); if (value && !disabled) { onSend(value); setText(''); } };
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } };
   return <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/70 backdrop-blur-sm">
     <div className="flex items-end gap-2 rounded-2xl border border-cream-200 bg-white shadow-card px-3 py-2 focus-within:border-forest-300 focus-within:shadow-lifted transition-shadow duration-300">
       <textarea ref={field} value={text} onChange={event => setText(event.target.value)} onKeyDown={onKey} rows={1} maxLength={1200}
         aria-label="Message KS001" data-ks001-composer enterKeyHint="send" placeholder={placeholder}
-        className="flex-1 resize-none bg-transparent text-[0.95rem] leading-6 text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin" style={{ minHeight: '24px', fieldSizing: 'content' } as React.CSSProperties} />
+        className="flex-1 resize-none bg-transparent text-[0.95rem] leading-6 text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin" style={{ minHeight: '44px', paddingTop: '10px', paddingBottom: '10px', fieldSizing: 'content' } as React.CSSProperties} />
       <button onClick={send} disabled={!text.trim() || disabled} aria-label="Send message"
-        className="w-10 h-10 -mr-1 rounded-xl bg-forest-600 text-cream-50 flex items-center justify-center shrink-0 hover:bg-forest-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2">
+        className="w-11 h-11 -mr-1 rounded-xl bg-forest-600 text-cream-50 flex items-center justify-center shrink-0 hover:bg-forest-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2">
         <ArrowUp className="w-4 h-4" aria-hidden="true" />
       </button>
     </div>
