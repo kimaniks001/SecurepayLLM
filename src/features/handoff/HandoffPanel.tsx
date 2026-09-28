@@ -47,11 +47,13 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
   if (state.phase === 'creating') return <p role="status" className="text-sm text-sand-500 px-1">Preparing your review…</p>;
 
   if (state.phase === 'identity-required') {
-    const authData = secureAuthView(identityState);
+    const authData = secureAuthView(identityState, { title: 'This is ready to set securely. Sign in to continue.',
+      reason: 'Signing in only proves who you are. It does not set anything up or commit you to anything.' });
     return (
       <div className="space-y-3">
         {state.handoff && <ReviewPreview handoff={state.handoff} />}
-        <p className="px-1 text-[0.85rem] leading-snug text-sand-700">To review the full Agreement, sign in. Signing in doesn’t create anything or commit you to anything — you’ll come straight back to this.</p>
+        {/* Entry Perfection Phase 6 -- the person has already reviewed it before signing in; identity is needed only to set it. */}
+        <p className="px-1 text-[0.85rem] leading-snug text-sand-700">This is ready to set securely. Sign in to continue. Signing in doesn’t create anything or commit you to anything — you’ll come straight back to this.</p>
       <SecureAuthCard
         data={authData}
         values={identityState.phase === 'otp' ? [identityState.otp] : [identityState.ksNumber, identityState.password]}

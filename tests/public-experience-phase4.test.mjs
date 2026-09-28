@@ -604,7 +604,8 @@ test('AgentExperience: every App-level Workspace entry sets an explicit entry; S
   assert.match(agent, /if \(sessionState\.status === 'signed-in'\) \{\s*setWorkspaceAgreementId\(returningAgreementId\);\s*setWorkspaceEntry\(workspaceEntryFor\(view\)\);\s*setWorkspace\(true\);/);
   assert.match(agent, /initialAgreementId=\{workspaceAgreementId\}\s*initialView=\{workspaceEntry\}/);
   // specific-Agreement openings keep the Home entry + initialAgreementId (never the Hub, never inferred from a null id)
-  assert.equal((agent.match(/setWorkspaceAgreementId\(agreementId\);\s*setWorkspaceEntry\('home'\);\s*setWorkspace\(true\);/g) ?? []).length, 2);
+  // Entry Perfection Phase 6 -- DELIBERATELY RESTATED: the set-up panel inside Review opens the created agreement the same way (3rd).
+  assert.equal((agent.match(/setWorkspaceAgreementId\(agreementId\);\s*setWorkspaceEntry\('home'\);\s*setWorkspace\(true\);/g) ?? []).length, 3);
   // Store / Community / Account leave the Workspace, so re-entering mounts it fresh on its entry view
   assert.match(agent, /if \(view === 'store'\) \{ setWorkspace\(false\);/);
   assert.match(agent, /if \(view === 'community'\) \{ setWorkspace\(false\);/);

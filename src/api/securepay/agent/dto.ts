@@ -279,3 +279,18 @@ export interface SavedBuildDto {
   savedBuildId: string; conversationId: string; title: string | null;
   sufficiencyState: string; openMatterCount: number; savedAt: string; buildUpdatedAt: string;
 }
+
+// Entry Perfection Phase 6 -- the emerging agreement a person reviews. Mirrors AgreementFormationView. Nothing in it is
+// authority: every term is still SecurePay's understanding until the person sets it up securely.
+export interface FormationEvidenceDto { sourceArtifactId: string; sourceName: string; locator: string; removed: boolean }
+export interface FormationTermDto { key: string; label: string; value: string; detail?: string | null; basis: string; needsChecking: boolean; evidence: FormationEvidenceDto[]; history?: string | null }
+export interface FormationPartyDto { key: string; name: string; role?: string | null; identity: string; ksNumber?: string | null; describedAs?: string | null; evidence: FormationEvidenceDto[] }
+export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName?: string | null }
+export interface AgreementFormationDto {
+  conversationId: string; version: number; digest: string; stage: string; reviewable: boolean; confirmable: boolean;
+  reviewBlockedReason?: string | null; confirmationBlockedReason?: string | null; summary?: string | null;
+  what: FormationTermDto[]; who: FormationPartyDto[]; money: FormationTermDto[]; when: FormationTermDto[];
+  responsibilities: { party: string; duties: FormationTermDto[] }[]; conditions: FormationTermDto[]; notIncluded: FormationTermDto[];
+  origin?: { type: string; title: string; offeredBy?: string | null; priceNow?: string | null; priceWhenChosen?: string | null; priceChanged: boolean; availability?: string | null } | null;
+  openPoints: FormationOpenPointDto[];
+}
