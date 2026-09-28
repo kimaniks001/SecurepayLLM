@@ -98,7 +98,8 @@ test('explicit retry re-reads the SAME source and never creates a conversation',
 // ------------------------------------------------------------------ 17/18. human error language
 test('every input refusal is human SecurePay language -- never server, MIME, Java or HTTP text', () => {
   const cases = {
-    AGENT_SOURCE_CONTENT_MISMATCH: /doesn’t look like the kind of file it says it is, or it may be damaged/,
+    // Entry Perfection Phase 4 -- DELIBERATELY RESTATED: the next action is now "the original file, or paste the text".
+    AGENT_SOURCE_CONTENT_MISMATCH: /doesn’t look like the kind of file it says it is, or it may be damaged\. Try the original file, or paste the text here\./,
     AGENT_SOURCE_IMAGE_TOO_LARGE: /photo is too large/,
     AGENT_SOURCE_UNSUPPORTED_MEDIA_TYPE: /doesn’t support this file type/,
     AGENT_SOURCE_TOO_LARGE: /too large for SecurePay to read/,

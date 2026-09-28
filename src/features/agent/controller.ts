@@ -105,6 +105,10 @@ export function retryLabel(pending: AgentState['pending'], outcomeUnknown = fals
   return pending?.kind === 'adopt' ? 'Retry Use this' : pending?.kind === 'external-amount' ? 'Retry amount' : 'Retry message';
 }
 
+/**
+ * Entry Perfection Phase 4 -- every notice below speaks as SecurePay (KS001 is SecurePay), calmly, with what is true and
+ * what to do next; no internal words (step, candidate, source/request, reference).
+ */
 /** Entry Perfection Phase 2 -- shown while SecurePay reconciles a turn whose outcome is not known yet. Not a failure. */
 export const TURN_CHECKING_TEXT = 'The connection was interrupted, so SecurePay is checking whether your message went through. It won’t be sent twice.';
 export const TURN_STILL_WORKING_TEXT = 'SecurePay is still working on your message. Check again in a moment — it won’t be sent twice.';
@@ -117,16 +121,17 @@ export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'AGENT_TURN_IN_PROGRESS') return TURN_STILL_WORKING_TEXT;
     if (error.status === 429 || error.code === 'RATE_LIMIT_EXCEEDED') return 'SecurePay needs a short pause. Your message is kept — try again in a little while.';
-    if (error.status === 404) return 'This conversation or candidate could not be found. You can retry or start a new conversation.';
-    if (error.status === 401 || error.status === 403) return 'SecurePay could not allow this request. Your message is still here.';
-    if (error.status === 409) return 'The source or request has changed. Refresh what SecurePay understands before continuing.';
-    if (error.status === 410) return 'This reference has expired. Refresh what SecurePay understands.';
+    if (error.status === 404) return 'SecurePay couldn’t find this any more. Your message is still here — try again, or start a new conversation with it.';
+    if (error.status === 401) return 'Sign in to continue. Your message is still here.';
+    if (error.status === 403) return 'That needs someone with the right permission. Your message is still here.';
+    if (error.status === 409) return 'This changed while you were working on it. Check what SecurePay understands, then carry on.';
+    if (error.status === 410) return 'This has expired. Check what SecurePay understands, then carry on.';
     // CLIENT FAILURE != PROOF OF NON-DELIVERY: a timeout/network error/5xx can happen AFTER SecurePay committed the step.
-    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay could not confirm whether this step completed. Your message is kept — retry to check; the same step is never applied twice.';
+    if (error.kind === 'network' || error.kind === 'timeout' || (error.status ?? 0) >= 500) return 'SecurePay couldn’t confirm whether that went through. Your message is kept — try again to check; nothing is ever done twice.';
     // Entry Perfection Phase 2 -- never raw server/implementation text in front of the person.
-    return 'SecurePay could not complete this step. Your message is kept — please try again.';
+    return 'That didn’t go through. Your message is kept — please try again.';
   }
-  return 'SecurePay could not complete this step. Please try again.';
+  return 'That didn’t go through. Please try again.';
 }
 /**
  * Why linking a chosen Store listing to the conversation did not work -- in terms of the LISTING, not a chat

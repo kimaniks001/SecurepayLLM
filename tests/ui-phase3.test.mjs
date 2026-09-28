@@ -190,7 +190,8 @@ test('a timeout creating the draft is UNCERTAIN, not failed: retry re-sends the 
   assert.equal(controller.getSnapshot().phase, 'review-ready');
   await controller.createDraft();
   assert.equal(controller.getSnapshot().phase, 'progress-uncertain');
-  assert.match(controller.getSnapshot().error, /could not confirm whether/);
+  // Entry Perfection Phase 4 -- DELIBERATELY RESTATED: same uncertainty (not a failure), KS001 voice.
+  assert.match(controller.getSnapshot().error, /couldn’t confirm whether that went through/);
   await controller.createDraft();
   const sends = calls.filter(c => c[0] === 'continue');
   assert.equal(sends.length, 2);
