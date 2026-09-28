@@ -323,12 +323,20 @@ test('an Agreement invitation stays separate: only a quiet optional doorway afte
   assert.doesNotMatch(src, /membership\.join|membership\.accept|communityGateway/);
 });
 
-test('no Business or Organization Join, no Plug/Master grant and no referral anywhere in the Phase 4 UI', async () => {
+test('represented Joins only through their own targets, no Plug/Master grant and no referral anywhere in the Phase 4 UI', async () => {
+  // Phase 4C (ADR-0023) and 4D (ADR-0024) add Business and Organization Join ONLY as their own represented targets,
+  // through their own gateway calls. The public and personal paths never name a represented identity.
   for (const file of ['src/features/join/JoinExperience.tsx', 'src/features/join/controller.ts', 'src/features/join/share.ts', 'src/features/join/ShareInvitation.tsx', 'src/features/join/route.ts', 'src/features/public/PublicHome.tsx', 'src/features/public/PublicNav.tsx', 'src/components/TrustProjectSection.tsx']) {
     const src = (await readFile(file, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-    assert.doesNotMatch(src, /trust-project\/join|business\/[^'"`]*join|organization.*join|ORGANIZATION/i, file);
+    assert.doesNotMatch(src, /trust-project\/join|business\/[^'"`]*join|organization\/[^'"`]*join/i, file);
+    assert.doesNotMatch(src, /'ORGANIZATION'/, file);
     assert.doesNotMatch(src, /marketNetwork|plug\/entry|master\/me\/designate|referral\.|lifetime/i, file);
+    if (!file.startsWith('src/features/join/controller') && !file.startsWith('src/features/join/JoinExperience')) {
+      assert.doesNotMatch(src, /joinBusiness|joinOrganization/, file);
+    }
   }
+  // The personal Join never carries a target.
+  assert.match(await readFile('src/features/join/controller.ts', 'utf8'), /: await community\.membership\.join\(version, attemptKey\);/);
   const business = await readFile('src/features/business/BusinessExperience.tsx', 'utf8');
   assert.doesNotMatch(business, /Join The Trust Project/);
 });

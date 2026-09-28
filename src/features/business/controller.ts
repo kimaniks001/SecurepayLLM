@@ -1,7 +1,8 @@
 import type { BusinessGateway, BusinessOrganizationDto, BusinessOrganizationMemberDto, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { CircleGateway } from '../../api/securepay/circle';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { BusinessMembershipResponse } from '../../api/securepay/community/dto';
+import type { BusinessMembershipResponse, OrganizationMembershipResponse } from '../../api/securepay/community/dto';
+import type { OrganizationGateway, OrganizationRepresentationDto } from '../../api/securepay/organization';
 import { ApiError } from '../../api/securepay/http';
 import { errorText } from '../agent/controller';
 
@@ -16,7 +17,12 @@ const idle = <T>(): Loadable<T> => ({ status: 'idle', data: null, error: null })
  */
 export type ActingCapacity =
   | { kind: 'self' }
-  | { kind: 'business'; business: BusinessRepresentationDto };
+  | { kind: 'business'; business: BusinessRepresentationDto }
+  /**
+   * Phase 4D (API ADR-0024) -- an Organization KS (a residents association, church, school, welfare group...). The same
+   * rule as a Business: only one the backend listed, only after the backend confirmed it again, in memory only.
+   */
+  | { kind: 'organization'; organization: OrganizationRepresentationDto };
 
 export interface BusinessCreateState {
   name: string;
@@ -32,6 +38,11 @@ export interface BusinessState {
   switchBusy: boolean;
   switchError: string | null;
   create: BusinessCreateState;
+  /** Phase 4D -- the Organization KSs SecurePay confirms this person may act for (never Businesses). */
+  organizations: Loadable<OrganizationRepresentationDto[]>;
+  organizationCreate: OrganizationCreateState;
+  /** Phase 4D -- the acting Organization KS's OWN Trust Project membership (never the person's or a Business's). */
+  organizationTrustProject: Loadable<OrganizationMembershipResponse>;
   organization: Loadable<BusinessOrganizationDto>;
   members: Loadable<BusinessOrganizationMemberDto[]>;
   /** Phase 4C -- the acting Business's OWN Trust Project membership (never the person's), read from SecurePay. */
@@ -43,14 +54,26 @@ export interface BusinessState {
   memberActionError: string | null;
 }
 
+export interface OrganizationCreateState {
+  name: string;
+  busy: boolean;
+  error: string | null;
+  created: OrganizationRepresentationDto | null;
+}
+
 export const BUSINESS_NAME_MIN = 2;
 export const BUSINESS_NAME_MAX = 80;
 export const NOT_CONFIRMED = 'SecurePay couldn’t confirm you can act for that Business. You are still acting as yourself.';
+export const ORGANIZATION_NOT_CONFIRMED = 'SecurePay couldn’t confirm you can act for that Organization. You are still acting as yourself.';
+export const ORGANIZATION_NAME_MIN = 2;
+export const ORGANIZATION_NAME_MAX = 80;
 
 const initialCreate = (): BusinessCreateState => ({ name: '', busy: false, error: null, created: null });
+const initialOrganizationCreate = (): OrganizationCreateState => ({ name: '', busy: false, error: null, created: null });
 const initialState = (): BusinessState => ({
   self: idle(), businesses: idle(), acting: { kind: 'self' }, switchBusy: false, switchError: null,
-  create: initialCreate(), organization: idle(), members: idle(), trustProject: idle(),
+  create: initialCreate(), organizations: idle(), organizationCreate: initialOrganizationCreate(), organizationTrustProject: idle(),
+  organization: idle(), members: idle(), trustProject: idle(),
   inviteKsInput: '', inviteBusy: false, inviteError: null, memberActionBusy: false, memberActionError: null,
 });
 
@@ -64,6 +87,15 @@ export function createErrorText(error: unknown): string {
   if (error instanceof ApiError && error.status === 409) return 'That request was already used for a different name. Check your Businesses before trying again.';
   if (error instanceof ApiError && error.status === 400) return `Give your Business a name of ${BUSINESS_NAME_MIN} to ${BUSINESS_NAME_MAX} characters.`;
   return 'That didn’t work. No Business was created.';
+}
+
+export function organizationCreateErrorText(error: unknown): string {
+  if (uncertain(error)) return 'SecurePay couldn’t confirm that just now. Trying again is safe and never creates a second Organization.';
+  if (error instanceof ApiError && error.status === 401) return 'Your session has ended. Sign in again to create an Organization.';
+  if (error instanceof ApiError && error.status === 403) return 'Only a personal KS Number can create an Organization.';
+  if (error instanceof ApiError && error.status === 409) return 'That request was already used for a different name. Check your Organizations before trying again.';
+  if (error instanceof ApiError && error.status === 400) return `Give your Organization a name of ${ORGANIZATION_NAME_MIN} to ${ORGANIZATION_NAME_MAX} characters.`;
+  return 'That didn’t work. No Organization was created.';
 }
 
 /**
@@ -87,14 +119,19 @@ export function createErrorText(error: unknown): string {
 export function createBusinessController(gateway: {
   business: Pick<BusinessGateway, 'get' | 'members' | 'inviteMember' | 'removeMember' | 'create' | 'mine' | 'representation'>;
   circle?: Pick<CircleGateway, 'me'>;
-  trustProject?: Pick<CommunityGateway['membership'], 'business'>;
-}, newKey: () => string = () => `business-create-${crypto.randomUUID()}`) {
+  trustProject?: Pick<CommunityGateway['membership'], 'business'> & Partial<Pick<CommunityGateway['membership'], 'organization'>>;
+  /** Phase 4D -- Organization KS onboarding and representation. Absent: no Organization capacity is offered at all. */
+  organization?: Pick<OrganizationGateway, 'create' | 'mine' | 'representation'>;
+}, newKey: () => string = () => `business-create-${crypto.randomUUID()}`,
+newOrganizationKey: () => string = () => `organization-create-${crypto.randomUUID()}`) {
   let state: BusinessState = initialState();
   const listeners = new Set<() => void>();
   const update = (patch: Partial<BusinessState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
   // One key per logical creation: a retry after an uncertain outcome reuses it and can never create twice.
   let createKey: string | null = null;
   let createKeyName: string | null = null;
+  let organizationCreateKey: string | null = null;
+  let organizationCreateKeyName: string | null = null;
 
   async function loadMembers(businessKsNumber: string) {
     update({ members: { status: 'loading', data: null, error: null } });
@@ -116,8 +153,34 @@ export function createBusinessController(gateway: {
     }
   }
 
+  async function loadOrganizationTrustProject(organizationKsNumber: string) {
+    if (!gateway.trustProject?.organization) return;
+    update({ organizationTrustProject: { status: 'loading', data: null, error: null } });
+    try {
+      update({ organizationTrustProject: { status: 'ready', data: await gateway.trustProject.organization(organizationKsNumber), error: null } });
+    } catch (error) {
+      update({ organizationTrustProject: { status: 'error', data: null, error: errorText(error) } });
+    }
+  }
+
   function actAsSelf() {
-    update({ acting: { kind: 'self' }, switchError: null, organization: idle(), members: idle(), trustProject: idle(), inviteKsInput: '', inviteError: null, memberActionError: null });
+    update({ acting: { kind: 'self' }, switchError: null, organization: idle(), members: idle(), trustProject: idle(), organizationTrustProject: idle(), inviteKsInput: '', inviteError: null, memberActionError: null });
+  }
+
+  async function loadMineOrganizations() {
+    if (!gateway.organization) return;
+    update({ organizations: { status: 'loading', data: state.organizations.data, error: null } });
+    try {
+      const organizations = await gateway.organization.mine();
+      update({ organizations: { status: 'ready', data: organizations, error: null } });
+      // A capacity the backend no longer lists is dropped at once -- never kept from memory.
+      if (state.acting.kind === 'organization') {
+        const current = state.acting.organization.organizationKsNumber;
+        if (!organizations.some(o => o.organizationKsNumber === current)) actAsSelf();
+      }
+    } catch (error) {
+      update({ organizations: { status: 'error', data: null, error: errorText(error) } });
+    }
   }
 
   async function loadMine() {
@@ -150,9 +213,10 @@ export function createBusinessController(gateway: {
           update({ self: { status: 'error', data: null, error: errorText(error) } });
         }
       }
-      await loadMine();
+      await Promise.all([loadMine(), loadMineOrganizations()]);
     },
-    loadMine,
+    /** Re-read everything this person may act for (Businesses and Organizations) from the backend. */
+    async loadMine() { await Promise.all([loadMine(), loadMineOrganizations()]); },
 
     /**
      * Act for a Business -- only one the backend listed, and only once the backend confirms it again now.
@@ -175,7 +239,7 @@ export function createBusinessController(gateway: {
         await loadMine();
         return;
       }
-      update({ switchBusy: false, acting: { kind: 'business', business: confirmed }, organization: { status: 'loading', data: null, error: null }, members: idle(), trustProject: idle() });
+      update({ switchBusy: false, acting: { kind: 'business', business: confirmed }, organization: { status: 'loading', data: null, error: null }, members: idle(), trustProject: idle(), organizationTrustProject: idle() });
       void loadTrustProject(businessKsNumber);
       try {
         const organization = await gateway.business.get(businessKsNumber);
@@ -188,9 +252,62 @@ export function createBusinessController(gateway: {
 
     actAsSelf,
 
-    /** Re-read the acting Business's Trust Project membership (e.g. after returning from the Join page). */
+    /**
+     * Phase 4D -- act for an Organization KS: only one the backend listed, and only once the backend confirms it again
+     * now. Anything else (not listed, 404, 403, network) leaves the person acting as themself.
+     */
+    async actAsOrganization(organizationKsNumber: string) {
+      if (state.switchBusy || !gateway.organization) return;
+      const listed = state.organizations.data?.some(o => o.organizationKsNumber === organizationKsNumber) ?? false;
+      if (!listed) {
+        update({ acting: { kind: 'self' }, switchError: ORGANIZATION_NOT_CONFIRMED });
+        return;
+      }
+      update({ switchBusy: true, switchError: null });
+      let confirmed: OrganizationRepresentationDto;
+      try {
+        confirmed = await gateway.organization.representation(organizationKsNumber);
+        if (!confirmed.canActFor || confirmed.organizationKsNumber !== organizationKsNumber || confirmed.identityType !== 'ORGANIZATION') {
+          throw new Error('not confirmed');
+        }
+      } catch {
+        update({ switchBusy: false, acting: { kind: 'self' }, switchError: ORGANIZATION_NOT_CONFIRMED, organization: idle(), members: idle(), trustProject: idle(), organizationTrustProject: idle() });
+        await loadMineOrganizations();
+        return;
+      }
+      // An Organization has no Business member management here: only who it is and its own Trust Project membership.
+      update({ switchBusy: false, acting: { kind: 'organization', organization: confirmed }, organization: idle(), members: idle(), trustProject: idle(), organizationTrustProject: idle() });
+      await loadOrganizationTrustProject(organizationKsNumber);
+    },
+
+    /** Re-read the acting Business's or Organization's Trust Project membership (e.g. after the Join page). */
     async refreshTrustProject() {
       if (state.acting.kind === 'business') await loadTrustProject(state.acting.business.businessKsNumber);
+      if (state.acting.kind === 'organization') await loadOrganizationTrustProject(state.acting.organization.organizationKsNumber);
+    },
+
+    setOrganizationCreateName(name: string) { update({ organizationCreate: { ...state.organizationCreate, name, error: null, created: null } }); },
+
+    async createOrganization() {
+      if (!gateway.organization) return;
+      const name = state.organizationCreate.name.trim().replace(/\s+/g, ' ');
+      if (state.organizationCreate.busy) return;
+      if (name.length < ORGANIZATION_NAME_MIN || name.length > ORGANIZATION_NAME_MAX) {
+        update({ organizationCreate: { ...state.organizationCreate, error: `Give your Organization a name of ${ORGANIZATION_NAME_MIN} to ${ORGANIZATION_NAME_MAX} characters.` } });
+        return;
+      }
+      // A different name is a different logical request, so it gets a new key.
+      if (!organizationCreateKey || organizationCreateKeyName !== name) { organizationCreateKey = newOrganizationKey(); organizationCreateKeyName = name; }
+      update({ organizationCreate: { ...state.organizationCreate, busy: true, error: null, created: null } });
+      try {
+        const created = await gateway.organization.create(name, organizationCreateKey);
+        organizationCreateKey = null; organizationCreateKeyName = null;
+        update({ organizationCreate: { name: '', busy: false, error: null, created } });
+        await loadMineOrganizations();
+      } catch (error) {
+        if (!uncertain(error)) { organizationCreateKey = null; organizationCreateKeyName = null; }
+        update({ organizationCreate: { ...state.organizationCreate, busy: false, error: organizationCreateErrorText(error) } });
+      }
     },
 
     setCreateName(name: string) { update({ create: { ...state.create, name, error: null, created: null } }); },
@@ -247,7 +364,10 @@ export function createBusinessController(gateway: {
     },
 
     /** Sign-out: nothing about one person's Businesses or capacity may carry over to the next. */
-    reset() { createKey = null; createKeyName = null; state = initialState(); listeners.forEach(l => l()); },
+    reset() {
+      createKey = null; createKeyName = null; organizationCreateKey = null; organizationCreateKeyName = null;
+      state = initialState(); listeners.forEach(l => l());
+    },
   };
 }
 export type BusinessController = ReturnType<typeof createBusinessController>;

@@ -30,6 +30,7 @@ import { createVisionBoardGateway } from './visionboard';
 import { createSettingsGateway } from './settings';
 import { createNotificationsGateway } from './notifications';
 import { createBusinessGateway } from './business';
+import { createOrganizationGateway } from './organization';
 import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
@@ -52,6 +53,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     settings: createSettingsGateway(http),
     notifications: createNotificationsGateway(http),
     business: createBusinessGateway(http),
+    organization: createOrganizationGateway(http),
     authorization: createAuthorizationGateway(http),
     developer: createDeveloperGateway(http),
   };
