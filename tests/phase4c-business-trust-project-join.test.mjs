@@ -108,7 +108,9 @@ test('4. the page names the Business in the identity line, the acceptance and th
   const src = await readFile('src/features/join/JoinExperience.tsx', 'utf8');
   assert.match(src, /aria-describedby=\{business \? `\$\{identityId\} \$\{identityId\}-ks` : identityId\}/, 'the Join button is described by who is joining (and the Business KS), never by other controls');
   assert.match(src, /\{businessName\} has not joined The Trust Project yet\./);
-  assert.match(src, /You can join for this Business because you are authorized to act for it\./);
+  // Phase 4D (ADR-0024): the copy names the represented kind; for a Business target that kind is always "Business".
+  assert.match(src, /You can join for this \{business\.kindLabel\} because you are authorized to act for it\./);
+  assert.match(src, /target\.kind === 'business'\n\s*\? \{ ksNumber: target\.businessKsNumber, displayName: target\.displayName, kindLabel: 'Business' as const \}/);
 });
 
 test('5. a successful Business Join changes only the Business membership, with the exact version and a stable key', async () => {
@@ -141,7 +143,8 @@ test('6/7. yourself and each Business are separate targets that read separate me
   assert.equal(oak.controller.getSnapshot().membership.value.status, null);
   assert.equal(kamau.controller.getSnapshot().membership.value.status, 'ACTIVE');
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.match(agent, /key=\{signedIn \? `signed-in:\$\{actingForBusiness\?\.businessKsNumber \?\? 'self'\}` : 'signed-out'\}/,
+  // Phase 4D (ADR-0024): the key also carries the kind, so a Business and an Organization never share a page instance.
+  assert.match(agent, /key=\{signedIn \? `signed-in:\$\{actingForBusiness \? `business:\$\{actingForBusiness\.businessKsNumber\}` : actingForOrganization \? `organization:\$\{actingForOrganization\.organizationKsNumber\}` : 'self'\}` : 'signed-out'\}/,
     'a capacity change remounts the page, so one target never leaks into another');
 });
 
@@ -177,7 +180,9 @@ test('9. authority lost on read or on Join: nothing joins, the page says so, and
   assert.equal(s.membership.value?.status ?? null, null);
   assert.equal(api.NO_LONGER_AUTHORISED, 'You no longer have authority to manage this Business.');
   const src = await readFile('src/features/join/JoinExperience.tsx', 'utf8');
-  assert.match(src, /state\.authorityLost && \([\s\S]{0,200}role="alert"[\s\S]{0,200}\{NO_LONGER_AUTHORISED\}[\s\S]{0,300}Continue as yourself/);
+  // Phase 4D (ADR-0024): the message names the represented kind; for a Business it is exactly NO_LONGER_AUTHORISED.
+  assert.match(src, /const noLongerAuthorised = business\?\.kindLabel === 'Organization' \? NO_LONGER_AUTHORISED_ORGANIZATION : NO_LONGER_AUTHORISED;/);
+  assert.match(src, /state\.authorityLost && \([\s\S]{0,200}role="alert"[\s\S]{0,200}\{noLongerAuthorised\}[\s\S]{0,300}Continue as yourself/);
 });
 
 test('10. representing without the membership authority, or tampering with the call, never produces a Join', async () => {
@@ -198,14 +203,19 @@ test('10. representing without the membership authority, or tampering with the c
 });
 
 // ------------------------------------------------------------------ 11-12. firewalls + reconstruction
-test('11. there is no Organization Join or Organization capacity anywhere in the Join or Business UI', async () => {
-  for (const file of ['src/features/join/JoinExperience.tsx', 'src/features/join/controller.ts', 'src/features/join/copy.ts',
-    'src/features/business/BusinessExperience.tsx', 'src/features/business/controller.ts', 'src/api/securepay/community/index.ts']) {
-    const src = strip(await readFile(file, 'utf8'));
-    // The Business's RBAC Organization is backend plumbing (organizationId); what must never exist is an
-    // Organization KS, an ORGANIZATION identity type, or any Join for an Organization.
-    assert.doesNotMatch(src, /Organization KS|identityType: 'ORGANIZATION'|'ORGANIZATION'|join for (an |this |the )?organization|organization join/i, file);
-  }
+test('11. an Organization is its own target and never borrows the Business calls, nor a Business the Organization ones', async () => {
+  // Phase 4D (ADR-0024) supersedes "no Organization Join" ONLY for the approved shape: the Organization target reads and
+  // joins through its own calls, and the Business target through its own. Neither path can reach the other's.
+  const controller = strip(await readFile('src/features/join/controller.ts', 'utf8'));
+  assert.match(controller, /target\.kind === 'business'\s*\n?\s*\? await community\.membership\.business!\(target\.businessKsNumber\)\s*\n?\s*: await community\.membership\.organization!\(target\.organizationKsNumber\)/);
+  assert.match(controller, /target\.kind === 'business'\s*\n?\s*\? \(await community\.membership\.joinBusiness!\(target\.businessKsNumber, version, attemptKey\)\)\.membership/);
+  assert.match(controller, /target\.kind === 'organization'\s*\n?\s*\? \(await community\.membership\.joinOrganization!\(target\.organizationKsNumber, version, attemptKey\)\)\.membership/);
+  // The Business gateway never learned about Organization KSs.
+  assert.doesNotMatch(strip(await readFile('src/api/securepay/business/index.ts', 'utf8')), /'ORGANIZATION'|\/api\/v1\/organization/);
+  // A Business target never renders as an Organization.
+  const env = community({ business: { [OAK.businessKsNumber]: { canManage: true, membership: member(null) } } });
+  const t = text(page({ gateway: env.gateway, actingFor: { businessKsNumber: OAK.businessKsNumber, displayName: 'Keyman Oak' }, onSwitchToSelf: noop }));
+  assert.doesNotMatch(t, /Organization KS Number/);
 });
 
 test('12. the Business target comes only from the capacity SecurePay confirmed, never from storage or the URL', async () => {

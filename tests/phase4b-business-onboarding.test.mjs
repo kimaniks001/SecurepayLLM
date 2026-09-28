@@ -188,7 +188,7 @@ test('sign-out resets Businesses and capacity so nothing carries over to the nex
 });
 
 // ------------------------------------------------------------------ 7 + 8. no Business / Organization Join
-test('7/8. the Business area never joins anything itself (Phase 4C: one doorway to the Join page) and has no Organization capacity', async () => {
+test('7/8. the Business area never joins anything itself (Phase 4C: one doorway to the Join page) and a Business is never an Organization', async () => {
   const { controller } = setup({ mine: [OAK] });
   await controller.enter();
   await controller.actAsBusiness(OAK.businessKsNumber);
@@ -196,11 +196,15 @@ test('7/8. the Business area never joins anything itself (Phase 4C: one doorway 
   const page = text(markup);
   // No Join action here: the Business area only reads SecurePay's answer and opens the Join page.
   for (const control of markup.match(/<(button|a)\b[^>]*>[\s\S]*?<\/\1>/g) ?? []) assert.doesNotMatch(text(control), /^\s*join\b/i, control);
-  assert.doesNotMatch(page, /Organization KS|Act as .*Organization|Create an Organization/i);
+  // Phase 4D (ADR-0024) supersedes "no Organization capacity" ONLY for the approved shape: Organizations are their own,
+  // separately labelled identities. The acting Business is never presented as an Organization KS.
+  const businessPanel = page.slice(page.indexOf('Acting as Keyman Oak'), page.indexOf('Members'));
+  assert.doesNotMatch(businessPanel, /Organization KS|Act (as|for) .*Organization/i);
   for (const file of ['src/features/business/controller.ts', 'src/features/business/BusinessExperience.tsx', 'src/api/securepay/business/index.ts']) {
     const src = strip(await readFile(file, 'utf8'));
-    assert.doesNotMatch(src, /joinBusiness|membership\/join|\.join\(|TRUST_PROJECT|ORGANIZATION'|identityType: 'ORGANIZATION'/, file);
+    assert.doesNotMatch(src, /joinBusiness|joinOrganization|membership\/join|\.join\(|TRUST_PROJECT/, file);
   }
+  assert.doesNotMatch(strip(await readFile('src/api/securepay/business/index.ts', 'utf8')), /'ORGANIZATION'|\/api\/v1\/organization/);
   const dto = await readFile('src/api/securepay/business/index.ts', 'utf8');
   assert.match(dto, /identityType: 'BUSINESS';/);
 });
@@ -299,7 +303,8 @@ test('the gateway sends only a name and the Idempotency-Key, and never nominates
 // ------------------------------------------------------------------ Account doorway + layout safety
 test('Account offers one quiet doorway to the Business area and no typed Business KS lookup', async () => {
   const src = strip(await readFile('src/features/account/AccountExperience.tsx', 'utf8'));
-  assert.match(src, />Your Businesses</);
+  // Phase 4D (ADR-0024): the same one doorway now also leads to Organizations.
+  assert.match(src, />Your Businesses and Organizations</);
   assert.match(src, /onClick=\{\(\) => onNavigate\('business'\)\}[^>]*>[\s\S]{0,120}Open your Businesses/);
   assert.doesNotMatch(src, /Business KS Number|checkBusiness|>Check</);
   assert.equal((src.match(/Create a Business/g) ?? []).length, 1, 'Account mentions creation once and does not duplicate the action');

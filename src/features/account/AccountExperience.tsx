@@ -176,10 +176,10 @@ export function AccountExperience({ controller, onNavigate }: {
 
         <Surface>
           <SurfaceBody>
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Your Businesses</div>
-            <p className="text-[0.78rem] text-sand-600 mb-2">Create a Business, or act for one SecurePay confirms you run. You always stay signed in as yourself.</p>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Your Businesses and Organizations</div>
+            <p className="text-[0.78rem] text-sand-600 mb-2">Create a Business or an Organization — like a residents association, church or welfare group — or act for one SecurePay confirms you run. You always stay signed in as yourself.</p>
             <button onClick={() => onNavigate('business')} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-forest-50 px-4 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-              <Briefcase className="w-4 h-4" aria-hidden="true" /> Open your Businesses
+              <Briefcase className="w-4 h-4" aria-hidden="true" /> Open your Businesses and Organizations
             </button>
           </SurfaceBody>
         </Surface>

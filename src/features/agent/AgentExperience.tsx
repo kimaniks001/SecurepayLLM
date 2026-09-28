@@ -87,6 +87,7 @@ import type { NotificationsGateway } from '../../api/securepay/notifications';
 import { RecoveryExperience } from '../recovery/RecoveryExperience';
 import { createRecoveryController } from '../recovery/controller';
 import { BusinessExperience } from '../business/BusinessExperience';
+import type { OrganizationGateway } from '../../api/securepay/organization';
 import { createBusinessController } from '../business/controller';
 import type { BusinessGateway } from '../../api/securepay/business';
 import type { AuthorizationGateway } from '../../api/securepay/authorization';
@@ -144,7 +145,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -152,6 +153,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
+  organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
   subscriptionGateway: Pick<SubscriptionGateway, 'myStatus'>;
   auth: AuthGateway; session: SessionStore;
@@ -278,11 +281,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [settingsController] = useState(() => createSettingsController(settingsGateway));
   const [notificationsController] = useState(() => createNotificationsController(notificationsGateway));
   const [recoveryController] = useState(() => createRecoveryController(auth));
-  const [businessController] = useState(() => createBusinessController({ business: businessGateway, circle: circleGateway, trustProject: communityGateway.membership }));
+  const [businessController] = useState(() => createBusinessController({ business: businessGateway, circle: circleGateway, trustProject: communityGateway.membership, organization: organizationGateway }));
   // Phase 4C -- the Join page adapts to the capacity SecurePay confirmed in the Business area (never to local state).
   const businessState = useSyncExternalStore(businessController.subscribe, businessController.getSnapshot, businessController.getSnapshot);
   const actingForBusiness = businessState.acting.kind === 'business'
     ? { businessKsNumber: businessState.acting.business.businessKsNumber, displayName: businessState.acting.business.displayName }
+    : null;
+  // Phase 4D -- likewise for an Organization KS the person acts for.
+  const actingForOrganization = businessState.acting.kind === 'organization'
+    ? { organizationKsNumber: businessState.acting.organization.organizationKsNumber, displayName: businessState.acting.organization.displayName }
     : null;
   const [developerController] = useState(() => createDeveloperController(developerGateway));
   // Phase 5 -- resolved once via the same real, self-scoped `/circle/me` read Account/Circle already
@@ -508,8 +515,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <div className={`min-h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
         <NavBar view="community" onNavigate={view => { joinRoute.close(); navigateTo(view); }} />
         <JoinExperience
-          key={signedIn ? `signed-in:${actingForBusiness?.businessKsNumber ?? 'self'}` : 'signed-out'}
+          key={signedIn ? `signed-in:${actingForBusiness ? `business:${actingForBusiness.businessKsNumber}` : actingForOrganization ? `organization:${actingForOrganization.organizationKsNumber}` : 'self'}` : 'signed-out'}
           actingFor={actingForBusiness}
+          actingForOrganization={actingForOrganization}
           selfName={businessState.self.data?.displayName ?? null}
           onSwitchToSelf={() => { businessController.actAsSelf(); void businessController.loadMine(); }}
           communityGateway={communityGateway}

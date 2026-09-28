@@ -1,5 +1,5 @@
 import { segment, type HttpClient } from '../http';
-import type { BusinessMembershipResponse, CurrentPrinciplesResponse,
+import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
@@ -81,6 +81,20 @@ export function createCommunityGateway(http: HttpClient) {
        */
       joinBusiness: (businessKsNumber: string, principlesVersion: string, idempotencyKey: string) =>
         http.request<BusinessMembershipResponse>(`/api/v1/community/membership/business/${segment(businessKsNumber)}/join`, {
+          method: 'POST', body: { principlesVersion }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+        }),
+      /**
+       * Phase 4D (ADR-0024) -- a represented Organization KS's own membership. The KS Number only names the
+       * Organization; SecurePay proves the caller acts for it. Missing, a person, a Business and not-yours are one 404.
+       */
+      organization: (organizationKsNumber: string) => http.request<OrganizationMembershipResponse>(
+        `/api/v1/community/membership/organization/${segment(organizationKsNumber)}`, { auth: 'required' }),
+      /**
+       * Phase 4D -- the explicit Join FOR a represented Organization KS under the exact current 12 Principles. SecurePay
+       * re-checks, every time, that the caller acts for this Organization and may make its membership decision.
+       */
+      joinOrganization: (organizationKsNumber: string, principlesVersion: string, idempotencyKey: string) =>
+        http.request<OrganizationMembershipResponse>(`/api/v1/community/membership/organization/${segment(organizationKsNumber)}/join`, {
           method: 'POST', body: { principlesVersion }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
         }),
     },

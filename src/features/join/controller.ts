@@ -1,5 +1,5 @@
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { BusinessMembershipResponse, FairTradePrincipleResponse, MembershipResponse } from '../../api/securepay/community/dto';
+import type { BusinessMembershipResponse, FairTradePrincipleResponse, MembershipResponse, OrganizationMembershipResponse } from '../../api/securepay/community/dto';
 import { ApiError } from '../../api/securepay/http';
 
 /**
@@ -25,7 +25,9 @@ export type ContinuationOutcome =
  */
 export type JoinTarget =
   | { kind: 'self' }
-  | { kind: 'business'; businessKsNumber: string; displayName: string | null };
+  | { kind: 'business'; businessKsNumber: string; displayName: string | null }
+  /** Phase 4D (API ADR-0024) -- an Organization KS the person acts for; the same rules as a Business, its own calls. */
+  | { kind: 'organization'; organizationKsNumber: string; displayName: string | null };
 
 export interface JoinState {
   principles: { status: 'loading' | 'ready' | 'error'; version: string | null; label: string | null; items: FairTradePrincipleResponse[] };
@@ -78,7 +80,8 @@ const lostAuthority = (error: unknown) => error instanceof ApiError && (error.st
 
 export function createJoinController(
   community: Pick<CommunityGateway, 'currentPrinciples'> & {
-    membership: Pick<CommunityGateway['membership'], 'me' | 'join'> & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness'>>;
+    membership: Pick<CommunityGateway['membership'], 'me' | 'join'>
+      & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness' | 'organization' | 'joinOrganization'>>;
   },
   continueConversation: () => Promise<ContinuationOutcome> = async () => ({ kind: 'none' }),
   newKey: () => string = () => `trust-project-join-${crypto.randomUUID()}`,
@@ -109,9 +112,11 @@ export function createJoinController(
     /** Signed-in only. Never mutates. */
     async loadMembership() {
       update({ membership: { status: 'loading', value: state.membership.value } });
-      if (target.kind === 'business') {
+      if (target.kind === 'business' || target.kind === 'organization') {
         try {
-          const read: BusinessMembershipResponse = await community.membership.business!(target.businessKsNumber);
+          const read: BusinessMembershipResponse | OrganizationMembershipResponse = target.kind === 'business'
+            ? await community.membership.business!(target.businessKsNumber)
+            : await community.membership.organization!(target.organizationKsNumber);
           update({ membership: { status: 'ready', value: read.membership }, canManage: read.canManage, authorityLost: false });
         } catch (error) {
           if (lostAuthority(error)) update({ membership: { status: 'ready', value: null }, canManage: false, authorityLost: true });
@@ -142,17 +147,19 @@ export function createJoinController(
       if (state.phase !== 'idle' || !state.accepted || !version) return;
       const kind = membershipKind(state.membership.value);
       if (kind === 'active' || kind === 'revoked') return;
-      if (target.kind === 'business' && (state.canManage !== true || state.authorityLost)) return;
+      if (target.kind !== 'self' && (state.canManage !== true || state.authorityLost)) return;
       attemptKey ??= newKey();
       update({ phase: 'joining', error: null, staleNotice: false });
       let joined: MembershipResponse;
       try {
         joined = target.kind === 'business'
           ? (await community.membership.joinBusiness!(target.businessKsNumber, version, attemptKey)).membership
-          : await community.membership.join(version, attemptKey);
+          : target.kind === 'organization'
+            ? (await community.membership.joinOrganization!(target.organizationKsNumber, version, attemptKey)).membership
+            : await community.membership.join(version, attemptKey);
       } catch (error) {
-        if (target.kind === 'business' && lostAuthority(error)) {
-          // SecurePay no longer confirms this person may decide for the Business: nothing was joined.
+        if (target.kind !== 'self' && lostAuthority(error)) {
+          // SecurePay no longer confirms this person may decide for the Business or Organization: nothing was joined.
           attemptKey = null;
           update({ phase: 'idle', accepted: false, canManage: false, authorityLost: true, error: null });
           return;
@@ -171,8 +178,8 @@ export function createJoinController(
         return;
       }
       attemptKey = null;
-      if (target.kind === 'business') {
-        // Conversation continuity belongs to the person, never to a Business decision.
+      if (target.kind !== 'self') {
+        // Conversation continuity belongs to the person, never to a Business or Organization decision.
         update({ phase: 'joined', membership: { status: 'ready', value: joined }, continuation: { kind: 'none' } });
         return;
       }

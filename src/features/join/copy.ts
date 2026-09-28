@@ -17,3 +17,5 @@ export const ACCEPTANCE_LABEL = 'I choose to join The Trust Project under these 
 export const businessAcceptanceLabel = (business: string) => `I choose, for ${business}, to join The Trust Project under these 12 Principles.`;
 export const businessJoinButton = (business: string) => `Join for ${business}`;
 export const NO_LONGER_AUTHORISED = 'You no longer have authority to manage this Business.';
+/** Phase 4D (API ADR-0024) -- the same, naming an Organization, never calling it a Business. */
+export const NO_LONGER_AUTHORISED_ORGANIZATION = 'You no longer have authority to manage this Organization.';

@@ -9,7 +9,7 @@ import { createSignupController } from '../signup/controller';
 import { signupView } from '../signup/view';
 import { createJoinController, membershipKind, type ContinuationOutcome, type JoinTarget } from './controller';
 import { INTEREST_CONTEXT, type JoinInterest } from './share';
-import { ACCEPTANCE_LABEL, JOIN_IS_NOT, NO_LONGER_AUTHORISED, businessAcceptanceLabel, businessJoinButton } from './copy';
+import { ACCEPTANCE_LABEL, JOIN_IS_NOT, NO_LONGER_AUTHORISED, NO_LONGER_AUTHORISED_ORGANIZATION, businessAcceptanceLabel, businessJoinButton } from './copy';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
 const primary = `inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-600 px-5 text-[0.9rem] font-medium text-cream-50 hover:bg-forest-700 disabled:opacity-40 transition-colors ${focusRing}`;
@@ -28,13 +28,17 @@ const quiet = `min-h-11 rounded-lg px-2 text-[0.85rem] text-forest-700 underline
  * SecurePay confirmed in the Business area), it names that Business and its KS Number, reads and changes THE
  * BUSINESS's membership, and says "Join for {Business}". SecurePay re-proves the right to decide on every read and
  * Join; if it no longer does, nothing joins and the person can continue as themself.
+ *
+ * Phase 4D (API ADR-0024) -- exactly the same for an Organization KS the person acts for: it is named as an
+ * Organization (never a Business), and its own membership is read and changed through its own calls.
  */
 export function JoinExperience({
   communityGateway, auth, session, signedIn, interest, continueConversation,
-  onExploreCommunity, onReturnToConversation, onHelp, onDone, actingFor = null, selfName = null, onSwitchToSelf,
+  onExploreCommunity, onReturnToConversation, onHelp, onDone, actingFor = null, actingForOrganization = null, selfName = null, onSwitchToSelf,
 }: {
   communityGateway: Pick<CommunityGateway, 'currentPrinciples'> & {
-    membership: Pick<CommunityGateway['membership'], 'me' | 'join'> & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness'>>;
+    membership: Pick<CommunityGateway['membership'], 'me' | 'join'>
+      & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness' | 'organization' | 'joinOrganization'>>;
   };
   auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp' | 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
@@ -47,12 +51,16 @@ export function JoinExperience({
   onDone: () => void;
   /** Phase 4C -- the Business the person is acting for, if any (from the confirmed Business-area capacity). */
   actingFor?: { businessKsNumber: string; displayName: string | null } | null;
+  /** Phase 4D -- the Organization KS the person is acting for, if any (from the confirmed capacity). */
+  actingForOrganization?: { organizationKsNumber: string; displayName: string | null } | null;
   selfName?: string | null;
   onSwitchToSelf?: () => void;
 }) {
   const [target] = useState<JoinTarget>(() => signedIn && actingFor
     ? { kind: 'business', businessKsNumber: actingFor.businessKsNumber, displayName: actingFor.displayName }
-    : { kind: 'self' });
+    : signedIn && actingForOrganization
+      ? { kind: 'organization', organizationKsNumber: actingForOrganization.organizationKsNumber, displayName: actingForOrganization.displayName }
+      : { kind: 'self' });
   const [controller] = useState(() => createJoinController(communityGateway, continueConversation, undefined, target));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [identityPath, setIdentityPath] = useState<'choose' | 'signup' | 'signin'>('choose');
@@ -70,8 +78,14 @@ export function JoinExperience({
   }, [state.phase, state.staleNotice, state.error]);
 
   const kind = membershipKind(state.membership.value);
-  const business = target.kind === 'business' ? target : null;
-  const businessName = business ? business.displayName ?? business.businessKsNumber : null;
+  // The represented identity (a Business or an Organization), named by its own kind -- never "self".
+  const business = target.kind === 'business'
+    ? { ksNumber: target.businessKsNumber, displayName: target.displayName, kindLabel: 'Business' as const }
+    : target.kind === 'organization'
+      ? { ksNumber: target.organizationKsNumber, displayName: target.displayName, kindLabel: 'Organization' as const }
+      : null;
+  const businessName = business ? business.displayName ?? business.ksNumber : null;
+  const noLongerAuthorised = business?.kindLabel === 'Organization' ? NO_LONGER_AUTHORISED_ORGANIZATION : NO_LONGER_AUTHORISED;
   const identityId = `${acceptId}-identity`;
   const inviter = state.membership.value?.invitedByDisplayName ?? null;
 
@@ -137,9 +151,9 @@ export function JoinExperience({
             </p>
           )}
           {signedIn && business && (
-            <div className="mb-4 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3" data-join-identity="business">
+            <div className="mb-4 rounded-xl border border-forest-200 bg-forest-50 px-4 py-3" data-join-identity={target.kind}>
               <p id={identityId} className="text-[0.9rem] text-forest-800">You are acting for <span className="font-medium break-words">{businessName}</span></p>
-              <p id={`${identityId}-ks`} className="text-[0.75rem] text-sand-600 break-all">Business KS Number {business.businessKsNumber}</p>
+              <p id={`${identityId}-ks`} className="text-[0.75rem] text-sand-600 break-all">{business.kindLabel} KS Number {business.ksNumber}</p>
               {onSwitchToSelf && <button type="button" className={`${quiet} -ml-2`} onClick={onSwitchToSelf}>Switch back to yourself</button>}
             </div>
           )}
@@ -166,7 +180,7 @@ export function JoinExperience({
 
           {signedIn && business && state.authorityLost && (
             <div className="space-y-3" role="alert">
-              <p className="text-[0.9rem] text-forest-800">{NO_LONGER_AUTHORISED}</p>
+              <p className="text-[0.9rem] text-forest-800">{noLongerAuthorised}</p>
               <p className="text-[0.85rem] text-sand-700">Nothing was joined for {businessName}.</p>
               {onSwitchToSelf && <button type="button" className={secondary} onClick={onSwitchToSelf}>Continue as yourself</button>}
             </div>
@@ -225,7 +239,7 @@ export function JoinExperience({
               {business && kind === 'none' && (
                 <div className="space-y-1">
                   <p className="text-[0.9rem] text-forest-800 break-words">{businessName} has not joined The Trust Project yet.</p>
-                  <p className="text-[0.85rem] text-sand-700">You can join for this Business because you are authorized to act for it. Review the 12 Principles above before joining for {businessName}.</p>
+                  <p className="text-[0.85rem] text-sand-700">You can join for this {business.kindLabel} because you are authorized to act for it. Review the 12 Principles above before joining for {businessName}.</p>
                 </div>
               )}
               {kind === 'invited' && <p className="text-[0.9rem] text-forest-800">{inviter ?? 'Someone in the community'} invited {business ? businessName : 'you'} to The Trust Project.</p>}

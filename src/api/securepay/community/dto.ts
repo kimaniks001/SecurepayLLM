@@ -60,6 +60,17 @@ export interface BusinessMembershipResponse {
   membership: MembershipResponse;
 }
 
+/**
+ * Phase 4D (API ADR-0024) -- a represented Organization KS's OWN membership, plus whether this person may make its
+ * decision now. Never a role, permission or RBAC id.
+ */
+export interface OrganizationMembershipResponse {
+  organizationKsNumber: string;
+  organizationDisplayName?: string | null;
+  canManage: boolean;
+  membership: MembershipResponse;
+}
+
 /** Phase 4 -- `GET /api/v1/community/principles/current`: the exact version a Join must accept. */
 export interface CurrentPrinciplesResponse {
   version: string;

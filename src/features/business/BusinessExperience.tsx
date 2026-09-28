@@ -1,11 +1,11 @@
 import { useEffect, useId, useSyncExternalStore } from 'react';
-import { ArrowLeft, Briefcase, UserMinus, UserRound } from 'lucide-react';
+import { ArrowLeft, Briefcase, Landmark, UserMinus, UserRound } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
-import { BUSINESS_NAME_MAX, type BusinessController, type BusinessState } from './controller';
+import { BUSINESS_NAME_MAX, ORGANIZATION_NAME_MAX, type BusinessController, type BusinessState } from './controller';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
 const primary = `inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-700 px-4 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-40 transition-colors ${focusRing}`;
@@ -22,6 +22,11 @@ const label = 'text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide m
  *
  * Phase 5 final correction (kept): no member-to-member role-assignment form, because SecurePay rejects it
  * (docs/PHASE5_LIFE_BUSINESS_WORLD.md sections E/F).
+ *
+ * Phase 4D (API ADR-0024) -- the same place for Organizations (a residents association, church, school, welfare
+ * group...). An Organization is its own identity, never a Business: it is listed, labelled and created separately,
+ * and acting for it shows only who it is and its own Trust Project membership. No Organization login, member
+ * management, governance or money is offered here.
  */
 export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
   controller: BusinessController;
@@ -31,15 +36,23 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const nameId = useId();
+  const organizationNameId = useId();
   const groupName = useId();
   useEffect(() => { void controller.enter(); void controller.refreshTrustProject(); }, [controller]);
 
   const self = state.self.data;
   const businesses = state.businesses.data ?? [];
+  const organizations = state.organizations.data ?? [];
   const acting = state.acting.kind === 'business' ? state.acting.business : null;
+  const actingOrganization = state.acting.kind === 'organization' ? state.acting.organization : null;
   const organization = acting ? state.organization.data : null;
   const selfName = self?.displayName || 'Yourself';
-  const actingLabel = acting ? `Acting as ${acting.displayName ?? acting.businessKsNumber}` : `Acting as yourself${self?.displayName ? ` — ${self.displayName}` : ''}`;
+  const actingOrganizationName = actingOrganization ? actingOrganization.displayName ?? actingOrganization.organizationKsNumber : null;
+  const actingLabel = acting
+    ? `Acting as ${acting.displayName ?? acting.businessKsNumber}`
+    : actingOrganization
+      ? `You are acting for ${actingOrganizationName}, Organization KS Number ${actingOrganization.organizationKsNumber}`
+      : `Acting as yourself${self?.displayName ? ` — ${self.displayName}` : ''}`;
 
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
@@ -48,15 +61,16 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
         <button onClick={() => onNavigate('account')} className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sand-500 hover:text-forest-600 text-[0.8rem] ${focusRing}`}>
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Account
         </button>
-        <PageHeader title="Business" description="You are signed in as yourself. Create a Business, or act for one SecurePay confirms you run." />
+        <PageHeader title="Businesses and Organizations" description="You are signed in as yourself. Create a Business or an Organization, or act for one SecurePay confirms you run." />
 
         <Surface>
           <SurfaceBody>
-            <fieldset className="min-w-0" disabled={state.switchBusy}>
+            {/* Busy, never disabled: disabling the group while SecurePay confirms a switch would drop keyboard focus (Phase 4D). */}
+            <fieldset className="min-w-0" aria-busy={state.switchBusy}>
               <legend className={label}>You are acting as</legend>
               <div className="space-y-1.5">
-                <label className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${!acting ? 'border-forest-300 bg-forest-50' : 'border-cream-200'}`}>
-                  <input type="radio" name={groupName} className="h-5 w-5 shrink-0 accent-forest-600" checked={!acting} onChange={() => controller.actAsSelf()} />
+                <label className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${state.acting.kind === 'self' ? 'border-forest-300 bg-forest-50' : 'border-cream-200'}`}>
+                  <input type="radio" name={groupName} className="h-5 w-5 shrink-0 accent-forest-600" checked={state.acting.kind === 'self'} onChange={() => controller.actAsSelf()} />
                   <UserRound className="w-4 h-4 shrink-0 text-forest-500" aria-hidden="true" />
                   <span className="min-w-0">
                     <span className="block text-[0.85rem] text-forest-800 break-words">{selfName}</span>
@@ -76,15 +90,47 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
                     </label>
                   );
                 })}
+                {organizations.map(item => {
+                  const checked = actingOrganization?.organizationKsNumber === item.organizationKsNumber;
+                  return (
+                    <label key={item.organizationKsNumber} data-capacity="organization" className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${checked ? 'border-forest-300 bg-forest-50' : 'border-cream-200'}`}>
+                      <input type="radio" name={groupName} className="h-5 w-5 shrink-0 accent-forest-600" checked={checked} onChange={() => void controller.actAsOrganization(item.organizationKsNumber)} />
+                      <Landmark className="w-4 h-4 shrink-0 text-forest-500" aria-hidden="true" />
+                      <span className="min-w-0">
+                        <span className="block text-[0.85rem] text-forest-800 break-words">{item.displayName ?? item.organizationKsNumber}</span>
+                        <span className="block text-[0.7rem] text-sand-500 break-all">Organization · {item.organizationKsNumber}</span>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
             <p role="status" aria-live="polite" className="text-[0.75rem] text-forest-700 mt-2 break-words">{state.switchBusy ? 'Checking with SecurePay…' : actingLabel}</p>
             {state.businesses.status === 'loading' && businesses.length === 0 && <p className="text-[0.75rem] text-sand-500 mt-1">Loading your Businesses…</p>}
             {state.businesses.status === 'ready' && businesses.length === 0 && <p className="text-[0.75rem] text-sand-500 mt-1">You don’t act for any Business yet.</p>}
             {state.businesses.status === 'error' && <StatusNotice tone="warning" icon={false} className="mt-2">SecurePay couldn’t load your Businesses just now. {state.businesses.error}</StatusNotice>}
+            {state.organizations.status === 'error' && <StatusNotice tone="warning" icon={false} className="mt-2">SecurePay couldn’t load your Organizations just now. {state.organizations.error}</StatusNotice>}
             {state.switchError && <StatusNotice tone="warning" icon={false} className="mt-2">{state.switchError}</StatusNotice>}
           </SurfaceBody>
         </Surface>
+
+        {actingOrganization && (
+          <Surface className="animate-quiet-in">
+            <SurfaceBody>
+              <div className="flex items-start gap-2 mb-1 min-w-0" data-acting-identity="organization">
+                <Landmark className="w-4 h-4 mt-0.5 shrink-0 text-forest-500" aria-hidden="true" />
+                <div className="min-w-0">
+                  <div className="text-[0.95rem] text-forest-800 font-medium break-words">{actingOrganizationName}</div>
+                  <div className="text-[0.72rem] text-sand-500 break-all">Organization KS Number · {actingOrganization.organizationKsNumber}</div>
+                </div>
+              </div>
+              <p className="text-[0.8rem] text-forest-700 mt-2">You can act for this Organization. You’re its administrator.</p>
+              <p className="text-[0.72rem] text-sand-500 mt-1">An Organization on SecurePay isn’t legally verified or registered, and it can’t move money.</p>
+              <RepresentedTrustProject name={actingOrganizationName!} kindLabel="Organization" state={state.organizationTrustProject} onOpenJoin={onOpenJoin} />
+              <button onClick={() => controller.actAsSelf()} className={`${secondary} mt-3 w-full sm:w-auto`}>Switch back to yourself</button>
+            </SurfaceBody>
+          </Surface>
+        )}
 
         {acting && (
           <>
@@ -99,7 +145,7 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
                 </div>
                 <p className="text-[0.8rem] text-forest-700 mt-2">You can act for this Business. You’re its administrator.</p>
                 <p className="text-[0.72rem] text-sand-500 mt-1">A Business on SecurePay isn’t legally verified, and it can’t move money.</p>
-                <BusinessTrustProject name={acting.displayName ?? acting.businessKsNumber} state={state.trustProject} onOpenJoin={onOpenJoin} />
+                <RepresentedTrustProject name={acting.displayName ?? acting.businessKsNumber} kindLabel="Business" state={state.trustProject} onOpenJoin={onOpenJoin} />
                 <button onClick={() => controller.actAsSelf()} className={`${secondary} mt-3 w-full sm:w-auto`}>Switch back to yourself</button>
               </SurfaceBody>
             </Surface>
@@ -185,24 +231,58 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
             )}
           </SurfaceBody>
         </Surface>
+
+        <Surface>
+          <SurfaceBody>
+            <h2 className={label}>Create an Organization</h2>
+            <p className="text-[0.78rem] text-sand-600 mb-3">For a group that isn’t a business — like a residents association, church, school, welfare group or chama. It gets its own KS Number, and you become its administrator. You stay signed in as yourself. Creating an Organization doesn’t register or verify it, open a bank account or enable payments.</p>
+            <label htmlFor={organizationNameId} className="block text-[0.75rem] text-forest-800 mb-1">Organization name</label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                id={organizationNameId}
+                value={state.organizationCreate.name}
+                maxLength={ORGANIZATION_NAME_MAX}
+                autoComplete="off"
+                onChange={e => controller.setOrganizationCreateName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void controller.createOrganization(); }}
+                aria-invalid={state.organizationCreate.error ? true : undefined}
+                aria-describedby={state.organizationCreate.error ? `${organizationNameId}-error` : undefined}
+                placeholder="e.g. Varsityville Residents Association"
+                className="flex-1 min-w-0 min-h-11 rounded-lg border border-cream-200 px-3 text-[0.9rem]"
+              />
+              <button onClick={() => void controller.createOrganization()} disabled={state.organizationCreate.busy || !state.organizationCreate.name.trim()} className={primary}>
+                {state.organizationCreate.busy ? 'Creating…' : 'Create Organization'}
+              </button>
+            </div>
+            {state.organizationCreate.error && <p id={`${organizationNameId}-error`} role="alert" className="text-[0.78rem] text-amber-800 mt-2">{state.organizationCreate.error}</p>}
+            {state.organizationCreate.created && (
+              <StatusNotice tone="success" icon={false} className="mt-3">
+                <span className="block break-words">{state.organizationCreate.created.displayName} now has its own KS Number — Organization KS Number <span className="break-all">{state.organizationCreate.created.organizationKsNumber}</span>. You can act for this Organization.</span>
+                <button onClick={() => void controller.actAsOrganization(state.organizationCreate.created!.organizationKsNumber)} className={`${secondary} mt-2`}>Act for {state.organizationCreate.created.displayName}</button>
+              </StatusNotice>
+            )}
+          </SurfaceBody>
+        </Surface>
       </div>
     </div>
   );
 }
 
 /**
- * Phase 4C (API ADR-0023) -- the acting Business's OWN Trust Project membership. Joining is never done here: the one
- * doorway opens The Trust Project page, where the person reviews the 12 Principles and decides for the Business.
+ * Phase 4C (API ADR-0023) -- the acting Business's OWN Trust Project membership; Phase 4D (ADR-0024) -- the same for
+ * an Organization. Joining is never done here: the one doorway opens The Trust Project page, where the person reviews
+ * the 12 Principles and decides for that Business or Organization.
  */
-function BusinessTrustProject({ name, state, onOpenJoin }: {
+function RepresentedTrustProject({ name, kindLabel, state, onOpenJoin }: {
   name: string;
-  state: BusinessState['trustProject'];
+  kindLabel: 'Business' | 'Organization';
+  state: BusinessState['trustProject'] | BusinessState['organizationTrustProject'];
   onOpenJoin?: () => void;
 }) {
   const read = state.data;
   const status = read?.membership?.status ?? null;
   return (
-    <div className="mt-3 pt-3 border-t border-cream-100" data-business-trust-project={status ?? (state.status === 'ready' ? 'none' : state.status)}>
+    <div className="mt-3 pt-3 border-t border-cream-100" {...{ [kindLabel === 'Business' ? 'data-business-trust-project' : 'data-organization-trust-project']: status ?? (state.status === 'ready' ? 'none' : state.status) }}>
       <div className={label}>The Trust Project</div>
       {state.status === 'loading' && <p role="status" className="text-[0.78rem] text-sand-500">Checking {name}’s membership…</p>}
       {state.status === 'error' && <StatusNotice tone="warning" icon={false}>SecurePay couldn’t check {name}’s Trust Project membership just now.</StatusNotice>}
