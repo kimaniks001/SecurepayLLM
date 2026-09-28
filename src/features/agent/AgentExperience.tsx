@@ -183,11 +183,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // refreshAfterSourceIngestion (which would look for a KS001 reply that was never produced), and never
   // fabricates one client-side either.
   const [sourceController, setSourceController] = useState(() => createSourceController(gateway, controller.ensureConversationId, {
-    onSourceIngested: () => void controller.refreshAfterSourceIngestion(),
+    onSourceIngested: source => controller.refreshAfterSourceIngestion(source),
     onSourceChanged: () => void controller.review(),
   }));
   const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
+  // Entry Perfection Phase 2 -- the pasted text is kept until SecurePay has actually read it (never lost on failure).
+  const [bringPlanDraft, setBringPlanDraft] = useState<{ text: string; label: string }>({ text: '', label: '' });
   // Public Experience Convergence Phase 3 (Slice 3B) -- the Link / Place form, one at a time.
   const [declaredOpen, setDeclaredOpen] = useState<DeclaredSourceKind | null>(null);
   const openBringPlan = () => { setDeclaredOpen(null); setBringPlanOpen(true); };
@@ -333,10 +335,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
     setSourceController(createSourceController(gateway, freshController.ensureConversationId, {
-      onSourceIngested: () => void freshController.refreshAfterSourceIngestion(),
+      onSourceIngested: source => freshController.refreshAfterSourceIngestion(source),
       onSourceChanged: () => void freshController.review(),
     }));
     setBringPlanOpen(false);
+    setBringPlanDraft({ text: "", label: "" });
     setDeclaredOpen(null);
     setNotice(null);
     // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
@@ -791,11 +794,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // The "Bring your plan" panel, opened from either Home's intake.
   const bringPlanPanel = bringPlanOpen ? (
     <BringPlanPanel
-      busy={sourcesState.phase === 'submitting'}
+      busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
       error={sourcesState.phase === 'error' ? sourcesState.error : null}
       onClose={() => setBringPlanOpen(false)}
+      initialText={bringPlanDraft.text}
+      initialLabel={bringPlanDraft.label}
       onSubmit={(text, label) => {
-        void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+        setBringPlanDraft({ text, label });
+        // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the
+        // panel, the text and the reason on screen so the person can try again or change it.
+        void sourceController.addPastedText(text, label || undefined).then(outcome => {
+          if (outcome.ok) { setBringPlanOpen(false); setBringPlanDraft({ text: '', label: '' }); }
+        });
       }}
     />
   ) : null;
@@ -803,7 +813,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     <DeclaredSourcePanel
       key={declaredOpen}
       kind={declaredOpen}
-      busy={sourcesState.phase === 'submitting'}
+      busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
       error={sourcesState.phase === 'error' ? sourcesState.error : null}
       onClose={() => setDeclaredOpen(null)}
       onSubmit={(value, label) => {
@@ -952,7 +962,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 }} />
               )}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
-                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 text-forest-700 underline disabled:opacity-40">{retryLabel(state.pending)}</button>
+                <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 min-h-11 text-forest-700 underline disabled:opacity-40">{state.busy && state.outcomeUnknown ? 'Checking…' : retryLabel(state.pending, state.outcomeUnknown)}</button>
               </StatusNotice>}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-forest-700">
                 {/* KS001 Upgrade Phase 3 (Bring what you already have, Section 40) -- one quiet attach
@@ -963,7 +973,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     menu would be clipped (found in live Phase 3 verification). */}
                 <SourceMenu
                   placement="below"
-                  disabled={state.busy || sourcesState.phase === 'submitting'}
+                  disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                   onBringPlan={openBringPlan}
                   onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
                   onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
@@ -1012,11 +1022,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               </div>
               {bringPlanOpen && (
                 <BringPlanPanel
-                  busy={sourcesState.phase === 'submitting'}
+                  busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                   error={sourcesState.phase === 'error' ? sourcesState.error : null}
                   onClose={() => setBringPlanOpen(false)}
+                  initialText={bringPlanDraft.text}
+                  initialLabel={bringPlanDraft.label}
                   onSubmit={(text, label) => {
-                    void sourceController.addPastedText(text, label || undefined).then(outcome => { if (outcome.ok) setBringPlanOpen(false); });
+                    setBringPlanDraft({ text, label });
+                    void sourceController.addPastedText(text, label || undefined).then(outcome => {
+                      if (outcome.ok) { setBringPlanOpen(false); setBringPlanDraft({ text: '', label: '' }); }
+                    });
                   }}
                 />
               )}
@@ -1025,11 +1040,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   extraction-debug screen. BUILD itself remains the primary structured view. */}
               <SourcesList
                 sources={sourcesState.sources}
-                busy={sourcesState.phase === 'submitting'}
+                busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
                 factCountsBySourceId={sourceFactCounts}
               />
+              {/* Entry Perfection Phase 2 -- an interrupted or still-running read is "checking", never shown as failed. */}
+              {sourcesState.phase === 'checking' && <p role="status" className="text-[0.8rem] text-sand-700">SecurePay is checking whether it has finished reading this — nothing will be added twice.</p>}
               {sourcesState.phase === 'error' && !bringPlanOpen && !declaredOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />

@@ -1,9 +1,30 @@
-import type { AgentSourceArtifactView } from './controller';
+import type { AgentSourceArtifactView } from '../../api/securepay/agent/adapters';
 
 /** Public Experience Convergence Phase 3 -- presentation helpers shared by the source UI. */
 export const SPREADSHEET_MEDIA_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export type DeclaredSourceKind = 'link' | 'place';
+
+/**
+ * Entry Perfection Phase 2 -- the ONE shared meaning of every backend source status, so no surface reinvents it:
+ *  - 'progressed' READY: usable candidate understanding exists.
+ *  - 'attention'  PARTIAL, or READY with open uncertainties: usable work exists AND something needs the person.
+ *  - 'failed'     FAILED: this attempt produced nothing usable. Never shown as success; always offers Try again.
+ *  - 'working'    RECEIVED/PROCESSING: not finished. Never "done". (The pipeline is synchronous, so the UI normally only
+ *                 sees this when reconciling an interrupted request; see the controller's 'checking' phase.)
+ *  - 'inactive'   REMOVED: no longer current evidence.
+ */
+export type SourceOutcome = 'progressed' | 'attention' | 'failed' | 'working' | 'inactive';
+export function sourceOutcome(source: Pick<AgentSourceArtifactView, 'extractionStatus' | 'uncertainties'>): SourceOutcome {
+  switch (source.extractionStatus) {
+    case 'READY': return source.uncertainties.length > 0 ? 'attention' : 'progressed';
+    case 'PARTIAL': return 'attention';
+    case 'RECEIVED':
+    case 'PROCESSING': return 'working';
+    case 'REMOVED': return 'inactive';
+    default: return 'failed';
+  }
+}
 
 /** Public Experience Convergence Phase 3 -- what each kind honestly is, in one quiet line. */
 export function sourceKindNote(source: AgentSourceArtifactView): string | null {
@@ -13,10 +34,10 @@ export function sourceKindNote(source: AgentSourceArtifactView): string | null {
   return null;
 }
 
-/** Human states only -- never a raw extraction status. */
-export function sourceStatusText(source: AgentSourceArtifactView): string | null {
+/** Human states only -- never a raw extraction status. FAILED/REMOVED have no status line: the card itself says. */
+export function sourceStatusText(source: Pick<AgentSourceArtifactView, 'extractionStatus'>): string | null {
   switch (source.extractionStatus) {
-    case 'RECEIVED': return 'Received';
+    case 'RECEIVED': return 'Received — reading next';
     case 'PROCESSING': return 'Reading this…';
     case 'READY': return 'Read — suggestions to check';
     case 'PARTIAL': return 'Partly read — suggestions to check';

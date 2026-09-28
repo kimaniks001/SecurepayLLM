@@ -42,14 +42,20 @@ function AiHandoffHelper() {
  * different trust level from a source they want SecurePay to READ). Optional source label is offered but
  * never required (Section 17 -- "do not require provider attribution").
  */
-export function BringPlanPanel({ busy, error, onSubmit, onClose }: {
+export function BringPlanPanel({ busy, error, onSubmit, onClose, initialText = '', initialLabel = '' }: {
   busy: boolean;
   error: string | null;
   onSubmit: (text: string, label: string) => void;
   onClose: () => void;
+  /**
+   * Entry Perfection Phase 2 -- what the person already pasted survives the panel being re-shown (e.g. Home ->
+   * conversation after the first paste creates the conversation), so a failed read never loses their input.
+   */
+  initialText?: string;
+  initialLabel?: string;
 }) {
-  const [text, setText] = useState('');
-  const [label, setLabel] = useState('');
+  const [text, setText] = useState(initialText);
+  const [label, setLabel] = useState(initialLabel);
   return (
     <div role="dialog" aria-label="Bring your plan" className="rounded-2xl border border-cream-200 bg-white shadow-lifted p-4 space-y-3 animate-fade-in-up">
       <div className="flex items-center justify-between">

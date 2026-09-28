@@ -12,6 +12,10 @@ export interface AgentResponseDto {
   components: ComponentDto[];
   contextualPanel: { title: string; components: ComponentDto[] } | null;
   suggestedActions: { id: string; label: string; payload: Record<string, string> }[];
+  /** Entry Perfection Phase 2 -- the canonical id of KS001's persisted reply (the same id history uses). */
+  replyId?: string | null;
+  /** Entry Perfection Phase 2 -- whether THIS turn changed what SecurePay understands (null when unknown). */
+  understandingChanged?: boolean | null;
 }
 // KS001 Upgrade Phase 3 completion correction (item 1) -- the ONE bounded, safe provenance projection for
 // a source-derived fact. Mirrors AgentApiModels.SourceReferenceView exactly. `displayName` is always
@@ -245,6 +249,10 @@ export interface AgentSourceArtifactDto {
   createdAt: string; updatedAt: string;
   /** Phase 3 -- LINK url / PLACE words exactly as declared; empty for other kinds and after removal. */
   declaredText?: string;
+  /** Entry Perfection Phase 2 -- KS001's canonical acknowledgement of THIS attempt (READY/PARTIAL only). */
+  acknowledgement?: string | null;
+  /** Entry Perfection Phase 2 -- its canonical reply id (the same id conversation history uses). */
+  acknowledgementReplyId?: string | null;
 }
 export interface AgentSourceArtifactListDto { sources: AgentSourceArtifactDto[] }
 export interface CreatePastedTextSourceRequest { text: string; label?: string }

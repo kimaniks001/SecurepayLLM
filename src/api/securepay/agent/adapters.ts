@@ -119,6 +119,10 @@ export function agentResponseView(dto: AgentResponseDto) {
     offeredDiscoveryEntityIds: parsedComponents
       .filter((component): component is DiscoveryOfferComponentView => component.type === 'DISCOVERY_OFFER')
       .map(component => component.targetEntityId),
+    // Entry Perfection Phase 2 -- canonical reply identity (reconciles live replies with history, never by text)
+    // and whether this turn changed understanding (null = unknown, e.g. a replayed turn).
+    replyId: typeof dto.replyId === 'string' && dto.replyId ? dto.replyId : null,
+    understandingChanged: typeof dto.understandingChanged === 'boolean' ? dto.understandingChanged : null,
   };
 }
 
@@ -217,6 +221,9 @@ export function sourceArtifactView(dto: AgentSourceArtifactDto) {
     uncertainties: Array.isArray(dto.uncertainties) ? dto.uncertainties.filter((u): u is string => typeof u === 'string') : [],
     failureReason: dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
     declaredText: typeof dto.declaredText === 'string' ? dto.declaredText : '',
+    // Entry Perfection Phase 2 -- KS001's canonical acknowledgement of this attempt, when the server recorded one.
+    acknowledgement: typeof dto.acknowledgement === 'string' && dto.acknowledgement && typeof dto.acknowledgementReplyId === 'string' && dto.acknowledgementReplyId
+      ? { replyId: dto.acknowledgementReplyId, text: dto.acknowledgement } : null,
   };
 }
 export type AgentSourceArtifactView = ReturnType<typeof sourceArtifactView>;

@@ -864,7 +864,7 @@ function agentSetup(over = {}) {
     submitStructuredInput: async () => ({ status: 'APPLIED', affectedEntityId: 'e', entitiesApplied: 1, relationshipsApplied: 0, conflicts: [], tradeContextVersion: 2 }),
     selectKsIdentity: async () => ({ status: 'RESOLVED', canonicalKsNumber: 'KS003', displayName: 'Maua Shoes', participantType: 'ORGANIZATION', entityId: null, entityCreated: null, roleApplied: null, tradeContextVersion: null }),
     ...over };
-  return { calls, controller: api.createAgentController(gateway, () => `id-${++n}`) };
+  return { calls, controller: api.createAgentController(gateway, () => `id-${++n}`, { sleep: async () => {} }) };
 }
 test('agent controller: a statement is an ordinary turn (same endpoint, clientTurnId), returns the read-back context', async () => {
   const { controller, calls } = agentSetup();
@@ -971,14 +971,12 @@ function lossyServer({ lose = 1 } = {}) {
 test('uncertain delivery: POST committed + response lost -> transcript kept, same clientTurnId retried, applied exactly once', async () => {
   const server = lossyServer();
   const { controller } = agentSetup({ ...server.gateway });
+  // Entry Perfection Phase 2 -- DELIBERATELY RESTATED (H4/H6): the lost response is now reconciled AUTOMATICALLY by re-sending the SAME clientTurnId -- the person
+  // is never told it failed, and the turn is still applied exactly once.
   const result = await controller.sendStatement('The place is in Kilimani.');
-  assert.equal(result.ok, false);
-  assert.match(result.error, /could not confirm whether this step completed/);          // not "failed": delivery is UNCERTAIN
-  let snap = controller.getSnapshot();
-  assert.equal(snap.turns.length, 1); assert.equal(snap.turns[0].text, 'The place is in Kilimani.'); // never erased
-  assert.equal(snap.pending.body.clientTurnId, server.log[0]);
-  await controller.retry();
-  snap = controller.getSnapshot();
+  assert.equal(result.ok, true);
+  const snap = controller.getSnapshot();
+  assert.equal(snap.turns[0].text, 'The place is in Kilimani.'); // never erased
   assert.deepEqual(server.log, [server.log[0], server.log[0]]);                          // SAME identity both times
   assert.equal(server.committed.size, 1);                                                // committed once
   assert.equal(snap.pending, null); assert.equal(snap.turns.length, 2);                  // user turn + the (replayed) reply

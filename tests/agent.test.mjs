@@ -33,7 +33,7 @@ function setup(overrides = {}) {
     ...overrides,
   };
   let counter = 0;
-  return { calls, controller: api.createAgentController(gateway, () => `id-${++counter}`) };
+  return { calls, controller: api.createAgentController(gateway, () => `id-${++counter}`, { sleep: async () => {} }) };
 }
 test('intent persists synchronously; conversation creation precedes first turn; rapid sends are serialized', async () => {
   const pending = deferred();
@@ -59,8 +59,21 @@ test('creation failure retains intent; explicit retry creates before submitting 
   assert.equal(calls[0][2].clientTurnId, id);
   assert.equal(controller.getSnapshot().turns.length, 2);
 });
-test('network, timeout, 404 and unavailable retain failed turns and reuse clientTurnId only on explicit retry', async () => {
-  for (const error of [new api.ApiError('network', 'offline'), new api.ApiError('timeout', 'timeout'), new api.ApiError('http', 'missing', 404), new api.ApiError('http', 'unavailable', 503)]) {
+// Entry Perfection Phase 2 -- DELIBERATELY RESTATED (H4/H6): an UNKNOWN outcome (network, timeout, 5xx) is now reconciled automatically by re-sending the SAME body
+// (same clientTurnId -- the server returns the real reply or runs it exactly once). A definite error (404) still waits
+// for the person's explicit retry.
+test('network, timeout and unavailable reconcile with the same clientTurnId; a definite 404 waits for explicit retry', async () => {
+  for (const error of [new api.ApiError('network', 'offline'), new api.ApiError('timeout', 'timeout'), new api.ApiError('http', 'unavailable', 503)]) {
+    const bodies = [];
+    const { controller } = setup({ submitTurn: async (_id, body) => { bodies.push(body); if (bodies.length === 1) throw error; return response; } });
+    await controller.send('hello');
+    assert.equal(bodies.length, 2);
+    assert.deepEqual(bodies[0], bodies[1]);
+    assert.equal(controller.getSnapshot().turns.length, 2);
+    assert.equal(controller.getSnapshot().error, null);
+    assert.equal(controller.getSnapshot().pending, null);
+  }
+  for (const error of [new api.ApiError('http', 'missing', 404)]) {
     const bodies = [];
     const { controller } = setup({ submitTurn: async (_id, body) => { bodies.push(body); if (bodies.length === 1) throw error; return response; } });
     await controller.send('hello');
@@ -559,15 +572,17 @@ test('refreshAfterSourceIngestion appends a genuinely NEW KS001 reply and refres
   await controller.send('Bring my plan'); // seeds conversationId + one human turn, mirroring a real prior exchange
   calls.length = 0;
 
-  await controller.refreshAfterSourceIngestion();
+  // Entry Perfection Phase 2 -- DELIBERATELY RESTATED (H3/H5): KS001's acknowledgement now arrives IN the source response (canonical reply id) and is shown at once;
+  // no best-effort history read is needed to find it, so nothing can be duplicated or missed.
+  await controller.refreshAfterSourceIngestion({ acknowledgement: { replyId: 'reply-1', text: "I've pulled a detail from quotation.pdf into BUILD. What else should I know?" } });
 
   const turns = controller.getSnapshot().turns;
-  assert.equal(turns.length, 3); // the human turn, the turn's own agent reply, plus the ONE new orphan KS001 reply
+  assert.equal(turns.length, 3); // the human turn, the turn's own agent reply, plus the ONE source acknowledgement
   assert.equal(turns[2].sender, 'agent');
   assert.equal(turns[2].id, 'reply-1');
   assert.match(turns[2].response.message.text, /quotation\.pdf/);
-  assert.ok(calls.some(call => Array.isArray(call) && call[0] === 'history'));
-  assert.ok(calls.some(call => call === 'context'), 'Trade Context must still be refreshed, not only history');
+  assert.ok(!calls.some(call => Array.isArray(call) && call[0] === 'history'), 'no history read is needed');
+  assert.ok(calls.some(call => call === 'context'), 'the canonical Trade Context is refreshed');
 });
 
 test('refreshAfterSourceIngestion never duplicates a reply already shown, and never touches human turns', async () => {
@@ -577,10 +592,11 @@ test('refreshAfterSourceIngestion never duplicates a reply already shown, and ne
     ] }; },
   });
   await controller.send('Bring my plan');
-  await controller.refreshAfterSourceIngestion();
+  const ack = { acknowledgement: { replyId: 'reply-1', text: 'Already shown once.' } };
+  await controller.refreshAfterSourceIngestion(ack);
   const afterFirst = controller.getSnapshot().turns.length;
 
-  await controller.refreshAfterSourceIngestion(); // the SAME reply id is returned again by the gateway
+  await controller.refreshAfterSourceIngestion(ack); // the SAME canonical reply id arrives again
 
   assert.equal(controller.getSnapshot().turns.length, afterFirst); // never duplicated
   assert.equal(controller.getSnapshot().turns[0].sender, 'user'); // the human turn is untouched

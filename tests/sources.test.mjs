@@ -171,7 +171,10 @@ test('an extraction-outage failure never blocks the flow with a misleading gener
   });
   const outcome = await controller.addPastedText('some plan text');
   assert.equal(outcome.ok, false);
-  assert.match(outcome.error, /couldn.t read it right now/);
+  // Entry Perfection Phase 2 -- DELIBERATELY RESTATED (H6): a 503 means the outcome is unknown; the controller re-sends the same content once (safe: the server
+  // de-duplicates by digest) and then says honestly that it couldn't confirm -- never "nothing was added".
+  assert.equal(outcome.outcome, 'unknown');
+  assert.match(outcome.error, /couldn.t confirm whether it read this/);
 });
 
 // ---------------------------------------------------------------- KS001 Upgrade Phase 3 final merge-readiness correction (item 1)
