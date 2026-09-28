@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Entry Perfection measurement reports (generated)
+/build/
