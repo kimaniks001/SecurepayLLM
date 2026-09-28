@@ -141,7 +141,8 @@ test('setting it up sends the reviewed version, so a changed agreement is never 
 
 test('the agent screen opens Review without signing in, and the old "Use this first" gate is gone', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\} onReview=\{\(\) => setReviewOpen\(true\)\} \/>/);
+  // Phase 7 restatement: the card now also carries the planned question's quick answers (see entry-perfection-phase7.test.mjs).
+  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\} onReview=\{\(\) => setReviewOpen\(true\)\}/);
   assert.match(agent, /onSetUp=\{version => \{ if \(state\.conversationId\) void handoffController\.start\(state\.conversationId, version\); \}\}/);
   assert.doesNotMatch(agent, /Confirm it above with “Use this” first/);
   const panel = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');

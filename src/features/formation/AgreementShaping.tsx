@@ -1,11 +1,14 @@
 import type { AgreementFormation } from './view';
+import { NextQuestion } from './NextQuestion';
 
 /**
  * Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement takes visual priority over the
  * chat: a calm card at the top of the conversation with the one-line summary, the key terms and REVIEW THIS. Nothing here is
  * agreed; the card says so. It never appears for an exploration or a vague intention (nothing reviewable yet).
  */
-export function AgreementShaping({ formation, onReview }: { formation: AgreementFormation | null; onReview: () => void }) {
+export function AgreementShaping({ formation, onReview, onAnswer, answering = false }: {
+  formation: AgreementFormation | null; onReview: () => void; onAnswer?: (text: string) => void; answering?: boolean;
+}) {
   if (!formation || !formation.reviewable) return null;
   const total = formation.money.find(t => t.label === 'Total price' && !t.needsChecking);
   const finish = formation.when.find(t => t.label === 'Finish by' && !t.needsChecking);
@@ -24,5 +27,7 @@ export function AgreementShaping({ formation, onReview }: { formation: Agreement
       </button>
       <span className="text-[0.78rem] text-sand-600">{open === 0 ? 'Nothing is agreed until you set it up.' : `${open} ${open === 1 ? 'point' : 'points'} to check · nothing is agreed yet`}</span>
     </div>
+    {/* Entry Perfection Phase 7 -- the agreement is primary; the one question it still needs sits under it, never over it. */}
+    {onAnswer && <NextQuestion question={formation.question} disabled={answering} onAnswer={onAnswer} />}
   </section>;
 }
