@@ -140,6 +140,8 @@ export function sourceReferenceView(source: SourceReferenceDto | null | undefine
   return {
     sourceArtifactId: source.sourceArtifactId, displayName: source.displayName,
     sourceKind: source.sourceKind, locator: source.locator, removed: source.removed,
+    // Entry Perfection Phase 5 -- only the two known values are kept; anything else means "not recorded".
+    inferred: source.basis === 'INFERRED',
   };
 }
 export type SourceReferenceView = ReturnType<typeof sourceReferenceView>;
@@ -185,7 +187,24 @@ export function tradeContextView(dto: TradeContextDto) {
     // KS001 Upgrade Phase 2 (Section 5/8/23) -- the server-owned sufficiency projection driving
     // Review/Save/Set gating and the "Still to decide" workbench section.
     sufficiency: agreementSufficiencyView(dto.sufficiency),
+    conflicts: conflictsView(dto.conflicts),
   };
+}
+
+/**
+ * Entry Perfection Phase 5 -- disagreements in the person's evidence. A malformed or absent list (a server before Phase 5)
+ * is simply no conflicts, never an error; a side must carry a value, and its source is validated like any other.
+ */
+export function conflictsView(conflicts: unknown) {
+  if (!Array.isArray(conflicts)) return [];
+  return conflicts
+    .filter((c): c is { concept: string; sides: { value: string; factId: string; state: string; source?: SourceReferenceDto | null }[] } =>
+      !!c && typeof c.concept === 'string' && Array.isArray(c.sides))
+    .map(c => ({
+      concept: c.concept,
+      sides: c.sides.filter(side => side && typeof side.value === 'string').map(side => ({ value: side.value, source: sourceReferenceView(side.source ?? null) })),
+    }))
+    .filter(c => c.sides.length > 1);
 }
 /**
  * KS001 Upgrade Phase 2 final acceptance correction (item 1) -- validates the raw history response into
@@ -218,7 +237,16 @@ export function sourceArtifactView(dto: AgentSourceArtifactDto) {
     documentType: dto.documentType,
     extractionStatus: (sourceExtractionStatuses.includes(dto.extractionStatus) ? dto.extractionStatus : 'FAILED') as AgentSourceExtractionStatus,
     extractionGeneration: dto.extractionGeneration, summary: dto.summary,
-    uncertainties: Array.isArray(dto.uncertainties) ? dto.uncertainties.filter((u): u is string => typeof u === 'string') : [],
+    // Entry Perfection Phase 5 -- when the server sends structured uncertainty, what "needs clarification" is only the
+    // MATERIAL part (an unclear middle name never interrupts the person); an older server's plain list is used as is.
+    uncertainties: Array.isArray(dto.uncertaintyDetails)
+      ? dto.uncertaintyDetails.filter(u => u && u.material === true && typeof u.description === 'string').map(u => u.description)
+      : Array.isArray(dto.uncertainties) ? dto.uncertainties.filter((u): u is string => typeof u === 'string') : [],
+    // Entry Perfection Phase 5 -- structured uncertainty; only material ones matter to the person here.
+    materialUncertainties: Array.isArray(dto.uncertaintyDetails)
+      ? dto.uncertaintyDetails.filter(u => u && u.material === true && typeof u.description === 'string' && typeof u.kind === 'string')
+        .map(u => ({ kind: u.kind, description: u.description }))
+      : [],
     failureReason: dto.failureReason, createdAt: dto.createdAt, updatedAt: dto.updatedAt,
     declaredText: typeof dto.declaredText === 'string' ? dto.declaredText : '',
     // Entry Perfection Phase 2 -- KS001's canonical acknowledgement of this attempt, when the server recorded one.

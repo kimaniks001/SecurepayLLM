@@ -21,7 +21,9 @@ export interface AgentResponseDto {
 // a source-derived fact. Mirrors AgentApiModels.SourceReferenceView exactly. `displayName` is always
 // server-derived from the real AgentSourceArtifact -- never fabricated client-side. Absent/null for an
 // ordinary conversational fact.
-export interface SourceReferenceDto { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean }
+// Entry Perfection Phase 5 -- `basis`: "EXPLICIT" (the source states it) or "INFERRED" (SecurePay's reading of what the
+// source backs up); absent/null for evidence recorded before Phase 5.
+export interface SourceReferenceDto { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean; basis?: string | null }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string>; source?: SourceReferenceDto | null }
 export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number; source?: SourceReferenceDto | null }
 // KS001 Upgrade Phase 1 final integration fix -- bounded, first-party-only conversation INTERACTION/
@@ -39,9 +41,14 @@ export interface AgreementSufficiencyDto {
   state: string; canReview: boolean; canSave: boolean; canSet: boolean;
   mustResolve: OpenMatterDto[]; stillToDecide: OpenMatterDto[]; guidanceNotes: string[];
 }
+// Entry Perfection Phase 5 -- the person's evidence disagrees (e.g. "the price": KES 180,000 in minutes.pdf vs KES 175,000
+// in quotation.pdf). Mirrors AgentApiModels.UnderstandingConflictView. SecurePay never chooses a side.
+export interface ConflictSideDto { value: string; factId: string; state: string; source?: SourceReferenceDto | null }
+export interface UnderstandingConflictDto { concept: string; sides: ConflictSideDto[] }
 export interface TradeContextDto {
   conversationId: string; version: number; entities: EntityDto[]; relationships: RelationshipDto[];
   interactionState?: InteractionStateDto; sufficiency?: AgreementSufficiencyDto;
+  conflicts?: UnderstandingConflictDto[];
 }
 /** Entry Perfection Phase 3 -- `clientTimeZone`: the IANA zone the device reports, so KS001 never assumes one. */
 export interface TurnRequest { message: string; clientTurnId?: string; clientTimeZone?: string }
@@ -254,6 +261,8 @@ export interface AgentSourceArtifactDto {
   acknowledgement?: string | null;
   /** Entry Perfection Phase 2 -- its canonical reply id (the same id conversation history uses). */
   acknowledgementReplyId?: string | null;
+  /** Entry Perfection Phase 5 -- structured uncertainty (additive): kind, materiality, human description, where. */
+  uncertaintyDetails?: { kind: string; material: boolean; description: string; locator: string }[];
 }
 export interface AgentSourceArtifactListDto { sources: AgentSourceArtifactDto[] }
 export interface CreatePastedTextSourceRequest { text: string; label?: string }

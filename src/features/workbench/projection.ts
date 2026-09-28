@@ -62,10 +62,16 @@ export interface WorkbenchItem {
    * row's primary fact came from a source (a pasted plan/uploaded document/photo), never a fabricated
    * badge for an ordinary conversational fact. `null` for the latter.
    */
-  source?: { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean } | null;
+  source?: { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean; inferred?: boolean } | null;
+  /** Entry Perfection Phase 5 -- the source did not state this; it is SecurePay's reading of what the source supports. */
+  inferred?: boolean;
+  /** Entry Perfection Phase 5 -- a negation ("transport not included") that must never read as included. */
+  excluded?: boolean;
 }
 export interface WorkbenchAdd { key: 'who' | 'when' | 'where' | 'money'; label: string; spec: InstrumentSpec }
-export interface Workbench { items: WorkbenchItem[]; adds: WorkbenchAdd[]; empty: boolean }
+/** Entry Perfection Phase 5 -- the person's evidence disagrees; both sides, each with where it came from. */
+export interface WorkbenchConflict { concept: string; sides: { value: string; from: string | null }[] }
+export interface Workbench { items: WorkbenchItem[]; adds: WorkbenchAdd[]; empty: boolean; conflicts: WorkbenchConflict[] }
 
 const SECTION_ORDER: WorkbenchSection[] = ['what', 'people', 'responsibilities', 'money', 'timingPlace', 'completion', 'authority', 'other'];
 export const SECTION_LABEL: Record<WorkbenchSection, string> = {
@@ -78,7 +84,13 @@ const ROLE_LABELS: Record<string, string> = {
   RECIPIENT: 'Recipient', COUNTERPARTY: 'Counterparty', SERVICE_PROVIDER: 'Service provider', CLIENT: 'Client', PROVIDER_CANDIDATE: 'Being considered',
 };
 const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
-const INTERNAL_KEYS = new Set(['status', 'domain']);
+// Entry Perfection Phase 5 -- evidence bookkeeping is never shown raw: excluded/moneyRole/currencyBasis/amountText are
+// rendered as words ("Not included", "Deposit", "Currency assumed") or not at all.
+const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText']);
+const MONEY_ROLE_LABEL: Record<string, string> = {
+  total: 'Total price', deposit: 'Deposit', balance: 'Balance', instalment: 'Instalment', unit_price: 'Unit price', tax: 'Tax',
+  fee: 'Fee', budget: 'Budget', unspecified: 'What this is for isn’t clear',
+};
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
 
 /**
@@ -187,9 +199,11 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers);
     if (!text) continue;
     usedRelationshipIds.add(relation.id);
+    // Entry Perfection Phase 5 -- a negated obligation reads as what it is: not part of this party's job.
+    const excluded = relation.qualifiers.excluded === 'true';
     items.push({
-      key: `responsibility:${relation.id}`, section: 'responsibilities',
-      value: subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
+      key: `responsibility:${relation.id}`, section: 'responsibilities', excluded,
+      value: excluded ? `Not included${subject ? ` for ${subject.name}` : ''}: ${text}` : subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
       spec: null, source: relation.source ?? null,
     });
@@ -302,8 +316,12 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       const parsed = parseAmount(q.amount);
       const currency = (q.currency ?? '').trim().toUpperCase();
       const extras = Object.entries(q).filter(([key, value]) => key !== 'amount' && key !== 'currency' && value.trim() !== '' && value !== 'true' && !INTERNAL_KEYS.has(key)).map(([, value]) => value);
+      // Entry Perfection Phase 5 -- what the figure IS comes first, in words; an assumed currency says so.
+      if (q.moneyRole && MONEY_ROLE_LABEL[q.moneyRole]) extras.unshift(MONEY_ROLE_LABEL[q.moneyRole]);
+      if (q.currencyBasis === 'inferred') extras.push('Currency assumed');
+      if (q.excluded === 'true') extras.unshift('Not included');
       if (q.recurring === 'true') extras.unshift('Recurring');
-      const plain = Object.keys(q).every(key => key === 'amount' || key === 'currency');
+      const plain = Object.keys(q).every(key => key === 'amount' || key === 'currency' || key === 'moneyRole' || key === 'amountText');
       items.push({
         key: `money:${relation.id}`, section: 'money',
         value: parsed.ok ? formatMoney(parsed.value, currency) : `${currency} ${q.amount}`.trim(), details: extras, state: relation.state, adopt,
@@ -392,7 +410,14 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   if (!hasDeadline) adds.push({ key: 'when', label: 'Date', spec: { kind: 'when', origin: 'add' } });
   if (!hasPlaceItem) adds.push({ key: 'where', label: 'Place', spec: { kind: 'where', origin: 'add' } });
   if (!hasMoneyItem) adds.push({ key: 'money', label: 'Amount', spec: { kind: 'money', origin: 'add' } });
-  return { items, adds, empty: items.length === 0 };
+  // Entry Perfection Phase 5 -- mark SecurePay's readings and carry the person's evidence disagreements.
+  for (const item of items) {
+    if (item.source?.inferred) item.inferred = true;
+  }
+  const conflicts: WorkbenchConflict[] = (context?.conflicts ?? []).map(c => ({
+    concept: c.concept, sides: c.sides.map(side => ({ value: side.value, from: side.source ? side.source.displayName : null })),
+  }));
+  return { items, adds, empty: items.length === 0, conflicts };
 }
 
 /**

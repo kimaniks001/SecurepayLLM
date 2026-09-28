@@ -49,6 +49,14 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
       {context.status === 'loading' ? 'Updating what SecurePay understands…' : 'As you talk, what SecurePay understands appears here — and you can fill things in directly.'}
     </p>}
 
+    {/* Entry Perfection Phase 5 -- the person's evidence disagrees. Both sides, each with where it came from; SecurePay
+        never picks one. The person resolves it by telling KS001 which is right. */}
+    {workbench.conflicts.map(conflict => <div key={conflict.concept} role="note" className="rounded-xl border border-ember-200 bg-ember-50 px-3.5 py-2.5 text-[0.85rem] leading-snug text-sand-800">
+      <span className="font-medium">Your details disagree on {conflict.concept}:</span>{' '}
+      {conflict.sides.map((side, i) => <span key={i}>{i > 0 ? (i === conflict.sides.length - 1 ? ' and ' : ', ') : ''}{side.value}{side.from ? ` (${side.from})` : ''}</span>)}.
+      {' '}Tell KS001 which is right.
+    </div>)}
+
     {sections.map(({ section, items }) => <div key={section}>
       <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">{SECTION_LABEL[section]}</h3>
       <ul className="overflow-hidden rounded-2xl border border-cream-200 bg-white/80 divide-y divide-cream-100 shadow-soft">
@@ -113,7 +121,9 @@ function Row({ item, open, busy, onOpen, onFind, onUse, onRequestDiscovery }: { 
       {(item.details.length > 0 || candidate || item.identityUnresolved || item.source) && <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.78rem] text-sand-600">
         {item.details.map((detail, i) => <span key={i}>{detail}</span>)}
         {item.identityUnresolved && <span>KS Number not set</span>}
-        {candidate && <span className="font-medium text-ember-700">Suggested</span>}
+        {candidate && !item.inferred && <span className="font-medium text-ember-700">Suggested</span>}
+        {/* Entry Perfection Phase 5 -- not stated in the source: SecurePay's own reading, shown as such, never as the person's words. */}
+        {item.inferred && <span className="font-medium text-ember-700">SecurePay’s reading</span>}
         {!candidate && item.state === 'CONFIRMED' && <span className="sr-only">Known in this conversation</span>}
         {item.state !== 'CANDIDATE' && item.state !== 'CONFIRMED' && <span>Unclear</span>}
         {/* KS001 Upgrade Phase 3 completion correction (item 1/9) -- a quiet, bounded source badge; never

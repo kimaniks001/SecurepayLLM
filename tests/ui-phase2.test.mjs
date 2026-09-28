@@ -431,7 +431,8 @@ test('UNDERSTOOD: a source-derived row shows a quiet, bounded source badge -- di
   const sourced = { ...ent('a', 'ORGANIZATION', 'ABC Plumbing Ltd', 'CANDIDATE'), source: { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false } };
   const wb = api.projectWorkbench(ctx([sourced]));
   const row = wb.items.find(i => i.key === 'who:a');
-  assert.deepEqual(row.source, { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false });
+  // Entry Perfection Phase 5 -- DELIBERATELY RESTATED: the normalized source also says whether it is SecurePay's reading.
+  assert.deepEqual(row.source, { sourceArtifactId: 's-1', displayName: 'quotation.pdf', sourceKind: 'DOCUMENT', locator: 'p2', removed: false, inferred: false });
   const out = html(api.UnderstoodWorkbench, { state: stateWith(ctx([sourced])), controller: {}, activeSpec: null, onOpen() {}, onFind() {} });
   assert.match(text(out), /quotation\.pdf/);
   assert.match(text(out), /p2/);
