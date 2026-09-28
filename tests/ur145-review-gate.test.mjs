@@ -23,25 +23,22 @@ test('UR-145: no diagnostic instrumentation was left in the shipped component', 
   assert.doesNotMatch(agentExperience, /console\.log/);
 });
 
-test('UR-145: the Review-gate hint uses the server\'s own mustResolve description verbatim, never an invented copy', () => {
-  assert.match(agentExperience, /state\.context\.data\.sufficiency\.mustResolve\[0\]\.description/);
+// Entry Perfection Phase 6 -- DELIBERATELY RESTATED: Review is gated by the server-owned agreement-formation projection
+// (reviewable / reviewBlockedReason), which replaced fact-by-fact "Use this" gating (UR-239). Same intent: a server-owned gate,
+// the server's own words for why, never hard-coded.
+test('UR-145: the Review-gate hint uses the server\'s own reason verbatim, never an invented copy', () => {
+  assert.match(agentExperience, /formationState\.data\.reviewBlockedReason\}/);
+  assert.doesNotMatch(agentExperience, /Confirm it above with “Use this” first/);
 });
 
-test('UR-145: the hint only renders for the real sufficiency reason -- gated on the SAME busy/pending/handoff-idle conditions as the Review button itself, inverted for canReview', () => {
-  const hintBlock = agentExperience.slice(
-    agentExperience.indexOf('UR-145) -- "Review this" is correctly'),
-    agentExperience.indexOf('UR-145) -- "Review this" is correctly') + 1200,
-  );
+test('UR-145: the hint only renders for the real server reason, while nothing is busy, and only while Review is not available', () => {
+  const hintBlock = agentExperience.slice(agentExperience.indexOf('DELIBERATELY RESTATED: the old hint'), agentExperience.indexOf('DELIBERATELY RESTATED: the old hint') + 900);
   assert.match(hintBlock, /!state\.busy/);
   assert.match(hintBlock, /!state\.pending/);
-  assert.match(hintBlock, /handoffState\.phase === 'idle'/);
-  assert.match(hintBlock, /!state\.context\.data\.sufficiency\.canReview/);
-  assert.match(hintBlock, /mustResolve\.length > 0/);
+  assert.match(hintBlock, /!formationState\.data\.reviewable/);
+  assert.match(hintBlock, /formationState\.data\.reviewBlockedReason/);
 });
 
-test('UR-145: the Review button\'s own disabling predicate is unchanged by this fix (still the real gate, never hard-coded true)', () => {
-  assert.match(
-    agentExperience,
-    /disabled=\{!state\.conversationId \|\| state\.busy \|\| !!state\.pending \|\| handoffState\.phase !== 'idle'\s*\n\s*\|\| \(state\.context\.data\?\.sufficiency && !state\.context\.data\.sufficiency\.canReview\)\}/,
-  );
+test('UR-145: the Review button\'s disabling predicate is the real server gate (never hard-coded true)', () => {
+  assert.match(agentExperience, /disabled=\{!state\.conversationId \|\| state\.busy \|\| !!state\.pending \|\| !formationState\.data\?\.reviewable\}/);
 });

@@ -1,6 +1,6 @@
 import { ApiError, segment, type HttpClient, type RequestOptions } from '../http';
 import { CONVERSATION_TOKEN_HEADER, conversationAccess, type ConversationAccessStore } from './continuity';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, AgreementFormationDto, TurnRequest } from './dto';
 /**
  * Public Experience Convergence Phase 3 (Slice 3A) -- the gateway is the ONE place the anonymous
  * conversation token travels. It attaches `X-SecurePay-Conversation-Token` (a header, never a URL) only to
@@ -90,6 +90,11 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // signed-out-friendly behaviour for a never-saved conversation (no token is required) while letting
     // a signed-in owner's token reach the backend so the ownership check can actually succeed.
     readContext: (id: string) => http.request<TradeContextDto>(`${conversation(id)}/context`, { auth: 'optional' }),
+    // Entry Perfection Phase 6 -- the emerging agreement (Review), readable before sign-in by whoever holds the conversation.
+    readAgreementFormation: (id: string, timeZone?: string) =>
+      http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { auth: 'optional' }),
+    checkOpenPoint: (id: string, openPointId: string, timeZone?: string) =>
+      http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation/open-points/${encodeURIComponent(openPointId)}/check${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { method: 'POST', auth: 'optional' }),
     // KS001 Upgrade Phase 2 final acceptance correction (item 1) -- the user-visible dialogue history
     // for resuming a conversation. Same access-policy ratchet as readContext; see that field's own
     // comment for why 'optional' (never 'none') is required here.
@@ -120,8 +125,10 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // and retire its digest. The server says so in `conversationClaimed` (read from its own ownership
     // record); only then is the now-powerless secret dropped. A signed-out create never claims, so the
     // visitor keeps the token they still need; a failed create throws before this and keeps it too.
-    createHandoff: async (id: string, clientActionId?: string) => {
-      const created = await http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId }, auth: 'optional' });
+    // Entry Perfection Phase 6 -- `expectedTradeContextVersion`: the agreement version the person reviewed; a different current
+    // version is refused (409 AGREEMENT_CHANGED) instead of freezing something they never saw.
+    createHandoff: async (id: string, clientActionId?: string, expectedTradeContextVersion?: number) => {
+      const created = await http.request<HandoffDto>(`${conversation(id)}/agreement-handoff`, { method: 'POST', body: { clientActionId, expectedTradeContextVersion }, auth: 'optional' });
       if (created?.conversationClaimed === true) access.forget(id);
       return created;
     },

@@ -100,11 +100,15 @@ export function createHandoffController(gateway: Gateway, id = () => crypto.rand
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
 
     /** Only an explicit user action may reach this; re-entrant calls while a handoff is live are no-ops. */
-    async start(conversationId: string) {
+    /**
+     * Entry Perfection Phase 6 -- `reviewedVersion`: the agreement version the person just reviewed; if it changed in the
+     * meantime the server refuses (AGREEMENT_CHANGED) and the person sees the current version instead.
+     */
+    async start(conversationId: string, reviewedVersion?: number) {
       if (!['idle', 'error', 'expired'].includes(state.phase)) return;
       update({ phase: 'creating', error: null, handoff: null, review: null });
       try {
-        const dto = await gateway.createHandoff(conversationId, actionId(`conversation:${conversationId}`));
+        const dto = await gateway.createHandoff(conversationId, actionId(`conversation:${conversationId}`), reviewedVersion);
         actionIds.delete(`conversation:${conversationId}`);
         await applyHandoff(dto);
       } catch (error) {

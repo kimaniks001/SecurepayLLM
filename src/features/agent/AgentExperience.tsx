@@ -49,6 +49,9 @@ import { foundLabel } from '../discovery/result';
 import { projectWorkbench, specForPrompt, type PromptResolution } from '../workbench/projection';
 import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
+import { createFormationController } from '../formation/controller';
+import { AgreementShaping } from '../formation/AgreementShaping';
+import { AgreementReview } from '../formation/AgreementReview';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
@@ -164,6 +167,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 }) {
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
+  // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
+  const [formationController, setFormationController] = useState(() => createFormationController(gateway));
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later" / "Continue Building". Reuses the SAME
   // identityController the handoff flow uses (one sign-in surface, not two), reset alongside it below.
@@ -215,6 +221,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     target?.focus(); target?.scrollIntoView({ block: 'start' });
   }, [foundFocusKey]);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
+  const formationState = useSyncExternalStore(formationController.subscribe, formationController.getSnapshot);
+  // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
+  // source, a correction), so what the person reviews is always the current one.
+  const contextVersion = state.context.data?.version;
+  useEffect(() => {
+    if (state.conversationId && contextVersion !== undefined) void formationController.load(state.conversationId);
+  }, [state.conversationId, contextVersion, formationController]);
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const signedIn = sessionState.status === 'signed-in';
   // Public Experience Convergence Phase 2 -- the public Sign in route and in-page chapter navigation.
@@ -325,13 +338,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionState.status, community, onJoinPage]);
-  const reviewing = () => { void controller.review(); };
+  // Entry Perfection Phase 6 -- refreshing what SecurePay understands refreshes the emerging agreement too, even when the
+  // understanding's version is unchanged (a Store price or an open point can still have moved).
+  const reviewing = () => { void controller.review(); if (state.conversationId) void formationController.load(state.conversationId); };
   const startNewConversation = () => {
     instruments.cancel();
     discovery.close();
     const freshController = createAgentController(gateway, undefined, { timeZone: deviceTimeZone });
     setController(freshController);
     setHandoffController(createHandoffController(gateway));
+    setFormationController(createFormationController(gateway));
+    setReviewOpen(false);
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
     setSourceController(createSourceController(gateway, freshController.ensureConversationId, {
@@ -934,12 +951,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         {workbenchModel.items.length > 0 && <button onClick={openUnderstood} className="md:hidden mx-4 mt-3 flex min-h-11 items-center justify-between rounded-xl border border-cream-200 bg-white/80 px-3.5 text-left text-[0.85rem] text-forest-700 shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
           <span>What SecurePay understands <span className="text-sand-500">· {workbenchModel.items.length}</span></span><span aria-hidden="true" className="text-sand-400">›</span>
         </button>}
-        <div className="flex-1 overflow-hidden">
+        {reviewOpen && formationState.data?.reviewable && state.conversationId ? <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 md:px-6">
+          <AgreementReview formation={formationState.data} changes={formationState.changes} busy={state.busy || !!state.pending}
+            checking={formationState.checking} error={formationState.error}
+            onBack={() => { setReviewOpen(false); setComposerFocusKey(key => key + 1); }}
+            onCheck={pointId => { if (state.conversationId) void formationController.check(state.conversationId, pointId); }}
+            onCorrect={text => void controller.send(text)}
+            onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
+            onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
+            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
+        </div> : <div className="flex-1 overflow-hidden">
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
             thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
             disabled={state.busy || !!state.pending} onSend={text => void controller.send(text)} composerFocusKey={composerFocusKey}
             status={<div className="space-y-3">
+              {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
+              <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)} />
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
@@ -981,10 +1009,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   onAddPlace={() => openDeclared('place')}
                 />
                 <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
+                {/* Entry Perfection Phase 6 -- REVIEW THIS opens the emerging agreement itself (no sign-in, nothing created);
+                    setting it up securely is a separate, explicit step inside Review. */}
                 <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || handoffState.phase !== 'idle'
-                    || (state.context.data?.sufficiency && !state.context.data.sufficiency.canReview)}
-                  onClick={() => { if (state.conversationId) void handoffController.start(state.conversationId); }}
+                  disabled={!state.conversationId || state.busy || !!state.pending || !formationState.data?.reviewable}
+                  onClick={() => setReviewOpen(true)}
                   className="min-h-11 underline disabled:opacity-40"
                 >
                   Review this
@@ -997,13 +1026,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     conversation. This names the exact real reason, using the server's own
                     mustResolve description verbatim -- never a second, independently-drifting copy
                     of the sufficiency rule. */}
-                {!state.busy && !state.pending && handoffState.phase === 'idle' && state.context.data?.sufficiency
-                  && !state.context.data.sufficiency.canReview
-                  && state.context.data.sufficiency.mustResolve.length > 0 && (
-                  <p className="w-full text-[0.78rem] text-sand-500 basis-full">
-                    Review isn’t ready yet: {state.context.data.sufficiency.mustResolve[0].description} Confirm
-                    it above with “Use this” first.
-                  </p>
+                {/* Entry Perfection Phase 6 -- DELIBERATELY RESTATED: the old hint told the person to confirm facts one by one with
+                    "Use this" before Review, which UR-239 retired. Review waits only for a coherent arrangement, and says so. */}
+                {!state.busy && !state.pending && formationState.data && !formationState.data.reviewable && formationState.data.reviewBlockedReason
+                  && formationState.data.stage === 'BUILD' && (
+                  <p className="w-full text-[0.78rem] text-sand-500 basis-full">{formationState.data.reviewBlockedReason}</p>
                 )}
                 {/* KS001 Upgrade Phase 2 (Sections 14/15/20), final convergence correction (item 8) -- a
                     PRIVATE pre-agreement save, never "Set up Agreement" done twice: this only binds
@@ -1073,7 +1100,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               </div>,
             ]}
           </ConversationSurface>
-        </div>
+        </div>}
       </div>
       <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-50 bg-ks001-surface min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
         <div className="md:hidden">{understoodContent}</div>
