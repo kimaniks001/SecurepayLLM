@@ -5,7 +5,7 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
-import { BUSINESS_NAME_MAX, type BusinessController } from './controller';
+import { BUSINESS_NAME_MAX, type BusinessController, type BusinessState } from './controller';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
 const primary = `inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-700 px-4 text-sm font-medium text-white hover:bg-forest-800 disabled:opacity-40 transition-colors ${focusRing}`;
@@ -23,14 +23,16 @@ const label = 'text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide m
  * Phase 5 final correction (kept): no member-to-member role-assignment form, because SecurePay rejects it
  * (docs/PHASE5_LIFE_BUSINESS_WORLD.md sections E/F).
  */
-export function BusinessExperience({ controller, onNavigate }: {
+export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
   controller: BusinessController;
   onNavigate: (view: AppView) => void;
+  /** Phase 4C -- open The Trust Project page, which then decides for the Business the person is acting for. */
+  onOpenJoin?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const nameId = useId();
   const groupName = useId();
-  useEffect(() => { void controller.enter(); }, [controller]);
+  useEffect(() => { void controller.enter(); void controller.refreshTrustProject(); }, [controller]);
 
   const self = state.self.data;
   const businesses = state.businesses.data ?? [];
@@ -96,7 +98,8 @@ export function BusinessExperience({ controller, onNavigate }: {
                   </div>
                 </div>
                 <p className="text-[0.8rem] text-forest-700 mt-2">You can act for this Business. You’re its administrator.</p>
-                <p className="text-[0.72rem] text-sand-500 mt-1">A Business on SecurePay isn’t legally verified, and it can’t move money or join The Trust Project yet.</p>
+                <p className="text-[0.72rem] text-sand-500 mt-1">A Business on SecurePay isn’t legally verified, and it can’t move money.</p>
+                <BusinessTrustProject name={acting.displayName ?? acting.businessKsNumber} state={state.trustProject} onOpenJoin={onOpenJoin} />
                 <button onClick={() => controller.actAsSelf()} className={`${secondary} mt-3 w-full sm:w-auto`}>Switch back to yourself</button>
               </SurfaceBody>
             </Surface>
@@ -183,6 +186,40 @@ export function BusinessExperience({ controller, onNavigate }: {
           </SurfaceBody>
         </Surface>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Phase 4C (API ADR-0023) -- the acting Business's OWN Trust Project membership. Joining is never done here: the one
+ * doorway opens The Trust Project page, where the person reviews the 12 Principles and decides for the Business.
+ */
+function BusinessTrustProject({ name, state, onOpenJoin }: {
+  name: string;
+  state: BusinessState['trustProject'];
+  onOpenJoin?: () => void;
+}) {
+  const read = state.data;
+  const status = read?.membership?.status ?? null;
+  return (
+    <div className="mt-3 pt-3 border-t border-cream-100" data-business-trust-project={status ?? (state.status === 'ready' ? 'none' : state.status)}>
+      <div className={label}>The Trust Project</div>
+      {state.status === 'loading' && <p role="status" className="text-[0.78rem] text-sand-500">Checking {name}’s membership…</p>}
+      {state.status === 'error' && <StatusNotice tone="warning" icon={false}>SecurePay couldn’t check {name}’s Trust Project membership just now.</StatusNotice>}
+      {state.status === 'ready' && read && (
+        status === 'ACTIVE'
+          ? <p className="text-[0.8rem] text-forest-700 break-words">{name} is a Member of The Trust Project.</p>
+          : status === 'REVOKED'
+            ? <p className="text-[0.8rem] text-sand-600 break-words">Joining isn’t available for {name}.</p>
+            : !read.canManage
+              ? <p className="text-[0.8rem] text-sand-600 break-words">You can act for {name}, but you can’t make its Trust Project decision.</p>
+              : (
+                <>
+                  <p className="text-[0.8rem] text-forest-800 break-words">{status === 'INVITED' ? `${name} has been invited to The Trust Project.` : `${name} has not joined The Trust Project yet.`}</p>
+                  {onOpenJoin && <button onClick={onOpenJoin} className={`${secondary} mt-2 w-full sm:w-auto text-left`}>Review the 12 Principles and join for {name}</button>}
+                </>
+              )
+      )}
     </div>
   );
 }

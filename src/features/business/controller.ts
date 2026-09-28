@@ -1,5 +1,7 @@
 import type { BusinessGateway, BusinessOrganizationDto, BusinessOrganizationMemberDto, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { CircleGateway } from '../../api/securepay/circle';
+import type { CommunityGateway } from '../../api/securepay/community';
+import type { BusinessMembershipResponse } from '../../api/securepay/community/dto';
 import { ApiError } from '../../api/securepay/http';
 import { errorText } from '../agent/controller';
 
@@ -32,6 +34,8 @@ export interface BusinessState {
   create: BusinessCreateState;
   organization: Loadable<BusinessOrganizationDto>;
   members: Loadable<BusinessOrganizationMemberDto[]>;
+  /** Phase 4C -- the acting Business's OWN Trust Project membership (never the person's), read from SecurePay. */
+  trustProject: Loadable<BusinessMembershipResponse>;
   inviteKsInput: string;
   inviteBusy: boolean;
   inviteError: string | null;
@@ -46,7 +50,7 @@ export const NOT_CONFIRMED = 'SecurePay couldn’t confirm you can act for that 
 const initialCreate = (): BusinessCreateState => ({ name: '', busy: false, error: null, created: null });
 const initialState = (): BusinessState => ({
   self: idle(), businesses: idle(), acting: { kind: 'self' }, switchBusy: false, switchError: null,
-  create: initialCreate(), organization: idle(), members: idle(),
+  create: initialCreate(), organization: idle(), members: idle(), trustProject: idle(),
   inviteKsInput: '', inviteBusy: false, inviteError: null, memberActionBusy: false, memberActionError: null,
 });
 
@@ -83,6 +87,7 @@ export function createErrorText(error: unknown): string {
 export function createBusinessController(gateway: {
   business: Pick<BusinessGateway, 'get' | 'members' | 'inviteMember' | 'removeMember' | 'create' | 'mine' | 'representation'>;
   circle?: Pick<CircleGateway, 'me'>;
+  trustProject?: Pick<CommunityGateway['membership'], 'business'>;
 }, newKey: () => string = () => `business-create-${crypto.randomUUID()}`) {
   let state: BusinessState = initialState();
   const listeners = new Set<() => void>();
@@ -101,8 +106,18 @@ export function createBusinessController(gateway: {
     }
   }
 
+  async function loadTrustProject(businessKsNumber: string) {
+    if (!gateway.trustProject) return;
+    update({ trustProject: { status: 'loading', data: null, error: null } });
+    try {
+      update({ trustProject: { status: 'ready', data: await gateway.trustProject.business(businessKsNumber), error: null } });
+    } catch (error) {
+      update({ trustProject: { status: 'error', data: null, error: errorText(error) } });
+    }
+  }
+
   function actAsSelf() {
-    update({ acting: { kind: 'self' }, switchError: null, organization: idle(), members: idle(), inviteKsInput: '', inviteError: null, memberActionError: null });
+    update({ acting: { kind: 'self' }, switchError: null, organization: idle(), members: idle(), trustProject: idle(), inviteKsInput: '', inviteError: null, memberActionError: null });
   }
 
   async function loadMine() {
@@ -156,11 +171,12 @@ export function createBusinessController(gateway: {
         confirmed = await gateway.business.representation(businessKsNumber);
         if (!confirmed.canActFor || confirmed.businessKsNumber !== businessKsNumber) throw new Error('not confirmed');
       } catch {
-        update({ switchBusy: false, acting: { kind: 'self' }, switchError: NOT_CONFIRMED, organization: idle(), members: idle() });
+        update({ switchBusy: false, acting: { kind: 'self' }, switchError: NOT_CONFIRMED, organization: idle(), members: idle(), trustProject: idle() });
         await loadMine();
         return;
       }
-      update({ switchBusy: false, acting: { kind: 'business', business: confirmed }, organization: { status: 'loading', data: null, error: null }, members: idle() });
+      update({ switchBusy: false, acting: { kind: 'business', business: confirmed }, organization: { status: 'loading', data: null, error: null }, members: idle(), trustProject: idle() });
+      void loadTrustProject(businessKsNumber);
       try {
         const organization = await gateway.business.get(businessKsNumber);
         update({ organization: { status: 'ready', data: organization, error: null } });
@@ -171,6 +187,11 @@ export function createBusinessController(gateway: {
     },
 
     actAsSelf,
+
+    /** Re-read the acting Business's Trust Project membership (e.g. after returning from the Join page). */
+    async refreshTrustProject() {
+      if (state.acting.kind === 'business') await loadTrustProject(state.acting.business.businessKsNumber);
+    },
 
     setCreateName(name: string) { update({ create: { ...state.create, name, error: null, created: null } }); },
 

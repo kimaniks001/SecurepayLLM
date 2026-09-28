@@ -103,7 +103,8 @@ test('4. acting for a Business is shown clearly and semantically, with a way bac
   assert.match(page, /You can act for this Business\. You’re its administrator\./);
   assert.match(page, /Business KS Number · KS000000501/);
   assert.match(page, /Switch back to yourself/);
-  assert.match(page, /can’t move money or join The Trust Project yet/);
+  // Phase 4C: the Trust Project decision is no longer "not yet" -- it is the Business's own, made on the Join page.
+  assert.match(page, /isn’t legally verified, and it can’t move money\./);
   assert.match(markup, /<fieldset[^>]*><legend[^>]*>You are acting as<\/legend>/);
   assert.match(markup, /role="status" aria-live="polite"[^>]*>Acting as Keyman Oak</);
   assert.equal((markup.match(/type="radio"/g) ?? []).length, 3, 'yourself + two Businesses');
@@ -187,28 +188,34 @@ test('sign-out resets Businesses and capacity so nothing carries over to the nex
 });
 
 // ------------------------------------------------------------------ 7 + 8. no Business / Organization Join
-test('7/8. no Business Trust Project Join and no Organization capacity or Join anywhere in the Business area', async () => {
+test('7/8. the Business area never joins anything itself (Phase 4C: one doorway to the Join page) and has no Organization capacity', async () => {
   const { controller } = setup({ mine: [OAK] });
   await controller.enter();
   await controller.actAsBusiness(OAK.businessKsNumber);
   const markup = html(api.BusinessExperience, { controller, onNavigate: noop });
   const page = text(markup);
-  // The only mention of The Trust Project is the honest "can't ... join The Trust Project yet".
-  assert.match(page, /can’t move money or join The Trust Project yet/);
-  for (const control of markup.match(/<(button|a)\b[^>]*>[\s\S]*?<\/\1>/g) ?? []) assert.doesNotMatch(text(control), /join|trust project/i, control);
+  // No Join action here: the Business area only reads SecurePay's answer and opens the Join page.
+  for (const control of markup.match(/<(button|a)\b[^>]*>[\s\S]*?<\/\1>/g) ?? []) assert.doesNotMatch(text(control), /^\s*join\b/i, control);
   assert.doesNotMatch(page, /Organization KS|Act as .*Organization|Create an Organization/i);
   for (const file of ['src/features/business/controller.ts', 'src/features/business/BusinessExperience.tsx', 'src/api/securepay/business/index.ts']) {
     const src = strip(await readFile(file, 'utf8'));
-    assert.doesNotMatch(src, /trust-project|community\/membership|membership\/join|TRUST_PROJECT|ORGANIZATION'|identityType: 'ORGANIZATION'/, file);
+    assert.doesNotMatch(src, /joinBusiness|membership\/join|\.join\(|TRUST_PROJECT|ORGANIZATION'|identityType: 'ORGANIZATION'/, file);
   }
   const dto = await readFile('src/api/securepay/business/index.ts', 'utf8');
   assert.match(dto, /identityType: 'BUSINESS';/);
 });
 
 // ------------------------------------------------------------------ 9. individual Join unchanged
-test('9. Phase 4A individual Join files are untouched by Phase 4B', () => {
-  const changed = execFileSync('git', ['diff', '--name-only', '85fc228434ea1ef6ea654395f63bc70bc4465e5d', '--', 'src/features/join', 'src/features/community', 'src/api/securepay/community', 'src/features/public/signInFlow.ts'], { encoding: 'utf8' }).trim();
+test('9. the Phase 4A personal Join is unchanged (Phase 4C only adds a separately named Business target)', async () => {
+  // signInFlow is untouched; the personal gateway calls, acceptance label and button are byte-identical.
+  const changed = execFileSync('git', ['diff', '--name-only', '85fc228434ea1ef6ea654395f63bc70bc4465e5d', '--', 'src/features/public/signInFlow.ts', 'src/features/community'], { encoding: 'utf8' }).trim();
   assert.equal(changed, '');
+  const gateway = await readFile('src/api/securepay/community/index.ts', 'utf8');
+  assert.match(gateway, /join: \(principlesVersion: string, idempotencyKey: string\) => http\.request<MembershipResponse>\('\/api\/v1\/community\/membership\/join'/);
+  assert.match(await readFile('src/features/join/copy.ts', 'utf8'), /export const ACCEPTANCE_LABEL = 'I choose to join The Trust Project under these 12 Principles\.';/);
+  const page = await readFile('src/features/join/JoinExperience.tsx', 'utf8');
+  assert.match(page, /business \? businessJoinButton\(businessName!\) : 'Join The Trust Project'/);
+  assert.match(await readFile('src/features/join/controller.ts', 'utf8'), /target: JoinTarget = \{ kind: 'self' \}/);
 });
 
 // ------------------------------------------------------------------ 10. failures never pretend success

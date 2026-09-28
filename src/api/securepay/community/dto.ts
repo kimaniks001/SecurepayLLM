@@ -48,6 +48,18 @@ export interface MembershipResponse {
   declinedAt?: string | null;
 }
 
+/**
+ * Phase 4C (API ADR-0023) -- a Business's own Trust Project membership, as seen by a person who acts for it.
+ * `membership` is the BUSINESS KS's record, never the person's. `canManage` says whether this person may make the
+ * Business's Join decision now; it is decided by SecurePay, never inferred here.
+ */
+export interface BusinessMembershipResponse {
+  businessKsNumber: string;
+  businessDisplayName?: string | null;
+  canManage: boolean;
+  membership: MembershipResponse;
+}
+
 /** Phase 4 -- `GET /api/v1/community/principles/current`: the exact version a Join must accept. */
 export interface CurrentPrinciplesResponse {
   version: string;
