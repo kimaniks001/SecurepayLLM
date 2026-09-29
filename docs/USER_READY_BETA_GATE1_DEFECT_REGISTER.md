@@ -99,3 +99,12 @@ Verify locally through a same-origin proxy that is never committed. The author a
 - Real-model checks, KS001 v2 behaviour, browser verification of EP-CERT-002/003/004/007 against real extracted facts, and
   the Golden corpus: NOT RUN — no `ANTHROPIC_API_KEY` in the environment; the corpus also needs a real handwriting set and
   a full-stack runner (API UR-278).
+
+## Real-model closure attempt (2026-09-29, funded access)
+
+Browser proof of EP-CERT-002 / 003 / 007 against real model state was **not run**: it depends on real source understanding,
+which does not complete within the product's bounds on claude-sonnet-5 (API UR-280). The real model also exposed a false
+`CONFLICTING_AMOUNTS` for a complete one-sentence deal, which would put a wrong "Resolve price" CTA in front of the person
+(API UR-281, EP-CERT-004 not closed against the real model's shape). These entries therefore stay at their previous status
+(CLOSED (unit/source)); EP-CERT-004 is reopened as PARTIAL pending UR-281. Gate 1 verdict: NOT COMPLETE (see API
+`docs/operations/USER_READY_BETA_GATE1_API_COMPLETION.md`, draft PR #278).
