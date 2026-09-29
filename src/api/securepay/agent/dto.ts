@@ -137,7 +137,10 @@ export interface ContinueHandoffRequest { expectedTradeContextVersion: number; e
 // UserStructuredInputAction.RequestDiscovery exactly: only `targetEntityId` is meaningful.
 export type StructuredInputType =
   | 'ADD_PARTICIPANT_CANDIDATE' | 'CORRECT_ENTITY_DETAIL' | 'ASSIGN_ROLE' | 'SET_AMOUNT' | 'SET_DATE'
-  | 'SET_DATE_RANGE' | 'SET_LOCATION' | 'REQUEST_DISCOVERY';
+  | 'SET_DATE_RANGE' | 'SET_LOCATION' | 'REQUEST_DISCOVERY'
+  // User-Ready Beta Gate 1 (EP-CERT-003/007) -- keep one side of a disagreement SecurePay showed (`conflictId` + the kept
+  // side's fact id as targetRelationshipId/targetEntityId; amount/currency only for "Enter another amount").
+  | 'RESOLVE_CONFLICT';
 export interface StructuredInputRequest {
   type: StructuredInputType;
   expectedTradeContextVersion: number;
@@ -157,6 +160,7 @@ export interface StructuredInputRequest {
   placeText?: string;
   latitude?: number;
   longitude?: number;
+  conflictId?: string;
 }
 export type StructuredInputStatus = 'APPLIED' | 'ALREADY_APPLIED';
 export interface StructuredInputResult {
@@ -289,7 +293,9 @@ export interface FormationTermDto { key: string; label: string; value: string; d
 export interface FormationPartyDto { key: string; name: string; role?: string | null; identity: string; ksNumber?: string | null; describedAs?: string | null; evidence: FormationEvidenceDto[];
   /** Entry Perfection Phase 8: LINKED | NOT_LINKED | NOT_NAMED, and NOT_JOINED while the agreement is forming (nobody else agreed). */
   link?: string; participation?: string }
-export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName?: string | null;
+export interface FormationOpenPointDto { id: string; kind: string; effect: string; text: string;
+  /** User-Ready Beta Gate 1 (additive): the exact fact each side stands for, and whether it can be settled directly. */
+  sides: { value: string; from: string; factId?: string | null; choosable?: boolean }[]; checkable: boolean; checked: boolean; sourceName?: string | null;
   /** Entry Perfection Phase 7 (UR-259): UNRESOLVED or ACKNOWLEDGED -- a checked point is still open, never "resolved". */
   topic?: string; state?: string; acknowledgedAtVersion?: number | null }
 /** Entry Perfection Phase 7 -- the ONE question SecurePay needs next (server-planned), or none (ask=false is the common case). */

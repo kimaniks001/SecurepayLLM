@@ -219,12 +219,18 @@ test('money read-back: amount AND currency must both match, for ANY currency', (
   assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4000', currency: 'KES' }, usd), false);   // same amount, wrong currency
   assert.equal(api.isRecorded(spec, { kind: 'money', amount: '4000', currency: 'USD' }, usd), true);    // USD is now a real, recordable currency
 });
-test('money: only a plain amount+currency CANDIDATE row is directly editable; a row with extra qualifiers or already CONFIRMED stays read-only', () => {
+// User-Ready Beta Gate 1 (EP-CERT-005) -- DELIBERATELY RESTATED: any CANDIDATE figure is directly editable (SET_AMOUNT keeps its other
+// qualifiers and supersedes the record, so a source's figure stays in history); CONFIRMED and excluded figures stay read-only.
+test('money: every CANDIDATE figure is directly editable (qualifiers kept server-side); CONFIRMED or excluded figures stay read-only', () => {
   const plain = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r', 'PAYMENT_CONDITION', 'shoe', { amount: '4000', currency: 'USD' }, 'CANDIDATE')]));
   const row = plain.items.find(i => i.section === 'money');
   assert.equal(row.value, 'USD 4,000'); assert.equal(row.spec.kind, 'money'); assert.equal(row.spec.targetRelationshipId, 'r');
   const withExtras = api.projectWorkbench(ctx([ent('c', 'CONCEPT', 'contribution')], [rel('r', 'PAYMENT_CONDITION', 'c', { amount: '20000', frequency: 'monthly' }, 'CANDIDATE')]));
-  assert.equal(withExtras.items.find(i => i.section === 'money').spec, null);
+  assert.equal(withExtras.items.find(i => i.section === 'money').spec.targetRelationshipId, 'r');
+  const sourced = api.projectWorkbench(ctx([ent('p', 'SERVICE', 'tiling')], [rel('q', 'PAYMENT_CONDITION', 'p', { amount: '95000', currency: 'KES', moneyRole: 'total', currencyBasis: 'inferred', amountText: 'Ksh 95k' }, 'CANDIDATE')]));
+  assert.equal(sourced.items.find(i => i.section === 'money').spec.targetRelationshipId, 'q', 'a source-derived total is directly correctable');
+  const excluded = api.projectWorkbench(ctx([ent('p', 'SERVICE', 'tiling')], [rel('x', 'PAYMENT_CONDITION', 'p', { amount: '5000', currency: 'KES', excluded: 'true' }, 'CANDIDATE')]));
+  assert.equal(excluded.items.find(i => i.section === 'money').spec, null);
   const confirmedRow = api.projectWorkbench(ctx([ent('shoe', 'ITEM', 'shoe')], [rel('r', 'PAYMENT_CONDITION', 'shoe', { amount: '4000', currency: 'KES' })]));
   assert.equal(confirmedRow.items.find(i => i.section === 'money').spec, null);
 });

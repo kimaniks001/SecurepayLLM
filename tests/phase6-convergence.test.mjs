@@ -172,7 +172,9 @@ test('H. The three confirmed-orphaned Bolt components removed in Phase 6 (Agreem
 test('I1. The KS001 conversation identity header names KS001, not "SecurePay" or a generic assistant label, and no longer uses the retired AgentIcon component', async () => {
   const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.doesNotMatch(contents, /import\s*\{\s*AgentIcon\s*\}/, 'AgentExperience must not import the retired generic-avatar AgentIcon');
-  const headerBlock = contents.slice(contents.indexOf('hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b'), contents.indexOf('hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b') + 400);
+  const headerStart = contents.indexOf('hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b');
+  assert.ok(headerStart > 0, 'the desktop conversation header exists');
+  const headerBlock = contents.slice(headerStart, headerStart + 900);
   assert.match(headerBlock, />KS001</, 'the conversation header must name the person\'s conversation partner KS001');
   assert.doesNotMatch(headerBlock, />SecurePay</, 'the conversation header must not relabel KS001 as SecurePay');
 });
@@ -200,7 +202,8 @@ test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the S
 test('J. The Home hero (SignedOutHome) uses the exact KS001 Upgrade Phase 3 headline/supporting/trust copy (deliberately superseding the earlier locked copy -- Section 36), and a Fair Trade affordance beneath the input that never grades the person', async () => {
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
   assert.match(contents, /Bring the plan\. Leave with an agreement\./, 'exact Phase 3 headline');
-  assert.match(contents, /Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo\. It helps you make the important details clear and shows how the money should follow what was agreed\./, 'exact Phase 3 supporting text');
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- the supporting idea is shortened to ONE sentence about the outcome.
+  assert.match(contents, /Tell SecurePay what you’re trying to make happen, or give it what you already have\. It shapes the agreement with you — you only check what needs deciding\./, 'Gate 1 supporting text');
   assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./, 'exact Phase 3 trust line');
   assert.doesNotMatch(contents, /What are you trying to make happen\?/, 'the old paraphrased headline must be gone');
   assert.match(contents, /FairTradeAffordance/, 'must render the Fair Trade affordance');

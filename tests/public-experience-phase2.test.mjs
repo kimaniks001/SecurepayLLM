@@ -27,7 +27,7 @@ export { BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
 export { sourceIngestionErrorText } from './src/features/sources/controller';
 export { SecureAuthCard } from './src/components/SecureAuth';
 export { ConversationInput } from './src/components/ConversationInput';
-export { TRY_ASKING_PROMPTS, CAPACITIES } from './src/features/public/publicContent';
+export { HOME_EXAMPLES, EXAMPLE_OUTCOME, CAPACITIES } from './src/features/public/publicContent';
 export { ApiError } from './src/api/securepay/http';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
@@ -112,23 +112,32 @@ test('Join is live in the public experience (Phase 4) and never a placeholder or
 // ------------------------------------------------------------------ PUBLIC HOME
 test('the public Home keeps the exact SecurePay + KS001 hero, supporting copy and trust line', () => {
   assert.ok(publicHomeText.includes('Bring the plan. Leave with an agreement.'));
-  assert.ok(publicHomeText.includes("Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed."));
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- one-sentence supporting idea.
+  assert.ok(publicHomeText.includes('Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.'));
   assert.ok(publicHomeText.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
   assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1, 'exactly one h1');
 });
 test('chapters are in the contract order with semantic h2 headings', () => {
-  const order = ['Bring the plan. Leave with an agreement.', 'Try asking', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
+  const order = ['Bring the plan. Leave with an agreement.', 'Tile my bathroom.', 'What you leave with', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
   let at = -1;
   for (const s of order) { const i = publicHomeText.indexOf(s, at + 1); assert.ok(i > at, `"${s}" missing or out of order`); at = i; }
   const levels = [...publicHome.matchAll(/<h([1-6])\b/g)].map(m => Number(m[1]));
   for (let i = 1; i < levels.length; i++) assert.ok(levels[i] - levels[i - 1] <= 1, `heading level skips from h${levels[i - 1]} to h${levels[i]}`);
 });
-test('try-asking prompts are the eight unnamed human possibilities and use onStart', async () => {
-  assert.equal(api.TRY_ASKING_PROMPTS.length, 8);
-  for (const prompt of api.TRY_ASKING_PROMPTS) assert.ok(publicHomeText.includes(prompt), prompt);
-  assert.doesNotMatch(publicHomeText, /Peter|James|Amina|Joseph/);
-  const src = await readFile('src/features/public/PublicHome.tsx', 'utf8');
-  assert.match(src, /onClick=\{\(\) => props\.onStart\(prompt\)\}/);
+// User-Ready Beta Gate 1 (EP-CERT-009) -- a FEW strong examples spanning household, business and community (never a wall
+// of chips), each starting a real conversation through onStart; and ONE clearly labelled illustration of the output.
+test('Home examples are three, span household/business/community, and use onStart', async () => {
+  assert.equal(api.HOME_EXAMPLES.length, 3);
+  for (const example of api.HOME_EXAMPLES) assert.ok(publicHomeText.includes(example), example);
+  const src = await readFile('src/components/SignedOutHome.tsx', 'utf8');
+  assert.match(src, /onClick=\{\(\) => onStart\(example\)\}/);
+});
+test('the example outcome is labelled as an illustration, and names appear ONLY inside it (never as testimonials)', () => {
+  const figure = publicHome.match(/<figure[^>]*data-example-outcome[^>]*>[\s\S]*?<\/figure>/)[0];
+  assert.match(text(figure), /Example · illustration/);
+  assert.match(figure, /aria-label="Example of an agreement taking shape \(illustration\)"/);
+  assert.doesNotMatch(text(publicHome.replace(figure, '')), /Peter|James|Kamau|Amina|Joseph/);
+  assert.doesNotMatch(figure, /<button|<a /, 'the illustration is never an interactive control');
 });
 test('Member, Plug and Master are equal, not ranked, and carry no authority; businesses may belong', () => {
   assert.deepEqual(api.CAPACITIES.map(c => c.name), ['Member', 'Plug', 'Master']);
@@ -171,7 +180,7 @@ test('For Business is truthful: no Business onboarding promise, no "sign in as t
 });
 test('public-only chapters never render in the signed-in Home', async () => {
   const signedInMarkup = text(html(h(api.SignedOutHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop })));
-  for (const chapter of ['Try asking', 'How SecurePay works', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'For Business']) {
+  for (const chapter of ['How SecurePay works', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'For Business']) {
     assert.doesNotMatch(signedInMarkup, new RegExp(chapter), `${chapter} leaked into the signed-in Home`);
   }
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
@@ -284,7 +293,7 @@ test('the composer, file pickers and sign-in fields have accessible names', () =
   assert.match(input, /data-ks001-composer/);
   const hero = html(h(api.SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant: 'public' }));
   // Phase 3 -- one visible, named "+" trigger; every picker behind it is a hidden, non-focusable input.
-  assert.match(hero, /aria-haspopup="menu"[^>]*>.*Add what you have/s);
+  assert.match(hero, /aria-haspopup="menu"[^>]*aria-label="Add what you have"|aria-label="Add what you have"[^>]*aria-haspopup="menu"/);
   for (const input of hero.match(/<input[^>]*type="file"[^>]*>/g) ?? []) assert.match(input, /tabindex="-1"/);
   const auth = html(h(api.SecureAuthCard, { data: { type: 'SECURE_AUTH', title: 'Sign in', identityName: '', identityKsn: '', reason: 'r', fields: [{ label: 'One-time code', placeholder: '', type: 'otp' }], primaryLabel: 'Verify', primaryValue: 'v', secondaryLabel: 'Back', secondaryValue: 'b' }, values: [''], onFieldChange: noop, onChoice: noop, errorText: 'That didn’t work.' }));
   assert.match(auth, /inputMode="numeric"/);
@@ -301,7 +310,7 @@ test('the KS001 intake keeps its file types, photo capture and conversation path
     assert.match(hero, /accept="\.pdf,\.docx,\.txt,\.md,\.csv,application\/pdf,application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document,text\/plain,text\/markdown,text\/csv"/, variant);
     assert.match(hero, /accept="image\/jpeg,image\/png" capture="environment"/, variant);
     // Phase 3 -- the intake is the ONE shared SourceMenu; its choices render when it opens.
-    assert.match(text(hero), /Add what you have/, variant);
+    assert.match(hero, /aria-label="Add what you have"/, variant);
   }
 });
 test('the public screens a signed-out visitor can reach drop the bottom-navigation padding only in the public shell', async () => {

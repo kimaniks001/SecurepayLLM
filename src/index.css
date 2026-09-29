@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -51,6 +51,62 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  /*
+   * User-Ready Beta Gate 1 -- QUIET DEPTH. One semantic surface hierarchy; depth carries meaning, never decoration.
+   * Built only from existing tokens (cream/forest/ember palette, shadow-soft/deliberate/lifted). Use these, not per-page
+   * card/shadow variants.
+   *   0 canvas      -- the cream world, with the faintest material tone.
+   *   1 region      -- a large page section or workspace plane, gently distinct (a recessed plane, never a card).
+   *   2 information -- facts: agreement cards, what SecurePay understands, money state.
+   *   3 decision    -- something needs the person: a conflict, an unresolved point, recovery, an invitation.
+   *   4 moment      -- a focused interruption: micro-review, confirmation, the Principles.
+   */
+  .surface-canvas {
+    background-color: #faf7f0;
+    background-image: radial-gradient(120% 60% at 50% 0%, rgba(253, 252, 248, 0.9), transparent 70%);
+  }
+  .surface-region {
+    background-color: #f5f0e4;
+    background-image: linear-gradient(180deg, rgba(237, 229, 208, 0.35), rgba(245, 240, 228, 0) 40%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 1px 3px rgba(36, 73, 54, 0.04);
+  }
+  .surface-info {
+    border-radius: 1rem;
+    border: 1px solid #f5f0e4;
+    background-color: #ffffff;
+    box-shadow: 0 2px 8px -2px rgba(36, 73, 54, 0.06), 0 1px 3px -1px rgba(36, 73, 54, 0.04);
+  }
+  .surface-decision {
+    border-radius: 1rem;
+    border: 1px solid #f9d5a8;
+    background-color: #fffdf9;
+    box-shadow: 0 0 0 3px rgba(239, 149, 55, 0.06), 0 2px 12px -2px rgba(36, 73, 54, 0.10), 0 1px 4px -1px rgba(36, 73, 54, 0.06);
+  }
+  .surface-moment {
+    border: 1px solid #f5f0e4;
+    background-color: #fdfcf8;
+    box-shadow: 0 24px 60px -20px rgba(22, 45, 33, 0.35), 0 8px 28px -8px rgba(36, 73, 54, 0.12);
+  }
+  /* A fine rule between sections that do not need a box. */
+  .rule-quiet {
+    border-color: rgba(205, 191, 153, 0.45);
+  }
+
+  /*
+   * The third textual voice: PRINCIPLE / WISDOM. Interface text is clean and functional; KS001 is human and concise; a
+   * principle line is reflective and memorable -- Fraunces (already licensed via Google Fonts, never a shipped font file)
+   * at a large optical size, light italic, with room to breathe. Use sparingly.
+   */
+  .text-wisdom {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'opsz' 144;
+    font-style: italic;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: #1d3a2b;
   }
 }
 

@@ -114,7 +114,7 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
   // Collapsed by default -- the menu itself is one button until opened; the hidden file inputs exist
   // (real upload capability) even before the menu is opened.
   const raw = html(api.SourceMenu, { onPickDocument() {}, onPickPhoto() {}, onBringPlan() {} });
-  assert.match(raw, /aria-label="Add a source"/);
+  assert.match(raw, /aria-label="Add what you have"/);
   assert.match(raw, /aria-haspopup="menu"/);
   assert.match(raw, /aria-expanded="false"/);
   assert.doesNotMatch(raw, /role="menu"/);
@@ -129,18 +129,18 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 test('SignedOutHome: carries the exact Phase 3 headline, supporting text, and trust line', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
   assert.match(out, /Bring the plan\. Leave with an agreement\./);
-  assert.match(out, /paste what you already have, or give KS001 a document or photo/);
+  assert.match(out, /or give it what you already have/);
   assert.match(out, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
   // Public Experience Convergence Phase 3 -- the intake is now the ONE shared "+" SourceMenu.
   const withoutIntake = html(api.SignedOutHome, { onStart() {} });
   assert.doesNotMatch(withoutIntake, /data-source-menu/);
-  assert.doesNotMatch(withoutIntake, /Add what you have/);
+  assert.doesNotMatch(withoutIntake, /aria-label="Add what you have"/);
   assert.doesNotMatch(withoutIntake, /type="file"/);
   const withIntake = html(api.SignedOutHome, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} });
   assert.match(withIntake, /data-source-menu/);
-  assert.match(text(withIntake), /Add what you have/);
+  assert.match(withIntake, /aria-label="Add what you have"/);
   assert.match(withIntake, /type="file"/);
 });
 test('SignedOutHome: the trust line explicitly says a KS Number is not required to start -- signed-out value first (Section 39)', () => {

@@ -321,7 +321,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       if (q.currencyBasis === 'inferred') extras.push('Currency assumed');
       if (q.excluded === 'true') extras.unshift('Not included');
       if (q.recurring === 'true') extras.unshift('Recurring');
-      const plain = Object.keys(q).every(key => key === 'amount' || key === 'currency' || key === 'moneyRole' || key === 'amountText');
+      // User-Ready Beta Gate 1 (EP-CERT-005) -- a source-derived or role-qualified figure is directly editable too: SET_AMOUNT
+      // changes only amount/currency, keeps every other qualifier (role, timing, recurring…) and supersedes the record, so what
+      // the source said stays in its history. Excluded costs and CONFIRMED facts stay read-only (the server refuses the latter).
+      const plain = q.excluded !== 'true';
       items.push({
         key: `money:${relation.id}`, section: 'money',
         value: parsed.ok ? formatMoney(parsed.value, currency) : `${currency} ${q.amount}`.trim(), details: extras, state: relation.state, adopt,

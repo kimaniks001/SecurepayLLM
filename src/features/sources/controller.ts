@@ -54,8 +54,14 @@ export interface SourcesState {
   phase: SourcesPhase;
   sources: AgentSourceArtifactView[];
   error: string | null;
+  /**
+   * User-Ready Beta Gate 1 (EP-CERT-014) -- the source whose own card already shows this failure (with Try again / Remove),
+   * so the page never repeats the same message a second time. Null when no card carries it (refused before reading,
+   * a connection problem): then the page-level notice is the only place it appears.
+   */
+  errorSourceId: string | null;
 }
-const initial: SourcesState = { phase: 'idle', sources: [], error: null };
+const initial: SourcesState = { phase: 'idle', sources: [], error: null, errorSourceId: null };
 
 /**
  * Entry Perfection Phase 2 -- the terminal result of ONE source action, returned only after the UI knows the truth:
@@ -111,7 +117,7 @@ export function createSourceController(
     let current = artifact;
     upsert(current);
     for (let i = 0; sourceOutcome(current) === 'working' && i < pollSchedule.length; i++) {
-      update({ phase: 'checking', error: null });
+      update({ phase: 'checking', error: null, errorSourceId: null });
       await sleep(pollSchedule[i]);
       try {
         current = sourceArtifactView(await gateway.getSource(conversationId, current.sourceArtifactId));
@@ -124,7 +130,7 @@ export function createSourceController(
       case 'progressed':
       case 'attention':
         await onSourceIngested?.(current);
-        update({ phase: 'list-ready', error: null });
+        update({ phase: 'list-ready', error: null, errorSourceId: null });
         return { ok: true, source: current, attention: sourceOutcome(current) === 'attention' };
       case 'failed':
         return fail(current.failureReason || FAILED_FALLBACK_TEXT, 'failed', current);
@@ -159,7 +165,8 @@ export function createSourceController(
   }
 
   function fail(error: string, outcome: 'failed' | 'refused' | 'unknown', source?: AgentSourceArtifactView): SourceActionResult {
-    update({ phase: 'error', error });
+    const shownOnCard = !!source && (sourceOutcome(source) === 'failed' || source.extractionStatus === 'FAILED');
+    update({ phase: 'error', error, errorSourceId: shownOnCard ? source!.sourceArtifactId : null });
     return { ok: false, error, outcome, source };
   }
 
@@ -170,7 +177,7 @@ export function createSourceController(
    */
   async function run(call: (conversationId: string) => Promise<Parameters<typeof sourceArtifactView>[0]>, knownConversationId?: string): Promise<SourceActionResult> {
     if (state.phase === 'submitting' || state.phase === 'checking') return { ok: false, error: 'SecurePay is still working on the previous step.', outcome: 'refused' };
-    update({ phase: 'submitting', error: null });
+    update({ phase: 'submitting', error: null, errorSourceId: null });
     let conversationId: string;
     try {
       conversationId = knownConversationId ?? await ensureConversationId();
@@ -183,7 +190,7 @@ export function createSourceController(
         return await settle(conversationId, artifact);
       } catch (error) {
         if (!isOutcomeUnknown(error)) return fail(sourceIngestionErrorText(error), 'refused');
-        if (attempt === 0) update({ phase: 'checking', error: null });
+        if (attempt === 0) update({ phase: 'checking', error: null, errorSourceId: null });
       }
     }
     return fail(OUTCOME_UNKNOWN_TEXT, 'unknown');
@@ -196,7 +203,7 @@ export function createSourceController(
     /** Section 39 -- refreshes the list for the CURRENT conversation, once one exists; never creates one. */
     async list(conversationId: string | null) {
       if (!conversationId || state.phase === 'listing') return;
-      update({ phase: 'listing', error: null });
+      update({ phase: 'listing', error: null, errorSourceId: null });
       try {
         const response = await gateway.listSources(conversationId);
         const sources = response.sources.map(sourceArtifactView);
@@ -205,7 +212,7 @@ export function createSourceController(
         // (bounded backoff, slower while the tab is hidden) instead of showing "reading" forever or forgetting it.
         for (const source of sources) if (sourceOutcome(source) === 'working') void resume(conversationId, source);
       } catch (error) {
-        update({ phase: 'error', error: sourceIngestionErrorText(error) });
+        update({ phase: 'error', error: sourceIngestionErrorText(error), errorSourceId: null });
       }
     },
 
@@ -246,19 +253,19 @@ export function createSourceController(
      * never a fabricated KS001 reply) is awaited so the change is visible before this resolves.
      */
     async remove(conversationId: string, sourceArtifactId: string) {
-      update({ phase: 'submitting', error: null });
+      update({ phase: 'submitting', error: null, errorSourceId: null });
       try {
         const artifact = sourceArtifactView(await gateway.removeSource(conversationId, sourceArtifactId));
         upsert(artifact);
         await onSourceChanged?.();
         update({ phase: 'list-ready' });
       } catch (error) {
-        update({ phase: 'error', error: sourceIngestionErrorText(error) });
+        update({ phase: 'error', error: sourceIngestionErrorText(error), errorSourceId: null });
       }
     },
 
     /** Dismiss a shown error without losing any source. */
-    clearError() { if (state.phase === 'error') update({ phase: 'list-ready', error: null }); },
+    clearError() { if (state.phase === 'error') update({ phase: 'list-ready', error: null, errorSourceId: null }); },
     reset() { update({ ...initial }); },
   };
 }

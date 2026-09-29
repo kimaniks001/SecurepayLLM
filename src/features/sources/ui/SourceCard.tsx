@@ -23,10 +23,15 @@ function KindIcon({ source }: { source: AgentSourceArtifactView }) {
  * confidence decimals, internal entity ids, or model names -- only the bounded, safe projection the
  * backend already returns (originalName/label/documentType/summary/uncertainties/status).
  */
-export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
+export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, factCount }: {
   source: AgentSourceArtifactView;
   onRetry: () => void;
   onRemove: () => void;
+  /**
+   * User-Ready Beta Gate 1 (EP-CERT-015) -- offered on a FAILED card only where it genuinely fits (e.g. the failed source is
+   * the only thing in this conversation). A failure never blocks chatting, adding another source or + New.
+   */
+  onStartFresh?: () => void;
   busy: boolean;
   /**
    * KS001 Upgrade Phase 3 completion correction (item 9) -- how many BUILD rows currently trace back to
@@ -46,20 +51,21 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
   const note = sourceKindNote(source);
   const statusText = sourceStatusText(source);
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
+  const failed = source.extractionStatus === 'FAILED' || !!source.stalled;
   return (
-    <div className="rounded-2xl border border-cream-200 bg-white/80 shadow-soft px-4 py-3 space-y-1.5 animate-fade-in-up">
+    <div className={`${failed ? 'surface-decision' : 'rounded-2xl border border-cream-200 bg-white/80 shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <KindIcon source={source} />
           <span className="text-[0.85rem] font-medium text-forest-800 truncate">{title}</span>
           {source.documentType && <span className="text-[0.7rem] text-sand-600 shrink-0">· {source.documentType}</span>}
         </div>
-        <button
+        {!failed && <button
           type="button" disabled={busy} onClick={onRemove} aria-label={`Remove ${title}`}
           className="shrink-0 w-11 h-11 -mr-3 -mt-3 -mb-2 rounded-full flex items-center justify-center text-sand-500 hover:text-ember-700 hover:bg-ember-50 disabled:opacity-40"
         >
           <X className="w-3.5 h-3.5" />
-        </button>
+        </button>}
       </div>
       {/* A link is shown as plain text, never a clickable anchor: SecurePay has not checked where it goes. */}
       {source.sourceKind === 'LINK' && source.declaredText && (
@@ -73,12 +79,23 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
       {/* Entry Perfection Phase 9 -- a stalled read (e.g. a restart) is the recoverable-failure branch, never "reading" forever. */}
       {(source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING') && !source.stalled ? (
         <p className="text-[0.8rem] text-sand-600" data-source-state role="status">{statusText}</p>
-      ) : source.extractionStatus === 'FAILED' || source.stalled ? (
-        <div className="space-y-1.5">
-          <p className="text-[0.8rem] text-ember-700">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>
-          <button type="button" disabled={busy} onClick={onRetry} className="inline-flex items-center gap-1 text-[0.78rem] text-forest-700 underline disabled:opacity-40">
-            <RefreshCw className="w-3 h-3" aria-hidden="true" />Try again
-          </button>
+      ) : failed ? (
+        <div className="space-y-1">
+          {/* EP-CERT-014 -- said ONCE, here, where the actions are (the page does not repeat it). */}
+          <p role="alert" className="text-[0.82rem] text-ember-800">{source.failureReason || 'SecurePay couldn’t read this yet.'}</p>
+          <p className="text-[0.78rem] text-sand-700">You can keep talking or add something else meanwhile.</p>
+          {/* EP-CERT-015 -- a clear way forward AND a clear way out, never only Retry. */}
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-0.5" role="group" aria-label={`What to do with ${title}`}>
+            <button type="button" disabled={busy} onClick={onRetry} className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[0.82rem] font-medium text-forest-700 hover:bg-forest-50 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />Try again
+            </button>
+            <button type="button" disabled={busy} onClick={onRemove} aria-label={`Remove ${title}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[0.82rem] font-medium text-sand-700 hover:bg-cream-100 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              <X className="w-3.5 h-3.5" aria-hidden="true" />Remove
+            </button>
+            {onStartFresh && <button type="button" onClick={onStartFresh} className="inline-flex min-h-11 items-center rounded-full px-3 text-[0.82rem] font-medium text-sand-700 hover:bg-cream-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              Start fresh
+            </button>}
+          </div>
         </div>
       ) : (
         <>
@@ -116,11 +133,13 @@ export function SourceCard({ source, onRetry, onRemove, busy, factCount }: {
   );
 }
 
-export function SourcesList({ sources, busy, onRetry, onRemove, factCountsBySourceId }: {
+export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, factCountsBySourceId }: {
   sources: AgentSourceArtifactView[];
   busy: boolean;
   onRetry: (sourceArtifactId: string) => void;
   onRemove: (sourceArtifactId: string) => void;
+  /** Offered on failed cards only when the caller judges it fits (see SourceCard). */
+  onStartFresh?: () => void;
   /** KS001 Upgrade Phase 3 completion correction (item 9) -- see SourceCard's own `factCount` doctrine. */
   factCountsBySourceId?: Record<string, number>;
 }) {
@@ -133,6 +152,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove, factCountsBySour
           key={source.sourceArtifactId} source={source} busy={busy}
           onRetry={() => onRetry(source.sourceArtifactId)}
           onRemove={() => onRemove(source.sourceArtifactId)}
+          onStartFresh={onStartFresh}
           factCount={factCountsBySourceId?.[source.sourceArtifactId]}
         />
       ))}

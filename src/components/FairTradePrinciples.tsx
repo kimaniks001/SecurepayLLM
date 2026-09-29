@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { MomentSheet } from './dna/MomentSheet';
 import { FAIR_TRADE_PRINCIPLES } from '../fairTradePrinciplesData';
 
 /**
@@ -19,52 +18,40 @@ export function FairTradeAffordance({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * A single overlay component that renders as a centered, dismissible panel on desktop and a
- * bottom sheet on mobile via responsive classes alone -- it never navigates away from Home, so
- * whatever the person had typed in the conversation input (an uncontrolled, locally-stateful
- * component) and whatever conversation state exists underneath is untouched while this is open.
+ * The 12 Principles, as a LEVEL 4 moment (User-Ready Beta Gate 1): a centred dialog on desktop and a bottom sheet on phones,
+ * with a real focus trap and focus return (see MomentSheet). It never navigates away, so whatever the person had typed and
+ * whatever conversation state exists underneath is untouched while it is open.
+ *
+ * `withKs001` (EP-CERT-010) -- opened from KS001 itself: first says who KS001 is (a beta observer read "KS001" as an internal
+ * code), then shows the compass it follows. KS001 = the voice; the 12 Principles = the compass; the agreement = the output.
  */
-export function FairTradePrinciplesPanel({ onClose }: { onClose: () => void }) {
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    closeButtonRef.current?.focus();
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
+export function FairTradePrinciplesPanel({ onClose, withKs001 = false }: { onClose: () => void; withKs001?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-forest-900/30 animate-fade-in" onClick={onClose} aria-hidden="true" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="fair-trade-principles-title"
-        className="relative w-full md:max-w-lg max-h-[85vh] md:max-h-[80vh] overflow-y-auto rounded-t-3xl md:rounded-2xl bg-cream-50 border border-cream-200 shadow-lifted animate-fade-in-up"
-      >
-        <div className="sticky top-0 flex items-center justify-between px-5 py-2.5 border-b border-cream-200/70 bg-cream-50/95 backdrop-blur-sm">
-          <h2 id="fair-trade-principles-title" className="font-display text-lg text-forest-800">The 12 Principles of Fair Trade</h2>
-          <button ref={closeButtonRef} onClick={onClose} aria-label="Close" className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sand-500 hover:text-forest-700 hover:bg-cream-100">
-            <X className="w-5 h-5" />
-          </button>
+    <MomentSheet title={withKs001 ? 'KS001 and the 12 Principles' : 'The 12 Principles of Fair Trade'} onClose={onClose}>
+      {withKs001 && (
+        <div className="mb-4 space-y-2 border-b rule-quiet pb-4">
+          <p className="text-[0.9rem] leading-relaxed text-forest-800">
+            <span className="font-display">KS001</span> is SecurePay’s guide — the first KS Number. It reads what you bring, does the
+            structural work, and asks only what really needs your decision.
+          </p>
+          <p className="text-wisdom text-lg">It is guided by the 12 Principles of Fair Trade.</p>
         </div>
-        <p className="px-5 pt-4 text-[0.82rem] text-sand-600 leading-relaxed">
-          These guide how SecurePay expects trade to happen here. They describe what fair looks like
-          for everyone involved — they are not a score, a rating, or a certification.
-        </p>
-        <ol className="px-5 py-4 space-y-4">
-          {FAIR_TRADE_PRINCIPLES.map(principle => (
-            <li key={principle.number} className="flex gap-3">
-              <span className="font-display text-sand-400 text-sm shrink-0 w-5 text-right">{principle.number}</span>
-              <div>
-                <div className="text-[0.88rem] text-forest-800 font-medium">{principle.title}</div>
-                <div className="text-[0.8rem] text-sand-600 mt-0.5 leading-relaxed">{principle.text}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
+      )}
+      <p className="text-[0.82rem] text-sand-700 leading-relaxed">
+        These guide how SecurePay expects trade to happen here. They describe what fair looks like
+        for everyone involved — they are not a score, a rating, or a certification.
+      </p>
+      <ol className="mt-4 space-y-4">
+        {FAIR_TRADE_PRINCIPLES.map(principle => (
+          <li key={principle.number} className="flex gap-3">
+            <span className="font-display text-sand-600 text-sm shrink-0 w-5 text-right">{principle.number}</span>
+            <div>
+              <div className="text-[0.88rem] text-forest-800 font-medium">{principle.title}</div>
+              <div className="text-[0.8rem] text-sand-700 mt-0.5 leading-relaxed">{principle.text}</div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </MomentSheet>
   );
 }

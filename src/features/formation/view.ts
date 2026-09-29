@@ -6,12 +6,17 @@ import type { AgreementFormationDto, FormationEvidenceDto, FormationTermDto } fr
  * (an unknown stage is "not reviewable", an unknown effect is "needs checking").
  */
 export interface FormationTerm { key: string; label: string; value: string; detail: string | null; basis: 'STATED' | 'INFERRED' | 'YOURS'; needsChecking: boolean; evidence: FormationEvidenceDto[]; history: string | null }
-export interface FormationOpenPoint { id: string; kind: string; blocksConfirmation: boolean; text: string; sides: { value: string; from: string }[]; checkable: boolean; checked: boolean; sourceName: string | null }
+export interface FormationSide { value: string; from: string; factId: string | null; choosable: boolean }
+export interface FormationOpenPoint { id: string; kind: string; blocksConfirmation: boolean; text: string; sides: FormationSide[]; checkable: boolean; checked: boolean; sourceName: string | null;
+  /** MONEY, DATE, TIMING, RESPONSIBILITY, INCLUSION, ROLE, PARTY, CURRENCY, ... (server-owned); OTHER when unknown. */
+  topic: string }
 /**
  * Entry Perfection Phase 7 -- the one question SecurePay needs next, planned by the server (never the client or the model). Only
  * present when SecurePay genuinely needs to ask; {@code choices} only when the evidence bounds the answer (free text always works).
  */
-export interface FormationQuestion { id: string; text: string; choices: string[]; blocksSetUp: boolean; alreadyAsked: boolean }
+export interface FormationQuestion { id: string; text: string; choices: string[]; blocksSetUp: boolean; alreadyAsked: boolean;
+  /** User-Ready Beta Gate 1 -- the open point(s) this question is about, so a settleable conflict can be answered directly. */
+  openPointIds: string[] }
 export interface AgreementFormation {
   conversationId: string; version: number; digest: string;
   stage: 'NOTHING_YET' | 'BUILD' | 'UNDERSTOOD'; reviewable: boolean; confirmable: boolean;
@@ -57,8 +62,13 @@ export function agreementFormationView(dto: AgreementFormationDto): AgreementFor
       : null,
     openPoints: Array.isArray(dto.openPoints) ? dto.openPoints.filter(p => p && typeof p.id === 'string' && typeof p.text === 'string').map(p => ({
       id: p.id, kind: String(p.kind), blocksConfirmation: p.effect === 'BLOCKS_CONFIRMATION', text: p.text,
-      sides: Array.isArray(p.sides) ? p.sides.filter(s => s && typeof s.value === 'string') : [], checkable: p.checkable === true && p.effect !== 'BLOCKS_CONFIRMATION',
-      checked: p.checked === true, sourceName: str(p.sourceName),
+      sides: Array.isArray(p.sides) ? p.sides.filter(s => s && typeof s.value === 'string').map(s => ({
+        value: s.value, from: String(s.from ?? ''), factId: str(s.factId),
+        // Settled directly only when the server says so AND names the fact -- never inferred here.
+        choosable: s.choosable === true && !!str(s.factId),
+      })) : [],
+      checkable: p.checkable === true && p.effect !== 'BLOCKS_CONFIRMATION',
+      checked: p.checked === true, sourceName: str(p.sourceName), topic: str(p.topic) ?? 'OTHER',
     })) : [],
     question: question(dto.question),
     readingSources: Array.isArray(dto.readingSources) ? dto.readingSources.filter((n): n is string => typeof n === 'string' && n.length > 0).slice(0, 5) : [],
@@ -69,7 +79,8 @@ const MAX_CHOICES = 3;
 function question(q: AgreementFormationDto['question']): FormationQuestion | null {
   if (!q || q.ask !== true || typeof q.id !== 'string' || !str(q.text)) return null;
   const choices = Array.isArray(q.choices) ? q.choices.filter((c): c is string => typeof c === 'string' && c.trim().length > 0 && c.length <= 60) : [];
-  return { id: q.id, text: String(q.text), choices: choices.slice(0, MAX_CHOICES), blocksSetUp: q.blocksSetUp === true, alreadyAsked: q.alreadyAsked === true };
+  const openPointIds = Array.isArray(q.openPointIds) ? q.openPointIds.filter((id): id is string => typeof id === 'string') : [];
+  return { id: q.id, text: String(q.text), choices: choices.slice(0, MAX_CHOICES), blocksSetUp: q.blocksSetUp === true, alreadyAsked: q.alreadyAsked === true, openPointIds };
 }
 
 /** Every term, flattened, for comparing two versions of the agreement. */
