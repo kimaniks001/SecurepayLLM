@@ -81,3 +81,21 @@ and regression-tested; not observable in a keyless local browser) · **PARTIAL**
 Later product work: persisted contextual invitations (UR-275); structured edits for responsibilities/conditions (UR-276); Store /
 Community "Use this" still adds to the CURRENT conversation (intentional for discovery inside a conversation; revisit from standalone
 Store). Pre-existing concurrent-ingestion price loss on main: UR-274.
+
+## Local browser verification needs a same-origin dev proxy (not a defect)
+
+Anonymous conversations send `X-SecurePay-Conversation-Token`, a custom header. From `http://localhost:5173` to
+`http://localhost:8080`, the browser's CORS preflight is refused by the API (HTTP 403), so the first POST (create
+conversation) works and every token-carrying call (turns, sources) never reaches the API. This is the API correctly
+refusing an origin it has not allowed. It must NOT be "fixed" by widening CORS or weakening the conversation token.
+
+Verify locally through a same-origin proxy that is never committed. The author already keeps one in a stash: add
+`server.proxy['/api'] = { target: 'http://localhost:8080', changeOrigin: true }` to a local Vite config and run with
+`VITE_SECUREPAY_API_BASE_URL=http://localhost:<vite port>`. Deployed topology is same-origin, so this is not a Gate 1 blocker.
+
+## Closure pass status (2026-09-29)
+
+- UR-274 (concurrent sources erasing facts): RESOLVED in the API (draft PR #278).
+- Real-model checks, KS001 v2 behaviour, browser verification of EP-CERT-002/003/004/007 against real extracted facts, and
+  the Golden corpus: NOT RUN — no `ANTHROPIC_API_KEY` in the environment; the corpus also needs a real handwriting set and
+  a full-stack runner (API UR-278).
