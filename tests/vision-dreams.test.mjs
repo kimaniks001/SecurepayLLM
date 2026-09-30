@@ -22,7 +22,7 @@ const makeAccess = () => api.createConversationAccessStore(null, () => Date.pars
 const dream = (overrides = {}) => ({
   dreamId: OTHER, conversationId: UUID, visionItemId: 'item-1',
   title: 'Build mum a small house', content: 'I saw a lovely small house',
-  locked: false, version: 1, createdAt: '2026-09-30T00:00:00Z',
+  locked: false, superseded: false, version: 1, createdAt: '2026-09-30T00:00:00Z',
   updatedAt: '2026-09-30T00:00:00Z', ...overrides,
 });
 
@@ -76,6 +76,7 @@ test('creating a Dream captures one conversation and one private item without in
     get: async () => dream(), update: async () => dream(),
   }, {
     resumableConversationId: () => null,
+    forgetResumableConversation: () => {},
     createConversation: async () => { calls.push(['conversation']); return { conversationId: UUID }; },
   });
   const result = await controller.start('I saw a lovely small house');
@@ -94,6 +95,7 @@ test('retry after unknown outcome reuses the SAME conversation ID, with no dupli
     get: async () => dream(), update: async () => dream(),
   }, {
     resumableConversationId: () => null,
+    forgetResumableConversation: () => {},
     createConversation: async () => { creates++; return { conversationId: UUID }; },
   });
   assert.equal(await controller.start('An idea'), null);
@@ -110,6 +112,7 @@ test('never silently displaces an existing unrelated unsaved conversation in the
     get: async () => dream(), update: async () => dream(),
   }, {
     resumableConversationId: () => OTHER,
+    forgetResumableConversation: () => {},
     createConversation: async () => { created++; return { conversationId: UUID }; },
   });
   assert.equal(await controller.start('A house idea'), null);
@@ -125,7 +128,7 @@ test('foreign/locked note cannot be overwritten by a local success illusion', as
     mine: async () => [dream({ locked: true })],
     create: async () => dream(), get: async () => dream(),
     update: async () => { updates++; return dream(); },
-  }, { resumableConversationId: () => null, createConversation: async () => ({ conversationId: UUID }) });
+  }, { resumableConversationId: () => null, forgetResumableConversation: () => {}, createConversation: async () => ({ conversationId: UUID }) });
   await controller.load();
   controller.select(OTHER);
   assert.equal(await controller.saveSummary('Changed', 'Changed', 1), false);
@@ -133,12 +136,71 @@ test('foreign/locked note cannot be overwritten by a local success illusion', as
   assert.equal(controller.getSnapshot().selected.title, 'Build mum a small house');
 });
 
+
+test('lost response after server commit recovers by finding the SAME Dream conversation ID', async () => {
+  let calls = 0;
+  let forgotten = 0;
+  let current = null;
+  const agent = {
+    resumableConversationId: () => current,
+    forgetResumableConversation: () => { current = null; forgotten++; },
+    createConversation: async () => { current = UUID; return { conversationId: UUID }; },
+  };
+  const controller = api.createVisionDreamController({
+    mine: async () => [dream()],
+    create: async () => { calls++; throw Error('connection lost after commit'); },
+    get: async () => dream(), update: async () => dream(),
+  }, agent);
+  assert.equal(await controller.start('Build mum a home'), null);
+  assert.equal(controller.getSnapshot().pending.conversationId, UUID);
+  const recovered = await controller.reconcilePending();
+  assert.equal(recovered.dreamId, OTHER);
+  assert.equal(controller.getSnapshot().pending, null);
+  assert.equal(forgotten, 1);
+  assert.equal(calls, 1);
+});
+
+test('explicit abandonment forgets its OWN unsaved conversation and unlocks starting again', async () => {
+  let current = null;
+  const agent = {
+    resumableConversationId: () => current,
+    forgetResumableConversation: () => { current = null; },
+    createConversation: async () => { current = UUID; return { conversationId: UUID }; },
+  };
+  const controller = api.createVisionDreamController({
+    mine: async () => [],
+    create: async () => { throw Error('offline'); },
+    get: async () => dream(), update: async () => dream(),
+  }, agent);
+  await controller.start('A house');
+  assert.equal(current, UUID);
+  controller.abandonPending();
+  assert.equal(current, null);
+  assert.equal(controller.getSnapshot().pending, null);
+});
+
+test('superseded Library notes cannot be altered through a stale Dream UI', async () => {
+  let calls = 0;
+  const controller = api.createVisionDreamController({
+    mine: async () => [dream({ superseded: true })],
+    create: async () => dream(), get: async () => dream(),
+    update: async () => { calls++; return dream(); },
+  }, {
+    resumableConversationId: () => null, forgetResumableConversation: () => {},
+    createConversation: async () => ({ conversationId: UUID }),
+  });
+  await controller.load();
+  controller.select(OTHER);
+  assert.equal(await controller.saveSummary('Changed', 'Changed', 1), false);
+  assert.equal(calls, 0);
+});
+
 test('rejected optimistic update retains original Dream and surfaces an error', async () => {
   const controller = api.createVisionDreamController({
     mine: async () => [dream()],
     create: async () => dream(), get: async () => dream(),
     update: async () => { throw Error('409 stale version'); },
-  }, { resumableConversationId: () => null, createConversation: async () => ({ conversationId: UUID }) });
+  }, { resumableConversationId: () => null, forgetResumableConversation: () => {}, createConversation: async () => ({ conversationId: UUID }) });
   await controller.load();
   controller.select(OTHER);
   assert.equal(await controller.saveSummary('Changed', 'Changed', 1), false);

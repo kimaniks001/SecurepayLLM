@@ -6,6 +6,8 @@ export interface VisionDreamDto {
   title: string;
   content: string | null;
   locked: boolean;
+  /** Historical Vision note superseded through the Library. */
+  superseded: boolean;
   version: number;
   createdAt: string;
   updatedAt: string;

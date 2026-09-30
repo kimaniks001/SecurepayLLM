@@ -17,6 +17,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
   const [thought, setThought] = useState('');
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
 
   useEffect(() => { void controller.load(); }, [controller]);
   useEffect(() => {
@@ -35,23 +36,24 @@ export function VisionDreamExperience({ controller, onContinue }: {
         <p className="text-xs uppercase tracking-wide text-sand-500">Your thoughts · private</p>
         <label className="block space-y-1 text-sm text-sand-600">
           What shall we call this?
-          <input value={title} onChange={e => setTitle(e.target.value)} disabled={selected.locked}
+          <input value={title} onChange={e => setTitle(e.target.value)} disabled={selected.locked || selected.superseded}
             maxLength={200} className="block w-full min-h-11 rounded-xl border border-cream-200 p-3 text-forest-800 disabled:opacity-60" />
         </label>
         <label className="block space-y-1 text-sm text-sand-600">
           What you have in mind
-          <textarea value={note} onChange={e => setNote(e.target.value)} disabled={selected.locked}
+          <textarea value={note} onChange={e => setNote(e.target.value)} disabled={selected.locked || selected.superseded}
             maxLength={4000} rows={5} className="block w-full rounded-xl border border-cream-200 p-3 text-forest-800 disabled:opacity-60"/>
         </label>
         <p className="text-xs text-sand-500">This is your editable note, not an agreement or an AI-confirmed fact.</p>
         {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={selected.locked || state.phase === 'editing' || !title.trim()}
+          <Button disabled={selected.locked || selected.superseded || state.phase === 'editing' || !title.trim()}
             onClick={() => void controller.saveSummary(title, note, selected.version)}>Save thoughts</Button>
           {onContinue && <Button variant="secondary" onClick={() => onContinue(selected.conversationId)}>
             Continue with KS001 <ArrowRight className="size-4" />
           </Button>}
         </div>
+        {selected.superseded && <p className="text-sm text-sand-600">A newer Library version exists. This historical note cannot be edited here.</p>}
         {selected.locked && <p className="text-sm text-sand-600">
           This note is locked. Use the existing Vision Library to unlock or supersede it.
         </p>}
@@ -85,8 +87,23 @@ export function VisionDreamExperience({ controller, onContinue }: {
           onClick={async () => { const saved = await controller.retry(); if (saved) setThought(''); }}>
           <RefreshCw className="size-4" /> Retry saving this Dream
         </Button>
-        {!state.pending.conversationId && <Button variant="secondary" onClick={() => controller.cancelPending()}>Edit my thought</Button>}
+        {state.pending.conversationId && <Button variant="secondary" disabled={state.phase === 'saving'}
+          onClick={async () => { const found = await controller.reconcilePending(); if (found) setThought(''); }}>
+          Check if it saved
+        </Button>}
+        {!state.pending.conversationId
+          ? <Button variant="secondary" onClick={() => controller.cancelPending()}>Edit my thought</Button>
+          : <Button variant="ghost" onClick={() => setConfirmAbandon(true)}>Leave this draft</Button>}
       </div>}
+      {state.pending?.conversationId && confirmAbandon && <StatusNotice tone="warning" icon={false}>
+        <p>Leaving gives up this tab's temporary access if the save never completed. It does not delete work on SecurePay.</p>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Button variant="secondary" onClick={() => {
+            controller.abandonPending(); setConfirmAbandon(false);
+          }}>Yes, leave this draft</Button>
+          <Button variant="ghost" onClick={() => setConfirmAbandon(false)}>Keep trying</Button>
+        </div>
+      </StatusNotice>}
     </SurfaceBody></Surface>
 
     <div className="space-y-3">

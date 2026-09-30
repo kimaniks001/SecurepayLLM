@@ -23,7 +23,7 @@ export interface VisionDreamState {
  */
 export function createVisionDreamController(
   dreams: VisionDreamGateway,
-  agent: Pick<AgentGateway, 'createConversation' | 'resumableConversationId'>,
+  agent: Pick<AgentGateway, 'createConversation' | 'resumableConversationId' | 'forgetResumableConversation'>,
 ) {
   let state: VisionDreamState = { phase: 'idle', dreams: [], selected: null, error: null, pending: null };
   const listeners = new Set<() => void>();
@@ -85,6 +85,35 @@ export function createVisionDreamController(
       return savePending();
     },
     retry: () => savePending(),
+    /** Network failure may follow a server commit. Check before trying the same POST again. */
+    async reconcilePending(): Promise<VisionDreamDto | null> {
+      const pending = state.pending;
+      if (!pending?.conversationId || state.phase === 'saving') return null;
+      update({ phase: 'loading', error: null });
+      try {
+        const all = await dreams.mine();
+        const found = all.find(d => d.conversationId === pending.conversationId);
+        if (!found) {
+          update({ dreams: all, phase: 'error', error: 'No saved Dream was found yet. Retry the same save.' });
+          return null;
+        }
+        if (agent.resumableConversationId() === pending.conversationId) agent.forgetResumableConversation();
+        update({ phase: 'ready', dreams: all, selected: found, pending: null, error: null });
+        return found;
+      } catch (error) {
+        update({ phase: 'error', error: errorText(error) });
+        return null;
+      }
+    },
+    /**
+     * Only called after the human explicitly confirms abandonment. This drops tab possession,
+     * and never suggests that the temporary server conversation itself was deleted.
+     */
+    abandonPending() {
+      const id = state.pending?.conversationId;
+      if (id && agent.resumableConversationId() === id) agent.forgetResumableConversation();
+      update({ pending: null, phase: 'ready', error: null });
+    },
     cancelPending() {
       // If an actual server conversation exists, keep its ID for a safe retry.
       if (state.pending?.conversationId) return;
@@ -96,7 +125,7 @@ export function createVisionDreamController(
     close() { update({ selected: null, error: null }); },
     async saveSummary(title: string, content: string, expectedVersion: number): Promise<boolean> {
       const selected = state.selected;
-      if (!selected || state.phase === 'editing' || selected.locked) return false;
+      if (!selected || state.phase === 'editing' || selected.locked || selected.superseded) return false;
       if (!title.trim() || title.trim().length > 200 || content.length > MAX_INITIAL_THOUGHT) {
         update({ error: 'Please check the title and note lengths.' });
         return false;
