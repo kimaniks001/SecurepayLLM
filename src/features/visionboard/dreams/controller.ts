@@ -142,7 +142,9 @@ export function createVisionDreamController(
         update({ phase: 'ready', selected: saved, dreams: state.dreams.map(d => d.dreamId === saved.dreamId ? saved : d) });
         return true;
       } catch (error) {
-        update({ phase: 'error', error: errorText(error) });
+        // The old note and version remain visible. Keep the editor actionable so the
+        // person can refresh/retry instead of being permanently disabled by a failure.
+        update({ phase: 'ready', error: errorText(error) });
         return false;
       }
     },
