@@ -237,7 +237,8 @@ test('an optimistic conflict permits refreshing an open note to its latest serve
   let calls = 0;
   const controller = api.createVisionDreamController({
     mine: async () => [dream({ version, title: version === 1 ? 'Old note' : 'Updated elsewhere' })],
-    create: async () => dream(), get: async () => dream(),
+    create: async () => dream(),
+    get: async () => dream({ version, title: version === 1 ? 'Old note' : 'Updated elsewhere' }),
     update: async (_id, body) => {
       calls++;
       if (body.expectedVersion !== version) throw new api.ApiError('http', 'stale version', 409, 'VISION_ITEM_CONFLICT');
@@ -277,4 +278,52 @@ test('an uncertain Dream create cannot be hidden by another selection or list re
   assert.equal(controller.getSnapshot().pending.conversationId, UUID);
   assert.equal(listCalls, 0); // only explicit reconciliation may read while the POST is uncertain
   assert.equal(controller.getSnapshot().phase, 'error');
+});
+
+
+test('refreshing an older selected Dream does not drop it when it falls outside the recent 30', async () => {
+  let listing = 0;
+  let selectedReads = 0;
+  const controller = api.createVisionDreamController({
+    mine: async () => ++listing === 1 ? [dream({ version: 1, title: 'Original thought' })] : [],
+    get: async id => {
+      assert.equal(id, OTHER);
+      selectedReads++;
+      return dream({ version: 3, title: 'Updated older thought' });
+    },
+    create: async () => dream(),
+    update: async () => dream(),
+  }, {
+    resumableConversationId: () => null,
+    forgetResumableConversation: () => {},
+    createConversation: async () => ({ conversationId: UUID }),
+  });
+  await controller.load();
+  controller.select(OTHER);
+  await controller.load();
+  assert.equal(selectedReads, 1);
+  assert.equal(controller.getSnapshot().phase, 'ready');
+  assert.equal(controller.getSnapshot().dreams.length, 0); // older than recent window
+  assert.equal(controller.getSnapshot().selected.dreamId, OTHER);
+  assert.equal(controller.getSnapshot().selected.version, 3);
+  assert.equal(controller.getSnapshot().selected.title, 'Updated older thought');
+});
+
+test('refresh cannot silently switch to another Dream if an inconsistent response arrives', async () => {
+  const controller = api.createVisionDreamController({
+    mine: async () => [dream()],
+    get: async () => dream({ dreamId: UUID }),
+    create: async () => dream(),
+    update: async () => dream(),
+  }, {
+    resumableConversationId: () => null,
+    forgetResumableConversation: () => {},
+    createConversation: async () => ({ conversationId: UUID }),
+  });
+  await controller.load();
+  controller.select(OTHER);
+  await controller.load();
+  assert.equal(controller.getSnapshot().phase, 'error');
+  assert.equal(controller.getSnapshot().selected.dreamId, OTHER);
+  assert.equal(controller.getSnapshot().selected.version, 1);
 });
