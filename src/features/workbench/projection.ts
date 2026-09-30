@@ -101,6 +101,19 @@ export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
 /** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
 export const excludedThingName = (name: string): string =>
   name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;
+type ExclusionEnd = { type: string; name: string };
+/** Phase 1.8B -- the same rule as the API's Exclusions.excludedThing: never a party, never the work when a thing points at it. */
+export const excludedRelationThing = (
+  relation: { subjectEntityId?: string | null; objectEntityId?: string | null },
+  byId: ReadonlyMap<string, ExclusionEnd>,
+): string | null => {
+  const object = relation.objectEntityId ? byId.get(relation.objectEntityId) : undefined;
+  const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
+  if (object?.type === 'SERVICE' && subject && (subject.type === 'ITEM' || subject.type === 'CONCEPT') && subject.name.trim()) return subject.name.trim();
+  if (object && object.type !== 'PERSON' && object.type !== 'ORGANIZATION' && object.name.trim()) return object.name.trim();
+  if (!relation.objectEntityId && subject?.type === 'ITEM' && subject.name.trim()) return subject.name.trim();
+  return null;
+};
 
 /**
  * Generic, non-domain-specific attribute keys never shown/offered as an ordinary descriptive detail
@@ -236,6 +249,22 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       value: `Not included: ${excludedThingName(entity.name)}`, details: note ? [note] : [], state: entity.state,
       adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
       spec: null, source: entity.source ?? null,
+    });
+  }
+  // Phase 1.8B -- the exclusion carried by a CONDITION (captured live: ITEM "Paint" --CONDITION{excluded}--> nothing; ITEM "Tiles"
+  // --CONDITION{excluded}--> SERVICE "Tiling"). Named exactly as the API's Exclusions.excludedThing names it: a thing pointing at
+  // the work, else the linked object, else an ITEM with no object. Only the explicit marker counts.
+  for (const relation of relationships) {
+    if (relation.kind !== 'CONDITION' || usedRelationshipIds.has(relation.id) || !isExcludedEntity(relation.qualifiers)) continue;
+    const thing = excludedRelationThing(relation, byId);
+    if (!thing) continue;
+    usedRelationshipIds.add(relation.id);
+    const note = describeQualifiers(relation.qualifiers);
+    items.push({
+      key: `excluded:${relation.id}`, section: 'responsibilities', excluded: true,
+      value: `Not included: ${excludedThingName(thing)}`, details: note ? [note] : [], state: relation.state,
+      adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
+      spec: null, source: relation.source ?? null,
     });
   }
 

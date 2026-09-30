@@ -71,3 +71,28 @@ test('Phase 1.8 (A02) -- every accepted explicit exclusion marker converges; wor
   for (const m of [{ negated: 'true' }, { excluded: 'y' }, { isExcluded: '1' }, { notIncluded: 'yes' }]) assert.equal(api.isExcludedEntity(m), true, JSON.stringify(m));
   assert.equal(api.isExcludedEntity({ note: "you'll buy the paint" }), false);
 });
+
+// Phase 1.8B -- the exclusion carried by a CONDITION relationship, exactly as captured live (claude-sonnet-5, Phase 1.8A). Before
+// this the panel listed it as a completion condition ("paint not supplied by Brian"), never as "Not included".
+test('Phase 1.8B -- A02 captured: ITEM Paint --CONDITION{excluded}--> (nothing) reads "Not included: Paint"', () => {
+  const wb = project([entity('s', 'SERVICE', 'Interior painting of 3-bedroom house, two coats', { scope: 'walls and ceilings' }),
+    entity('p', 'ITEM', 'Paint', { suppliedBy: 'customer' })],
+    [rel('c', 'CONDITION', 'p', null, { note: 'paint not supplied by Brian', excluded: 'true' })]);
+  const paint = wb.items.find(i => i.value === 'Not included: Paint');
+  assert.ok(paint && paint.excluded && paint.details.includes('paint not supplied by Brian'));
+  assert.ok(!wb.items.some(i => i.section === 'completion'));
+});
+
+test('Phase 1.8B -- C02 captured: ITEM Tiles --CONDITION{excluded}--> SERVICE names the tiles, never the work', () => {
+  const wb = project([entity('s', 'SERVICE', "Tiling mum's bathroom"), entity('t', 'ITEM', 'Tiles')],
+    [rel('c', 'CONDITION', 't', 's', { excluded: 'true', note: 'buyer purchases tiles', providedBy: 'buyer' })]);
+  assert.ok(wb.items.some(i => i.value === 'Not included: Tiles' && i.excluded));
+  assert.ok(!wb.items.some(i => /Not included: Tiling/.test(i.value)));
+});
+
+test('Phase 1.8B -- the Phase 1.4 direction (work --CONDITION{excluded}--> thing) and a plain condition are unchanged in kind', () => {
+  const wb = project([entity('s', 'SERVICE', 'Bathroom tiling'), entity('t', 'ITEM', 'Tiles')],
+    [rel('c', 'CONDITION', 's', 't', { suppliedBy: 'customer', excluded: 'true' }), rel('d', 'CONDITION', 's', null, { note: 'after inspection' })]);
+  assert.ok(wb.items.some(i => i.value === 'Not included: Tiles'));
+  assert.deepEqual(bySection(wb, 'completion'), ['after inspection']);
+});

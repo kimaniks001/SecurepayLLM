@@ -124,3 +124,10 @@ The panel's "Not included" reading now uses the same explicit marker vocabulary 
 `negated`, `exclusion`, `isExcluded`, case-insensitive; values `true`, `yes`, `y`, `1`, `excluded`, `not included`); no phrase
 handling. `tests/gate1-phase16.test.mjs` +1 (7). The exact A02 funded-run shape was not retained, so A02 is not proven closed
 (API UR-286).
+
+## Phase 1.8B (UI half) — exclusions carried by a CONDITION
+
+Captured live (claude-sonnet-5): A02 recorded ITEM "Paint" --CONDITION{excluded}--> (none); C02 recorded ITEM "Tiles"
+--CONDITION{excluded}--> SERVICE "Tiling". The panel listed the note under completion and never said "Not included". It now
+reads a CONDITION's explicit exclusion marker and names the thing by the API's rule (`excludedRelationThing`; never a party,
+never the work when a thing points at it). `tests/gate1-phase16.test.mjs` +3 (all failed before). API UR-287.
