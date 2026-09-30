@@ -66,7 +66,10 @@ export function createVisionDreamController(
       return () => { listeners.delete(listener); };
     },
     async load() {
-      if (state.phase === 'loading' || state.phase === 'saving') return;
+      // An uncertain create needs its own retry/reconciliation path. A background list refresh
+      // must not race that path or change the phase while its possession token is still pending.
+      if (state.pending || state.phase === 'loading' || state.phase === 'saving'
+          || state.phase === 'reconciling' || state.phase === 'editing') return;
       update({ phase: 'loading', error: null });
       try {
         const latest = await dreams.mine();
