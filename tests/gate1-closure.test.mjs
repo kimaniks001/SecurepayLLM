@@ -43,3 +43,10 @@ test('Q06 -- a work\'s structured excludes-list reads "Not included: sink, taps,
   assert.ok(!wb.items.some(i => !i.excluded && i.details.some(d => /sink, taps, plumbing/.test(d)) && i.section === 'what'),
     'the excludes-list is not shown as an ordinary detail of the work');
 });
+
+test('A01 (funded certification) -- an item marked {included: false} reads "Not included"; {included: true} never does', () => {
+  const wb = project([entity('w', 'SERVICE', 'Photography coverage'), entity('a', 'ITEM', 'Printed album', { note: 'quoted separately', included: 'false' }),
+    entity('p', 'ITEM', 'Edited photos', { included: 'true' })], []);
+  assert.ok(wb.items.some(i => i.value === 'Not included: Printed album' && i.excluded));
+  assert.ok(!wb.items.some(i => /Not included: Edited photos/.test(i.value)));
+});

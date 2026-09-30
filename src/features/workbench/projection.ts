@@ -97,8 +97,12 @@ const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
 // Phase 1.8 -- exactly the backend's accepted explicit markers (Exclusions.EXCLUSION_KEYS / TRUTHY), case-insensitive keys.
 const EXCLUSION_KEYS = new Set(['excluded', 'notincluded', 'negated', 'exclusion', 'isexcluded']);
 const EXCLUSION_TRUTHY = new Set(['true', 'yes', 'y', '1', 'excluded', 'not included']);
+// Funded certification (A01) -- an explicit "included" key whose value is false says the thing is NOT included (API parity).
+const INCLUSION_KEYS = new Set(['included', 'isincluded', 'includedinprice']);
+const FALSY = new Set(['false', 'no', 'n', '0']);
 export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
-  Object.entries(attributes).some(([k, v]) => EXCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && EXCLUSION_TRUTHY.has((v ?? '').trim().toLowerCase()));
+  Object.entries(attributes).some(([k, v]) => (EXCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && EXCLUSION_TRUTHY.has((v ?? '').trim().toLowerCase()))
+    || (INCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && FALSY.has((v ?? '').trim().toLowerCase())));
 /** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
 export const excludedThingName = (name: string): string =>
   name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;
