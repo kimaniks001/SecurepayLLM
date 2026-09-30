@@ -49,6 +49,10 @@ export function VisionDreamExperience({ controller, onContinue }: {
         <div className="flex flex-wrap gap-2">
           <Button disabled={selected.locked || selected.superseded || state.phase !== 'ready' || !title.trim()}
             onClick={() => void controller.saveSummary(title, note, selected.version)}>Save thoughts</Button>
+          <Button variant="secondary" disabled={state.phase === 'loading' || state.phase === 'editing'}
+            onClick={() => void controller.load()}>
+            <RefreshCw className="size-4" /> Refresh note
+          </Button>
           {onContinue && <Button variant="secondary" onClick={() => onContinue(selected.conversationId)}>
             Continue with KS001 <ArrowRight className="size-4" />
           </Button>}
