@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Lightbulb, RefreshCw } from 'lucide-react';
 import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
-import { dreamContinuation, type VisionDreamController } from './controller';
+import { dreamContinuation, MAX_KS001_DRAFT, type VisionDreamController } from './controller';
 
 /**
  * A composable Dream-first Vision surface. Mount above the existing Library once Claude's
