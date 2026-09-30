@@ -131,3 +131,11 @@ Captured live (claude-sonnet-5): A02 recorded ITEM "Paint" --CONDITION{excluded}
 --CONDITION{excluded}--> SERVICE "Tiling". The panel listed the note under completion and never said "Not included". It now
 reads a CONDITION's explicit exclusion marker and names the thing by the API's rule (`excludedRelationThing`; never a party,
 never the work when a thing points at it). `tests/gate1-phase16.test.mjs` +3 (all failed before). API UR-287.
+
+## Phase 1.10 (UI half) — panel fail-soft, role-link and M05 exclusions
+
+From captured claude-sonnet-5 shapes (Phase 1.9): a CONDITION with no subject made the whole understanding panel fail ("That didn't
+go through") in 3 of 24 campaign conversations; the adapter now reads a subject-less relationship as context-wide and omits only a
+genuinely malformed relationship (developer warning, nothing shown to the person). An explicit exclusion marker on a ROLE link and a
+structured `excluded_item` qualifier now read as "Not included"; a subject-only exclusion never names the item being ordered.
+`tests/gate1-phase110.test.mjs` (6; 4 failed before). API UR-288.

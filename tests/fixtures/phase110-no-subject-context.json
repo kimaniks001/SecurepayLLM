@@ -1,0 +1,255 @@
+{
+ "_note": "Phase 1.9 browser journey (claude-sonnet-5, Entry Test Pack long paste): a CONDITION with no subject made the whole panel fail.",
+ "conversationId": "48d40ac6-8c07-466c-8365-d30e3a0f907d",
+ "version": 19,
+ "entities": [
+  {
+   "id": "dedfabf6-fa35-4dd1-a3d6-50f36c5e5494",
+   "type": "CONCEPT",
+   "name": "value",
+   "state": "CONFIRMED",
+   "attributes": {
+    "_legacySlug": "_concept_value"
+   },
+   "confidence": 1.0,
+   "source": null
+  },
+  {
+   "id": "6fcd545a-bde0-473a-b72b-892188064f1b",
+   "type": "PERSON",
+   "name": "Amina Wanjiru",
+   "state": "CANDIDATE",
+   "attributes": {
+    "role": "client"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "type": "PERSON",
+   "name": "Kamau Njoroge",
+   "state": "CANDIDATE",
+   "attributes": {
+    "role": "contractor"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "aedf7a9b-4fc4-459a-9f6d-4e4840bd3c49",
+   "type": "SERVICE",
+   "name": "Bathroom tiling labour",
+   "state": "CANDIDATE",
+   "attributes": {
+    "scope": "remove old tiles, prepare substrate, waterproof, install tiles, grout, clean, hand over"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "770f38b8-0cf3-4d08-9abe-fc4017009202",
+   "type": "DATE",
+   "name": "Friday 2 October 2026",
+   "state": "CANDIDATE",
+   "attributes": {
+    "isoDate": "2026-10-02",
+    "dateRole": "start"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "192768a3-cd82-4af8-8732-424c18229d03",
+   "type": "RECURRENCE",
+   "name": "five working days",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "relationships": [
+  {
+   "id": "30259fc1-0009-4881-a031-5c432152ec9f",
+   "kind": "RESPONSIBILITY",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": "aedf7a9b-4fc4-459a-9f6d-4e4840bd3c49",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "task": "Kamau will remove old floor tiles...hand over",
+    "taskFrom": "excerpt"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "f713ab2c-8e3f-4375-8cfc-db232b559b72",
+   "kind": "RESPONSIBILITY",
+   "subjectEntityId": "6fcd545a-bde0-473a-b72b-892188064f1b",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "task": "Amina supplies all tiles, adhesive, grout and waterproofing",
+    "supplies": "tiles, adhesive, grout, waterproofing",
+    "taskFrom": "excerpt"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "d5a2a037-7681-4051-92a5-22738fb5daf6",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "dedfabf6-fa35-4dd1-a3d6-50f36c5e5494",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "amount": "95000",
+    "currency": "KES",
+    "moneyRole": "total"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "826c8f79-ec8e-44ac-89c2-5bf2201b3d38",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "when": "before work starts",
+    "amount": "30000",
+    "currency": "KES",
+    "moneyRole": "deposit"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "7f1b335a-b896-4215-9106-b01d23c09dbc",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "when": "after wall and floor installation",
+    "amount": "35000",
+    "currency": "KES",
+    "moneyRole": "instalment"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "82b23f7b-41d6-4563-b957-b07d6fa4d7a6",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "when": "after inspection",
+    "amount": "30000",
+    "currency": "KES",
+    "moneyRole": "balance"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "7ec473ef-8c38-4462-9d54-61f2641febab",
+   "kind": "CONDITION",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "items": "plumbing, electrical work, hidden structural repairs, materials",
+    "excluded": "true"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "35f436a4-ca2a-4705-85a5-17534cbc9de2",
+   "kind": "CONDITION",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "trigger": "hidden damage discovered"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "4071d4bb-5b49-4018-9bad-a0d2883822f7",
+   "kind": "CONDITION",
+   "subjectEntityId": null,
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "completion": "tiling finished, area cleaned, Amina inspected"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "08e03b41-5cf4-4c78-bec9-882816e36ae0",
+   "kind": "RESPONSIBILITY",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "item": "tools and tile cutting equipment",
+    "task": "responsible for ordinary tools and tile cutting equipment",
+    "taskFrom": "excerpt"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "f5fd4f79-19da-41b3-8f85-918b0d8958e4",
+   "kind": "RESPONSIBILITY",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "task": "Breakages caused by Kamau's workmanship are Kamau's responsibility",
+    "caveat": "breakages from his workmanship",
+    "taskFrom": "excerpt"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "edbb9b41-75f4-4750-b925-d32e9d05e4c5",
+   "kind": "CONDITION",
+   "subjectEntityId": "6fcd545a-bde0-473a-b72b-892188064f1b",
+   "objectEntityId": null,
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "item": "breakages from defective tiles supplied by Amina",
+    "excluded": "true"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "cd09c151-43b6-4d73-b95e-f85ef292eae3",
+   "kind": "DELIVERY",
+   "subjectEntityId": "96875820-21e7-48ea-b3eb-673b25d45047",
+   "objectEntityId": "770f38b8-0cf3-4d08-9abe-fc4017009202",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "task": "Work starts Friday 2 October 2026",
+    "taskFrom": "excerpt"
+   },
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "interactionState": {
+  "discoveryInvitedEntityIds": []
+ },
+ "conflicts": []
+}

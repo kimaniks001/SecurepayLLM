@@ -25,7 +25,7 @@ export interface AgentResponseDto {
 // source backs up); absent/null for evidence recorded before Phase 5.
 export interface SourceReferenceDto { sourceArtifactId: string; displayName: string; sourceKind: string; locator: string; removed: boolean; basis?: string | null }
 export interface EntityDto { id: string; type: string; name: string; state: string; confidence: number; attributes: Record<string, string>; source?: SourceReferenceDto | null }
-export interface RelationshipDto { id: string; kind: string; subjectEntityId: string; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number; source?: SourceReferenceDto | null }
+export interface RelationshipDto { id: string; kind: string; subjectEntityId?: string | null; objectEntityId?: string | null; qualifiers: Record<string, string>; state: string; confidence: number; source?: SourceReferenceDto | null }
 // KS001 Upgrade Phase 1 final integration fix -- bounded, first-party-only conversation INTERACTION/
 // ORCHESTRATION state, deliberately never a Trade Context entity attribute (mirrors
 // AgentApiModels.InteractionStateView exactly). Absent on a legacy response (before this field existed);

@@ -86,7 +86,8 @@ const ROLE_LABELS: Record<string, string> = {
 const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 // Entry Perfection Phase 5 -- evidence bookkeeping is never shown raw: excluded/moneyRole/currencyBasis/amountText are
 // rendered as words ("Not included", "Deposit", "Currency assumed") or not at all.
-const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText', 'taskFrom', 'amountReadFrom']);
+const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText', 'taskFrom', 'amountReadFrom',
+  'excluded_item', 'excludedItem', 'excluded_items', 'excludedItems']);
 const MONEY_ROLE_LABEL: Record<string, string> = {
   total: 'Total price', deposit: 'Deposit', balance: 'Balance', instalment: 'Instalment', unit_price: 'Unit price', tax: 'Tax',
   fee: 'Fee', budget: 'Budget', unspecified: 'What this is for isn’t clear',
@@ -101,17 +102,30 @@ export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
 /** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
 export const excludedThingName = (name: string): string =>
   name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;
-type ExclusionEnd = { type: string; name: string };
-/** Phase 1.8B -- the same rule as the API's Exclusions.excludedThing: never a party, never the work when a thing points at it. */
+type ExclusionEnd = { id?: string; type: string; name: string; attributes?: Record<string, string> };
+type ExclusionLink = { kind?: string; subjectEntityId?: string | null; objectEntityId?: string | null; qualifiers?: Record<string, string> };
+/** Phase 1.10 (M05) -- the structured keys whose VALUE names the excluded thing (DELIVERY {excluded_item: "name labels"}); never wording. */
+const EXCLUDED_THING_KEYS = new Set(['excludeditem', 'excludeditems', 'excludedthing', 'excludedthings']);
+export const excludedThingNamedBy = (qualifiers: Record<string, string>): string | null => {
+  const hit = Object.entries(qualifiers).find(([k, v]) => EXCLUDED_THING_KEYS.has(k.toLowerCase().replace(/_/g, '')) && (v ?? '').trim()
+    && !EXCLUSION_TRUTHY.has(v.trim().toLowerCase()));
+  return hit ? hit[1].trim() : null;
+};
+/** Phase 1.10 (M05) -- the item being ordered/priced is what the agreement is about; a subject-only exclusion never names it. */
+const isPrimaryObligation = (item: ExclusionEnd, relationships: readonly ExclusionLink[]): boolean =>
+  Object.keys(item.attributes ?? {}).some(k => ['unitprice', 'linetotal', 'amount', 'price'].includes(k.toLowerCase().replace(/_/g, '')))
+  || relationships.some(r => (r.kind === 'RESPONSIBILITY' || r.kind === 'DELIVERY') && r.objectEntityId === item.id && !isExcludedEntity(r.qualifiers ?? {}));
+/** Phase 1.8B/1.10 -- the same rule as the API's Exclusions.excludedThing: never a party, never the work when a thing points at it. */
 export const excludedRelationThing = (
-  relation: { subjectEntityId?: string | null; objectEntityId?: string | null },
+  relation: ExclusionLink,
   byId: ReadonlyMap<string, ExclusionEnd>,
+  relationships: readonly ExclusionLink[] = [],
 ): string | null => {
   const object = relation.objectEntityId ? byId.get(relation.objectEntityId) : undefined;
   const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
   if (object?.type === 'SERVICE' && subject && (subject.type === 'ITEM' || subject.type === 'CONCEPT') && subject.name.trim()) return subject.name.trim();
   if (object && object.type !== 'PERSON' && object.type !== 'ORGANIZATION' && object.name.trim()) return object.name.trim();
-  if (!relation.objectEntityId && subject?.type === 'ITEM' && subject.name.trim()) return subject.name.trim();
+  if (!relation.objectEntityId && subject?.type === 'ITEM' && subject.name.trim() && !isPrimaryObligation(subject, relationships)) return subject.name.trim();
   return null;
 };
 
@@ -254,9 +268,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   // Phase 1.8B -- the exclusion carried by a CONDITION (captured live: ITEM "Paint" --CONDITION{excluded}--> nothing; ITEM "Tiles"
   // --CONDITION{excluded}--> SERVICE "Tiling"). Named exactly as the API's Exclusions.excludedThing names it: a thing pointing at
   // the work, else the linked object, else an ITEM with no object. Only the explicit marker counts.
+  // Phase 1.10 (role-link) -- the explicit marker on a ROLE link (live A: ITEM "Tiles" --ROLE{excluded}--> SERVICE) converges too.
   for (const relation of relationships) {
-    if (relation.kind !== 'CONDITION' || usedRelationshipIds.has(relation.id) || !isExcludedEntity(relation.qualifiers)) continue;
-    const thing = excludedRelationThing(relation, byId);
+    if ((relation.kind !== 'CONDITION' && relation.kind !== 'ROLE') || usedRelationshipIds.has(relation.id) || !isExcludedEntity(relation.qualifiers)) continue;
+    const thing = excludedRelationThing(relation, byId, relationships);
     if (!thing) continue;
     usedRelationshipIds.add(relation.id);
     const note = describeQualifiers(relation.qualifiers);
@@ -265,6 +280,16 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       value: `Not included: ${excludedThingName(thing)}`, details: note ? [note] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
       spec: null, source: relation.source ?? null,
+    });
+  }
+
+  // Phase 1.10 (M05) -- a structured qualifier NAMING the excluded thing, on any relationship (the relationship keeps its own meaning).
+  for (const relation of relationships) {
+    const named = excludedThingNamedBy(relation.qualifiers);
+    if (!named || items.some(i => i.excluded && i.value.toLowerCase() === `not included: ${named}`.toLowerCase())) continue;
+    items.push({
+      key: `excluded-named:${relation.id}`, section: 'responsibilities', excluded: true, value: `Not included: ${named}`, details: [],
+      state: relation.state, adopt: [], spec: null, source: relation.source ?? null,
     });
   }
 
@@ -440,12 +465,12 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   }
 
   // --- Everything else, read-only ---------------------------------------------------------------------
-  const referenced = new Set(relationships.flatMap(r => [r.subjectEntityId, r.objectEntityId ?? '']));
+  const referenced = new Set(relationships.flatMap(r => [r.subjectEntityId ?? '', r.objectEntityId ?? '']));
   for (const relation of relationships) {
     if (usedRelationshipIds.has(relation.id)) continue;
     const text = describeQualifiers(relation.qualifiers);
     if (!text) continue;
-    const subject = byId.get(relation.subjectEntityId);
+    const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
     items.push({
       key: `other:${relation.id}`, section: 'other', value: text, details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,

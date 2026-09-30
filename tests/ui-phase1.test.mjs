@@ -504,7 +504,11 @@ test('instruments never send a fabricated chat sentence: no sendStatement/statem
 test('trade context: a relationship with NO objectEntityId (backend non_null omits it) is accepted, not "unreadable"', () => {
   const view = ctx([ent('c1', 'CONCEPT', 'value')], [rel('r1', 'PAYMENT_CONDITION', 'c1', { amount: '4000', currency: 'KES' })]);
   assert.equal(view.relationships[0].objectEntityId, null);
-  assert.throws(() => api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [{ id: 'r', kind: 'ROLE', subjectEntityId: 'e', objectEntityId: 5, qualifiers: {}, state: 'CONFIRMED' }] }));
+  // User-Ready Beta Gate 1 Phase 1.10 -- a malformed relationship is still never accepted into the view, but it is omitted on its
+  // own instead of making the whole understanding unreadable (it used to throw for the entire Trade Context).
+  const malformed = api.tradeContextView({ conversationId: 'c', version: 1, entities: [], relationships: [{ id: 'r', kind: 'ROLE', subjectEntityId: 'e', objectEntityId: 5, qualifiers: {}, state: 'CONFIRMED' }] });
+  assert.deepEqual(malformed.relationships, []);
+  assert.deepEqual(malformed.facts, []);
 });
 // KS001 Upgrade Phase 1 final integration fix -- bounded discovery interaction state, never a Trade
 // Context attribute.

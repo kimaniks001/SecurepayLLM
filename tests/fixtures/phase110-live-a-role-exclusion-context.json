@@ -1,0 +1,160 @@
+{
+ "_note": "Phase 1.9 live A (claude-sonnet-5): ITEM Tiles --ROLE{excluded=true, suppliedBy=buyer}--> SERVICE Bathroom tiling.",
+ "conversationId": "de248b13-548f-4190-bf47-2a948f58ded6",
+ "version": 3,
+ "entities": [
+  {
+   "id": "344c8f51-c19a-45ef-824f-195837d2aaba",
+   "type": "PERSON",
+   "name": "Kamau",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "type": "SERVICE",
+   "name": "Bathroom tiling",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "aa33c363-eaa6-4489-8bbf-622c12bd2d9b",
+   "type": "MONEY",
+   "name": "Total price",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "7f10a7c3-aa15-40a9-abdc-bc5adf4feec2",
+   "type": "MONEY",
+   "name": "Deposit",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "3dcf07da-aed9-4bc8-90b7-fddc875155c2",
+   "type": "MONEY",
+   "name": "Balance",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "7a4d3e45-7534-49b1-818a-23805e724540",
+   "type": "DATE",
+   "name": "Friday",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "2d232315-2702-4446-85a6-7f5f245294fc",
+   "type": "ITEM",
+   "name": "Tiles",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "relationships": [
+  {
+   "id": "e11bf6c0-f0f8-4053-a113-5c66e0933aba",
+   "kind": "ROLE",
+   "subjectEntityId": "344c8f51-c19a-45ef-824f-195837d2aaba",
+   "objectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "role": "provider"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "cd25fafd-eace-451c-b73b-d0d5c04c7eec",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "objectEntityId": "7f10a7c3-aa15-40a9-abdc-bc5adf4feec2",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "amount": "30000",
+    "timing": "before he starts",
+    "currency": "KES",
+    "moneyRole": "deposit",
+    "currencyBasis": "inferred"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "74ad7d0d-0678-45b3-9a2b-dccf8f46686c",
+   "kind": "CONDITION",
+   "subjectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "objectEntityId": "7a4d3e45-7534-49b1-818a-23805e724540",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "dateRole": "start"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "97c216be-e0f2-4cd5-93bc-e5820313505b",
+   "kind": "ROLE",
+   "subjectEntityId": "2d232315-2702-4446-85a6-7f5f245294fc",
+   "objectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "excluded": "true",
+    "suppliedBy": "buyer"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "2518e542-456c-407c-96db-9eb02b4eafa0",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "objectEntityId": "aa33c363-eaa6-4489-8bbf-622c12bd2d9b",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "amount": "90000",
+    "currency": "KES",
+    "moneyRole": "total",
+    "currencyBasis": "inferred"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "c07a1ada-7a47-49df-ad3e-c70390114946",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "48eb9b61-d75f-4004-a4b1-feab753900b1",
+   "objectEntityId": "3dcf07da-aed9-4bc8-90b7-fddc875155c2",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "amount": "60000",
+    "timing": "after work is checked",
+    "currency": "KES",
+    "moneyRole": "balance",
+    "currencyBasis": "inferred"
+   },
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "interactionState": {
+  "discoveryInvitedEntityIds": []
+ },
+ "conflicts": []
+}
