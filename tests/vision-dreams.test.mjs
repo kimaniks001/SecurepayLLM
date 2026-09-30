@@ -5,6 +5,8 @@ import { build } from 'esbuild';
 const bundle = await build({
   stdin: { contents: [
     "export * from './src/features/visionboard/dreams/controller';",
+    "export * from './src/features/visionboard/dreams/handoff';",
+    "export { readDraft, writeDraft, clearComposerDrafts } from './src/features/conversation/drafts';",
     "export * from './src/api/securepay/visiondreams';",
     "export * from './src/api/securepay/agent/continuity';",
     "export { ApiError } from './src/api/securepay/http';",
@@ -340,4 +342,57 @@ test('refresh cannot silently switch to another Dream if an inconsistent respons
   assert.equal(controller.getSnapshot().phase, 'error');
   assert.equal(controller.getSnapshot().selected.dreamId, OTHER);
   assert.equal(controller.getSnapshot().selected.version, 1);
+});
+
+
+test('Dream handoff verifies the SAME owned conversation, then only prefills the unsent composer', async () => {
+  api.clearComposerDrafts();
+  let resumes = 0;
+  let state = { conversationId: null, busy: false, pending: null, context: { status: 'idle' } };
+  const agent = {
+    getSnapshot: () => state,
+    resumeConversation: async id => {
+      resumes++;
+      state = { ...state, conversationId: id, context: { status: 'ready' } };
+    },
+  };
+  const result = await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: '  Let me explore a small home  ' });
+  assert.deepEqual(result, { ok: true });
+  assert.equal(resumes, 1);
+  assert.equal(api.readDraft(UUID), 'Let me explore a small home');
+  assert.equal(api.readDraft(OTHER), '');
+  api.clearComposerDrafts();
+});
+
+test('Dream handoff fails closed on an unauthorized/failed read and preserves existing unsent words', async () => {
+  api.clearComposerDrafts();
+  let state = { conversationId: OTHER, busy: false, pending: null, context: { status: 'idle' } };
+  const agent = {
+    getSnapshot: () => state,
+    resumeConversation: async id => {
+      state = { ...state, conversationId: id, context: { status: 'error' } };
+    },
+  };
+  assert.equal((await api.prepareDreamHandoff(agent, {
+    conversationId: UUID, draftText: 'Private note',
+  })).ok, false);
+  assert.equal(api.readDraft(UUID), '');
+  api.writeDraft(UUID, 'Existing unsent message');
+  const rejected = await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'Different private note' });
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /unsent KS001 message/);
+  assert.equal(api.readDraft(UUID), 'Existing unsent message');
+  api.clearComposerDrafts();
+});
+
+test('Dream handoff cannot run during another pending KS001 action or overfill its composer', async () => {
+  api.clearComposerDrafts();
+  let resumed = 0;
+  const agent = {
+    getSnapshot: () => ({ conversationId: null, busy: true, pending: null, context: { status: 'idle' } }),
+    resumeConversation: async () => { resumed++; },
+  };
+  assert.equal((await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'Hello' })).ok, false);
+  assert.equal((await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'a'.repeat(1201) })).ok, false);
+  assert.equal(resumed, 0);
 });
