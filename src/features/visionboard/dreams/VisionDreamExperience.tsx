@@ -58,7 +58,10 @@ export function VisionDreamExperience({ controller, onContinue }: {
             onClick={() => void controller.load()}>
             <RefreshCw className="size-4" /> Refresh note
           </Button>
-          {onContinue && <Button variant="secondary" onClick={() => onContinue(dreamContinuation(selected))}>
+          {onContinue && <Button variant="secondary" onClick={() => {
+            setShareDraft(selected.content?.trim() || selected.title);
+            setReviewShare(true);
+          }}>
             Explore with KS001 <ArrowRight className="size-4" />
           </Button>}
         </div>
