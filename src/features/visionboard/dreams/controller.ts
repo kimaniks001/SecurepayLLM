@@ -13,6 +13,14 @@ function dreamNoteErrorText(error: unknown): string {
 
 export const MAX_INITIAL_THOUGHT = 4000;
 
+/**
+ * A Dream IDEA is advisory memory, NOT a historical chat turn.
+ * Resume the SAME conversation and only prefill these real human words; do not auto-send.
+ */
+export function dreamContinuation(dream: Pick<VisionDreamDto, 'conversationId' | 'content' | 'title'>) {
+  return { conversationId: dream.conversationId, draftText: dream.content?.trim() || dream.title };
+}
+
 /** Use the person's own first sentence, not a model-invented title or plan. */
 export function dreamTitle(initialThought: string): string {
   const first = initialThought.trim().split(/\r?\n/, 1)[0].replace(/\s+/g, ' ').trim();
