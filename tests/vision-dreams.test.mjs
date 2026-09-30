@@ -248,3 +248,23 @@ test('an optimistic conflict permits refreshing an open note to its latest serve
   assert.equal(controller.getSnapshot().selected.version, 3);
   assert.equal(calls, 2);
 });
+
+test('an uncertain Dream create cannot be hidden by another selection or list refresh', async () => {
+  let listCalls = 0;
+  const controller = api.createVisionDreamController({
+    mine: async () => { listCalls++; return [dream()]; },
+    create: async () => { throw Error('unknown outcome'); },
+    get: async () => dream(), update: async () => dream(),
+  }, {
+    resumableConversationId: () => null, forgetResumableConversation: () => {},
+    createConversation: async () => ({ conversationId: UUID }),
+  });
+  assert.equal(await controller.start('One important Dream'), null);
+  assert.equal(controller.getSnapshot().pending.conversationId, UUID);
+  controller.select(OTHER);
+  await controller.load();
+  assert.equal(controller.getSnapshot().selected, null);
+  assert.equal(controller.getSnapshot().pending.conversationId, UUID);
+  assert.equal(listCalls, 0); // only explicit reconciliation may read while the POST is uncertain
+  assert.equal(controller.getSnapshot().phase, 'error');
+});
