@@ -129,6 +129,9 @@ export function createVisionDreamController(
       update({ pending: null, error: null, phase: 'ready' });
     },
     select(dreamId: string) {
+      // Selecting another note cannot hide an unresolved temporary conversation/save.
+      if (state.pending || state.phase === 'saving' || state.phase === 'reconciling'
+          || state.phase === 'editing' || state.phase === 'loading') return;
       update({ selected: state.dreams.find(d => d.dreamId === dreamId) ?? null, error: null });
     },
     close() { update({ selected: null, error: null }); },
