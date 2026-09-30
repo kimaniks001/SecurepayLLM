@@ -2,6 +2,14 @@ import type { AgentGateway } from '../../../api/securepay/agent';
 import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import type { VisionDreamDto } from '../../../api/securepay/visiondreams/dto';
 import { errorText } from '../../agent/controller';
+import { ApiError } from '../../../api/securepay/http';
+
+/** Dream-specific recovery is about this editable note, not Trade Context. */
+function dreamNoteErrorText(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409)
+    return 'This Dream changed elsewhere. Refresh note to see the latest version before saving again.';
+  return errorText(error);
+}
 
 export const MAX_INITIAL_THOUGHT = 4000;
 
