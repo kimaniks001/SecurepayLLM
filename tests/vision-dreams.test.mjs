@@ -207,7 +207,7 @@ test('rejected optimistic update retains original Dream and surfaces an error', 
   assert.equal(await controller.saveSummary('Changed', 'Changed', 1), false);
   assert.equal(controller.getSnapshot().selected.title, 'Build mum a small house');
   assert.equal(controller.getSnapshot().phase, 'ready'); // error message does not deadlock Save
-  assert.match(controller.getSnapshot().error, /409/);
+  assert.match(controller.getSnapshot().error, /Dream changed elsewhere.*Refresh note/);
 });
 
 test('inconsistent successful Dream claim never discards matching temporary possession', async () => {
