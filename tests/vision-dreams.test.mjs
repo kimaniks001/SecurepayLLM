@@ -396,3 +396,39 @@ test('Dream handoff cannot run during another pending KS001 action or overfill i
   assert.equal((await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'a'.repeat(1201) })).ok, false);
   assert.equal(resumed, 0);
 });
+
+test('Dream handoff preserves words typed while the owned conversation is reopening', async () => {
+  api.clearComposerDrafts();
+  let release;
+  const wait = new Promise(resolve => { release = resolve; });
+  let state = { conversationId: null, busy: false, pending: null, context: { status: 'idle' } };
+  const agent = {
+    getSnapshot: () => state,
+    resumeConversation: async id => {
+      await wait;
+      state = { ...state, conversationId: id, context: { status: 'ready' } };
+    },
+  };
+  const handoff = api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'Private Dream' });
+  api.writeDraft(UUID, 'Words typed during reopening');
+  release();
+  const result = await handoff;
+  assert.equal(result.ok, false);
+  assert.match(result.error, /unsent KS001 message/);
+  assert.equal(api.readDraft(UUID), 'Words typed during reopening');
+  api.clearComposerDrafts();
+});
+
+test('Dream handoff refuses a KS001 action that starts while reopening', async () => {
+  api.clearComposerDrafts();
+  let state = { conversationId: null, busy: false, pending: null, context: { status: 'idle' } };
+  const agent = {
+    getSnapshot: () => state,
+    resumeConversation: async id => {
+      state = { conversationId: id, busy: true, pending: null, context: { status: 'ready' } };
+    },
+  };
+  const result = await api.prepareDreamHandoff(agent, { conversationId: UUID, draftText: 'Private Dream' });
+  assert.equal(result.ok, false);
+  assert.equal(api.readDraft(UUID), '');
+});

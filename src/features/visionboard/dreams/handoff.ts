@@ -36,8 +36,16 @@ export async function prepareDreamHandoff(
     return { ok: false, error: 'SecurePay could not reopen this Dream conversation. Your private note has not been sent.' };
   }
   const current = agent.getSnapshot();
+  // Resume performs asynchronous I/O; recheck mutable composer/action state afterwards.
+  if (current.busy || current.pending) {
+    return { ok: false, error: 'KS001 is finishing another action. Return to this Dream after it completes.' };
+  }
   if (current.conversationId !== id || current.context.status !== 'ready') {
     return { ok: false, error: 'SecurePay could not verify this Dream conversation. Your private note has not been sent.' };
+  }
+  const latestDraft = readDraft(id);
+  if (latestDraft.trim() && latestDraft.trim() !== draft) {
+    return { ok: false, error: 'You have an unsent KS001 message in this conversation. Finish it before opening the Dream draft.' };
   }
   writeDraft(id, draft);
   return { ok: true };
