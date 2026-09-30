@@ -45,7 +45,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
           <textarea value={note} onChange={e => setNote(e.target.value)} disabled={selected.locked || selected.superseded}
             maxLength={4000} rows={5} className="block w-full rounded-xl border border-cream-200 p-3 text-forest-800 disabled:opacity-60"/>
         </label>
-        <p className="text-xs text-sand-500">This is your editable note, not an agreement or an AI-confirmed fact.</p>
+        <p className="text-xs text-sand-500">This is your editable note, not an agreement or an AI-confirmed fact. It has not been sent to KS001; you can review it as a draft before sharing.</p>
         {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
           <Button disabled={selected.locked || selected.superseded || state.phase !== 'ready' || !title.trim()}
