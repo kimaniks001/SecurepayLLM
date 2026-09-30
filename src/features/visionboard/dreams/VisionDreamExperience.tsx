@@ -54,8 +54,8 @@ export function VisionDreamExperience({ controller, onContinue }: {
             onClick={() => void controller.load()}>
             <RefreshCw className="size-4" /> Refresh note
           </Button>
-          {onContinue && <Button variant="secondary" onClick={() => onContinue(selected.conversationId)}>
-            Continue with KS001 <ArrowRight className="size-4" />
+          {onContinue && <Button variant="secondary" onClick={() => onContinue(dreamContinuation(selected))}>
+            Explore with KS001 <ArrowRight className="size-4" />
           </Button>}
         </div>
         {selected.superseded && <p className="text-sm text-sand-600">A newer Library version exists. This historical note cannot be edited here.</p>}
