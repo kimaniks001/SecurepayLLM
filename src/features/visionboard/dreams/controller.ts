@@ -17,8 +17,18 @@ export const MAX_INITIAL_THOUGHT = 4000;
  * A Dream IDEA is advisory memory, NOT a historical chat turn.
  * Resume the SAME conversation and only prefill these real human words; do not auto-send.
  */
-export function dreamContinuation(dream: Pick<VisionDreamDto, 'conversationId' | 'content' | 'title'>) {
-  return { conversationId: dream.conversationId, draftText: dream.content?.trim() || dream.title };
+export const MAX_KS001_DRAFT = 1200;
+export function dreamContinuation(
+  dream: Pick<VisionDreamDto, 'conversationId' | 'content' | 'title'>,
+  reviewedText: string = dream.content?.trim() || dream.title,
+) {
+  const draftText = reviewedText.trim();
+  // KS001's composer supports 1,200 characters. Never silently throw away the
+  // rest of a private 4,000-character Dream while presenting it as "continued".
+  if (!draftText || draftText.length > MAX_KS001_DRAFT) {
+    throw new Error('Choose up to 1,200 characters to discuss with KS001. Your full Dream stays saved.');
+  }
+  return { conversationId: dream.conversationId, draftText };
 }
 
 /** Use the person's own first sentence, not a model-invented title or plan. */
