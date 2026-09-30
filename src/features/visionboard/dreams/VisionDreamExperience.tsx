@@ -12,7 +12,7 @@ import { dreamContinuation, type VisionDreamController } from './controller';
  */
 export function VisionDreamExperience({ controller, onContinue }: {
   controller: VisionDreamController;
-  onContinue?: (conversationId: string) => void;
+  onContinue?: (continuation: ReturnType<typeof dreamContinuation>) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [thought, setThought] = useState('');
