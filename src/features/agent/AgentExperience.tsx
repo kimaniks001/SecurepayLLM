@@ -90,6 +90,10 @@ import type { ProjectGateway } from '../../api/securepay/projects';
 import { VisionBoardExperience } from '../visionboard/VisionBoardExperience';
 import { createVisionBoardController } from '../visionboard/controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
+import { VisionDreamHome } from '../visionboard/dreams/VisionDreamHome';
+import { createVisionDreamController } from '../visionboard/dreams/controller';
+import { prepareDreamHandoff } from '../visionboard/dreams/handoff';
+import type { VisionDreamGateway } from '../../api/securepay/visiondreams';
 import { AccountExperience } from '../account/AccountExperience';
 import { createAccountController } from '../account/controller';
 import { SettingsExperience } from '../settings/SettingsExperience';
@@ -167,13 +171,14 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
+  visionDreamGateway: VisionDreamGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
@@ -231,6 +236,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const openDeclared = (kind: DeclaredSourceKind) => { setBringPlanOpen(false); setIntakeError(null); setDeclaredDraft({ value: '', label: '' }); setDeclaredOpen(kind); };
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
+  const [visionDreamController] = useState(() => createVisionDreamController(visionDreamGateway, gateway));
+  const visionDreamState = useSyncExternalStore(visionDreamController.subscribe, visionDreamController.getSnapshot);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   // Phase 1 Interaction Instruments: bound to the CURRENT conversation controller, so a new
   // conversation always starts with a fresh, closed instrument.
@@ -307,6 +314,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
+  const [visionLibrary, setVisionLibrary] = useState(false);
+  const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
   const [account, setAccount] = useState(false);
   const [settingsView, setSettingsView] = useState(false);
@@ -530,7 +539,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setNotice(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
-    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); // a scoped Help context never outlives its screen
+    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); setVisionLibrary(false); setDreamHandoffError(null); // a scoped Help context never outlives its screen
     // Final correction -- sensitive/one-time state must not survive leaving its own screen. Both
     // calls are no-ops (harmless re-render of an unmounted screen) except at the exact moment of
     // actually leaving Recovery or Developer; entering Recovery still separately calls reset() below
@@ -659,6 +668,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   const [continuityDismissed, setContinuityDismissed] = useState(false);
   const [continuityBusy, setContinuityBusy] = useState(false);
+  const [dreamClaimOpen, setDreamClaimOpen] = useState(false);
+  const [dreamClaimThought, setDreamClaimThought] = useState('');
   const resumableAnonymous = gateway.resumableConversationId?.() ?? null;
   const continuityChoice = signedIn && !continuityDismissed && !!resumableAnonymous && resumableAnonymous === state.conversationId
     && handoffState.phase === 'idle';
@@ -667,6 +678,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setContinuityBusy(true);
     try {
       await gateway.saveBuild(resumableAnonymous); // the ONE claim: explicit, with the possession proof, exactly once
+      setDreamClaimOpen(false);
       setContinuityDismissed(true);
     } catch {
       setNotice('SecurePay couldn’t save this to your account just now. It’s still here — try again.');
@@ -674,6 +686,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       setContinuityBusy(false);
     }
   };
+  const finishDreamClaim = (saved: Awaited<ReturnType<typeof visionDreamController.retry>>) => {
+    if (!saved) return;
+    setContinuityDismissed(true); setDreamClaimOpen(false); setDreamClaimThought('');
+    setDreamHandoffError(null); setVisionBoard(true); setHome(false);
+  };
+  const saveTemporaryAsDream = async () => {
+    if (!resumableAnonymous) return;
+    finishDreamClaim(await visionDreamController.claimExisting(resumableAnonymous, dreamClaimThought));
+  };
+  const retryTemporaryDream = async () => finishDreamClaim(await visionDreamController.retry());
+  const reconcileTemporaryDream = async () => finishDreamClaim(await visionDreamController.reconcilePending());
 
   if (joinRoute.value) {
     return (
@@ -808,6 +831,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }
 
   if (visionBoard && sessionState.status === 'signed-in') {
+    return (
+      <VisionDreamHome
+        controller={visionDreamController}
+        handoffError={dreamHandoffError}
+        onContinue={continuation => {
+          setDreamHandoffError(null);
+          void prepareDreamHandoff(controller, continuation).then(result => {
+            if (result.ok) { setVisionBoard(false); setHome(false); return; }
+            setDreamHandoffError(result.error);
+          });
+        }}
+        onOpenLibrary={() => { setDreamHandoffError(null); setVisionBoard(false); setVisionLibrary(true); }}
+        onNavigate={navigateTo}
+      />
+    );
+  }
+
+  if (visionLibrary && sessionState.status === 'signed-in') {
     return (
       <VisionBoardExperience
         controller={visionBoardController}
@@ -1179,8 +1220,32 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             />}
             status={<div className="space-y-3">
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
-              {continuityChoice && <ContinuityChoice busy={continuityBusy} onContinue={() => void continueWithThisTab()}
-                onStartFresh={() => startNewConversation()} />}
+              {continuityChoice && <div className="space-y-2">
+                <ContinuityChoice busy={continuityBusy || dreamClaimOpen || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling' || !!visionDreamState.pending}
+                  onContinue={() => void continueWithThisTab()} onStartFresh={() => startNewConversation()} />
+                {!dreamClaimOpen ? <button type="button" onClick={() => { setDreamClaimThought(''); setDreamClaimOpen(true); }}
+                  className="min-h-11 text-[0.8rem] text-forest-700 underline underline-offset-2">Save as a private Dream instead</button>
+                : <div className="rounded-2xl border border-cream-200 bg-white p-4 space-y-3">
+                  <div><p className="text-sm font-medium text-forest-800">Save this as a private Dream</p>
+                    <p className="text-xs text-sand-600 mt-1">Write the thought you want to remember. This saves a private Vision IDEA from this same temporary conversation; it does not turn the note into an Agreement fact or send another KS001 message.</p></div>
+                  <textarea value={dreamClaimThought} onChange={event => setDreamClaimThought(event.target.value)}
+                    disabled={!!visionDreamState.pending || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'}
+                    maxLength={4000} rows={4} aria-label="Dream to remember"
+                    className="w-full rounded-xl border border-cream-200 p-3 text-sm text-forest-800 disabled:opacity-60"
+                    placeholder="What do you want to remember from this idea?" />
+                  <p className="text-xs text-sand-500">{dreamClaimThought.length} / 4,000</p>
+                  {visionDreamState.error && <StatusNotice tone="warning" icon={false}>{visionDreamState.error}</StatusNotice>}
+                  <div className="flex flex-wrap gap-2">
+                    {!visionDreamState.pending && <button type="button" disabled={!dreamClaimThought.trim() || visionDreamState.phase === 'saving'} onClick={() => void saveTemporaryAsDream()}
+                      className="min-h-11 rounded-xl bg-forest-700 px-4 text-sm font-medium text-white disabled:opacity-50">{visionDreamState.phase === 'saving' ? 'Saving…' : 'Save Dream'}</button>}
+                    {visionDreamState.pending && <button type="button" disabled={visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'} onClick={() => void retryTemporaryDream()}
+                      className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm text-forest-700 disabled:opacity-50">Retry same save</button>}
+                    {visionDreamState.pending?.conversationId && <button type="button" disabled={visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'} onClick={() => void reconcileTemporaryDream()}
+                      className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm text-forest-700 disabled:opacity-50">{visionDreamState.phase === 'reconciling' ? 'Checking…' : 'Check if it saved'}</button>}
+                    {!visionDreamState.pending && <button type="button" onClick={() => setDreamClaimOpen(false)} className="min-h-11 px-3 text-sm text-sand-600 underline">Cancel</button>}
+                  </div>
+                </div>}
+              </div>}
               <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)}
                 onResolvePoint={point => setMicroReview(point.id)}
                 onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
