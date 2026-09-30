@@ -64,6 +64,15 @@ test('an uncertain/failed Dream POST never discards temporary possession', async
   assert.deepEqual(access.current(), ACCESS);
 });
 
+test('Dream continuation reopens the same conversation with a draft, never an invented turn', () => {
+  assert.deepEqual(api.dreamContinuation(dream({ content: '  Build a small place for mum  ' })), {
+    conversationId: UUID, draftText: 'Build a small place for mum',
+  });
+  assert.deepEqual(api.dreamContinuation(dream({ content: null })), {
+    conversationId: UUID, draftText: 'Build mum a small house',
+  });
+});
+
 test('the first line of a Dream stays the person’s words and is bounded', () => {
   assert.equal(api.dreamTitle('  Build mum a small home\nAnd compare roofs  '), 'Build mum a small home');
   assert.ok(api.dreamTitle('a'.repeat(300)).length <= 200);
