@@ -218,16 +218,18 @@ test('signed-out requests for private areas go to Sign in, never to a dead-end "
 test('Activation stays a signed-in destination and is untouched', async () => {
   const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
   assert.match(runtime, /\/\^#\\\/\?activate\\\/\?\$\//);
-  // Phase 4D (ADR-0024) -- the one deliberate change since Phase 2: RuntimeApp constructs the Organization gateway and
-  // passes it through. Every other line (activation included) is untouched.
+  // Phase 4D adds Organization. Vision V1.4 is the later, explicitly bounded exception: it adds
+  // only the private Dream gateway and passes it to AgentExperience. Activation itself must remain untouched.
   const diff = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/RuntimeApp.tsx'], { encoding: 'utf8' });
   const changed = diff.split('\n').filter(line => /^[+-](?![+-])/.test(line));
   const removed = changed.filter(line => line.startsWith('-')).map(line => line.slice(1));
   const added = changed.filter(line => line.startsWith('+')).map(line => line.slice(1));
-  assert.ok(added.every(line => /organizationGateway|Phase 4D/.test(line)), 'RuntimeApp only gains the Organization gateway');
-  assert.deepEqual(removed.map(line => line.replace(' organizationGateway={organizationGateway}', '')),
-    added.filter(line => line.includes('<AgentExperience')).map(line => line.replace(' organizationGateway={organizationGateway}', '')),
-    'the only replaced line is the AgentExperience call, which gains exactly the Organization gateway');
+  assert.ok(added.every(line => /organizationGateway|visionDreamGateway|api\.visionDreams|Phase 4D/.test(line)),
+    'RuntimeApp gains only the Organization and private Vision Dream gateway wiring');
+  assert.ok(removed.every(line => /return api && agentGateway|<AgentExperience/.test(line)),
+    'Vision may only replace the runtime readiness line and AgentExperience call');
+  assert.ok(changed.every(line => !/activate|Activation/.test(line)), 'Activation routing/configuration remains byte-untouched');
+  assert.match(runtime, /visionDreamGateway=\{visionDreamGateway\}/, 'the private Dream gateway is passed explicitly');
   const signedInHome = text(html(h(api.SignedOutHome, { onStart: noop })));
   assert.match(signedInHome, /Activate SecurePay/, 'the signed-in Home keeps its Activation entry');
   assert.doesNotMatch(publicHomeText, /Activate SecurePay/, 'the public Home no longer uses Activation as its front door');
@@ -535,11 +537,13 @@ test('Agreement Support gains no support authority', async () => {
   // only the community gateway (Join / versioned Principles), and Phase 4B only the business gateway
   // (create / mine / representation, ADR-0022) -- never support.
   const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
-  // Phase 4D (ADR-0024) adds the Organization gateway and registers it (and nothing else) in the gateway index.
+  // Phase 4D adds Organization. Vision V1.4 later adds exactly the private visiondreams gateway.
   // Entry Perfection Phase 2 adds only an optional per-request timeout to the HTTP client (never support).
-  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/index\.ts$/, 'only the agent (Phase 3), community (Phase 4), business (Phase 4B) and organization (Phase 4D) gateways may change after Phase 2');
+  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/visiondreams\/(dto|index)\.ts$|^src\/api\/securepay\/index\.ts$/,
+    'only previously approved gateways plus the bounded private Vision Dream gateway may change after Phase 2');
   const registry = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api/securepay/index.ts'], { encoding: 'utf8' })
     .split('\n').filter(line => /^[+-](?![+-])/.test(line));
-  assert.ok(registry.every(line => line.startsWith('+') && /createOrganizationGateway/.test(line)), 'the gateway index only gains the Organization gateway');
+  assert.ok(registry.every(line => line.startsWith('+') && /createOrganizationGateway|createVisionDreamGateway|visionDreams/.test(line)),
+    'the gateway index gains only Organization and the bounded private Vision Dream gateway');
   assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
 });
