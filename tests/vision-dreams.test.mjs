@@ -231,7 +231,7 @@ test('an optimistic conflict permits refreshing an open note to its latest serve
     create: async () => dream(), get: async () => dream(),
     update: async (_id, body) => {
       calls++;
-      if (body.expectedVersion !== version) throw Error('409 stale version');
+      if (body.expectedVersion !== version) throw new api.ApiError('http', 'stale version', 409, 'VISION_ITEM_CONFLICT');
       return dream({ version: version + 1, title: body.title, content: body.content });
     },
   }, { resumableConversationId: () => null, forgetResumableConversation: () => {},
