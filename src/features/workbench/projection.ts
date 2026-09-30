@@ -427,10 +427,28 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     });
   }
   let hasMoneyItem = false;
+  // Funded certification (C02 live) -- a payment whose figure is carried by the MONEY entity it links shows that figure in its role
+  // (explicit qualifiers win), and the entity is not listed again: the same reading as the API's Review.
+  const figuresShownByPayment = new Set<string>();
+  const withLinkedFigure = (relation: typeof relationships[number]): Record<string, string> => {
+    const figure = [relation.objectEntityId, relation.subjectEntityId].map(id => (id ? byId.get(id) : undefined))
+      .find(e => e && e.type === 'MONEY' && e.attributes.amount && parseAmount(e.attributes.amount).ok);
+    if (!figure) return relation.qualifiers;
+    if (relation.qualifiers.amount) {
+      const own = parseAmount(relation.qualifiers.amount);
+      const linked = parseAmount(figure.attributes.amount);
+      if (own.ok && linked.ok && own.value === linked.value) figuresShownByPayment.add(figure.id);
+      return relation.qualifiers;
+    }
+    figuresShownByPayment.add(figure.id);
+    const carried = Object.fromEntries(['amount', 'currency', 'currencyBasis', 'amountText']
+      .filter(k => figure.attributes[k]).map(k => [k, figure.attributes[k]]));
+    return { ...carried, ...relation.qualifiers };
+  };
   for (const relation of relationships) {
     if (usedRelationshipIds.has(relation.id)) continue;
     const adopt: AdoptTarget[] = relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [];
-    const q = relation.qualifiers;
+    const q = relation.kind === 'PAYMENT_CONDITION' ? withLinkedFigure(relation) : relation.qualifiers;
     if (relation.kind === 'CONDITION' && (q.date || q.startDate)) {
       usedRelationshipIds.add(relation.id);
       const text = q.date ?? q.startDate ?? '';
@@ -471,6 +489,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const entity of entities) {
     if (entity.type !== 'MONEY') continue;
     shownEntityIds.add(entity.id);
+    if (figuresShownByPayment.has(entity.id)) continue;
     hasMoneyItem = true;
     items.push({ key: `money:${entity.id}`, section: 'money', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null, source: entity.source ?? null });
   }

@@ -50,3 +50,13 @@ test('A01 (funded certification) -- an item marked {included: false} reads "Not 
   assert.ok(wb.items.some(i => i.value === 'Not included: Printed album' && i.excluded));
   assert.ok(!wb.items.some(i => /Not included: Edited photos/.test(i.value)));
 });
+
+test('C02 live (funded certification) -- figures carried by the linked MONEY entities show in their roles, each once', async () => {
+  const { readFileSync } = await import('node:fs');
+  const dto = JSON.parse(readFileSync(new URL('./fixtures/closure-c02-live-linked-figures-context.json', import.meta.url), 'utf8'));
+  const wb = api.projectWorkbench(api.tradeContextView(dto));
+  const money = wb.items.filter(i => i.section === 'money');
+  assert.deepEqual(money.map(i => i.value).sort(), ['KES 30,000', 'KES 65,000', 'KES 95,000']);
+  assert.ok(money.find(i => i.value === 'KES 95,000').details.includes('Total price'));
+  assert.ok(money.find(i => i.value === 'KES 30,000').details.includes('Deposit'));
+});
