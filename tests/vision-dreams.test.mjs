@@ -7,6 +7,7 @@ const bundle = await build({
     "export * from './src/features/visionboard/dreams/controller';",
     "export * from './src/api/securepay/visiondreams';",
     "export * from './src/api/securepay/agent/continuity';",
+    "export { ApiError } from './src/api/securepay/http';",
   ].join('\n'), resolveDir: process.cwd() },
   bundle: true, write: false, format: 'esm', platform: 'node',
 });
