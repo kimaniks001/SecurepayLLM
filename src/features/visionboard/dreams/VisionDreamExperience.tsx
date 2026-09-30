@@ -26,6 +26,8 @@ export function VisionDreamExperience({ controller, onContinue }: {
   useEffect(() => {
     setTitle(state.selected?.title ?? '');
     setNote(state.selected?.content ?? '');
+    setReviewShare(false);
+    setShareDraft('');
   }, [state.selected]);
 
   if (state.selected) {
