@@ -56,3 +56,22 @@ service retains the unique-per-conversation pointer and authorization checks.
 V1.4 Home mounting remains withheld: AgentExperience is being edited separately
 in Claude's Gate 1 UI PR #74, and Dream's initial note must remain clearly advisory,
 not a fabricated historical KS001 chat turn.
+
+
+## V1.3/V1.4 continued implementation boundary
+
+- Refreshing an open Dream now makes an owner-scoped GET by Dream ID in parallel with
+  the recent list read. The bounded list (30) is not proof that an older selected note
+  disappeared; the note remains open even when no longer on the first list page.
+- A selected-Dream response carrying another ID is refused without replacing the
+  old note. Regression cases added for both scenarios.
+- The new `VisionDreamHome` composes the Dream-first signed-in experience with
+  an explicit doorway to the **existing** Vision Library. Its `onContinue` callback
+  carries the same conversation ID and draft text for human review; it does not
+  auto-send a chat turn, create Agreement facts, or grant money authority.
+- The component is intentionally isolated, not mounted into `AgentExperience`
+  while Gate 1 UI #74 owns that shared router.
+
+Verification remains evidence-based: authored regressions and a composed entry
+do not prove browser or backend behaviour. Do not merge or deploy before actual
+UI checks, real HTTP claim checks, PostgreSQL migration and owner isolation pass.
