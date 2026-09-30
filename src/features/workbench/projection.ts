@@ -111,10 +111,21 @@ export const excludedThingNamedBy = (qualifiers: Record<string, string>): string
     && !EXCLUSION_TRUTHY.has(v.trim().toLowerCase()));
   return hit ? hit[1].trim() : null;
 };
+// Gate 1 closure (C02, D12 live) -- the buyer side, read structurally exactly as the API's BuyerSide/RoleVocabulary does.
+const BUYER_WORDS = new Set(['buyer', 'client', 'customer', 'you', 'me', 'myself', 'yourself']);
+const isBuyerWord = (value?: string | null): boolean => !!value && BUYER_WORDS.has(value.trim().toLowerCase());
+const EXCLUDES_LIST_KEYS = new Set(['excludes', 'exclusions', 'excludeditems', 'notincludeditems']);
+/** Gate 1 closure (Q06) -- the value of an entity's structured excludes-list attribute, else null. A key, never wording. */
+export const excludesListOf = (attributes: Record<string, string>): string | null => {
+  const hit = Object.entries(attributes).find(([k, v]) => EXCLUDES_LIST_KEYS.has(k.toLowerCase().replace(/_/g, '')) && (v ?? '').trim()
+    && !EXCLUSION_TRUTHY.has(v.trim().toLowerCase()));
+  return hit ? hit[1].trim() : null;
+};
 /** Phase 1.10 (M05) -- the item being ordered/priced is what the agreement is about; a subject-only exclusion never names it. */
-const isPrimaryObligation = (item: ExclusionEnd, relationships: readonly ExclusionLink[]): boolean =>
+const isPrimaryObligation = (item: ExclusionEnd, relationships: readonly ExclusionLink[], isBuyer: (id?: string | null) => boolean = () => false): boolean =>
   Object.keys(item.attributes ?? {}).some(k => ['unitprice', 'linetotal', 'amount', 'price'].includes(k.toLowerCase().replace(/_/g, '')))
-  || relationships.some(r => (r.kind === 'RESPONSIBILITY' || r.kind === 'DELIVERY') && r.objectEntityId === item.id && !isExcludedEntity(r.qualifiers ?? {}));
+  || relationships.some(r => (r.kind === 'RESPONSIBILITY' || r.kind === 'DELIVERY') && r.objectEntityId === item.id && !isExcludedEntity(r.qualifiers ?? {})
+    && !isBuyer(r.subjectEntityId));
 /** Phase 1.8B/1.10 -- the same rule as the API's Exclusions.excludedThing: never a party, never the work when a thing points at it. */
 export const excludedRelationThing = (
   relation: ExclusionLink,
@@ -151,6 +162,8 @@ const RESERVED_DETAIL_KEYS = new Set([
   'discoveryinvited',
   // Phase 1.6 -- provenance markers (which part of the evidence a value was read from), never a descriptive detail.
   'amountreadfrom', 'taskfrom',
+  // Gate 1 closure (Q06) -- a work's excludes-list is shown as "Not included", never as an ordinary detail of the work.
+  'excludes', 'exclusions', 'excludeditems', 'notincludeditems',
 ]);
 const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
 
@@ -283,6 +296,35 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     });
   }
 
+  // Gate 1 closure (C02, D12 live) -- in an agreement for work, an item the buyer supplies is not included in the provider's scope.
+  const isBuyerParty = (id?: string | null): boolean => {
+    const party = id ? byId.get(id) : undefined;
+    if (!party || (party.type !== 'PERSON' && party.type !== 'ORGANIZATION')) return false;
+    return isBuyerWord(party.attributes.role)
+      || relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === party.id && isBuyerWord(r.qualifiers.role));
+  };
+  const workAgreement = entities.some(e => e.type === 'SERVICE' && !isExcludedEntity(e.attributes));
+  for (const item of workAgreement ? entities : []) {
+    if (item.type !== 'ITEM' || !item.name.trim() || isExcludedEntity(item.attributes)) continue;
+    const suppliedByBuyer = isBuyerWord(item.attributes.suppliedBy) || isBuyerWord(item.attributes.providedBy)
+      || relationships.some(r => (r.kind === 'CONDITION' || r.kind === 'RESPONSIBILITY') && !isExcludedEntity(r.qualifiers)
+        && ((r.objectEntityId === item.id && isBuyerParty(r.subjectEntityId)) || (r.subjectEntityId === item.id && isBuyerParty(r.objectEntityId))));
+    const value = `Not included: ${excludedThingName(item.name)}`;
+    if (!suppliedByBuyer || isPrimaryObligation(item, relationships, isBuyerParty) || items.some(i => i.excluded && i.value.toLowerCase() === value.toLowerCase())) continue;
+    items.push({
+      key: `excluded-supplied:${item.id}`, section: 'responsibilities', excluded: true, value, details: ["you'll provide this yourself"],
+      state: item.state, adopt: [], spec: null, source: item.source ?? null,
+    });
+  }
+  // Gate 1 closure (Q06) -- a work's own structured excludes-list.
+  for (const entity of entities) {
+    const listed = excludesListOf(entity.attributes);
+    if (!listed || items.some(i => i.excluded && i.value.toLowerCase() === `not included: ${listed}`.toLowerCase())) continue;
+    items.push({
+      key: `excluded-list:${entity.id}`, section: 'responsibilities', excluded: true, value: `Not included: ${listed}`, details: [],
+      state: entity.state, adopt: [], spec: null, source: entity.source ?? null,
+    });
+  }
   // Phase 1.10 (M05) -- a structured qualifier NAMING the excluded thing, on any relationship (the relationship keeps its own meaning).
   for (const relation of relationships) {
     const named = excludedThingNamedBy(relation.qualifiers);

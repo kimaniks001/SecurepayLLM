@@ -139,3 +139,10 @@ go through") in 3 of 24 campaign conversations; the adapter now reads a subject-
 genuinely malformed relationship (developer warning, nothing shown to the person). An explicit exclusion marker on a ROLE link and a
 structured `excluded_item` qualifier now read as "Not included"; a subject-only exclusion never names the item being ordered.
 `tests/gate1-phase110.test.mjs` (6; 4 failed before). API UR-288.
+
+## Gate 1 closure (UI half) — buyer-supplied items and excludes-lists
+
+Panel parity with the API's Review for the Phase 1.11 shapes (claude-sonnet-5): in an agreement for work, an item the buyer supplies
+(C02 "I buy the tiles", read structurally from the buyer/client/customer role, never wording) reads "Not included — you'll provide
+this yourself"; a work's structured `excludes` list (Q06) reads "Not included" and is not shown as an ordinary detail.
+`tests/gate1-closure.test.mjs` (3; 2 failed before). API UR-289.
