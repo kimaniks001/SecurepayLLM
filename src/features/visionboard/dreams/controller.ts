@@ -88,12 +88,20 @@ export function createVisionDreamController(
           || state.phase === 'reconciling' || state.phase === 'editing') return;
       update({ phase: 'loading', error: null });
       try {
-        const latest = await dreams.mine();
-        // Refresh an open note as well as the list, so an optimistic-lock conflict can
-        // be resolved from server truth rather than trapping the editor at a stale version.
+        // The bounded recent-Dream list is NOT a complete lookup: an older open Dream
+        // can fall outside its 30-item window. Refresh the selected note by its own
+        // authenticated, owner-scoped ID rather than silently closing the editor.
         const selectedId = state.selected?.dreamId;
-        update({ phase: 'ready', dreams: latest,
-          selected: selectedId ? latest.find(d => d.dreamId === selectedId) ?? null : null, error: null });
+        const [latest, selected] = await Promise.all([
+          dreams.mine(),
+          selectedId ? dreams.get(selectedId) : Promise.resolve(null),
+        ]);
+        if (selectedId && selected?.dreamId !== selectedId) {
+          throw new Error('SecurePay returned a different Dream. Your open note has not been replaced.');
+        }
+        update({ phase: 'ready',
+          dreams: selected ? latest.map(d => d.dreamId === selectedId ? selected : d) : latest,
+          selected, error: null });
       } catch (error) {
         update({ phase: 'error', error: errorText(error) });
       }
