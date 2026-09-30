@@ -677,7 +677,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (!resumableAnonymous) return;
     setContinuityBusy(true);
     try {
-      await gateway.saveBuild(resumableAnonymous); // the ONE BUILD claim: explicit, with the possession proof, exactly once
+      await gateway.saveBuild(resumableAnonymous); // the ONE claim: explicit, with the possession proof, exactly once
       setDreamClaimOpen(false);
       setContinuityDismissed(true);
     } catch {
