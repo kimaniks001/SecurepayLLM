@@ -69,7 +69,12 @@ export function createVisionDreamController(
       if (state.phase === 'loading' || state.phase === 'saving') return;
       update({ phase: 'loading', error: null });
       try {
-        update({ phase: 'ready', dreams: await dreams.mine(), error: null });
+        const latest = await dreams.mine();
+        // Refresh an open note as well as the list, so an optimistic-lock conflict can
+        // be resolved from server truth rather than trapping the editor at a stale version.
+        const selectedId = state.selected?.dreamId;
+        update({ phase: 'ready', dreams: latest,
+          selected: selectedId ? latest.find(d => d.dreamId === selectedId) ?? null : null, error: null });
       } catch (error) {
         update({ phase: 'error', error: errorText(error) });
       }
