@@ -19,6 +19,8 @@ export function VisionDreamExperience({ controller, onContinue }: {
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const [reviewShare, setReviewShare] = useState(false);
+  const [shareDraft, setShareDraft] = useState('');
 
   useEffect(() => { void controller.load(); }, [controller]);
   useEffect(() => {
