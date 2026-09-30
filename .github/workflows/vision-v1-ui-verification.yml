@@ -38,6 +38,8 @@ jobs:
         run: npm ci
       - name: Vision Dream regressions (real execution)
         run: node --test tests/vision-dreams.test.mjs
+      - name: Full frontend Node regression
+        run: node --test tests/*.test.mjs
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
