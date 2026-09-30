@@ -47,7 +47,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
         <p className="text-xs text-sand-500">This is your editable note, not an agreement or an AI-confirmed fact.</p>
         {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={selected.locked || selected.superseded || state.phase === 'editing' || !title.trim()}
+          <Button disabled={selected.locked || selected.superseded || state.phase !== 'ready' || !title.trim()}
             onClick={() => void controller.saveSummary(title, note, selected.version)}>Save thoughts</Button>
           {onContinue && <Button variant="secondary" onClick={() => onContinue(selected.conversationId)}>
             Continue with KS001 <ArrowRight className="size-4" />
@@ -76,20 +76,20 @@ export function VisionDreamExperience({ controller, onContinue }: {
       </label>
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs text-sand-500">{thought.length} / 4,000</span>
-        <Button disabled={!thought.trim() || state.phase === 'saving' || !!state.pending}
+        <Button disabled={!thought.trim() || state.phase === 'loading' || state.phase === 'saving' || state.phase === 'reconciling' || !!state.pending}
           onClick={async () => { const created = await controller.start(thought); if (created) setThought(''); }}>
           {state.phase === 'saving' ? 'Saving…' : 'Start a Dream'} <ArrowRight className="size-4" />
         </Button>
       </div>
       {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
       {state.pending && <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" disabled={state.phase === 'saving'}
+        <Button variant="secondary" disabled={state.phase === 'saving' || state.phase === 'reconciling'}
           onClick={async () => { const saved = await controller.retry(); if (saved) setThought(''); }}>
           <RefreshCw className="size-4" /> Retry saving this Dream
         </Button>
-        {state.pending.conversationId && <Button variant="secondary" disabled={state.phase === 'saving'}
+        {state.pending.conversationId && <Button variant="secondary" disabled={state.phase === 'saving' || state.phase === 'reconciling'}
           onClick={async () => { const found = await controller.reconcilePending(); if (found) setThought(''); }}>
-          Check if it saved
+          {state.phase === 'reconciling' ? 'Checking…' : 'Check if it saved'}
         </Button>}
         {!state.pending.conversationId
           ? <Button variant="secondary" onClick={() => controller.cancelPending()}>Edit my thought</Button>

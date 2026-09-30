@@ -11,7 +11,7 @@ export function dreamTitle(initialThought: string): string {
   return first.length > 200 ? first.slice(0, 197).trimEnd() + '…' : first;
 }
 export interface VisionDreamState {
-  phase: 'idle' | 'loading' | 'ready' | 'saving' | 'editing' | 'error';
+  phase: 'idle' | 'loading' | 'ready' | 'saving' | 'reconciling' | 'editing' | 'error';
   dreams: VisionDreamDto[];
   selected: VisionDreamDto | null;
   error: string | null;
@@ -33,7 +33,7 @@ export function createVisionDreamController(
   };
   async function savePending(): Promise<VisionDreamDto | null> {
     const pending = state.pending;
-    if (!pending || state.phase === 'saving') return null;
+    if (!pending || state.phase === 'saving' || state.phase === 'reconciling') return null;
     update({ phase: 'saving', error: null });
     let id = pending.conversationId;
     try {
@@ -75,7 +75,7 @@ export function createVisionDreamController(
       }
     },
     async start(thought: string): Promise<VisionDreamDto | null> {
-      if (state.phase === 'saving' || state.pending) return null;
+      if (state.phase === 'loading' || state.phase === 'saving' || state.phase === 'reconciling' || state.pending) return null;
       const clean = thought.trim();
       if (!clean || clean.length > MAX_INITIAL_THOUGHT) {
         update({ phase: 'error', error: 'Write something to explore (up to 4,000 characters).' });
@@ -88,8 +88,8 @@ export function createVisionDreamController(
     /** Network failure may follow a server commit. Check before trying the same POST again. */
     async reconcilePending(): Promise<VisionDreamDto | null> {
       const pending = state.pending;
-      if (!pending?.conversationId || state.phase === 'saving') return null;
-      update({ phase: 'loading', error: null });
+      if (!pending?.conversationId || state.phase === 'saving' || state.phase === 'reconciling') return null;
+      update({ phase: 'reconciling', error: null });
       try {
         const all = await dreams.mine();
         const found = all.find(d => d.conversationId === pending.conversationId);
@@ -111,6 +111,7 @@ export function createVisionDreamController(
      */
     abandonPending() {
       const id = state.pending?.conversationId;
+      if (state.phase === 'saving' || state.phase === 'reconciling') return;
       if (id && agent.resumableConversationId() === id) agent.forgetResumableConversation();
       update({ pending: null, phase: 'ready', error: null });
     },
@@ -125,7 +126,7 @@ export function createVisionDreamController(
     close() { update({ selected: null, error: null }); },
     async saveSummary(title: string, content: string, expectedVersion: number): Promise<boolean> {
       const selected = state.selected;
-      if (!selected || state.phase === 'editing' || selected.locked || selected.superseded) return false;
+      if (!selected || state.phase !== 'ready' || selected.locked || selected.superseded) return false;
       if (!title.trim() || title.trim().length > 200 || content.length > MAX_INITIAL_THOUGHT) {
         update({ error: 'Please check the title and note lengths.' });
         return false;
