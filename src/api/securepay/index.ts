@@ -27,6 +27,7 @@ import { createBusinessCurrencyCapabilityGateway } from './business-currency-cap
 import { createBusinessFxApplicationGateway } from './business-fx-application';
 import { createProjectGateway } from './projects';
 import { createVisionBoardGateway } from './visionboard';
+import { createVisionDreamGateway } from './visiondreams';
 import { createSettingsGateway } from './settings';
 import { createNotificationsGateway } from './notifications';
 import { createBusinessGateway } from './business';
@@ -50,6 +51,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     businessCurrencyCapability: createBusinessCurrencyCapabilityGateway(http), businessFxApplication: createBusinessFxApplicationGateway(http),
     projects: createProjectGateway(http),
     visionBoard: createVisionBoardGateway(http),
+    visionDreams: createVisionDreamGateway(http),
     settings: createSettingsGateway(http),
     notifications: createNotificationsGateway(http),
     business: createBusinessGateway(http),
