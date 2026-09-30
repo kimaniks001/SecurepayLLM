@@ -205,5 +205,46 @@ test('rejected optimistic update retains original Dream and surfaces an error', 
   controller.select(OTHER);
   assert.equal(await controller.saveSummary('Changed', 'Changed', 1), false);
   assert.equal(controller.getSnapshot().selected.title, 'Build mum a small house');
+  assert.equal(controller.getSnapshot().phase, 'ready'); // error message does not deadlock Save
   assert.match(controller.getSnapshot().error, /409/);
+});
+
+test('inconsistent successful Dream claim never discards matching temporary possession', async () => {
+  const access = makeAccess();
+  access.remember(ACCESS);
+  const gateway = api.createVisionDreamGateway({
+    request: async () => dream({ conversationId: OTHER }),
+  }, access);
+  await assert.rejects(
+    gateway.create({ conversationId: UUID, title: 'A home', initialThought: 'Build a home' }),
+    /different conversation/,
+  );
+  assert.deepEqual(access.current(), ACCESS);
+});
+
+test('an optimistic conflict permits refreshing an open note to its latest server version', async () => {
+  let version = 1;
+  let calls = 0;
+  const controller = api.createVisionDreamController({
+    mine: async () => [dream({ version, title: version === 1 ? 'Old note' : 'Updated elsewhere' })],
+    create: async () => dream(), get: async () => dream(),
+    update: async (_id, body) => {
+      calls++;
+      if (body.expectedVersion !== version) throw Error('409 stale version');
+      return dream({ version: version + 1, title: body.title, content: body.content });
+    },
+  }, { resumableConversationId: () => null, forgetResumableConversation: () => {},
+    createConversation: async () => ({ conversationId: UUID }) });
+  await controller.load();
+  controller.select(OTHER);
+  version = 2; // an update was committed from another session
+  assert.equal(await controller.saveSummary('My correction', 'A newer thought', 1), false);
+  assert.equal(controller.getSnapshot().phase, 'ready');
+  assert.equal(controller.getSnapshot().selected.version, 1);
+  await controller.load();
+  assert.equal(controller.getSnapshot().selected.version, 2);
+  assert.equal(controller.getSnapshot().selected.title, 'Updated elsewhere');
+  assert.equal(await controller.saveSummary('My correction', 'A newer thought', 2), true);
+  assert.equal(controller.getSnapshot().selected.version, 3);
+  assert.equal(calls, 2);
 });
