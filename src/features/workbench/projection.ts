@@ -93,9 +93,11 @@ const MONEY_ROLE_LABEL: Record<string, string> = {
 };
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
 /** Phase 1.6 (Blocker 5) -- the same explicit exclusion markers the backend normalises (never negative wording). */
-const EXCLUSION_KEYS = ['excluded', 'notIncluded', 'isExcluded', 'exclusion'];
+// Phase 1.8 -- exactly the backend's accepted explicit markers (Exclusions.EXCLUSION_KEYS / TRUTHY), case-insensitive keys.
+const EXCLUSION_KEYS = new Set(['excluded', 'notincluded', 'negated', 'exclusion', 'isexcluded']);
+const EXCLUSION_TRUTHY = new Set(['true', 'yes', 'y', '1', 'excluded', 'not included']);
 export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
-  EXCLUSION_KEYS.some(k => ['true', 'yes', 'excluded', 'not included'].includes((attributes[k] ?? '').trim().toLowerCase()));
+  Object.entries(attributes).some(([k, v]) => EXCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && EXCLUSION_TRUTHY.has((v ?? '').trim().toLowerCase()));
 /** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
 export const excludedThingName = (name: string): string =>
   name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;

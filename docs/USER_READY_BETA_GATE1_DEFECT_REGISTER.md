@@ -117,3 +117,10 @@ description (Maji Bora → pump) was dropped. The panel now shows "Not included:
 description-less responsibility by the work it points at, exactly as the API's Review does. `tests/gate1-phase16.test.mjs` (5; 3
 of the 4 behavioural cases fail on the pre-fix projection). Browser evidence for EP-CERT-003/007 was recorded in the Phase 1.5 run;
 EP-CERT-004 remains open until the final paid rerun (API Blocker 2, false schedule mismatch, now fixed in code).
+
+## Phase 1.8 (UI half) — A02 exclusion markers
+
+The panel's "Not included" reading now uses the same explicit marker vocabulary as the API (keys `excluded`, `notIncluded`,
+`negated`, `exclusion`, `isExcluded`, case-insensitive; values `true`, `yes`, `y`, `1`, `excluded`, `not included`); no phrase
+handling. `tests/gate1-phase16.test.mjs` +1 (7). The exact A02 funded-run shape was not retained, so A02 is not proven closed
+(API UR-286).

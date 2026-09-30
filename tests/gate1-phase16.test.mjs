@@ -66,3 +66,8 @@ test('Phase 1.6 (C) -- provenance markers are never shown as details; the eviden
   assert.deepEqual(bySection(wb, 'responsibilities'), ['Maji Bora Drillers Ltd: supply and install a new 1.5 HP submersible pump']);
   assert.ok(!wb.items.some(i => (i.details ?? []).some(d => /read from|amountReadFrom|taskFrom/i.test(JSON.stringify(d)))));
 });
+
+test('Phase 1.8 (A02) -- every accepted explicit exclusion marker converges; wording alone never does', () => {
+  for (const m of [{ negated: 'true' }, { excluded: 'y' }, { isExcluded: '1' }, { notIncluded: 'yes' }]) assert.equal(api.isExcludedEntity(m), true, JSON.stringify(m));
+  assert.equal(api.isExcludedEntity({ note: "you'll buy the paint" }), false);
+});
