@@ -116,7 +116,8 @@ export function VisionDreamExperience({ controller, onContinue }: {
       {state.phase !== 'loading' && state.dreams.length === 0 && <p className="text-sm text-sand-600">Your first Dream can start with a single sentence.</p>}
       <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {state.dreams.map(dream => <li key={dream.dreamId}>
-          <button type="button" className="w-full min-h-20 text-left rounded-2xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400"
+          <button type="button" disabled={!!state.pending || state.phase === 'loading' || state.phase === 'saving' || state.phase === 'reconciling'}
+            className="w-full min-h-20 text-left rounded-2xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400 disabled:opacity-50"
             onClick={() => controller.select(dream.dreamId)}>
             <span className="block text-sm font-medium text-forest-800">{dream.title}</span>
             <span className="block text-xs mt-1 text-sand-600 line-clamp-2">{dream.content || 'Continue this thought'}</span>
