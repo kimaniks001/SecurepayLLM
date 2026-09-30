@@ -73,6 +73,20 @@ test('Dream continuation reopens the same conversation with a draft, never an in
   });
 });
 
+test('a long Dream is never silently truncated into the 1,200-character KS001 composer', () => {
+  const longThought = 'a'.repeat(1400);
+  assert.throws(
+    () => api.dreamContinuation(dream({ content: longThought })),
+    /Choose up to 1,200 characters/,
+  );
+  assert.deepEqual(
+    api.dreamContinuation(dream({ content: longThought }), 'Please help me explore this home idea.'),
+    { conversationId: UUID, draftText: 'Please help me explore this home idea.' },
+  );
+  assert.throws(() => api.dreamContinuation(dream(), '  '), /Choose up to 1,200 characters/);
+  assert.equal(api.MAX_KS001_DRAFT, 1200);
+});
+
 test('the first line of a Dream stays the person’s words and is bounded', () => {
   assert.equal(api.dreamTitle('  Build mum a small home\nAnd compare roofs  '), 'Build mum a small home');
   assert.ok(api.dreamTitle('a'.repeat(300)).length <= 200);
