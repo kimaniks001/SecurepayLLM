@@ -65,6 +65,27 @@ export function VisionDreamExperience({ controller, onContinue }: {
             Explore with KS001 <ArrowRight className="size-4" />
           </Button>}
         </div>
+        {reviewShare && onContinue && <div className="space-y-3 rounded-2xl border border-forest-200 bg-forest-50/40 p-4">
+          <p className="font-medium text-sm text-forest-800">What would you like to discuss with KS001?</p>
+          <p className="text-xs text-sand-600">Review or shorten your words before opening the same conversation. Your complete Dream note remains saved; nothing is sent automatically.</p>
+          <label className="block">
+            <span className="sr-only">Draft to discuss with KS001</span>
+            <textarea value={shareDraft} onChange={event => setShareDraft(event.target.value)}
+              rows={5} className="w-full rounded-xl border border-cream-200 bg-white p-3 text-sm text-forest-800"
+              aria-label="Draft to discuss with KS001" />
+          </label>
+          <p className="text-xs text-sand-600" role="status">
+            {shareDraft.length} / {MAX_KS001_DRAFT} characters
+            {shareDraft.trim().length > MAX_KS001_DRAFT ? ' — choose a shorter passage; no words will be silently dropped.' : ''}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={!shareDraft.trim() || shareDraft.trim().length > MAX_KS001_DRAFT}
+              onClick={() => { onContinue(dreamContinuation(selected, shareDraft)); setReviewShare(false); }}>
+              Open KS001 with this draft <ArrowRight className="size-4" />
+            </Button>
+            <Button variant="ghost" onClick={() => setReviewShare(false)}>Keep this private for now</Button>
+          </div>
+        </div>}
         {selected.superseded && <p className="text-sm text-sand-600">A newer Library version exists. This historical note cannot be edited here.</p>}
         {selected.locked && <p className="text-sm text-sand-600">
           This note is locked. Use the existing Vision Library to unlock or supersede it.
