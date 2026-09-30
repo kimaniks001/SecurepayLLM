@@ -92,6 +92,13 @@ const MONEY_ROLE_LABEL: Record<string, string> = {
   fee: 'Fee', budget: 'Budget', unspecified: 'What this is for isn’t clear',
 };
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
+/** Phase 1.6 (Blocker 5) -- the same explicit exclusion markers the backend normalises (never negative wording). */
+const EXCLUSION_KEYS = ['excluded', 'notIncluded', 'isExcluded', 'exclusion'];
+export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
+  EXCLUSION_KEYS.some(k => ['true', 'yes', 'excluded', 'not included'].includes((attributes[k] ?? '').trim().toLowerCase()));
+/** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
+export const excludedThingName = (name: string): string =>
+  name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;
 
 /**
  * Generic, non-domain-specific attribute keys never shown/offered as an ordinary descriptive detail
@@ -196,7 +203,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const relation of relationships) {
     if (relation.kind !== 'RESPONSIBILITY') continue;
     const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
-    const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers);
+    // Phase 1.6 (Blocker 6) -- a responsibility with no description names the work it points at (a SERVICE/ITEM), as Review does.
+    const work = [relation.objectEntityId, relation.subjectEntityId].map(id => (id ? byId.get(id) : undefined))
+      .find(e => e && (e.type === 'SERVICE' || e.type === 'ITEM'));
+    const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers) || work?.name || '';
     if (!text) continue;
     usedRelationshipIds.add(relation.id);
     // Entry Perfection Phase 5 -- a negated obligation reads as what it is: not part of this party's job.
@@ -206,6 +216,22 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       value: excluded ? `Not included${subject ? ` for ${subject.name}` : ''}: ${text}` : subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
       spec: null, source: relation.source ?? null,
+    });
+  }
+
+  // --- NOT INCLUDED (User-Ready Beta Gate 1 Phase 1.6, Blocker 5) ------------------------------------
+  // The understanding itself marks a thing excluded ("I'll buy the tiles", "Drinks are not included"): the real model records
+  // it as ITEM "Tiles" {excluded: true} or CONCEPT "Drinks excluded" {excluded: true}. It reads as what it is -- never as
+  // something being made, and never as an unexplained "Also understood" line. Only the explicit marker counts.
+  for (const entity of entities) {
+    if (entity.type === 'PERSON' || entity.type === 'ORGANIZATION' || !isExcludedEntity(entity.attributes)) continue;
+    shownEntityIds.add(entity.id);
+    const note = entity.attributes.note ?? entity.attributes.suppliedBy;
+    items.push({
+      key: `excluded:${entity.id}`, section: 'responsibilities', excluded: true,
+      value: `Not included: ${excludedThingName(entity.name)}`, details: note ? [note] : [], state: entity.state,
+      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
+      spec: null, source: entity.source ?? null,
     });
   }
 
@@ -236,7 +262,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const entity of entities) {
     const purpose = entity.attributes.purposeSubject ?? entity.attributes.purposeType;
     const isWhat = entity.type === 'SERVICE' || entity.type === 'ITEM' || (entity.type === 'CONCEPT' && !!purpose);
-    if (!isWhat) continue;
+    if (!isWhat || shownEntityIds.has(entity.id)) continue;
     shownEntityIds.add(entity.id);
     // Generic, bounded descriptive details (a shoe's size, a painter's finish, a parcel's area, ...) --
     // whatever this entity's own attributes actually hold, never a hard-coded "known concept" list (Phase

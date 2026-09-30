@@ -108,3 +108,12 @@ which does not complete within the product's bounds on claude-sonnet-5 (API UR-2
 (API UR-281, EP-CERT-004 not closed against the real model's shape). These entries therefore stay at their previous status
 (CLOSED (unit/source)); EP-CERT-004 is reopened as PARTIAL pending UR-281. Gate 1 verdict: NOT COMPLETE (see API
 `docs/operations/USER_READY_BETA_GATE1_API_COMPLETION.md`, draft PR #278).
+
+## Phase 1.6 (UI half) — Blockers 5 and 6 in the understanding panel
+
+Real claude-sonnet-5 shapes from the final paid run: the excluded thing marked on the item itself (ITEM "Tiles" {excluded},
+CONCEPT "Drinks excluded" {excluded}) fell under "Also understood" / "What we're making happen"; a responsibility with no
+description (Maji Bora → pump) was dropped. The panel now shows "Not included: Tiles" (explicit marker only) and names a
+description-less responsibility by the work it points at, exactly as the API's Review does. `tests/gate1-phase16.test.mjs` (5; 3
+of the 4 behavioural cases fail on the pre-fix projection). Browser evidence for EP-CERT-003/007 was recorded in the Phase 1.5 run;
+EP-CERT-004 remains open until the final paid rerun (API Blocker 2, false schedule mismatch, now fixed in code).
