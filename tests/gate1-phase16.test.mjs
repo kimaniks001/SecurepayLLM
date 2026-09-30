@@ -58,3 +58,11 @@ test('Blocker 6 -- no work and no description: nothing is invented', () => {
   const wb = project([entity('m', 'ORGANIZATION', 'Maji Bora Drillers Ltd'), entity('g', 'PERSON', 'Grace Achieng')], [rel('r', 'RESPONSIBILITY', 'm', 'g')]);
   assert.deepEqual(bySection(wb, 'responsibilities'), []);
 });
+
+test('Phase 1.6 (C) -- provenance markers are never shown as details; the evidenced task names the duty', () => {
+  const wb = project([entity('m', 'ORGANIZATION', 'Maji Bora Drillers Ltd'), entity('p', 'ITEM', '1.5 HP submersible pump'),
+    entity('t', 'MONEY', 'KES 75,000', { amount: '75000', currency: 'KES', amountText: 'KES 75,000', amountReadFrom: 'name' })],
+    [rel('r', 'RESPONSIBILITY', 'm', 'p', { task: 'supply and install a new 1.5 HP submersible pump', taskFrom: 'excerpt' })]);
+  assert.deepEqual(bySection(wb, 'responsibilities'), ['Maji Bora Drillers Ltd: supply and install a new 1.5 HP submersible pump']);
+  assert.ok(!wb.items.some(i => (i.details ?? []).some(d => /read from|amountReadFrom|taskFrom/i.test(JSON.stringify(d)))));
+});

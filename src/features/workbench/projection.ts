@@ -86,7 +86,7 @@ const ROLE_LABELS: Record<string, string> = {
 const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 // Entry Perfection Phase 5 -- evidence bookkeeping is never shown raw: excluded/moneyRole/currencyBasis/amountText are
 // rendered as words ("Not included", "Deposit", "Currency assumed") or not at all.
-const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText']);
+const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText', 'taskFrom', 'amountReadFrom']);
 const MONEY_ROLE_LABEL: Record<string, string> = {
   total: 'Total price', deposit: 'Deposit', balance: 'Balance', instalment: 'Instalment', unit_price: 'Unit price', tax: 'Tax',
   fee: 'Fee', budget: 'Budget', unspecified: 'What this is for isn’t clear',
@@ -120,6 +120,8 @@ const RESERVED_DETAIL_KEYS = new Set([
   // javadoc for the full root-cause explanation of why an entity attribute was the wrong shape). If this
   // key were ever reintroduced by mistake, it must still never render as an ordinary descriptive detail.
   'discoveryinvited',
+  // Phase 1.6 -- provenance markers (which part of the evidence a value was read from), never a descriptive detail.
+  'amountreadfrom', 'taskfrom',
 ]);
 const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
 
@@ -206,7 +208,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     // Phase 1.6 (Blocker 6) -- a responsibility with no description names the work it points at (a SERVICE/ITEM), as Review does.
     const work = [relation.objectEntityId, relation.subjectEntityId].map(id => (id ? byId.get(id) : undefined))
       .find(e => e && (e.type === 'SERVICE' || e.type === 'ITEM'));
-    const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers) || work?.name || '';
+    const text = relation.qualifiers.action || relation.qualifiers.task || describeQualifiers(relation.qualifiers) || work?.name || '';
     if (!text) continue;
     usedRelationshipIds.add(relation.id);
     // Entry Perfection Phase 5 -- a negated obligation reads as what it is: not part of this party's job.
