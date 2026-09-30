@@ -200,7 +200,7 @@ test('rejected optimistic update retains original Dream and surfaces an error', 
   const controller = api.createVisionDreamController({
     mine: async () => [dream()],
     create: async () => dream(), get: async () => dream(),
-    update: async () => { throw Error('409 stale version'); },
+    update: async () => { throw new api.ApiError('http', 'stale version', 409, 'VISION_ITEM_CONFLICT'); },
   }, { resumableConversationId: () => null, forgetResumableConversation: () => {}, createConversation: async () => ({ conversationId: UUID }) });
   await controller.load();
   controller.select(OTHER);
