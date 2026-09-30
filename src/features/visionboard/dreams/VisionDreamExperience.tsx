@@ -7,7 +7,8 @@ import { dreamContinuation, type VisionDreamController } from './controller';
 
 /**
  * A composable Dream-first Vision surface. Mount above the existing Library once Claude's
- * Gate 1 router changes are reconciled. onContinue must reopen the SAME conversation ID.
+ * Gate 1 router changes are reconciled. onContinue must reopen the SAME conversation ID
+ * and put draftText in the human composer without sending a KS001 turn automatically.
  */
 export function VisionDreamExperience({ controller, onContinue }: {
   controller: VisionDreamController;
