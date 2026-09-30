@@ -32,3 +32,27 @@ Node tests, typecheck, lint, build, real Postgres and HTTP tests of claim
 and wrong/expired/foreign conversation; real desktop/mobile browser after
 Gate 1 branch reconciliation. No runtime pass is claimed solely because
 this file or the corresponding tests were written.
+
+## Continued V1.3 hardening (2026-09-30)
+
+The isolated UI branch now retains temporary possession if a Dream POST reports the
+wrong conversation ID; it no longer treats any HTTP success as a valid claim.
+A failed PATCH leaves the editor actionable and its previous version intact.
+"Refresh note" rereads the owner's current server-backed Dream and selected
+version so optimistic conflicts can be resolved without inventing a local success.
+An uncertain pending claim cannot be obscured by Dream selection/list refresh.
+Regressions covering those states were added to `tests/vision-dreams.test.mjs`.
+
+**Evidence boundary:** the code and tests are committed, but repository executable
+verification remains pending. The available API GitHub Actions jobs ended without a
+runner name and with zero recorded steps. No UI workflow run was returned for the
+current Vision head. This does not establish a passing or failing application test.
+Use a trusted checkout to run the Node test, typecheck, lint, production build and
+browser tests; API still needs Gradle, HTTP and real PostgreSQL/migration checks.
+
+The API saved-build claim service explicitly returns an already-owned conversation
+idempotently, while requiring live token proof for a first unsaved claim. The Dream
+service retains the unique-per-conversation pointer and authorization checks.
+V1.4 Home mounting remains withheld: AgentExperience is being edited separately
+in Claude's Gate 1 UI PR #74, and Dream's initial note must remain clearly advisory,
+not a fabricated historical KS001 chat turn.
