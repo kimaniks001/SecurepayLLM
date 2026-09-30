@@ -14,7 +14,12 @@ export function createVisionDreamGateway(http: HttpClient, access: ConversationA
       const created = await http.request<VisionDreamDto>('/api/v1/vision-dreams', {
         method: 'POST', auth: 'required', body, headers,
       });
-      // The backend retires possession on claim. A failed/unknown POST retains the secret for retry.
+      // A successful HTTP response must still identify the SAME conversation being claimed.
+      // If the response is inconsistent, retain temporary possession for safe reconciliation.
+      if (!created || created.conversationId !== body.conversationId) {
+        throw new Error('SecurePay returned a Dream for a different conversation. Check whether this Dream saved before retrying.');
+      }
+      // The backend retires possession on a validated claim. Unknown/failed outcomes retain it.
       access.forget(body.conversationId);
       return created;
     },
