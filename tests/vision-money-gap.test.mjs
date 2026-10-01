@@ -56,6 +56,15 @@ test('snapshot UI shows financial truth; only the version-bound quote exception 
   assert.match(snapshotPanel, /quote\.feeBearer/);
   assert.match(snapshotPanel, /quote\.railChargeBearer/);
   assert.match(snapshotPanel, /quote\.pricingVersion/);
+  assert.match(snapshotPanel, /Recipient principal/);
+  assert.match(snapshotPanel, /SecurePay must receive/);
+  assert.match(snapshotPanel, /Total payer out-of-pocket/);
+  assert.match(snapshotPanel, /providerChargeMinor === null/);
+  assert.match(snapshotPanel, /providerCostMinor === null/);
+  assert.match(snapshotPanel, /Economic safety/);
+  assert.match(snapshotPanel, /quote\.economicState/);
+  assert.match(snapshotPanel, /quote\.economicReasonCode/);
+  assert.match(snapshotPanel, /not execution-eligible/);
   assert.match(snapshotPanel, /does not create or initiate a payment/);
   assert.match(snapshotPanel, /Can money move now\?/);
   assert.match(snapshotPanel, /snapshot\.movement\.state === 'READY'/);
