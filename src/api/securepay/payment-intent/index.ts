@@ -14,7 +14,7 @@ import type {
  * Final Completion Phase 2 completion pass, Section 1/10 -- the real, provider-driven funding
  * journey backing "PaymentIntent execution": rail discovery (`fundingOptions`), optional quoting
  * (`createQuote`, only meaningful for rails that support it), agreement-bound intent creation
- * (`createIntent` -- amount/currency/beneficiary are always server-derived, never accepted here),
+ * (`createIntent` -- exact Agreement version + reviewed quote are required; amount/currency/beneficiary remain server-derived),
  * and `initiate`, which actually hands the intent to a rail adapter (M-PESA STK, PesaLink, ...).
  * `get`/`listAttempts` poll the real state machine; a disabled or uncertified rail simply never
  * appears in `fundingOptions` -- this client never hardcodes which rails exist.
@@ -33,9 +33,22 @@ export function createPaymentIntentGateway(http: HttpClient) {
       http.request<AgreementFundingQuoteResponse>(`/api/v1/agreements/${segment(agreementId)}/funding-quotes/version-bound`, {
         method: 'POST', auth: 'required', body: { railCode, expectedAgreementVersionId },
       }),
-    createIntent: (agreementId: string, idempotencyKey: string, externalReference?: string) =>
+    createIntent: (
+      agreementId: string,
+      expectedAgreementVersionId: string,
+      quoteReference: string,
+      idempotencyKey: string,
+      externalReference?: string,
+    ) =>
       http.request<AgreementPaymentIntentCreateResponse>(`/api/v1/agreements/${segment(agreementId)}/payment-intents`, {
-        method: 'POST', auth: 'required', body: { idempotencyKey: idempotencyKey, externalReference: externalReference ?? null },
+        method: 'POST',
+        auth: 'required',
+        body: {
+          expectedAgreementVersionId,
+          quoteReference,
+          idempotencyKey,
+          externalReference: externalReference ?? null,
+        },
       }),
     listIntents: (agreementId: string, page = 0, size = 20) =>
       http.request<AgreementPaymentIntentListResponse>(`/api/v1/agreements/${segment(agreementId)}/payment-intents?page=${page}&size=${size}`, { auth: 'required' }),
