@@ -35,10 +35,12 @@ import { createOrganizationGateway } from './organization';
 import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
 import { createMoneySnapshotGateway } from './money-snapshot';
+import { createFinancialInstitutionsGateway } from './financial-institutions';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
   return {
+    financialInstitutions: createFinancialInstitutionsGateway(http),
     mode: 'real' as const, baseUrl: validatedBaseUrl,
     agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http),
     circle: createCircleGateway(http),
