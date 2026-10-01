@@ -138,7 +138,7 @@ test('gateways never mint keys: every Money mutation takes a caller-supplied Ide
 test('drift guard: every authenticated Money gateway method is in MONEY_AUTHENTICATED_METHODS (and no others)', async () => {
   const dirs = { money: 'money', moneyAuthority: 'money-authority', paymentIntent: 'payment-intent', paymentRelease: 'payment-release', settlementDestinations: 'settlement-destinations',
     moneySession: 'money-session', moneyOperations: 'money-operations', currencyCapability: 'currency-capability', fxApplication: 'fx-application', regulatedAccounts: 'regulated-accounts',
-    businessCurrencyCapability: 'business-currency-capability', businessFxApplication: 'business-fx-application', financialPartners: 'financial-partners' };
+    businessCurrencyCapability: 'business-currency-capability', businessFxApplication: 'business-fx-application', financialPartners: 'financial-partners', moneySnapshot: 'money-snapshot' };
   assert.deepEqual(Object.keys(dirs).sort(), Object.keys(m.MONEY_AUTHENTICATED_METHODS).sort());
   for (const [key, dir] of Object.entries(dirs)) {
     const s = await src(`src/api/securepay/${dir}/index.ts`);
@@ -155,8 +155,9 @@ test('no participant financial command is reachable from the UI (withheld until 
   const exp = await src('src/features/money/MoneyExperience.tsx');
   const panels = await src('src/features/money/AgreementMoneyPanels.tsx');
   const hosted = await src('src/features/money/HostedMoneySessionExperience.tsx');
+  const snapshot = await src('src/features/money/MoneySnapshotPanel.tsx');
   for (const call of ['authorityGateway.open', 'authorityGateway.fund', 'authorityGateway.exercise', 'authorityGateway.release', 'createIntent', 'initiate(', 'createQuote', 'moneySession.create', 'sessionGateway.create', '.redeem(']) {
-    for (const [name, code] of [['MoneyExperience', exp], ['Panels', panels], ['Hosted', hosted]]) assert.ok(!code.includes(call), `${name} must not call ${call}`);
+    for (const [name, code] of [['MoneyExperience', exp], ['Panels', panels], ['Hosted', hosted], ['Snapshot', snapshot]]) assert.ok(!code.includes(call), `${name} must not call ${call}`);
   }
   const rel = await src('src/api/securepay/payment-release/index.ts');
   assert.doesNotMatch(rel, /method: 'POST'/);
@@ -164,7 +165,7 @@ test('no participant financial command is reachable from the UI (withheld until 
 });
 
 test('production never infers an environment from hostname, DEV flag, rail or URL', async () => {
-  for (const f of ['src/features/money/MoneyExperience.tsx', 'src/features/money/AgreementMoneyPanels.tsx', 'src/features/money/display.ts']) {
+  for (const f of ['src/features/money/MoneyExperience.tsx', 'src/features/money/AgreementMoneyPanels.tsx', 'src/features/money/MoneySnapshotPanel.tsx', 'src/features/money/display.ts']) {
     const s = await src(f);
     assert.doesNotMatch(s, /import\.meta\.env|location\.hostname|localhost|sandbox/i, f);
   }
