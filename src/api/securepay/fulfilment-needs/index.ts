@@ -54,6 +54,22 @@ export interface SupplyRouteDto {
   tradeOffs: string[];
 }
 
+export interface MiniAgreementReviewDto {
+  fulfilmentNeedId: string;
+  offerId: string;
+  providerKsNumber: string;
+  providerDisplayName: string | null;
+  what: string;
+  proposedAmountMinor: number | null;
+  currency: string;
+  requiredBy: string | null;
+  completionEvidence: string[];
+  interactionLevel: 'ONE_TAP' | 'ONE_QUESTION' | 'MICRO_REVIEW';
+  missingMaterialDecisions: string[];
+  agreementCreated: false;
+  moneyMoved: false;
+}
+
 export interface FulfilmentNeedDto {
   id: string;
   derivationKey: string;
@@ -114,6 +130,11 @@ export function createFulfilmentNeedsGateway(http: HttpClient) {
         { auth: 'required' },
       );
     },
+    miniAgreementReview: (needId: string, offerId: string) =>
+      http.request<MiniAgreementReviewDto>(
+        `/api/v1/fulfilment-needs/${segment(needId)}/mini-agreement-review?offerId=${encodeURIComponent(offerId)}`,
+        { auth: 'required' },
+      ),
   };
 }
 
