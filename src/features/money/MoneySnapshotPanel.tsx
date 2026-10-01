@@ -127,7 +127,7 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                 <p className="text-xs text-sand-500">Participant financial commands are disabled in this environment.</p>
               )}
               {!snapshot.releaseRequest.authorityGranted && (
-                <p className="text-xs text-sand-500">Reason: {snapshot.releaseRequest.reasonCode.replaceAll('_', ' ').toLowerCase()}.</p>
+                <p className="text-xs text-sand-500">Reason: {snapshot.releaseRequest.reasonCode.replace(/_/g, ' ').toLowerCase()}.</p>
               )}
               <p className="text-xs text-sand-500">
                 Release-request authority is not the same as movement readiness; recipient, destination and pricing bindings have not been dry-run preflighted here.
