@@ -10,7 +10,7 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { PublicStoreView } from '../../api/securepay/store/dto';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { ApprenticeshipProjectDto, CircleResponse, CirclePendingInvitationView, CommunityEventDto, CommunityHelpResponseView, CommunityObjectResponse, CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import type { DiscoveryGateway } from '../../api/securepay/discovery';
 import type { DiscoveryResults, DiscoveryScope, PublicDirectoryIdentityType, PublicProfileResponse } from '../../api/securepay/discovery/dto';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -142,9 +142,11 @@ function TrustProjectBanner({
  */
 function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect: (tab: CommunityHomeTab) => void }) {
   const tabs: { value: CommunityHomeTab; label: string }[] = [
-    { value: 'live', label: 'Community LIVE' },
-    { value: 'circles', label: 'Your Circles' },
-    { value: 'discover', label: 'Discover Circles' },
+    { value: 'live', label: 'LIVE' },
+    { value: 'serve', label: 'SERVE' },
+    { value: 'learn', label: 'LEARN' },
+    { value: 'circles', label: 'CIRCLES' },
+    { value: 'happening', label: 'HAPPENING' },
   ];
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3 flex gap-1.5">
@@ -240,7 +242,7 @@ function CircleInvitationsSection({
  * "Your Circles" -- the smaller spaces this person actually belongs to (real backend data, `circles.mine()`).
  */
 function YourCirclesView({
-  circles, loading, error, onOpen, onCreate, onRetry, invitations, invitationsLoading,
+  circles, loading, error, onOpen, onCreate, onRetry, onDiscover, invitations, invitationsLoading,
 }: {
   circles: CircleResponse[];
   loading: boolean;
@@ -248,6 +250,7 @@ function YourCirclesView({
   onOpen: (id: string) => void;
   onCreate: () => void;
   onRetry: () => void;
+  onDiscover: () => void;
   invitations: CirclePendingInvitationView[];
   invitationsLoading: boolean;
 }) {
@@ -259,9 +262,10 @@ function YourCirclesView({
             <h2 className="font-display text-lg text-forest-800 font-medium">Your Circles</h2>
             <p className="text-[0.8rem] text-sand-500">Smaller spaces inside The Trust Project for people with something useful in common.</p>
           </div>
-          <button onClick={onCreate} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700 shrink-0">
-            + Create a Circle
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={onDiscover} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">Find Circles</button>
+            <button onClick={onCreate} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Create</button>
+          </div>
         </div>
         <CircleInvitationsSection invitations={invitations} loading={invitationsLoading} onOpen={onOpen} />
         {loading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
@@ -321,16 +325,17 @@ function DiscoverCirclesView({
  * the feed -- it is never even fetched for them (see controller.ts `openCircle`).
  */
 function CircleDetailPanel({
-  circle, membershipStatus, isOwner, invitedByDisplayName, joinSubmitting, joinError,
+  circle, membershipStatus, isOwner, isSteward, invitedByDisplayName, joinSubmitting, joinError,
   onJoin, onRequestToJoin, onAccept, onDecline, onLeave, onBack,
   objects, objectsLoading, onOpenObject, onCompose,
-  members, membersLoading, onRemoveMember,
+  members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
-  onOpenInvite, onOpenCloseConfirm,
+  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
   isOwner: boolean;
+  isSteward: boolean;
   invitedByDisplayName: string | null;
   joinSubmitting: boolean;
   joinError: string | null;
@@ -346,14 +351,21 @@ function CircleDetailPanel({
   onCompose: () => void;
   members: { membershipId: string; canonicalKsNumber: string | null; displayName: string | null; isSelf: boolean }[];
   membersLoading: boolean;
+  stewards: { membershipId: string; canonicalKsNumber: string; displayName: string | null; founder: boolean; active: boolean }[];
   onRemoveMember: (membershipId: string) => void;
+  onAppointSteward: (membershipId: string) => void;
+  onRemoveSteward: (membershipId: string) => void;
   pendingRequests: { membershipId: string; requesterCanonicalKsNumber: string | null; requesterDisplayName: string | null }[];
   onApproveRequest: (membershipId: string) => void;
   onDeclineRequest: (membershipId: string) => void;
   onOpenInvite: () => void;
   onOpenCloseConfirm: () => void;
+  onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
+  onInvokeKs001: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
+  const canSteward = isOwner || isSteward;
+  const stewardMembershipIds = new Set(stewards.filter(s => s.active).map(s => s.membershipId));
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -374,24 +386,32 @@ function CircleDetailPanel({
               {circle.visibility === 'PUBLIC' ? 'Discoverable by anyone in The Trust Project' : 'Private — not in general discovery'}
             </span>
             <span className="text-[0.68rem] text-sand-500">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</span>
-            {circle.status === 'CLOSED' && (
-              <span className="text-[0.68rem] font-medium text-sand-500 bg-cream-50 rounded-full px-2 py-0.5">Closed</span>
+            {circle.status !== 'ACTIVE' && (
+              <span className="text-[0.68rem] font-medium text-sand-500 bg-cream-50 rounded-full px-2 py-0.5">{circle.status.charAt(0) + circle.status.slice(1).toLowerCase()}</span>
             )}
           </div>
         </div>
 
         {isOwner && (
-          <div className="flex items-center justify-between">
-            <p className="text-[0.75rem] text-sand-500">This is one of your Circles — you are its steward.</p>
-            {circle.status === 'ACTIVE' && (
-              <button onClick={onOpenCloseConfirm} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Close Circle</button>
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[0.75rem] text-sand-500">You are the founding steward of this Circle.</p>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {circle.status === 'ACTIVE' && <button onClick={() => onSetLifecycle('QUIET')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Mark quiet</button>}
+              {circle.status === 'QUIET' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Reactivate</button>}
+              {(circle.status === 'ACTIVE' || circle.status === 'QUIET') && <button onClick={() => onSetLifecycle('ARCHIVED')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Archive</button>}
+              {circle.status === 'ARCHIVED' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Restore</button>}
+              {circle.status !== 'CLOSED' && <button onClick={onOpenCloseConfirm} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Close Circle</button>}
+            </div>
           </div>
         )}
         {!isOwner && membershipStatus === 'ACTIVE' && (
           <div className="flex items-center justify-between">
-            <p className="text-[0.75rem] text-sand-500">This is one of your Circles.</p>
-            <button onClick={onLeave} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Leave Circle</button>
+            <p className="text-[0.75rem] text-sand-500">{isSteward ? 'You are a steward of this Circle.' : 'This is one of your Circles.'}</p>
+            <div className="flex items-center gap-2">
+              {isSteward && circle.status === 'ACTIVE' && <button onClick={() => onSetLifecycle('QUIET')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Mark quiet</button>}
+              {isSteward && circle.status === 'QUIET' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Reactivate</button>}
+              <button onClick={onLeave} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Leave Circle</button>
+            </div>
           </div>
         )}
         {membershipStatus === 'INVITED' && (
@@ -406,7 +426,7 @@ function CircleDetailPanel({
           </div>
         )}
         {membershipStatus === 'REQUESTED' && (
-          <p className="text-[0.8rem] text-sand-600">Your request to join is waiting for the owner's review.</p>
+          <p className="text-[0.8rem] text-sand-600">Your request to join is waiting for a Circle steward's review.</p>
         )}
         {!isOwner && (membershipStatus === null || membershipStatus === 'DECLINED' || membershipStatus === 'LEFT' || membershipStatus === 'REMOVED') && (
           <div className="space-y-2">
@@ -433,21 +453,20 @@ function CircleDetailPanel({
                 {/* Correction (Slice 3 pre-merge completion pass): the backend's real invitation
                     authority is owner-only -- this copy must say exactly that, never the previous,
                     inaccurate wording naming any member as able to invite. */}
-                This Circle is invite-only. The Circle owner must invite you before you can join.
+                This Circle is invite-only. A Circle steward must invite you before you can join.
               </p>
             )}
             {joinError && <p role="alert" className="text-[0.75rem] text-red-600">{joinError}</p>}
           </div>
         )}
 
-        {/* Owner-only management (Slice 3 pre-merge completion pass) -- exposes existing backend
-            authority (invite/approve/decline/remove/close) that already worked, never new authority. */}
-        {isOwner && circle.membershipMode === 'INVITE_ONLY' && circle.status === 'ACTIVE' && (
+        {/* Steward management is Circle-space care only. Founder retains ownership/close authority. */}
+        {canSteward && circle.membershipMode === 'INVITE_ONLY' && circle.status === 'ACTIVE' && (
           <button onClick={onOpenInvite} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700 text-left">
             Invite someone
           </button>
         )}
-        {isOwner && circle.membershipMode === 'REQUEST_TO_JOIN' && pendingRequests.length > 0 && (
+        {canSteward && circle.membershipMode === 'REQUEST_TO_JOIN' && pendingRequests.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-cream-100">
             <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Requests to join</h2>
             {pendingRequests.map(r => (
@@ -459,6 +478,22 @@ function CircleDetailPanel({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {isMember && circle.status !== 'ACTIVE' && (
+          <div className="rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-[0.78rem] text-sand-600">
+            This Circle is {circle.status.toLowerCase()}. Existing members can read its history, but new posts and membership activity are paused.
+          </div>
+        )}
+
+        {isMember && circle.status === 'ACTIVE' && (
+          <div className="rounded-xl border border-forest-100 bg-forest-50/40 px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[0.78rem] font-medium text-forest-800">KS001 in this Circle</div>
+              <p className="text-[0.7rem] text-sand-600 mt-0.5">Invite KS001 to help organise this Circle's discussion. It cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
+            </div>
+            <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001</button>
           </div>
         )}
 
@@ -489,8 +524,7 @@ function CircleDetailPanel({
           </div>
         )}
 
-        {/* Member list -- an ACTIVE member's own view of who else is in the Circle (community-safe
-            identity fields only); Remove is owner-only. */}
+        {/* Member list -- community-safe identity fields only. Stewardship does not expose private account data. */}
         {isMember && (
           <div className="space-y-2 pt-2 border-t border-cream-100">
             <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Members</h2>
@@ -502,11 +536,26 @@ function CircleDetailPanel({
                   {/* UX-only cleanup (final pre-merge correction pass): the backend already rejects
                       self-removal (CannotRemoveOwnerException) regardless of this check -- hiding the
                       owner's own Remove button here just avoids offering an action that always fails. */}
-                  {isOwner && !m.isSelf && (
-                    <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
-                      Remove
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {stewardMembershipIds.has(m.membershipId) && (
+                      <span className="text-[0.65rem] text-forest-600">{stewards.find(s => s.membershipId === m.membershipId)?.founder ? 'Founder steward' : 'Steward'}</span>
+                    )}
+                    {isOwner && !m.isSelf && !stewardMembershipIds.has(m.membershipId) && (
+                      <button onClick={() => onAppointSteward(m.membershipId)} className="text-[0.7rem] text-forest-600 hover:text-forest-700">
+                        Make steward
+                      </button>
+                    )}
+                    {isOwner && !m.isSelf && stewardMembershipIds.has(m.membershipId) && !stewards.find(s => s.membershipId === m.membershipId)?.founder && (
+                      <button onClick={() => onRemoveSteward(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
+                        Remove steward
+                      </button>
+                    )}
+                    {canSteward && !m.isSelf && !stewardMembershipIds.has(m.membershipId) && (
+                      <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
+                        Remove member
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -868,7 +917,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -888,6 +937,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   onUseThis: (fact: CommunitySourceFact) => void;
   /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
   onJoinTrustProject: () => void;
+  onInvokeKs001InCircle: (circleId: string) => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
   // Number, or a quick share link (no membership row, no referral, no capacity).
@@ -895,6 +945,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, discoveryGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<'SAFETY'|'HARASSMENT'|'SPAM'|'MISLEADING'|'PRIVACY'|'OTHER'>('OTHER');
+  const [reportDetails, setReportDetails] = useState('');
+  const [moderationBusy, setModerationBusy] = useState(false);
 
   useEffect(() => {
     void controller.enter();
@@ -935,12 +989,57 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   }, [state.searchQuery]);
 
   const isActiveMember = state.membership.kind === 'active';
+  const [serviceItems, setServiceItems] = useState<CommunityServiceOpportunityDto[]>([]);
+  const [communityEvents, setCommunityEvents] = useState<CommunityEventDto[]>([]);
+  const [communityProjects, setCommunityProjects] = useState<CommunityProjectDto[]>([]);
+  const [apprenticeships, setApprenticeships] = useState<ApprenticeshipProjectDto[]>([]);
+  const [purposeLoading, setPurposeLoading] = useState(false);
+  const [purposeError, setPurposeError] = useState<string | null>(null);
+  const [purposeCreate, setPurposeCreate] = useState<'service' | 'event' | 'apprenticeship' | null>(null);
+  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', locationLabel: '', skills: '' });
+  const [eventDraft, setEventDraft] = useState({ title: '', description: '', startsAt: '', locationLabel: '' });
+  const [apprenticeshipDraft, setApprenticeshipDraft] = useState({ apprenticeKsNumber: '', title: '', learningGoal: '' });
+  const [purposeSubmitting, setPurposeSubmitting] = useState(false);
+  const [lessonProjectId, setLessonProjectId] = useState<string | null>(null);
+  const [lessonDraft, setLessonDraft] = useState('');
+
+  useEffect(() => {
+    if (!isActiveMember) {
+      setServiceItems([]);
+      setCommunityEvents([]);
+      setCommunityProjects([]);
+      setApprenticeships([]);
+      setPurposeLoading(false);
+      setPurposeError(null);
+      return;
+    }
+    let cancelled = false;
+    setPurposeLoading(true);
+    setPurposeError(null);
+    Promise.all([
+      communityGateway.serviceOpportunities.list(),
+      communityGateway.events.list(),
+      communityGateway.projects.list(),
+      communityGateway.apprenticeships.list(),
+    ]).then(([service, events, projects, learning]) => {
+      if (cancelled) return;
+      setServiceItems(service);
+      setCommunityEvents(events);
+      setCommunityProjects(projects);
+      setApprenticeships(learning);
+    }).catch(error => {
+      if (!cancelled) setPurposeError(errorText(error));
+    }).finally(() => {
+      if (!cancelled) setPurposeLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [isActiveMember, communityGateway]);
+
   const realObjects = isActiveMember && state.feed.status === 'ready' ? state.feed.data.map(o => realObjectToCommunityObject(o)) : [];
-  const storeObjects = state.search.status === 'ready' ? state.search.data.map(storeResultToCommunityObject) : [];
-  const objects = [...realObjects, ...storeObjects];
-  const selectedStore = state.selectedObjectId && !state.selectedRealObject
-    ? (state.search.status === 'ready' ? state.search.data.find(r => storeResultToCommunityObject(r).id === state.selectedObjectId) : undefined)
-    : undefined;
+  // Community LIVE is human Community content only. Store discovery remains available through the
+  // deliberate cross-domain Search surface and explicit transitions, never injected into LIVE.
+  const objects = realObjects;
+  const selectedStore = undefined;
 
   const banner = (
     <>
@@ -1023,6 +1122,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         circle={state.selectedCircle}
         membershipStatus={membership?.status ?? null}
         isOwner={membership?.isOwner ?? false}
+        isSteward={membership?.isSteward ?? false}
         invitedByDisplayName={membership?.invitedByDisplayName ?? null}
         joinSubmitting={state.circleJoinSubmitting}
         joinError={state.circleJoinError}
@@ -1038,12 +1138,17 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onCompose={() => controller.openCircleComposer()}
         members={state.circleMembers.status === 'ready' ? state.circleMembers.data : []}
         membersLoading={state.circleMembers.status === 'loading'}
+        stewards={state.circleStewards.status === 'ready' ? state.circleStewards.data : []}
         onRemoveMember={id => void controller.removeCircleMember(id)}
+        onAppointSteward={id => void controller.appointCircleSteward(id)}
+        onRemoveSteward={id => void controller.removeCircleSteward(id)}
         pendingRequests={state.circlePendingRequests.status === 'ready' ? state.circlePendingRequests.data : []}
         onApproveRequest={id => void controller.approveCircleRequest(id)}
         onDeclineRequest={id => void controller.declineCircleRequest(id)}
         onOpenInvite={() => controller.openCircleInvite()}
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
+        onSetLifecycle={status => void controller.setCircleLifecycle(status)}
+        onInvokeKs001={() => onInvokeKs001InCircle(state.selectedCircle!.id)}
       />
     );
   } else if (state.view === 'compose') {
@@ -1110,6 +1215,16 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           if (fact) onUseThis(fact);
         }}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}
+        onReport={!isOwn ? () => setReportOpen(true) : undefined}
+        onMuteAuthor={!isOwn && state.selectedRealObject.authorCanonicalKsNumber ? () => {
+          setModerationBusy(true);
+          void communityGateway.moderation.mute(state.selectedRealObject!.authorCanonicalKsNumber!).then(() => {
+            setModerationBusy(false);
+            controller.showNotice('Member muted. Their Community posts will no longer appear for you.');
+            controller.backToHome();
+            void controller.refreshFeed();
+          }).catch(error => { setModerationBusy(false); controller.showNotice(errorText(error)); });
+        } : undefined}
         realHelp={{
           offered: activeHelpResponseId !== null,
           offering: state.helpOffering,
@@ -1150,6 +1265,222 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="p-6"><ErrorStateCard data={errorView(errorText(state.search.error))} onChoice={() => void controller.submitSearch()} /></div>
       </>
     );
+  } else if (state.communityTab === 'serve') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Service need</button>
+          </div>
+          {purposeCreate === 'service' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What help is needed?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Describe the practical need" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="General location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="Skills needed, comma separated (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim()}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.serviceOpportunities.create({
+                    title: serviceDraft.title.trim(), description: serviceDraft.description.trim(),
+                    locationLabel: serviceDraft.locationLabel.trim() || null,
+                    skillsNeeded: serviceDraft.skills.split(',').map(x => x.trim()).filter(Boolean),
+                  }).then(created => {
+                    setServiceItems(items => [created, ...items]);
+                    setServiceDraft({ title: '', description: '', locationLabel: '', skills: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create service opportunity</button>
+            </div>
+          )}
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
+          {!purposeLoading && !purposeError && serviceItems.length === 0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No service opportunities are open right now.</p>}
+          {serviceItems.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.9rem] font-medium text-forest-800">{item.title}</div>
+            <p className="text-[0.78rem] text-sand-600 mt-1">{item.description}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location to be agreed'}{item.skillsNeeded.length ? ` · ${item.skillsNeeded.join(', ')}` : ''}</div>
+            <div className="mt-3 flex items-center gap-4">
+              <button onClick={() => void communityGateway.serviceOpportunities.volunteer(item.id,true).then(updated => setServiceItems(items => items.map(x => x.id===updated.id?updated:x)))} className="text-[0.75rem] font-medium text-forest-600">I'm interested</button>
+              <button
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.projects.create({
+                    circleId: item.circleId, sourceServiceOpportunityId: item.id,
+                    title: item.title, purpose: item.description, locationLabel: item.locationLabel,
+                  }).then(created => {
+                    setCommunityProjects(items => [created, ...items.filter(x => x.id !== created.id)]);
+                    void controller.showCommunityTab('learn');
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >Shape as project</button>
+            </div>
+          </div>)}
+        </div></div>
+      </>
+    );
+  } else if (state.communityTab === 'learn') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Learn</h2><p className="text-[0.8rem] text-sand-500">Knowledge, mentorship and supervised Apprenticeship Projects grounded in real work.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'apprenticeship' ? null : 'apprenticeship')} className="text-[0.75rem] font-medium text-forest-600">+ Apprenticeship Project</button>
+          </div>
+          {purposeCreate === 'apprenticeship' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <p className="text-[0.72rem] text-sand-500">Only a currently designated Master can create this. SecurePay checks that on the server.</p>
+              <input value={apprenticeshipDraft.apprenticeKsNumber} onChange={e => setApprenticeshipDraft(d => ({...d,apprenticeKsNumber:e.target.value}))} placeholder="Apprentice KS Number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={apprenticeshipDraft.title} onChange={e => setApprenticeshipDraft(d => ({...d,title:e.target.value}))} placeholder="Project title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={apprenticeshipDraft.learningGoal} onChange={e => setApprenticeshipDraft(d => ({...d,learningGoal:e.target.value}))} placeholder="What should the apprentice learn?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !apprenticeshipDraft.apprenticeKsNumber.trim() || !apprenticeshipDraft.title.trim() || !apprenticeshipDraft.learningGoal.trim()}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.apprenticeships.create({
+                    apprenticeKsNumber: apprenticeshipDraft.apprenticeKsNumber.trim(),
+                    title: apprenticeshipDraft.title.trim(),
+                    learningGoal: apprenticeshipDraft.learningGoal.trim(),
+                  }).then(created => {
+                    setApprenticeships(items => [created, ...items]);
+                    setApprenticeshipDraft({ apprenticeKsNumber: '', title: '', learningGoal: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create Apprenticeship Project</button>
+            </div>
+          )}
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
+          {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
+          </div>)}
+          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              <button
+                onClick={() => void communityGateway.transitions.projectToVision(item.id)
+                  .then(() => onNavigate('vision-board'))
+                  .catch(error => controller.showNotice(errorText(error)))}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >
+                Add to Vision
+              </button>
+              {(['AGREEMENT','STORE','PLUG','MASTER'] as const).map(target => (
+                <button
+                  key={target}
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,target)
+                    .then(() => controller.showNotice(`${target.charAt(0)+target.slice(1).toLowerCase()} handoff prepared. Nothing was created or committed yet.`))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.75rem] font-medium text-forest-600"
+                >
+                  Prepare {target.charAt(0)+target.slice(1).toLowerCase()}
+                </button>
+              ))}
+              <button
+                onClick={() => { setLessonProjectId(lessonProjectId === item.id ? null : item.id); setLessonDraft(''); }}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >
+                Capture lesson
+              </button>
+            </div>
+            {lessonProjectId === item.id && (
+              <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 space-y-2">
+                <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It does not make the lesson approved SecurePay knowledge.</p>
+                <textarea
+                  value={lessonDraft}
+                  onChange={e => setLessonDraft(e.target.value)}
+                  placeholder="What should future members learn from this project?"
+                  rows={3}
+                  className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2 text-[0.82rem]"
+                />
+                <button
+                  disabled={purposeSubmitting || !lessonDraft.trim()}
+                  onClick={() => {
+                    setPurposeSubmitting(true);
+                    void communityGateway.knowledge.capture({
+                      circleId: item.circleId,
+                      sourceType: 'PROJECT_LESSON',
+                      sourceReference: item.id,
+                      title: `Lesson from ${item.title}`,
+                      lessonText: lessonDraft.trim(),
+                    }).then(candidate => communityGateway.knowledge.submit(candidate.id))
+                      .then(() => {
+                        setLessonProjectId(null);
+                        setLessonDraft('');
+                        controller.showNotice('Lesson submitted for Knowledge review. It is not approved Knowledge Core truth yet.');
+                      })
+                      .catch(error => controller.showNotice(errorText(error)))
+                      .finally(() => setPurposeSubmitting(false));
+                  }}
+                  className="rounded-lg bg-forest-600 px-3 py-2 text-[0.75rem] font-medium text-cream-50 disabled:opacity-50"
+                >
+                  Submit lesson for review
+                </button>
+              </div>
+            )}
+          </div>)}
+          {!purposeLoading && !purposeError && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
+        </div></div>
+      </>
+    );
+  } else if (state.communityTab === 'happening') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Happening</h2><p className="text-[0.8rem] text-sand-500">Meet, teach, hike, serve and gather. RSVP is a plan, not a contractual commitment.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'event' ? null : 'event')} className="text-[0.75rem] font-medium text-forest-600">+ Event</button>
+          </div>
+          {purposeCreate === 'event' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <input value={eventDraft.title} onChange={e => setEventDraft(d => ({...d,title:e.target.value}))} placeholder="Event title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={eventDraft.description} onChange={e => setEventDraft(d => ({...d,description:e.target.value}))} placeholder="What is happening?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input type="datetime-local" value={eventDraft.startsAt} onChange={e => setEventDraft(d => ({...d,startsAt:e.target.value}))} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={eventDraft.locationLabel} onChange={e => setEventDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="Location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !eventDraft.title.trim() || !eventDraft.description.trim() || !eventDraft.startsAt}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.events.create({
+                    title: eventDraft.title.trim(), description: eventDraft.description.trim(),
+                    startsAt: new Date(eventDraft.startsAt).toISOString(),
+                    locationLabel: eventDraft.locationLabel.trim() || null,
+                  }).then(created => {
+                    setCommunityEvents(items => [...items, created].sort((a,b) => a.startsAt.localeCompare(b.startsAt)));
+                    setEventDraft({ title: '', description: '', startsAt: '', locationLabel: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create event</button>
+            </div>
+          )}
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
+          {!purposeLoading && !purposeError && communityEvents.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">Nothing is scheduled yet.</p>}
+          {communityEvents.map(event => <div key={event.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.9rem] font-medium text-forest-800">{event.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{event.description}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{new Date(event.startsAt).toLocaleString()}{event.locationLabel ? ` · ${event.locationLabel}` : ''} · {event.goingCount} going</div>
+            <button onClick={() => void communityGateway.events.rsvp(event.id,true).then(updated => setCommunityEvents(items => items.map(x => x.id===updated.id?updated:x)))} className="mt-3 text-[0.75rem] font-medium text-forest-600">I'm going</button>
+          </div>)}
+        </div></div>
+      </>
+    );
   } else if (state.communityTab === 'circles') {
     body = (
       <>
@@ -1162,6 +1493,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpen={id => void controller.openCircle(id)}
           onCreate={() => controller.openCreateCircle()}
           onRetry={() => void controller.showCommunityTab('circles')}
+          onDiscover={() => void controller.showCommunityTab('discover')}
           invitations={state.circleInvitations.status === 'ready' ? state.circleInvitations.data : []}
           invitationsLoading={state.circleInvitations.status === 'loading'}
         />
@@ -1198,11 +1530,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenPerson={() => {}}
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
-          onStartConversation={() => onNavigate('signed-in')}
           onOpenCircles={onOpenCircle}
-          onOpenEcosystem={() => onNavigate('ecosystem')}
-          storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
-          storeSearchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
+          showSearch={false}
           // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
           // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
           // "Discover Circles", the CommunityHomeTabs directly above this screen) are now a real
@@ -1231,6 +1560,35 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           <StatusNotice tone="info" icon={false}>
             {state.notice} <button onClick={() => controller.dismissNotice()} className="underline">Dismiss</button>
           </StatusNotice>
+        </div>
+      )}
+      {reportOpen && state.selectedRealObject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm" onClick={() => !moderationBusy && setReportOpen(false)}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-base text-forest-800">Report this Community post</h2>
+            <p className="text-[0.75rem] text-sand-600 mt-1">A report asks for review. It does not automatically remove the post or change anyone's account.</p>
+            <select value={reportReason} onChange={e => setReportReason(e.target.value as typeof reportReason)}
+              className="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.82rem] text-forest-800">
+              <option value="SAFETY">Safety</option><option value="HARASSMENT">Harassment</option>
+              <option value="SPAM">Spam</option><option value="MISLEADING">Misleading</option>
+              <option value="PRIVACY">Privacy</option><option value="OTHER">Other</option>
+            </select>
+            <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3}
+              placeholder="Optional details"
+              className="mt-2 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.82rem] text-forest-800 resize-none" />
+            <div className="mt-3 flex gap-2">
+              <button disabled={moderationBusy} onClick={() => {
+                setModerationBusy(true);
+                void communityGateway.moderation.report(state.selectedRealObject!.id, reportReason, reportDetails || null).then(() => {
+                  setModerationBusy(false); setReportOpen(false); setReportDetails('');
+                  controller.showNotice('Report sent for review.');
+                }).catch(error => { setModerationBusy(false); controller.showNotice(errorText(error)); });
+              }} className="rounded-xl bg-forest-600 px-4 py-2 text-[0.8rem] font-medium text-cream-50 disabled:opacity-50">
+                {moderationBusy ? 'Sending…' : 'Send report'}
+              </button>
+              <button disabled={moderationBusy} onClick={() => setReportOpen(false)} className="rounded-xl border border-cream-200 px-4 py-2 text-[0.8rem] text-forest-700">Cancel</button>
+            </div>
+          </div>
         </div>
       )}
       {state.inviteOpen && (

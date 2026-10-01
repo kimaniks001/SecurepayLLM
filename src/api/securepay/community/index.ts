@@ -1,6 +1,8 @@
 import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
-  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
+  ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
+  CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
+  CommunityTransitionIntentDto, CommunityVisionTransitionDto, CommunityKnowledgeCandidateDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -127,6 +129,91 @@ export function createCommunityGateway(http: HttpClient) {
     /** Phase 4 -- the versioned canonical Principles (public). */
     currentPrinciples: () => http.request<CurrentPrinciplesResponse>('/api/v1/community/principles/current', { auth: 'none' }),
 
+    events: {
+      create: (body: { circleId?: string | null; title: string; description: string; startsAt: string; endsAt?: string | null; locationLabel?: string | null; capacity?: number | null }) =>
+        http.request<CommunityEventDto>('/api/v1/community/events', { method: 'POST', body, auth: 'required' }),
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityEventDto[]>(`/api/v1/community/events?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      rsvp: (eventId: string, going: boolean) =>
+        http.request<CommunityEventDto>(`/api/v1/community/events/${segment(eventId)}/rsvp`, { method: 'POST', body: { going }, auth: 'required' }),
+    },
+    serviceOpportunities: {
+      create: (body: { circleId?: string | null; title: string; description: string; locationLabel?: string | null; startsAt?: string | null; endsAt?: string | null; skillsNeeded?: string[] }) =>
+        http.request<CommunityServiceOpportunityDto>('/api/v1/community/service-opportunities', { method: 'POST', body, auth: 'required' }),
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityServiceOpportunityDto[]>(`/api/v1/community/service-opportunities?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      volunteer: (id: string, interested: boolean) =>
+        http.request<CommunityServiceOpportunityDto>(`/api/v1/community/service-opportunities/${segment(id)}/volunteer`, { method: 'POST', body: { interested }, auth: 'required' }),
+    },
+    projects: {
+      create: (body: { circleId?: string | null; sourceServiceOpportunityId?: string | null; title: string; purpose: string; locationLabel?: string | null }) =>
+        http.request<CommunityProjectDto>('/api/v1/community/projects', { method: 'POST', body, auth: 'required' }),
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityProjectDto[]>(`/api/v1/community/projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
+    apprenticeships: {
+      create: (body: { communityProjectId?: string | null; circleId?: string | null; apprenticeKsNumber: string; title: string; learningGoal: string; sponsorshipReference?: string | null }) =>
+        http.request<ApprenticeshipProjectDto>('/api/v1/community/apprenticeship-projects', { method: 'POST', body, auth: 'required' }),
+      list: (limit = 20, offset = 0) =>
+        http.request<ApprenticeshipProjectDto[]>(`/api/v1/community/apprenticeship-projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
+    transitions: {
+      objectToVision: (objectId: string) =>
+        http.request<CommunityVisionTransitionDto>(
+          `/api/v1/community/transitions/objects/${segment(objectId)}/vision`,
+          { method: 'POST', auth: 'required' },
+        ),
+      projectToVision: (projectId: string) =>
+        http.request<CommunityVisionTransitionDto>(
+          `/api/v1/community/transitions/projects/${segment(projectId)}/vision`,
+          { method: 'POST', auth: 'required' },
+        ),
+      prepareObject: (objectId: string, targetDomain: CommunityTransitionIntentDto['targetDomain']) =>
+        http.request<CommunityTransitionIntentDto>(
+          `/api/v1/community/transitions/objects/${segment(objectId)}/prepare`,
+          { method: 'POST', body: { targetDomain }, auth: 'required' },
+        ),
+      prepareProject: (projectId: string, targetDomain: CommunityTransitionIntentDto['targetDomain']) =>
+        http.request<CommunityTransitionIntentDto>(
+          `/api/v1/community/transitions/projects/${segment(projectId)}/prepare`,
+          { method: 'POST', body: { targetDomain }, auth: 'required' },
+        ),
+    },
+    knowledge: {
+      mine: () => http.request<CommunityKnowledgeCandidateDto[]>('/api/v1/community/knowledge-candidates/mine', { auth: 'required' }),
+      capture: (body: {
+        circleId?: string | null;
+        sourceType: CommunityKnowledgeCandidateDto['sourceType'];
+        sourceReference: string;
+        title: string;
+        lessonText: string;
+      }) => http.request<CommunityKnowledgeCandidateDto>('/api/v1/community/knowledge-candidates', { method: 'POST', body, auth: 'required' }),
+      submit: (candidateId: string) =>
+        http.request<CommunityKnowledgeCandidateDto>(
+          `/api/v1/community/knowledge-candidates/${segment(candidateId)}/submit`,
+          { method: 'POST', auth: 'required' },
+        ),
+    },
+
+        moderation: {
+      mutes: () => http.request<CommunityMutedMemberDto[]>('/api/v1/community/moderation/mutes', { auth: 'required' }),
+      mute: (canonicalKsNumber: string) =>
+        http.request<CommunityMutedMemberDto>(`/api/v1/community/moderation/mutes/${segment(canonicalKsNumber)}`, { method: 'POST', auth: 'required' }),
+      unmute: (canonicalKsNumber: string) =>
+        http.request<void>(`/api/v1/community/moderation/mutes/${segment(canonicalKsNumber)}`, { method: 'DELETE', auth: 'required' }),
+      report: (objectId: string, reason: CommunityReportReason, details?: string | null) =>
+        http.request<CommunityObjectReportDto>(`/api/v1/community/moderation/objects/${segment(objectId)}/reports`, {
+          method: 'POST', body: { reason, details: details ?? null }, auth: 'required',
+        }),
+      circleReports: (circleId: string) =>
+        http.request<CommunityObjectReportDto[]>(`/api/v1/community/moderation/circles/${segment(circleId)}/reports`, { auth: 'required' }),
+      reviewCircleReport: (circleId: string, reportId: string, status: Exclude<CommunityReportStatus,'OPEN'>, resolutionNote?: string | null) =>
+        http.request<CommunityObjectReportDto>(
+          `/api/v1/community/moderation/circles/${segment(circleId)}/reports/${segment(reportId)}/review`,
+          { method: 'POST', body: { status, resolutionNote: resolutionNote ?? null }, auth: 'required' },
+        ),
+    },
+
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
     // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real
     // signed-in identity; the backend independently enforces ACTIVE Trust Project membership (and,
@@ -162,6 +249,11 @@ export function createCommunityGateway(http: HttpClient) {
         http.request<CirclePendingInvitationView[]>(`/api/v1/community/circles/invitations?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       get: (circleId: string) => http.request<CircleResponse>(circle(circleId), { auth: 'required' }),
       close: (circleId: string) => http.request<CircleResponse>(`${circle(circleId)}/close`, { method: 'POST', auth: 'required' }),
+      setLifecycle: (circleId: string, status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') =>
+        http.request<{ circleId: string; status: 'ACTIVE' | 'QUIET' | 'ARCHIVED' }>(
+          `${circle(circleId)}/lifecycle`,
+          { method: 'POST', body: { status }, auth: 'required' },
+        ),
       membership: (circleId: string) =>
         http.request<CircleMembershipResponse>(`${circle(circleId)}/membership`, { auth: 'required' }),
 
@@ -197,6 +289,14 @@ export function createCommunityGateway(http: HttpClient) {
         http.request<CircleMembershipResponse>(`${circle(circleId)}/members/${segment(membershipId)}/remove`, { method: 'POST', auth: 'required' }),
       members: (circleId: string, limit = 50, offset = 0) =>
         http.request<CircleMemberView[]>(`${circle(circleId)}/members?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      stewards: {
+        list: (circleId: string) =>
+          http.request<CircleStewardView[]>(`${circle(circleId)}/stewards`, { auth: 'required' }),
+        appoint: (circleId: string, membershipId: string) =>
+          http.request<CircleStewardView>(`${circle(circleId)}/stewards/${segment(membershipId)}`, { method: 'POST', auth: 'required' }),
+        remove: (circleId: string, membershipId: string) =>
+          http.request<CircleStewardView>(`${circle(circleId)}/stewards/${segment(membershipId)}`, { method: 'DELETE', auth: 'required' }),
+      },
 
       // Circle-scoped Community content -- reuses the same CommunityObjectResponse shape as
       // Community LIVE (`circleId` on the response tells them apart).
