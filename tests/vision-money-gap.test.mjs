@@ -65,6 +65,9 @@ test('snapshot UI shows financial truth; only the version-bound quote exception 
   assert.match(snapshotPanel, /quote\.economicState/);
   assert.match(snapshotPanel, /quote\.economicReasonCode/);
   assert.match(snapshotPanel, /not execution-eligible/);
+  assert.match(paymentIntentApi, /expectedAgreementVersionId/);
+  assert.match(paymentIntentApi, /quoteReference/);
+  assert.match(paymentIntentApi, /createIntent/);
   assert.match(snapshotPanel, /does not create or initiate a payment/);
   assert.match(snapshotPanel, /Can money move now\?/);
   assert.match(snapshotPanel, /snapshot\.movement\.state === 'READY'/);
