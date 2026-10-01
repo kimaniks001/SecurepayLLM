@@ -25,12 +25,13 @@ const contributionTypes: Array<[ProjectContributionType,string]> = [
 ];
 
 export function TrustProjectImpactHome({
-  gateway, activeMember, onOpenCircles, onJoin,
+  gateway, activeMember, onOpenCircles, onJoin, onOpenVision,
 }: {
   gateway: CommunityGateway;
   activeMember: boolean;
   onOpenCircles: () => void;
   onJoin: () => void;
+  onOpenVision: () => void;
 }) {
   const [contributions,setContributions]=useState<ProjectContributionDto[]>([]);
   const [impact,setImpact]=useState<CommunityImpactViewDto|null>(null);
@@ -109,6 +110,13 @@ export function TrustProjectImpactHome({
     } catch(e) { setInterestNotice(e instanceof Error ? e.message : 'Interest could not be recorded.'); }
   };
 
+  const addToVision=async(id:string)=>{
+    try {
+      await gateway.transitions.contributionToVision(id);
+      onOpenVision();
+    } catch(e) { setError(e instanceof Error ? e.message : 'Could not add this contribution to Vision.'); }
+  };
+
   const discoverPathways=async()=>{
     setPathwayLoading(true);
     try {
@@ -175,7 +183,9 @@ export function TrustProjectImpactHome({
         <p className="text-[0.8rem] text-sand-700 mt-1.5 whitespace-pre-line">{item.body}</p>
         {item.media.length>0 && <p className="text-[0.68rem] text-sand-500 mt-2">{item.media.length} media item{item.media.length===1?'':'s'}</p>}
         <div className="mt-3 flex flex-wrap gap-2">{interestLabels.map(([intent,label])=>
-          <button key={intent} onClick={()=>void express(item.id,intent,label)} className="rounded-full border border-cream-200 px-3 py-1.5 text-[0.7rem] text-forest-600 hover:border-forest-300">{label}</button>)}</div>
+          <button key={intent} onClick={()=>void express(item.id,intent,label)} className="rounded-full border border-cream-200 px-3 py-1.5 text-[0.7rem] text-forest-600 hover:border-forest-300">{label}</button>)}
+          <button onClick={()=>void addToVision(item.id)} className="rounded-full border border-forest-200 px-3 py-1.5 text-[0.7rem] text-forest-700">Add to Vision</button>
+        </div>
       </article>)}
       {!loading && contributions.length===0 && <p className="text-[0.78rem] text-sand-500">No contributions yet. The first useful trace can start here.</p>}
     </div>
