@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationsGateway } from '../../api/securepay/notifications';
+import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, NotificationsGateway } from '../../api/securepay/notifications';
 import { errorText } from '../agent/controller';
 
 export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data: T | null; error: string | null };
@@ -19,6 +19,8 @@ export interface NotificationsState {
   loadingMore: boolean;
   preferences: Loadable<NotificationPreferences>;
   preferencesDraft: NotificationPreferences | null;
+  quietHours: Loadable<NotificationQuietHours>;
+  quietHoursDraft: NotificationQuietHours | null;
   preferencesSaving: boolean;
   preferencesSaveError: string | null;
   preferencesJustSaved: boolean;
@@ -33,7 +35,7 @@ const PAGE_SIZE = 20;
  * used as-is, matching this project's existing doctrine for `nextActions` (see
  * tests/phase6-convergence.test.mjs test E).
  */
-export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences'>) {
+export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'>) {
   let state: NotificationsState = {
     inbox: idle(),
     categoryFilter: null,
@@ -43,6 +45,8 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     loadingMore: false,
     preferences: idle(),
     preferencesDraft: null,
+    quietHours: idle(),
+    quietHoursDraft: null,
     preferencesSaving: false,
     preferencesSaveError: null,
     preferencesJustSaved: false,
@@ -119,12 +123,24 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     },
 
     async loadPreferences() {
-      update({ preferences: { status: 'loading', data: null, error: null } });
+      update({
+        preferences: { status: 'loading', data: null, error: null },
+        quietHours: { status: 'loading', data: null, error: null },
+      });
       try {
-        const result = await gateway.getPreferences();
-        update({ preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result });
+        const [result, quiet] = await Promise.all([gateway.getPreferences(), gateway.getQuietHours()]);
+        update({
+          preferences: { status: 'ready', data: result, error: null },
+          preferencesDraft: result,
+          quietHours: { status: 'ready', data: quiet, error: null },
+          quietHoursDraft: quiet,
+        });
       } catch (error) {
-        update({ preferences: { status: 'error', data: null, error: errorText(error) } });
+        const message = errorText(error);
+        update({
+          preferences: { status: 'error', data: null, error: message },
+          quietHours: { status: 'error', data: null, error: message },
+        });
       }
     },
 
@@ -133,18 +149,34 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       update({ preferencesDraft: { ...state.preferencesDraft, ...patch }, preferencesJustSaved: false });
     },
 
+    setQuietHoursDraft(patch: Partial<NotificationQuietHours>) {
+      if (!state.quietHoursDraft) return;
+      update({ quietHoursDraft: { ...state.quietHoursDraft, ...patch }, preferencesJustSaved: false });
+    },
+
     async savePreferences() {
-      if (!state.preferencesDraft || state.preferencesSaving) return;
+      if (!state.preferencesDraft || !state.quietHoursDraft || state.preferencesSaving) return;
       update({ preferencesSaving: true, preferencesSaveError: null, preferencesJustSaved: false });
       const draft = state.preferencesDraft;
+      const quietDraft = state.quietHoursDraft;
       try {
-        const result = await gateway.updatePreferences({
+        const [result, quiet] = await Promise.all([
+          gateway.updatePreferences({
           whatsappEnabled: draft.whatsappEnabled, smsEnabled: draft.smsEnabled, emailEnabled: draft.emailEnabled,
           agreementsCategoryEnabled: draft.agreementsCategoryEnabled, moneyCategoryEnabled: draft.moneyCategoryEnabled,
           reviewsCategoryEnabled: draft.reviewsCategoryEnabled, securityCategoryEnabled: true,
           communityCategoryEnabled: draft.communityCategoryEnabled, supportCategoryEnabled: draft.supportCategoryEnabled,
+          }),
+          gateway.updateQuietHours(quietDraft),
+        ]);
+        update({
+          preferencesSaving: false,
+          preferences: { status: 'ready', data: result, error: null },
+          preferencesDraft: result,
+          quietHours: { status: 'ready', data: quiet, error: null },
+          quietHoursDraft: quiet,
+          preferencesJustSaved: true,
         });
-        update({ preferencesSaving: false, preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result, preferencesJustSaved: true });
       } catch (error) {
         update({ preferencesSaving: false, preferencesSaveError: errorText(error) });
       }

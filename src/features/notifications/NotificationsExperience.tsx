@@ -243,6 +243,31 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   </SurfaceBody>
                 </Surface>
 
+                {state.quietHoursDraft && (
+                  <Surface>
+                    <SurfaceBody>
+                      <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Quiet hours</div>
+                      <p className="text-[0.75rem] text-sand-500 mb-1">
+                        Hold non-critical external interruptions during this window. In-app records still appear immediately; Critical and Security updates are not silently held.
+                      </p>
+                      <Toggle label="Use quiet hours" checked={state.quietHoursDraft.enabled} onChange={v => controller.setQuietHoursDraft({ enabled: v })} />
+                      {state.quietHoursDraft.enabled && (
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <label className="text-[0.72rem] text-sand-500">From
+                            <input type="time" value={state.quietHoursDraft.startLocal} onChange={e => controller.setQuietHoursDraft({ startLocal: e.target.value })} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem] text-forest-800" />
+                          </label>
+                          <label className="text-[0.72rem] text-sand-500">Until
+                            <input type="time" value={state.quietHoursDraft.endLocal} onChange={e => controller.setQuietHoursDraft({ endLocal: e.target.value })} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem] text-forest-800" />
+                          </label>
+                          <label className="col-span-2 text-[0.72rem] text-sand-500">Time zone
+                            <input value={state.quietHoursDraft.timeZone} onChange={e => controller.setQuietHoursDraft({ timeZone: e.target.value })} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem] text-forest-800" />
+                          </label>
+                        </div>
+                      )}
+                    </SurfaceBody>
+                  </Surface>
+                )}
+
                 <Surface>
                   <SurfaceBody>
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Categories</div>

@@ -72,6 +72,13 @@ export interface NotificationPreferences {
   saved: boolean;
 }
 
+export interface NotificationQuietHours {
+  enabled: boolean;
+  startLocal: string;
+  endLocal: string;
+  timeZone: string;
+}
+
 export interface UpdateNotificationPreferencesRequest {
   whatsappEnabled: boolean;
   smsEnabled: boolean;
@@ -107,6 +114,9 @@ export function createNotificationsGateway(http: HttpClient) {
     resolve: (notificationId: string, resolutionAction: string) =>
       http.request<NotificationEvent>(`/api/v1/notifications/me/${notificationId}/resolve`, { method: 'POST', body: { resolutionAction }, auth: 'required' }),
     getPreferences: () => http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { auth: 'required' }),
+    getQuietHours: () => http.request<NotificationQuietHours>('/api/v1/notifications/me/quiet-hours', { auth: 'required' }),
+    updateQuietHours: (body: NotificationQuietHours) =>
+      http.request<NotificationQuietHours>('/api/v1/notifications/me/quiet-hours', { method: 'PUT', body, auth: 'required' }),
     updatePreferences: (body: UpdateNotificationPreferencesRequest) =>
       http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { method: 'PUT', body, auth: 'required' }),
   };
