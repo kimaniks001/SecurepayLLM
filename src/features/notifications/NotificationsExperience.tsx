@@ -18,7 +18,21 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   COMMUNITY: 'Community',
   SUPPORT: 'Support',
 };
-const CATEGORIES = Object.keys(CATEGORY_LABEL) as NotificationCategory[];
+export type NotificationSection = 'NEEDS_YOU' | 'UPDATES' | 'COMMUNITY' | 'EARLIER';
+
+export function notificationSection(notification: NotificationEvent): NotificationSection {
+  if (!notification.resolvedAt && parseNotificationActionKey(notification.actionKey) !== null) return 'NEEDS_YOU';
+  if (notification.category === 'COMMUNITY' && !notification.resolvedAt) return 'COMMUNITY';
+  if (!notification.readAt && !notification.resolvedAt) return 'UPDATES';
+  return 'EARLIER';
+}
+
+const SECTION_LABEL: Record<NotificationSection, string> = {
+  NEEDS_YOU: 'NEEDS YOU',
+  UPDATES: 'UPDATES',
+  COMMUNITY: 'COMMUNITY',
+  EARLIER: 'EARLIER',
+};
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -134,6 +148,14 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
   useEffect(() => { void controller.load(); }, [controller]);
   useEffect(() => { if (tab === 'preferences' && state.preferences.status === 'idle') void controller.loadPreferences(); }, [tab, state.preferences.status, controller]);
 
+  const grouped = state.inbox.status === 'ready' && state.inbox.data
+    ? (['NEEDS_YOU', 'UPDATES', 'COMMUNITY', 'EARLIER'] as NotificationSection[]).map(section => ({
+        section,
+        items: state.inbox.data!.filter(notification => notificationSection(notification) === section),
+      }))
+    : [];
+  const needsYouCount = grouped.find(group => group.section === 'NEEDS_YOU')?.items.length ?? 0;
+
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="notifications" onNavigate={onNavigate} />
@@ -147,27 +169,11 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
 
         {tab === 'inbox' && (
           <>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => controller.setCategoryFilter(null)}
-                className={`text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === null ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
-              >
-                All
-              </button>
-              {CATEGORIES.map(category => (
-                <button
-                  key={category}
-                  onClick={() => controller.setCategoryFilter(category)}
-                  className={`text-[0.75rem] rounded-full px-3 py-1 border ${state.categoryFilter === category ? 'border-forest-500 text-forest-700 bg-forest-50' : 'border-cream-200 text-sand-600'}`}
-                >
-                  {CATEGORY_LABEL[category]}
-                </button>
-              ))}
-              <label className="flex items-center gap-1.5 text-[0.75rem] text-sand-600 ml-1">
-                <input type="checkbox" checked={state.unreadOnly} onChange={e => controller.setUnreadOnly(e.target.checked)} /> Unread only
-              </label>
-            </div>
-
+            {needsYouCount > 0 && (
+              <p className="text-[0.82rem] font-medium text-forest-700">
+                {needsYouCount} {needsYouCount === 1 ? 'thing needs' : 'things need'} you
+              </p>
+            )}
             {state.inbox.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading…</p>}
             {state.inbox.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.inbox.error}</StatusNotice>}
             {state.inbox.status === 'ready' && state.inbox.data && state.inbox.data.length === 0 && (
@@ -177,9 +183,21 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
               </div>
             )}
             {state.inbox.status === 'ready' && state.inbox.data && state.inbox.data.length > 0 && (
-              <div className="space-y-2">
-                {state.inbox.data.map(notification => (
-                  <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
+              <div className="space-y-5">
+                {grouped.filter(group => group.items.length > 0).map(group => (
+                  <section key={group.section} aria-labelledby={`notification-section-${group.section}`} className="space-y-2">
+                    <div>
+                      <h2 id={`notification-section-${group.section}`} className="text-[0.7rem] font-semibold text-sand-500 tracking-wide">
+                        {SECTION_LABEL[group.section]}
+                      </h2>
+                      {group.section === 'NEEDS_YOU' && <p className="text-[0.72rem] text-sand-500 mt-0.5">Your decision or action is required.</p>}
+                      {group.section === 'UPDATES' && <p className="text-[0.72rem] text-sand-500 mt-0.5">Meaningful changes that do not need a decision right now.</p>}
+                      {group.section === 'COMMUNITY' && <p className="text-[0.72rem] text-sand-500 mt-0.5">Circle, service and learning activity worth knowing about.</p>}
+                    </div>
+                    {group.items.map(notification => (
+                      <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
+                    ))}
+                  </section>
                 ))}
                 {state.hasMore && (
                   <button
@@ -187,7 +205,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                     disabled={state.loadingMore}
                     className="w-full text-center text-[0.8rem] text-forest-700 underline py-2 disabled:opacity-50"
                   >
-                    {state.loadingMore ? 'Loading…' : 'Load more'}
+                    {state.loadingMore ? 'Loading…' : 'Earlier notifications'}
                   </button>
                 )}
               </div>
@@ -209,9 +227,9 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   <SurfaceBody>
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Delivery channel</div>
                     <p className="text-[0.75rem] text-sand-500 mb-1">
-                      WhatsApp is SecurePay's preferred channel where available. Only one external
-                      channel is used per notification -- WhatsApp first, then SMS, then email -- never
-                      all three at once.
+                      WhatsApp is SecurePay's preferred channel where available. SecurePay tries enabled
+                      channels in order and stops after delivery succeeds; SMS or email are fallbacks when
+                      the earlier channel fails.
                     </p>
                     <div className="divide-y divide-cream-100">
                       <Toggle label="WhatsApp" hint="Preferred channel." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
@@ -229,7 +247,13 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                       <Toggle label="Agreements" checked={state.preferencesDraft.agreementsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ agreementsCategoryEnabled: v })} />
                       <Toggle label="Money" checked={state.preferencesDraft.moneyCategoryEnabled} onChange={v => controller.setPreferencesDraft({ moneyCategoryEnabled: v })} />
                       <Toggle label="Reviews" checked={state.preferencesDraft.reviewsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ reviewsCategoryEnabled: v })} />
-                      <Toggle label="Security" checked={state.preferencesDraft.securityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ securityCategoryEnabled: v })} />
+                      <div className="flex items-start justify-between gap-3 py-2.5">
+                        <span>
+                          <span className="block text-[0.85rem] text-forest-800">Security</span>
+                          <span className="block text-[0.72rem] text-sand-500 mt-0.5">Required. Security and identity-risk updates cannot be silenced by ordinary notification preferences.</span>
+                        </span>
+                        <span className="text-[0.7rem] font-medium text-forest-600">Required</span>
+                      </div>
                       <Toggle label="Community" checked={state.preferencesDraft.communityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ communityCategoryEnabled: v })} />
                       <Toggle label="Support" checked={state.preferencesDraft.supportCategoryEnabled} onChange={v => controller.setPreferencesDraft({ supportCategoryEnabled: v })} />
                     </div>
