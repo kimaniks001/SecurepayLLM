@@ -762,12 +762,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return (
       <StoreExperience
         gateway={storeGateway}
+        businessGateway={businessGateway}
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onUseOffer={fact => { setStore(false); setHome(false); void controller.useOffer(fact); }}
+        onOpenBusinessVision={businessKsNumber => {
+          setStore(false);
+          setVisionLibrary(true);
+          void visionBoardController.loadForOwner(businessKsNumber);
+        }}
       />
     );
   }
@@ -853,6 +859,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <VisionBoardExperience
         controller={visionBoardController}
         documentGateway={visionBoardGateway}
+        defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
       />
     );
