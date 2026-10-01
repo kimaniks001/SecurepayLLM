@@ -27,3 +27,24 @@ test('SecurePay API surface registers the money snapshot gateway', () => {
   assert.match(api, /createMoneySnapshotGateway/);
   assert.match(api, /moneySnapshot:\s*createMoneySnapshotGateway\(http\)/);
 });
+
+
+const runtime = fs.readFileSync(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
+const experience = fs.readFileSync(new URL('../src/features/money/MoneyExperience.tsx', import.meta.url), 'utf8');
+const snapshotPanel = fs.readFileSync(new URL('../src/features/money/MoneySnapshotPanel.tsx', import.meta.url), 'utf8');
+
+test('snapshot is session-refreshed and wired into the real Money route', () => {
+  assert.match(runtime, /MONEY_AUTHENTICATED_METHODS\.moneySnapshot/);
+  assert.match(runtime, /moneySnapshot: moneySnapshotGateway/);
+  assert.match(experience, /<MoneySnapshotPanel/);
+});
+
+test('snapshot UI shows financial truth but keeps every financial command withheld', () => {
+  for (const term of ['Authorised maximum', 'Funded', 'Progressed', 'Returned', 'Remaining funded', 'Payment Ready', 'Funding routes and charges']) {
+    assert.match(snapshotPanel, new RegExp(term));
+  }
+  for (const forbidden of ['createQuote(', 'createIntent(', '.initiate(', '.fund(', '.exercise(', '.release(']) {
+    assert.ok(!snapshotPanel.includes(forbidden), forbidden);
+  }
+  assert.match(snapshotPanel, /does not, by themselves, prove movement authority/);
+});
