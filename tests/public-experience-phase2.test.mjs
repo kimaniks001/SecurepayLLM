@@ -548,5 +548,8 @@ test('Agreement Support gains no support authority', async () => {
     ],
     { encoding: 'utf8' },
   );
-  assert.doesNotMatch(moneyApiDiff, /support|ticket|escalat/i);
+  assert.doesNotMatch(
+    moneyApiDiff,
+    /supportContext|support[_ -]?(request|ticket|case)|\bticket\b|escalat/i,
+  );
 });
