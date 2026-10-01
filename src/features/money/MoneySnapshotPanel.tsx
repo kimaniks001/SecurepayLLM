@@ -4,6 +4,7 @@ import { MoneyValue } from '../../components/dna/MoneyValue';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { Surface, SurfaceBody, SurfaceHeader } from '../../components/dna/Surface';
 import type { MoneySnapshotGateway, AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
+import type { AgreementFundingQuoteResponse, PaymentIntentGateway } from '../../api/securepay/payment-intent';
 import { moneyText } from './amount';
 
 function amount(minor: number | null, currency: string | null) {
@@ -27,21 +28,29 @@ function readinessText(snapshot: AgreementMoneySnapshotResponse) {
 /**
  * Vision Money Gap V1 — the compact, single-read truth surface.
  *
- * The snapshot itself is a GET and moves nothing. Existing provider quote creation remains
- * deliberately withheld from this UI until the backend can prove environment capability and
- * atomic binding to the Agreement version being viewed.
+ * Snapshot reads move nothing. Charge quotation is the one explicit financial-adjacent action
+ * enabled here, and only when the backend itself says the current environment permits it. The
+ * request carries the exact current Agreement version from this snapshot; the API row-locks and
+ * rechecks that version before creating any provider quote evidence.
  */
-export function MoneySnapshotPanel({ snapshotGateway, agreementId }: {
+export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agreementId }: {
   snapshotGateway: MoneySnapshotGateway;
+  paymentIntentGateway: PaymentIntentGateway;
   agreementId: string;
 }) {
   const [snapshot, setSnapshot] = useState<AgreementMoneySnapshotResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [quote, setQuote] = useState<AgreementFundingQuoteResponse | null>(null);
+  const [quoteRail, setQuoteRail] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState(false);
 
   const load = () => {
     setLoading(true);
     setLoadError(false);
+    setQuote(null);
+    setQuoteRail(null);
+    setQuoteError(false);
     snapshotGateway.read(agreementId)
       .then(setSnapshot)
       .catch(() => { setSnapshot(null); setLoadError(true); })
@@ -53,6 +62,9 @@ export function MoneySnapshotPanel({ snapshotGateway, agreementId }: {
     setLoading(true);
     setLoadError(false);
     setSnapshot(null);
+    setQuote(null);
+    setQuoteRail(null);
+    setQuoteError(false);
     snapshotGateway.read(agreementId)
       .then(value => { if (live) setSnapshot(value); })
       .catch(() => { if (live) setLoadError(true); })
@@ -60,6 +72,23 @@ export function MoneySnapshotPanel({ snapshotGateway, agreementId }: {
     return () => { live = false; };
   }, [agreementId, snapshotGateway]);
 
+  const showCharges = async (railCode: string) => {
+    if (!snapshot || !snapshot.feeQuoteRequestsPermitted) return;
+    setQuoteRail(railCode);
+    setQuote(null);
+    setQuoteError(false);
+    try {
+      setQuote(await paymentIntentGateway.createVersionBoundQuote(
+        agreementId,
+        railCode,
+        snapshot.currentVersionId,
+      ));
+    } catch {
+      setQuoteError(true);
+    } finally {
+      setQuoteRail(null);
+    }
+  };
 
   return (
     <Surface>
@@ -125,21 +154,50 @@ export function MoneySnapshotPanel({ snapshotGateway, agreementId }: {
             <div className="space-y-2">
               <div>
                 <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Funding routes and charges</p>
-                <p className="text-xs text-sand-500">Only routes returned by SecurePay are shown. Exact charges stay withheld here until quote creation is both environment-readable and atomically bound to the Agreement version being viewed.</p>
+                <p className="text-xs text-sand-500">Only routes returned by SecurePay are shown. A charge quote does not create or initiate a payment.</p>
               </div>
               {snapshot.fundingOptions.length === 0 ? (
                 <p className="text-sm text-sand-600">SecurePay lists no funding route for this Agreement right now.</p>
               ) : (
                 <ul className="space-y-2">
                   {snapshot.fundingOptions.map(option => (
-                    <li key={option.railCode} className="rounded-xl border border-cream-200 p-3 flex items-center justify-between gap-3">
-                      <div>
+                    <li key={option.railCode} className="rounded-xl border border-cream-200 p-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
                         <div className="text-sm font-medium text-forest-800">{option.displayName}</div>
                         <div className="text-xs text-sand-500">{option.currency}</div>
-                      </div>                      <span className="text-xs text-sand-500">{option.quoteAvailable ? 'Charge quote available from the backend' : 'No quote available'}</span>
+                      </div>
+                      {option.quoteAvailable && snapshot.feeQuoteRequestsPermitted ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => void showCharges(option.railCode)}
+                          disabled={quoteRail !== null}
+                        >
+                          {quoteRail === option.railCode ? 'Checking charges…' : 'See charges'}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-sand-500">
+                          {option.quoteAvailable ? 'Charge quoting is not enabled in this environment.' : 'No charge quote is available for this route.'}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {quoteError && (
+                <StatusNotice tone="warning">
+                  SecurePay couldn’t produce that charge quote. The Agreement may have changed, the route may no longer be eligible, or quoting may no longer be available. No payment was created.
+                </StatusNotice>
+              )}
+              {quote && (
+                <div className="rounded-xl border border-forest-200 bg-cream-50 p-3 space-y-1 text-sm text-sand-700" data-testid="money-fee-quote">
+                  <div className="font-medium text-forest-800">Charge quote</div>
+                  <div>Amount to fund: <MoneyValue amount={moneyText(quote.amountMinor, quote.currency)} size="sm" /></div>
+                  <div>SecurePay charge: <MoneyValue amount={moneyText(quote.platformChargeMinor, quote.currency)} size="sm" /></div>
+                  <div>Rail/provider charge: <MoneyValue amount={moneyText(quote.providerChargeMinor, quote.currency)} size="sm" /></div>
+                  <div>Total payable: <MoneyValue amount={moneyText(quote.totalChargeMinor, quote.currency)} size="sm" /></div>
+                  <div className="text-xs text-sand-500">This quote expires {new Date(quote.expiresAt).toLocaleString()}. It has not created a payment.</div>
+                </div>
               )}
             </div>
 
