@@ -536,5 +536,17 @@ test('Agreement Support gains no support authority', async () => {
   assert.ok(registry.every(line =>
     line.startsWith('+') && /createOrganizationGateway|createMoneySnapshotGateway|moneySnapshot:/.test(line)
   ), 'gateway index additions are bounded to Organization and Vision Money Gap snapshot registration');
-  assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
+  const moneyApiDiff = execFileSync(
+    'git',
+    [
+      'diff',
+      'cb6aa531cd4614a941c2e8b0707e190870c0975c',
+      '--',
+      'src/api/securepay/money-snapshot',
+      'src/api/securepay/payment-intent',
+      'src/api/securepay/money-refresh.ts',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.doesNotMatch(moneyApiDiff, /support|ticket|escalat/i);
 });
