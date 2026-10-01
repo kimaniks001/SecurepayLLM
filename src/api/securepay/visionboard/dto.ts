@@ -87,3 +87,11 @@ export interface VisionDocumentDto {
   truthNote: string | null;
   fields: Record<string, string>;
 }
+
+
+export interface CommunitySaverPreferenceDto {
+  visionItemId: string;
+  enabled: boolean;
+  updatedAt: string | null;
+  version: number;
+}
