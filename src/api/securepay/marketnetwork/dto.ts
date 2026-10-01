@@ -128,3 +128,17 @@ export interface PlugMissionDto {
   closesAt: string | null;
   myDecision: 'ACCEPTED' | 'DECLINED' | null;
 }
+
+
+export type PlugSupplierConflictType = 'NONE' | 'SELF_OWNED_STORE' | 'REPRESENTED_BUSINESS_STORE';
+
+export interface PlugMissionSupplierProposalDto {
+  proposalId: string;
+  missionOpportunityOfferId: string;
+  storeOfferId: string;
+  providerKsNumber: string;
+  offerTitle: string;
+  conflictType: PlugSupplierConflictType;
+  disclosureText: string | null;
+  createdAt: string;
+}
