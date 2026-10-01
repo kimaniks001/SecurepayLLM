@@ -151,14 +151,20 @@ test('drift guard: every authenticated Money gateway method is in MONEY_AUTHENTI
   for (const key of Object.keys(m.MONEY_AUTHENTICATED_METHODS)) assert.match(runtime, new RegExp(`MONEY_AUTHENTICATED_METHODS\\.${key}\\b`), `${key} must be wrapped from the table`);
 });
 
-test('no participant financial command is reachable from the UI (withheld until atomic + environment proven)', async () => {
+test('money movement commands remain withheld; only environment-readable, version-bound fee quote is reachable', async () => {
   const exp = await src('src/features/money/MoneyExperience.tsx');
   const panels = await src('src/features/money/AgreementMoneyPanels.tsx');
   const hosted = await src('src/features/money/HostedMoneySessionExperience.tsx');
   const snapshot = await src('src/features/money/MoneySnapshotPanel.tsx');
-  for (const call of ['authorityGateway.open', 'authorityGateway.fund', 'authorityGateway.exercise', 'authorityGateway.release', 'createIntent', 'initiate(', 'createQuote', 'moneySession.create', 'sessionGateway.create', '.redeem(']) {
+  for (const call of ['authorityGateway.open', 'authorityGateway.fund', 'authorityGateway.exercise', 'authorityGateway.release', 'createIntent', 'initiate(', 'paymentIntentGateway.createQuote(', 'moneySession.create', 'sessionGateway.create', '.redeem(']) {
     for (const [name, code] of [['MoneyExperience', exp], ['Panels', panels], ['Hosted', hosted], ['Snapshot', snapshot]]) assert.ok(!code.includes(call), `${name} must not call ${call}`);
   }
+  assert.match(snapshot, /snapshot\.feeQuoteRequestsPermitted/);
+  assert.match(snapshot, /paymentIntentGateway\.createVersionBoundQuote/);
+  assert.match(snapshot, /snapshot\.currentVersionId/);
+  const paymentGateway = await src('src/api/securepay/payment-intent/index.ts');
+  assert.match(paymentGateway, /funding-quotes\/version-bound/);
+  assert.match(paymentGateway, /expectedAgreementVersionId/);
   const rel = await src('src/api/securepay/payment-release/index.ts');
   assert.doesNotMatch(rel, /method: 'POST'/);
   assert.doesNotMatch(exp + panels, /shareable link|Get a shareable/i);
