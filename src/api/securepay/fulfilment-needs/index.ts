@@ -36,6 +36,24 @@ export interface FulfilmentNeedMatchDto {
   updatedAt: string;
 }
 
+export interface SupplyRouteDto {
+  routeId: string;
+  offerId: string;
+  providerKsNumber: string;
+  providerDisplayName: string | null;
+  supplyRoles: string[];
+  routeLabel: string;
+  headlinePriceMinor: number | null;
+  currency: string;
+  landedCostKnown: boolean;
+  leadTimeHours: number | null;
+  minimumOrderQuantity: number | null;
+  deliveryAvailable: boolean | null;
+  warrantyDeclared: boolean;
+  returnTermsDeclared: boolean;
+  tradeOffs: string[];
+}
+
 export interface FulfilmentNeedDto {
   id: string;
   derivationKey: string;
@@ -86,6 +104,13 @@ export function createFulfilmentNeedsGateway(http: HttpClient) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 25) throw new Error('Fulfilment match limit must be between 1 and 25');
       return http.request<FulfilmentNeedMatchDto[]>(
         `/api/v1/fulfilment-needs/${segment(needId)}/matches?limit=${limit}`,
+        { auth: 'required' },
+      );
+    },
+    routes: (needId: string, limit = 10) => {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 25) throw new Error('Supply-route limit must be between 1 and 25');
+      return http.request<SupplyRouteDto[]>(
+        `/api/v1/fulfilment-needs/${segment(needId)}/routes?limit=${limit}`,
         { auth: 'required' },
       );
     },
