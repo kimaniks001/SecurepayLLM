@@ -261,7 +261,9 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                         </Button>
                       ) : (
                         <span className="text-xs text-sand-500">
-                          {option.quoteAvailable ? 'Charge quoting is not enabled in this environment.' : 'No charge quote is available for this route.'}
+                          {option.quoteAvailable
+                            ? 'Charge quoting is not enabled in this environment.'
+                            : 'No authoritative charge quote is available, so this route cannot create an executable payment yet.'}
                         </span>
                       )}
                     </li>
