@@ -959,6 +959,16 @@ export function createCommunityController(
 
     // ─── Owner-only Circle management (Slice 3 pre-merge completion pass) ─────────────────────────
 
+    async setCircleLifecycle(status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') {
+      if (!state.selectedCircleId || !state.selectedCircle) return;
+      try {
+        const result = await community.circles.setLifecycle(state.selectedCircleId, status);
+        update({ selectedCircle: { ...state.selectedCircle, status: result.status } });
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+
     async appointCircleSteward(membershipId: string) {
       if (!state.selectedCircleId) return;
       try {

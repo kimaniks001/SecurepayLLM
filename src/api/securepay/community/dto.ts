@@ -141,7 +141,7 @@ export interface CircleResponse {
   visibility: 'PUBLIC' | 'PRIVATE';
   categoryLabel: string | null;
   locationLabel: string | null;
-  status: 'ACTIVE' | 'CLOSED';
+  status: 'ACTIVE' | 'QUIET' | 'ARCHIVED' | 'CLOSED';
   creatorCanonicalKsNumber: string | null;
   creatorDisplayName: string | null;
   memberCount: number;

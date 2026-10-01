@@ -326,7 +326,7 @@ function CircleDetailPanel({
   objects, objectsLoading, onOpenObject, onCompose,
   members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
-  onOpenInvite, onOpenCloseConfirm,
+  onOpenInvite, onOpenCloseConfirm, onSetLifecycle,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
@@ -356,6 +356,7 @@ function CircleDetailPanel({
   onDeclineRequest: (membershipId: string) => void;
   onOpenInvite: () => void;
   onOpenCloseConfirm: () => void;
+  onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   const canSteward = isOwner || isSteward;
@@ -380,24 +381,32 @@ function CircleDetailPanel({
               {circle.visibility === 'PUBLIC' ? 'Discoverable by anyone in The Trust Project' : 'Private — not in general discovery'}
             </span>
             <span className="text-[0.68rem] text-sand-500">{circle.memberCount} member{circle.memberCount === 1 ? '' : 's'}</span>
-            {circle.status === 'CLOSED' && (
-              <span className="text-[0.68rem] font-medium text-sand-500 bg-cream-50 rounded-full px-2 py-0.5">Closed</span>
+            {circle.status !== 'ACTIVE' && (
+              <span className="text-[0.68rem] font-medium text-sand-500 bg-cream-50 rounded-full px-2 py-0.5">{circle.status.charAt(0) + circle.status.slice(1).toLowerCase()}</span>
             )}
           </div>
         </div>
 
         {isOwner && (
-          <div className="flex items-center justify-between">
-            <p className="text-[0.75rem] text-sand-500">This is one of your Circles — you are its steward.</p>
-            {circle.status === 'ACTIVE' && (
-              <button onClick={onOpenCloseConfirm} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Close Circle</button>
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[0.75rem] text-sand-500">You are the founding steward of this Circle.</p>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {circle.status === 'ACTIVE' && <button onClick={() => onSetLifecycle('QUIET')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Mark quiet</button>}
+              {circle.status === 'QUIET' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Reactivate</button>}
+              {(circle.status === 'ACTIVE' || circle.status === 'QUIET') && <button onClick={() => onSetLifecycle('ARCHIVED')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Archive</button>}
+              {circle.status === 'ARCHIVED' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Restore</button>}
+              {circle.status !== 'CLOSED' && <button onClick={onOpenCloseConfirm} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Close Circle</button>}
+            </div>
           </div>
         )}
         {!isOwner && membershipStatus === 'ACTIVE' && (
           <div className="flex items-center justify-between">
             <p className="text-[0.75rem] text-sand-500">{isSteward ? 'You are a steward of this Circle.' : 'This is one of your Circles.'}</p>
-            <button onClick={onLeave} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Leave Circle</button>
+            <div className="flex items-center gap-2">
+              {isSteward && circle.status === 'ACTIVE' && <button onClick={() => onSetLifecycle('QUIET')} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Mark quiet</button>}
+              {isSteward && circle.status === 'QUIET' && <button onClick={() => onSetLifecycle('ACTIVE')} className="text-[0.75rem] text-forest-600 hover:text-forest-700">Reactivate</button>}
+              <button onClick={onLeave} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Leave Circle</button>
+            </div>
           </div>
         )}
         {membershipStatus === 'INVITED' && (
@@ -464,6 +473,12 @@ function CircleDetailPanel({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {isMember && circle.status !== 'ACTIVE' && (
+          <div className="rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-[0.78rem] text-sand-600">
+            This Circle is {circle.status.toLowerCase()}. Existing members can read its history, but new posts and membership activity are paused.
           </div>
         )}
 
@@ -1066,6 +1081,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onDeclineRequest={id => void controller.declineCircleRequest(id)}
         onOpenInvite={() => controller.openCircleInvite()}
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
+        onSetLifecycle={status => void controller.setCircleLifecycle(status)}
       />
     );
   } else if (state.view === 'compose') {

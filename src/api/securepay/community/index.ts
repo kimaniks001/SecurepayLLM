@@ -162,6 +162,11 @@ export function createCommunityGateway(http: HttpClient) {
         http.request<CirclePendingInvitationView[]>(`/api/v1/community/circles/invitations?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       get: (circleId: string) => http.request<CircleResponse>(circle(circleId), { auth: 'required' }),
       close: (circleId: string) => http.request<CircleResponse>(`${circle(circleId)}/close`, { method: 'POST', auth: 'required' }),
+      setLifecycle: (circleId: string, status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') =>
+        http.request<{ circleId: string; status: 'ACTIVE' | 'QUIET' | 'ARCHIVED' }>(
+          `${circle(circleId)}/lifecycle`,
+          { method: 'POST', body: { status }, auth: 'required' },
+        ),
       membership: (circleId: string) =>
         http.request<CircleMembershipResponse>(`${circle(circleId)}/membership`, { auth: 'required' }),
 
