@@ -22,6 +22,7 @@ import {
 } from './controller';
 import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 import { useAppNavPadding } from '../public/publicShell';
+import { TrustProjectImpactHome } from './TrustProjectImpactHome';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
@@ -1520,6 +1521,12 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
       <>
         {banner}
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <TrustProjectImpactHome
+          gateway={communityGateway}
+          activeMember={isActiveMember}
+          onOpenCircles={() => void controller.showCommunityTab('my-circles')}
+          onJoin={onJoinTrustProject}
+        />
         <CommunityHome
           query={state.query}
           onQueryChange={q => controller.setQuery(q)}
@@ -1547,6 +1554,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           // own dedicated entry point (Slice 5, Section 28-29) -- see the "Search Community" button.
           searchPlaceholder="Search store offers by category or location..."
           noResultsMessage={`No store offers found for "${state.query}".`}
+          heading="Community activity"
+          description="Questions, needs, discussions, work stories and Store references."
+          composerLabel="Start a question, need or discussion"
+          composerDescription="Use a Project Contribution above for experiences, criticism, reflection, art and longer-form stories."
         />
       </>
     );
