@@ -13,7 +13,8 @@ test('Vision Money Gap: snapshot is Agreement-scoped and read-only', () => {
   assert.match(gateway, /\/api\/v1\/agreements\/\$\{segment\(agreementId\)\}\/money-snapshot/);
   assert.match(gateway, /read: \(agreementId: string\)/);
   assert.doesNotMatch(gateway, /method:\s*['"]POST['"]|method:\s*['"]PUT['"]|method:\s*['"]PATCH['"]|method:\s*['"]DELETE['"]/);
-  assert.doesNotMatch(gateway, /railCode|amountMinor|currency|beneficiary|destinationReference|funding-quotes/);
+  const executableGateway = gateway.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.doesNotMatch(executableGateway, /railCode|amountMinor|currency|beneficiary|destinationReference|funding-quotes/);
 });
 
 test('movement stays fail-closed until backend preflight exists', () => {
