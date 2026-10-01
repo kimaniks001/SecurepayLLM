@@ -30,13 +30,21 @@ export interface AgreementFundingQuoteResponse {
   railCode: string;
   amountMinor: number;
   currency: string;
-  providerChargeMinor: number;
+  providerCostMinor: number | null;
+  providerChargeMinor: number | null;
   platformChargeMinor: number;
-  totalChargeMinor: number;
+  securePayReceivableMinor: number;
+  totalChargeMinor: number | null;
   payerRole: string;
   feeBearer: string;
   railChargeBearer: string;
   pricingVersion: string;
+  economicState: 'READY' | 'BLOCKED';
+  economicReasonCode: string;
+  expectedCostMinor: number | null;
+  expectedMarginMinor: number | null;
+  minimumMarginMinor: number | null;
+  economicPolicyVersion: string | null;
   expiresAt: string;
 }
 
