@@ -276,12 +276,45 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
               {quote && (
                 <div className="rounded-xl border border-forest-200 bg-cream-50 p-3 space-y-1 text-sm text-sand-700" data-testid="money-fee-quote">
                   <div className="font-medium text-forest-800">Charge quote</div>
-                  <div>Amount to fund: <MoneyValue amount={moneyText(quote.amountMinor, quote.currency)} size="sm" /></div>
+                  <div>Recipient principal: <MoneyValue amount={moneyText(quote.amountMinor, quote.currency)} size="sm" /></div>
                   <div>SecurePay charge: <MoneyValue amount={moneyText(quote.platformChargeMinor, quote.currency)} size="sm" /></div>
-                  <div>Rail/provider charge: <MoneyValue amount={moneyText(quote.providerChargeMinor, quote.currency)} size="sm" /></div>
-                  <div>Total payable: <MoneyValue amount={moneyText(quote.totalChargeMinor, quote.currency)} size="sm" /></div>
+                  <div>SecurePay must receive: <MoneyValue amount={moneyText(quote.securePayReceivableMinor, quote.currency)} size="sm" /></div>
+                  <div>
+                    Rail/provider charge: {quote.providerChargeMinor === null
+                      ? <span className="text-sand-500">Unknown</span>
+                      : <MoneyValue amount={moneyText(quote.providerChargeMinor, quote.currency)} size="sm" />}
+                  </div>
+                  <div>
+                    Total payer out-of-pocket: {quote.totalChargeMinor === null
+                      ? <span className="text-sand-500">Unknown</span>
+                      : <MoneyValue amount={moneyText(quote.totalChargeMinor, quote.currency)} size="sm" />}
+                  </div>
                   <div className="text-xs text-sand-500">
                     Payer role: {bearerText(quote.payerRole)} · SecurePay fee bearer: {bearerText(quote.feeBearer)} · rail-charge bearer: {bearerText(quote.railChargeBearer)}
+                  </div>
+                  <div className="mt-2 rounded-lg border border-cream-200 bg-white/60 p-2 space-y-1" data-testid="money-economic-safety">
+                    <div className="text-xs font-medium text-forest-800">
+                      Economic safety: {quote.economicState === 'READY' ? 'ready' : 'blocked'}
+                    </div>
+                    <div className="text-xs text-sand-500">Reason: {bearerText(quote.economicReasonCode)}.</div>
+                    <div className="text-xs text-sand-500">
+                      Provider cost to SecurePay: {quote.providerCostMinor === null
+                        ? 'Unknown'
+                        : moneyText(quote.providerCostMinor, quote.currency)}
+                    </div>
+                    {quote.expectedCostMinor !== null && (
+                      <div className="text-xs text-sand-500">Expected allocated cost: {moneyText(quote.expectedCostMinor, quote.currency)}</div>
+                    )}
+                    {quote.expectedMarginMinor !== null && (
+                      <div className="text-xs text-sand-500">Expected margin: {moneyText(quote.expectedMarginMinor, quote.currency)}</div>
+                    )}
+                    {quote.minimumMarginMinor !== null && (
+                      <div className="text-xs text-sand-500">Minimum permitted margin: {moneyText(quote.minimumMarginMinor, quote.currency)}</div>
+                    )}
+                    <div className="text-xs text-sand-500">Economics policy: {quote.economicPolicyVersion ?? 'Not configured'}.</div>
+                    {quote.economicState !== 'READY' && (
+                      <div className="text-xs font-medium text-sand-700">This quote is not execution-eligible.</div>
+                    )}
                   </div>
                   <div className="text-xs text-sand-500">Pricing version: {quote.pricingVersion}.</div>
                   <div className="text-xs text-sand-500">This quote expires {new Date(quote.expiresAt).toLocaleString()}. It has not created a payment.</div>
