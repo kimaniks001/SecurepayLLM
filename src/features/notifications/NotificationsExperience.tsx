@@ -95,6 +95,18 @@ function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvi
   );
 }
 
+function Choice({ label, hint, value, options, onChange }: { label: string; hint?: string; value: string; options: {value:string;label:string}[]; onChange: (value: string) => void }) {
+  return (
+    <label className="block py-2.5">
+      <span className="block text-[0.85rem] text-forest-800">{label}</span>
+      {hint && <span className="block text-[0.72rem] text-sand-500 mt-0.5 mb-1.5">{hint}</span>}
+      <select value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2 text-[0.82rem] text-forest-800">
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <label className="flex items-start justify-between gap-3 py-2.5 cursor-pointer">
@@ -198,8 +210,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
         {tab === 'preferences' && (
           <>
             <p className="text-[0.78rem] text-sand-500 -mt-1">
-              These control delivery for individual notification categories below. General account
-              channels (email/SMS/push) and marketing messages are separate and live in Settings.
+              Choose what deserves interruption and how SecurePay may reach you. Security remains protected; in-app remains the durable record.
             </p>
             {state.preferences.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading…</p>}
             {state.preferences.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.preferences.error}</StatusNotice>}
@@ -207,32 +218,69 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
               <>
                 <Surface>
                   <SurfaceBody>
-                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Delivery channel</div>
-                    <p className="text-[0.75rem] text-sand-500 mb-1">
-                      WhatsApp is SecurePay's preferred channel where available. Only one external
-                      channel is used per notification -- WhatsApp first, then SMS, then email -- never
-                      all three at once.
-                    </p>
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">What should interrupt you?</div>
                     <div className="divide-y divide-cream-100">
-                      <Toggle label="WhatsApp" hint="Preferred channel." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
-                      <Toggle label="SMS" hint="Used if WhatsApp is off or unavailable." checked={state.preferencesDraft.smsEnabled} onChange={v => controller.setPreferencesDraft({ smsEnabled: v })} />
-                      <Toggle label="Email" hint="Used if WhatsApp and SMS are both off." checked={state.preferencesDraft.emailEnabled} onChange={v => controller.setPreferencesDraft({ emailEnabled: v })} />
+                      <div className="py-2.5">
+                        <div className="text-[0.85rem] text-forest-800">Security</div>
+                        <div className="text-[0.72rem] text-sand-500 mt-0.5">Protected. Ordinary preferences cannot turn off serious security, identity or money-risk alerts.</div>
+                      </div>
+                      <Choice
+                        label="Agreements & Money"
+                        value={state.preferencesDraft.agreementsMoneyMode}
+                        options={[{value:'IMMEDIATE',label:'Immediate'},{value:'IN_APP_ONLY',label:'In-app only'}]}
+                        onChange={v => controller.setPreferencesDraft({ agreementsMoneyMode: v as 'IMMEDIATE'|'IN_APP_ONLY' })}
+                      />
+                      <Choice
+                        label="Store / Plug / Master"
+                        value={state.preferencesDraft.storePlugMasterMode}
+                        options={[{value:'IMMEDIATE',label:'Immediate'},{value:'DAILY_SUMMARY',label:'Daily summary'},{value:'OFF',label:'Off'}]}
+                        onChange={v => controller.setPreferencesDraft({ storePlugMasterMode: v as 'IMMEDIATE'|'DAILY_SUMMARY'|'OFF' })}
+                      />
+                      <Choice
+                        label="Community & Circles"
+                        hint="Important activity, not scrolling prompts."
+                        value={state.preferencesDraft.communityMode}
+                        options={[{value:'IMPORTANT_ONLY',label:'Important only'},{value:'DAILY_SUMMARY',label:'Daily summary'},{value:'OFF',label:'Off'}]}
+                        onChange={v => controller.setPreferencesDraft({ communityMode: v as 'IMPORTANT_ONLY'|'DAILY_SUMMARY'|'OFF' })}
+                      />
+                      <Choice
+                        label="Opportunities"
+                        value={state.preferencesDraft.opportunitiesMode}
+                        options={[{value:'IMPORTANT_MATCHES',label:'Important matches'},{value:'DAILY',label:'Daily'},{value:'WEEKLY',label:'Weekly'},{value:'OFF',label:'Off'}]}
+                        onChange={v => controller.setPreferencesDraft({ opportunitiesMode: v as 'IMPORTANT_MATCHES'|'DAILY'|'WEEKLY'|'OFF' })}
+                      />
                     </div>
                   </SurfaceBody>
                 </Surface>
 
                 <Surface>
                   <SurfaceBody>
-                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Categories</div>
-                    <p className="text-[0.75rem] text-sand-500 mb-1">Turning a category off stops it from reaching you anywhere, including in this inbox.</p>
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Channels</div>
+                    <p className="text-[0.75rem] text-sand-500 mb-1">SecurePay keeps the in-app record. External channels are delivery only; fallback happens only after the preferred channel does not deliver.</p>
                     <div className="divide-y divide-cream-100">
-                      <Toggle label="Agreements" checked={state.preferencesDraft.agreementsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ agreementsCategoryEnabled: v })} />
-                      <Toggle label="Money" checked={state.preferencesDraft.moneyCategoryEnabled} onChange={v => controller.setPreferencesDraft({ moneyCategoryEnabled: v })} />
-                      <Toggle label="Reviews" checked={state.preferencesDraft.reviewsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ reviewsCategoryEnabled: v })} />
-                      <Toggle label="Security" checked={state.preferencesDraft.securityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ securityCategoryEnabled: v })} />
-                      <Toggle label="Community" checked={state.preferencesDraft.communityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ communityCategoryEnabled: v })} />
-                      <Toggle label="Support" checked={state.preferencesDraft.supportCategoryEnabled} onChange={v => controller.setPreferencesDraft({ supportCategoryEnabled: v })} />
+                      <Toggle label="WhatsApp" hint="Preferred external channel when available." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
+                      <Toggle label="SMS fallback" hint="Used only when policy permits fallback." checked={state.preferencesDraft.smsFallbackEnabled} onChange={v => controller.setPreferencesDraft({ smsFallbackEnabled: v })} />
+                      <Toggle label="Email" checked={state.preferencesDraft.emailEnabled} onChange={v => controller.setPreferencesDraft({ emailEnabled: v })} />
+                      <Toggle label="Push" hint="Saved now; delivery requires a configured push provider." checked={state.preferencesDraft.pushEnabled} onChange={v => controller.setPreferencesDraft({ pushEnabled: v })} />
                     </div>
+                  </SurfaceBody>
+                </Surface>
+
+                <Surface>
+                  <SurfaceBody>
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Quiet hours</div>
+                    <Toggle label="Use quiet hours" hint="Non-critical notifications can wait. Protected alerts are not silently suppressed." checked={state.preferencesDraft.quietHoursEnabled} onChange={v => controller.setPreferencesDraft({
+                      quietHoursEnabled: v,
+                      quietStart: v ? (state.preferencesDraft?.quietStart ?? '21:00') : null,
+                      quietEnd: v ? (state.preferencesDraft?.quietEnd ?? '07:00') : null,
+                      quietTimeZone: v ? (state.preferencesDraft?.quietTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone) : null,
+                    })} />
+                    {state.preferencesDraft.quietHoursEnabled && (
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <label className="text-[0.72rem] text-sand-500">From<input type="time" value={state.preferencesDraft.quietStart ?? '21:00'} onChange={e => controller.setPreferencesDraft({ quietStart: e.target.value })} className="block w-full mt-1 rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" /></label>
+                        <label className="text-[0.72rem] text-sand-500">Until<input type="time" value={state.preferencesDraft.quietEnd ?? '07:00'} onChange={e => controller.setPreferencesDraft({ quietEnd: e.target.value })} className="block w-full mt-1 rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" /></label>
+                      </div>
+                    )}
                   </SurfaceBody>
                 </Surface>
 

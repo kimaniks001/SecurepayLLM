@@ -109,6 +109,48 @@ export function createNotificationsGateway(http: HttpClient) {
     getPreferences: () => http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { auth: 'required' }),
     updatePreferences: (body: UpdateNotificationPreferencesRequest) =>
       http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { method: 'PUT', body, auth: 'required' }),
+    getPolicyPreferences: () =>
+      http.request<NotificationPolicyPreferences>('/api/v1/notifications/me/policy-preferences', { auth: 'required' }),
+    updatePolicyPreferences: (body: UpdateNotificationPolicyPreferencesRequest) =>
+      http.request<NotificationPolicyPreferences>('/api/v1/notifications/me/policy-preferences', { method: 'PUT', body, auth: 'required' }),
   };
 }
 export type NotificationsGateway = ReturnType<typeof createNotificationsGateway>;
+
+
+export type AgreementsMoneyMode = 'IMMEDIATE' | 'IN_APP_ONLY';
+export type StorePlugMasterMode = 'IMMEDIATE' | 'DAILY_SUMMARY' | 'OFF';
+export type CommunityMode = 'IMPORTANT_ONLY' | 'DAILY_SUMMARY' | 'OFF';
+export type OpportunitiesMode = 'IMPORTANT_MATCHES' | 'DAILY' | 'WEEKLY' | 'OFF';
+
+export interface NotificationPolicyPreferences {
+  agreementsMoneyMode: AgreementsMoneyMode;
+  storePlugMasterMode: StorePlugMasterMode;
+  communityMode: CommunityMode;
+  opportunitiesMode: OpportunitiesMode;
+  whatsappEnabled: boolean;
+  smsFallbackEnabled: boolean;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietStart: string | null;
+  quietEnd: string | null;
+  quietTimeZone: string | null;
+  securityProtected: boolean;
+  saved: boolean;
+}
+
+export interface UpdateNotificationPolicyPreferencesRequest {
+  agreementsMoneyMode: AgreementsMoneyMode;
+  storePlugMasterMode: StorePlugMasterMode;
+  communityMode: CommunityMode;
+  opportunitiesMode: OpportunitiesMode;
+  whatsappEnabled: boolean;
+  smsFallbackEnabled: boolean;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietStart: string | null;
+  quietEnd: string | null;
+  quietTimeZone: string | null;
+}

@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationsGateway } from '../../api/securepay/notifications';
+import type { NotificationCategory, NotificationEvent, NotificationPolicyPreferences, NotificationsGateway } from '../../api/securepay/notifications';
 import { errorText } from '../agent/controller';
 
 export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data: T | null; error: string | null };
@@ -17,8 +17,8 @@ export interface NotificationsState {
    */
   hasMore: boolean;
   loadingMore: boolean;
-  preferences: Loadable<NotificationPreferences>;
-  preferencesDraft: NotificationPreferences | null;
+  preferences: Loadable<NotificationPolicyPreferences>;
+  preferencesDraft: NotificationPolicyPreferences | null;
   preferencesSaving: boolean;
   preferencesSaveError: string | null;
   preferencesJustSaved: boolean;
@@ -33,7 +33,7 @@ const PAGE_SIZE = 20;
  * used as-is, matching this project's existing doctrine for `nextActions` (see
  * tests/phase6-convergence.test.mjs test E).
  */
-export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences'>) {
+export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPolicyPreferences' | 'updatePolicyPreferences'>) {
   let state: NotificationsState = {
     inbox: idle(),
     categoryFilter: null,
@@ -121,14 +121,14 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     async loadPreferences() {
       update({ preferences: { status: 'loading', data: null, error: null } });
       try {
-        const result = await gateway.getPreferences();
+        const result = await gateway.getPolicyPreferences();
         update({ preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result });
       } catch (error) {
         update({ preferences: { status: 'error', data: null, error: errorText(error) } });
       }
     },
 
-    setPreferencesDraft(patch: Partial<NotificationPreferences>) {
+    setPreferencesDraft(patch: Partial<NotificationPolicyPreferences>) {
       if (!state.preferencesDraft) return;
       update({ preferencesDraft: { ...state.preferencesDraft, ...patch }, preferencesJustSaved: false });
     },
@@ -138,11 +138,19 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       update({ preferencesSaving: true, preferencesSaveError: null, preferencesJustSaved: false });
       const draft = state.preferencesDraft;
       try {
-        const result = await gateway.updatePreferences({
-          whatsappEnabled: draft.whatsappEnabled, smsEnabled: draft.smsEnabled, emailEnabled: draft.emailEnabled,
-          agreementsCategoryEnabled: draft.agreementsCategoryEnabled, moneyCategoryEnabled: draft.moneyCategoryEnabled,
-          reviewsCategoryEnabled: draft.reviewsCategoryEnabled, securityCategoryEnabled: draft.securityCategoryEnabled,
-          communityCategoryEnabled: draft.communityCategoryEnabled, supportCategoryEnabled: draft.supportCategoryEnabled,
+        const result = await gateway.updatePolicyPreferences({
+          agreementsMoneyMode: draft.agreementsMoneyMode,
+          storePlugMasterMode: draft.storePlugMasterMode,
+          communityMode: draft.communityMode,
+          opportunitiesMode: draft.opportunitiesMode,
+          whatsappEnabled: draft.whatsappEnabled,
+          smsFallbackEnabled: draft.smsFallbackEnabled,
+          emailEnabled: draft.emailEnabled,
+          pushEnabled: draft.pushEnabled,
+          quietHoursEnabled: draft.quietHoursEnabled,
+          quietStart: draft.quietHoursEnabled ? draft.quietStart : null,
+          quietEnd: draft.quietHoursEnabled ? draft.quietEnd : null,
+          quietTimeZone: draft.quietHoursEnabled ? draft.quietTimeZone : null,
         });
         update({ preferencesSaving: false, preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result, preferencesJustSaved: true });
       } catch (error) {
