@@ -16,7 +16,7 @@ export const emptyOfferDraft: OfferDraftFields = {
 };
 
 /**
- * `/api/v1/stores/search` requires `kind` (PRODUCT|SERVICE — there is no "all kinds" value) and has no
+ * `/api/v1/stores/search` requires `kind` (PRODUCT|SERVICE|CAPACITY — there is no "all kinds" value) and has no
  * free-text query parameter at all: only exact `kind` plus ILIKE `category`/`location` (ANDed together
  * server-side, never ORed). Bolt's locked StoreHome is a single free-text search box with no kind
  * picker. Rather than fabricate a full-text search the backend doesn't have, or force a kind picker
@@ -28,7 +28,7 @@ export const emptyOfferDraft: OfferDraftFields = {
  * documented in docs/PRODUCTION_MIGRATION_LEDGER.md as a real backend gap, not simulated here.
  */
 export function searchRequests(query: string, limit = 10): StoreSearchParams[] {
-  const kinds: StoreSearchParams['kind'][] = ['PRODUCT', 'SERVICE'];
+  const kinds: StoreSearchParams['kind'][] = ['PRODUCT', 'SERVICE', 'CAPACITY'];
   const trimmed = query.trim();
   if (!trimmed) return kinds.map(kind => ({ kind, limit }));
   return kinds.flatMap(kind => [

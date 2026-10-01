@@ -15,7 +15,7 @@ function isStringArray(value: unknown): value is string[] {
 
 // Exact verified enums (StoreService.OfferKind / StoreService.AvailabilityState). An unrecognized
 // value is never inferred a meaning — see task hardening pass point 2 — it fails the whole read closed.
-const OFFER_KINDS: readonly OfferKind[] = ['PRODUCT', 'SERVICE'];
+const OFFER_KINDS: readonly OfferKind[] = ['PRODUCT', 'SERVICE', 'CAPACITY'];
 const AVAILABILITY_STATES: readonly AvailabilityState[] = [
   'AVAILABLE', 'LOW_AVAILABILITY', 'NEEDS_CONFIRMATION', 'UNAVAILABLE', 'PAUSED',
   'TAKING_WORK', 'LIMITED', 'FULLY_BOOKED', 'RESTING',
@@ -29,7 +29,9 @@ function assertKnownAvailabilityState(state: string): asserts state is Availabil
 
 /** Backend truth: PRODUCT|SERVICE only, and only after assertKnownOfferKind — never a silent default. */
 function offerType(kind: OfferKind): OfferType {
-  return kind === 'PRODUCT' ? 'product' : 'service';
+  if (kind === 'PRODUCT') return 'product';
+  if (kind === 'CAPACITY') return 'capacity';
+  return 'service';
 }
 
 /**
