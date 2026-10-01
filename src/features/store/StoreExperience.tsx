@@ -13,6 +13,8 @@ import type { StoreGateway } from '../../api/securepay/store';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { BusinessGateway, BusinessRepresentationDto } from '../../api/securepay/business';
+import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
+import type { PlugAvailabilityResponse } from '../../api/securepay/marketnetwork/dto';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
@@ -37,8 +39,8 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
-  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; auth: AuthGateway; session: SessionStore;
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
@@ -56,6 +58,9 @@ export function StoreExperience({ gateway, businessGateway, auth, session, initi
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
+  const [plugAvailability, setPlugAvailability] = useState<PlugAvailabilityResponse | null>(null);
+  const [plugAvailabilityBusy, setPlugAvailabilityBusy] = useState(false);
+  const [plugAvailabilityError, setPlugAvailabilityError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
@@ -107,6 +112,41 @@ export function StoreExperience({ gateway, businessGateway, auth, session, initi
     }
   };
 
+  const loadPlugAvailability = async () => {
+    try {
+      const current = await marketNetworkGateway.plugAvailability();
+      setPlugAvailability(current.qualified ? current : null);
+      setPlugAvailabilityError(null);
+    } catch {
+      // Store remains fully usable when Plug availability cannot be loaded.
+      setPlugAvailability(null);
+    }
+  };
+
+  const togglePlugAvailability = async () => {
+    if (!plugAvailability || plugAvailabilityBusy) return;
+    setPlugAvailabilityBusy(true);
+    setPlugAvailabilityError(null);
+    try {
+      const updated = await marketNetworkGateway.updatePlugAvailability({
+        available: !plugAvailability.available,
+        scheduleNote: plugAvailability.scheduleNote,
+        availableUntil: plugAvailability.availableUntil,
+        areas: plugAvailability.areas,
+        radiusKm: plugAvailability.radiusKm,
+        capabilities: plugAvailability.capabilities,
+        maximumTasks: plugAvailability.maximumTasks,
+        minimumTaskValueMinor: plugAvailability.minimumTaskValueMinor,
+        notificationPreferences: plugAvailability.notificationPreferences,
+      });
+      setPlugAvailability(updated.qualified ? updated : null);
+    } catch (error) {
+      setPlugAvailabilityError(errorText(error));
+    } finally {
+      setPlugAvailabilityBusy(false);
+    }
+  };
+
   const openBusinessStore = async (business: BusinessRepresentationDto) => {
     setManageChoiceBusy(true);
     setManageChoiceError(null);
@@ -115,6 +155,7 @@ export function StoreExperience({ gateway, businessGateway, auth, session, initi
       if (!confirmed.canActFor || confirmed.businessKsNumber !== business.businessKsNumber) throw new Error('not confirmed');
       setManageChoices(null);
       await controller.enterBusinessManagement(confirmed.businessKsNumber, confirmed.displayName ?? confirmed.businessKsNumber);
+      await loadPlugAvailability();
     } catch (error) {
       setManageChoiceError(errorText(error));
     } finally {
@@ -141,7 +182,7 @@ export function StoreExperience({ gateway, businessGateway, auth, session, initi
             <h1 className="font-display text-xl text-forest-800">Which Store are you managing?</h1>
             <p className="text-sm text-sand-500 mt-1">SecurePay re-confirms your authority before opening a Business Store.</p>
           </div>
-          <button disabled={manageChoiceBusy} onClick={() => { setManageChoices(null); void controller.enterManagement(); }}
+          <button disabled={manageChoiceBusy} onClick={() => { setManageChoices(null); void controller.enterManagement().then(loadPlugAvailability); }}
             className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-4">
             <div className="font-medium text-forest-800">My personal Store</div>
             <div className="text-xs text-sand-500 mt-1">Your own KS Store.</div>
@@ -265,6 +306,10 @@ export function StoreExperience({ gateway, businessGateway, auth, session, initi
         businessMode={state.managedBusiness !== null}
         onOpenGrow={state.managedBusiness ? () => onOpenBusinessVision(state.managedBusiness!.ksNumber) : undefined}
         onOpenMoney={() => onNavigate('money')}
+        plugAvailability={plugAvailability}
+        plugAvailabilityBusy={plugAvailabilityBusy}
+        plugAvailabilityError={plugAvailabilityError}
+        onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
       />
     );
   } else {

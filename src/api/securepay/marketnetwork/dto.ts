@@ -63,3 +63,42 @@ export interface RelationshipLifecycleResponse {
   contactExchangeAvailable: boolean;
   terminalAt: string | null;
 }
+
+
+export interface PlugMarketProfileResponse {
+  standing: 'IN_TRAINING' | 'READY_TO_ENTER' | 'ACTIVE' | 'REFRESH_REQUIRED' | 'EXITED';
+  marketReady: boolean;
+  enrolled: boolean;
+  canRepresentMarket: boolean;
+  entryStatementVersion: string;
+  enteredAt: string | null;
+  exitedAt: string | null;
+}
+
+export interface PlugAvailabilityResponse {
+  qualified: boolean;
+  available: boolean;
+  scheduleNote: string | null;
+  availableUntil: string | null;
+  areas: string[];
+  radiusKm: number | null;
+  capabilities: string[];
+  maximumTasks: number | null;
+  minimumTaskValueMinor: number | null;
+  currency: string;
+  notificationPreferences: Record<string, unknown>;
+  updatedAt: string | null;
+  version: number;
+}
+
+export interface UpdatePlugAvailabilityRequest {
+  available: boolean;
+  scheduleNote?: string | null;
+  availableUntil?: string | null;
+  areas?: string[];
+  radiusKm?: number | null;
+  capabilities?: string[];
+  maximumTasks?: number | null;
+  minimumTaskValueMinor?: number | null;
+  notificationPreferences?: Record<string, unknown>;
+}

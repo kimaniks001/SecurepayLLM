@@ -1,4 +1,5 @@
-import { ArrowLeft, Plus, FileText, Link2, MessageCircle, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, ShoppingBag } from 'lucide-react';
+import type { PlugAvailabilityResponse } from '../api/securepay/marketnetwork/dto';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
 
 interface StoreManagementHomeProps {
@@ -11,9 +12,13 @@ interface StoreManagementHomeProps {
   businessMode?: boolean;
   onOpenGrow?: () => void;
   onOpenMoney?: () => void;
+  plugAvailability?: PlugAvailabilityResponse | null;
+  plugAvailabilityBusy?: boolean;
+  plugAvailabilityError?: string | null;
+  onTogglePlugAvailability?: () => void;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, onTogglePlugAvailability }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -54,24 +59,42 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
           </div>
         )}
 
-        {/* Stats */}
+        {/* Authoritative offer-state counts only. */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">
-            <FileText className="w-4 h-4 text-sand-400 mx-auto mb-1" />
-            <div className="text-[0.875rem] font-medium text-forest-800">{published.length}</div>
-            <div className="text-[0.65rem] text-sand-500">Published</div>
-          </div>
-          <div className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">
-            <Link2 className="w-4 h-4 text-sand-400 mx-auto mb-1" />
-            <div className="text-[0.875rem] font-medium text-forest-800">{published.length}</div>
-            <div className="text-[0.65rem] text-sand-500">SecureLinks</div>
-          </div>
-          <div className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">
-            <MessageCircle className="w-4 h-4 text-sand-400 mx-auto mb-1" />
-            <div className="text-[0.875rem] font-medium text-forest-800">{enquiries.length}</div>
-            <div className="text-[0.65rem] text-sand-500">Enquiries</div>
-          </div>
+          {[
+            ['Published', published.length],
+            ['Drafts', drafts.length],
+            ['Unavailable', unavailable.length],
+          ].map(([label, count]) => (
+            <div key={String(label)} className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">
+              <FileText className="w-4 h-4 text-sand-400 mx-auto mb-1" />
+              <div className="text-[0.875rem] font-medium text-forest-800">{count}</div>
+              <div className="text-[0.65rem] text-sand-500">{label}</div>
+            </div>
+          ))}
         </div>
+
+        {plugAvailability && (
+          <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[0.72rem] font-medium text-forest-800">Extra Plug work</div>
+                <p className="text-[0.72rem] text-sand-500 mt-1">
+                  Your Store stays active either way. This only controls whether your qualified human KS is available for bounded Plug tasks.
+                </p>
+              </div>
+              <button
+                disabled={plugAvailabilityBusy || !onTogglePlugAvailability}
+                onClick={onTogglePlugAvailability}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[0.72rem] font-medium disabled:opacity-50 ${plugAvailability.available ? 'bg-forest-600 text-white' : 'bg-cream-100 text-sand-600'}`}
+              >
+                {plugAvailabilityBusy ? 'Saving…' : plugAvailability.available ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            {plugAvailability.availableUntil && <div className="text-[0.68rem] text-sand-500 mt-2">Available until {plugAvailability.availableUntil}</div>}
+            {plugAvailabilityError && <div role="alert" className="text-[0.72rem] text-ember-600 mt-2">{plugAvailabilityError}</div>}
+          </div>
+        )}
 
         {/* Create offer */}
         <button
