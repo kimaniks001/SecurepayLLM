@@ -8,6 +8,7 @@ const dto = fs.readFileSync(new URL('../src/api/securepay/money-snapshot/dto.ts'
 const runtime = fs.readFileSync(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');
 const experience = fs.readFileSync(new URL('../src/features/money/MoneyExperience.tsx', import.meta.url), 'utf8');
 const snapshotPanel = fs.readFileSync(new URL('../src/features/money/MoneySnapshotPanel.tsx', import.meta.url), 'utf8');
+const paymentIntentApi = fs.readFileSync(new URL('../src/api/securepay/payment-intent/index.ts', import.meta.url), 'utf8');
 
 test('Vision Money Gap: snapshot is Agreement-scoped and read-only', () => {
   assert.match(gateway, /\/api\/v1\/agreements\/\$\{segment\(agreementId\)\}\/money-snapshot/);
