@@ -54,6 +54,17 @@ export interface SupplyRouteDto {
   tradeOffs: string[];
 }
 
+export interface FulfilmentCommunityShareDto {
+  communityObjectId: string;
+  fulfilmentNeedId: string;
+  circleId: string | null;
+  objectType: 'OPPORTUNITY';
+  title: string;
+  body: string;
+  locationLabel: string | null;
+  createdAt: string;
+}
+
 export interface MiniAgreementReviewDto {
   fulfilmentNeedId: string;
   offerId: string;
@@ -135,6 +146,13 @@ export function createFulfilmentNeedsGateway(http: HttpClient) {
         `/api/v1/fulfilment-needs/${segment(needId)}/mini-agreement-review?offerId=${encodeURIComponent(offerId)}`,
         { auth: 'required' },
       ),
+    shareToCommunity: (
+      needId: string,
+      body: { circleId?: string | null; locationLabel?: string | null; idempotencyKey?: string | null },
+    ) => http.request<FulfilmentCommunityShareDto>(
+      `/api/v1/fulfilment-needs/${segment(needId)}/community`,
+      { method: 'POST', body, auth: 'required' },
+    ),
   };
 }
 
