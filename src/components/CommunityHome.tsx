@@ -30,6 +30,7 @@ interface CommunityHomeProps {
   circlesEntryDescription?: string;
   searchPlaceholder?: string;
   noResultsMessage?: string;
+  showSearch?: boolean;
 }
 
 export function CommunityHome({
@@ -40,6 +41,7 @@ export function CommunityHome({
   circlesEntryDescription = 'Trusted economic networks — Construction Circle, Creative Professionals, and more',
   searchPlaceholder = 'Search people, businesses, questions, needs, work...',
   noResultsMessage,
+  showSearch = true,
 }: CommunityHomeProps) {
   const results = objects;
 
@@ -53,12 +55,12 @@ export function CommunityHome({
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
-          <h1 className="font-display text-xl text-forest-800 font-medium">Community</h1>
-          <p className="text-[0.85rem] text-sand-600 mt-0.5">The trade neighbourhood. Find help, ask questions, share work, discover opportunities.</p>
+          <h1 className="font-display text-xl text-forest-800 font-medium">Community LIVE</h1>
+          <p className="text-[0.85rem] text-sand-600 mt-0.5">Belong. Serve. Learn. Share what happened. Pass useful knowledge on.</p>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-5">
+        {/* Search is optional in production LIVE; broad cross-domain search has its own deliberate surface. */}
+        {showSearch && <div className="relative mb-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
           <input
             type="text"
@@ -67,7 +69,7 @@ export function CommunityHome({
             placeholder={searchPlaceholder}
             className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
           />
-        </div>
+        </div>}
 
         {/* Circles */}
         <button
@@ -101,9 +103,9 @@ export function CommunityHome({
         >
           <span className="flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-600">
             <Sparkles className="w-3.5 h-3.5" />
-            What would you like to share with the community?
+            What is happening, where can people help, or what did you learn?
           </span>
-          <p className="text-[0.72rem] text-sand-600 mt-0.5">Ask a question, post a need, share work, or offer an opportunity</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">Ask a useful question, share a need, tell a real work story, or invite people to help.</p>
         </button>
 
         {/* Needs & Opportunities */}

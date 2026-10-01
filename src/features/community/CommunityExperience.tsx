@@ -936,11 +936,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
 
   const isActiveMember = state.membership.kind === 'active';
   const realObjects = isActiveMember && state.feed.status === 'ready' ? state.feed.data.map(o => realObjectToCommunityObject(o)) : [];
-  const storeObjects = state.search.status === 'ready' ? state.search.data.map(storeResultToCommunityObject) : [];
-  const objects = [...realObjects, ...storeObjects];
-  const selectedStore = state.selectedObjectId && !state.selectedRealObject
-    ? (state.search.status === 'ready' ? state.search.data.find(r => storeResultToCommunityObject(r).id === state.selectedObjectId) : undefined)
-    : undefined;
+  // Community LIVE is human Community content only. Store discovery remains available through the
+  // deliberate cross-domain Search surface and explicit transitions, never injected into LIVE.
+  const objects = realObjects;
+  const selectedStore = undefined;
 
   const banner = (
     <>
@@ -1199,9 +1198,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
           onOpenCircles={onOpenCircle}
-          onOpenEcosystem={() => onNavigate('ecosystem')}
-          storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
-          storeSearchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
+          showSearch={false}
           // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
           // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
           // "Discover Circles", the CommunityHomeTabs directly above this screen) are now a real
