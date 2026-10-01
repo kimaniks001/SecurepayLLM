@@ -11,6 +11,7 @@ import type { createRegulatedAccountsGateway } from './regulated-accounts';
 import type { createBusinessCurrencyCapabilityGateway } from './business-currency-capability';
 import type { createBusinessFxApplicationGateway } from './business-fx-application';
 import type { createFinancialPartnerGateway } from './financial-partners';
+import type { createMoneySnapshotGateway } from './money-snapshot';
 
 type Methods<F extends (...args: never[]) => unknown> = readonly (keyof ReturnType<F>)[];
 
@@ -22,7 +23,7 @@ type Methods<F extends (...args: never[]) => unknown> = readonly (keyof ReturnTy
 export const MONEY_AUTHENTICATED_METHODS = {
   money: ['status', 'records'] as const satisfies Methods<typeof createMoneyGateway>,
   moneyAuthority: ['list', 'status', 'open', 'fund', 'exercise', 'release', 'transactions'] as const satisfies Methods<typeof createMoneyAuthorityGateway>,
-  paymentIntent: ['fundingAuthority', 'fundingOptions', 'createQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'] as const satisfies Methods<typeof createPaymentIntentGateway>,
+  paymentIntent: ['fundingAuthority', 'fundingOptions', 'createQuote', 'createVersionBoundQuote', 'createIntent', 'listIntents', 'get', 'listAttempts', 'initiate'] as const satisfies Methods<typeof createPaymentIntentGateway>,
   paymentRelease: ['releaseAuthority', 'instructions', 'settlementStatus'] as const satisfies Methods<typeof createPaymentReleaseGateway>,
   settlementDestinations: ['current', 'history', 'verificationStatus', 'register', 'replace'] as const satisfies Methods<typeof createSettlementDestinationGateway>,
   moneySession: ['create', 'resolve', 'redeem'] as const satisfies Methods<typeof createMoneySessionGateway>,
@@ -33,4 +34,5 @@ export const MONEY_AUTHENTICATED_METHODS = {
   businessCurrencyCapability: ['list', 'activate'] as const satisfies Methods<typeof createBusinessCurrencyCapabilityGateway>,
   businessFxApplication: ['create', 'get', 'list'] as const satisfies Methods<typeof createBusinessFxApplicationGateway>,
   financialPartners: ['list'] as const satisfies Methods<typeof createFinancialPartnerGateway>,
+  moneySnapshot: ['read'] as const satisfies Methods<typeof createMoneySnapshotGateway>,
 };
