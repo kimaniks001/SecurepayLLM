@@ -1,6 +1,6 @@
 import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
-  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
+  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -197,6 +197,14 @@ export function createCommunityGateway(http: HttpClient) {
         http.request<CircleMembershipResponse>(`${circle(circleId)}/members/${segment(membershipId)}/remove`, { method: 'POST', auth: 'required' }),
       members: (circleId: string, limit = 50, offset = 0) =>
         http.request<CircleMemberView[]>(`${circle(circleId)}/members?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      stewards: {
+        list: (circleId: string) =>
+          http.request<CircleStewardView[]>(`${circle(circleId)}/stewards`, { auth: 'required' }),
+        appoint: (circleId: string, membershipId: string) =>
+          http.request<CircleStewardView>(`${circle(circleId)}/stewards/${segment(membershipId)}`, { method: 'POST', auth: 'required' }),
+        remove: (circleId: string, membershipId: string) =>
+          http.request<CircleStewardView>(`${circle(circleId)}/stewards/${segment(membershipId)}`, { method: 'DELETE', auth: 'required' }),
+      },
 
       // Circle-scoped Community content -- reuses the same CommunityObjectResponse shape as
       // Community LIVE (`circleId` on the response tells them apart).

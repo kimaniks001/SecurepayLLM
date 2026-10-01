@@ -158,6 +158,7 @@ export interface CircleResponse {
 export interface CircleMembershipResponse {
   status: 'INVITED' | 'REQUESTED' | 'ACTIVE' | 'DECLINED' | 'LEFT' | 'REMOVED' | null;
   isOwner: boolean;
+  isSteward: boolean;
   invitedByDisplayName: string | null;
   createdAt: string | null;
   respondedAt: string | null;
@@ -204,4 +205,13 @@ export interface CirclePendingInvitationView {
   circleMembershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
   invitedByDisplayName: string | null;
   invitedAt: string;
+}
+
+
+export interface CircleStewardView {
+  membershipId: string;
+  canonicalKsNumber: string;
+  displayName: string | null;
+  founder: boolean;
+  active: boolean;
 }

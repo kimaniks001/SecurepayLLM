@@ -1,7 +1,7 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type {
-  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse,
+  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from '../../api/securepay/community/dto';
@@ -240,6 +240,7 @@ export interface CommunityState {
   circlePendingRequests: RemoteState<CirclePendingRequestView[]>;
   /** ACTIVE members only. Loaded alongside the scoped feed for any ACTIVE member/owner. */
   circleMembers: RemoteState<CircleMemberView[]>;
+  circleStewards: RemoteState<CircleStewardView[]>;
   circleInviteOpen: boolean;
   /**
    * Final pre-merge correction pass -- the caller's own pending Circle invitations, self-scoped.
@@ -295,7 +296,7 @@ const initial: CommunityState = {
   selectedCircleId: null, selectedCircle: null, circleMembership: { status: 'idle' }, circleObjects: { status: 'idle' },
   circleJoinIntentKey: '', circleJoinSubmitting: false, circleJoinError: null,
   circleComposeDraft: { ...emptyDraft },
-  circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
+  circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' }, circleStewards: { status: 'idle' },
   circleInviteOpen: false, circleInvitations: { status: 'idle' }, circleInviteDraft: { ...emptyInviteDraft },
   circleCloseConfirmOpen: false, circleClosing: false,
   discoverCirclesQuery: '',
@@ -529,7 +530,17 @@ export function createCommunityController(
     update({ circleInvitations: { status: 'ready', data: state.circleInvitations.data.filter(i => i.circleId !== circleId) } });
   }
 
-  /** Owner-only -- only ever called when the caller is already known to be the Circle's own owner. */
+  async function loadCircleStewards(circleId: string) {
+    update({ circleStewards: { status: 'loading' } });
+    try {
+      const stewards = await community.circles.stewards.list(circleId);
+      update({ circleStewards: { status: 'ready', data: stewards } });
+    } catch (error) {
+      update({ circleStewards: { status: 'error', error: asApiError(error) } });
+    }
+  }
+
+  /** Steward-only -- backend is authoritative; founder is also a steward. */
   async function loadCirclePendingRequests(circleId: string) {
     update({ circlePendingRequests: { status: 'loading' } });
     try {
@@ -547,8 +558,9 @@ export function createCommunityController(
       if (membership.status === 'ACTIVE' || membership.isOwner) {
         await loadCircleObjects(circleId);
         await loadCircleMembers(circleId);
+        await loadCircleStewards(circleId);
       }
-      if (membership.isOwner && state.selectedCircle?.membershipMode === 'REQUEST_TO_JOIN') {
+      if ((membership.isOwner || membership.isSteward) && state.selectedCircle?.membershipMode === 'REQUEST_TO_JOIN') {
         await loadCirclePendingRequests(circleId);
       }
       return membership;
@@ -858,7 +870,7 @@ export function createCommunityController(
         view: 'circleDetail', selectedCircleId: id, selectedCircle: cached,
         circleMembership: { status: 'loading' }, circleObjects: { status: 'idle' },
         circleJoinIntentKey: newIdempotencyKey('circle-join'), circleJoinError: null,
-        circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' },
+        circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' }, circleStewards: { status: 'idle' },
         circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft },
         circleCloseConfirmOpen: false, circleClosing: false,
       });
@@ -946,6 +958,28 @@ export function createCommunityController(
     },
 
     // ─── Owner-only Circle management (Slice 3 pre-merge completion pass) ─────────────────────────
+
+    async appointCircleSteward(membershipId: string) {
+      if (!state.selectedCircleId) return;
+      try {
+        await community.circles.stewards.appoint(state.selectedCircleId, membershipId);
+        await loadCircleStewards(state.selectedCircleId);
+        await refreshCircleMembership(state.selectedCircleId);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
+
+    async removeCircleSteward(membershipId: string) {
+      if (!state.selectedCircleId) return;
+      try {
+        await community.circles.stewards.remove(state.selectedCircleId, membershipId);
+        await loadCircleStewards(state.selectedCircleId);
+        await refreshCircleMembership(state.selectedCircleId);
+      } catch (error) {
+        update({ notice: errorText(error) });
+      }
+    },
 
     async approveCircleRequest(membershipId: string) {
       if (!state.selectedCircleId) return;

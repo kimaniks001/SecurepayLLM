@@ -321,16 +321,17 @@ function DiscoverCirclesView({
  * the feed -- it is never even fetched for them (see controller.ts `openCircle`).
  */
 function CircleDetailPanel({
-  circle, membershipStatus, isOwner, invitedByDisplayName, joinSubmitting, joinError,
+  circle, membershipStatus, isOwner, isSteward, invitedByDisplayName, joinSubmitting, joinError,
   onJoin, onRequestToJoin, onAccept, onDecline, onLeave, onBack,
   objects, objectsLoading, onOpenObject, onCompose,
-  members, membersLoading, onRemoveMember,
+  members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
   onOpenInvite, onOpenCloseConfirm,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
   isOwner: boolean;
+  isSteward: boolean;
   invitedByDisplayName: string | null;
   joinSubmitting: boolean;
   joinError: string | null;
@@ -346,7 +347,10 @@ function CircleDetailPanel({
   onCompose: () => void;
   members: { membershipId: string; canonicalKsNumber: string | null; displayName: string | null; isSelf: boolean }[];
   membersLoading: boolean;
+  stewards: { membershipId: string; canonicalKsNumber: string; displayName: string | null; founder: boolean; active: boolean }[];
   onRemoveMember: (membershipId: string) => void;
+  onAppointSteward: (membershipId: string) => void;
+  onRemoveSteward: (membershipId: string) => void;
   pendingRequests: { membershipId: string; requesterCanonicalKsNumber: string | null; requesterDisplayName: string | null }[];
   onApproveRequest: (membershipId: string) => void;
   onDeclineRequest: (membershipId: string) => void;
@@ -354,6 +358,8 @@ function CircleDetailPanel({
   onOpenCloseConfirm: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
+  const canSteward = isOwner || isSteward;
+  const stewardMembershipIds = new Set(stewards.filter(s => s.active).map(s => s.membershipId));
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -390,7 +396,7 @@ function CircleDetailPanel({
         )}
         {!isOwner && membershipStatus === 'ACTIVE' && (
           <div className="flex items-center justify-between">
-            <p className="text-[0.75rem] text-sand-500">This is one of your Circles.</p>
+            <p className="text-[0.75rem] text-sand-500">{isSteward ? 'You are a steward of this Circle.' : 'This is one of your Circles.'}</p>
             <button onClick={onLeave} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Leave Circle</button>
           </div>
         )}
@@ -406,7 +412,7 @@ function CircleDetailPanel({
           </div>
         )}
         {membershipStatus === 'REQUESTED' && (
-          <p className="text-[0.8rem] text-sand-600">Your request to join is waiting for the owner's review.</p>
+          <p className="text-[0.8rem] text-sand-600">Your request to join is waiting for a Circle steward's review.</p>
         )}
         {!isOwner && (membershipStatus === null || membershipStatus === 'DECLINED' || membershipStatus === 'LEFT' || membershipStatus === 'REMOVED') && (
           <div className="space-y-2">
@@ -433,21 +439,20 @@ function CircleDetailPanel({
                 {/* Correction (Slice 3 pre-merge completion pass): the backend's real invitation
                     authority is owner-only -- this copy must say exactly that, never the previous,
                     inaccurate wording naming any member as able to invite. */}
-                This Circle is invite-only. The Circle owner must invite you before you can join.
+                This Circle is invite-only. A Circle steward must invite you before you can join.
               </p>
             )}
             {joinError && <p role="alert" className="text-[0.75rem] text-red-600">{joinError}</p>}
           </div>
         )}
 
-        {/* Owner-only management (Slice 3 pre-merge completion pass) -- exposes existing backend
-            authority (invite/approve/decline/remove/close) that already worked, never new authority. */}
-        {isOwner && circle.membershipMode === 'INVITE_ONLY' && circle.status === 'ACTIVE' && (
+        {/* Steward management is Circle-space care only. Founder retains ownership/close authority. */}
+        {canSteward && circle.membershipMode === 'INVITE_ONLY' && circle.status === 'ACTIVE' && (
           <button onClick={onOpenInvite} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700 text-left">
             Invite someone
           </button>
         )}
-        {isOwner && circle.membershipMode === 'REQUEST_TO_JOIN' && pendingRequests.length > 0 && (
+        {canSteward && circle.membershipMode === 'REQUEST_TO_JOIN' && pendingRequests.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-cream-100">
             <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Requests to join</h2>
             {pendingRequests.map(r => (
@@ -489,8 +494,7 @@ function CircleDetailPanel({
           </div>
         )}
 
-        {/* Member list -- an ACTIVE member's own view of who else is in the Circle (community-safe
-            identity fields only); Remove is owner-only. */}
+        {/* Member list -- community-safe identity fields only. Stewardship does not expose private account data. */}
         {isMember && (
           <div className="space-y-2 pt-2 border-t border-cream-100">
             <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Members</h2>
@@ -502,11 +506,26 @@ function CircleDetailPanel({
                   {/* UX-only cleanup (final pre-merge correction pass): the backend already rejects
                       self-removal (CannotRemoveOwnerException) regardless of this check -- hiding the
                       owner's own Remove button here just avoids offering an action that always fails. */}
-                  {isOwner && !m.isSelf && (
-                    <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
-                      Remove
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {stewardMembershipIds.has(m.membershipId) && (
+                      <span className="text-[0.65rem] text-forest-600">{stewards.find(s => s.membershipId === m.membershipId)?.founder ? 'Founder steward' : 'Steward'}</span>
+                    )}
+                    {isOwner && !m.isSelf && !stewardMembershipIds.has(m.membershipId) && (
+                      <button onClick={() => onAppointSteward(m.membershipId)} className="text-[0.7rem] text-forest-600 hover:text-forest-700">
+                        Make steward
+                      </button>
+                    )}
+                    {isOwner && !m.isSelf && stewardMembershipIds.has(m.membershipId) && !stewards.find(s => s.membershipId === m.membershipId)?.founder && (
+                      <button onClick={() => onRemoveSteward(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
+                        Remove steward
+                      </button>
+                    )}
+                    {canSteward && !m.isSelf && !stewardMembershipIds.has(m.membershipId) && (
+                      <button onClick={() => onRemoveMember(m.membershipId)} className="text-[0.7rem] text-sand-500 hover:text-forest-600">
+                        Remove member
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1022,6 +1041,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         circle={state.selectedCircle}
         membershipStatus={membership?.status ?? null}
         isOwner={membership?.isOwner ?? false}
+        isSteward={membership?.isSteward ?? false}
         invitedByDisplayName={membership?.invitedByDisplayName ?? null}
         joinSubmitting={state.circleJoinSubmitting}
         joinError={state.circleJoinError}
@@ -1037,7 +1057,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onCompose={() => controller.openCircleComposer()}
         members={state.circleMembers.status === 'ready' ? state.circleMembers.data : []}
         membersLoading={state.circleMembers.status === 'loading'}
+        stewards={state.circleStewards.status === 'ready' ? state.circleStewards.data : []}
         onRemoveMember={id => void controller.removeCircleMember(id)}
+        onAppointSteward={id => void controller.appointCircleSteward(id)}
+        onRemoveSteward={id => void controller.removeCircleSteward(id)}
         pendingRequests={state.circlePendingRequests.status === 'ready' ? state.circlePendingRequests.data : []}
         onApproveRequest={id => void controller.approveCircleRequest(id)}
         onDeclineRequest={id => void controller.declineCircleRequest(id)}
