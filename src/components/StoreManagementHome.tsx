@@ -112,6 +112,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                       <span className="text-[0.62rem] rounded-full bg-cream-100 px-2 py-0.5 text-sand-600">{mission.missionType}</span>
                     </div>
                     <div className="text-[0.7rem] text-sand-500 mt-1">{mission.summary}</div>
+                    <div className="text-[0.65rem] text-sand-400 mt-1">Authority: {mission.authorityRequirement.replace(/_/g, ' ')}</div>
                     {mission.permittedActions.length > 0 && (
                       <div className="text-[0.65rem] text-sand-400 mt-2">Allowed: {mission.permittedActions.join(', ')}</div>
                     )}

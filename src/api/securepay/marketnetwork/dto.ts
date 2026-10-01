@@ -105,10 +105,12 @@ export interface UpdatePlugAvailabilityRequest {
 
 
 export type PlugMissionType = 'FULFILMENT' | 'POOLING' | 'ASSEMBLY';
+export type PlugMissionAuthorityRequirement = 'ORDINARY_PLUG' | 'VERIFIED_PROFESSIONAL' | 'MASTER_JUDGEMENT';
 
 export interface PlugMissionDto {
   opportunityOfferId: string;
   missionType: PlugMissionType;
+  authorityRequirement: PlugMissionAuthorityRequirement;
   fulfilmentNeedId: string | null;
   sharedPoolId: string | null;
   title: string;
