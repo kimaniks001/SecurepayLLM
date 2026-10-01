@@ -995,6 +995,11 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [apprenticeships, setApprenticeships] = useState<ApprenticeshipProjectDto[]>([]);
   const [purposeLoading, setPurposeLoading] = useState(false);
   const [purposeError, setPurposeError] = useState<string | null>(null);
+  const [purposeCreate, setPurposeCreate] = useState<'service' | 'event' | 'apprenticeship' | null>(null);
+  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', locationLabel: '', skills: '' });
+  const [eventDraft, setEventDraft] = useState({ title: '', description: '', startsAt: '', locationLabel: '' });
+  const [apprenticeshipDraft, setApprenticeshipDraft] = useState({ apprenticeKsNumber: '', title: '', learningGoal: '' });
+  const [purposeSubmitting, setPurposeSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isActiveMember) {
@@ -1264,7 +1269,34 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         {banner}
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
-          <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Service need</button>
+          </div>
+          {purposeCreate === 'service' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What help is needed?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Describe the practical need" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="General location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="Skills needed, comma separated (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim()}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.serviceOpportunities.create({
+                    title: serviceDraft.title.trim(), description: serviceDraft.description.trim(),
+                    locationLabel: serviceDraft.locationLabel.trim() || null,
+                    skillsNeeded: serviceDraft.skills.split(',').map(x => x.trim()).filter(Boolean),
+                  }).then(created => {
+                    setServiceItems(items => [created, ...items]);
+                    setServiceDraft({ title: '', description: '', locationLabel: '', skills: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create service opportunity</button>
+            </div>
+          )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
           {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
           {!purposeLoading && !purposeError && serviceItems.length === 0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No service opportunities are open right now.</p>}
@@ -1272,7 +1304,22 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
             <div className="text-[0.9rem] font-medium text-forest-800">{item.title}</div>
             <p className="text-[0.78rem] text-sand-600 mt-1">{item.description}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location to be agreed'}{item.skillsNeeded.length ? ` · ${item.skillsNeeded.join(', ')}` : ''}</div>
-            <button onClick={() => void communityGateway.serviceOpportunities.volunteer(item.id,true).then(updated => setServiceItems(items => items.map(x => x.id===updated.id?updated:x)))} className="mt-3 text-[0.75rem] font-medium text-forest-600">I'm interested</button>
+            <div className="mt-3 flex items-center gap-4">
+              <button onClick={() => void communityGateway.serviceOpportunities.volunteer(item.id,true).then(updated => setServiceItems(items => items.map(x => x.id===updated.id?updated:x)))} className="text-[0.75rem] font-medium text-forest-600">I'm interested</button>
+              <button
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.projects.create({
+                    circleId: item.circleId, sourceServiceOpportunityId: item.id,
+                    title: item.title, purpose: item.description, locationLabel: item.locationLabel,
+                  }).then(created => {
+                    setCommunityProjects(items => [created, ...items.filter(x => x.id !== created.id)]);
+                    void controller.showCommunityTab('learn');
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >Shape as project</button>
+            </div>
           </div>)}
         </div></div>
       </>
@@ -1283,7 +1330,34 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         {banner}
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
-          <div><h2 className="font-display text-lg text-forest-800 font-medium">Learn</h2><p className="text-[0.8rem] text-sand-500">Knowledge, mentorship and supervised Apprenticeship Projects grounded in real work.</p></div>
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Learn</h2><p className="text-[0.8rem] text-sand-500">Knowledge, mentorship and supervised Apprenticeship Projects grounded in real work.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'apprenticeship' ? null : 'apprenticeship')} className="text-[0.75rem] font-medium text-forest-600">+ Apprenticeship Project</button>
+          </div>
+          {purposeCreate === 'apprenticeship' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <p className="text-[0.72rem] text-sand-500">Only a currently designated Master can create this. SecurePay checks that on the server.</p>
+              <input value={apprenticeshipDraft.apprenticeKsNumber} onChange={e => setApprenticeshipDraft(d => ({...d,apprenticeKsNumber:e.target.value}))} placeholder="Apprentice KS Number" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={apprenticeshipDraft.title} onChange={e => setApprenticeshipDraft(d => ({...d,title:e.target.value}))} placeholder="Project title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={apprenticeshipDraft.learningGoal} onChange={e => setApprenticeshipDraft(d => ({...d,learningGoal:e.target.value}))} placeholder="What should the apprentice learn?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !apprenticeshipDraft.apprenticeKsNumber.trim() || !apprenticeshipDraft.title.trim() || !apprenticeshipDraft.learningGoal.trim()}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.apprenticeships.create({
+                    apprenticeKsNumber: apprenticeshipDraft.apprenticeKsNumber.trim(),
+                    title: apprenticeshipDraft.title.trim(),
+                    learningGoal: apprenticeshipDraft.learningGoal.trim(),
+                  }).then(created => {
+                    setApprenticeships(items => [created, ...items]);
+                    setApprenticeshipDraft({ apprenticeKsNumber: '', title: '', learningGoal: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create Apprenticeship Project</button>
+            </div>
+          )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
           {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
           {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
@@ -1312,7 +1386,34 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         {banner}
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
-          <div><h2 className="font-display text-lg text-forest-800 font-medium">Happening</h2><p className="text-[0.8rem] text-sand-500">Meet, teach, hike, serve and gather. RSVP is a plan, not a contractual commitment.</p></div>
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Happening</h2><p className="text-[0.8rem] text-sand-500">Meet, teach, hike, serve and gather. RSVP is a plan, not a contractual commitment.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'event' ? null : 'event')} className="text-[0.75rem] font-medium text-forest-600">+ Event</button>
+          </div>
+          {purposeCreate === 'event' && (
+            <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
+              <input value={eventDraft.title} onChange={e => setEventDraft(d => ({...d,title:e.target.value}))} placeholder="Event title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={eventDraft.description} onChange={e => setEventDraft(d => ({...d,description:e.target.value}))} placeholder="What is happening?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input type="datetime-local" value={eventDraft.startsAt} onChange={e => setEventDraft(d => ({...d,startsAt:e.target.value}))} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={eventDraft.locationLabel} onChange={e => setEventDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="Location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <button
+                disabled={purposeSubmitting || !eventDraft.title.trim() || !eventDraft.description.trim() || !eventDraft.startsAt}
+                onClick={() => {
+                  setPurposeSubmitting(true); setPurposeError(null);
+                  void communityGateway.events.create({
+                    title: eventDraft.title.trim(), description: eventDraft.description.trim(),
+                    startsAt: new Date(eventDraft.startsAt).toISOString(),
+                    locationLabel: eventDraft.locationLabel.trim() || null,
+                  }).then(created => {
+                    setCommunityEvents(items => [...items, created].sort((a,b) => a.startsAt.localeCompare(b.startsAt)));
+                    setEventDraft({ title: '', description: '', startsAt: '', locationLabel: '' });
+                    setPurposeCreate(null);
+                  }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
+                }}
+                className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
+              >Create event</button>
+            </div>
+          )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
           {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
           {!purposeLoading && !purposeError && communityEvents.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">Nothing is scheduled yet.</p>}

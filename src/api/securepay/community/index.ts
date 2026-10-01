@@ -130,22 +130,30 @@ export function createCommunityGateway(http: HttpClient) {
     currentPrinciples: () => http.request<CurrentPrinciplesResponse>('/api/v1/community/principles/current', { auth: 'none' }),
 
     events: {
+      create: (body: { circleId?: string | null; title: string; description: string; startsAt: string; endsAt?: string | null; locationLabel?: string | null; capacity?: number | null }) =>
+        http.request<CommunityEventDto>('/api/v1/community/events', { method: 'POST', body, auth: 'required' }),
       list: (limit = 20, offset = 0) =>
         http.request<CommunityEventDto[]>(`/api/v1/community/events?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       rsvp: (eventId: string, going: boolean) =>
         http.request<CommunityEventDto>(`/api/v1/community/events/${segment(eventId)}/rsvp`, { method: 'POST', body: { going }, auth: 'required' }),
     },
     serviceOpportunities: {
+      create: (body: { circleId?: string | null; title: string; description: string; locationLabel?: string | null; startsAt?: string | null; endsAt?: string | null; skillsNeeded?: string[] }) =>
+        http.request<CommunityServiceOpportunityDto>('/api/v1/community/service-opportunities', { method: 'POST', body, auth: 'required' }),
       list: (limit = 20, offset = 0) =>
         http.request<CommunityServiceOpportunityDto[]>(`/api/v1/community/service-opportunities?limit=${limit}&offset=${offset}`, { auth: 'required' }),
       volunteer: (id: string, interested: boolean) =>
         http.request<CommunityServiceOpportunityDto>(`/api/v1/community/service-opportunities/${segment(id)}/volunteer`, { method: 'POST', body: { interested }, auth: 'required' }),
     },
     projects: {
+      create: (body: { circleId?: string | null; sourceServiceOpportunityId?: string | null; title: string; purpose: string; locationLabel?: string | null }) =>
+        http.request<CommunityProjectDto>('/api/v1/community/projects', { method: 'POST', body, auth: 'required' }),
       list: (limit = 20, offset = 0) =>
         http.request<CommunityProjectDto[]>(`/api/v1/community/projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
     },
     apprenticeships: {
+      create: (body: { communityProjectId?: string | null; circleId?: string | null; apprenticeKsNumber: string; title: string; learningGoal: string; sponsorshipReference?: string | null }) =>
+        http.request<ApprenticeshipProjectDto>('/api/v1/community/apprenticeship-projects', { method: 'POST', body, auth: 'required' }),
       list: (limit = 20, offset = 0) =>
         http.request<ApprenticeshipProjectDto[]>(`/api/v1/community/apprenticeship-projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
     },
