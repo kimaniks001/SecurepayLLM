@@ -1,0 +1,62 @@
+name: Vision Money Gap Validation
+
+on:
+  push:
+    branches:
+      - feat/vision-money-gap-v1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/api/securepay/money-snapshot/**'
+      - 'src/api/securepay/payment-intent/**'
+      - 'src/api/securepay/money-refresh.ts'
+      - 'src/features/money/**'
+      - 'src/RuntimeApp.tsx'
+      - 'tests/vision-money-gap.test.mjs'
+      - 'tests/ui-phase8.test.mjs'
+      - 'tests/money-experience.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/vision-money-gap-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Vision Money Gap regressions
+        run: npm run test:vision-money-gap
+
+      - name: Phase 8 money doctrine
+        run: node --test tests/ui-phase8.test.mjs
+
+      - name: Money experience regressions
+        run: npm run test:money-experience
+
+      - name: Full frontend regression
+        run: node --test tests/*.test.mjs
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint errors
+        run: npm run lint -- --quiet
+
+      - name: Production build
+        run: npm run build
