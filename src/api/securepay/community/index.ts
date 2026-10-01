@@ -172,6 +172,11 @@ export function createCommunityGateway(http: HttpClient) {
           `/api/v1/community/transitions/projects/${segment(projectId)}/vision`,
           { method: 'POST', auth: 'required' },
         ),
+      contributionToVision: (contributionId: string) =>
+        http.request<CommunityVisionTransitionDto>(
+          `/api/v1/community/transitions/contributions/${segment(contributionId)}/vision`,
+          { method: 'POST', auth: 'required' },
+        ),
       prepareObject: (objectId: string, targetDomain: CommunityTransitionIntentDto['targetDomain']) =>
         http.request<CommunityTransitionIntentDto>(
           `/api/v1/community/transitions/objects/${segment(objectId)}/prepare`,
