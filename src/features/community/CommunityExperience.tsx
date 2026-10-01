@@ -1000,6 +1000,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [eventDraft, setEventDraft] = useState({ title: '', description: '', startsAt: '', locationLabel: '' });
   const [apprenticeshipDraft, setApprenticeshipDraft] = useState({ apprenticeKsNumber: '', title: '', learningGoal: '' });
   const [purposeSubmitting, setPurposeSubmitting] = useState(false);
+  const [lessonProjectId, setLessonProjectId] = useState<string | null>(null);
+  const [lessonDraft, setLessonDraft] = useState('');
 
   useEffect(() => {
     if (!isActiveMember) {
@@ -1367,14 +1369,68 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
-            <button
-              onClick={() => void communityGateway.transitions.projectToVision(item.id)
-                .then(() => onNavigate('vision-board'))
-                .catch(error => controller.showNotice(errorText(error)))}
-              className="mt-3 text-[0.75rem] font-medium text-forest-600"
-            >
-              Add to Vision
-            </button>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              <button
+                onClick={() => void communityGateway.transitions.projectToVision(item.id)
+                  .then(() => onNavigate('vision-board'))
+                  .catch(error => controller.showNotice(errorText(error)))}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >
+                Add to Vision
+              </button>
+              {(['AGREEMENT','STORE','PLUG','MASTER'] as const).map(target => (
+                <button
+                  key={target}
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,target)
+                    .then(() => controller.showNotice(`${target.charAt(0)+target.slice(1).toLowerCase()} handoff prepared. Nothing was created or committed yet.`))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.75rem] font-medium text-forest-600"
+                >
+                  Prepare {target.charAt(0)+target.slice(1).toLowerCase()}
+                </button>
+              ))}
+              <button
+                onClick={() => { setLessonProjectId(lessonProjectId === item.id ? null : item.id); setLessonDraft(''); }}
+                className="text-[0.75rem] font-medium text-forest-600"
+              >
+                Capture lesson
+              </button>
+            </div>
+            {lessonProjectId === item.id && (
+              <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 space-y-2">
+                <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It does not make the lesson approved SecurePay knowledge.</p>
+                <textarea
+                  value={lessonDraft}
+                  onChange={e => setLessonDraft(e.target.value)}
+                  placeholder="What should future members learn from this project?"
+                  rows={3}
+                  className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2 text-[0.82rem]"
+                />
+                <button
+                  disabled={purposeSubmitting || !lessonDraft.trim()}
+                  onClick={() => {
+                    setPurposeSubmitting(true);
+                    void communityGateway.knowledge.capture({
+                      circleId: item.circleId,
+                      sourceType: 'PROJECT_LESSON',
+                      sourceReference: item.id,
+                      title: `Lesson from ${item.title}`,
+                      lessonText: lessonDraft.trim(),
+                    }).then(candidate => communityGateway.knowledge.submit(candidate.id))
+                      .then(() => {
+                        setLessonProjectId(null);
+                        setLessonDraft('');
+                        controller.showNotice('Lesson submitted for Knowledge review. It is not approved Knowledge Core truth yet.');
+                      })
+                      .catch(error => controller.showNotice(errorText(error)))
+                      .finally(() => setPurposeSubmitting(false));
+                  }}
+                  className="rounded-lg bg-forest-600 px-3 py-2 text-[0.75rem] font-medium text-cream-50 disabled:opacity-50"
+                >
+                  Submit lesson for review
+                </button>
+              </div>
+            )}
           </div>)}
           {!purposeLoading && !purposeError && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
         </div></div>

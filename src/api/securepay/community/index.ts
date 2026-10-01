@@ -2,7 +2,7 @@ import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
-  CommunityTransitionIntentDto, CommunityVisionTransitionDto,
+  CommunityTransitionIntentDto, CommunityVisionTransitionDto, CommunityKnowledgeCandidateDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -179,7 +179,23 @@ export function createCommunityGateway(http: HttpClient) {
           { method: 'POST', body: { targetDomain }, auth: 'required' },
         ),
     },
-    moderation: {
+    knowledge: {
+      mine: () => http.request<CommunityKnowledgeCandidateDto[]>('/api/v1/community/knowledge-candidates/mine', { auth: 'required' }),
+      capture: (body: {
+        circleId?: string | null;
+        sourceType: CommunityKnowledgeCandidateDto['sourceType'];
+        sourceReference: string;
+        title: string;
+        lessonText: string;
+      }) => http.request<CommunityKnowledgeCandidateDto>('/api/v1/community/knowledge-candidates', { method: 'POST', body, auth: 'required' }),
+      submit: (candidateId: string) =>
+        http.request<CommunityKnowledgeCandidateDto>(
+          `/api/v1/community/knowledge-candidates/${segment(candidateId)}/submit`,
+          { method: 'POST', auth: 'required' },
+        ),
+    },
+
+        moderation: {
       mutes: () => http.request<CommunityMutedMemberDto[]>('/api/v1/community/moderation/mutes', { auth: 'required' }),
       mute: (canonicalKsNumber: string) =>
         http.request<CommunityMutedMemberDto>(`/api/v1/community/moderation/mutes/${segment(canonicalKsNumber)}`, { method: 'POST', auth: 'required' }),

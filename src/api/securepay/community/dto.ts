@@ -322,3 +322,17 @@ export interface CommunityTransitionIntentDto {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export interface CommunityKnowledgeCandidateDto {
+  id: string;
+  circleId: string | null;
+  sourceType: 'MEMBER_DISCUSSION' | 'CIRCLE_LEARNING' | 'MASTER_GUIDANCE' | 'PROJECT_LESSON' | 'APPRENTICESHIP_LESSON';
+  sourceReference: string;
+  title: string;
+  lessonText: string;
+  status: 'CAPTURED' | 'SUBMITTED_FOR_REVIEW' | 'LINKED_TO_KNOWLEDGE_RECORD' | 'REJECTED';
+  knowledgeRecordId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
