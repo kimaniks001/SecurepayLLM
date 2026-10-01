@@ -33,6 +33,10 @@ export interface AgreementFundingQuoteResponse {
   providerChargeMinor: number;
   platformChargeMinor: number;
   totalChargeMinor: number;
+  payerRole: string;
+  feeBearer: string;
+  railChargeBearer: string;
+  pricingVersion: string;
   expiresAt: string;
 }
 

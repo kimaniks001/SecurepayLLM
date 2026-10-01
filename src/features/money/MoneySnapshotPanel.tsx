@@ -280,6 +280,10 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                   <div>SecurePay charge: <MoneyValue amount={moneyText(quote.platformChargeMinor, quote.currency)} size="sm" /></div>
                   <div>Rail/provider charge: <MoneyValue amount={moneyText(quote.providerChargeMinor, quote.currency)} size="sm" /></div>
                   <div>Total payable: <MoneyValue amount={moneyText(quote.totalChargeMinor, quote.currency)} size="sm" /></div>
+                  <div className="text-xs text-sand-500">
+                    Payer role: {bearerText(quote.payerRole)} · SecurePay fee bearer: {bearerText(quote.feeBearer)} · rail-charge bearer: {bearerText(quote.railChargeBearer)}
+                  </div>
+                  <div className="text-xs text-sand-500">Pricing version: {quote.pricingVersion}.</div>
                   <div className="text-xs text-sand-500">This quote expires {new Date(quote.expiresAt).toLocaleString()}. It has not created a payment.</div>
                 </div>
               )}
