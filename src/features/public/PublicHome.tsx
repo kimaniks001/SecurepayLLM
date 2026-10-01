@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, Store, Users } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
-import { SecurePayHero } from '../../components/SignedOutHome';
+import { ExampleOutcome, SecurePayHero } from '../../components/SignedOutHome';
+import type { SendResult } from '../conversation/ConversationSurface';
+import { ShareThis } from './ShareThis';
 import { FairTradePrinciplesPanel } from '../../components/FairTradePrinciples';
-import { CAPACITIES, FOR_BUSINESS_POINTS, HOW_IT_WORKS_STEPS, HOW_IT_WORKS_TRUTH, ORIGIN, PILLARS, POSSIBILITIES, TRY_ASKING_PROMPTS } from './publicContent';
+import { CAPACITIES, FOR_BUSINESS_POINTS, HOW_IT_WORKS_STEPS, HOW_IT_WORKS_TRUTH, ORIGIN, PILLARS, POSSIBILITIES } from './publicContent';
 import type { PublicSectionId } from './publicShell';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
@@ -16,7 +18,9 @@ const linkButton = `min-h-11 rounded-lg px-1 text-[0.875rem] text-forest-700 und
 
 export interface PublicHomeProps {
   disabled?: boolean;
-  onStart: (text: string) => void;
+  onStart: (text: string) => SendResult;
+  /** User-Ready Beta Gate 1 (EP-CERT-013) -- CONTINUE earlier work, shown separately above START NEW. */
+  continueSlot?: ReactNode;
   onBringPlan: () => void;
   onPickDocument: (file: File) => void;
   onPickPhoto: (file: File) => void;
@@ -48,55 +52,55 @@ export function PublicHome(props: PublicHomeProps) {
   const [principlesOpen, setPrinciplesOpen] = useState(false);
   return (
     <main id="main" className="bg-cream-100" data-public-home>
-      {/* 2–3 · SecurePay + KS001 hero and intake */}
-      <section aria-label="Start with KS001" data-public-section="ks001" className="relative bg-cream-100 bg-ks001-surface px-4 sm:px-6 pt-10 pb-20 md:pt-16 md:pb-28">
-        <div className="flex flex-col items-center">
-          <SecurePayHero
-            variant="public"
-            disabled={props.disabled}
-            onStart={props.onStart}
-            onBringPlan={props.onBringPlan}
-            onPickDocument={props.onPickDocument}
-            onPickPhoto={props.onPickPhoto}
-            onAddLink={props.onAddLink}
-            onAddPlace={props.onAddPlace}
-          />
-          {props.bringPlanPanel && <div className="mt-6 w-full max-w-xl text-left">{props.bringPlanPanel}</div>}
-          {props.declaredPanel && <div className="mt-6 w-full max-w-xl text-left">{props.declaredPanel}</div>}
-        </div>
-
-        {/* 4 · Try asking */}
-        <div className="mx-auto mt-14 max-w-3xl">
-          <h2 id="public-try-asking" className="text-center text-[0.8rem] font-medium text-sand-700">Try asking</h2>
-          <ul className="-mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-2 scrollbar-thin md:mx-0 md:flex-wrap md:justify-center md:overflow-visible md:px-0" aria-label="Things you can ask KS001">
-            {TRY_ASKING_PROMPTS.map(prompt => (
-              <li key={prompt} className="snap-start shrink-0">
-                <button type="button" disabled={props.disabled} onClick={() => props.onStart(prompt)}
-                  className={`min-h-11 whitespace-nowrap rounded-full border border-cream-300 bg-white/70 px-4 text-[0.85rem] text-forest-800 transition-colors hover:border-forest-300 hover:bg-white disabled:opacity-40 ${focusRing}`}>
-                  {prompt}
-                </button>
-              </li>
-            ))}
-          </ul>
+      {/* 2–3 · SecurePay + KS001 -- ONE composed entry object (User-Ready Beta Gate 1, EP-CERT-009/011): the entry on the
+          left, what you leave with on the right (an illustration), and the next chapter already rising into the first view. */}
+      <section aria-label="Start with KS001" data-public-section="ks001" className="relative surface-canvas bg-ks001-surface px-4 sm:px-6 pt-8 pb-16 md:pt-12 md:pb-20">
+        <div className="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-14">
+          <div className="flex flex-col items-center">
+            <SecurePayHero
+              variant="public"
+              continueSlot={props.continueSlot}
+              disabled={props.disabled}
+              onStart={props.onStart}
+              onBringPlan={props.onBringPlan}
+              onPickDocument={props.onPickDocument}
+              onPickPhoto={props.onPickPhoto}
+              onAddLink={props.onAddLink}
+              onAddPlace={props.onAddPlace}
+            />
+            {props.bringPlanPanel && <div className="mt-6 w-full max-w-xl text-left">{props.bringPlanPanel}</div>}
+            {props.declaredPanel && <div className="mt-6 w-full max-w-xl text-left">{props.declaredPanel}</div>}
+          </div>
+          <div className="mx-auto w-full max-w-sm lg:mt-24">
+            <p className="mb-3 text-center text-[0.8rem] text-sand-700 lg:text-left">What you leave with</p>
+            <ExampleOutcome />
+          </div>
         </div>
       </section>
 
-      {/* 5 · How SecurePay works — first soft transition */}
-      <section data-public-section="how-it-works" aria-labelledby="public-how-it-works" className="relative -mt-10 rounded-t-[2.5rem] bg-cream-50 px-4 sm:px-6 py-16 md:py-24 shadow-[0_-12px_32px_-24px_rgba(36,73,54,0.18)]">
+      {/* 5 · How SecurePay works -- ONE connected process, not three disconnected columns. */}
+      <section data-public-section="how-it-works" aria-labelledby="public-how-it-works" className="relative -mt-8 rounded-t-[2.5rem] surface-region px-4 sm:px-6 py-14 md:py-20">
         <div className="mx-auto max-w-5xl">
           <p className={eyebrow}>How it works</p>
           <h2 id="public-how-it-works" tabIndex={-1} className={`mt-2 ${chapterHeading}`}>How SecurePay works</h2>
-          <ol className="mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
+          <ol className="relative mt-10 grid gap-8 md:grid-cols-3 md:gap-0" data-process>
+            {/* The thread that joins the stages: vertical on phones, horizontal from md. */}
+            <span aria-hidden="true" className="absolute left-[1.15rem] top-3 bottom-3 w-px bg-forest-200 md:left-[16.66%] md:right-[16.66%] md:top-[1.15rem] md:bottom-auto md:h-px md:w-auto" />
             {HOW_IT_WORKS_STEPS.map((step, index) => (
-              <li key={step.title} className="relative">
-                <span aria-hidden="true" className="font-display text-5xl font-light text-forest-300">{index + 1}</span>
-                <h3 className="mt-2 font-display text-lg text-forest-800">{step.title}</h3>
-                <p className={`mt-1.5 ${body}`}>{step.detail}</p>
+              <li key={step.title} className="relative flex gap-4 md:flex-col md:items-center md:px-6 md:text-center">
+                <span aria-hidden="true" className="relative z-10 flex h-[2.3rem] w-[2.3rem] shrink-0 items-center justify-center rounded-full border border-forest-200 bg-cream-50 font-display text-base text-forest-700 shadow-soft">{index + 1}</span>
+                <div>
+                  <h3 className="font-display text-lg text-forest-800 md:mt-3">{step.title}</h3>
+                  <p className={`mt-1 ${body}`}>{step.detail}</p>
+                </div>
               </li>
             ))}
           </ol>
-          <div className="mt-12 flex flex-col gap-5 border-t border-cream-200 pt-8 md:flex-row md:items-center md:justify-between">
-            <p className="max-w-xl text-[0.95rem] leading-relaxed text-forest-800">{HOW_IT_WORKS_TRUTH}</p>
+          {/* The principle line: a deliberate pause in the wisdom voice, not leftover body copy. */}
+          <figure className="mx-auto mt-14 max-w-2xl text-center">
+            <blockquote className="text-wisdom text-2xl md:text-3xl text-balance">{HOW_IT_WORKS_TRUTH}</blockquote>
+          </figure>
+          <div className="mt-8 flex justify-center">
             <button type="button" onClick={props.onFocusComposer} className={secondaryButton}>
               Start with KS001 <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -138,6 +142,8 @@ export function PublicHome(props: PublicHomeProps) {
             </details>
             <button type="button" onClick={() => setPrinciplesOpen(true)} className={linkButton}>Read the 12 Principles</button>
           </div>
+          {/* User-Ready Beta Gate 1 (EP-CERT-012, decision D3) -- invite with context. Sharing never signs anyone up and earns nothing. */}
+          <ShareThis className="mt-10" section="trust-project" />
         </div>
       </section>
 

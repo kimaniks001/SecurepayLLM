@@ -1,0 +1,50 @@
+name: Vision V1 UI verification
+
+on:
+  push:
+    branches:
+      - feat/vision-v1-dream-foundation
+      - feat/vision-v1-gate1-integration
+  pull_request:
+    paths:
+      - 'src/features/visionboard/dreams/**'
+      - 'src/api/securepay/visiondreams/**'
+      - 'src/api/securepay/index.ts'
+      - 'src/features/agent/AgentExperience.tsx'
+      - 'src/RuntimeApp.tsx'
+      - 'tests/vision-dreams.test.mjs'
+      - '.github/workflows/vision-v1-ui-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vision-v1-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vision-ui:
+    name: Vision UI tests, typecheck, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Vision Dream regressions (real execution)
+        run: node --test tests/vision-dreams.test.mjs
+      - name: Full frontend Node regression
+        run: node --test tests/*.test.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Production build only (no deploy)
+        run: npm run build

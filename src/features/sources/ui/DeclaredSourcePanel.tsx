@@ -27,16 +27,19 @@ const COPY: Record<DeclaredSourceKind, { title: string; lead: string; field: str
  * Public Experience Convergence Phase 3 (Slice 3B) -- the Link / Place form. Declared text only: a link is
  * kept as typed and never opened; a place is the person's own words, never a device location.
  */
-export function DeclaredSourcePanel({ kind, busy, error, onSubmit, onClose }: {
+export function DeclaredSourcePanel({ kind, busy, error, onSubmit, onClose, initialValue = '', initialLabel = '' }: {
   kind: DeclaredSourceKind;
   busy: boolean;
   error: string | null;
   onSubmit: (value: string, label: string) => void;
   onClose: () => void;
+  /** User-Ready Beta Gate 1 -- what the person typed is restored if the panel re-opens after a failure (never retyped). */
+  initialValue?: string;
+  initialLabel?: string;
 }) {
   const copy = COPY[kind];
-  const [value, setValue] = useState('');
-  const [label, setLabel] = useState('');
+  const [value, setValue] = useState(initialValue);
+  const [label, setLabel] = useState(initialLabel);
   const problem = declaredSourceProblem(kind, value);
   const fieldId = `declared-${kind}`;
   return (

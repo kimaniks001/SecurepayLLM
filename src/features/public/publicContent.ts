@@ -42,17 +42,28 @@ export const PUBLIC_NAV_SECTIONS: { id: 'how-it-works' | 'trust-project' | 'for-
   { id: 'for-business', label: 'For Business' },
 ];
 
-/** Ch. 4 -- unnamed human possibilities. Each one starts a real conversation through `onStart`. */
-export const TRY_ASKING_PROMPTS = [
-  'I need someone to repair my roof.',
-  "I have a quotation and I don't know if it makes sense.",
-  'I need customers.',
-  'I have experience I could teach.',
-  'I need practical experience.',
-  'I need someone who has done this before.',
-  'I want to sell what I make.',
-  'We are organising something together.',
+/**
+ * User-Ready Beta Gate 1 (EP-CERT-009, "broaden the imagination") -- a FEW strong starting points spanning household/work,
+ * business/build and community/coordination, so SecurePay never reads as a fundi-only product. Each starts a real, NEW
+ * conversation through `onStart`. Replaces the earlier wall of eight "Try asking" chips.
+ */
+export const HOME_EXAMPLES = [
+  'Tile my bathroom.',
+  'Set up five cyber cafés with three partners.',
+  "We're organising repairs to our parents' home.",
 ] as const;
+
+/**
+ * User-Ready Beta Gate 1 ("prove the output") -- what "leave with an agreement" looks like. ILLUSTRATIVE ONLY: always
+ * labelled as an example, never customer evidence, never a real person or record.
+ */
+export const EXAMPLE_OUTCOME = {
+  title: 'Bathroom tiling job',
+  parties: 'James ↔ Kamau',
+  terms: ['KES 95,000 total', 'KES 30,000 before work starts', 'Balance after inspection'],
+  open: '1 thing still to decide',
+  action: 'Review agreement',
+} as const;
 
 /** Ch. 5 -- how SecurePay works, outcome first. */
 export const HOW_IT_WORKS_STEPS = [
@@ -61,7 +72,8 @@ export const HOW_IT_WORKS_STEPS = [
   { title: 'Review, confirm, and let money follow.', detail: 'Nothing becomes an agreement until you review and confirm it. Money follows what was agreed.' },
 ] as const;
 
-export const HOW_IT_WORKS_TRUTH = 'An attachment is never the agreement by itself — you check what KS001 found.';
+/** User-Ready Beta Gate 1 -- a PRINCIPLE line (the wisdom voice), not body copy: short, memorable, deliberate. */
+export const HOW_IT_WORKS_TRUTH = 'What you bring is evidence. What you review becomes the agreement.';
 
 /**
  * Ch. 7 / §12 -- the three capacities, side by side. Shared with the signed-in `TrustProjectSection` so

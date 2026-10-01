@@ -11,14 +11,16 @@ const action = `inline-flex min-h-11 w-full items-center gap-3 rounded-xl border
  * exists; Copy link copies the public Join link. The link carries a presentation-only interest and no
  * identity: sharing creates no membership, invitation record, referral, attribution or capacity.
  */
-export function ShareInvitation({ interest, onClose, origin }: {
+export function ShareInvitation({ interest, onClose, origin, note }: {
   interest: JoinInterest;
   onClose: () => void;
+  /** User-Ready Beta Gate 1 -- an optional personal note carried in the message only (see shareText). */
+  note?: string;
   /** The app origin the Join link points at (defaults to this page's own origin). */
   origin?: string;
 }) {
   const url = joinUrl(origin ?? (typeof window === 'undefined' ? '' : window.location.origin), interest);
-  const text = shareText(interest, url);
+  const text = shareText(interest, url, note);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -38,7 +40,7 @@ export function ShareInvitation({ interest, onClose, origin }: {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(note?.trim() ? text : url);
       setCopied(true);
       setCopyFailed(false);
     } catch {
@@ -47,7 +49,7 @@ export function ShareInvitation({ interest, onClose, origin }: {
   };
   const share = async () => {
     try {
-      await navigator.share({ title: 'The Trust Project', text: shareText(interest, '').trim(), url });
+      await navigator.share({ title: 'The Trust Project', text: shareText(interest, '', note).trim(), url });
     } catch {
       // Cancelled or unavailable: nothing was sent, nothing to undo.
     }
@@ -57,7 +59,7 @@ export function ShareInvitation({ interest, onClose, origin }: {
     <div ref={panelRef} role="dialog" aria-label="Share an invitation" data-share-invitation={interest}
       className="rounded-2xl border border-cream-200 bg-cream-50 p-4 space-y-3 animate-fade-in-up">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[0.85rem] text-forest-800 leading-relaxed">{text.split('\n\n')[0]}</p>
+        <p className="text-[0.85rem] text-forest-800 leading-relaxed whitespace-pre-line">{text.slice(0, text.lastIndexOf('\n\n'))}</p>
         <button type="button" onClick={onClose} aria-label="Close" className={`-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sand-600 hover:bg-cream-100 ${focusRing}`}>
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -72,11 +74,11 @@ export function ShareInvitation({ interest, onClose, origin }: {
           </button>
         )}
         <button type="button" onClick={() => void copy()} className={action}>
-          <Copy className="h-4 w-4 text-forest-600" aria-hidden="true" />Copy link
+          <Copy className="h-4 w-4 text-forest-600" aria-hidden="true" />{note?.trim() ? 'Copy message and link' : 'Copy link'}
         </button>
       </div>
       <p role="status" className="min-h-[1.25rem] text-[0.78rem] text-forest-700">
-        {copied ? 'Link copied' : copyFailed ? `Copy this link: ${url}` : ''}
+        {copied ? (note?.trim() ? 'Message and link copied' : 'Link copied') : copyFailed ? `Copy this link: ${url}` : ''}
       </p>
       <p className="text-[0.75rem] text-sand-600">
         Sharing only sends a link. They choose whether to join, and everyone joins as a Member. An invitation is not a referral, and recruiting members earns nothing automatically.

@@ -86,12 +86,63 @@ const ROLE_LABELS: Record<string, string> = {
 const humanize = (token: string): string => ROLE_LABELS[token] ?? token.toLowerCase().replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 // Entry Perfection Phase 5 -- evidence bookkeeping is never shown raw: excluded/moneyRole/currencyBasis/amountText are
 // rendered as words ("Not included", "Deposit", "Currency assumed") or not at all.
-const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText']);
+const INTERNAL_KEYS = new Set(['status', 'domain', 'excluded', 'moneyRole', 'currencyBasis', 'amountText', 'taskFrom', 'amountReadFrom',
+  'excluded_item', 'excludedItem', 'excluded_items', 'excludedItems']);
 const MONEY_ROLE_LABEL: Record<string, string> = {
   total: 'Total price', deposit: 'Deposit', balance: 'Balance', instalment: 'Instalment', unit_price: 'Unit price', tax: 'Tax',
   fee: 'Fee', budget: 'Budget', unspecified: 'What this is for isn’t clear',
 };
 const isKs = (text: string): boolean => /^KS\d{3,}$/i.test(text.trim());
+/** Phase 1.6 (Blocker 5) -- the same explicit exclusion markers the backend normalises (never negative wording). */
+// Phase 1.8 -- exactly the backend's accepted explicit markers (Exclusions.EXCLUSION_KEYS / TRUTHY), case-insensitive keys.
+const EXCLUSION_KEYS = new Set(['excluded', 'notincluded', 'negated', 'exclusion', 'isexcluded']);
+const EXCLUSION_TRUTHY = new Set(['true', 'yes', 'y', '1', 'excluded', 'not included']);
+// Funded certification (A01) -- an explicit "included" key whose value is false says the thing is NOT included (API parity).
+const INCLUSION_KEYS = new Set(['included', 'isincluded', 'includedinprice']);
+const FALSY = new Set(['false', 'no', 'n', '0']);
+export const isExcludedEntity = (attributes: Record<string, string>): boolean =>
+  Object.entries(attributes).some(([k, v]) => (EXCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && EXCLUSION_TRUTHY.has((v ?? '').trim().toLowerCase()))
+    || (INCLUSION_KEYS.has(k.toLowerCase().replace(/_/g, '')) && FALSY.has((v ?? '').trim().toLowerCase())));
+/** "Drinks excluded" / "Tiles (not included)" -> the thing itself; any other name is shown as written. */
+export const excludedThingName = (name: string): string =>
+  name.replace(/\s*[(\-–—:,]?\s*(?:are |is )?(?:excluded|not included)\)?\s*$/i, '').trim() || name;
+type ExclusionEnd = { id?: string; type: string; name: string; attributes?: Record<string, string> };
+type ExclusionLink = { kind?: string; subjectEntityId?: string | null; objectEntityId?: string | null; qualifiers?: Record<string, string> };
+/** Phase 1.10 (M05) -- the structured keys whose VALUE names the excluded thing (DELIVERY {excluded_item: "name labels"}); never wording. */
+const EXCLUDED_THING_KEYS = new Set(['excludeditem', 'excludeditems', 'excludedthing', 'excludedthings']);
+export const excludedThingNamedBy = (qualifiers: Record<string, string>): string | null => {
+  const hit = Object.entries(qualifiers).find(([k, v]) => EXCLUDED_THING_KEYS.has(k.toLowerCase().replace(/_/g, '')) && (v ?? '').trim()
+    && !EXCLUSION_TRUTHY.has(v.trim().toLowerCase()));
+  return hit ? hit[1].trim() : null;
+};
+// Gate 1 closure (C02, D12 live) -- the buyer side, read structurally exactly as the API's BuyerSide/RoleVocabulary does.
+const BUYER_WORDS = new Set(['buyer', 'client', 'customer', 'you', 'me', 'myself', 'yourself']);
+const isBuyerWord = (value?: string | null): boolean => !!value && BUYER_WORDS.has(value.trim().toLowerCase());
+const EXCLUDES_LIST_KEYS = new Set(['excludes', 'exclusions', 'excludeditems', 'notincludeditems']);
+/** Gate 1 closure (Q06) -- the value of an entity's structured excludes-list attribute, else null. A key, never wording. */
+export const excludesListOf = (attributes: Record<string, string>): string | null => {
+  const hit = Object.entries(attributes).find(([k, v]) => EXCLUDES_LIST_KEYS.has(k.toLowerCase().replace(/_/g, '')) && (v ?? '').trim()
+    && !EXCLUSION_TRUTHY.has(v.trim().toLowerCase()));
+  return hit ? hit[1].trim() : null;
+};
+/** Phase 1.10 (M05) -- the item being ordered/priced is what the agreement is about; a subject-only exclusion never names it. */
+const isPrimaryObligation = (item: ExclusionEnd, relationships: readonly ExclusionLink[], isBuyer: (id?: string | null) => boolean = () => false): boolean =>
+  Object.keys(item.attributes ?? {}).some(k => ['unitprice', 'linetotal', 'amount', 'price'].includes(k.toLowerCase().replace(/_/g, '')))
+  || relationships.some(r => (r.kind === 'RESPONSIBILITY' || r.kind === 'DELIVERY') && r.objectEntityId === item.id && !isExcludedEntity(r.qualifiers ?? {})
+    && !isBuyer(r.subjectEntityId));
+/** Phase 1.8B/1.10 -- the same rule as the API's Exclusions.excludedThing: never a party, never the work when a thing points at it. */
+export const excludedRelationThing = (
+  relation: ExclusionLink,
+  byId: ReadonlyMap<string, ExclusionEnd>,
+  relationships: readonly ExclusionLink[] = [],
+): string | null => {
+  const object = relation.objectEntityId ? byId.get(relation.objectEntityId) : undefined;
+  const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
+  if (object?.type === 'SERVICE' && subject && (subject.type === 'ITEM' || subject.type === 'CONCEPT') && subject.name.trim()) return subject.name.trim();
+  if (object && object.type !== 'PERSON' && object.type !== 'ORGANIZATION' && object.name.trim()) return object.name.trim();
+  if (!relation.objectEntityId && subject?.type === 'ITEM' && subject.name.trim() && !isPrimaryObligation(subject, relationships)) return subject.name.trim();
+  return null;
+};
 
 /**
  * Generic, non-domain-specific attribute keys never shown/offered as an ordinary descriptive detail
@@ -113,6 +164,10 @@ const RESERVED_DETAIL_KEYS = new Set([
   // javadoc for the full root-cause explanation of why an entity attribute was the wrong shape). If this
   // key were ever reintroduced by mistake, it must still never render as an ordinary descriptive detail.
   'discoveryinvited',
+  // Phase 1.6 -- provenance markers (which part of the evidence a value was read from), never a descriptive detail.
+  'amountreadfrom', 'taskfrom',
+  // Gate 1 closure (Q06) -- a work's excludes-list is shown as "Not included", never as an ordinary detail of the work.
+  'excludes', 'exclusions', 'excludeditems', 'notincludeditems',
 ]);
 const isReservedDetailKey = (key: string): boolean => key.startsWith('_') || RESERVED_DETAIL_KEYS.has(key.toLowerCase());
 
@@ -196,7 +251,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const relation of relationships) {
     if (relation.kind !== 'RESPONSIBILITY') continue;
     const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
-    const text = relation.qualifiers.action || describeQualifiers(relation.qualifiers);
+    // Phase 1.6 (Blocker 6) -- a responsibility with no description names the work it points at (a SERVICE/ITEM), as Review does.
+    const work = [relation.objectEntityId, relation.subjectEntityId].map(id => (id ? byId.get(id) : undefined))
+      .find(e => e && (e.type === 'SERVICE' || e.type === 'ITEM'));
+    const text = relation.qualifiers.action || relation.qualifiers.task || describeQualifiers(relation.qualifiers) || work?.name || '';
     if (!text) continue;
     usedRelationshipIds.add(relation.id);
     // Entry Perfection Phase 5 -- a negated obligation reads as what it is: not part of this party's job.
@@ -206,6 +264,78 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       value: excluded ? `Not included${subject ? ` for ${subject.name}` : ''}: ${text}` : subject ? `${subject.name}: ${text}` : text, details: [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
       spec: null, source: relation.source ?? null,
+    });
+  }
+
+  // --- NOT INCLUDED (User-Ready Beta Gate 1 Phase 1.6, Blocker 5) ------------------------------------
+  // The understanding itself marks a thing excluded ("I'll buy the tiles", "Drinks are not included"): the real model records
+  // it as ITEM "Tiles" {excluded: true} or CONCEPT "Drinks excluded" {excluded: true}. It reads as what it is -- never as
+  // something being made, and never as an unexplained "Also understood" line. Only the explicit marker counts.
+  for (const entity of entities) {
+    if (entity.type === 'PERSON' || entity.type === 'ORGANIZATION' || !isExcludedEntity(entity.attributes)) continue;
+    shownEntityIds.add(entity.id);
+    const note = entity.attributes.note ?? entity.attributes.suppliedBy;
+    items.push({
+      key: `excluded:${entity.id}`, section: 'responsibilities', excluded: true,
+      value: `Not included: ${excludedThingName(entity.name)}`, details: note ? [note] : [], state: entity.state,
+      adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [],
+      spec: null, source: entity.source ?? null,
+    });
+  }
+  // Phase 1.8B -- the exclusion carried by a CONDITION (captured live: ITEM "Paint" --CONDITION{excluded}--> nothing; ITEM "Tiles"
+  // --CONDITION{excluded}--> SERVICE "Tiling"). Named exactly as the API's Exclusions.excludedThing names it: a thing pointing at
+  // the work, else the linked object, else an ITEM with no object. Only the explicit marker counts.
+  // Phase 1.10 (role-link) -- the explicit marker on a ROLE link (live A: ITEM "Tiles" --ROLE{excluded}--> SERVICE) converges too.
+  for (const relation of relationships) {
+    if ((relation.kind !== 'CONDITION' && relation.kind !== 'ROLE') || usedRelationshipIds.has(relation.id) || !isExcludedEntity(relation.qualifiers)) continue;
+    const thing = excludedRelationThing(relation, byId, relationships);
+    if (!thing) continue;
+    usedRelationshipIds.add(relation.id);
+    const note = describeQualifiers(relation.qualifiers);
+    items.push({
+      key: `excluded:${relation.id}`, section: 'responsibilities', excluded: true,
+      value: `Not included: ${excludedThingName(thing)}`, details: note ? [note] : [], state: relation.state,
+      adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [],
+      spec: null, source: relation.source ?? null,
+    });
+  }
+
+  // Gate 1 closure (C02, D12 live) -- in an agreement for work, an item the buyer supplies is not included in the provider's scope.
+  const isBuyerParty = (id?: string | null): boolean => {
+    const party = id ? byId.get(id) : undefined;
+    if (!party || (party.type !== 'PERSON' && party.type !== 'ORGANIZATION')) return false;
+    return isBuyerWord(party.attributes.role)
+      || relationships.some(r => r.kind === 'ROLE' && r.subjectEntityId === party.id && isBuyerWord(r.qualifiers.role));
+  };
+  const workAgreement = entities.some(e => e.type === 'SERVICE' && !isExcludedEntity(e.attributes));
+  for (const item of workAgreement ? entities : []) {
+    if (item.type !== 'ITEM' || !item.name.trim() || isExcludedEntity(item.attributes)) continue;
+    const suppliedByBuyer = isBuyerWord(item.attributes.suppliedBy) || isBuyerWord(item.attributes.providedBy)
+      || relationships.some(r => (r.kind === 'CONDITION' || r.kind === 'RESPONSIBILITY') && !isExcludedEntity(r.qualifiers)
+        && ((r.objectEntityId === item.id && isBuyerParty(r.subjectEntityId)) || (r.subjectEntityId === item.id && isBuyerParty(r.objectEntityId))));
+    const value = `Not included: ${excludedThingName(item.name)}`;
+    if (!suppliedByBuyer || isPrimaryObligation(item, relationships, isBuyerParty) || items.some(i => i.excluded && i.value.toLowerCase() === value.toLowerCase())) continue;
+    items.push({
+      key: `excluded-supplied:${item.id}`, section: 'responsibilities', excluded: true, value, details: ["you'll provide this yourself"],
+      state: item.state, adopt: [], spec: null, source: item.source ?? null,
+    });
+  }
+  // Gate 1 closure (Q06) -- a work's own structured excludes-list.
+  for (const entity of entities) {
+    const listed = excludesListOf(entity.attributes);
+    if (!listed || items.some(i => i.excluded && i.value.toLowerCase() === `not included: ${listed}`.toLowerCase())) continue;
+    items.push({
+      key: `excluded-list:${entity.id}`, section: 'responsibilities', excluded: true, value: `Not included: ${listed}`, details: [],
+      state: entity.state, adopt: [], spec: null, source: entity.source ?? null,
+    });
+  }
+  // Phase 1.10 (M05) -- a structured qualifier NAMING the excluded thing, on any relationship (the relationship keeps its own meaning).
+  for (const relation of relationships) {
+    const named = excludedThingNamedBy(relation.qualifiers);
+    if (!named || items.some(i => i.excluded && i.value.toLowerCase() === `not included: ${named}`.toLowerCase())) continue;
+    items.push({
+      key: `excluded-named:${relation.id}`, section: 'responsibilities', excluded: true, value: `Not included: ${named}`, details: [],
+      state: relation.state, adopt: [], spec: null, source: relation.source ?? null,
     });
   }
 
@@ -236,7 +366,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const entity of entities) {
     const purpose = entity.attributes.purposeSubject ?? entity.attributes.purposeType;
     const isWhat = entity.type === 'SERVICE' || entity.type === 'ITEM' || (entity.type === 'CONCEPT' && !!purpose);
-    if (!isWhat) continue;
+    if (!isWhat || shownEntityIds.has(entity.id)) continue;
     shownEntityIds.add(entity.id);
     // Generic, bounded descriptive details (a shoe's size, a painter's finish, a parcel's area, ...) --
     // whatever this entity's own attributes actually hold, never a hard-coded "known concept" list (Phase
@@ -297,10 +427,28 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
     });
   }
   let hasMoneyItem = false;
+  // Funded certification (C02 live) -- a payment whose figure is carried by the MONEY entity it links shows that figure in its role
+  // (explicit qualifiers win), and the entity is not listed again: the same reading as the API's Review.
+  const figuresShownByPayment = new Set<string>();
+  const withLinkedFigure = (relation: typeof relationships[number]): Record<string, string> => {
+    const figure = [relation.objectEntityId, relation.subjectEntityId].map(id => (id ? byId.get(id) : undefined))
+      .find(e => e && e.type === 'MONEY' && e.attributes.amount && parseAmount(e.attributes.amount).ok);
+    if (!figure) return relation.qualifiers;
+    if (relation.qualifiers.amount) {
+      const own = parseAmount(relation.qualifiers.amount);
+      const linked = parseAmount(figure.attributes.amount);
+      if (own.ok && linked.ok && own.value === linked.value) figuresShownByPayment.add(figure.id);
+      return relation.qualifiers;
+    }
+    figuresShownByPayment.add(figure.id);
+    const carried = Object.fromEntries(['amount', 'currency', 'currencyBasis', 'amountText']
+      .filter(k => figure.attributes[k]).map(k => [k, figure.attributes[k]]));
+    return { ...carried, ...relation.qualifiers };
+  };
   for (const relation of relationships) {
     if (usedRelationshipIds.has(relation.id)) continue;
     const adopt: AdoptTarget[] = relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [];
-    const q = relation.qualifiers;
+    const q = relation.kind === 'PAYMENT_CONDITION' ? withLinkedFigure(relation) : relation.qualifiers;
     if (relation.kind === 'CONDITION' && (q.date || q.startDate)) {
       usedRelationshipIds.add(relation.id);
       const text = q.date ?? q.startDate ?? '';
@@ -321,7 +469,10 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
       if (q.currencyBasis === 'inferred') extras.push('Currency assumed');
       if (q.excluded === 'true') extras.unshift('Not included');
       if (q.recurring === 'true') extras.unshift('Recurring');
-      const plain = Object.keys(q).every(key => key === 'amount' || key === 'currency' || key === 'moneyRole' || key === 'amountText');
+      // User-Ready Beta Gate 1 (EP-CERT-005) -- a source-derived or role-qualified figure is directly editable too: SET_AMOUNT
+      // changes only amount/currency, keeps every other qualifier (role, timing, recurring…) and supersedes the record, so what
+      // the source said stays in its history. Excluded costs and CONFIRMED facts stay read-only (the server refuses the latter).
+      const plain = q.excluded !== 'true';
       items.push({
         key: `money:${relation.id}`, section: 'money',
         value: parsed.ok ? formatMoney(parsed.value, currency) : `${currency} ${q.amount}`.trim(), details: extras, state: relation.state, adopt,
@@ -338,6 +489,7 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   for (const entity of entities) {
     if (entity.type !== 'MONEY') continue;
     shownEntityIds.add(entity.id);
+    if (figuresShownByPayment.has(entity.id)) continue;
     hasMoneyItem = true;
     items.push({ key: `money:${entity.id}`, section: 'money', value: entity.name, details: [], state: entity.state, adopt: entity.state === 'CANDIDATE' ? [{ id: entity.id, targetKind: 'ENTITY' }] : [], spec: null, source: entity.source ?? null });
   }
@@ -378,12 +530,12 @@ export function projectWorkbench(context: ContextView | null, offeredDiscoveryEn
   }
 
   // --- Everything else, read-only ---------------------------------------------------------------------
-  const referenced = new Set(relationships.flatMap(r => [r.subjectEntityId, r.objectEntityId ?? '']));
+  const referenced = new Set(relationships.flatMap(r => [r.subjectEntityId ?? '', r.objectEntityId ?? '']));
   for (const relation of relationships) {
     if (usedRelationshipIds.has(relation.id)) continue;
     const text = describeQualifiers(relation.qualifiers);
     if (!text) continue;
-    const subject = byId.get(relation.subjectEntityId);
+    const subject = relation.subjectEntityId ? byId.get(relation.subjectEntityId) : undefined;
     items.push({
       key: `other:${relation.id}`, section: 'other', value: text, details: subject && subject.type !== 'CONCEPT' ? [subject.name] : [], state: relation.state,
       adopt: relation.state === 'CANDIDATE' ? [{ id: relation.id, targetKind: 'RELATIONSHIP' }] : [], spec: null,

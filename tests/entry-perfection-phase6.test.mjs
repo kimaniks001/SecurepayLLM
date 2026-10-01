@@ -60,7 +60,8 @@ test('the adapter keeps the server\'s words, never a verified identity it was no
 test('the agreement leads once understood -- and never for an exploration or a vague intention', () => {
   const card = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {} }));
   assert.match(card, /Your agreement is taking shape/);
-  assert.match(card, /Review this/);
+  // User-Ready Beta Gate 1 -- two open points: the call to action says so (never a generic "Review this").
+  assert.match(card, /Review 2 points/);
   assert.match(card, /2 points to check · nothing is agreed yet/);
   assert.equal(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })), onReview() {} }), '');
   assert.equal(html(api.AgreementShaping, { formation: null, onReview() {} }), '');

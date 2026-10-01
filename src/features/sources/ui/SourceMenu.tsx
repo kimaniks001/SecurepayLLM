@@ -115,7 +115,7 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
       <button
         ref={triggerRef} type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
         aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
-        aria-label={variant === 'composer' ? 'Add a source' : undefined}
+        aria-label="Add what you have"
         className={triggerClass}
       >
         <Plus className={variant === 'composer' ? 'w-5 h-5' : 'h-4 w-4 text-forest-600'} aria-hidden="true" />

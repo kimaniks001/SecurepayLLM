@@ -337,8 +337,9 @@ test('the handoff review card surfaces the backend source status with Selected e
 // server-owned formation projection's `reviewable` (the successor of sufficiency.canReview), never local request state.
 test('Review this consults the server-owned formation reviewable, never only local request state', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const onClickIdx = agent.indexOf('onClick={() => setReviewOpen(true)}');
-  assert.ok(onClickIdx > 0, 'expected the Review this onClick to exist');
+  // User-Ready Beta Gate 1 -- the button now names the actual next step (goNext: a micro-review or the whole Review).
+  const onClickIdx = agent.indexOf('onClick={goNext}');
+  assert.ok(onClickIdx > 0, 'expected the contextual next-step onClick to exist');
   const buttonStart = agent.lastIndexOf('<button', onClickIdx);
   const button = agent.slice(buttonStart, onClickIdx);
   assert.match(button, /formationState\.data\?\.reviewable/, 'Review this must consult the server-owned formation projection');
@@ -364,7 +365,8 @@ test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- neve
   // Public Experience Convergence Phase 3 -- openBringPlan also closes the Link/Place form (one at a time).
   const onBringPlanIdx = agent.indexOf('onBringPlan={openBringPlan}');
   assert.ok(onBringPlanIdx > 0, 'expected onBringPlan to open the panel directly, never behind setHome(false) alone');
-  assert.match(agent, /const openBringPlan = \(\) => \{ setDeclaredOpen\(null\); setBringPlanOpen\(true\); \};/);
+  // User-Ready Beta Gate 1 -- opening it also clears any error left by ANOTHER source (EP-CERT-014).
+  assert.match(agent, /const openBringPlan = \(\) => \{ setDeclaredOpen\(null\); setIntakeError\(null\); setBringPlanOpen\(true\); \};/);
   // The Home branch (the JSX returned before the `showHome ? ... : <conversation>` else) must itself
   // render BringPlanPanel gated on bringPlanOpen -- not only the conversation branch below it.
   const showHomeElseIdx = agent.indexOf('</div> : <>');
@@ -378,7 +380,9 @@ test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- neve
   assert.match(homeBranch, /<PublicHome[\s\S]*bringPlanPanel=\{bringPlanPanel\}/, 'expected the public Home to render the panel');
   // Submitting it must go through sourceController.addPastedText -- the SAME real ingestion path that
   // creates the ONE real conversation (via ensureConversationId), never a fabricated human chat turn.
-  assert.match(panelDecl, /sourceController\.addPastedText/);
+  // User-Ready Beta Gate 1 -- from Home it is a NEW intention (requestFresh), read through the same submitPlan.
+  assert.match(panelDecl, /requestFresh\(set => \{ setHome\(false\); submitPlan\(text, label, set\); \}\)/);
+  assert.match(agent, /const submitPlan = [\s\S]{0,300}set\.sourceController\.addPastedText/);
 });
 
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS

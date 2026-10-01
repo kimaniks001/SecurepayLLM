@@ -20,11 +20,12 @@ test('Home intake: the one shared "+" menu is centred and its popover never exce
   // Public Experience Convergence Phase 3 -- the three intake buttons became ONE SourceMenu trigger, so
   // there is no row left to wrap; what must hold at 320/375px is that the opened menu fits the screen.
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  const introIdx = contents.indexOf('onBringPlan || onPickDocument || onPickPhoto');
-  assert.ok(introIdx > -1, 'expected the intake block to exist');
-  const block = contents.slice(introIdx, introIdx + 800);
-  assert.match(block, /justify-center/);
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- the "+" is now INSIDE the universal composer (no separate row to centre).
+  const introIdx = contents.indexOf('leading={hasIntake ?');
+  assert.ok(introIdx > -1, 'expected the intake "+" to live inside the composer');
+  const block = contents.slice(introIdx, introIdx + 400);
   assert.match(block, /<SourceMenu/);
+  assert.match(block, /variant="composer"/);
   const menu = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf8');
   assert.match(menu, /role="menu"[\s\S]{0,300}max-w-\[calc\(100vw-2rem\)\]/, 'the popover must never be wider than the viewport minus its gutter');
   assert.match(menu, /min-h-11 flex items-center/, 'every menu item is a real 44px touch target');
@@ -47,7 +48,7 @@ test('BringPlanPanel: the paste surface and its own action buttons are fluid wid
 
 test('SourceMenu: the "+" control is never hidden behind a desktop-only breakpoint, and Camera uses a camera-first mobile flow', async () => {
   const contents = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf8');
-  const attachButtonIdx = contents.indexOf("'Add a source'");
+  const attachButtonIdx = contents.indexOf('"Add what you have"');
   const buttonStart = contents.lastIndexOf('<button', attachButtonIdx);
   const buttonBlock = contents.slice(buttonStart, contents.indexOf('>', attachButtonIdx));
   const triggerClasses = contents.slice(contents.indexOf('const triggerClass'), contents.indexOf('const onFile'));

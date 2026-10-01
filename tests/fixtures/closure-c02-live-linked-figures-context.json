@@ -1,0 +1,164 @@
+{
+ "_note": "Gate 1 funded certification live C02 (claude-sonnet-5): every figure on the MONEY entity its payment links; the panel showed no figures.",
+ "conversationId": "f4745601-eada-4082-8729-f88ee1c045cc",
+ "version": 2,
+ "entities": [
+  {
+   "id": "c1d91454-d55e-4196-bba4-69c4d6965ea8",
+   "type": "PERSON",
+   "name": "Kamau",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "type": "SERVICE",
+   "name": "Bathroom tiling",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "60dba300-088d-424a-8aa4-f7c9ceff4105",
+   "type": "MONEY",
+   "name": "Total price",
+   "state": "CANDIDATE",
+   "attributes": {
+    "amount": "95000",
+    "currency": "KES"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "3d1d7012-a910-4724-9e77-06d6d2589df6",
+   "type": "MONEY",
+   "name": "Deposit",
+   "state": "CANDIDATE",
+   "attributes": {
+    "amount": "30000",
+    "currency": "KES",
+    "currencyBasis": "inferred"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "72e909cb-5ce0-4008-a83b-e49c3acb1354",
+   "type": "MONEY",
+   "name": "Balance",
+   "state": "CANDIDATE",
+   "attributes": {
+    "amount": "65000",
+    "currency": "KES",
+    "currencyBasis": "inferred"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "aa81e172-ce36-48af-a26f-27ab74251c54",
+   "type": "DATE",
+   "name": "Start date",
+   "state": "CANDIDATE",
+   "attributes": {
+    "isoDate": "2026-10-02",
+    "asStated": "Friday",
+    "dateRole": "start"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "17a4d5ec-9ad2-40ec-b915-08ab327ba0d8",
+   "type": "ITEM",
+   "name": "Tiles",
+   "state": "CANDIDATE",
+   "attributes": {},
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "relationships": [
+  {
+   "id": "6a888942-ddf3-4295-8de3-2163e4e2f71c",
+   "kind": "ROLE",
+   "subjectEntityId": "c1d91454-d55e-4196-bba4-69c4d6965ea8",
+   "objectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "role": "provider"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "3b446412-2013-4c34-87b7-9558a46e11fa",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "objectEntityId": "60dba300-088d-424a-8aa4-f7c9ceff4105",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "moneyRole": "total"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "943a6a94-3c54-43f1-9941-83cac02c7abf",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "objectEntityId": "3d1d7012-a910-4724-9e77-06d6d2589df6",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "timing": "before start",
+    "moneyRole": "deposit"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "b7b01997-fbe0-4fb9-9394-a11d5ef4ad85",
+   "kind": "PAYMENT_CONDITION",
+   "subjectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "objectEntityId": "72e909cb-5ce0-4008-a83b-e49c3acb1354",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "timing": "after inspection",
+    "moneyRole": "balance"
+   },
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "785d750c-465d-4eb8-a51d-77a3d48136a0",
+   "kind": "CONDITION",
+   "subjectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "objectEntityId": "aa81e172-ce36-48af-a26f-27ab74251c54",
+   "state": "CANDIDATE",
+   "qualifiers": {},
+   "confidence": 0.75,
+   "source": null
+  },
+  {
+   "id": "41642965-b6cc-4ba4-8ff9-ff3182ee270c",
+   "kind": "CONDITION",
+   "subjectEntityId": "7ff28cba-4429-457a-a414-193a38f14d57",
+   "objectEntityId": "17a4d5ec-9ad2-40ec-b915-08ab327ba0d8",
+   "state": "CANDIDATE",
+   "qualifiers": {
+    "excluded": "true",
+    "suppliedBy": "buyer"
+   },
+   "confidence": 0.75,
+   "source": null
+  }
+ ],
+ "interactionState": {
+  "discoveryInvitedEntityIds": []
+ },
+ "conflicts": []
+}

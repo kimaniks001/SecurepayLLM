@@ -3,6 +3,14 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 import { AgentTyping } from '../../components/MessageBubble';
 import { bottomTop, followReducer, initialFollow, replyScrollTop } from './follow';
 import { readDraft, writeDraft } from './drafts';
+import { routeInput } from '../entry/lifecycle';
+
+/**
+ * User-Ready Beta Gate 1 (EP-CERT-001/002) -- what sending returns. `true`/nothing: the words are now in the conversation
+ * record (a turn is in the transcript with its own retry), so the composer clears. `false`: not accepted -- the words stay.
+ * A promise keeps the words (and says so) until the outcome is known.
+ */
+export type SendResult = boolean | void | Promise<boolean>;
 
 export interface ConversationTail { id: string; sender: 'user' | 'agent' }
 
@@ -14,7 +22,7 @@ export interface ConversationTail { id: string; sender: 'user' | 'agent' }
  * never pulls them back, and a quiet "New reply" control appears instead. Driven entirely by
  * layout effects, refs and a ResizeObserver -- no timeouts.
  */
-export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder, draftKey }: {
+export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder, draftKey, leading }: {
   /** The last transcript entry -- the only thing that decides whether to follow. */
   tail: ConversationTail | null;
   thinking: boolean;
@@ -22,7 +30,9 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   /** Errors / actions that live at the end of the transcript. */
   status?: ReactNode;
   disabled: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string) => SendResult;
+  /** User-Ready Beta Gate 1 -- the universal composer's own "+" (what you already have), inside the composer. */
+  leading?: ReactNode;
   /** Entry Perfection Phase 9 -- keeps unsent text for THIS conversation in this tab's memory (see drafts.ts). */
   draftKey?: string;
   /** Bumping this focuses the composer (e.g. after an instrument sends the person back to talking). */
@@ -103,15 +113,16 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
       </button>
     </div>}
     </div>
-    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} draftKey={draftKey} />
+    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} draftKey={draftKey} leading={leading} />
   </div>;
 }
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
-function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…', draftKey }: { disabled: boolean; onSend: (text: string) => void; focusKey?: number; placeholder?: string; draftKey?: string }) {
+function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…', draftKey, leading }: { disabled: boolean; onSend: (text: string) => SendResult; focusKey?: number; placeholder?: string; draftKey?: string; leading?: ReactNode }) {
   const [text, setTextState] = useState(() => readDraft(draftKey));
   const [offline, setOffline] = useState(false);
+  const [sending, setSending] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
   const setText = (value: string) => { setTextState(value); writeDraft(draftKey, value); };
   useEffect(() => { if (focusKey) field.current?.focus(); }, [focusKey]);
@@ -121,23 +132,32 @@ function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay wh
     window.addEventListener('online', online);
     return () => window.removeEventListener('online', online);
   }, []);
+  const long = routeInput(text) === 'source';
   // Entry Perfection Phase 9 -- offline: never submit (no retry storm, no "failed" turn); keep the words and say so plainly.
   const send = () => {
     const value = text.trim();
-    if (!value || disabled) return;
+    if (!value || disabled || sending) return;
     if (isOffline()) { setOffline(true); return; }
     setOffline(false);
-    onSend(value);
-    setText('');
+    const result = onSend(value);
+    if (result instanceof Promise) {
+      setSending(true);
+      void result.then(accepted => { if (accepted) setText(''); }, () => {}).finally(() => setSending(false));
+    } else if (result !== false) {
+      setText('');
+    }
   };
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } };
   return <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/70 backdrop-blur-sm">
     {offline && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">You’re offline. Your message is kept here — send it when you’re back online.</p>}
+    {/* EP-CERT-001 -- never truncated: long text is simply read in full, like anything else the person brings. */}
+    {(long || sending) && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">{sending ? 'SecurePay is reading what you pasted. It stays here until it’s read.' : 'That’s longer than a message, so SecurePay will read all of it, like a document you brought.'}</p>}
     <div className="flex items-end gap-2 rounded-2xl border border-cream-200 bg-white shadow-card px-3 py-2 focus-within:border-forest-300 focus-within:shadow-lifted transition-shadow duration-300">
-      <textarea ref={field} value={text} onChange={event => setText(event.target.value)} onKeyDown={onKey} rows={1} maxLength={1200}
-        aria-label="Message KS001" data-ks001-composer enterKeyHint="send" placeholder={placeholder}
-        className="flex-1 resize-none bg-transparent text-[0.95rem] leading-6 text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin" style={{ minHeight: '24px', fieldSizing: 'content' } as React.CSSProperties} />
-      <button onClick={send} disabled={!text.trim() || disabled} aria-label="Send message"
+      {leading && <div className="-ml-1 shrink-0 self-end">{leading}</div>}
+      <textarea ref={field} value={text} onChange={event => setText(event.target.value)} onKeyDown={onKey} rows={1}
+        aria-label="Message KS001" data-ks001-composer enterKeyHint="send" placeholder={placeholder} readOnly={sending}
+        className="flex-1 min-w-0 resize-none bg-transparent text-[0.95rem] leading-6 text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin" style={{ minHeight: '24px', fieldSizing: 'content' } as React.CSSProperties} />
+      <button onClick={send} disabled={!text.trim() || disabled || sending} aria-label="Send message"
         className="w-10 h-10 -mr-1 rounded-xl bg-forest-600 text-cream-50 flex items-center justify-center shrink-0 hover:bg-forest-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2">
         <ArrowUp className="w-4 h-4" aria-hidden="true" />
       </button>

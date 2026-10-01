@@ -1925,3 +1925,13 @@ Verified this slice: `npm run typecheck` (clean), `npm run lint` (clean),
 AF2 failure as section 19, still present, still not introduced by this
 change). Not verified in a browser against a live backend (none available in
 this environment) -- disclosed, not claimed.
+
+## User-Ready Beta Gate 1 (UX & Product Convergence)
+
+| Surface | Status | Note |
+| --- | --- | --- |
+| Home universal composer (+ inside, long-paste routing, Home-new / Continue, Start fresh?) | REAL_API_WIRED | Existing turn + pasted-source endpoints; no new UI authority. |
+| Micro-review / Review "Use this" | REAL_API_WIRED | `RESOLVE_CONFLICT` structured input (API branch `fix/user-ready-beta-gate1-api`). |
+| Illustrative example outcome on Home | FRONTEND_COMPOSITION_ONLY | Labelled "Example · illustration"; never data. |
+| Trust Project "Invite someone" | FRONTEND_COMPOSITION_ONLY | Share doorway only (decision D3); no invitation record. |
+See `docs/USER_READY_BETA_GATE1_DEFECT_REGISTER.md`.

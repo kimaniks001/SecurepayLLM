@@ -38,8 +38,15 @@ export const SHARE_PROMPT: Record<JoinInterest, string> = {
   master: 'Know someone whose experience should not disappear?',
 };
 
-export function shareText(interest: JoinInterest, url: string): string {
-  return `${SHARE_MESSAGE[interest]}\n\n${url}`;
+/**
+ * User-Ready Beta Gate 1 (EP-CERT-012, decision D3) -- an optional short personal note ("I think this is what we were talking
+ * about.") travels ONLY inside the shared message itself, so the recipient knows who it is from and why. It is never stored,
+ * never sent to SecurePay and creates no invitation record, membership or referral.
+ */
+export const MAX_SHARE_NOTE = 280;
+export function shareText(interest: JoinInterest, url: string, note?: string): string {
+  const personal = (note ?? '').trim().slice(0, MAX_SHARE_NOTE);
+  return `${personal ? `${personal}\n\n` : ''}${SHARE_MESSAGE[interest]}\n\n${url}`;
 }
 
 /** The standard WhatsApp share composer -- no contacts are read or uploaded. */
