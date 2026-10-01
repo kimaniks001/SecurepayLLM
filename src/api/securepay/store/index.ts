@@ -1,6 +1,6 @@
 import { segment, type HttpClient } from '../http';
 import type {
-  BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
+  BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
   StoreProfileResponse, StoreSearchParams, UpdateStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
@@ -28,6 +28,7 @@ export function createStoreGateway(http: HttpClient) {
     businessProfile: (businessKsNumber: string) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { auth: 'required' }),
     updateBusinessProfile: (businessKsNumber: string, body: UpdateStoreProfileRequest) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { method: 'PUT', body, auth: 'required' }),
     businessOffers: (businessKsNumber: string) => http.request<StoreOfferResponse[]>(`${businessStore(businessKsNumber)}/offers`, { auth: 'required' }),
+    businessOpportunities: (businessKsNumber: string, limit = 20) => http.request<BusinessStoreOpportunityResponse[]>(`${businessStore(businessKsNumber)}/opportunities?limit=${limit}`, { auth: 'required' }),
     createBusinessOffer: (businessKsNumber: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(`${businessStore(businessKsNumber)}/offers`, { method: 'POST', body, auth: 'required' }),
     updateBusinessOffer: (businessKsNumber: string, offerId: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(businessOffer(businessKsNumber, offerId), { method: 'PUT', body, auth: 'required' }),
     confirmBusinessOfferAvailability: (businessKsNumber: string, offerId: string) => http.request<StoreOfferResponse>(`${businessOffer(businessKsNumber, offerId)}/availability-confirmation`, { method: 'POST', auth: 'required' }),

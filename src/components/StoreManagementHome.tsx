@@ -1,5 +1,6 @@
 import { ArrowLeft, Plus, FileText, ShoppingBag } from 'lucide-react';
 import type { PlugAvailabilityResponse, PlugMissionDto } from '../api/securepay/marketnetwork/dto';
+import type { BusinessStoreOpportunityResponse } from '../api/securepay/store/dto';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
 
 interface StoreManagementHomeProps {
@@ -10,6 +11,7 @@ interface StoreManagementHomeProps {
   onBack: () => void;
   onCreateOffer: () => void;
   businessMode?: boolean;
+  opportunities?: BusinessStoreOpportunityResponse[];
   onOpenGrow?: () => void;
   onOpenMoney?: () => void;
   plugAvailability?: PlugAvailabilityResponse | null;
@@ -19,7 +21,7 @@ interface StoreManagementHomeProps {
   onTogglePlugAvailability?: () => void;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -46,7 +48,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
               </div>
               <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
                 <div className="text-[0.72rem] font-medium text-forest-800">Opportunities</div>
-                <div className="text-[0.68rem] text-sand-500 mt-1">Demand matching appears only when SecurePay has real fulfilment needs.</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">{opportunities.length} current match{opportunities.length === 1 ? '' : 'es'} from MATCHABLE demand.</div>
               </div>
               <button disabled={!onOpenGrow} onClick={onOpenGrow} className="text-left rounded-xl border border-cream-200 bg-white px-3 py-3 disabled:opacity-50">
                 <div className="text-[0.72rem] font-medium text-forest-800">Grow</div>
@@ -74,6 +76,30 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
             </div>
           ))}
         </div>
+
+        {businessMode && opportunities.length > 0 && (
+          <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="text-[0.72rem] font-medium text-forest-800">Store opportunities</div>
+            <p className="text-[0.68rem] text-sand-500 mt-1">Only privacy-safe demand that matches one of this Business Store's published offers appears here.</p>
+            <div className="mt-3 space-y-2">
+              {opportunities.slice(0, 10).map(opportunity => (
+                <div key={opportunity.fulfilmentNeedId} className="rounded-xl border border-cream-200 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[0.78rem] font-medium text-forest-800">{opportunity.needType.replace(/_/g, ' ')}</div>
+                    {opportunity.poolable && <span className="text-[0.62rem] rounded-full bg-cream-100 px-2 py-0.5 text-sand-600">Poolable</span>}
+                  </div>
+                  <div className="text-[0.68rem] text-sand-500 mt-1">
+                    {opportunity.quantity !== null ? `${opportunity.quantity}${opportunity.unit ? ` ${opportunity.unit}` : ''}` : 'Quantity not yet stated'}
+                    {opportunity.requiredBy ? ` · needed by ${opportunity.requiredBy}` : ''}
+                  </div>
+                  <div className="text-[0.65rem] text-sand-400 mt-2">
+                    Matches: {opportunity.matchedOffers.map(match => match.title).join(', ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {plugAvailability && (
           <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">

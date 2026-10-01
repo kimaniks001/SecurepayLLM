@@ -311,6 +311,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onBack={() => controller.backToHome()}
         onCreateOffer={() => controller.openBuilder(null)}
         businessMode={state.managedBusiness !== null}
+        opportunities={state.mine.status === 'ready' ? state.mine.data.opportunities : []}
         onOpenGrow={state.managedBusiness ? () => onOpenBusinessVision(state.managedBusiness!.ksNumber) : undefined}
         onOpenMoney={() => onNavigate('money')}
         plugAvailability={plugAvailability}

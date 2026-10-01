@@ -1,6 +1,6 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import { businessOfferView, businessStoreIdentityView, publicOfferDetailView, myOfferView, myStoreIdentityView, searchResultsView, storeIdentityView, storeOffersView, type StoreSearchResult } from '../../api/securepay/store/adapters';
-import type { StoreOfferResponse, UpsertStoreOfferRequest } from '../../api/securepay/store/dto';
+import type { BusinessStoreOpportunityResponse, StoreOfferResponse, UpsertStoreOfferRequest } from '../../api/securepay/store/dto';
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
 import { emptyOfferDraft, mergeSearchResults, searchRequests, type StoreManageGateway, type StoreReadGateway } from './view';
@@ -25,7 +25,7 @@ export interface StoreLoad { store: StoreIdentity; offers: StoreOffer[] }
 // priceMinor is carried alongside the Bolt-facing `offer` view model (which only has the formatted
 // display string) because "Use this" needs the raw numeric amount to seed a real external fact.
 export interface OfferLoad { store: StoreIdentity; offer: StoreOffer; priceMinor: number | null }
-export interface MyStoreLoad { profile: StoreIdentity; offers: StoreOffer[]; raw: StoreOfferResponse[] }
+export interface MyStoreLoad { profile: StoreIdentity; offers: StoreOffer[]; raw: StoreOfferResponse[]; opportunities: BusinessStoreOpportunityResponse[] }
 function draftFromOffer(dto: StoreOfferResponse): OfferDraftFields {
   return {
     kind: dto.kind, title: dto.title, description: dto.description ?? '',
@@ -82,19 +82,21 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
     try {
       if (state.managedBusiness) {
         const business = state.managedBusiness;
-        const [profile, offers] = await Promise.all([
+        const [profile, offers, opportunities] = await Promise.all([
           gateway.businessProfile(business.ksNumber),
           gateway.businessOffers(business.ksNumber),
+          gateway.businessOpportunities(business.ksNumber),
         ]);
         update({ mine: { status: 'ready', data: {
           profile: businessStoreIdentityView(profile),
           offers: offers.map(offer => businessOfferView(offer, business.ksNumber, business.displayName, trustedMediaOrigin)),
           raw: offers,
+          opportunities,
         } } });
         return;
       }
       const [profile, offers] = await Promise.all([gateway.myProfile(), gateway.myOffers()]);
-      update({ mine: { status: 'ready', data: { profile: myStoreIdentityView(profile), offers: offers.map(offer => myOfferView(offer, trustedMediaOrigin)), raw: offers } } });
+      update({ mine: { status: 'ready', data: { profile: myStoreIdentityView(profile), offers: offers.map(offer => myOfferView(offer, trustedMediaOrigin)), raw: offers, opportunities: [] } } });
     } catch (error) {
       update({ mine: { status: 'error', error: asApiError(error) } });
     }

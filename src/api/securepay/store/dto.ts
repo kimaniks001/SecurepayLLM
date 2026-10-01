@@ -187,3 +187,22 @@ export interface UpsertStoreOfferFulfilmentRequest {
   credentialRefs?: string[];
   evidenceExpectations?: string[];
 }
+
+
+export interface BusinessStoreOpportunityMatchedOffer {
+  offerId: string;
+  title: string;
+  offerKind: OfferKind;
+  availabilityState: string;
+  supplyRoles: string[];
+}
+
+export interface BusinessStoreOpportunityResponse {
+  fulfilmentNeedId: string;
+  needType: 'PRODUCT' | 'TRANSPORT' | 'ACCOMMODATION' | 'LABOUR' | 'COURIER' | 'STORAGE' | 'EQUIPMENT' | 'SERVICE' | 'OTHER';
+  quantity: number | null;
+  unit: string | null;
+  requiredBy: string | null;
+  poolable: boolean;
+  matchedOffers: BusinessStoreOpportunityMatchedOffer[];
+}
