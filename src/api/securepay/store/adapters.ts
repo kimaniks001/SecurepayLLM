@@ -1,6 +1,6 @@
 import { ApiError } from '../http';
 import type {
-  AvailabilityState, OfferKind, PublicOfferDetailView, PublicOfferView, PublicSearchResultView, PublicStoreView,
+  AvailabilityState, BusinessStoreProfileResponse, OfferKind, PublicOfferDetailView, PublicOfferView, PublicSearchResultView, PublicStoreView,
   StoreOfferResponse, StoreProfileResponse,
 } from './dto';
 import type { OfferLifecycle, OfferType, StoreIdentity, StoreOffer } from '../../../types';
@@ -15,7 +15,7 @@ function isStringArray(value: unknown): value is string[] {
 
 // Exact verified enums (StoreService.OfferKind / StoreService.AvailabilityState). An unrecognized
 // value is never inferred a meaning — see task hardening pass point 2 — it fails the whole read closed.
-const OFFER_KINDS: readonly OfferKind[] = ['PRODUCT', 'SERVICE'];
+const OFFER_KINDS: readonly OfferKind[] = ['PRODUCT', 'SERVICE', 'CAPACITY'];
 const AVAILABILITY_STATES: readonly AvailabilityState[] = [
   'AVAILABLE', 'LOW_AVAILABILITY', 'NEEDS_CONFIRMATION', 'UNAVAILABLE', 'PAUSED',
   'TAKING_WORK', 'LIMITED', 'FULLY_BOOKED', 'RESTING',
@@ -29,7 +29,9 @@ function assertKnownAvailabilityState(state: string): asserts state is Availabil
 
 /** Backend truth: PRODUCT|SERVICE only, and only after assertKnownOfferKind — never a silent default. */
 function offerType(kind: OfferKind): OfferType {
-  return kind === 'PRODUCT' ? 'product' : 'service';
+  if (kind === 'PRODUCT') return 'product';
+  if (kind === 'CAPACITY') return 'capacity';
+  return 'service';
 }
 
 /**
@@ -259,4 +261,38 @@ export function myOfferView(dto: StoreOfferResponse, trustedMediaOrigin: string 
 function buildStoreOfferUrl(canonicalKsNumber: string, offerId: string): string {
   const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
   return `${origin}#/store/${encodeURIComponent(canonicalKsNumber)}/offer/${encodeURIComponent(offerId)}`;
+}
+
+
+export function businessStoreIdentityView(dto: BusinessStoreProfileResponse): StoreIdentity {
+  if (!isRecord(dto) || typeof dto.businessKsNumber !== 'string') {
+    throw new ApiError('invalid-response', 'SecurePay returned an unreadable Business Store profile.');
+  }
+  return {
+    id: dto.businessKsNumber,
+    name: dto.displayName || dto.heroHeadline || dto.tagline || dto.businessKsNumber,
+    operator: dto.displayName || '',
+    businessIdentity: `BUSINESS KS identity — ${dto.businessKsNumber}`,
+    serviceAreas: dto.locationLabel ? [dto.locationLabel] : [],
+    verified: false,
+    description: dto.about ?? dto.tagline ?? undefined,
+  };
+}
+
+export function businessOfferView(
+  dto: StoreOfferResponse,
+  businessKsNumber: string,
+  businessName: string,
+  trustedMediaOrigin: string | null,
+): StoreOffer {
+  const offer = myOfferView(dto, trustedMediaOrigin);
+  return {
+    ...offer,
+    storeId: businessKsNumber,
+    storeName: businessName,
+    secureLink: {
+      ...offer.secureLink,
+      url: buildStoreOfferUrl(businessKsNumber, dto.id),
+    },
+  };
 }

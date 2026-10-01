@@ -68,13 +68,13 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
             </p>
 
             <div className="flex gap-2">
-              {(['PRODUCT', 'SERVICE'] as OfferKind[]).map(kind => (
+              {(['PRODUCT', 'SERVICE', 'CAPACITY'] as OfferKind[]).map(kind => (
                 <button
                   key={kind}
                   onClick={() => onChange({ kind, availabilityState: kind === 'PRODUCT' ? 'AVAILABLE' : 'TAKING_WORK' })}
                   className={`flex-1 rounded-xl border px-3 py-2 text-[0.825rem] font-medium transition-colors ${draft.kind === kind ? 'border-forest-400 bg-forest-50 text-forest-700' : 'border-cream-200 text-sand-600 hover:border-forest-200'}`}
                 >
-                  {kind === 'PRODUCT' ? 'Product' : 'Service'}
+                  {kind === 'PRODUCT' ? 'Product' : kind === 'CAPACITY' ? 'Capacity' : 'Service'}
                 </button>
               ))}
             </div>
@@ -193,7 +193,7 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
             <div className="space-y-1.5">
               <div className="flex items-baseline justify-between text-[0.78rem]">
                 <span className="text-sand-500">Kind</span>
-                <span className="text-forest-800 text-right">{draft.kind === 'PRODUCT' ? 'Product' : 'Service'}</span>
+                <span className="text-forest-800 text-right">{draft.kind === 'PRODUCT' ? 'Product' : draft.kind === 'CAPACITY' ? 'Capacity' : 'Service'}</span>
               </div>
               <div className="flex items-baseline justify-between text-[0.78rem]">
                 <span className="text-sand-500">Price</span>

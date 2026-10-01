@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
-  PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferResponse,
-  StoreProfileResponse, StoreSearchParams, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
+  BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
+  StoreProfileResponse, StoreSearchParams, UpdateStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
 /**
@@ -11,6 +11,8 @@ import type {
  */
 export function createStoreGateway(http: HttpClient) {
   const offer = (offerId: string) => `/api/v1/store/me/offers/${segment(offerId)}`;
+  const businessStore = (businessKsNumber: string) => `/api/v1/business/${segment(businessKsNumber)}/store`;
+  const businessOffer = (businessKsNumber: string, offerId: string) => `${businessStore(businessKsNumber)}/offers/${segment(offerId)}`;
   const search = (params: StoreSearchParams) => {
     if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > 10)) {
       throw new Error('Store search limit must be an integer between 1 and 10');
@@ -23,6 +25,15 @@ export function createStoreGateway(http: HttpClient) {
   };
   return {
     myProfile: () => http.request<StoreProfileResponse>('/api/v1/store/me/profile', { auth: 'required' }),
+    businessProfile: (businessKsNumber: string) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { auth: 'required' }),
+    updateBusinessProfile: (businessKsNumber: string, body: UpdateStoreProfileRequest) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { method: 'PUT', body, auth: 'required' }),
+    businessOffers: (businessKsNumber: string) => http.request<StoreOfferResponse[]>(`${businessStore(businessKsNumber)}/offers`, { auth: 'required' }),
+    businessOpportunities: (businessKsNumber: string, limit = 20) => http.request<BusinessStoreOpportunityResponse[]>(`${businessStore(businessKsNumber)}/opportunities?limit=${limit}`, { auth: 'required' }),
+    createBusinessOffer: (businessKsNumber: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(`${businessStore(businessKsNumber)}/offers`, { method: 'POST', body, auth: 'required' }),
+    updateBusinessOffer: (businessKsNumber: string, offerId: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(businessOffer(businessKsNumber, offerId), { method: 'PUT', body, auth: 'required' }),
+    confirmBusinessOfferAvailability: (businessKsNumber: string, offerId: string) => http.request<StoreOfferResponse>(`${businessOffer(businessKsNumber, offerId)}/availability-confirmation`, { method: 'POST', auth: 'required' }),
+    businessOfferFulfilment: (businessKsNumber: string, offerId: string) => http.request<StoreOfferFulfilmentResponse>(`${businessOffer(businessKsNumber, offerId)}/fulfilment`, { auth: 'required' }),
+    updateBusinessOfferFulfilment: (businessKsNumber: string, offerId: string, body: UpsertStoreOfferFulfilmentRequest) => http.request<StoreOfferFulfilmentResponse>(`${businessOffer(businessKsNumber, offerId)}/fulfilment`, { method: 'PUT', body, auth: 'required' }),
     updateMyProfile: (body: UpdateStoreProfileRequest) => http.request<StoreProfileResponse>('/api/v1/store/me/profile', { method: 'PUT', body, auth: 'required' }),
     myOffers: () => http.request<StoreOfferResponse[]>('/api/v1/store/me/offers', { auth: 'required' }),
     createOffer: (body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>('/api/v1/store/me/offers', { method: 'POST', body, auth: 'required' }),

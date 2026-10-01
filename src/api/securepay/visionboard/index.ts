@@ -42,6 +42,12 @@ export function createVisionBoardGateway(http: HttpClient) {
       http.request<VisionItemDto>(`${item(itemId)}/unlock`, { method: 'POST', body, auth: 'required' }),
     supersede: (itemId: string, body: SupersedeVisionItemRequest) =>
       http.request<VisionItemDto>(`${item(itemId)}/supersede`, { method: 'POST', body, auth: 'required' }),
+    communitySaver: (itemId: string) =>
+      http.request<import('./dto').CommunitySaverPreferenceDto>(`${item(itemId)}/community-saver`, { auth: 'required' }),
+    setCommunitySaver: (itemId: string, enabled: boolean) =>
+      http.request<import('./dto').CommunitySaverPreferenceDto>(`${item(itemId)}/community-saver`, {
+        method: 'PUT', body: { enabled }, auth: 'required',
+      }),
     generateQuotation: (body: GenerateDocumentRequest) =>
       http.request<VisionDocumentDto>('/api/v1/vision-board/documents/quotation', { method: 'POST', body, auth: 'required' }),
     generateInvoice: (body: GenerateDocumentRequest) =>

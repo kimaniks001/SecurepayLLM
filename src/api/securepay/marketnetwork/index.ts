@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
   CustomerMarketRequestResponse, CustomerMarketSelectionResponse, CustomerPlugRelationshipResponse,
-  InterestedCandidateResponse, RelationshipLifecycleResponse,
+  InterestedCandidateResponse, PlugAvailabilityResponse, PlugMarketProfileResponse, PlugMissionDto, PlugMissionSupplierProposalDto, RelationshipLifecycleResponse, UpdatePlugAvailabilityRequest,
 } from './dto';
 
 /**
@@ -13,6 +13,22 @@ import type {
 export function createMarketNetworkGateway(http: HttpClient) {
   const req = (requestId: string) => `/api/v1/market-network/customer-requests/${segment(requestId)}`;
   return {
+    plugProfile: () => http.request<PlugMarketProfileResponse>('/api/v1/market-network/plug/me', { auth: 'required' }),
+    plugAvailability: () => http.request<PlugAvailabilityResponse>('/api/v1/market-network/plug/availability', { auth: 'required' }),
+    updatePlugAvailability: (body: UpdatePlugAvailabilityRequest) =>
+      http.request<PlugAvailabilityResponse>('/api/v1/market-network/plug/availability', { method: 'PUT', body, auth: 'required' }),
+    plugMissions: () =>
+      http.request<PlugMissionDto[]>('/api/v1/market-network/plug-missions/mine', { auth: 'required' }),
+    proposeMissionSupplier: (missionId: string, storeOfferId: string) =>
+      http.request<PlugMissionSupplierProposalDto>(
+        `/api/v1/market-network/plug-missions/${segment(missionId)}/supplier-proposals`,
+        { method: 'POST', body: { storeOfferId }, auth: 'required' },
+      ),
+    supplierProposalsForNeed: (needId: string) =>
+      http.request<PlugMissionSupplierProposalDto[]>(
+        `/api/v1/market-network/fulfilment-needs/${segment(needId)}/supplier-proposals`,
+        { auth: 'required' },
+      ),
     createRequest: (requestType: string, idempotencyKey: string) => http.request<CustomerMarketRequestResponse>('/api/v1/market-network/customer-requests', { method: 'POST', body: { requestType }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey } }),
     myRequests: () => http.request<CustomerMarketRequestResponse[]>('/api/v1/market-network/customer-requests/mine', { auth: 'required' }),
     cancelRequest: (requestId: string) => http.request<CustomerMarketRequestResponse>(`${req(requestId)}/cancel`, { method: 'POST', auth: 'required' }),
