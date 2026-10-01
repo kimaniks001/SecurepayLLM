@@ -12,6 +12,14 @@ export interface AgreementMoneySnapshotPaymentReady {
   evaluationId: string | null;
 }
 
+export interface AgreementMoneyReleaseRequestSnapshot {
+  authorityGranted: boolean;
+  reasonCode: string;
+  participantCommandsPermitted: boolean;
+  evaluationId: string | null;
+  evaluationSequence: number | null;
+}
+
 export interface AgreementMoneySnapshotResponse {
   agreementId: string;
   currentVersionId: string;
@@ -19,6 +27,7 @@ export interface AgreementMoneySnapshotResponse {
   paymentReady: AgreementMoneySnapshotPaymentReady;
   fundingOptions: AgreementFundingOptionResponse[];
   feeQuoteRequestsPermitted: boolean;
+  releaseRequest: AgreementMoneyReleaseRequestSnapshot;
   /**
    * V1 deliberately fails closed. Until the backend exposes the complete command preflight,
    * the UI must never infer "can move now" from balances or Payment Ready alone.
