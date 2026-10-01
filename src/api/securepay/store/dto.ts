@@ -3,7 +3,7 @@
 // contracts/openapi/market-store-v1.yaml is stale relative to this source (missing /stores/search,
 // heroHeadline/storefrontPreset/storefrontTheme, mediaRefs) — do not use it as source of truth.
 
-export type OfferKind = 'PRODUCT' | 'SERVICE';
+export type OfferKind = 'PRODUCT' | 'SERVICE' | 'CAPACITY';
 
 export type AvailabilityState =
   | 'AVAILABLE' | 'LOW_AVAILABILITY' | 'NEEDS_CONFIRMATION' | 'UNAVAILABLE' | 'PAUSED'
@@ -118,4 +118,72 @@ export interface StoreSearchParams {
   category?: string;
   location?: string;
   limit?: number;
+}
+
+
+export type SupplyRole =
+  | 'MANUFACTURER'
+  | 'PRODUCER'
+  | 'DISTRIBUTOR'
+  | 'WHOLESALER'
+  | 'RETAILER'
+  | 'SERVICE_PROVIDER'
+  | 'TRANSPORT_PROVIDER'
+  | 'ACCOMMODATION_PROVIDER'
+  | 'EQUIPMENT_PROVIDER'
+  | 'STORAGE_PROVIDER'
+  | 'OTHER_APPROVED_ROLE';
+
+export type PricingMode = 'LISTED_PRICE' | 'QUOTE_REQUIRED';
+
+export interface BusinessStoreProfileResponse {
+  businessKsNumber: string;
+  displayName: string | null;
+  tagline: string | null;
+  about: string | null;
+  locationLabel: string | null;
+  heroHeadline: string | null;
+  storefrontPreset: StorefrontPreset;
+  storefrontTheme: StorefrontTheme;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface StoreOfferFulfilmentResponse {
+  offerId: string;
+  supplyRoles: SupplyRole[];
+  pricingMode: PricingMode;
+  unit: string | null;
+  minimumOrderQuantity: number | null;
+  leadTimeHours: number | null;
+  serviceAreas: string[];
+  deliveryAvailable: boolean | null;
+  capacityQuantity: number | null;
+  capacityUnit: string | null;
+  scheduleNote: string | null;
+  warrantyTerms: string | null;
+  returnTerms: string | null;
+  fulfilmentConditions: string | null;
+  credentialRefs: string[];
+  evidenceExpectations: string[];
+  updatedAt: string;
+  version: number;
+}
+
+export interface UpsertStoreOfferFulfilmentRequest {
+  supplyRoles?: SupplyRole[];
+  pricingMode?: PricingMode;
+  unit?: string | null;
+  minimumOrderQuantity?: number | null;
+  leadTimeHours?: number | null;
+  serviceAreas?: string[];
+  deliveryAvailable?: boolean | null;
+  capacityQuantity?: number | null;
+  capacityUnit?: string | null;
+  scheduleNote?: string | null;
+  warrantyTerms?: string | null;
+  returnTerms?: string | null;
+  fulfilmentConditions?: string | null;
+  credentialRefs?: string[];
+  evidenceExpectations?: string[];
 }
