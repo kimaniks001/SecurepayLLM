@@ -5,6 +5,10 @@ import type { BusinessMembershipResponse, CurrentPrinciplesResponse, Organizatio
   CommunityTransitionIntentDto, CommunityVisionTransitionDto, CommunityKnowledgeCandidateDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
+  CreateProjectContributionInput, ProjectContributionDto, ProjectContributionInterestDto,
+  ProjectContributionInterestIntent, CommunityImpactViewDto,
+  TrustProjectPathwayDiscoveryInput, TrustProjectPathwayDiscoveryResultDto,
+  CommunityKnowledgeCandidateDto,
 } from './dto';
 
 /**
@@ -212,6 +216,64 @@ export function createCommunityGateway(http: HttpClient) {
           `/api/v1/community/moderation/circles/${segment(circleId)}/reports/${segment(reportId)}/review`,
           { method: 'POST', body: { status, resolutionNote: resolutionNote ?? null }, auth: 'required' },
         ),
+    },
+
+    // Trust Project Community Redo — lived impact, meaningful interest and governed pathways.
+    contributions: {
+      create: (input: CreateProjectContributionInput) =>
+        http.request<ProjectContributionDto>('/api/v1/community/contributions', {
+          method: 'POST', body: input, auth: 'required',
+        }),
+      live: (limit = 50, offset = 0) =>
+        http.request<ProjectContributionDto[]>(`/api/v1/community/contributions/live?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      circle: (circleId: string, limit = 50, offset = 0) =>
+        http.request<ProjectContributionDto[]>(
+          `/api/v1/community/contributions/circle/${segment(circleId)}?limit=${limit}&offset=${offset}`,
+          { auth: 'required' },
+        ),
+      get: (id: string) =>
+        http.request<ProjectContributionDto>(`/api/v1/community/contributions/${segment(id)}`, { auth: 'required' }),
+      close: (id: string) =>
+        http.request<ProjectContributionDto>(`/api/v1/community/contributions/${segment(id)}/close`, {
+          method: 'POST', auth: 'required',
+        }),
+      interests: {
+        express: (contributionId: string, intent: ProjectContributionInterestIntent, note: string | null = null) =>
+          http.request<ProjectContributionInterestDto>(
+            `/api/v1/community/contributions/${segment(contributionId)}/interests`,
+            { method: 'POST', body: { intent, note }, auth: 'required' },
+          ),
+        withdraw: (contributionId: string, intent: ProjectContributionInterestIntent) =>
+          http.request<ProjectContributionInterestDto>(
+            `/api/v1/community/contributions/${segment(contributionId)}/interests/${segment(intent)}/withdraw`,
+            { method: 'POST', auth: 'required' },
+          ),
+        mine: (contributionId: string) =>
+          http.request<ProjectContributionInterestDto[]>(
+            `/api/v1/community/contributions/${segment(contributionId)}/interests/mine`,
+            { auth: 'required' },
+          ),
+        summary: (contributionId: string) =>
+          http.request<Partial<Record<ProjectContributionInterestIntent, number>>>(
+            `/api/v1/community/contributions/${segment(contributionId)}/interests/summary`,
+            { auth: 'required' },
+          ),
+      },
+      proposeKnowledge: (contributionId: string, title: string, lessonText: string) =>
+        http.request<CommunityKnowledgeCandidateDto>(
+          `/api/v1/community/contributions/${segment(contributionId)}/knowledge-candidate`,
+          { method: 'POST', body: { title, lessonText }, auth: 'required' },
+        ),
+    },
+
+    impact: () =>
+      http.request<CommunityImpactViewDto>('/api/v1/community/impact', { auth: 'required' }),
+
+    pathways: {
+      discover: (input: TrustProjectPathwayDiscoveryInput) =>
+        http.request<TrustProjectPathwayDiscoveryResultDto>('/api/v1/trust-project/pathways/discover', {
+          method: 'POST', body: input, auth: 'required',
+        }),
     },
 
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
