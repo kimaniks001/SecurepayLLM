@@ -39,6 +39,7 @@ function relativeTime(iso: string): string {
  * `agreementId` it needs) renders no button at all -- informational only (Section 38).
  */
 export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void): { label: string; run: () => void } | null {
+  if (notification.resolvedAt) return null;
   const actionKey = parseNotificationActionKey(notification.actionKey);
   if (actionKey === 'OPEN_INVITATIONS') return { label: 'Review invitation', run: onOpenInvitations };
   if (actionKey === 'OPEN_AGREEMENT' && notification.agreementId) {
@@ -74,7 +75,8 @@ function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvi
           <p className="mt-0.5 text-[0.8rem] text-sand-600 leading-relaxed">{notification.body}</p>
           {notification.resolvedAt && (
             <p className="mt-1.5 flex items-center gap-1 text-[0.72rem] text-forest-600">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {notification.resolutionAction === 'SUPERSEDED' ? 'No longer needs you' : 'Handled'}
             </p>
           )}
           <div className="mt-2 flex flex-wrap gap-3 text-[0.75rem]">
@@ -134,6 +136,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
   useEffect(() => { void controller.load(); }, [controller]);
   useEffect(() => { if (tab === 'preferences' && state.preferences.status === 'idle') void controller.loadPreferences(); }, [tab, state.preferences.status, controller]);
 
+  const inbox = state.inbox.status === 'ready' ? (state.inbox.data ?? []) : [];
+  const needsYou = inbox.filter(n => !n.resolvedAt && (n.importance === 'CRITICAL' || n.importance === 'ACTION_REQUIRED' || n.purpose === 'DECIDE' || n.purpose === 'DO'));
+  const communityUpdates = inbox.filter(n => !n.resolvedAt && n.category === 'COMMUNITY' && !needsYou.some(x => x.id === n.id));
+  const updates = inbox.filter(n => !n.resolvedAt && n.category !== 'COMMUNITY' && !needsYou.some(x => x.id === n.id));
+  const earlier = inbox.filter(n => !!n.resolvedAt);
+
   return (
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="notifications" onNavigate={onNavigate} />
@@ -176,18 +184,27 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                 <p className="text-[0.82rem] text-sand-500">Nothing needs your attention right now.</p>
               </div>
             )}
-            {state.inbox.status === 'ready' && state.inbox.data && state.inbox.data.length > 0 && (
-              <div className="space-y-2">
-                {state.inbox.data.map(notification => (
-                  <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
-                ))}
+            {state.inbox.status === 'ready' && inbox.length > 0 && (
+              <div className="space-y-5">
+                {[
+                  ['NEEDS YOU', needsYou],
+                  ['UPDATES', updates],
+                  ['COMMUNITY', communityUpdates],
+                  ['EARLIER', earlier],
+                ].map(([label, rows]) => (rows as NotificationEvent[]).length > 0 ? (
+                  <section key={String(label)} className="space-y-2">
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">
+                      {label}{label === 'NEEDS YOU' ? ` · ${(rows as NotificationEvent[]).length}` : ''}
+                    </div>
+                    {(rows as NotificationEvent[]).map(notification => (
+                      <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
+                    ))}
+                  </section>
+                ) : null)}
                 {state.hasMore && (
-                  <button
-                    onClick={() => void controller.loadMore()}
-                    disabled={state.loadingMore}
-                    className="w-full text-center text-[0.8rem] text-forest-700 underline py-2 disabled:opacity-50"
-                  >
-                    {state.loadingMore ? 'Loading…' : 'Load more'}
+                  <button onClick={() => void controller.loadMore()} disabled={state.loadingMore}
+                    className="w-full text-center text-[0.8rem] text-forest-700 underline py-2 disabled:opacity-50">
+                    {state.loadingMore ? 'Loading…' : 'Load earlier'}
                   </button>
                 )}
               </div>
@@ -229,14 +246,43 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                       <Toggle label="Agreements" checked={state.preferencesDraft.agreementsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ agreementsCategoryEnabled: v })} />
                       <Toggle label="Money" checked={state.preferencesDraft.moneyCategoryEnabled} onChange={v => controller.setPreferencesDraft({ moneyCategoryEnabled: v })} />
                       <Toggle label="Reviews" checked={state.preferencesDraft.reviewsCategoryEnabled} onChange={v => controller.setPreferencesDraft({ reviewsCategoryEnabled: v })} />
-                      <Toggle label="Security" checked={state.preferencesDraft.securityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ securityCategoryEnabled: v })} />
+                      <div className="flex items-start justify-between gap-3 py-2.5">
+                        <span>
+                          <span className="block text-[0.85rem] text-forest-800">Security</span>
+                          <span className="block text-[0.72rem] text-sand-500 mt-0.5">Required. Ordinary notification preferences cannot silence security events.</span>
+                        </span>
+                        <span className="text-[0.72rem] font-medium text-forest-600">Always on</span>
+                      </div>
                       <Toggle label="Community" checked={state.preferencesDraft.communityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ communityCategoryEnabled: v })} />
                       <Toggle label="Support" checked={state.preferencesDraft.supportCategoryEnabled} onChange={v => controller.setPreferencesDraft({ supportCategoryEnabled: v })} />
                     </div>
                   </SurfaceBody>
                 </Surface>
 
-                {state.preferencesSaveError && <StatusNotice tone="warning" icon={false}>{state.preferencesSaveError}</StatusNotice>}
+                <Surface>
+                  <SurfaceBody>
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Quiet hours</div>
+                    <p className="text-[0.75rem] text-sand-500 mb-2">In-app updates still exist immediately. Non-critical external interruptions wait until quiet hours end.</p>
+                    {state.quietHoursDraft && (
+                      <div className="space-y-3">
+                        <Toggle label="Use quiet hours" checked={state.quietHoursDraft.enabled} onChange={v => controller.setQuietHoursDraft({ enabled: v })} />
+                        {state.quietHoursDraft.enabled && (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <label className="text-[0.72rem] text-sand-600">From<input type="time" value={state.quietHoursDraft.startLocal ?? ''} onChange={x => controller.setQuietHoursDraft({ startLocal: x.target.value })} className="mt-1 w-full rounded-lg border border-cream-200 px-2 py-2" /></label>
+                            <label className="text-[0.72rem] text-sand-600">Until<input type="time" value={state.quietHoursDraft.endLocal ?? ''} onChange={x => controller.setQuietHoursDraft({ endLocal: x.target.value })} className="mt-1 w-full rounded-lg border border-cream-200 px-2 py-2" /></label>
+                            <label className="text-[0.72rem] text-sand-600">Time zone<input type="text" placeholder="Africa/Nairobi" value={state.quietHoursDraft.zoneId ?? ''} onChange={x => controller.setQuietHoursDraft({ zoneId: x.target.value })} className="mt-1 w-full rounded-lg border border-cream-200 px-2 py-2" /></label>
+                          </div>
+                        )}
+                        {state.quietHoursSaveError && <StatusNotice tone="warning" icon={false}>{state.quietHoursSaveError}</StatusNotice>}
+                        <Button onClick={() => void controller.saveQuietHours()} disabled={state.quietHoursSaving} className="w-full py-2.5">
+                          {state.quietHoursSaving ? 'Saving…' : 'Save quiet hours'}
+                        </Button>
+                      </div>
+                    )}
+                  </SurfaceBody>
+                </Surface>
+
+                {state.preferencesSaveError && <StatusNotice tone="warning" icon={false}>{state.preferencesSaveError}</StatusNotice>
                 {state.preferencesJustSaved && !state.preferencesSaveError && <StatusNotice tone="success" icon={false}>Saved.</StatusNotice>}
                 <Button onClick={() => void controller.savePreferences()} disabled={state.preferencesSaving} className="w-full py-2.5">
                   {state.preferencesSaving ? 'Saving…' : 'Save preferences'}

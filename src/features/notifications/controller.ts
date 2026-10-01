@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationsGateway } from '../../api/securepay/notifications';
+import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, NotificationsGateway } from '../../api/securepay/notifications';
 import { errorText } from '../agent/controller';
 
 export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data: T | null; error: string | null };
@@ -22,6 +22,10 @@ export interface NotificationsState {
   preferencesSaving: boolean;
   preferencesSaveError: string | null;
   preferencesJustSaved: boolean;
+  quietHours: Loadable<NotificationQuietHours>;
+  quietHoursDraft: NotificationQuietHours | null;
+  quietHoursSaving: boolean;
+  quietHoursSaveError: string | null;
 }
 
 const PAGE_SIZE = 20;
@@ -33,7 +37,7 @@ const PAGE_SIZE = 20;
  * used as-is, matching this project's existing doctrine for `nextActions` (see
  * tests/phase6-convergence.test.mjs test E).
  */
-export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences'>) {
+export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'>) {
   let state: NotificationsState = {
     inbox: idle(),
     categoryFilter: null,
@@ -46,6 +50,10 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     preferencesSaving: false,
     preferencesSaveError: null,
     preferencesJustSaved: false,
+    quietHours: idle(),
+    quietHoursDraft: null,
+    quietHoursSaving: false,
+    quietHoursSaveError: null,
   };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<NotificationsState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
@@ -119,18 +127,51 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     },
 
     async loadPreferences() {
-      update({ preferences: { status: 'loading', data: null, error: null } });
-      try {
-        const result = await gateway.getPreferences();
-        update({ preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result });
-      } catch (error) {
-        update({ preferences: { status: 'error', data: null, error: errorText(error) } });
+      update({
+        preferences: { status: 'loading', data: null, error: null },
+        quietHours: { status: 'loading', data: null, error: null },
+      });
+      const [preferencesResult, quietResult] = await Promise.allSettled([
+        gateway.getPreferences(),
+        gateway.getQuietHours(),
+      ]);
+      if (preferencesResult.status === 'fulfilled') {
+        update({ preferences: { status: 'ready', data: preferencesResult.value, error: null }, preferencesDraft: preferencesResult.value });
+      } else {
+        update({ preferences: { status: 'error', data: null, error: errorText(preferencesResult.reason) } });
+      }
+      if (quietResult.status === 'fulfilled') {
+        update({ quietHours: { status: 'ready', data: quietResult.value, error: null }, quietHoursDraft: quietResult.value });
+      } else {
+        update({ quietHours: { status: 'error', data: null, error: errorText(quietResult.reason) } });
       }
     },
 
     setPreferencesDraft(patch: Partial<NotificationPreferences>) {
       if (!state.preferencesDraft) return;
       update({ preferencesDraft: { ...state.preferencesDraft, ...patch }, preferencesJustSaved: false });
+    },
+
+
+    setQuietHoursDraft(patch: Partial<NotificationQuietHours>) {
+      const current = state.quietHoursDraft ?? { enabled: false, startLocal: null, endLocal: null, zoneId: null };
+      update({ quietHoursDraft: { ...current, ...patch }, quietHoursSaveError: null });
+    },
+
+    async saveQuietHours() {
+      if (!state.quietHoursDraft || state.quietHoursSaving) return;
+      const draft = state.quietHoursDraft;
+      if (draft.enabled && (!draft.startLocal || !draft.endLocal || !draft.zoneId)) {
+        update({ quietHoursSaveError: 'Choose a start time, end time and time zone.' });
+        return;
+      }
+      update({ quietHoursSaving: true, quietHoursSaveError: null });
+      try {
+        const result = await gateway.updateQuietHours(draft);
+        update({ quietHoursSaving: false, quietHours: { status: 'ready', data: result, error: null }, quietHoursDraft: result });
+      } catch (error) {
+        update({ quietHoursSaving: false, quietHoursSaveError: errorText(error) });
+      }
     },
 
     async savePreferences() {
