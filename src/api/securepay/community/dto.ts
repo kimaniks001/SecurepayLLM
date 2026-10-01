@@ -307,7 +307,7 @@ export interface CommunityObjectReportDto {
 
 export interface CommunityVisionTransitionDto {
   sourceId: string;
-  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT';
+  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT' | 'PROJECT_CONTRIBUTION';
   visionItemId: string;
   title: string;
 }
@@ -327,7 +327,7 @@ export interface CommunityTransitionIntentDto {
 export interface CommunityKnowledgeCandidateDto {
   id: string;
   circleId: string | null;
-  sourceType: 'MEMBER_DISCUSSION' | 'CIRCLE_LEARNING' | 'MASTER_GUIDANCE' | 'PROJECT_LESSON' | 'APPRENTICESHIP_LESSON';
+  sourceType: 'MEMBER_DISCUSSION' | 'CIRCLE_LEARNING' | 'MASTER_GUIDANCE' | 'PROJECT_LESSON' | 'APPRENTICESHIP_LESSON' | 'PROJECT_CONTRIBUTION';
   sourceReference: string;
   title: string;
   lessonText: string;
@@ -335,4 +335,110 @@ export interface CommunityKnowledgeCandidateDto {
   knowledgeRecordId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Trust Project Community Redo — lived-impact contribution, never commercial ranking or Agreement authority. */
+export type ProjectContributionType =
+  | 'EXPERIENCE' | 'ARTICLE' | 'PHOTO_STORY' | 'ARTWORK' | 'VIDEO' | 'AUDIO'
+  | 'PROJECT_OUTCOME' | 'BEFORE_AFTER' | 'BUSINESS_EXPERIMENT' | 'STORE_EXPERIENCE'
+  | 'PLUG_EXPERIENCE' | 'MASTER_EXPERIENCE' | 'APPRENTICESHIP_STORY' | 'LESSON_LEARNED'
+  | 'CRITICISM' | 'PROBLEM_REPORT' | 'PROPOSAL' | 'REFLECTION' | 'GUIDE' | 'COMMUNITY_STORY';
+
+export type ProjectContributionOriginType =
+  | 'AGREEMENT' | 'STORE' | 'APPRENTICESHIP' | 'COMMUNITY_PROJECT'
+  | 'PLUG_MISSION' | 'MASTER_ENGAGEMENT' | 'VISION' | 'OTHER_SECUREPAY';
+
+export type ProjectContributionMediaType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
+
+export interface ProjectContributionMediaDto {
+  id: string;
+  mediaType: ProjectContributionMediaType;
+  storageReference: string;
+  caption: string | null;
+  ordinal: number;
+}
+
+export interface ProjectContributionDto {
+  id: string;
+  authorIdentityId: string;
+  authorKind: 'PERSONAL' | 'STORE';
+  circleId: string | null;
+  contributionType: ProjectContributionType;
+  title: string;
+  body: string;
+  status: 'ACTIVE' | 'CLOSED' | 'REMOVED';
+  hasOrigin: boolean;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+  media: ProjectContributionMediaDto[];
+}
+
+export interface CreateProjectContributionInput {
+  storeBusinessKsNumber: string | null;
+  circleId: string | null;
+  contributionType: ProjectContributionType;
+  title: string;
+  body: string;
+  originType: ProjectContributionOriginType | null;
+  originObjectId: string | null;
+  explicitSafeShare: boolean;
+  idempotencyKey: string;
+  media: Array<{
+    mediaType: ProjectContributionMediaType;
+    storageReference: string;
+    caption: string | null;
+    ordinal: number;
+  }>;
+}
+
+export type ProjectContributionInterestIntent =
+  | 'LEARN' | 'HELP' | 'SIMILAR' | 'MEET' | 'SUPPLY' | 'MENTOR' | 'SUPPORT' | 'AFFECTED_TOO';
+
+export interface ProjectContributionInterestDto {
+  id: string;
+  contributionId: string;
+  identityId: string;
+  intent: ProjectContributionInterestIntent;
+  note: string | null;
+  status: 'ACTIVE' | 'WITHDRAWN';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CommunityImpactEvidenceClass = 'MEMBER_REPORTED' | 'PLATFORM_OBSERVED' | 'INFERRED_REVIEWED';
+
+export interface CommunityImpactSignalDto {
+  evidenceClass: CommunityImpactEvidenceClass;
+  code: string;
+  label: string;
+  count: number;
+}
+
+export interface CommunityImpactViewDto {
+  memberReported: CommunityImpactSignalDto[];
+  platformObserved: CommunityImpactSignalDto[];
+  inferredReviewed: CommunityImpactSignalDto[];
+}
+
+export interface TrustProjectPathwayDiscoveryInput {
+  assets: string[];
+  aspirations: string[];
+  destination: string | null;
+}
+
+export interface TrustProjectPathwayOptionDto {
+  knowledgeId: string;
+  version: number;
+  title: string;
+  explanation: string;
+  category: string;
+}
+
+export interface TrustProjectPathwayDiscoveryResultDto {
+  assets: string[];
+  destination: string | null;
+  possiblePathways: TrustProjectPathwayOptionDto[];
+  currentKnowledgeVerified: boolean;
+  note: string;
 }
