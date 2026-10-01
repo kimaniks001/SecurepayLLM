@@ -38,16 +38,25 @@ function relativeTime(iso: string): string {
  * audit/context). An unrecognized or absent `actionKey` (or an Agreement-scoped one missing the
  * `agreementId` it needs) renders no button at all -- informational only (Section 38).
  */
+function agreementIdFromNotification(notification: NotificationEvent): string | null {
+  if (notification.agreementId) return notification.agreementId;
+  const ref = notification.actionObjectReference;
+  if (!ref || !ref.startsWith('agreement:')) return null;
+  const candidate = ref.slice('agreement:'.length);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate)
+    ? candidate
+    : null;
+}
+
 export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void): { label: string; run: () => void } | null {
   if (notification.resolvedAt) return null;
   const actionKey = parseNotificationActionKey(notification.actionKey);
   if (actionKey === 'OPEN_INVITATIONS') return { label: 'Review invitation', run: onOpenInvitations };
-  if (actionKey === 'OPEN_AGREEMENT' && notification.agreementId) {
-    const agreementId = notification.agreementId;
+  const agreementId = agreementIdFromNotification(notification);
+  if (actionKey === 'OPEN_AGREEMENT' && agreementId) {
     return { label: 'Open Agreement', run: () => onOpenAgreement(agreementId) };
   }
-  if (actionKey === 'REVIEW_AGREEMENT' && notification.agreementId) {
-    const agreementId = notification.agreementId;
+  if (actionKey === 'REVIEW_AGREEMENT' && agreementId) {
     return { label: 'Review Agreement', run: () => onOpenAgreement(agreementId) };
   }
   return null;
