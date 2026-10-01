@@ -53,6 +53,9 @@ function relativeTime(iso: string): string {
  * `agreementId` it needs) renders no button at all -- informational only (Section 38).
  */
 export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void): { label: string; run: () => void } | null {
+  // A handled/superseded notification is history. Never leave an old action button live merely
+  // because its original actionKey is still part of the audit record.
+  if (notification.resolvedAt) return null;
   const actionKey = parseNotificationActionKey(notification.actionKey);
   if (actionKey === 'OPEN_INVITATIONS') return { label: 'Review invitation', run: onOpenInvitations };
   if (actionKey === 'OPEN_AGREEMENT' && notification.agreementId) {
@@ -88,7 +91,8 @@ function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvi
           <p className="mt-0.5 text-[0.8rem] text-sand-600 leading-relaxed">{notification.body}</p>
           {notification.resolvedAt && (
             <p className="mt-1.5 flex items-center gap-1 text-[0.72rem] text-forest-600">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {notification.resolutionAction === 'SUPERSEDED' ? 'No longer needs action' : 'Handled'}
             </p>
           )}
           <div className="mt-2 flex flex-wrap gap-3 text-[0.75rem]">
