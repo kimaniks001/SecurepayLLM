@@ -20,6 +20,18 @@ export interface AgreementMoneyReleaseRequestSnapshot {
   evaluationSequence: number | null;
 }
 
+export interface AgreementMoneyMovementSnapshot {
+  state: 'READY' | 'BLOCKED' | 'UNAVAILABLE';
+  reasonCode: string;
+  authorityReasonCode: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  destinationClassification: 'INTERNAL' | 'EXTERNAL' | null;
+  railCode: string | null;
+  evaluationId: string | null;
+  evaluationSequence: number | null;
+}
+
 export interface AgreementMoneySnapshotResponse {
   agreementId: string;
   currentVersionId: string;
@@ -29,8 +41,8 @@ export interface AgreementMoneySnapshotResponse {
   feeQuoteRequestsPermitted: boolean;
   releaseRequest: AgreementMoneyReleaseRequestSnapshot;
   /**
-   * V1 deliberately fails closed. Until the backend exposes the complete command preflight,
-   * the UI must never infer "can move now" from balances or Payment Ready alone.
+   * Side-effect-free backend movement preflight. Only READY may carry a movable amount.
+   * The UI never derives this from balance, Payment Ready, or release authority.
    */
-  movementAssessment: 'NOT_ASSESSED';
+  movement: AgreementMoneyMovementSnapshot;
 }
