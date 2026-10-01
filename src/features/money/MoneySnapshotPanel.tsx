@@ -39,6 +39,10 @@ function movementText(snapshot: AgreementMoneySnapshotResponse) {
   return messages[movement.reasonCode] ?? 'SecurePay does not currently say this money can move.';
 }
 
+function bearerText(value: string) {
+  return value.replace(/_/g, ' ').toLowerCase();
+}
+
 function readinessText(snapshot: AgreementMoneySnapshotResponse) {
   const readiness = snapshot.paymentReady;
   if (readiness.state === 'NOT_EVALUATED') {
@@ -172,6 +176,22 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                     {snapshot.movement.destinationClassification ? ` · ${snapshot.movement.destinationClassification.toLowerCase()} destination` : ''}
                     {snapshot.movement.railCode ? ` · ${snapshot.movement.railCode}` : ''}
                   </p>
+                </div>
+              )}
+              {snapshot.movement.state === 'READY' && snapshot.movement.economics && snapshot.movement.currency && (
+                <div className="mt-3 rounded-lg border border-cream-200 bg-white/60 p-3 space-y-1" data-testid="money-movement-economics">
+                  <p className="text-xs font-medium text-forest-800">Current commercial decomposition</p>
+                  <div className="text-xs text-sand-600">Expected recipient principal: <MoneyValue amount={moneyText(snapshot.movement.economics.recipientPrincipalMinor, snapshot.movement.currency)} size="sm" /></div>
+                  <div className="text-xs text-sand-600">SecurePay charge: <MoneyValue amount={moneyText(snapshot.movement.economics.securePayFeeMinor, snapshot.movement.currency)} size="sm" /></div>
+                  <div className="text-xs text-sand-600">Provider/rail charge: <MoneyValue amount={moneyText(snapshot.movement.economics.providerRailChargeMinor, snapshot.movement.currency)} size="sm" /></div>
+                  {snapshot.movement.economics.taxMinor > 0 && (
+                    <div className="text-xs text-sand-600">Tax: <MoneyValue amount={moneyText(snapshot.movement.economics.taxMinor, snapshot.movement.currency)} size="sm" /></div>
+                  )}
+                  <div className="text-xs text-sand-600">Fee-inclusive movement amount: <MoneyValue amount={moneyText(snapshot.movement.economics.totalPayableMinor, snapshot.movement.currency)} size="sm" /></div>
+                  <p className="text-xs text-sand-500">
+                    Payer role: {bearerText(snapshot.movement.economics.payerRole)} · SecurePay fee bearer: {bearerText(snapshot.movement.economics.feeBearer)} · rail-charge bearer: {bearerText(snapshot.movement.economics.railChargeBearer)}
+                  </p>
+                  <p className="text-xs text-sand-500">Pricing version: {snapshot.movement.economics.pricingVersion}. This is backend pricing truth, not an instruction to move money.</p>
                 </div>
               )}
               {snapshot.movement.state !== 'READY' && (

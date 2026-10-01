@@ -21,6 +21,10 @@ test('movement is backend-owned and fail-closed', () => {
   assert.match(dto, /movement:\s*AgreementMoneyMovementSnapshot/);
   assert.match(dto, /state:\s*'READY' \| 'BLOCKED' \| 'UNAVAILABLE'/);
   assert.match(dto, /amountMinor:\s*number \| null/);
+  assert.match(dto, /economics:\s*AgreementMoneyMovementEconomicsSnapshot \| null/);
+  for (const field of ['recipientPrincipalMinor', 'securePayFeeMinor', 'providerRailChargeMinor', 'totalPayableMinor', 'feeBearer', 'railChargeBearer', 'pricingVersion']) {
+    assert.match(dto, new RegExp(field));
+  }
   assert.match(dto, /ready:\s*boolean \| null/);
   assert.match(dto, /NOT_EVALUATED/);
   assert.match(dto, /AMBIGUOUS/);
@@ -53,6 +57,11 @@ test('snapshot UI shows financial truth; only the version-bound quote exception 
   assert.match(snapshotPanel, /Can money move now\?/);
   assert.match(snapshotPanel, /snapshot\.movement\.state === 'READY'/);
   assert.match(snapshotPanel, /Exact amount that passed the current preflight/);
+  assert.match(snapshotPanel, /Current commercial decomposition/);
+  assert.match(snapshotPanel, /Expected recipient principal/);
+  assert.match(snapshotPanel, /SecurePay fee bearer/);
+  assert.match(snapshotPanel, /Pricing version/);
+  assert.match(snapshotPanel, /not an instruction to move money/);
   assert.match(snapshotPanel, /No movable amount is asserted/);
   assert.match(snapshotPanel, /This check moves no money/);
 });

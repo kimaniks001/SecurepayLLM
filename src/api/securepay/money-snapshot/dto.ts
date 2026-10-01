@@ -20,12 +20,25 @@ export interface AgreementMoneyReleaseRequestSnapshot {
   evaluationSequence: number | null;
 }
 
+export interface AgreementMoneyMovementEconomicsSnapshot {
+  recipientPrincipalMinor: number;
+  securePayFeeMinor: number;
+  providerRailChargeMinor: number;
+  taxMinor: number;
+  totalPayableMinor: number;
+  payerRole: string;
+  feeBearer: string;
+  railChargeBearer: string;
+  pricingVersion: string;
+}
+
 export interface AgreementMoneyMovementSnapshot {
   state: 'READY' | 'BLOCKED' | 'UNAVAILABLE';
   reasonCode: string;
   authorityReasonCode: string | null;
   amountMinor: number | null;
   currency: string | null;
+  economics: AgreementMoneyMovementEconomicsSnapshot | null;
   destinationClassification: 'INTERNAL' | 'EXTERNAL' | null;
   railCode: string | null;
   evaluationId: string | null;
