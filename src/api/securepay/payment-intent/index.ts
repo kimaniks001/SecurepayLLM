@@ -29,6 +29,10 @@ export function createPaymentIntentGateway(http: HttpClient) {
       http.request<AgreementFundingQuoteResponse>(`/api/v1/agreements/${segment(agreementId)}/funding-quotes`, {
         method: 'POST', auth: 'required', body: { railCode },
       }),
+    createVersionBoundQuote: (agreementId: string, railCode: string, expectedAgreementVersionId: string) =>
+      http.request<AgreementFundingQuoteResponse>(`/api/v1/agreements/${segment(agreementId)}/funding-quotes/version-bound`, {
+        method: 'POST', auth: 'required', body: { railCode, expectedAgreementVersionId },
+      }),
     createIntent: (agreementId: string, idempotencyKey: string, externalReference?: string) =>
       http.request<AgreementPaymentIntentCreateResponse>(`/api/v1/agreements/${segment(agreementId)}/payment-intents`, {
         method: 'POST', auth: 'required', body: { idempotencyKey: idempotencyKey, externalReference: externalReference ?? null },
