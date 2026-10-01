@@ -35,6 +35,7 @@ function movementText(snapshot: AgreementMoneySnapshotResponse) {
     SETTLEMENT_KILL_SWITCH_TRIPPED: 'Settlement is temporarily disabled by SecurePay’s operational safety controls.',
     EXECUTION_LEDGER_UNAVAILABLE: 'A required settlement ledger is not currently available.',
     EXTERNAL_RAIL_UNAVAILABLE: 'The configured external settlement rail is not currently available.',
+    EXTERNAL_ECONOMICS_UNRESOLVED: 'SecurePay has not yet confirmed the provider costs needed to make this external settlement economically safe.',
   };
   return messages[movement.reasonCode] ?? 'SecurePay does not currently say this money can move.';
 }
