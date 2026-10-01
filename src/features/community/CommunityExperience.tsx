@@ -142,9 +142,11 @@ function TrustProjectBanner({
  */
 function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect: (tab: CommunityHomeTab) => void }) {
   const tabs: { value: CommunityHomeTab; label: string }[] = [
-    { value: 'live', label: 'Community LIVE' },
-    { value: 'circles', label: 'Your Circles' },
-    { value: 'discover', label: 'Discover Circles' },
+    { value: 'live', label: 'LIVE' },
+    { value: 'serve', label: 'SERVE' },
+    { value: 'learn', label: 'LEARN' },
+    { value: 'circles', label: 'CIRCLES' },
+    { value: 'happening', label: 'HAPPENING' },
   ];
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3 flex gap-1.5">
@@ -240,7 +242,7 @@ function CircleInvitationsSection({
  * "Your Circles" -- the smaller spaces this person actually belongs to (real backend data, `circles.mine()`).
  */
 function YourCirclesView({
-  circles, loading, error, onOpen, onCreate, onRetry, invitations, invitationsLoading,
+  circles, loading, error, onOpen, onCreate, onRetry, onDiscover, invitations, invitationsLoading,
 }: {
   circles: CircleResponse[];
   loading: boolean;
@@ -248,6 +250,7 @@ function YourCirclesView({
   onOpen: (id: string) => void;
   onCreate: () => void;
   onRetry: () => void;
+  onDiscover: () => void;
   invitations: CirclePendingInvitationView[];
   invitationsLoading: boolean;
 }) {
@@ -259,9 +262,10 @@ function YourCirclesView({
             <h2 className="font-display text-lg text-forest-800 font-medium">Your Circles</h2>
             <p className="text-[0.8rem] text-sand-500">Smaller spaces inside The Trust Project for people with something useful in common.</p>
           </div>
-          <button onClick={onCreate} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700 shrink-0">
-            + Create a Circle
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <button onClick={onDiscover} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">Find Circles</button>
+            <button onClick={onCreate} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Create</button>
+          </div>
         </div>
         <CircleInvitationsSection invitations={invitations} loading={invitationsLoading} onOpen={onOpen} />
         {loading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
@@ -1201,6 +1205,61 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="p-6"><ErrorStateCard data={errorView(errorText(state.search.error))} onChoice={() => void controller.submitSearch()} /></div>
       </>
     );
+  } else if (state.communityTab === 'serve') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
+          <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {!purposeLoading && serviceItems.length === 0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No service opportunities are open right now.</p>}
+          {serviceItems.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.9rem] font-medium text-forest-800">{item.title}</div>
+            <p className="text-[0.78rem] text-sand-600 mt-1">{item.description}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location to be agreed'}{item.skillsNeeded.length ? ` · ${item.skillsNeeded.join(', ')}` : ''}</div>
+            <button onClick={() => void communityGateway.serviceOpportunities.volunteer(item.id,true).then(updated => setServiceItems(items => items.map(x => x.id===updated.id?updated:x)))} className="mt-3 text-[0.75rem] font-medium text-forest-600">I'm interested</button>
+          </div>)}
+        </div></div>
+      </>
+    );
+  } else if (state.communityTab === 'learn') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
+          <div><h2 className="font-display text-lg text-forest-800 font-medium">Learn</h2><p className="text-[0.8rem] text-sand-500">Knowledge, mentorship and supervised Apprenticeship Projects grounded in real work.</p></div>
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
+          </div>)}
+          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
+          </div>)}
+          {!purposeLoading && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
+        </div></div>
+      </>
+    );
+  } else if (state.communityTab === 'happening') {
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
+          <div><h2 className="font-display text-lg text-forest-800 font-medium">Happening</h2><p className="text-[0.8rem] text-sand-500">Meet, teach, hike, serve and gather. RSVP is a plan, not a contractual commitment.</p></div>
+          {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {!purposeLoading && communityEvents.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">Nothing is scheduled yet.</p>}
+          {communityEvents.map(event => <div key={event.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
+            <div className="text-[0.9rem] font-medium text-forest-800">{event.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{event.description}</p>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{new Date(event.startsAt).toLocaleString()}{event.locationLabel ? ` · ${event.locationLabel}` : ''} · {event.goingCount} going</div>
+            <button onClick={() => void communityGateway.events.rsvp(event.id,true).then(updated => setCommunityEvents(items => items.map(x => x.id===updated.id?updated:x)))} className="mt-3 text-[0.75rem] font-medium text-forest-600">I'm going</button>
+          </div>)}
+        </div></div>
+      </>
+    );
   } else if (state.communityTab === 'circles') {
     body = (
       <>
@@ -1213,6 +1272,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpen={id => void controller.openCircle(id)}
           onCreate={() => controller.openCreateCircle()}
           onRetry={() => void controller.showCommunityTab('circles')}
+          onDiscover={() => void controller.showCommunityTab('discover')}
           invitations={state.circleInvitations.status === 'ready' ? state.circleInvitations.data : []}
           invitationsLoading={state.circleInvitations.status === 'loading'}
         />

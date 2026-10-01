@@ -215,3 +215,66 @@ export interface CircleStewardView {
   founder: boolean;
   active: boolean;
 }
+
+
+export interface CommunityEventDto {
+  id: string;
+  circleId: string | null;
+  organizerIdentityId: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string | null;
+  locationLabel: string | null;
+  capacity: number | null;
+  status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  createdAt: string;
+  updatedAt: string;
+  goingCount: number;
+}
+
+export interface CommunityServiceOpportunityDto {
+  id: string;
+  circleId: string | null;
+  creatorIdentityId: string;
+  title: string;
+  description: string;
+  locationLabel: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  skillsNeeded: string[];
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  interestedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunityProjectDto {
+  id: string;
+  circleId: string | null;
+  sourceServiceOpportunityId: string | null;
+  creatorIdentityId: string;
+  title: string;
+  purpose: string;
+  locationLabel: string | null;
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  groupId: string | null;
+  visionItemId: string | null;
+  agreementId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprenticeshipProjectDto {
+  id: string;
+  communityProjectId: string | null;
+  circleId: string | null;
+  masterIdentityId: string;
+  apprenticeKsNumber: string;
+  title: string;
+  learningGoal: string;
+  status: 'PROPOSED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  sponsorshipReference: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

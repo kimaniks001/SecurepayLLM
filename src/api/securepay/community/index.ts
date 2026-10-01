@@ -1,6 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
-  CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
+  ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
+  CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -126,6 +127,27 @@ export function createCommunityGateway(http: HttpClient) {
     principles: () => http.request<FairTradePrincipleResponse[]>('/api/v1/community/principles', { auth: 'none' }),
     /** Phase 4 -- the versioned canonical Principles (public). */
     currentPrinciples: () => http.request<CurrentPrinciplesResponse>('/api/v1/community/principles/current', { auth: 'none' }),
+
+    events: {
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityEventDto[]>(`/api/v1/community/events?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      rsvp: (eventId: string, going: boolean) =>
+        http.request<CommunityEventDto>(`/api/v1/community/events/${segment(eventId)}/rsvp`, { method: 'POST', body: { going }, auth: 'required' }),
+    },
+    serviceOpportunities: {
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityServiceOpportunityDto[]>(`/api/v1/community/service-opportunities?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+      volunteer: (id: string, interested: boolean) =>
+        http.request<CommunityServiceOpportunityDto>(`/api/v1/community/service-opportunities/${segment(id)}/volunteer`, { method: 'POST', body: { interested }, auth: 'required' }),
+    },
+    projects: {
+      list: (limit = 20, offset = 0) =>
+        http.request<CommunityProjectDto[]>(`/api/v1/community/projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
+    apprenticeships: {
+      list: (limit = 20, offset = 0) =>
+        http.request<ApprenticeshipProjectDto[]>(`/api/v1/community/apprenticeship-projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
 
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
     // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real
