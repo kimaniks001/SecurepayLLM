@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
   CustomerMarketRequestResponse, CustomerMarketSelectionResponse, CustomerPlugRelationshipResponse,
-  InterestedCandidateResponse, PlugAvailabilityResponse, PlugMarketProfileResponse, RelationshipLifecycleResponse, UpdatePlugAvailabilityRequest,
+  InterestedCandidateResponse, PlugAvailabilityResponse, PlugMarketProfileResponse, PlugMissionDto, RelationshipLifecycleResponse, UpdatePlugAvailabilityRequest,
 } from './dto';
 
 /**
@@ -17,6 +17,8 @@ export function createMarketNetworkGateway(http: HttpClient) {
     plugAvailability: () => http.request<PlugAvailabilityResponse>('/api/v1/market-network/plug/availability', { auth: 'required' }),
     updatePlugAvailability: (body: UpdatePlugAvailabilityRequest) =>
       http.request<PlugAvailabilityResponse>('/api/v1/market-network/plug/availability', { method: 'PUT', body, auth: 'required' }),
+    plugMissions: () =>
+      http.request<PlugMissionDto[]>('/api/v1/market-network/plug-missions/mine', { auth: 'required' }),
     createRequest: (requestType: string, idempotencyKey: string) => http.request<CustomerMarketRequestResponse>('/api/v1/market-network/customer-requests', { method: 'POST', body: { requestType }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey } }),
     myRequests: () => http.request<CustomerMarketRequestResponse[]>('/api/v1/market-network/customer-requests/mine', { auth: 'required' }),
     cancelRequest: (requestId: string) => http.request<CustomerMarketRequestResponse>(`${req(requestId)}/cancel`, { method: 'POST', auth: 'required' }),

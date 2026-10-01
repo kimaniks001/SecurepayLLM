@@ -102,3 +102,27 @@ export interface UpdatePlugAvailabilityRequest {
   minimumTaskValueMinor?: number | null;
   notificationPreferences?: Record<string, unknown>;
 }
+
+
+export type PlugMissionType = 'FULFILMENT' | 'POOLING' | 'ASSEMBLY';
+
+export interface PlugMissionDto {
+  opportunityOfferId: string;
+  missionType: PlugMissionType;
+  fulfilmentNeedId: string | null;
+  sharedPoolId: string | null;
+  title: string;
+  summary: string;
+  quantity: number | null;
+  capacityUnit: string | null;
+  broadArea: string | null;
+  startsAt: string | null;
+  deadline: string | null;
+  compatibilityRequirements: string | null;
+  permittedActions: string[];
+  rewardBasis: string | null;
+  requiredProgramCode: string;
+  publishedAt: string;
+  closesAt: string | null;
+  myDecision: 'ACCEPTED' | 'DECLINED' | null;
+}

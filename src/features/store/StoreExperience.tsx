@@ -14,7 +14,7 @@ import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { BusinessGateway, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
-import type { PlugAvailabilityResponse } from '../../api/securepay/marketnetwork/dto';
+import type { PlugAvailabilityResponse, PlugMissionDto } from '../../api/securepay/marketnetwork/dto';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
@@ -40,7 +40,7 @@ function LoadingNotice({ text }: { text: string }) {
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
 export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
-  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability'>; auth: AuthGateway; session: SessionStore;
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
@@ -61,6 +61,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [plugAvailability, setPlugAvailability] = useState<PlugAvailabilityResponse | null>(null);
   const [plugAvailabilityBusy, setPlugAvailabilityBusy] = useState(false);
   const [plugAvailabilityError, setPlugAvailabilityError] = useState<string | null>(null);
+  const [plugMissions, setPlugMissions] = useState<PlugMissionDto[]>([]);
 
   useEffect(() => {
     if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
@@ -116,6 +117,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     try {
       const current = await marketNetworkGateway.plugAvailability();
       setPlugAvailability(current.qualified ? current : null);
+      if (current.qualified) {
+        try { setPlugMissions(await marketNetworkGateway.plugMissions()); }
+        catch { setPlugMissions([]); }
+      } else {
+        setPlugMissions([]);
+      }
       setPlugAvailabilityError(null);
     } catch {
       // Store remains fully usable when Plug availability cannot be loaded.
@@ -309,6 +316,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         plugAvailability={plugAvailability}
         plugAvailabilityBusy={plugAvailabilityBusy}
         plugAvailabilityError={plugAvailabilityError}
+        plugMissions={plugMissions}
         onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
       />
     );

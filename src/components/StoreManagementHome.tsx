@@ -1,5 +1,5 @@
 import { ArrowLeft, Plus, FileText, ShoppingBag } from 'lucide-react';
-import type { PlugAvailabilityResponse } from '../api/securepay/marketnetwork/dto';
+import type { PlugAvailabilityResponse, PlugMissionDto } from '../api/securepay/marketnetwork/dto';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
 
 interface StoreManagementHomeProps {
@@ -15,10 +15,11 @@ interface StoreManagementHomeProps {
   plugAvailability?: PlugAvailabilityResponse | null;
   plugAvailabilityBusy?: boolean;
   plugAvailabilityError?: string | null;
+  plugMissions?: PlugMissionDto[];
   onTogglePlugAvailability?: () => void;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, onTogglePlugAvailability }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -93,6 +94,34 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
             </div>
             {plugAvailability.availableUntil && <div className="text-[0.68rem] text-sand-500 mt-2">Available until {plugAvailability.availableUntil}</div>}
             {plugAvailabilityError && <div role="alert" className="text-[0.72rem] text-ember-600 mt-2">{plugAvailabilityError}</div>}
+          </div>
+        )}
+
+        {plugAvailability?.qualified && (
+          <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="text-[0.72rem] font-medium text-forest-800">Plug missions</div>
+            <p className="text-[0.68rem] text-sand-500 mt-1">Only missions already visible to your qualified Plug identity appear here.</p>
+            {plugMissions.length === 0 ? (
+              <p className="text-[0.72rem] text-sand-400 mt-3">No fulfilment, pooling or assembly missions available right now.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {plugMissions.slice(0, 5).map(mission => (
+                  <div key={mission.opportunityOfferId} className="rounded-xl border border-cream-200 px-3 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[0.78rem] font-medium text-forest-800">{mission.title}</div>
+                      <span className="text-[0.62rem] rounded-full bg-cream-100 px-2 py-0.5 text-sand-600">{mission.missionType}</span>
+                    </div>
+                    <div className="text-[0.7rem] text-sand-500 mt-1">{mission.summary}</div>
+                    {mission.permittedActions.length > 0 && (
+                      <div className="text-[0.65rem] text-sand-400 mt-2">Allowed: {mission.permittedActions.join(', ')}</div>
+                    )}
+                    {mission.rewardBasis && (
+                      <div className="text-[0.65rem] text-sand-400 mt-1">Reward basis: {mission.rewardBasis}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
