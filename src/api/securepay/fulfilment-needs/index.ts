@@ -13,6 +13,28 @@ export interface DeriveFulfilmentNeedRequest {
   privacyLevel: FulfilmentNeedPrivacyLevel;
 }
 
+export interface FulfilmentNeedMatchDto {
+  providerKsNumber: string;
+  providerDisplayName: string | null;
+  offerId: string;
+  offerKind: 'PRODUCT' | 'SERVICE' | 'CAPACITY';
+  title: string;
+  priceMinor: number | null;
+  currency: string;
+  availabilityState: string;
+  supplyRoles: string[];
+  minimumOrderQuantity: number | null;
+  leadTimeHours: number | null;
+  serviceAreas: string[];
+  deliveryAvailable: boolean | null;
+  capacityQuantity: number | null;
+  capacityUnit: string | null;
+  warrantyDeclared: boolean;
+  returnTermsDeclared: boolean;
+  tradeOffs: string[];
+  updatedAt: string;
+}
+
 export interface FulfilmentNeedDto {
   id: string;
   sourceType: 'VISION' | 'AGREEMENT';
@@ -58,6 +80,13 @@ export function createFulfilmentNeedsGateway(http: HttpClient) {
     ),
     get: (needId: string) =>
       http.request<FulfilmentNeedDto>(`/api/v1/fulfilment-needs/${segment(needId)}`, { auth: 'required' }),
+    matches: (needId: string, limit = 10) => {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 25) throw new Error('Fulfilment match limit must be between 1 and 25');
+      return http.request<FulfilmentNeedMatchDto[]>(
+        `/api/v1/fulfilment-needs/${segment(needId)}/matches?limit=${limit}`,
+        { auth: 'required' },
+      );
+    },
   };
 }
 
