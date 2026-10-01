@@ -30,6 +30,7 @@ import type { FxApplicationGateway } from '../../api/securepay/fx-application';
 import type { RegulatedAccountsGateway } from '../../api/securepay/regulated-accounts';
 import type { BusinessCurrencyCapabilityGateway } from '../../api/securepay/business-currency-capability';
 import type { BusinessFxApplicationGateway } from '../../api/securepay/business-fx-application';
+import type { MoneySnapshotGateway } from '../../api/securepay/money-snapshot';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { PaymentReadyPanel, FundingPanel, ActivityPanel, ReleasePanel } from './AgreementMoneyPanels';
@@ -46,6 +47,7 @@ import { AgreementCurrencyActivationPrompt } from './AgreementCurrencyActivation
 import { FxConversionSection } from './FxConversionSection';
 import { BusinessCurrencyCapabilitySection } from './BusinessCurrencyCapabilitySection';
 import { BusinessFxConversionSection } from './BusinessFxConversionSection';
+import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
 
 function money(minor: number, currency: string) { return moneyText(minor, currency); }
@@ -80,6 +82,7 @@ export interface MoneyGateways {
   regulatedAccounts: RegulatedAccountsGateway;
   businessCurrencyCapability: BusinessCurrencyCapabilityGateway;
   businessFxApplication: BusinessFxApplicationGateway;
+  moneySnapshot: MoneySnapshotGateway;
 }
 
 export function MoneyExperience({ gateways, auth, session, onLeave }: {
@@ -146,6 +149,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           moneyGateway={gateways.money}
           paymentReleaseGateway={gateways.paymentRelease}
           paymentIntentGateway={gateways.paymentIntent}
+          snapshotGateway={gateways.moneySnapshot}
           currencyCapabilityGateway={gateways.currencyCapability}
           initialAgreement={jumpAgreement}
           handoff={handoff}
@@ -295,12 +299,13 @@ function ErrorBanner({ message }: { message: string }) {
  * Amount authority: a position's figures are the backend's per-obligation position; the Agreement summary amount and Payment Ready's evaluated amount
  * are separate, labelled sources and are never summed or reconciled here.
  */
-function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGateway, paymentReleaseGateway, paymentIntentGateway, currencyCapabilityGateway, initialAgreement, handoff }: {
+function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGateway, paymentReleaseGateway, paymentIntentGateway, snapshotGateway, currencyCapabilityGateway, initialAgreement, handoff }: {
   authorityGateway: MoneyAuthorityGateway;
   agreementGateway: AgreementGateway;
   moneyGateway: MoneyGateway;
   paymentReleaseGateway: PaymentReleaseGateway;
   paymentIntentGateway: PaymentIntentGateway;
+  snapshotGateway: MoneySnapshotGateway;
   currencyCapabilityGateway: CurrencyCapabilityGateway;
   initialAgreement?: CurrentUserAgreementSummaryResponse | null;
   handoff?: MoneyHandoff | null;
@@ -400,6 +405,8 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
           <div className="text-sm text-forest-800 font-medium" data-testid="money-context">{context ?? selectedAgreement.title} {selectedAgreement.currency && <span className="text-xs text-sand-500">({selectedAgreement.currency})</span>}</div>
 
           {selectedAgreement.currency && <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />}
+
+          <MoneySnapshotPanel snapshotGateway={snapshotGateway} paymentIntentGateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
 
           <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.summaryAmountMinor} agreementCurrency={selectedAgreement.currency ?? ''} />
           <FundingPanel gateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
