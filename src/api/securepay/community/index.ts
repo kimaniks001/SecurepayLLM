@@ -2,6 +2,7 @@ import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
+  CommunityTransitionIntentDto, CommunityVisionTransitionDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -147,6 +148,28 @@ export function createCommunityGateway(http: HttpClient) {
     apprenticeships: {
       list: (limit = 20, offset = 0) =>
         http.request<ApprenticeshipProjectDto[]>(`/api/v1/community/apprenticeship-projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
+    transitions: {
+      objectToVision: (objectId: string) =>
+        http.request<CommunityVisionTransitionDto>(
+          `/api/v1/community/transitions/objects/${segment(objectId)}/vision`,
+          { method: 'POST', auth: 'required' },
+        ),
+      projectToVision: (projectId: string) =>
+        http.request<CommunityVisionTransitionDto>(
+          `/api/v1/community/transitions/projects/${segment(projectId)}/vision`,
+          { method: 'POST', auth: 'required' },
+        ),
+      prepareObject: (objectId: string, targetDomain: CommunityTransitionIntentDto['targetDomain']) =>
+        http.request<CommunityTransitionIntentDto>(
+          `/api/v1/community/transitions/objects/${segment(objectId)}/prepare`,
+          { method: 'POST', body: { targetDomain }, auth: 'required' },
+        ),
+      prepareProject: (projectId: string, targetDomain: CommunityTransitionIntentDto['targetDomain']) =>
+        http.request<CommunityTransitionIntentDto>(
+          `/api/v1/community/transitions/projects/${segment(projectId)}/prepare`,
+          { method: 'POST', body: { targetDomain }, auth: 'required' },
+        ),
     },
     moderation: {
       mutes: () => http.request<CommunityMutedMemberDto[]>('/api/v1/community/moderation/mutes', { auth: 'required' }),

@@ -303,3 +303,22 @@ export interface CommunityObjectReportDto {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export interface CommunityVisionTransitionDto {
+  sourceId: string;
+  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT';
+  visionItemId: string;
+  title: string;
+}
+
+export interface CommunityTransitionIntentDto {
+  id: string;
+  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT';
+  sourceId: string;
+  targetDomain: 'GROUP' | 'AGREEMENT' | 'STORE' | 'PLUG' | 'MASTER';
+  createdByIdentityId: string;
+  status: 'PREPARED' | 'CONSUMED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+}

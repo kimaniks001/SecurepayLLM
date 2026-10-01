@@ -80,9 +80,10 @@ interface CommunityObjectDetailProps {
   onStartTradeWithResponder?: (candidateKsNumber: string) => void;
   onReport?: () => void;
   onMuteAuthor?: () => void;
+  onSaveToVision?: () => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder, onReport, onMuteAuthor }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder, onReport, onMuteAuthor, onSaveToVision }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -278,6 +279,14 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
             >
               <MessageCircle className="w-4 h-4" />
               Reply or share experience
+            </button>
+          )}
+          {onSaveToVision && object.status === 'active' && !isStoreRef && (
+            <button
+              onClick={onSaveToVision}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-forest-300 text-forest-700 text-[0.825rem] font-medium py-2.5 hover:bg-forest-50 transition-colors"
+            >
+              Add to Vision
             </button>
           )}
           {onClose && object.status === 'active' && (

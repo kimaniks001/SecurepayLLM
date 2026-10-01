@@ -1293,6 +1293,14 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
+            <button
+              onClick={() => void communityGateway.transitions.projectToVision(item.id)
+                .then(() => onNavigate('vision-board'))
+                .catch(error => controller.showNotice(errorText(error)))}
+              className="mt-3 text-[0.75rem] font-medium text-forest-600"
+            >
+              Add to Vision
+            </button>
           </div>)}
           {!purposeLoading && !purposeError && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
         </div></div>
