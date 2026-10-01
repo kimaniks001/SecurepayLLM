@@ -17,8 +17,10 @@ test('Vision Money Gap: snapshot is Agreement-scoped and read-only', () => {
   assert.doesNotMatch(executableGateway, /railCode|amountMinor|currency|beneficiary|destinationReference|funding-quotes/);
 });
 
-test('movement stays fail-closed until backend preflight exists', () => {
-  assert.match(dto, /movementAssessment:\s*'NOT_ASSESSED'/);
+test('movement is backend-owned and fail-closed', () => {
+  assert.match(dto, /movement:\s*AgreementMoneyMovementSnapshot/);
+  assert.match(dto, /state:\s*'READY' \| 'BLOCKED' \| 'UNAVAILABLE'/);
+  assert.match(dto, /amountMinor:\s*number \| null/);
   assert.match(dto, /ready:\s*boolean \| null/);
   assert.match(dto, /NOT_EVALUATED/);
   assert.match(dto, /AMBIGUOUS/);
@@ -48,6 +50,9 @@ test('snapshot UI shows financial truth; only the version-bound quote exception 
   assert.match(snapshotPanel, /createVersionBoundQuote/);
   assert.match(snapshotPanel, /snapshot\.currentVersionId/);
   assert.match(snapshotPanel, /does not create or initiate a payment/);
-  assert.match(snapshotPanel, /do not, by themselves, prove movement authority/);
-  assert.match(snapshotPanel, /Release-request authority is not the same as movement readiness/);
+  assert.match(snapshotPanel, /Can money move now\?/);
+  assert.match(snapshotPanel, /snapshot\.movement\.state === 'READY'/);
+  assert.match(snapshotPanel, /Exact amount that passed the current preflight/);
+  assert.match(snapshotPanel, /No movable amount is asserted/);
+  assert.match(snapshotPanel, /This check moves no money/);
 });
