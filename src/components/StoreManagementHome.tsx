@@ -8,9 +8,12 @@ interface StoreManagementHomeProps {
   enquiries: StoreEnquiry[];
   onBack: () => void;
   onCreateOffer: () => void;
+  businessMode?: boolean;
+  onOpenGrow?: () => void;
+  onOpenMoney?: () => void;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, onOpenGrow, onOpenMoney }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -27,6 +30,30 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
+        {businessMode && (
+          <div>
+            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Store Vision</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <div className="text-[0.72rem] font-medium text-forest-800">Today</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">Current offers and availability below.</div>
+              </div>
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <div className="text-[0.72rem] font-medium text-forest-800">Opportunities</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">Demand matching appears only when SecurePay has real fulfilment needs.</div>
+              </div>
+              <button disabled={!onOpenGrow} onClick={onOpenGrow} className="text-left rounded-xl border border-cream-200 bg-white px-3 py-3 disabled:opacity-50">
+                <div className="text-[0.72rem] font-medium text-forest-800">Grow</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">Plans, ideas and operating guidance from this Business Vision.</div>
+              </button>
+              <button disabled={!onOpenMoney} onClick={onOpenMoney} className="text-left rounded-xl border border-cream-200 bg-white px-3 py-3 disabled:opacity-50">
+                <div className="text-[0.72rem] font-medium text-forest-800">Money</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">Open SecurePay Money for authoritative financial truth.</div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">

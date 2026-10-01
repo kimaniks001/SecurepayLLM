@@ -1,5 +1,5 @@
 import { ApiError, type RemoteState } from '../../api/securepay/http';
-import { publicOfferDetailView, myOfferView, myStoreIdentityView, searchResultsView, storeIdentityView, storeOffersView, type StoreSearchResult } from '../../api/securepay/store/adapters';
+import { businessOfferView, businessStoreIdentityView, publicOfferDetailView, myOfferView, myStoreIdentityView, searchResultsView, storeIdentityView, storeOffersView, type StoreSearchResult } from '../../api/securepay/store/adapters';
 import type { StoreOfferResponse, UpsertStoreOfferRequest } from '../../api/securepay/store/dto';
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
@@ -41,6 +41,7 @@ export interface StoreState {
   selectedStore: RemoteState<StoreLoad>;
   selectedOffer: RemoteState<OfferLoad>;
   mine: RemoteState<MyStoreLoad>;
+  managedBusiness: { ksNumber: string; displayName: string } | null;
   editingOfferId: string | null;
   draft: OfferDraftFields;
   draftBusy: boolean;
@@ -49,7 +50,7 @@ export interface StoreState {
 const initial: StoreState = {
   view: 'home', query: '',
   search: { status: 'idle' }, selectedStore: { status: 'idle' }, selectedOffer: { status: 'idle' }, mine: { status: 'idle' },
-  editingOfferId: null, draft: emptyOfferDraft, draftBusy: false, draftError: null,
+  managedBusiness: null, editingOfferId: null, draft: emptyOfferDraft, draftBusy: false, draftError: null,
 };
 
 type Gateway = StoreReadGateway & StoreManageGateway;
@@ -79,6 +80,19 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
 
   async function loadMine() {
     try {
+      if (state.managedBusiness) {
+        const business = state.managedBusiness;
+        const [profile, offers] = await Promise.all([
+          gateway.businessProfile(business.ksNumber),
+          gateway.businessOffers(business.ksNumber),
+        ]);
+        update({ mine: { status: 'ready', data: {
+          profile: businessStoreIdentityView(profile),
+          offers: offers.map(offer => businessOfferView(offer, business.ksNumber, business.displayName, trustedMediaOrigin)),
+          raw: offers,
+        } } });
+        return;
+      }
       const [profile, offers] = await Promise.all([gateway.myProfile(), gateway.myOffers()]);
       update({ mine: { status: 'ready', data: { profile: myStoreIdentityView(profile), offers: offers.map(offer => myOfferView(offer, trustedMediaOrigin)), raw: offers } } });
     } catch (error) {
@@ -122,7 +136,14 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
     backToStore() { update({ view: state.selectedStore.status === 'ready' ? 'profile' : 'home' }); },
     backToOffer() { update({ view: state.selectedOffer.status === 'ready' ? 'offer' : 'home' }); },
 
-    async enterManagement() { update({ view: 'manage', mine: { status: 'loading' } }); await loadMine(); },
+    async enterManagement() {
+      update({ managedBusiness: null, view: 'manage', mine: { status: 'loading' } });
+      await loadMine();
+    },
+    async enterBusinessManagement(ksNumber: string, displayName: string) {
+      update({ managedBusiness: { ksNumber, displayName }, view: 'manage', mine: { status: 'loading' } });
+      await loadMine();
+    },
     async refreshMine() { await loadMine(); },
 
     openBuilder(editingOfferId: string | null = null) {
@@ -142,8 +163,13 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
         availabilityState: state.draft.availabilityState, published: state.draft.published, mediaRefs: state.draft.mediaRefs,
       };
       try {
-        if (state.editingOfferId) await gateway.updateOffer(state.editingOfferId, body);
-        else await gateway.createOffer(body);
+        if (state.managedBusiness) {
+          if (state.editingOfferId) await gateway.updateBusinessOffer(state.managedBusiness.ksNumber, state.editingOfferId, body);
+          else await gateway.createBusinessOffer(state.managedBusiness.ksNumber, body);
+        } else {
+          if (state.editingOfferId) await gateway.updateOffer(state.editingOfferId, body);
+          else await gateway.createOffer(body);
+        }
         update({ draftBusy: false, view: 'manage', editingOfferId: null, draft: emptyOfferDraft });
         await loadMine();
       } catch (error) {
@@ -153,7 +179,8 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
 
     async confirmAvailability(offerId: string) {
       try {
-        await gateway.confirmAvailability(offerId);
+        if (state.managedBusiness) await gateway.confirmBusinessOfferAvailability(state.managedBusiness.ksNumber, offerId);
+        else await gateway.confirmAvailability(offerId);
         await loadMine();
       } catch (error) {
         update({ mine: { status: 'error', error: asApiError(error) } });

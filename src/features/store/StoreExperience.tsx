@@ -12,6 +12,7 @@ import { ErrorStateCard } from '../../components/ErrorState';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
+import type { BusinessGateway, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
@@ -19,7 +20,7 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 
-type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -36,13 +37,14 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate }: {
-  gateway: Gateway; auth: AuthGateway; session: SessionStore;
+export function StoreExperience({ gateway, businessGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
   onNavigate: (view: AppView) => void;
+  onOpenBusinessVision: (businessKsNumber: string) => void;
 }) {
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
@@ -51,6 +53,9 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
+  const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
+  const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
@@ -83,18 +88,77 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
       const gate = signInGate;
       setSignInGate(null);
       setIdentityController(createIdentityController(auth, session));
-      if (gate === 'manage') void controller.enterManagement();
+      if (gate === 'manage') void openManageChooser();
       else controller.openBuilder(null);
     }
   }, [signInGate, identityState.phase, controller, auth, session]);
 
+  const openManageChooser = async () => {
+    setManageChoiceBusy(true);
+    setManageChoiceError(null);
+    try {
+      const businesses = await businessGateway.mine();
+      setManageChoices(businesses);
+    } catch (error) {
+      setManageChoiceError(errorText(error));
+      setManageChoices([]);
+    } finally {
+      setManageChoiceBusy(false);
+    }
+  };
+
+  const openBusinessStore = async (business: BusinessRepresentationDto) => {
+    setManageChoiceBusy(true);
+    setManageChoiceError(null);
+    try {
+      const confirmed = await businessGateway.representation(business.businessKsNumber);
+      if (!confirmed.canActFor || confirmed.businessKsNumber !== business.businessKsNumber) throw new Error('not confirmed');
+      setManageChoices(null);
+      await controller.enterBusinessManagement(confirmed.businessKsNumber, confirmed.displayName ?? confirmed.businessKsNumber);
+    } catch (error) {
+      setManageChoiceError(errorText(error));
+    } finally {
+      setManageChoiceBusy(false);
+    }
+  };
+
   const requireAuth = (gate: 'manage' | 'create') => {
-    if (session.getSnapshot().status === 'signed-in') { if (gate === 'manage') void controller.enterManagement(); else controller.openBuilder(null); return; }
+    if (session.getSnapshot().status === 'signed-in') { if (gate === 'manage') void openManageChooser(); else controller.openBuilder(null); return; }
     setSignInGate(gate);
   };
 
   const navBarView: AppView = 'store';
   const handleNavigate = (view: AppView) => { if (view === 'store') { setSignInGate(null); controller.backToHome(); } else onNavigate(view); };
+
+
+  if (manageChoices !== null) {
+    return (
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        <NavBar view={navBarView} onNavigate={handleNavigate} />
+        <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 space-y-4">
+          <button onClick={() => setManageChoices(null)} className="text-sm text-forest-700">← Store</button>
+          <div>
+            <h1 className="font-display text-xl text-forest-800">Which Store are you managing?</h1>
+            <p className="text-sm text-sand-500 mt-1">SecurePay re-confirms your authority before opening a Business Store.</p>
+          </div>
+          <button disabled={manageChoiceBusy} onClick={() => { setManageChoices(null); void controller.enterManagement(); }}
+            className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="font-medium text-forest-800">My personal Store</div>
+            <div className="text-xs text-sand-500 mt-1">Your own KS Store.</div>
+          </button>
+          {manageChoices.map(business => (
+            <button key={business.businessKsNumber} disabled={manageChoiceBusy} onClick={() => void openBusinessStore(business)}
+              className="w-full text-left rounded-2xl border border-cream-200 bg-white px-4 py-4">
+              <div className="font-medium text-forest-800">{business.displayName ?? business.businessKsNumber}</div>
+              <div className="text-xs text-sand-500 mt-1">{business.businessKsNumber} · Business Store</div>
+            </button>
+          ))}
+          {manageChoiceBusy && <LoadingNotice text="Confirming Store authority…" />}
+          {manageChoiceError && <p role="alert" className="text-sm text-ember-600">{manageChoiceError}</p>}
+        </div>
+      </div>
+    );
+  }
 
   if (signInGate) {
     const authData = secureAuthView(identityState);
@@ -198,6 +262,9 @@ export function StoreExperience({ gateway, auth, session, initialOfferRoute, tru
         enquiries={[]}
         onBack={() => controller.backToHome()}
         onCreateOffer={() => controller.openBuilder(null)}
+        businessMode={state.managedBusiness !== null}
+        onOpenGrow={state.managedBusiness ? () => onOpenBusinessVision(state.managedBusiness!.ksNumber) : undefined}
+        onOpenMoney={() => onNavigate('money')}
       />
     );
   } else {

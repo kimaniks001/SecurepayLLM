@@ -1,6 +1,6 @@
 import { ApiError } from '../http';
 import type {
-  AvailabilityState, OfferKind, PublicOfferDetailView, PublicOfferView, PublicSearchResultView, PublicStoreView,
+  AvailabilityState, BusinessStoreProfileResponse, OfferKind, PublicOfferDetailView, PublicOfferView, PublicSearchResultView, PublicStoreView,
   StoreOfferResponse, StoreProfileResponse,
 } from './dto';
 import type { OfferLifecycle, OfferType, StoreIdentity, StoreOffer } from '../../../types';
@@ -261,4 +261,38 @@ export function myOfferView(dto: StoreOfferResponse, trustedMediaOrigin: string 
 function buildStoreOfferUrl(canonicalKsNumber: string, offerId: string): string {
   const origin = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
   return `${origin}#/store/${encodeURIComponent(canonicalKsNumber)}/offer/${encodeURIComponent(offerId)}`;
+}
+
+
+export function businessStoreIdentityView(dto: BusinessStoreProfileResponse): StoreIdentity {
+  if (!isRecord(dto) || typeof dto.businessKsNumber !== 'string') {
+    throw new ApiError('invalid-response', 'SecurePay returned an unreadable Business Store profile.');
+  }
+  return {
+    id: dto.businessKsNumber,
+    name: dto.displayName || dto.heroHeadline || dto.tagline || dto.businessKsNumber,
+    operator: dto.displayName || '',
+    businessIdentity: `BUSINESS KS identity — ${dto.businessKsNumber}`,
+    serviceAreas: dto.locationLabel ? [dto.locationLabel] : [],
+    verified: false,
+    description: dto.about ?? dto.tagline ?? undefined,
+  };
+}
+
+export function businessOfferView(
+  dto: StoreOfferResponse,
+  businessKsNumber: string,
+  businessName: string,
+  trustedMediaOrigin: string | null,
+): StoreOffer {
+  const offer = myOfferView(dto, trustedMediaOrigin);
+  return {
+    ...offer,
+    storeId: businessKsNumber,
+    storeName: businessName,
+    secureLink: {
+      ...offer.secureLink,
+      url: buildStoreOfferUrl(businessKsNumber, dto.id),
+    },
+  };
 }

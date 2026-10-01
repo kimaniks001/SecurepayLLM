@@ -49,4 +49,4 @@ export function mergeSearchResults(resultLists: StoreSearchResult[][]): StoreSea
 }
 
 export type StoreReadGateway = Pick<StoreGateway, 'search' | 'store' | 'offer'>;
-export type StoreManageGateway = Pick<StoreGateway, 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability'>;
+export type StoreManageGateway = Pick<StoreGateway, 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
