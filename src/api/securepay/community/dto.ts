@@ -278,3 +278,28 @@ export interface ApprenticeshipProjectDto {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export type CommunityReportReason = 'SAFETY' | 'HARASSMENT' | 'SPAM' | 'MISLEADING' | 'PRIVACY' | 'OTHER';
+export type CommunityReportStatus = 'OPEN' | 'REVIEWED' | 'ESCALATED' | 'DISMISSED';
+
+export interface CommunityMutedMemberDto {
+  canonicalKsNumber: string;
+  displayName: string | null;
+  mutedAt: string;
+}
+
+export interface CommunityObjectReportDto {
+  id: string;
+  objectId: string;
+  circleId: string | null;
+  reporterKsNumber: string;
+  reason: CommunityReportReason;
+  details: string | null;
+  status: CommunityReportStatus;
+  reviewedByKsNumber: string | null;
+  reviewedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

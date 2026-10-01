@@ -945,6 +945,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createCommunityController(gateway, communityGateway, discoveryGateway, trustedMediaOrigin));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<'SAFETY'|'HARASSMENT'|'SPAM'|'MISLEADING'|'PRIVACY'|'OTHER'>('OTHER');
+  const [reportDetails, setReportDetails] = useState('');
+  const [moderationBusy, setModerationBusy] = useState(false);
 
   useEffect(() => {
     void controller.enter();
@@ -1165,6 +1169,16 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           if (fact) onUseThis(fact);
         }}
         onClose={isOwn ? () => void controller.closeObject(object.id) : undefined}
+        onReport={!isOwn ? () => setReportOpen(true) : undefined}
+        onMuteAuthor={!isOwn && state.selectedRealObject.authorCanonicalKsNumber ? () => {
+          setModerationBusy(true);
+          void communityGateway.moderation.mute(state.selectedRealObject!.authorCanonicalKsNumber!).then(() => {
+            setModerationBusy(false);
+            controller.showNotice('Member muted. Their Community posts will no longer appear for you.');
+            controller.backToHome();
+            void controller.refreshFeed();
+          }).catch(error => { setModerationBusy(false); controller.showNotice(errorText(error)); });
+        } : undefined}
         realHelp={{
           offered: activeHelpResponseId !== null,
           offering: state.helpOffering,
@@ -1339,6 +1353,35 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           <StatusNotice tone="info" icon={false}>
             {state.notice} <button onClick={() => controller.dismissNotice()} className="underline">Dismiss</button>
           </StatusNotice>
+        </div>
+      )}
+      {reportOpen && state.selectedRealObject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm" onClick={() => !moderationBusy && setReportOpen(false)}>
+          <div className="w-full max-w-sm mx-4 rounded-2xl bg-white shadow-deliberate px-5 py-5" onClick={e => e.stopPropagation()}>
+            <h2 className="font-display text-base text-forest-800">Report this Community post</h2>
+            <p className="text-[0.75rem] text-sand-600 mt-1">A report asks for review. It does not automatically remove the post or change anyone's account.</p>
+            <select value={reportReason} onChange={e => setReportReason(e.target.value as typeof reportReason)}
+              className="mt-3 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.82rem] text-forest-800">
+              <option value="SAFETY">Safety</option><option value="HARASSMENT">Harassment</option>
+              <option value="SPAM">Spam</option><option value="MISLEADING">Misleading</option>
+              <option value="PRIVACY">Privacy</option><option value="OTHER">Other</option>
+            </select>
+            <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3}
+              placeholder="Optional details"
+              className="mt-2 w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.82rem] text-forest-800 resize-none" />
+            <div className="mt-3 flex gap-2">
+              <button disabled={moderationBusy} onClick={() => {
+                setModerationBusy(true);
+                void communityGateway.moderation.report(state.selectedRealObject!.id, reportReason, reportDetails || null).then(() => {
+                  setModerationBusy(false); setReportOpen(false); setReportDetails('');
+                  controller.showNotice('Report sent for review.');
+                }).catch(error => { setModerationBusy(false); controller.showNotice(errorText(error)); });
+              }} className="rounded-xl bg-forest-600 px-4 py-2 text-[0.8rem] font-medium text-cream-50 disabled:opacity-50">
+                {moderationBusy ? 'Sending…' : 'Send report'}
+              </button>
+              <button disabled={moderationBusy} onClick={() => setReportOpen(false)} className="rounded-xl border border-cream-200 px-4 py-2 text-[0.8rem] text-forest-700">Cancel</button>
+            </div>
+          </div>
         </div>
       )}
       {state.inviteOpen && (

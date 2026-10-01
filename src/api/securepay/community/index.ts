@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
-  CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto,
+  CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
   FairTradePrincipleResponse, MembershipResponse,
 } from './dto';
@@ -147,6 +147,24 @@ export function createCommunityGateway(http: HttpClient) {
     apprenticeships: {
       list: (limit = 20, offset = 0) =>
         http.request<ApprenticeshipProjectDto[]>(`/api/v1/community/apprenticeship-projects?limit=${limit}&offset=${offset}`, { auth: 'required' }),
+    },
+    moderation: {
+      mutes: () => http.request<CommunityMutedMemberDto[]>('/api/v1/community/moderation/mutes', { auth: 'required' }),
+      mute: (canonicalKsNumber: string) =>
+        http.request<CommunityMutedMemberDto>(`/api/v1/community/moderation/mutes/${segment(canonicalKsNumber)}`, { method: 'POST', auth: 'required' }),
+      unmute: (canonicalKsNumber: string) =>
+        http.request<void>(`/api/v1/community/moderation/mutes/${segment(canonicalKsNumber)}`, { method: 'DELETE', auth: 'required' }),
+      report: (objectId: string, reason: CommunityReportReason, details?: string | null) =>
+        http.request<CommunityObjectReportDto>(`/api/v1/community/moderation/objects/${segment(objectId)}/reports`, {
+          method: 'POST', body: { reason, details: details ?? null }, auth: 'required',
+        }),
+      circleReports: (circleId: string) =>
+        http.request<CommunityObjectReportDto[]>(`/api/v1/community/moderation/circles/${segment(circleId)}/reports`, { auth: 'required' }),
+      reviewCircleReport: (circleId: string, reportId: string, status: Exclude<CommunityReportStatus,'OPEN'>, resolutionNote?: string | null) =>
+        http.request<CommunityObjectReportDto>(
+          `/api/v1/community/moderation/circles/${segment(circleId)}/reports/${segment(reportId)}/review`,
+          { method: 'POST', body: { status, resolutionNote: resolutionNote ?? null }, auth: 'required' },
+        ),
     },
 
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against

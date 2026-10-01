@@ -78,9 +78,11 @@ interface CommunityObjectDetailProps {
   /** Called with exactly the clicked responder's own canonical KS Number -- never inferred, never a
    * default, never "whichever one is first." */
   onStartTradeWithResponder?: (candidateKsNumber: string) => void;
+  onReport?: () => void;
+  onMuteAuthor?: () => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder, onReport, onMuteAuthor }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -279,12 +281,15 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
             </button>
           )}
           {onClose && object.status === 'active' && (
-            <button
-              onClick={onClose}
-              className="w-full text-[0.8rem] text-sand-500 hover:text-forest-600 py-2 transition-colors"
-            >
+            <button onClick={onClose} className="w-full text-[0.8rem] text-sand-500 hover:text-forest-600 py-2 transition-colors">
               Close this post
             </button>
+          )}
+          {!onClose && (onReport || onMuteAuthor) && (
+            <div className="flex items-center justify-center gap-4 pt-1">
+              {onReport && <button onClick={onReport} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Report</button>}
+              {onMuteAuthor && <button onClick={onMuteAuthor} className="text-[0.75rem] text-sand-500 hover:text-forest-600">Mute member</button>}
+            </div>
           )}
         </div>
 
