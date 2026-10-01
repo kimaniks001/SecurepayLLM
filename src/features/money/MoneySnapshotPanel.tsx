@@ -12,6 +12,33 @@ function amount(minor: number | null, currency: string | null) {
   return moneyText(minor, currency);
 }
 
+
+function movementText(snapshot: AgreementMoneySnapshotResponse) {
+  const movement = snapshot.movement;
+  if (movement.state === 'READY') {
+    return 'Ready now — SecurePay’s read-only preflight passed the current movement prerequisites.';
+  }
+  if (movement.state === 'UNAVAILABLE') {
+    return 'SecurePay could not complete movement preflight, so no amount is being claimed as movable.';
+  }
+  const messages: Record<string, string> = {
+    ENVIRONMENT_DISABLED: 'Money movement is disabled in this environment.',
+    RELEASE_AUTHORITY_BLOCKED: 'Release is not currently authorised for this Agreement.',
+    EVALUATION_STALE: 'The Payment Ready evaluation is no longer current.',
+    UNSUPPORTED_PRODUCT: 'This Agreement Money flow is not supported for participant movement yet.',
+    PRICING_OR_DESTINATION_UNRESOLVED: 'SecurePay cannot safely bind the current pricing and settlement destination.',
+    FUNDING_NOT_FOUND: 'SecurePay cannot find authoritative participant funding for this evaluated amount.',
+    FUNDING_AMBIGUOUS: 'SecurePay found more than one possible participant funding account.',
+    INSUFFICIENT_FUNDS: 'The authoritative participant funding balance is below the evaluated release amount.',
+    RECIPIENT_OR_PRICING_UNRESOLVED: 'The recipient, destination, or pricing no longer passes release checks.',
+    RESERVE_LEDGER_UNAVAILABLE: 'The release reserve ledger is not currently available.',
+    SETTLEMENT_KILL_SWITCH_TRIPPED: 'Settlement is temporarily disabled by SecurePay’s operational safety controls.',
+    EXECUTION_LEDGER_UNAVAILABLE: 'A required settlement ledger is not currently available.',
+    EXTERNAL_RAIL_UNAVAILABLE: 'The configured external settlement rail is not currently available.',
+  };
+  return messages[movement.reasonCode] ?? 'SecurePay does not currently say this money can move.';
+}
+
 function readinessText(snapshot: AgreementMoneySnapshotResponse) {
   const readiness = snapshot.paymentReady;
   if (readiness.state === 'NOT_EVALUATED') {
@@ -130,8 +157,27 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                 <p className="text-xs text-sand-500">Reason: {snapshot.releaseRequest.reasonCode.replace(/_/g, ' ').toLowerCase()}.</p>
               )}
               <p className="text-xs text-sand-500">
-                Release-request authority is not the same as movement readiness; recipient, destination and pricing bindings have not been dry-run preflighted here.
+                Release-request authority is only one input. The separate movement preflight below checks the remaining read-only movement prerequisites.
               </p>
+            </div>
+
+            <div className="rounded-xl border border-cream-200 bg-cream-50 p-3 space-y-1" data-testid="money-movement-preflight">
+              <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Can money move now?</p>
+              <p className="text-sm text-forest-800">{movementText(snapshot)}</p>
+              {snapshot.movement.state === 'READY' && snapshot.movement.amountMinor !== null && snapshot.movement.currency && (
+                <div className="pt-1">
+                  <MoneyValue amount={moneyText(snapshot.movement.amountMinor, snapshot.movement.currency)} size="lg" />
+                  <p className="text-xs text-sand-500 mt-0.5">
+                    Exact amount that passed the current preflight
+                    {snapshot.movement.destinationClassification ? ` · ${snapshot.movement.destinationClassification.toLowerCase()} destination` : ''}
+                    {snapshot.movement.railCode ? ` · ${snapshot.movement.railCode}` : ''}
+                  </p>
+                </div>
+              )}
+              {snapshot.movement.state !== 'READY' && (
+                <p className="text-xs text-sand-500">No movable amount is asserted while this preflight is {snapshot.movement.state.toLowerCase()}.</p>
+              )}
+              <p className="text-xs text-sand-500">This check moves no money. Every mutable condition is checked again when a future movement command is actually executed.</p>
             </div>
 
             <div className="space-y-2">
@@ -218,10 +264,6 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
                 </div>
               )}
             </div>
-
-            <StatusNotice tone="info">
-              SecurePay has not yet assessed whether money can move now. Remaining funded money and Payment Ready do not, by themselves, prove movement authority.
-            </StatusNotice>
 
             <Button variant="ghost" onClick={load}>Refresh money snapshot</Button>
           </div>
