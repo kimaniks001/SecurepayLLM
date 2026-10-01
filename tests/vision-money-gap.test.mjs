@@ -66,6 +66,7 @@ test('snapshot UI shows financial truth; only the version-bound quote exception 
   assert.match(snapshotPanel, /quote\.economicState/);
   assert.match(snapshotPanel, /quote\.economicReasonCode/);
   assert.match(snapshotPanel, /not execution-eligible/);
+  assert.match(snapshotPanel, /cannot create an executable payment yet/);
   assert.match(snapshotPanel, /EXTERNAL_ECONOMICS_UNRESOLVED/);
   assert.match(snapshotPanel, /provider costs needed to make this external settlement economically safe/);
   assert.match(paymentIntentApi, /expectedAgreementVersionId/);
