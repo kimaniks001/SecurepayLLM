@@ -116,6 +116,24 @@ export function MoneySnapshotPanel({ snapshotGateway, paymentIntentGateway, agre
               )}
             </div>
 
+            <div className="rounded-xl border border-cream-200 bg-cream-50 p-3 space-y-1">
+              <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Release request authority</p>
+              <p className="text-sm text-forest-800">
+                {snapshot.releaseRequest.authorityGranted
+                  ? 'You currently have backend authority to request release for the evaluated scope.'
+                  : 'SecurePay does not currently grant release-request authority for this Agreement.'}
+              </p>
+              {!snapshot.releaseRequest.participantCommandsPermitted && (
+                <p className="text-xs text-sand-500">Participant financial commands are disabled in this environment.</p>
+              )}
+              {!snapshot.releaseRequest.authorityGranted && (
+                <p className="text-xs text-sand-500">Reason: {snapshot.releaseRequest.reasonCode.replaceAll('_', ' ').toLowerCase()}.</p>
+              )}
+              <p className="text-xs text-sand-500">
+                Release-request authority is not the same as movement readiness; recipient, destination and pricing bindings have not been dry-run preflighted here.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <div>
                 <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Agreement Money positions</p>
