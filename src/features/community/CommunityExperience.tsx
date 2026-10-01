@@ -326,7 +326,7 @@ function CircleDetailPanel({
   objects, objectsLoading, onOpenObject, onCompose,
   members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
-  onOpenInvite, onOpenCloseConfirm, onSetLifecycle,
+  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
@@ -357,6 +357,7 @@ function CircleDetailPanel({
   onOpenInvite: () => void;
   onOpenCloseConfirm: () => void;
   onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
+  onInvokeKs001: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   const canSteward = isOwner || isSteward;
@@ -479,6 +480,16 @@ function CircleDetailPanel({
         {isMember && circle.status !== 'ACTIVE' && (
           <div className="rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-[0.78rem] text-sand-600">
             This Circle is {circle.status.toLowerCase()}. Existing members can read its history, but new posts and membership activity are paused.
+          </div>
+        )}
+
+        {isMember && circle.status === 'ACTIVE' && (
+          <div className="rounded-xl border border-forest-100 bg-forest-50/40 px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[0.78rem] font-medium text-forest-800">KS001 in this Circle</div>
+              <p className="text-[0.7rem] text-sand-600 mt-0.5">Invite KS001 to help organise this Circle's discussion. It cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
+            </div>
+            <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001</button>
           </div>
         )}
 
@@ -902,7 +913,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -922,6 +933,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   onUseThis: (fact: CommunitySourceFact) => void;
   /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
   onJoinTrustProject: () => void;
+  onInvokeKs001InCircle: (circleId: string) => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
   // Number, or a quick share link (no membership row, no referral, no capacity).
@@ -1082,6 +1094,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onOpenInvite={() => controller.openCircleInvite()}
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
         onSetLifecycle={status => void controller.setCircleLifecycle(status)}
+        onInvokeKs001={() => onInvokeKs001InCircle(state.selectedCircle!.id)}
       />
     );
   } else if (state.view === 'compose') {

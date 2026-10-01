@@ -651,6 +651,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // Community, then let the SAME real Agent conversation controller select the source.
         onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
         onJoinTrustProject={() => { setCommunity(false); joinRoute.open(); }}
+        onInvokeKs001InCircle={circleId => {
+          void gateway.createCircleConversation(circleId).then(created => {
+            setCommunity(false);
+            setHome(false);
+            if (created.conversationId) void controller.resumeConversation(created.conversationId);
+          });
+        }}
       />
     );
   }
