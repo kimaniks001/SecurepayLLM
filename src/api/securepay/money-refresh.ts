@@ -11,6 +11,7 @@ import type { createRegulatedAccountsGateway } from './regulated-accounts';
 import type { createBusinessCurrencyCapabilityGateway } from './business-currency-capability';
 import type { createBusinessFxApplicationGateway } from './business-fx-application';
 import type { createFinancialPartnerGateway } from './financial-partners';
+import type { createMoneySnapshotGateway } from './money-snapshot';
 
 type Methods<F extends (...args: never[]) => unknown> = readonly (keyof ReturnType<F>)[];
 
@@ -33,4 +34,5 @@ export const MONEY_AUTHENTICATED_METHODS = {
   businessCurrencyCapability: ['list', 'activate'] as const satisfies Methods<typeof createBusinessCurrencyCapabilityGateway>,
   businessFxApplication: ['create', 'get', 'list'] as const satisfies Methods<typeof createBusinessFxApplicationGateway>,
   financialPartners: ['list'] as const satisfies Methods<typeof createFinancialPartnerGateway>,
+  moneySnapshot: ['read'] as const satisfies Methods<typeof createMoneySnapshotGateway>,
 };
