@@ -10,7 +10,7 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { PublicStoreView } from '../../api/securepay/store/dto';
 import type { CommunityGateway } from '../../api/securepay/community';
-import type { CircleResponse, CirclePendingInvitationView, CommunityHelpResponseView, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import type { ApprenticeshipProjectDto, CircleResponse, CirclePendingInvitationView, CommunityEventDto, CommunityHelpResponseView, CommunityObjectResponse, CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import type { DiscoveryGateway } from '../../api/securepay/discovery';
 import type { DiscoveryResults, DiscoveryScope, PublicDirectoryIdentityType, PublicProfileResponse } from '../../api/securepay/discovery/dto';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
@@ -989,6 +989,45 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   }, [state.searchQuery]);
 
   const isActiveMember = state.membership.kind === 'active';
+  const [serviceItems, setServiceItems] = useState<CommunityServiceOpportunityDto[]>([]);
+  const [communityEvents, setCommunityEvents] = useState<CommunityEventDto[]>([]);
+  const [communityProjects, setCommunityProjects] = useState<CommunityProjectDto[]>([]);
+  const [apprenticeships, setApprenticeships] = useState<ApprenticeshipProjectDto[]>([]);
+  const [purposeLoading, setPurposeLoading] = useState(false);
+  const [purposeError, setPurposeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isActiveMember) {
+      setServiceItems([]);
+      setCommunityEvents([]);
+      setCommunityProjects([]);
+      setApprenticeships([]);
+      setPurposeLoading(false);
+      setPurposeError(null);
+      return;
+    }
+    let cancelled = false;
+    setPurposeLoading(true);
+    setPurposeError(null);
+    Promise.all([
+      communityGateway.serviceOpportunities.list(),
+      communityGateway.events.list(),
+      communityGateway.projects.list(),
+      communityGateway.apprenticeships.list(),
+    ]).then(([service, events, projects, learning]) => {
+      if (cancelled) return;
+      setServiceItems(service);
+      setCommunityEvents(events);
+      setCommunityProjects(projects);
+      setApprenticeships(learning);
+    }).catch(error => {
+      if (!cancelled) setPurposeError(errorText(error));
+    }).finally(() => {
+      if (!cancelled) setPurposeLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [isActiveMember, communityGateway]);
+
   const realObjects = isActiveMember && state.feed.status === 'ready' ? state.feed.data.map(o => realObjectToCommunityObject(o)) : [];
   // Community LIVE is human Community content only. Store discovery remains available through the
   // deliberate cross-domain Search surface and explicit transitions, never injected into LIVE.
@@ -1227,7 +1266,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
-          {!purposeLoading && serviceItems.length === 0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No service opportunities are open right now.</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
+          {!purposeLoading && !purposeError && serviceItems.length === 0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No service opportunities are open right now.</p>}
           {serviceItems.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.9rem] font-medium text-forest-800">{item.title}</div>
             <p className="text-[0.78rem] text-sand-600 mt-1">{item.description}</p>
@@ -1245,6 +1285,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-4">
           <div><h2 className="font-display text-lg text-forest-800 font-medium">Learn</h2><p className="text-[0.8rem] text-sand-500">Knowledge, mentorship and supervised Apprenticeship Projects grounded in real work.</p></div>
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
           {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
@@ -1253,7 +1294,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
           </div>)}
-          {!purposeLoading && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
+          {!purposeLoading && !purposeError && apprenticeships.length===0 && communityProjects.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">No learning or project work is visible to you yet.</p>}
         </div></div>
       </>
     );
@@ -1265,7 +1306,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div><h2 className="font-display text-lg text-forest-800 font-medium">Happening</h2><p className="text-[0.8rem] text-sand-500">Meet, teach, hike, serve and gather. RSVP is a plan, not a contractual commitment.</p></div>
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
-          {!purposeLoading && communityEvents.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">Nothing is scheduled yet.</p>}
+          {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
+          {!purposeLoading && !purposeError && communityEvents.length===0 && <p className="text-[0.82rem] text-sand-500 py-6 text-center">Nothing is scheduled yet.</p>}
           {communityEvents.map(event => <div key={event.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.9rem] font-medium text-forest-800">{event.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{event.description}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">{new Date(event.startsAt).toLocaleString()}{event.locationLabel ? ` · ${event.locationLabel}` : ''} · {event.goingCount} going</div>
