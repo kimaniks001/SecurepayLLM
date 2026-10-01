@@ -8,6 +8,7 @@ export type FulfilmentNeedPrivacyLevel = 'PRIVATE' | 'MATCHABLE';
 export type FulfilmentNeedStatus = 'OPEN' | 'PAUSED' | 'FULFILLED' | 'CANCELLED' | 'EXPIRED';
 
 export interface DeriveFulfilmentNeedRequest {
+  derivationKey: string;
   type: FulfilmentNeedType;
   poolable: boolean;
   privacyLevel: FulfilmentNeedPrivacyLevel;
@@ -37,6 +38,7 @@ export interface FulfilmentNeedMatchDto {
 
 export interface FulfilmentNeedDto {
   id: string;
+  derivationKey: string;
   sourceType: 'VISION' | 'AGREEMENT';
   sourceVisionId: string | null;
   sourceAgreementId: string | null;
