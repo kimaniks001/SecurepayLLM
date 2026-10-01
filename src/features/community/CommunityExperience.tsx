@@ -1526,6 +1526,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           activeMember={isActiveMember}
           onOpenCircles={() => void controller.showCommunityTab('my-circles')}
           onJoin={onJoinTrustProject}
+          onOpenVision={() => onNavigate('vision-board')}
         />
         <CommunityHome
           query={state.query}
