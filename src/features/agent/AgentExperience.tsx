@@ -787,6 +787,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onOpenCircle={() => navigateTo('circle')}
+        onInvokeKs001InCircle={circleId => {
+          void gateway.createCircleConversation(circleId).then(created => {
+            setCommunity(false);
+            setHome(false);
+            if (created.conversationId) void controller.resumeConversation(created.conversationId);
+          });
+        }}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => { setStoreOfferRoute({ canonicalKsNumber, offerId }); navigateTo('store'); }}
         // Phase 6 Slice 4 (Community → Trade) -- mirrors onUseOffer's own pattern exactly: leave
         // Community, then let the SAME real Agent conversation controller select the source.
