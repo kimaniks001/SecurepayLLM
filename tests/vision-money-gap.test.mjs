@@ -34,13 +34,16 @@ test('snapshot is session-refreshed and wired into the real Money route', () => 
   assert.match(experience, /<MoneySnapshotPanel/);
 });
 
-test('snapshot UI shows financial truth but keeps every financial command withheld', () => {
+test('snapshot UI shows financial truth; only the version-bound quote exception is enabled', () => {
   for (const term of ['Authorised maximum', 'Funded', 'Progressed', 'Returned', 'Remaining funded', 'Payment Ready', 'Funding routes and charges']) {
     assert.match(snapshotPanel, new RegExp(term));
   }
-  for (const forbidden of ['createQuote(', 'createIntent(', '.initiate(', '.fund(', '.exercise(', '.release(']) {
+  for (const forbidden of ['paymentIntentGateway.createQuote(', 'createIntent(', '.initiate(', '.fund(', '.exercise(', '.release(']) {
     assert.ok(!snapshotPanel.includes(forbidden), forbidden);
   }
+  assert.match(snapshotPanel, /snapshot\.feeQuoteRequestsPermitted/);
+  assert.match(snapshotPanel, /createVersionBoundQuote/);
+  assert.match(snapshotPanel, /snapshot\.currentVersionId/);
+  assert.match(snapshotPanel, /does not create or initiate a payment/);
   assert.match(snapshotPanel, /do not, by themselves, prove movement authority/);
-  assert.match(snapshotPanel, /Exact charges stay withheld/);
 });
