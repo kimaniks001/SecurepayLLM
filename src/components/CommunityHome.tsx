@@ -12,7 +12,7 @@ interface CommunityHomeProps {
   onOpenPerson: (id: string) => void;
   onOpenBusiness: (id: string) => void;
   onCreate: () => void;
-  onStartConversation: () => void;
+  onStartConversation?: () => void;
   onOpenCircles: () => void;
   /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
    * real Referrals/Plugs/Masters help entry. */
@@ -216,24 +216,27 @@ export function CommunityHome({
         {results.length === 0 && people.length === 0 && businesses.length === 0 && storeSearchStatus !== 'loading' && (
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
             <p className="text-[0.875rem] text-sand-600">{noResultsMessage ?? `No results for "${query}".`}</p>
-            <button onClick={onStartConversation} className="mt-2 flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700 mx-auto">
-              Tell SecurePay what you need
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            {onStartConversation && (
+              <button onClick={onStartConversation} className="mt-2 flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700 mx-auto">
+                Tell SecurePay what you need
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         )}
 
-        {/* Agent */}
-        <button
-          onClick={onStartConversation}
-          className="w-full mt-4 rounded-xl border border-cream-200 bg-cream-50/50 px-4 py-3 text-left hover:bg-cream-50 transition-colors"
-        >
-          <span className="flex items-center gap-1.5 text-[0.825rem] text-forest-600 font-medium">
-            <MessageCircle className="w-3.5 h-3.5" />
-            Ask SecurePay to find help in the community
-          </span>
-          <p className="text-[0.72rem] text-sand-600 mt-0.5">SecurePay can surface people, businesses, and offers that match what you need</p>
-        </button>
+        {onStartConversation && (
+          <button
+            onClick={onStartConversation}
+            className="w-full mt-4 rounded-xl border border-cream-200 bg-cream-50/50 px-4 py-3 text-left hover:bg-cream-50 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 text-[0.825rem] text-forest-600 font-medium">
+              <MessageCircle className="w-3.5 h-3.5" />
+              Ask SecurePay to find help in the community
+            </span>
+            <p className="text-[0.72rem] text-sand-600 mt-0.5">SecurePay can surface people, businesses, and offers that match what you need</p>
+          </button>
+        )}
       </div>
     </div>
   );

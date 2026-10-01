@@ -1198,7 +1198,6 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenPerson={() => {}}
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
-          onStartConversation={() => onNavigate('signed-in')}
           onOpenCircles={onOpenCircle}
           onOpenEcosystem={() => onNavigate('ecosystem')}
           storeSearchStatus={state.search.status === 'idle' ? undefined : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
