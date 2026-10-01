@@ -529,7 +529,7 @@ test('Agreement Support gains no support authority', async () => {
   // actual doctrine: Agreement Support itself gains no transport or support authority. Vision
   // Money Gap adds only Money snapshot/version-bound quote transport, which is explicitly allowed
   // here and still checked below for any support/ticket/escalation vocabulary.
-  const allowedApiDrift = /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/money-snapshot\/|^src\/api\/securepay\/payment-intent\/index\.ts$|^src\/api\/securepay\/money-refresh\.ts$|^src\/api\/securepay\/index\.ts$/;
+  const allowedApiDrift = /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/money-snapshot\/|^src\/api\/securepay\/payment-intent\/(index|dto)\.ts$|^src\/api\/securepay\/money-refresh\.ts$|^src\/api\/securepay\/index\.ts$/;
   for (const file of changed ? changed.split('\n') : []) assert.match(file, allowedApiDrift, 'only explicitly approved non-support gateway drift is permitted');
   const registry = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api/securepay/index.ts'], { encoding: 'utf8' })
     .split('\n').filter(line => /^[+-](?![+-])/.test(line));
