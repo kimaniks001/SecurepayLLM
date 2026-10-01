@@ -1101,7 +1101,7 @@ export interface MoneyDetail {
 
 export type PriceType = 'fixed' | 'from' | 'range' | 'quote_required' | 'unit_price' | 'unlisted';
 export type OfferLifecycle = 'draft' | 'published' | 'unavailable' | 'archived';
-export type OfferType = 'product' | 'service' | 'package' | 'professional_service' | 'digital' | 'construction' | 'recurring' | 'customizable';
+export type OfferType = 'product' | 'service' | 'capacity' | 'package' | 'professional_service' | 'digital' | 'construction' | 'recurring' | 'customizable';
 
 export interface StoreIdentity {
   id: string;
