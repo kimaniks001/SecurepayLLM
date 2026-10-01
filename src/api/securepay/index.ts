@@ -33,6 +33,7 @@ import { createBusinessGateway } from './business';
 import { createOrganizationGateway } from './organization';
 import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
+import { createMoneySnapshotGateway } from './money-snapshot';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -56,5 +57,6 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     organization: createOrganizationGateway(http),
     authorization: createAuthorizationGateway(http),
     developer: createDeveloperGateway(http),
+    moneySnapshot: createMoneySnapshotGateway(http),
   };
 }
