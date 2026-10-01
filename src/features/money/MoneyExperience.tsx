@@ -406,7 +406,7 @@ function AgreementMoneySection({ authorityGateway, agreementGateway, moneyGatewa
 
           {selectedAgreement.currency && <AgreementCurrencyActivationPrompt currency={selectedAgreement.currency} gateway={currencyCapabilityGateway} />}
 
-          <MoneySnapshotPanel snapshotGateway={snapshotGateway} paymentIntentGateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
+          <MoneySnapshotPanel snapshotGateway={snapshotGateway} agreementId={selectedAgreement.agreementId} />
 
           <PaymentReadyPanel gateway={moneyGateway} agreementId={selectedAgreement.agreementId} summaryAmountMinor={selectedAgreement.summaryAmountMinor} agreementCurrency={selectedAgreement.currency ?? ''} />
           <FundingPanel gateway={paymentIntentGateway} agreementId={selectedAgreement.agreementId} />
