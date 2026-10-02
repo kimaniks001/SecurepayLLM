@@ -114,10 +114,12 @@ import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
 import type { InstituteGateway } from '../../api/securepay/institute';
+import type { AgentOpportunityGateway } from '../../api/securepay/agentOpportunity';
+import { OpportunityChoicesCard } from './OpportunityChoicesCard';
 import { InstituteExperience } from '../institute/InstituteExperience';
 import { PublicInstituteExperience } from '../institute/PublicInstituteExperience';
 
-function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void }) {
+function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery, agentOpportunityGateway }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void; agentOpportunityGateway?: AgentOpportunityGateway }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   // KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED becomes a real, explicit, visible
   // accept action ONLY on the live/newest turn (matching INSTRUMENT_PROMPT's own doctrine below): an
@@ -128,6 +130,7 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
     return <div className="pl-1"><button type="button" onClick={() => onRequestDiscovery(component.targetEntityId)}
       className="inline-flex min-h-11 items-center rounded-full border border-forest-200 bg-forest-50/70 px-3.5 text-[0.85rem] font-medium text-forest-800 hover:border-forest-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Look on SecurePay</button></div>;
   }
+  if (component.type === 'OPPORTUNITY_CHOICES') return agentOpportunityGateway ? <OpportunityChoicesCard component={component} gateway={agentOpportunityGateway} live={live} /> : null;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
   // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
   // one Agreement -- built entirely from read_agreement_workspace's own tool output, never
@@ -174,8 +177,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, instituteGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agentOpportunityGateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, instituteGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agentOpportunityGateway: AgentOpportunityGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -1422,7 +1425,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
                       resolvePrompt={prompt => specForPrompt(prompt, workbenchModel)}
                       onPrompt={prompt => { const resolved = specForPrompt(prompt, workbenchModel); if ('spec' in resolved) instruments.open(resolved.spec); }}
-                      onRequestDiscovery={targetEntityId => void controller.requestDiscovery(targetEntityId)} />)}
+                      onRequestDiscovery={targetEntityId => void controller.requestDiscovery(targetEntityId)} agentOpportunityGateway={agentOpportunityGateway} />)}
                   {(() => {
                     const found = turn.response.components.filter((c): c is DiscoveryView => c.type === 'DISCOVERY' && c.payload !== null);
                     return found.length > 0 ? <div className="ml-[2.625rem]"><button type="button" onClick={() => { setMobileTab('understood'); setFoundFocusKey(k => k + 1); }}
