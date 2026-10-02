@@ -795,6 +795,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <CommunityExperience
         gateway={storeGateway}
         communityGateway={communityGateway}
+        instituteGateway={instituteGateway}
         discoveryGateway={discoveryGateway}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
