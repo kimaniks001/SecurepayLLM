@@ -198,7 +198,7 @@ test('AI/search excerpts retain a route back to the exact complete published Ins
   const gateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
   assert.match(reader, /Open original source/);
   assert.match(reader, /AI summaries and search excerpts do not replace/);
-  assert.match(reader, /found\.sourceRef !== source\.sourceRef/);
+  assert.match(reader, /found\.data\.sourceRef !== source\.sourceRef/);
   assert.match(gateway, /public\/assets/);
   assert.match(gateway, /assets\/\$\{encodeURIComponent\(assetId\)\}\/read/);
 });
