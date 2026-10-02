@@ -3,6 +3,9 @@ import type {
   InstituteAssetKind, InstituteKnowledgeSpaceDto, InstituteLearnResponseDto, InstituteLearningAssetDto,
   InstitutePaidProgramPackageDto, InstituteProgramDto, InstitutePublicProgramDto, InstitutePublicSessionDto, InstituteSourceDto,
   InstituteSpaceVisibility, InstituteHostKind, InstituteAccessMode, InstituteStepKind,
+  InstituteParticipationDto, InstituteLearningEvidenceDto, InstituteEvidenceType, InstituteEvidenceReviewStatus,
+  InstituteAccessGrantDto, InstituteGrantType, InstituteMasterBackingOfferDto, InstitutePublicMasterBackingOfferDto,
+  InstituteMasterBackingType, InstituteAwarenessPackDto, InstituteKnowledgeCandidateDto,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
@@ -42,6 +45,53 @@ export function createInstituteGateway(http: HttpClient) {
       http.request<InstituteProgramDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/steps`, { method: 'POST', body, auth: 'required' }),
     publishProgram: (programId: string) =>
       http.request<InstituteProgramDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/publish`, { method: 'POST', auth: 'required' }),
+    startProgram: (programId: string) =>
+      http.request<InstituteParticipationDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/start`, { method: 'POST', auth: 'required' }),
+    myParticipations: () =>
+      http.request<InstituteParticipationDto[]>('/api/v1/institute/participations', { auth: 'required' }),
+    participation: (participationId: string) =>
+      http.request<InstituteParticipationDto>(`/api/v1/institute/participations/${encodeURIComponent(participationId)}`, { auth: 'required' }),
+    completeLearningStep: (participationId: string, stepId: string) =>
+      http.request<InstituteParticipationDto>(`/api/v1/institute/participations/${encodeURIComponent(participationId)}/steps/${encodeURIComponent(stepId)}/complete`, { method: 'POST', auth: 'required' }),
+    submitLearningEvidence: (participationId: string, stepId: string, evidenceType: InstituteEvidenceType, evidenceReference: string) =>
+      http.request<InstituteLearningEvidenceDto>(`/api/v1/institute/participations/${encodeURIComponent(participationId)}/steps/${encodeURIComponent(stepId)}/evidence`, {
+        method: 'POST', auth: 'required', body: { evidenceType, evidenceReference },
+      }),
+    completeParticipation: (participationId: string) =>
+      http.request<InstituteParticipationDto>(`/api/v1/institute/participations/${encodeURIComponent(participationId)}/complete`, { method: 'POST', auth: 'required' }),
+    grantProgramAccess: (programId: string, learnerIdentityId: string, grantType: InstituteGrantType, sourceReference: string) =>
+      http.request<InstituteAccessGrantDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/access-grants`, {
+        method: 'POST', auth: 'required', body: { learnerIdentityId, grantType, sourceReference },
+      }),
+    reviewLearningEvidence: (evidenceId: string, outcome: InstituteEvidenceReviewStatus, note?: string | null) =>
+      http.request<InstituteLearningEvidenceDto>(`/api/v1/institute/evidence/${encodeURIComponent(evidenceId)}/review`, {
+        method: 'POST', auth: 'required', body: { outcome, note: note ?? null },
+      }),
+    publicMasterBacking: (capability = '', limit = 20) => {
+      const params = new URLSearchParams({ capability, limit: String(limit) });
+      return http.request<InstitutePublicMasterBackingOfferDto[]>('/api/v1/institute/master-backing/public?' + params.toString());
+    },
+    myMasterBacking: () =>
+      http.request<InstituteMasterBackingOfferDto[]>('/api/v1/institute/master-backing/mine', { auth: 'required' }),
+    createMasterBacking: (body: {
+      capabilityKey: string; backingType: InstituteMasterBackingType; title: string;
+      scopeText: string; exclusionsText: string; feeMinor?: number | null;
+    }) => http.request<InstituteMasterBackingOfferDto>('/api/v1/institute/master-backing', { method: 'POST', auth: 'required', body }),
+    publishMasterBacking: (offerId: string) =>
+      http.request<InstituteMasterBackingOfferDto>(`/api/v1/institute/master-backing/${encodeURIComponent(offerId)}/publish`, { method: 'POST', auth: 'required' }),
+    publicAwareness: (topic = '', tags: string[] = [], limit = 10) => {
+      const params = new URLSearchParams();
+      if (topic.trim()) params.set('topic', topic.trim());
+      tags.forEach(tag => { if (tag.trim()) params.append('tags', tag.trim()); });
+      params.set('limit', String(limit));
+      return http.request<InstituteAwarenessPackDto>('/api/v1/institute/public/awareness?' + params.toString());
+    },
+    proposeKnowledgeCandidate: (assetId: string, candidateTitle: string, lessonText: string) =>
+      http.request<InstituteKnowledgeCandidateDto>('/api/v1/institute/knowledge-candidates', {
+        method: 'POST', auth: 'required', body: { assetId, candidateTitle, lessonText },
+      }),
+    submitKnowledgeCandidate: (candidateId: string) =>
+      http.request<InstituteKnowledgeCandidateDto>(`/api/v1/institute/knowledge-candidates/${encodeURIComponent(candidateId)}/submit`, { method: 'POST', auth: 'required' }),
   };
 }
 
