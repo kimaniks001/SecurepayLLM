@@ -120,6 +120,7 @@ export interface InstitutePublicProgramDto {
   purpose: string;
   accessMode: InstituteAccessMode;
   commercialReference: string | null;
+  authorCanonicalKsNumber: string;
 }
 
 export interface InstitutePublicSessionDto {
@@ -223,6 +224,7 @@ export interface InstituteMasterBackingOfferDto {
 
 export interface InstitutePublicMasterBackingOfferDto {
   id: string;
+  masterCanonicalKsNumber: string;
   capabilityKey: string;
   backingType: InstituteMasterBackingType;
   title: string;
