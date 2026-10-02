@@ -309,6 +309,7 @@ export interface InstituteProjectObservationDto {
   occurredOn: string | null;
   evidenceReference: string | null;
   visibility: InstituteProjectObservationVisibility;
+  attributes: Record<string, string>;
   verificationStatus: InstituteProjectObservationVerification;
   verifiedByIdentityId: string | null;
   verifiedAt: string | null;
