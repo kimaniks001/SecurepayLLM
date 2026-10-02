@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Check, Coins, Library, Upload, WandSparkles } from 'lucide-react';
 import type { InstituteGateway } from '../../api/securepay/institute';
 import type {
@@ -34,7 +34,9 @@ function tagsFrom(text: string) {
   }).filter(tag => tag.value.length > 0);
 }
 
-export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway }) {
+export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: InstituteGateway; preferredSpaceId?: string | null }) {
+  const [spaces, setSpaces] = useState<InstituteKnowledgeSpaceDto[]>([]);
+  const [spacesLoading, setSpacesLoading] = useState(true);
   const [space, setSpace] = useState<InstituteKnowledgeSpaceDto | null>(null);
   const [asset, setAsset] = useState<InstituteLearningAssetDto | null>(null);
   const [program, setProgram] = useState<InstituteProgramDto | null>(null);
@@ -64,6 +66,34 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
 
   const parsedTags = useMemo(() => tagsFrom(tagText), [tagText]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setSpacesLoading(true);
+    void gateway.mySpaces().then(found => {
+      if (cancelled) return;
+      setSpaces(found);
+      if (preferredSpaceId) {
+        const preferred = found.find(candidate => candidate.id === preferredSpaceId);
+        if (preferred) setSpace(preferred);
+      }
+    }).catch(() => {
+      if (!cancelled) setError('The Institute could not load your Knowledge Spaces just now.');
+    }).finally(() => {
+      if (!cancelled) setSpacesLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [gateway, preferredSpaceId]);
+
+  function chooseSpace(chosen: InstituteKnowledgeSpaceDto | null) {
+    setSpace(chosen);
+    setAsset(null);
+    setProgram(null);
+    setStoreOfferId(null);
+    setAiTags([]);
+    setError(null);
+    setNotice(null);
+  }
+
   async function makeSpace() {
     if (!spaceName.trim() || !spacePurpose.trim() || busy) return;
     setBusy('space'); setError(null); setNotice(null);
@@ -72,6 +102,7 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
         hostKind, name: spaceName.trim(), purpose: spacePurpose.trim(), visibility,
       });
       setSpace(created);
+      setSpaces(current => [created, ...current.filter(candidate => candidate.id !== created.id)]);
       setNotice(hostKind === 'MASTER'
         ? 'Master Knowledge Space created from your currently verified Master standing.'
         : 'Knowledge Space created. Your material remains attributable to you.');
@@ -168,25 +199,48 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
       {notice && <div className="rounded-xl border border-forest-100 bg-forest-50 px-4 py-3 text-sm text-forest-800">{notice}</div>}
 
       {!space && (
-        <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
-          <div className="flex items-center gap-2"><Library className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Start a Knowledge Space</h2></div>
-          <p className="mt-2 text-[0.82rem] text-sand-600">A space keeps your material, sources and future programmes together. It is not a department or fixed subject category.</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="text-xs text-sand-600">Publish as
-              <select value={hostKind} onChange={e => setHostKind(e.target.value as 'PERSONAL' | 'MASTER')} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm">
-                <option value="PERSONAL">Myself</option><option value="MASTER">Verified Master</option>
-              </select>
-            </label>
-            <label className="text-xs text-sand-600">Who can discover it?
-              <select value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm">
-                <option value="PUBLIC">Public</option><option value="COMMUNITY">Trust Project Community</option><option value="PRIVATE">Private</option>
-              </select>
-            </label>
-          </div>
-          <input value={spaceName} onChange={e => setSpaceName(e.target.value)} placeholder="Knowledge Space name" className="mt-3 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
-          <textarea value={spacePurpose} onChange={e => setSpacePurpose(e.target.value)} rows={3} placeholder="What knowledge do you want this space to preserve or teach?" className="mt-3 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
-          <button onClick={() => void makeSpace()} disabled={busy !== null || !spacePurpose.trim()} className="mt-3 min-h-11 rounded-xl bg-forest-700 px-4 text-sm font-medium text-white disabled:opacity-50">Create Knowledge Space</button>
-        </section>
+        <>
+          <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
+            <div className="flex items-center gap-2"><Library className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Your Knowledge Spaces</h2></div>
+            <p className="mt-2 text-[0.82rem] text-sand-600">Return to knowledge you are building personally, as a verified Master, or from a real Project.</p>
+            {spacesLoading ? <p role="status" className="mt-4 text-sm text-sand-500">Loading Knowledge Spaces…</p> : spaces.length === 0 ? (
+              <p className="mt-4 text-sm text-sand-500">No Knowledge Spaces yet. Start one below, or create one from a Project.</p>
+            ) : (
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {spaces.map(candidate => (
+                  <button key={candidate.id} type="button" onClick={() => chooseSpace(candidate)} className="rounded-xl border border-cream-200 bg-cream-50/60 p-3 text-left hover:border-forest-300">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-forest-900">{candidate.name}</span>
+                      <span className="text-[0.62rem] uppercase tracking-wide text-sand-500">{candidate.hostKind.toLowerCase()}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-[0.74rem] text-sand-600">{candidate.purpose}</p>
+                    <p className="mt-2 text-[0.65rem] text-sand-500">{candidate.visibility.toLowerCase()}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
+            <div className="flex items-center gap-2"><Library className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Start a Knowledge Space</h2></div>
+            <p className="mt-2 text-[0.82rem] text-sand-600">A space keeps your material, sources and future programmes together. It is not a department or fixed subject category.</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="text-xs text-sand-600">Publish as
+                <select value={hostKind} onChange={e => setHostKind(e.target.value as 'PERSONAL' | 'MASTER')} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm">
+                  <option value="PERSONAL">Myself</option><option value="MASTER">Verified Master</option>
+                </select>
+              </label>
+              <label className="text-xs text-sand-600">Who can discover it?
+                <select value={visibility} onChange={e => setVisibility(e.target.value as typeof visibility)} className="mt-1 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm">
+                  <option value="PUBLIC">Public</option><option value="COMMUNITY">Trust Project Community</option><option value="PRIVATE">Private</option>
+                </select>
+              </label>
+            </div>
+            <input value={spaceName} onChange={e => setSpaceName(e.target.value)} placeholder="Knowledge Space name" className="mt-3 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
+            <textarea value={spacePurpose} onChange={e => setSpacePurpose(e.target.value)} rows={3} placeholder="What knowledge do you want this space to preserve or teach?" className="mt-3 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
+            <button onClick={() => void makeSpace()} disabled={busy !== null || !spacePurpose.trim()} className="mt-3 min-h-11 rounded-xl bg-forest-700 px-4 text-sm font-medium text-white disabled:opacity-50">Create Knowledge Space</button>
+          </section>
+        </>
       )}
 
       {space && (
@@ -194,7 +248,10 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
           <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
             <div className="flex items-start justify-between gap-3">
               <div><p className="text-[0.68rem] uppercase tracking-wide text-forest-600">Knowledge Space</p><h2 className="font-display text-xl text-forest-900">{space.name}</h2><p className="mt-1 text-[0.8rem] text-sand-600">{space.purpose}</p></div>
-              <span className="rounded-full bg-cream-50 px-2 py-1 text-[0.68rem] text-sand-600">{space.hostKind.toLowerCase()}</span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-cream-50 px-2 py-1 text-[0.68rem] text-sand-600">{space.hostKind.toLowerCase()}</span>
+                <button type="button" onClick={() => chooseSpace(null)} className="text-[0.72rem] text-forest-700 underline">Change space</button>
+              </div>
             </div>
           </section>
 
@@ -257,7 +314,7 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
 
           <InstituteSessionStudio gateway={gateway} spaceId={space.id} />
 
-          <InstituteMasterOfferStudio gateway={gateway} enabled={hostKind === 'MASTER'} />
+          <InstituteMasterOfferStudio gateway={gateway} enabled={space.hostKind === 'MASTER'} />
         </>
       )}
     </div>
