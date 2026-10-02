@@ -1,7 +1,7 @@
 import type { HttpClient } from '../http';
 import type {
   InstituteAssetKind, InstituteKnowledgeSpaceDto, InstituteLearnResponseDto, InstituteLearningAssetDto,
-  InstituteProgramDto, InstitutePublicProgramDto, InstitutePublicSessionDto, InstituteSourceDto,
+  InstitutePaidProgramPackageDto, InstituteProgramDto, InstitutePublicProgramDto, InstitutePublicSessionDto, InstituteSourceDto,
   InstituteSpaceVisibility, InstituteHostKind, InstituteAccessMode, InstituteStepKind,
 } from './dto';
 
@@ -34,6 +34,8 @@ export function createInstituteGateway(http: HttpClient) {
     }) => http.request<InstituteLearningAssetDto>('/api/v1/institute/assets', { method: 'POST', body, auth: 'required' }),
     publishAsset: (assetId: string) =>
       http.request<InstituteLearningAssetDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/publish`, { method: 'POST', auth: 'required' }),
+    createPaidProgramPackage: (body: { spaceId: string; initialAssetId: string; title: string; purpose: string; priceMinor: number }) =>
+      http.request<InstitutePaidProgramPackageDto>('/api/v1/institute/programs/paid-package', { method: 'POST', body, auth: 'required' }),
     createProgram: (body: { spaceId: string; title: string; purpose: string; accessMode: InstituteAccessMode; commercialReference?: string | null }) =>
       http.request<InstituteProgramDto>('/api/v1/institute/programs', { method: 'POST', body, auth: 'required' }),
     addProgramStep: (programId: string, body: { ordinal: number; kind: InstituteStepKind; title: string; assetId?: string | null; capabilityKey?: string | null; evidenceRequired: boolean }) =>
