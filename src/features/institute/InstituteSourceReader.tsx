@@ -35,6 +35,9 @@ export function InstituteSourceReader({
     setBusy(true); setError(null);
     try {
       const found = authenticated ? await gateway.readAsset(assetId!) : await gateway.publicAsset(assetId!);
+      if (found.sourceRef !== source.sourceRef) {
+        throw new Error('source version changed');
+      }
       setFull(found);
       setOpen(true);
     } catch {
