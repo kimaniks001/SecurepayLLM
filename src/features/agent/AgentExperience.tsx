@@ -113,6 +113,8 @@ import type { AuthorizationGateway } from '../../api/securepay/authorization';
 import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
+import type { InstituteGateway } from '../../api/securepay/institute';
+import { InstituteExperience } from '../institute/InstituteExperience';
 
 function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -171,7 +173,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, instituteGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -179,7 +181,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   visionDreamGateway: VisionDreamGateway;
-  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway; instituteGateway: InstituteGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
@@ -314,6 +316,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
+  const [institute, setInstitute] = useState(false);
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
@@ -537,6 +540,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
+    setInstitute(false);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
     setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); setVisionLibrary(false); setDreamHandoffError(null); // a scoped Help context never outlives its screen
@@ -550,6 +554,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
+    if (view === 'institute') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
+      setProjects(false); setVisionBoard(false); setWorkspace(false); setWorkspaceAgreementId(null);
+      if (sessionState.status === 'signed-in') { setInstitute(true); return; }
+      requestSignIn('institute');
+      return;
+    }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
@@ -830,6 +841,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         onAskAgent={() => navigateTo('signed-in')}
       />
     );
+  }
+
+  if (institute && sessionState.status === 'signed-in') {
+    return <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} />;
   }
 
   if (projects && sessionState.status === 'signed-in') {
