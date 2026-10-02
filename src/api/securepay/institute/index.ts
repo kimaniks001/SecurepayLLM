@@ -8,7 +8,7 @@ import type {
   InstituteMasterBackingType, InstituteAwarenessPackDto, InstituteKnowledgeCandidateDto,
   InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility, InstitutePaidSessionPackageDto,
   InstituteProjectObservationDto, InstituteProjectObservationType, InstituteProjectObservationVisibility,
-  InstituteProjectObservationVerification,
+  InstituteProjectObservationVerification, InstituteAiIndexResultDto,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
@@ -40,6 +40,8 @@ export function createInstituteGateway(http: HttpClient) {
     }) => http.request<InstituteLearningAssetDto>('/api/v1/institute/assets', { method: 'POST', body, auth: 'required' }),
     publishAsset: (assetId: string) =>
       http.request<InstituteLearningAssetDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/publish`, { method: 'POST', auth: 'required' }),
+    aiIndexAsset: (assetId: string) =>
+      http.request<InstituteAiIndexResultDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/ai-index`, { method: 'POST', auth: 'required' }),
     createPaidProgramPackage: (body: { spaceId: string; initialAssetId: string; title: string; purpose: string; priceMinor: number }) =>
       http.request<InstitutePaidProgramPackageDto>('/api/v1/institute/programs/paid-package', { method: 'POST', body, auth: 'required' }),
     createProgram: (body: { spaceId: string; title: string; purpose: string; accessMode: InstituteAccessMode; commercialReference?: string | null }) =>
