@@ -150,3 +150,23 @@ test('public Institute is useful before sign-in and keeps personal AI learning a
   assert.match(gateway, /publicSessions/);
   assert.match(gateway, /learn[\s\S]*auth: 'required'/);
 });
+
+
+test('paid Institute learning follows the exact Store offer then funded Agreement activation', () => {
+  const programs = fs.readFileSync(new URL('../src/features/institute/InstitutePrograms.tsx', import.meta.url), 'utf8');
+  const instituteGateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
+  assert.match(programs, /Open exact Store offer/);
+  assert.match(programs, /activatePaidAccess/);
+  assert.match(programs, /matching learning obligation is sufficiently funded/);
+  assert.match(instituteGateway, /activate-paid-access/);
+  assert.match(instituteGateway, /agreementId/);
+});
+
+test('Master support opens the exact verified Master Store offer', () => {
+  const support = fs.readFileSync(new URL('../src/features/institute/InstituteMasterSupport.tsx', import.meta.url), 'utf8');
+  const dto = fs.readFileSync(new URL('../src/api/securepay/institute/dto.ts', import.meta.url), 'utf8');
+  assert.match(dto, /masterCanonicalKsNumber/);
+  assert.match(support, /Open exact Store offer/);
+  assert.match(support, /masterCanonicalKsNumber/);
+  assert.match(support, /store-offer:/);
+});
