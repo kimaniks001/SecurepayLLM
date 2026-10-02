@@ -1207,6 +1207,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           const fact = communitySourceFactFor(state.selectedRealObject!);
           if (fact) onUseThis(fact);
         }}
+        onSaveToVision={() => void communityGateway.transitions.objectToVision(state.selectedRealObject!.id)
+          .then(() => onNavigate('vision-board'))
+          .catch(error => controller.showNotice(errorText(error)))}
         onToTrade={() => controller.showNotice('This area is not available yet.')}
         activeHelpResponders={activeHelpResponders}
         onStartTradeWithResponder={candidateKsNumber => {
