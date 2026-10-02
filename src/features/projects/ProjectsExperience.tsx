@@ -11,6 +11,7 @@ import type { AppView } from '../../types';
 import type { ProjectsController } from './controller';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import type { InstituteGateway } from '../../api/securepay/institute';
 
 /** For genuinely `number`-typed minor-unit fields only (e.g. `ProjectNominalTotalDto.totalAmountMinor`,
  * a backend `long`) -- never for a string-backed field, which must go through `decimalMoney` instead. */
@@ -24,13 +25,15 @@ function formatMoney(currency: string, amountMinor: number): string {
  * project wallet, Fund Project, Pay Project, or Project Payment Ready appears anywhere below,
  * because none of those exist on the backend for a Project.
  */
-export function ProjectsExperience({ controller, agreementGateway, defaultOwnerKsNumber, onNavigate, onOpenVisionBoard }: {
+export function ProjectsExperience({ controller, agreementGateway, instituteGateway, defaultOwnerKsNumber, onNavigate, onOpenVisionBoard, onOpenInstituteSpace }: {
   controller: ProjectsController;
   agreementGateway: Pick<AgreementGateway, 'currentUserAgreements'>;
+  instituteGateway: InstituteGateway;
   defaultOwnerKsNumber?: string | null;
   onNavigate: (view: AppView) => void;
   /** Final Completion Phase 5B -- the Vision Board sits alongside Projects on this entry screen (section 15). */
   onOpenVisionBoard?: () => void;
+  onOpenInstituteSpace: (spaceId: string) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [ownerKsNumber, setOwnerKsNumber] = useState(defaultOwnerKsNumber ?? '');
@@ -39,16 +42,48 @@ export function ProjectsExperience({ controller, agreementGateway, defaultOwnerK
   const [newDescription, setNewDescription] = useState('');
   const [myAgreements, setMyAgreements] = useState<CurrentUserAgreementSummaryResponse[] | null>(null);
   const [pickedAgreementId, setPickedAgreementId] = useState('');
+  const [projectKnowledgeBusy, setProjectKnowledgeBusy] = useState(false);
+  const [projectKnowledgeError, setProjectKnowledgeError] = useState<string | null>(null);
+  const [projectKnowledgeSpaceId, setProjectKnowledgeSpaceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultOwnerKsNumber) { setOwnerKsNumber(defaultOwnerKsNumber); void controller.loadForOwner(defaultOwnerKsNumber); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultOwnerKsNumber]);
 
+  useEffect(() => {
+    setProjectKnowledgeError(null);
+    setProjectKnowledgeSpaceId(null);
+  }, [state.selected.projectId]);
+
   const selected = state.selected;
   const detailOpen = !!selected.projectId;
 
-  const loadAgreementOptions = () => {
+  const openProjectKnowledge = async () => {
+    const project = state.selected.project.data;
+    if (!project || projectKnowledgeBusy) return;
+    if (projectKnowledgeSpaceId) {
+      onOpenInstituteSpace(projectKnowledgeSpaceId);
+      return;
+    }
+    setProjectKnowledgeBusy(true);
+    setProjectKnowledgeError(null);
+    try {
+      const created = await instituteGateway.createPrivateProjectSpace(project.projectId, {
+        name: `${project.name} knowledge`,
+        purpose: project.description || 'Knowledge documented while this Project is being carried out.',
+        visibility: 'PRIVATE',
+      });
+      setProjectKnowledgeSpaceId(created.id);
+      onOpenInstituteSpace(created.id);
+    } catch {
+      setProjectKnowledgeError('SecurePay could not open this Project Knowledge Space. The Project itself was not changed.');
+    } finally {
+      setProjectKnowledgeBusy(false);
+    }
+  };
+
+    const loadAgreementOptions = () => {
     if (myAgreements) return;
     void agreementGateway.currentUserAgreements(0, 100).then(page => setMyAgreements(page.items)).catch(() => setMyAgreements([]));
   };
@@ -106,6 +141,25 @@ export function ProjectsExperience({ controller, agreementGateway, defaultOwnerK
               {summary.nextUpcomingEventAt && <p className="text-[0.78rem] text-sand-600 mt-2">Next upcoming: {new Date(summary.nextUpcomingEventAt).toLocaleDateString()}</p>}
             </SurfaceBody>
           </Surface>}
+
+          <Surface>
+            <SurfaceBody>
+              <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Project Knowledge</div>
+              <p className="mt-1 text-[0.78rem] leading-relaxed text-sand-600">
+                Keep the lessons, methods, checklists, case notes and training that grow out of this Project. This private Project Knowledge Space does not publish Agreement contents or Project data.
+              </p>
+              {projectKnowledgeError && <StatusNotice tone="warning" icon={false} className="mt-2">{projectKnowledgeError}</StatusNotice>}
+              <button
+                type="button"
+                disabled={projectKnowledgeBusy}
+                onClick={() => void openProjectKnowledge()}
+                className="mt-3 min-h-11 rounded-xl border border-forest-200 px-4 text-[0.8rem] font-medium text-forest-700 disabled:opacity-50"
+              >
+                {projectKnowledgeBusy ? 'Opening…' : projectKnowledgeSpaceId ? 'Open Project Knowledge Space' : 'Create Project Knowledge Space'}
+              </button>
+              <p className="mt-2 text-[0.68rem] text-sand-500">Private/Internal only. Sharing outward requires a separate deliberate publication path.</p>
+            </SurfaceBody>
+          </Surface>
 
           <Surface>
             <SurfaceBody>
