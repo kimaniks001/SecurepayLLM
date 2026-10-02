@@ -13,6 +13,10 @@ import type {
 
 export function createInstituteGateway(http: HttpClient) {
   return {
+    publicAsset: (assetId: string) =>
+      http.request<InstitutePublishedSourceDto>(`/api/v1/institute/public/assets/${encodeURIComponent(assetId)}`),
+    readAsset: (assetId: string) =>
+      http.request<InstitutePublishedSourceDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/read`, { auth: 'required' }),
     publicSearch: (q: string, tags: string[] = [], limit = 10) => {
       const params = new URLSearchParams();
       if (q.trim()) params.set('q', q.trim());
