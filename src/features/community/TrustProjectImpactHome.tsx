@@ -179,7 +179,7 @@ export function TrustProjectImpactHome({
       {error && <p role="alert" className="text-[0.78rem] text-red-600">{error}</p>}
       {interestNotice && <p role="status" className="text-[0.75rem] text-forest-600">{interestNotice}</p>}
       {contributions.map(item=><article key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
-        <div className="flex items-center justify-between gap-3"><span className="text-[0.66rem] uppercase tracking-wide text-sand-500">{item.contributionType.replaceAll('_',' ')}</span><span className="text-[0.68rem] text-sand-400">{item.authorKind==='STORE'?'Store':'Member'}</span></div>
+        <div className="flex items-center justify-between gap-3"><span className="text-[0.66rem] uppercase tracking-wide text-sand-500">{item.contributionType.replace(/_/g, ' ')}</span><span className="text-[0.68rem] text-sand-400">{item.authorKind==='STORE'?'Store':'Member'}</span></div>
         <h3 className="font-display text-[1rem] text-forest-800 mt-1">{item.title}</h3>
         <p className="text-[0.8rem] text-sand-700 mt-1.5 whitespace-pre-line">{item.body}</p>
         {item.media.length>0 && <p className="text-[0.68rem] text-sand-500 mt-2">{item.media.length} media item{item.media.length===1?'':'s'}</p>}
