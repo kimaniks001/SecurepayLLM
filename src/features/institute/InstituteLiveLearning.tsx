@@ -45,7 +45,7 @@ export function InstituteLiveLearning({
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700">{icon(session.kind)}</span>
               <div className="min-w-0">
-                <p className="text-[0.68rem] uppercase tracking-wide text-sand-500">{session.kind.replaceAll('_', ' ').toLowerCase()}</p>
+                <p className="text-[0.68rem] uppercase tracking-wide text-sand-500">{session.kind.replace(/_/g, ' ').toLowerCase()}</p>
                 <h3 className="mt-1 font-display text-lg text-forest-900">{session.title}</h3>
               </div>
             </div>
@@ -53,7 +53,7 @@ export function InstituteLiveLearning({
             <div className="mt-4 text-xs text-sand-500">
               <p>{new Date(session.startsAt).toLocaleString()}</p>
               {session.capacity != null && <p className="mt-1">Capacity: {session.capacity}</p>}
-              <p className="mt-1">Access: {session.accessMode.replaceAll('_', ' ').toLowerCase()}</p>
+              <p className="mt-1">Access: {session.accessMode.replace(/_/g, ' ').toLowerCase()}</p>
             </div>
             {session.accessMode === 'PAID' && session.commercialReference && (
               <button
