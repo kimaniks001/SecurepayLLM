@@ -33,6 +33,26 @@ export interface InstitutePublishedSourceDto {
   updatedAt: string;
 }
 
+export interface InstituteExperienceSourceDto {
+  sourceRef: string;
+  sourceType: 'COMMUNITY_CONTRIBUTION' | 'PROJECT_OBSERVATION';
+  title: string;
+  body: string;
+  tags: string[];
+  authority: string;
+  visibility: string;
+  authorCanonicalKsNumber: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  numericValue: number | null;
+  unit: string | null;
+  occurredOn: string | null;
+  attributes: Record<string, string>;
+  verificationStatus: string | null;
+  evidenceAttached: boolean;
+  createdAt: string;
+}
+
 export interface InstituteLearningStepDto {
   label: string;
   reason: string;
