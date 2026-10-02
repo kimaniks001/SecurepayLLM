@@ -17,6 +17,22 @@ export interface InstituteSourceDto {
   relevance: number;
 }
 
+export interface InstitutePublishedSourceDto {
+  assetId: string;
+  version: number;
+  sourceRef: string;
+  kind: InstituteAssetKind;
+  title: string;
+  summary: string;
+  body: string | null;
+  mediaReference: string | null;
+  tags: InstituteAssetTagDto[];
+  authorCanonicalKsNumber: string;
+  visibility: 'PUBLIC' | 'COMMUNITY' | 'PRIVATE' | 'INTERNAL';
+  publishedAt: string;
+  updatedAt: string;
+}
+
 export interface InstituteLearningStepDto {
   label: string;
   reason: string;
