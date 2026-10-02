@@ -57,6 +57,11 @@ export function CommunityProjectLearningPanel({
   const [numericValue, setNumericValue] = useState('');
   const [unit, setUnit] = useState('');
   const [evidenceReference, setEvidenceReference] = useState('');
+  const [projectStage, setProjectStage] = useState('');
+  const [basis, setBasis] = useState('ACTUAL');
+  const [sourceLabel, setSourceLabel] = useState('');
+  const [disposalMethod, setDisposalMethod] = useState('');
+  const [destination, setDestination] = useState('');
   const [visibility, setVisibility] = useState<InstituteProjectObservationVisibility>('COMMUNITY');
 
   useEffect(() => {
@@ -130,6 +135,13 @@ export function CommunityProjectLearningPanel({
         occurredOn: new Date().toISOString().slice(0, 10),
         evidenceReference: evidenceReference.trim() || null,
         visibility,
+        attributes: Object.fromEntries([
+          ['project_stage', projectStage.trim()],
+          ['basis', basis.trim()],
+          ['source_supplier', sourceLabel.trim()],
+          ['disposal_method', type === 'WASTE' ? disposalMethod.trim() : ''],
+          ['destination', type === 'WASTE' ? destination.trim() : ''],
+        ].filter(([, value]) => value)),
       });
       setItems(current => [...current, created]);
       setLabel('');
@@ -138,6 +150,10 @@ export function CommunityProjectLearningPanel({
       setNumericValue('');
       setUnit('');
       setEvidenceReference('');
+      setProjectStage('');
+      setSourceLabel('');
+      setDisposalMethod('');
+      setDestination('');
     } catch {
       setError('SecurePay could not add this Project learning observation. Your Project was not changed.');
     } finally {
@@ -202,6 +218,15 @@ export function CommunityProjectLearningPanel({
                     </p>
                   )}
                   {item.numericValue != null && <p className="mt-1 text-[0.72rem] text-sand-600">{item.numericValue}{item.unit ? ` ${item.unit}` : ''}</p>}
+                  {Object.keys(item.attributes ?? {}).length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {Object.entries(item.attributes).map(([key, value]) => (
+                        <span key={key} className="rounded-full bg-cream-100 px-2 py-0.5 text-[0.62rem] text-sand-600">
+                          {key.replace(/_/g, ' ')}: {value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {item.evidenceReference && <p className="mt-1 text-[0.65rem] text-sand-500">Evidence: {item.evidenceReference}</p>}
                 </div>
               ))}
@@ -226,6 +251,23 @@ export function CommunityProjectLearningPanel({
               <input value={numericValue} onChange={e => setNumericValue(e.target.value)} inputMode="decimal" placeholder="Quantity (optional)" className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
               <input value={unit} onChange={e => setUnit(e.target.value)} placeholder="Unit" className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input value={projectStage} onChange={e => setProjectStage(e.target.value)} placeholder="Project stage — design, foundation, handover..." className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
+              <select value={basis} onChange={e => setBasis(e.target.value)} className="rounded-lg border border-cream-200 px-2 py-2 text-[0.74rem]">
+                <option value="ACTUAL">Actual / happened</option>
+                <option value="QUOTED">Quoted</option>
+                <option value="PLANNED">Planned</option>
+                <option value="ESTIMATED">Estimated</option>
+                <option value="REVISED">Revised</option>
+              </select>
+              <input value={sourceLabel} onChange={e => setSourceLabel(e.target.value)} placeholder="Supplier / source / responsible party" className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
+            </div>
+            {type === 'WASTE' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input value={disposalMethod} onChange={e => setDisposalMethod(e.target.value)} placeholder="How was the waste handled or disposed?" className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
+                <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="Destination / reuse / disposal point" className="rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
+              </div>
+            )}
             <input value={evidenceReference} onChange={e => setEvidenceReference(e.target.value)} placeholder="Evidence reference — invoice, photo, note, inspection..." className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.74rem]" />
             <button
               type="button"
