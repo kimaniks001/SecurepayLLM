@@ -763,6 +763,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <StoreExperience
         gateway={storeGateway}
         businessGateway={businessGateway}
+        marketNetworkGateway={marketNetworkGateway}
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
