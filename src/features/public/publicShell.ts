@@ -18,6 +18,8 @@ export interface PublicShellActions {
   signIn: () => void;
   /** Public Experience Convergence Phase 4 -- the live `#/join` route. */
   join: () => void;
+  /** Open the public, source-first Skills Institute doorway. */
+  institute: () => void;
   /** Scroll to a public Home chapter and move focus to its heading (never changes `location.hash`). */
   section: (id: PublicSectionId) => void;
   /** Move focus to the KS001 composer ("Skip to KS001"). */
@@ -55,6 +57,7 @@ export function createPublicShellBridge(): PublicShellActions & { bind: (actions
     home: () => current?.home(),
     signIn: () => current?.signIn(),
     join: () => current?.join(),
+    institute: () => current?.institute(),
     section: id => current?.section(id),
     skipToKs001: () => current?.skipToKs001(),
   };
