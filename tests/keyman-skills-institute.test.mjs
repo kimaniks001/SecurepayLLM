@@ -170,3 +170,13 @@ test('Master support opens the exact verified Master Store offer', () => {
   assert.match(support, /masterCanonicalKsNumber/);
   assert.match(support, /store-offer:/);
 });
+
+
+test('Community Project learning can compile a reusable unpublished Project Record draft', () => {
+  const panel = fs.readFileSync(new URL('../src/features/community/CommunityProjectLearningPanel.tsx', import.meta.url), 'utf8');
+  const gateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
+  assert.match(panel, /Create reusable Project Record draft/);
+  assert.match(panel, /REPORTED, VERIFIED and DISPUTED/);
+  assert.match(panel, /remains unpublished until you review and publish it/);
+  assert.match(gateway, /draft-record/);
+});
