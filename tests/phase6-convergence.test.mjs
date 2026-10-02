@@ -267,6 +267,8 @@ test('M. Notification preferences are never force-enabled by the frontend -- sav
   const gateway = {
     getPreferences: async () => preferences,
     updatePreferences: async body => { sentBodies.push(body); return { ...preferences, ...body, saved: true }; },
+    getQuietHours: async () => ({ enabled: false, startLocal: null, endLocal: null, zoneId: null }),
+    updateQuietHours: async body => body,
   };
   const controller = api.createNotificationsController(gateway);
   await controller.loadPreferences();
