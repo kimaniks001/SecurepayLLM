@@ -46,6 +46,14 @@ export function createInstituteGateway(http: HttpClient) {
       http.request<InstituteLearningAssetDto>(`/api/v1/institute/project-spaces/community/${encodeURIComponent(projectId)}/draft-record`, {
         method: 'POST', auth: 'required',
       }),
+    spaceAssets: (spaceId: string) =>
+      http.request<InstituteLearningAssetDto[]>(`/api/v1/institute/spaces/${encodeURIComponent(spaceId)}/assets`, { auth: 'required' }),
+    assetContent: (assetId: string) =>
+      http.request<InstituteAssetContentDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/content`, { auth: 'required' }),
+    reviseDraftAsset: (assetId: string, body: { body?: string | null; mediaReference?: string | null; sourceNote?: string | null }) =>
+      http.request<InstituteLearningAssetDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/draft-content`, {
+        method: 'PUT', body, auth: 'required',
+      }),
     createAsset: (body: {
       spaceId: string; kind: InstituteAssetKind; title: string; summary: string; body?: string | null;
       mediaReference?: string | null; sourceNote?: string | null;
