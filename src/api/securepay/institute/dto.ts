@@ -85,6 +85,15 @@ export interface InstituteLearningAssetDto {
   sources: InstituteSourceLinkDto[];
 }
 
+export interface InstituteAssetContentDto {
+  assetId: string;
+  version: number;
+  body: string | null;
+  mediaReference: string | null;
+  sourceNote: string | null;
+  createdAt: string;
+}
+
 export type InstituteAccessMode = 'FREE' | 'SPONSORED' | 'PAID' | 'INVITE_ONLY';
 export type InstituteStepKind =
   | 'LEARN' | 'DISCUSS' | 'ATTEND' | 'PRACTISE' | 'SUBMIT_EVIDENCE' | 'ASSESSMENT'
