@@ -39,6 +39,8 @@ export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: I
   const [spacesLoading, setSpacesLoading] = useState(true);
   const [space, setSpace] = useState<InstituteKnowledgeSpaceDto | null>(null);
   const [asset, setAsset] = useState<InstituteLearningAssetDto | null>(null);
+  const [spaceAssets, setSpaceAssets] = useState<InstituteLearningAssetDto[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
   const [program, setProgram] = useState<InstituteProgramDto | null>(null);
   const [storeOfferId, setStoreOfferId] = useState<string | null>(null);
   const [aiTags, setAiTags] = useState<string[]>([]);
@@ -84,6 +86,46 @@ export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: I
     return () => { cancelled = true; };
   }, [gateway, preferredSpaceId]);
 
+  useEffect(() => {
+    if (!space) {
+      setSpaceAssets([]);
+      return;
+    }
+    let cancelled = false;
+    setAssetsLoading(true);
+    void gateway.spaceAssets(space.id).then(found => {
+      if (!cancelled) setSpaceAssets(found);
+    }).catch(() => {
+      if (!cancelled) setError('The Institute could not load material in this Knowledge Space.');
+    }).finally(() => {
+      if (!cancelled) setAssetsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [gateway, space?.id]);
+
+  async function chooseAsset(chosen: InstituteLearningAssetDto) {
+    if (busy) return;
+    setBusy('load-asset'); setError(null); setNotice(null);
+    try {
+      const content = await gateway.assetContent(chosen.id);
+      setAsset(chosen);
+      setKind(chosen.kind);
+      setTitle(chosen.title);
+      setSummary(chosen.summary);
+      setBody(content.body ?? '');
+      setSourceNote(content.sourceNote ?? '');
+      setTagText(chosen.tags.map(tag => `${tag.type.toLowerCase()}:${tag.value}`).join(', '));
+      setProgram(null);
+      setStoreOfferId(null);
+      setAiTags([]);
+      setNotice(chosen.status === 'DRAFT'
+        ? 'Draft loaded for review. Saving a revision creates a new version and keeps the earlier version intact.'
+        : 'Published material loaded for reference.');
+    } catch {
+      setError('The Institute could not open this material.');
+    } finally { setBusy(null); }
+  }
+
   function chooseSpace(chosen: InstituteKnowledgeSpaceDto | null) {
     setSpace(chosen);
     setAsset(null);
@@ -125,6 +167,23 @@ export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: I
       setNotice('Draft saved with its tags and provenance. Review it before publishing.');
     } catch {
       setError('SecurePay could not save this material. Nothing has been published.');
+    } finally { setBusy(null); }
+  }
+
+  async function reviseMaterial() {
+    if (!asset || asset.status !== 'DRAFT' || !body.trim() || busy) return;
+    setBusy('revise'); setError(null); setNotice(null);
+    try {
+      const revised = await gateway.reviseDraftAsset(asset.id, {
+        body: body.trim(),
+        mediaReference: null,
+        sourceNote: sourceNote.trim() || null,
+      });
+      setAsset(revised);
+      setSpaceAssets(current => current.map(item => item.id === revised.id ? revised : item));
+      setNotice(`Draft revision saved as version ${revised.currentVersion}. Nothing has been published.`);
+    } catch {
+      setError('The Institute could not save this draft revision. The previous version is unchanged.');
     } finally { setBusy(null); }
   }
 
@@ -256,6 +315,33 @@ export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: I
           </section>
 
           <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[0.68rem] uppercase tracking-wide text-sand-500">Material in this space</p>
+                <h2 className="mt-1 font-display text-xl text-forest-900">Return to drafts and published knowledge</h2>
+              </div>
+              {assetsLoading && <span className="text-xs text-sand-500">Loading…</span>}
+            </div>
+            {!assetsLoading && spaceAssets.length === 0 ? (
+              <p className="mt-3 text-sm text-sand-500">No material here yet.</p>
+            ) : (
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {spaceAssets.map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => void chooseAsset(item)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${asset?.id === item.id ? 'border-forest-300 bg-forest-50' : 'border-cream-200 bg-cream-50/60 hover:border-forest-200'}`}
+                  >
+                    <p className="text-sm font-medium text-forest-900">{item.title}</p>
+                    <p className="mt-1 text-[0.68rem] text-sand-500">{item.kind.toLowerCase().replace(/_/g, ' ')} · {item.status.toLowerCase()} · v{item.currentVersion}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
             <div className="flex items-center gap-2"><Upload className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Add what you know</h2></div>
             <p className="mt-2 text-[0.82rem] text-sand-600">Keep the original material rich. Tags help the Institute find the right pieces later; they do not replace the source.</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -277,6 +363,7 @@ export function InstituteTeachStudio({ gateway, preferredSpaceId }: { gateway: I
                   <button onClick={() => void aiIndexMaterial()} disabled={busy !== null} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm font-medium text-forest-800 disabled:opacity-50">
                     {busy === 'ai-index' ? 'Indexing…' : 'Suggest tags with AI'}
                   </button>
+                  {asset.status === 'DRAFT' && <button onClick={() => void reviseMaterial()} disabled={busy !== null || !body.trim()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm font-medium text-forest-800 disabled:opacity-50">{busy === 'revise' ? 'Saving…' : 'Save revision'}</button>}
                   {asset.status === 'DRAFT' && <button onClick={() => void publishMaterial()} disabled={busy !== null} className="min-h-11 rounded-xl border border-forest-200 px-4 text-sm font-medium text-forest-800">Publish material</button>}
                 </div>
                 {aiTags.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{aiTags.map(tag => <span key={tag} className="rounded-full bg-white border border-cream-200 px-2 py-1 text-[0.68rem] text-sand-600">{tag}</span>)}</div>}
