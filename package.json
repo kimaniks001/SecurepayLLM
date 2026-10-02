@@ -30,7 +30,8 @@
     "test:vision-board": "node --test tests/visionboard.test.mjs",
     "test:ui-phase1": "node --test tests/ui-phase1.test.mjs",
     "test:vision-money-gap": "node --test tests/vision-money-gap.test.mjs",
-    "test:trust-project-redo": "node --test tests/trust-project-community-redo.test.mjs tests/trust-project-programmes.test.mjs"
+    "test:trust-project-redo": "node --test tests/trust-project-community-redo.test.mjs tests/trust-project-programmes.test.mjs",
+    "test:final-convergence": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
