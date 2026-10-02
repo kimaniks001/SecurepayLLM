@@ -69,3 +69,5 @@ export function createAgentOpportunityGateway(http: HttpClient) {
       }),
   };
 }
+
+export type AgentOpportunityGateway = ReturnType<typeof createAgentOpportunityGateway>;
