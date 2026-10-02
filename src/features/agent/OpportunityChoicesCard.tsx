@@ -12,6 +12,7 @@ export function OpportunityChoicesCard({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [agreementLane, setAgreementLane] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function choose(reference: string) {
@@ -19,7 +20,8 @@ export function OpportunityChoicesCard({
     setBusy(reference); setError(null);
     try {
       if (component.mode === 'SUPPORT') {
-        await gateway.selectSupportOffer(component.subjectReference, reference);
+        const handoff = await gateway.selectSupportOffer(component.subjectReference, reference);
+        setAgreementLane(handoff.quickContractOpportunityId);
       } else if (component.mode === 'QUICK_CONTRACT') {
         await gateway.selectQuickContractCandidate(component.subjectReference, reference);
       } else {
@@ -67,6 +69,7 @@ export function OpportunityChoicesCard({
       })}
       {component.choices.length === 0 ? <p className="p-4 text-sm text-sand-600">No suitable available choices are published right now.</p> : null}
     </div>
+    {agreementLane ? <p className="px-4 py-3 text-sm text-forest-700">Support chosen. SecurePay has opened the Quick Contract handoff; the real Agreement is the next authority step.</p> : null}
     {error ? <p className="px-4 py-3 text-sm text-red-700">{error}</p> : null}
     <p className="px-4 py-3 bg-cream-50 text-xs text-sand-500">
       Viewing or choosing here does not move money. Quick Contract work becomes binding only through a real SecurePay Agreement.
