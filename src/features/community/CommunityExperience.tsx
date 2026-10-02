@@ -1402,7 +1402,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
             </div>
             {lessonProjectId === item.id && (
               <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 space-y-2">
-                <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It does not make the lesson approved SecurePay knowledge.</p>
+                <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It is not approved SecurePay knowledge until Knowledge governance approves it.</p>
                 <textarea
                   value={lessonDraft}
                   onChange={e => setLessonDraft(e.target.value)}
