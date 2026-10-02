@@ -48,7 +48,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
               </div>
               <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
                 <div className="text-[0.72rem] font-medium text-forest-800">Opportunities</div>
-                <div className="text-[0.68rem] text-sand-500 mt-1">{opportunities.length} current match{opportunities.length === 1 ? '' : 'es'} from MATCHABLE demand.</div>
+                <div className="text-[0.68rem] text-sand-500 mt-1">Demand matching appears only when SecurePay has real fulfilment needs. {opportunities.length} current match{opportunities.length === 1 ? '' : 'es'}.</div>
               </div>
               <button disabled={!onOpenGrow} onClick={onOpenGrow} className="text-left rounded-xl border border-cream-200 bg-white px-3 py-3 disabled:opacity-50">
                 <div className="text-[0.72rem] font-medium text-forest-800">Grow</div>
