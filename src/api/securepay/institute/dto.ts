@@ -142,3 +142,112 @@ export interface InstitutePaidProgramPackageDto {
   priceMinor: number;
   currency: string;
 }
+
+
+export type InstituteParticipationStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'WITHDRAWN';
+export type InstituteStepProgressStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'EVIDENCE_PENDING' | 'COMPLETED';
+export type InstituteEvidenceType =
+  | 'PRACTICE' | 'WORK_SAMPLE' | 'OBSERVATION' | 'ASSESSMENT'
+  | 'MASTER_REVIEW' | 'PROJECT_EVIDENCE' | 'AGREEMENT_WORK';
+export type InstituteEvidenceReviewStatus = 'SUBMITTED' | 'ACCEPTED' | 'MORE_WORK_REQUIRED' | 'REJECTED';
+
+export interface InstituteStepProgressDto {
+  stepId: string;
+  ordinal: number;
+  kind: InstituteStepKind;
+  title: string;
+  capabilityKey: string | null;
+  evidenceRequired: boolean;
+  status: InstituteStepProgressStatus;
+  completedAt: string | null;
+}
+
+export interface InstituteParticipationDto {
+  id: string;
+  identityId: string;
+  programId: string;
+  status: InstituteParticipationStatus;
+  accessReference: string | null;
+  startedAt: string;
+  completedAt: string | null;
+  updatedAt: string;
+  steps: InstituteStepProgressDto[];
+}
+
+export interface InstituteLearningEvidenceDto {
+  id: string;
+  participationId: string;
+  stepId: string;
+  evidenceType: InstituteEvidenceType;
+  evidenceReference: string;
+  reviewStatus: InstituteEvidenceReviewStatus;
+  reviewNote: string | null;
+  reviewedByIdentityId: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export type InstituteGrantType = 'SPONSORED' | 'INVITE_ONLY' | 'PAID_CONFIRMED';
+
+export interface InstituteAccessGrantDto {
+  id: string;
+  programId: string;
+  learnerIdentityId: string;
+  grantedByIdentityId: string;
+  grantType: InstituteGrantType;
+  sourceReference: string;
+  status: 'ACTIVE' | 'REVOKED' | 'CONSUMED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type InstituteMasterBackingType =
+  | 'SUPERVISION' | 'REVIEW_BEFORE_DELIVERY' | 'MILESTONE_REVIEW' | 'FINAL_SIGN_OFF' | 'MENTOR_ON_CALL';
+
+export interface InstituteMasterBackingOfferDto {
+  id: string;
+  masterIdentityId: string;
+  capabilityKey: string;
+  backingType: InstituteMasterBackingType;
+  title: string;
+  scopeText: string;
+  exclusionsText: string;
+  feeMinor: number | null;
+  currency: string | null;
+  storeOfferReference: string | null;
+  agreementRequired: boolean;
+  status: 'DRAFT' | 'AVAILABLE' | 'PAUSED' | 'CLOSED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InstitutePublicMasterBackingOfferDto {
+  id: string;
+  capabilityKey: string;
+  backingType: InstituteMasterBackingType;
+  title: string;
+  scopeText: string;
+  exclusionsText: string;
+  feeMinor: number | null;
+  currency: string | null;
+  storeOfferReference: string | null;
+}
+
+export interface InstituteAwarenessPackDto {
+  topic: string;
+  note: string;
+  sources: InstituteSourceDto[];
+}
+
+export interface InstituteKnowledgeCandidateDto {
+  id: string;
+  circleId: string | null;
+  sourceType: string;
+  sourceReference: string;
+  title: string;
+  lessonText: string;
+  status: 'CAPTURED' | 'SUBMITTED_FOR_REVIEW' | 'LINKED_TO_KNOWLEDGE_RECORD' | 'REJECTED';
+  knowledgeRecordId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
