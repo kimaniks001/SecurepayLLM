@@ -22,6 +22,6 @@ test('Store headline stats use only authoritative offer states', () => {
   assert.match(management, /Published/);
   assert.match(management, /Drafts/);
   assert.match(management, /Unavailable/);
-  assert.doesNotMatch(management, />SecureLinks</);
-  assert.doesNotMatch(management, />Enquiries</);
+  assert.doesNotMatch(management, /\['SecureLinks',/);
+  assert.doesNotMatch(management, /\['Enquiries',/);
 });
