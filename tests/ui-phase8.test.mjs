@@ -138,7 +138,7 @@ test('gateways never mint keys: every Money mutation takes a caller-supplied Ide
 test('drift guard: every authenticated Money gateway method is in MONEY_AUTHENTICATED_METHODS (and no others)', async () => {
   const dirs = { money: 'money', moneyAuthority: 'money-authority', paymentIntent: 'payment-intent', paymentRelease: 'payment-release', settlementDestinations: 'settlement-destinations',
     moneySession: 'money-session', moneyOperations: 'money-operations', currencyCapability: 'currency-capability', fxApplication: 'fx-application', regulatedAccounts: 'regulated-accounts',
-    businessCurrencyCapability: 'business-currency-capability', businessFxApplication: 'business-fx-application', financialPartners: 'financial-partners' };
+    businessCurrencyCapability: 'business-currency-capability', businessFxApplication: 'business-fx-application', financialPartners: 'financial-partners', moneySnapshot: 'money-snapshot' };
   assert.deepEqual(Object.keys(dirs).sort(), Object.keys(m.MONEY_AUTHENTICATED_METHODS).sort());
   for (const [key, dir] of Object.entries(dirs)) {
     const s = await src(`src/api/securepay/${dir}/index.ts`);
