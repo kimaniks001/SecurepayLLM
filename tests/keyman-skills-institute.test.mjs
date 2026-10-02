@@ -84,3 +84,18 @@ test('Skills Institute is the product-facing name', () => {
   assert.doesNotMatch(institute, /Keyman Skills Institute/);
   assert.match(institute, /Skills Institute/);
 });
+
+
+const communityProjectLearning = fs.readFileSync(new URL('../src/features/community/CommunityProjectLearningPanel.tsx', import.meta.url), 'utf8');
+const communityExperience = fs.readFileSync(new URL('../src/features/community/CommunityExperience.tsx', import.meta.url), 'utf8');
+
+test('Community Projects leave granular learning records for future dreamers', () => {
+  for (const label of ['Cost','Material','Time','Waste / disposal','Safety','Logistics','Decision','Problem / issue','Correction','Outcome','Maintenance','Environment','Skill / capability']) {
+    assert.ok(communityProjectLearning.includes(label), label);
+  }
+  assert.match(communityProjectLearning, /Reported observations remain distinguishable from Project-verified facts/);
+  assert.match(communityProjectLearning, /Evidence reference/);
+  assert.match(communityExperience, /<CommunityProjectLearningPanel/);
+  assert.match(gateway, /recordProjectObservation/);
+  assert.match(gateway, /reviewProjectObservation/);
+});
