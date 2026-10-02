@@ -278,3 +278,11 @@ export interface InstituteSessionDto {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export interface InstitutePaidSessionPackageDto {
+  session: InstituteSessionDto;
+  storeOfferId: string;
+  priceMinor: number;
+  currency: string;
+}
