@@ -107,3 +107,17 @@ test('AI indexing enriches tags without replacing the source material', () => {
   assert.match(gateway, /aiIndexAsset/);
   assert.match(gateway, /\/ai-index/);
 });
+
+
+const projectsExperience = fs.readFileSync(new URL('../src/features/projects/ProjectsExperience.tsx', import.meta.url), 'utf8');
+
+test('Projects can open one reusable Institute Knowledge Space', () => {
+  assert.match(gateway, /mySpaces/);
+  assert.match(gateway, /project-spaces\/community/);
+  assert.match(gateway, /project-spaces\/securepay/);
+  assert.match(teach, /Your Knowledge Spaces/);
+  assert.match(teach, /Return to knowledge you are building personally, as a verified Master, or from a real Project/);
+  assert.match(communityProjectLearning, /Create Project Knowledge Space/);
+  assert.match(projectsExperience, /Create Project Knowledge Space/);
+  assert.match(projectsExperience, /Private\/Internal only/);
+});
