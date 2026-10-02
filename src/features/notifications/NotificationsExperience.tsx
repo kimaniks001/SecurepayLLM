@@ -195,17 +195,17 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
             )}
             {state.inbox.status === 'ready' && inbox.length > 0 && (
               <div className="space-y-5">
-                {[
+                {([
                   ['NEEDS YOU', needsYou],
                   ['UPDATES', updates],
                   ['COMMUNITY', communityUpdates],
                   ['EARLIER', earlier],
-                ].map(([label, rows]) => (rows as NotificationEvent[]).length > 0 ? (
+                ] as Array<[string, NotificationEvent[]]>).map(([label, rows]) => rows.length > 0 ? (
                   <section key={String(label)} className="space-y-2">
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">
-                      {label}{label === 'NEEDS YOU' ? ` · ${(rows as NotificationEvent[]).length}` : ''}
+                      {label}{label === 'NEEDS YOU' ? ` · ${rows.length}` : ''}
                     </div>
-                    {(rows as NotificationEvent[]).map(notification => (
+                    {rows.map(notification => (
                       <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
                     ))}
                   </section>
