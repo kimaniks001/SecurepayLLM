@@ -115,6 +115,7 @@ import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
 import type { InstituteGateway } from '../../api/securepay/institute';
 import { InstituteExperience } from '../institute/InstituteExperience';
+import { PublicInstituteExperience } from '../institute/PublicInstituteExperience';
 
 function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
@@ -558,9 +559,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
     if (view === 'institute') {
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
-      setProjects(false); setVisionBoard(false); setWorkspace(false); setWorkspaceAgreementId(null);
-      if (sessionState.status === 'signed-in') { setInstitute(true); return; }
-      requestSignIn('institute');
+      setProjects(false); setVisionBoard(false); setWorkspace(false); setWorkspaceAgreementId(null); setHome(false);
+      setInstitute(true);
       return;
     }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
@@ -667,6 +667,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     home: () => { leaveSignIn(); joinRoute.close(); navigateTo('signed-in'); },
     signIn: () => signInRoute.open(null),
     join: () => { leaveSignIn(); joinRoute.open(); },
+    institute: () => { leaveSignIn(); joinRoute.close(); navigateTo('institute'); },
     section: id => { leaveSignIn(); navigateTo('signed-in'); setPendingSection(id); },
     skipToKs001: () => { if (focusKs001Composer()) return; leaveSignIn(); navigateTo('signed-in'); setPendingComposerFocus(true); },
   });
@@ -851,8 +852,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     );
   }
 
-  if (institute && sessionState.status === 'signed-in') {
-    return <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} preferredSpaceId={institutePreferredSpaceId} />;
+  if (institute) {
+    return sessionState.status === 'signed-in'
+      ? <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} preferredSpaceId={institutePreferredSpaceId} />
+      : <PublicInstituteExperience gateway={instituteGateway} onNavigate={navigateTo} onSignIn={() => signInRoute.open(null)} />;
   }
 
   if (projects && sessionState.status === 'signed-in') {
