@@ -68,7 +68,7 @@ export function InstituteKnowledgeProposal({
         </button>
       )}
       {candidate && candidate.status !== 'CAPTURED' && (
-        <p className="mt-3 text-sm text-forest-700">Knowledge candidate: {candidate.status.replaceAll('_', ' ').toLowerCase()}.</p>
+        <p className="mt-3 text-sm text-forest-700">Knowledge candidate: {candidate.status.replace(/_/g, ' ').toLowerCase()}.</p>
       )}
       {notice && <p className="mt-2 text-xs text-sand-600">{notice}</p>}
     </section>
