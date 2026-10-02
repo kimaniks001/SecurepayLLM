@@ -8,10 +8,8 @@ const experience = fs.readFileSync(new URL('../src/features/community/CommunityE
 
 test('Community project next steps are prepared explicitly, never auto-created', () => {
   assert.match(gateway, /prepareProject/);
-  assert.match(experience, /Prepare agreement/);
-  assert.match(experience, /Prepare store/);
-  assert.match(experience, /Prepare plug/);
-  assert.match(experience, /Prepare master/);
+  assert.match(experience, /\['AGREEMENT','STORE','PLUG','MASTER'\] as const/);
+  assert.match(experience, /transitions\.prepareProject\(item\.id,target\)/);
   assert.match(experience, /Nothing was created or committed yet/);
 });
 
