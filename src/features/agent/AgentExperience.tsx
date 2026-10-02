@@ -854,7 +854,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   if (institute) {
     return sessionState.status === 'signed-in'
-      ? <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} preferredSpaceId={institutePreferredSpaceId} />
+      ? <InstituteExperience
+          gateway={instituteGateway}
+          onNavigate={navigateTo}
+          preferredSpaceId={institutePreferredSpaceId}
+          onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+            setInstitute(false);
+            setStoreOfferRoute({ canonicalKsNumber, offerId });
+            setStore(true);
+          }}
+        />
       : <PublicInstituteExperience gateway={instituteGateway} onNavigate={navigateTo} onSignIn={() => signInRoute.open(null)} />;
   }
 
