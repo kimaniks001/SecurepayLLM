@@ -20,7 +20,7 @@ import {
   createCommunityController, errorText, REAL_COMPOSE_TYPES,
   type CommunityHomeTab, type CircleMembershipMode, type CircleVisibility, type MembershipUiState,
 } from './controller';
-import { storeResultToCommunityObject, parseStoreOfferCommunityObjectId, realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
+import { realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 import { useAppNavPadding } from '../public/publicShell';
 import { TrustProjectImpactHome } from './TrustProjectImpactHome';
 
