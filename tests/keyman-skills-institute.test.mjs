@@ -121,3 +121,21 @@ test('Projects can open one reusable Institute Knowledge Space', () => {
   assert.match(projectsExperience, /Create Project Knowledge Space/);
   assert.match(projectsExperience, /Private\/Internal only/);
 });
+
+
+const publicInstitute = fs.readFileSync(new URL('../src/features/institute/PublicInstituteExperience.tsx', import.meta.url), 'utf8');
+const publicNav = fs.readFileSync(new URL('../src/features/public/PublicNav.tsx', import.meta.url), 'utf8');
+
+test('public Institute is useful before sign-in and keeps personal AI learning authenticated', () => {
+  assert.match(publicNav, />Institute</);
+  assert.match(publicInstitute, /Learn from what people have actually done/);
+  assert.match(publicInstitute, /Search knowledge/);
+  assert.match(publicInstitute, /Public programmes/);
+  assert.match(publicInstitute, /Talks, workshops, podcasts and sessions/);
+  assert.match(publicInstitute, /Build a personal learning path/);
+  assert.match(publicInstitute, /Sign in is only needed for personalised learning, participation and teaching/);
+  assert.match(gateway, /publicSearch/);
+  assert.match(gateway, /publicPrograms/);
+  assert.match(gateway, /publicSessions/);
+  assert.match(gateway, /learn[\s\S]*auth: 'required'/);
+});
