@@ -55,7 +55,7 @@ export function createAgentOpportunityGateway(http: HttpClient) {
         method: 'DELETE', auth: 'required',
       }),
 
-    createOutreachCandidate: (body: { sourceKind: string; sourceReference: string; purpose: string; verifiedActivity: boolean; verificationReference: string }) =>
+    createOutreachCandidate: (body: { sourceKind: string; sourceReference: string; purpose: string }) =>
       http.request<{ candidateId: string }>('/api/v1/agent-opportunities/outreach/candidates', { method: 'POST', body, auth: 'required' }),
 
     grantOutreachPermission: (candidateId: string, body: { allowedFields: string[]; allowedChannels: string[]; participantStatement?: string | null }) =>
