@@ -151,14 +151,14 @@ export function TrustProjectCapabilityPanel({ gateway }: { gateway: CommunityGat
         <button disabled={plugBusy} onClick={()=>void runPlug(()=>gateway.programmes.plug.completeFoundation())} className="rounded-xl border border-cream-200 px-3 py-2 text-[0.74rem] text-forest-700 disabled:opacity-50">Complete Foundation</button>
         <button disabled={plugBusy} onClick={()=>void runPlug(()=>gateway.programmes.plug.recordAssessment(true))} className="rounded-xl border border-forest-200 px-3 py-2 text-[0.74rem] text-forest-700 disabled:opacity-50">Record assessment passed</button>
       </div>
-      {plug && <p className="text-[0.72rem] text-sand-600">Foundation: {plug.foundationStatus.replaceAll('_',' ')} · Assessment: {plug.assessmentStatus.replaceAll('_',' ')} · BASIC qualified: {plug.basicQualified?'Yes':'No'}</p>}
+      {plug && <p className="text-[0.72rem] text-sand-600">Foundation: {plug.foundationStatus.replace(/_/g, ' ')} · Assessment: {plug.assessmentStatus.replace(/_/g, ' ')} · BASIC qualified: {plug.basicQualified?'Yes':'No'}</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select value={plugCapability} onChange={e=>setPlugCapability(e.target.value as PlugCapability)} className="rounded-xl border border-cream-200 px-3 py-2 text-[0.76rem]">{plugCapabilities.map(x=><option key={x}>{x}</option>)}</select>
         <select value={plugStatus} onChange={e=>setPlugStatus(e.target.value as PlugCapabilityStatus)} className="rounded-xl border border-cream-200 px-3 py-2 text-[0.76rem]">{plugStatuses.map(x=><option key={x}>{x}</option>)}</select>
       </div>
       <input value={plugEvidence} onChange={e=>setPlugEvidence(e.target.value)} placeholder="Evidence reference required when QUALIFIED" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.76rem]" />
       <button disabled={plugBusy||(plugStatus==='QUALIFIED'&&!plugEvidence.trim())} onClick={()=>void savePlugCapability()} className="rounded-xl bg-forest-600 text-cream-50 px-4 py-2 text-[0.74rem] font-medium disabled:opacity-50">Save Plug capability</button>
-      {plugCapabilityState && <p className="text-[0.7rem] text-sand-500">{plugCapabilityState.capability}: {plugCapabilityState.status.replaceAll('_',' ')}</p>}
+      {plugCapabilityState && <p className="text-[0.7rem] text-sand-500">{plugCapabilityState.capability}: {plugCapabilityState.status.replace(/_/g, ' ')}</p>}
     </div>
 
     <div className="border-t border-cream-100 pt-4 space-y-3">
@@ -172,7 +172,7 @@ export function TrustProjectCapabilityPanel({ gateway }: { gateway: CommunityGat
       <input value={masterCapabilityLabel} onChange={e=>setMasterCapabilityLabel(e.target.value)} placeholder="Capability label" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.76rem]" />
       <input value={masterEvidence} onChange={e=>setMasterEvidence(e.target.value)} placeholder="Evidence reference" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.76rem]" />
       <button disabled={masterBusy||!masterCapabilityKey.trim()||!masterCapabilityLabel.trim()||!masterEvidence.trim()} onClick={()=>void submitMasterClaim()} className="rounded-xl bg-forest-600 text-cream-50 px-4 py-2 text-[0.74rem] font-medium disabled:opacity-50">Submit capability claim</button>
-      {masterClaim && <p className="text-[0.72rem] text-sand-600">{masterClaim.capabilityLabel}: {masterClaim.claimStatus.replaceAll('_',' ')}</p>}
+      {masterClaim && <p className="text-[0.72rem] text-sand-600">{masterClaim.capabilityLabel}: {masterClaim.claimStatus.replace(/_/g, ' ')}</p>}
 
       <div className="rounded-xl bg-cream-50 px-3 py-3 space-y-2">
         <p className="text-[0.72rem] font-medium text-forest-700">Independent review</p>
