@@ -39,6 +39,7 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
   const [asset, setAsset] = useState<InstituteLearningAssetDto | null>(null);
   const [program, setProgram] = useState<InstituteProgramDto | null>(null);
   const [storeOfferId, setStoreOfferId] = useState<string | null>(null);
+  const [aiTags, setAiTags] = useState<string[]>([]);
 
   const [hostKind, setHostKind] = useState<Extract<InstituteHostKind, 'PERSONAL' | 'MASTER'>>('PERSONAL');
   const [spaceName, setSpaceName] = useState('My knowledge space');
@@ -93,6 +94,20 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
       setNotice('Draft saved with its tags and provenance. Review it before publishing.');
     } catch {
       setError('SecurePay could not save this material. Nothing has been published.');
+    } finally { setBusy(null); }
+  }
+
+  async function aiIndexMaterial() {
+    if (!asset || busy) return;
+    setBusy('ai-index'); setError(null); setNotice(null);
+    try {
+      const indexed = await gateway.aiIndexAsset(asset.id);
+      setAiTags(indexed.tags.map(tag => `${tag.type.toLowerCase()}:${tag.value}`));
+      setNotice(indexed.tags.length > 0
+        ? 'AI added retrieval tags without changing your original material.'
+        : 'AI indexing completed without adding new routing tags.');
+    } catch {
+      setError('AI indexing is unavailable right now. Your source material and existing tags are unchanged.');
     } finally { setBusy(null); }
   }
 
@@ -201,7 +216,13 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
               <div className="mt-4 rounded-xl border border-cream-200 bg-cream-50 p-4">
                 <div className="flex items-center gap-2"><BookOpen className="w-4 h-4 text-forest-600" /><span className="text-sm font-medium text-forest-900">{asset.title}</span></div>
                 <p className="mt-1 text-xs text-sand-600">Status: {asset.status.toLowerCase()} · {asset.tags.length} tag{asset.tags.length === 1 ? '' : 's'}</p>
-                {asset.status === 'DRAFT' && <button onClick={() => void publishMaterial()} disabled={busy !== null} className="mt-3 min-h-11 rounded-xl border border-forest-200 px-4 text-sm font-medium text-forest-800">Publish material</button>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button onClick={() => void aiIndexMaterial()} disabled={busy !== null} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm font-medium text-forest-800 disabled:opacity-50">
+                    {busy === 'ai-index' ? 'Indexing…' : 'Suggest tags with AI'}
+                  </button>
+                  {asset.status === 'DRAFT' && <button onClick={() => void publishMaterial()} disabled={busy !== null} className="min-h-11 rounded-xl border border-forest-200 px-4 text-sm font-medium text-forest-800">Publish material</button>}
+                </div>
+                {aiTags.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{aiTags.map(tag => <span key={tag} className="rounded-full bg-white border border-cream-200 px-2 py-1 text-[0.68rem] text-sand-600">{tag}</span>)}</div>}
                 {asset.status === 'PUBLISHED' && <p className="mt-2 flex items-center gap-1.5 text-xs text-forest-700"><Check className="w-3.5 h-3.5" />Available to the Knowledge Fabric under this space's visibility.</p>}
               </div>
             )}
