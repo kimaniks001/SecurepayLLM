@@ -130,7 +130,7 @@ export function createInstituteGateway(http: HttpClient) {
       type: InstituteProjectObservationType; label: string; textValue?: string | null;
       numericValue?: number | null; unit?: string | null; amountMinor?: number | null;
       currency?: string | null; occurredOn?: string | null; evidenceReference?: string | null;
-      visibility: InstituteProjectObservationVisibility;
+      visibility: InstituteProjectObservationVisibility; attributes?: Record<string, string>;
     }) =>
       http.request<InstituteProjectObservationDto>(`/api/v1/institute/projects/${encodeURIComponent(projectId)}/observations`, {
         method: 'POST', auth: 'required', body,
