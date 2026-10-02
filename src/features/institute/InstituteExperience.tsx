@@ -8,6 +8,7 @@ import { InstituteMyLearning } from './InstituteMyLearning';
 import { InstituteTeachStudio } from './InstituteTeachStudio';
 import { InstituteMasterSupport } from './InstituteMasterSupport';
 import { InstitutePrograms } from './InstitutePrograms';
+import { InstituteLiveLearning } from './InstituteLiveLearning';
 
 function sourceLabel(source: InstituteSourceDto): string {
   if (source.sourceType === 'KNOWLEDGE_CORE') return 'Governed knowledge';
@@ -215,6 +216,8 @@ export function InstituteExperience({
               onNavigate={onNavigate}
             />
           )}
+
+          {!result && <InstituteLiveLearning gateway={gateway} onNavigate={onNavigate} />}
 
           {result && (
             <section className="space-y-4">
