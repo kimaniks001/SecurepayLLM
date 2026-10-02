@@ -54,7 +54,7 @@ function StepRow({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-forest-900">{step.title}</p>
           <p className="mt-0.5 text-[0.7rem] text-sand-500">
-            {step.kind.replaceAll('_', ' ').toLowerCase()}
+            {step.kind.replace(/_/g, ' ').toLowerCase()}
             {step.capabilityKey ? ` · ${step.capabilityKey}` : ''}
             {step.evidenceRequired ? ' · evidence required' : ''}
           </p>
