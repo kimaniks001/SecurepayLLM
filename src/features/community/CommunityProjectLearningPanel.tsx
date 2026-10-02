@@ -49,6 +49,8 @@ export function CommunityProjectLearningPanel({
   const [error, setError] = useState<string | null>(null);
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string | null>(null);
   const [spaceBusy, setSpaceBusy] = useState(false);
+  const [recordBusy, setRecordBusy] = useState(false);
+  const [recordNotice, setRecordNotice] = useState<string | null>(null);
 
   const [type, setType] = useState<InstituteProjectObservationType>('COST');
   const [label, setLabel] = useState('');
@@ -82,26 +84,45 @@ export function CommunityProjectLearningPanel({
     [items],
   );
 
+  async function ensureProjectKnowledgeSpace(): Promise<string | null> {
+    if (knowledgeSpaceId) return knowledgeSpaceId;
+    const created = await gateway.createCommunityProjectSpace(projectId, {
+      name: `${projectTitle} knowledge`,
+      purpose: projectPurpose,
+      visibility: 'COMMUNITY',
+    });
+    setKnowledgeSpaceId(created.id);
+    return created.id;
+  }
+
   async function openProjectKnowledgeSpace() {
     if (spaceBusy) return;
-    if (knowledgeSpaceId) {
-      onOpenInstituteSpace(knowledgeSpaceId);
-      return;
-    }
     setSpaceBusy(true);
     setError(null);
     try {
-      const created = await gateway.createCommunityProjectSpace(projectId, {
-        name: `${projectTitle} knowledge`,
-        purpose: projectPurpose,
-        visibility: 'COMMUNITY',
-      });
-      setKnowledgeSpaceId(created.id);
-      onOpenInstituteSpace(created.id);
+      const id = await ensureProjectKnowledgeSpace();
+      if (id) onOpenInstituteSpace(id);
     } catch {
       setError('The Project Knowledge Space could not be opened. Nothing in the Project was changed.');
     } finally {
       setSpaceBusy(false);
+    }
+  }
+
+  async function draftProjectRecord() {
+    if (recordBusy) return;
+    setRecordBusy(true);
+    setError(null);
+    setRecordNotice(null);
+    try {
+      const id = await ensureProjectKnowledgeSpace();
+      if (!id) return;
+      const asset = await gateway.draftCommunityProjectRecord(projectId);
+      setRecordNotice(`Draft created: ${asset.title}. Review it in the Institute before publishing.`);
+    } catch {
+      setError('SecurePay could not create the reusable Project Record draft. The granular Project learning record was not changed.');
+    } finally {
+      setRecordBusy(false);
     }
   }
 
@@ -182,14 +203,28 @@ export function CommunityProjectLearningPanel({
             <p className="mt-1 text-[0.68rem] leading-relaxed text-sand-600">
               The learning record preserves what happened. A Project Knowledge Space lets you build guides, case studies, podcasts, checklists and training from it without exposing private Agreement data.
             </p>
-            <button
-              type="button"
-              onClick={() => void openProjectKnowledgeSpace()}
-              disabled={spaceBusy}
-              className="mt-2 min-h-10 rounded-lg border border-forest-200 px-3 text-[0.72rem] font-medium text-forest-700 disabled:opacity-50"
-            >
-              {spaceBusy ? 'Opening…' : knowledgeSpaceId ? 'Open Project Knowledge Space' : 'Create Project Knowledge Space'}
-            </button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void openProjectKnowledgeSpace()}
+                disabled={spaceBusy || recordBusy}
+                className="min-h-10 rounded-lg border border-forest-200 px-3 text-[0.72rem] font-medium text-forest-700 disabled:opacity-50"
+              >
+                {spaceBusy ? 'Opening…' : knowledgeSpaceId ? 'Open Project Knowledge Space' : 'Create Project Knowledge Space'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void draftProjectRecord()}
+                disabled={spaceBusy || recordBusy || items.length === 0}
+                className="min-h-10 rounded-lg bg-forest-700 px-3 text-[0.72rem] font-medium text-white disabled:opacity-50"
+              >
+                {recordBusy ? 'Compiling…' : 'Create reusable Project Record draft'}
+              </button>
+            </div>
+            {recordNotice && <p className="mt-2 text-[0.68rem] leading-relaxed text-forest-700">{recordNotice}</p>}
+            <p className="mt-2 text-[0.65rem] leading-relaxed text-sand-500">
+              The draft keeps REPORTED, VERIFIED and DISPUTED observations distinct and remains unpublished until you review and publish it.
+            </p>
           </div>
 
           {loading && <p role="status" className="text-[0.72rem] text-sand-500">Loading Project learning…</p>}
