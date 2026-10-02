@@ -9,6 +9,7 @@ import { InstituteTeachStudio } from './InstituteTeachStudio';
 import { InstituteMasterSupport } from './InstituteMasterSupport';
 import { InstitutePrograms } from './InstitutePrograms';
 import { InstituteLiveLearning } from './InstituteLiveLearning';
+import { InstituteSourceReader } from './InstituteSourceReader';
 
 function sourceLabel(source: InstituteSourceDto): string {
   if (source.sourceType === 'KNOWLEDGE_CORE') return 'Governed knowledge';
@@ -21,7 +22,7 @@ function sourceLabel(source: InstituteSourceDto): string {
   return 'Institute material';
 }
 
-function SourceCard({ source }: { source: InstituteSourceDto }) {
+function SourceCard({ source, gateway }: { source: InstituteSourceDto; gateway: InstituteGateway }) {
   return (
     <article className="rounded-2xl border border-cream-200 bg-white px-4 py-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
@@ -42,6 +43,7 @@ function SourceCard({ source }: { source: InstituteSourceDto }) {
         </div>
       )}
       <p className="mt-3 text-[0.68rem] text-sand-500">{source.provenance}</p>
+      <InstituteSourceReader gateway={gateway} source={source} authenticated />
     </article>
   );
 }
