@@ -97,7 +97,7 @@ export function InstituteMasterOfferStudio({
       {offer && (
         <div className="mt-4 rounded-xl border border-cream-200 bg-cream-50 p-4">
           <p className="text-sm font-medium text-forest-900">{offer.title}</p>
-          <p className="mt-1 text-xs text-sand-600">{offer.capabilityKey} · {offer.backingType.replaceAll('_', ' ').toLowerCase()}</p>
+          <p className="mt-1 text-xs text-sand-600">{offer.capabilityKey} · {offer.backingType.replace(/_/g, ' ').toLowerCase()}</p>
           <p className="mt-2 text-xs text-sand-600">Status: {offer.status.toLowerCase()}. Agreement required: yes.</p>
           {offer.status !== 'AVAILABLE' && (
             <button type="button" onClick={() => void publish()} disabled={busy} className="mt-3 min-h-11 rounded-xl bg-forest-700 px-4 text-sm font-medium text-white disabled:opacity-50">
