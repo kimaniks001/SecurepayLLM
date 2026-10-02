@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, FileText, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, ShoppingBag, Link2 } from 'lucide-react';
 import type { PlugAvailabilityResponse, PlugMissionDto } from '../api/securepay/marketnetwork/dto';
 import type { BusinessStoreOpportunityResponse } from '../api/securepay/store/dto';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
