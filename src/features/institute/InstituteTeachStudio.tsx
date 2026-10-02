@@ -5,6 +5,8 @@ import type {
   InstituteAccessMode, InstituteAssetKind, InstituteHostKind, InstituteKnowledgeSpaceDto,
   InstituteLearningAssetDto, InstituteProgramDto, InstituteSpaceVisibility,
 } from '../../api/securepay/institute/dto';
+import { InstituteKnowledgeProposal } from './InstituteKnowledgeProposal';
+import { InstituteMasterOfferStudio } from './InstituteMasterOfferStudio';
 
 const ASSET_KINDS: { value: InstituteAssetKind; label: string }[] = [
   { value: 'ARTICLE', label: 'Article' },
@@ -137,7 +139,7 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
         created = await gateway.publishProgram(created.id);
         setProgram(created);
         setStoreOfferId(null);
-        setNotice('Programme published. A fixed programme is optional; the same material can still be retrieved dynamically by KSI.');
+        setNotice('Programme published. A fixed programme is optional; the same material can still be retrieved dynamically by the Institute.');
       }
     } catch {
       setError('SecurePay could not package this programme. Existing published material has not been changed.');
@@ -182,7 +184,7 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
 
           <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
             <div className="flex items-center gap-2"><Upload className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Add what you know</h2></div>
-            <p className="mt-2 text-[0.82rem] text-sand-600">Keep the original material rich. Tags help KSI find the right pieces later; they do not replace the source.</p>
+            <p className="mt-2 text-[0.82rem] text-sand-600">Keep the original material rich. Tags help the Institute find the right pieces later; they do not replace the source.</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <select value={kind} onChange={e => setKind(e.target.value as InstituteAssetKind)} className="rounded-xl border border-cream-200 px-3 py-2.5 text-sm">
                 {ASSET_KINDS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -205,9 +207,13 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
           </section>
 
           {asset?.status === 'PUBLISHED' && (
+            <InstituteKnowledgeProposal gateway={gateway} asset={asset} />
+          )}
+
+          {asset?.status === 'PUBLISHED' && (
             <section className="rounded-2xl border border-cream-200 bg-white p-5 md:p-6 shadow-soft">
               <div className="flex items-center gap-2"><WandSparkles className="w-5 h-5 text-forest-600" /><h2 className="font-display text-xl text-forest-900">Package it — only if structure helps</h2></div>
-              <p className="mt-2 text-[0.82rem] text-sand-600">KSI can retrieve this material dynamically without a course. Create a programme when deliberate sequence, access or pricing adds value.</p>
+              <p className="mt-2 text-[0.82rem] text-sand-600">the Institute can retrieve this material dynamically without a course. Create a programme when deliberate sequence, access or pricing adds value.</p>
               <input value={programTitle} onChange={e => setProgramTitle(e.target.value)} placeholder="Programme title" className="mt-4 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
               <textarea value={programPurpose} onChange={e => setProgramPurpose(e.target.value)} rows={3} placeholder="What will this programme help someone accomplish?" className="mt-3 w-full rounded-xl border border-cream-200 px-3 py-2.5 text-sm" />
               <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -226,6 +232,8 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
               )}
             </section>
           )}
+
+          <InstituteMasterOfferStudio gateway={gateway} enabled={hostKind === 'MASTER'} />
         </>
       )}
     </div>
