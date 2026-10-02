@@ -23,6 +23,8 @@ import {
 import { realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 import { useAppNavPadding } from '../public/publicShell';
 import { TrustProjectImpactHome } from './TrustProjectImpactHome';
+import type { InstituteGateway } from '../../api/securepay/institute';
+import { CommunityProjectLearningPanel } from './CommunityProjectLearningPanel';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
@@ -918,9 +920,10 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
+export function CommunityExperience({ gateway, communityGateway, instituteGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
+  instituteGateway: InstituteGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
    * from each domain's own real authority (see `DiscoverySearchController`'s own doctrine). */
   discoveryGateway: DiscoveryGateway;
@@ -1383,6 +1386,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                 Capture lesson
               </button>
             </div>
+            <CommunityProjectLearningPanel gateway={instituteGateway} projectId={item.id} />
             {lessonProjectId === item.id && (
               <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 space-y-2">
                 <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It is not approved SecurePay knowledge until Knowledge governance approves it.</p>
