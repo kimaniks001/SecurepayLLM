@@ -286,3 +286,31 @@ export interface InstitutePaidSessionPackageDto {
   priceMinor: number;
   currency: string;
 }
+
+
+export type InstituteProjectObservationType =
+  | 'COST' | 'MATERIAL' | 'TIME' | 'WASTE' | 'SAFETY' | 'LOGISTICS' | 'DECISION'
+  | 'ISSUE' | 'CORRECTION' | 'OUTCOME' | 'MAINTENANCE' | 'ENVIRONMENT' | 'SKILL' | 'OTHER';
+
+export type InstituteProjectObservationVisibility = 'PUBLIC' | 'COMMUNITY' | 'PROJECT_ONLY';
+export type InstituteProjectObservationVerification = 'REPORTED' | 'VERIFIED' | 'DISPUTED';
+
+export interface InstituteProjectObservationDto {
+  id: string;
+  projectId: string;
+  recordedByIdentityId: string;
+  type: InstituteProjectObservationType;
+  label: string;
+  textValue: string | null;
+  numericValue: number | null;
+  unit: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  occurredOn: string | null;
+  evidenceReference: string | null;
+  visibility: InstituteProjectObservationVisibility;
+  verificationStatus: InstituteProjectObservationVerification;
+  verifiedByIdentityId: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
