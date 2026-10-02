@@ -7,6 +7,7 @@ import type { AppView } from '../../types';
 import { InstituteMyLearning } from './InstituteMyLearning';
 import { InstituteTeachStudio } from './InstituteTeachStudio';
 import { InstituteMasterSupport } from './InstituteMasterSupport';
+import { InstitutePrograms } from './InstitutePrograms';
 
 function sourceLabel(source: InstituteSourceDto): string {
   if (source.sourceType === 'KNOWLEDGE_CORE') return 'Governed knowledge';
@@ -205,6 +206,14 @@ export function InstituteExperience({
             <div role="alert" className="rounded-xl border border-ember-200 bg-white px-4 py-3 text-sm text-ember-800">
               {error}
             </div>
+          )}
+
+          {!result && (
+            <InstitutePrograms
+              gateway={gateway}
+              onStarted={() => setMode('my-learning')}
+              onNavigate={onNavigate}
+            />
           )}
 
           {result && (
