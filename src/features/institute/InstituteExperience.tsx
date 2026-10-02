@@ -284,7 +284,7 @@ export function InstituteExperience({
                     <h3 className="font-display text-lg text-forest-900">Sources touching this question</h3>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    {result.sources.map(source => <SourceCard key={source.sourceRef} source={source} />)}
+                    {result.sources.map(source => <SourceCard key={source.sourceRef} source={source} gateway={gateway} />)}
                   </div>
                 </>
               )}
@@ -310,7 +310,7 @@ export function InstituteExperience({
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
-                  {featured.map(source => <SourceCard key={source.sourceRef} source={source} />)}
+                  {featured.map(source => <SourceCard key={source.sourceRef} source={source} gateway={gateway} />)}
                 </div>
               )}
             </section>
