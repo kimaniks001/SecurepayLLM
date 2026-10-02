@@ -8,7 +8,7 @@ import type { AppView } from '../../types';
 function sourceLabel(source: InstituteSourceDto): string {
   if (source.sourceType === 'KNOWLEDGE_CORE') return 'Governed knowledge';
   if (source.sourceType === 'PROJECT_OBSERVATION') {
-    if (source.authority === 'PROJECT_VERIFIED') return 'Verified Project observation';
+    if (source.authority === 'PROJECT_VERIFIED') return 'Project-verified observation';
     if (source.authority === 'PROJECT_DISPUTED') return 'Disputed Project observation';
     return 'Reported Project observation';
   }
