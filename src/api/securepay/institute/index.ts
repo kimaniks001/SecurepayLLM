@@ -7,6 +7,8 @@ import type {
   InstituteAccessGrantDto, InstituteGrantType, InstituteMasterBackingOfferDto, InstitutePublicMasterBackingOfferDto,
   InstituteMasterBackingType, InstituteAwarenessPackDto, InstituteKnowledgeCandidateDto,
   InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility, InstitutePaidSessionPackageDto,
+  InstituteProjectObservationDto, InstituteProjectObservationType, InstituteProjectObservationVisibility,
+  InstituteProjectObservationVerification,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
@@ -108,6 +110,22 @@ export function createInstituteGateway(http: HttpClient) {
     attachSessionRecording: (sessionId: string, assetId: string) =>
       http.request<InstituteSessionDto>(`/api/v1/institute/sessions/${encodeURIComponent(sessionId)}/recording`, {
         method: 'POST', auth: 'required', body: { assetId },
+      }),
+
+    projectObservations: (projectId: string) =>
+      http.request<InstituteProjectObservationDto[]>(`/api/v1/institute/projects/${encodeURIComponent(projectId)}/observations`, { auth: 'required' }),
+    recordProjectObservation: (projectId: string, body: {
+      type: InstituteProjectObservationType; label: string; textValue?: string | null;
+      numericValue?: number | null; unit?: string | null; amountMinor?: number | null;
+      currency?: string | null; occurredOn?: string | null; evidenceReference?: string | null;
+      visibility: InstituteProjectObservationVisibility;
+    }) =>
+      http.request<InstituteProjectObservationDto>(`/api/v1/institute/projects/${encodeURIComponent(projectId)}/observations`, {
+        method: 'POST', auth: 'required', body,
+      }),
+    reviewProjectObservation: (projectId: string, observationId: string, outcome: Exclude<InstituteProjectObservationVerification, 'REPORTED'>) =>
+      http.request<InstituteProjectObservationDto>(`/api/v1/institute/projects/${encodeURIComponent(projectId)}/observations/${encodeURIComponent(observationId)}/review`, {
+        method: 'POST', auth: 'required', body: { outcome },
       }),
   };
 }
