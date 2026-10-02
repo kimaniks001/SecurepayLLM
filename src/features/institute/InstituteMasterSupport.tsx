@@ -67,7 +67,7 @@ export function InstituteMasterSupport({
         <div className="grid gap-4 md:grid-cols-2">
           {offers.map(offer => (
             <article key={offer.id} className="rounded-2xl border border-cream-200 bg-white p-5 shadow-soft">
-              <p className="text-[0.68rem] uppercase tracking-wide text-forest-600">{offer.backingType.replaceAll('_', ' ').toLowerCase()}</p>
+              <p className="text-[0.68rem] uppercase tracking-wide text-forest-600">{offer.backingType.replace(/_/g, ' ').toLowerCase()}</p>
               <h3 className="mt-1 font-display text-lg text-forest-900">{offer.title}</h3>
               <p className="mt-1 text-xs text-sand-500">Verified capability: {offer.capabilityKey}</p>
 
