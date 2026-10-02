@@ -134,3 +134,11 @@ export interface InstitutePublicSessionDto {
   capacity: number | null;
   recordingAssetId: string | null;
 }
+
+
+export interface InstitutePaidProgramPackageDto {
+  program: InstituteProgramDto;
+  storeOfferId: string;
+  priceMinor: number;
+  currency: string;
+}
