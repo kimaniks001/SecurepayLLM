@@ -4,6 +4,9 @@ import { NavBar } from '../../components/NavBar';
 import type { InstituteGateway } from '../../api/securepay/institute';
 import type { InstituteLearnResponseDto, InstituteSourceDto } from '../../api/securepay/institute/dto';
 import type { AppView } from '../../types';
+import { InstituteMyLearning } from './InstituteMyLearning';
+import { InstituteTeachStudio } from './InstituteTeachStudio';
+import { InstituteMasterSupport } from './InstituteMasterSupport';
 
 function sourceLabel(source: InstituteSourceDto): string {
   if (source.sourceType === 'KNOWLEDGE_CORE') return 'Governed knowledge';
@@ -48,6 +51,7 @@ export function InstituteExperience({
   gateway: InstituteGateway;
   onNavigate: (view: AppView) => void;
 }) {
+  const [mode, setMode] = useState<'learn' | 'my-learning' | 'teach' | 'master-support'>('learn');
   const [query, setQuery] = useState('');
   const [tagsText, setTagsText] = useState('');
   const [featured, setFeatured] = useState<InstituteSourceDto[]>([]);
@@ -94,13 +98,59 @@ export function InstituteExperience({
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="institute" onNavigate={onNavigate} />
 
-      <main className="flex-1 overflow-y-auto">
+      <div className="border-b border-cream-200 bg-white">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-2 flex gap-1 overflow-x-auto">
+          {([
+            ['learn', 'Learn'],
+            ['my-learning', 'My Learning'],
+            ['teach', 'Teach'],
+            ['master-support', 'Master Support'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              className={`min-h-11 whitespace-nowrap rounded-xl px-4 text-sm font-medium transition-colors ${
+                mode === value ? 'bg-forest-700 text-white' : 'text-forest-800 hover:bg-cream-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === 'my-learning' && (
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
+            <InstituteMyLearning gateway={gateway} />
+          </div>
+        </main>
+      )}
+
+      {mode === 'teach' && (
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
+            <InstituteTeachStudio gateway={gateway} />
+          </div>
+        </main>
+      )}
+
+      {mode === 'master-support' && (
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
+            <InstituteMasterSupport gateway={gateway} onNavigate={onNavigate} />
+          </div>
+        </main>
+      )}
+
+      {mode === 'learn' && <main className="flex-1 overflow-y-auto">
         <section className="border-b border-cream-200/70 bg-cream-50">
           <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
             <div className="max-w-3xl">
               <div className="flex items-center gap-2 text-forest-600">
                 <BookOpen className="w-5 h-5" />
-                <span className="text-[0.72rem] uppercase tracking-[0.16em] font-semibold">Keyman Skills Institute</span>
+                <span className="text-[0.72rem] uppercase tracking-[0.16em] font-semibold">Skills Institute</span>
               </div>
               <h1 className="mt-3 font-display text-3xl md:text-4xl text-forest-900 leading-tight">
                 What do you want to learn, understand or become capable of?
@@ -260,7 +310,7 @@ export function InstituteExperience({
             </div>
           </section>
         </div>
-      </main>
+      </main>}
     </div>
   );
 }
