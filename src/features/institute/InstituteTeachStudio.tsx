@@ -7,6 +7,7 @@ import type {
 } from '../../api/securepay/institute/dto';
 import { InstituteKnowledgeProposal } from './InstituteKnowledgeProposal';
 import { InstituteMasterOfferStudio } from './InstituteMasterOfferStudio';
+import { InstituteSessionStudio } from './InstituteSessionStudio';
 
 const ASSET_KINDS: { value: InstituteAssetKind; label: string }[] = [
   { value: 'ARTICLE', label: 'Article' },
@@ -232,6 +233,8 @@ export function InstituteTeachStudio({ gateway }: { gateway: InstituteGateway })
               )}
             </section>
           )}
+
+          <InstituteSessionStudio gateway={gateway} spaceId={space.id} />
 
           <InstituteMasterOfferStudio gateway={gateway} enabled={hostKind === 'MASTER'} />
         </>
