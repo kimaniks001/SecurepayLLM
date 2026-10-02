@@ -6,7 +6,7 @@ import type {
   InstituteParticipationDto, InstituteLearningEvidenceDto, InstituteEvidenceType, InstituteEvidenceReviewStatus,
   InstituteAccessGrantDto, InstituteGrantType, InstituteMasterBackingOfferDto, InstitutePublicMasterBackingOfferDto,
   InstituteMasterBackingType, InstituteAwarenessPackDto, InstituteKnowledgeCandidateDto,
-  InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility,
+  InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility, InstitutePaidSessionPackageDto,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
@@ -98,6 +98,11 @@ export function createInstituteGateway(http: HttpClient) {
       visibility: InstituteSessionVisibility; accessMode: InstituteAccessMode; commercialReference?: string | null;
       startsAt: string; endsAt?: string | null; capacity?: number | null;
     }) => http.request<InstituteSessionDto>('/api/v1/institute/sessions', { method: 'POST', auth: 'required', body }),
+    createPaidSessionPackage: (body: {
+      spaceId: string; kind: InstituteSessionKind; title: string; description: string;
+      visibility: InstituteSessionVisibility; startsAt: string; endsAt?: string | null;
+      capacity?: number | null; priceMinor: number;
+    }) => http.request<InstitutePaidSessionPackageDto>('/api/v1/institute/sessions/paid-package', { method: 'POST', auth: 'required', body }),
     scheduleSession: (sessionId: string) =>
       http.request<InstituteSessionDto>(`/api/v1/institute/sessions/${encodeURIComponent(sessionId)}/schedule`, { method: 'POST', auth: 'required' }),
     attachSessionRecording: (sessionId: string, assetId: string) =>
