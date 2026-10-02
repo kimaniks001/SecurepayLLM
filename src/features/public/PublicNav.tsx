@@ -66,6 +66,10 @@ export function PublicNav({ actions }: { actions: PublicShellActions }) {
               {section.label}
             </button>
           ))}
+          <button type="button" onClick={() => { setMenuOpen(false); actions.institute(); }}
+            className={`min-h-11 rounded-lg px-3.5 text-[0.875rem] font-medium text-forest-700 hover:bg-cream-100 hover:text-forest-800 transition-colors ${focusRing}`}>
+            Institute
+          </button>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -111,6 +115,12 @@ export function PublicNav({ actions }: { actions: PublicShellActions }) {
                   </button>
                 </li>
               ))}
+              <li>
+                <button type="button" onClick={() => { setMenuOpen(false); actions.institute(); }}
+                  className={`flex min-h-12 w-full items-center rounded-xl px-3 text-left text-[0.95rem] font-medium text-forest-800 hover:bg-cream-100 ${focusRing}`}>
+                  Institute
+                </button>
+              </li>
             </ul>
           </div>
         </>
