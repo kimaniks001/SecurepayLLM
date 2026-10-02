@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CommunityGateway } from '../../api/securepay/community';
+import { TrustProjectCapabilityPanel } from './TrustProjectCapabilityPanel';
 import type {
   CommunityImpactViewDto,
   ProjectContributionDto,
@@ -198,6 +199,8 @@ export function TrustProjectImpactHome({
       <button disabled={pathwayLoading} onClick={()=>void discoverPathways()} className="mt-2 rounded-xl bg-forest-600 text-cream-50 px-4 py-2 text-[0.78rem] font-medium disabled:opacity-50">{pathwayLoading?'Looking…':'Show possible pathways'}</button>
       {pathways && <div className="mt-3 space-y-2"><p className="text-[0.72rem] text-sand-500">{pathways.note}</p>{pathways.possiblePathways.map(p=><div key={p.knowledgeId+':'+p.version} className="rounded-xl bg-white border border-cream-200 px-3 py-3"><div className="text-[0.82rem] font-medium text-forest-800">{p.title}</div><p className="text-[0.74rem] text-sand-600 mt-1">{p.explanation}</p></div>)}</div>}
     </div>
+
+    <TrustProjectCapabilityPanel gateway={gateway} />
 
     <button onClick={onOpenCircles} className="w-full rounded-xl border border-cream-200 bg-white px-4 py-3 text-left">
       <span className="text-[0.82rem] font-medium text-forest-700">Explore named Circles</span>
