@@ -860,9 +860,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <ProjectsExperience
         controller={projectsController}
         agreementGateway={agreementGateway}
+        instituteGateway={instituteGateway}
         defaultOwnerKsNumber={ownKsNumber}
         onNavigate={navigateTo}
         onOpenVisionBoard={() => navigateTo('vision-board')}
+        onOpenInstituteSpace={spaceId => {
+          setProjects(false);
+          setInstitutePreferredSpaceId(spaceId);
+          setInstitute(true);
+        }}
       />
     );
   }
