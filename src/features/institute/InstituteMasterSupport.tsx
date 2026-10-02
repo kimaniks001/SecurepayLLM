@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { Search, ShieldCheck, Store } from 'lucide-react';
 import type { InstituteGateway } from '../../api/securepay/institute';
 import type { InstitutePublicMasterBackingOfferDto } from '../../api/securepay/institute/dto';
-import type { AppView } from '../../types';
 
 export function InstituteMasterSupport({
   gateway,
-  onNavigate,
+  onOpenStoreOffer,
 }: {
   gateway: InstituteGateway;
-  onNavigate: (view: AppView) => void;
+  onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
 }) {
   const [capability, setCapability] = useState('');
   const [offers, setOffers] = useState<InstitutePublicMasterBackingOfferDto[]>([]);
@@ -87,13 +86,16 @@ export function InstituteMasterSupport({
                     : 'No Institute fee stated'}
                 </p>
                 <p className="mt-1 text-xs text-sand-500">An Agreement must state the exact responsibility before the Master is responsible for anything.</p>
-                {offer.storeOfferReference && (
+                {offer.storeOfferReference?.startsWith('store-offer:') && (
                   <button
                     type="button"
-                    onClick={() => onNavigate('store')}
+                    onClick={() => onOpenStoreOffer(
+                      offer.masterCanonicalKsNumber,
+                      offer.storeOfferReference!.slice('store-offer:'.length),
+                    )}
                     className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 px-4 text-sm font-medium text-forest-800"
                   >
-                    <Store className="w-4 h-4" />Open Store to take this forward
+                    <Store className="w-4 h-4" />Open exact Store offer
                   </button>
                 )}
               </div>
