@@ -62,6 +62,10 @@ export function createInstituteGateway(http: HttpClient) {
       http.request<InstituteProgramDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/publish`, { method: 'POST', auth: 'required' }),
     startProgram: (programId: string) =>
       http.request<InstituteParticipationDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/start`, { method: 'POST', auth: 'required' }),
+    activatePaidAccess: (programId: string, agreementId: string) =>
+      http.request<InstituteParticipationDto>(`/api/v1/institute/programs/${encodeURIComponent(programId)}/activate-paid-access`, {
+        method: 'POST', auth: 'required', body: { agreementId },
+      }),
     myParticipations: () =>
       http.request<InstituteParticipationDto[]>('/api/v1/institute/participations', { auth: 'required' }),
     participation: (participationId: string) =>
