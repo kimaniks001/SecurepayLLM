@@ -9,6 +9,7 @@ import type {
   InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility, InstitutePaidSessionPackageDto,
   InstituteProjectObservationDto, InstituteProjectObservationType, InstituteProjectObservationVisibility,
   InstituteProjectObservationVerification, InstituteAiIndexResultDto,
+  InstituteAssetContentDto, InstitutePublishedSourceDto,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
