@@ -32,15 +32,23 @@ function verificationLabel(item: InstituteProjectObservationDto) {
 export function CommunityProjectLearningPanel({
   gateway,
   projectId,
+  projectTitle,
+  projectPurpose,
+  onOpenInstituteSpace,
 }: {
   gateway: InstituteGateway;
   projectId: string;
+  projectTitle: string;
+  projectPurpose: string;
+  onOpenInstituteSpace: (spaceId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<InstituteProjectObservationDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string | null>(null);
+  const [spaceBusy, setSpaceBusy] = useState(false);
 
   const [type, setType] = useState<InstituteProjectObservationType>('COST');
   const [label, setLabel] = useState('');
@@ -68,6 +76,29 @@ export function CommunityProjectLearningPanel({
       .reduce((sum, item) => sum + (item.amountMinor ?? 0), 0),
     [items],
   );
+
+  async function openProjectKnowledgeSpace() {
+    if (spaceBusy) return;
+    if (knowledgeSpaceId) {
+      onOpenInstituteSpace(knowledgeSpaceId);
+      return;
+    }
+    setSpaceBusy(true);
+    setError(null);
+    try {
+      const created = await gateway.createCommunityProjectSpace(projectId, {
+        name: `${projectTitle} knowledge`,
+        purpose: projectPurpose,
+        visibility: 'COMMUNITY',
+      });
+      setKnowledgeSpaceId(created.id);
+      onOpenInstituteSpace(created.id);
+    } catch {
+      setError('The Project Knowledge Space could not be opened. Nothing in the Project was changed.');
+    } finally {
+      setSpaceBusy(false);
+    }
+  }
 
   async function record() {
     if (!label.trim() || busy) return;
@@ -130,6 +161,20 @@ export function CommunityProjectLearningPanel({
             Preserve the granular reality — cost, materials, waste, time, decisions, mistakes, corrections and maintenance.
             Reported observations remain distinguishable from Project-verified facts.
           </p>
+          <div className="rounded-xl border border-forest-100 bg-white p-3">
+            <p className="text-[0.74rem] font-medium text-forest-800">Turn this Project's learning into reusable knowledge</p>
+            <p className="mt-1 text-[0.68rem] leading-relaxed text-sand-600">
+              The learning record preserves what happened. A Project Knowledge Space lets you build guides, case studies, podcasts, checklists and training from it without exposing private Agreement data.
+            </p>
+            <button
+              type="button"
+              onClick={() => void openProjectKnowledgeSpace()}
+              disabled={spaceBusy}
+              className="mt-2 min-h-10 rounded-lg border border-forest-200 px-3 text-[0.72rem] font-medium text-forest-700 disabled:opacity-50"
+            >
+              {spaceBusy ? 'Opening…' : knowledgeSpaceId ? 'Open Project Knowledge Space' : 'Create Project Knowledge Space'}
+            </button>
+          </div>
 
           {loading && <p role="status" className="text-[0.72rem] text-sand-500">Loading Project learning…</p>}
           {error && <p role="alert" className="text-[0.72rem] text-red-600">{error}</p>}
