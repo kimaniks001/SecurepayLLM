@@ -9,7 +9,6 @@ import type { BusinessMembershipResponse, CurrentPrinciplesResponse, Organizatio
   CreateProjectContributionInput, ProjectContributionDto, ProjectContributionInterestDto,
   ProjectContributionInterestIntent, CommunityImpactViewDto,
   TrustProjectPathwayDiscoveryInput, TrustProjectPathwayDiscoveryResultDto,
-  CommunityKnowledgeCandidateDto,
 } from './dto';
 
 /**
