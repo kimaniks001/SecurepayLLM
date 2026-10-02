@@ -920,7 +920,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, instituteGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
+export function CommunityExperience({ gateway, communityGateway, instituteGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle, onOpenInstituteSpace }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   instituteGateway: InstituteGateway;
@@ -942,6 +942,7 @@ export function CommunityExperience({ gateway, communityGateway, instituteGatewa
   /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
   onJoinTrustProject: () => void;
   onInvokeKs001InCircle: (circleId: string) => void;
+  onOpenInstituteSpace: (spaceId: string) => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
   // Number, or a quick share link (no membership row, no referral, no capacity).
@@ -1386,7 +1387,13 @@ export function CommunityExperience({ gateway, communityGateway, instituteGatewa
                 Capture lesson
               </button>
             </div>
-            <CommunityProjectLearningPanel gateway={instituteGateway} projectId={item.id} />
+            <CommunityProjectLearningPanel
+              gateway={instituteGateway}
+              projectId={item.id}
+              projectTitle={item.title}
+              projectPurpose={item.purpose}
+              onOpenInstituteSpace={onOpenInstituteSpace}
+            />
             {lessonProjectId === item.id && (
               <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 space-y-2">
                 <p className="text-[0.7rem] text-sand-500">This creates a Knowledge review candidate. It is not approved SecurePay knowledge until Knowledge governance approves it.</p>
