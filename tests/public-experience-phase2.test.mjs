@@ -60,7 +60,7 @@ test('signed in (no public shell): Institute is added without removing existing 
     for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications']) {
       assert.match(now, new RegExp(`\\b${label}\\b`), `${label} remains available for view ${view}`);
     }
-    assert.match(now, /\\bInstitute\\b/, 'Institute is a signed-in first-class destination');
+    assert.match(now, /\bInstitute\b/, 'Institute is a signed-in first-class destination');
   }
 });
 test('the mobile menu button exposes its state and controls the sheet', () => {
