@@ -21,7 +21,7 @@ export function createAgentOpportunityGateway(http: HttpClient) {
     }) => http.request<SupportResultDto>('/api/v1/agent-opportunities/support', { method: 'POST', body, auth: 'required' }),
 
     selectSupportOffer: (requestId: string, offerId: string) =>
-      http.request<void>('/api/v1/agent-opportunities/support/' + encodeURIComponent(requestId) + '/offers/' + encodeURIComponent(offerId) + '/select', {
+      http.request<{ quickContractOpportunityId: string }>('/api/v1/agent-opportunities/support/' + encodeURIComponent(requestId) + '/offers/' + encodeURIComponent(offerId) + '/select', {
         method: 'POST', auth: 'required',
       }),
 
