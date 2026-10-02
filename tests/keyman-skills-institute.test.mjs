@@ -99,3 +99,11 @@ test('Community Projects leave granular learning records for future dreamers', (
   assert.match(gateway, /recordProjectObservation/);
   assert.match(gateway, /reviewProjectObservation/);
 });
+
+
+test('AI indexing enriches tags without replacing the source material', () => {
+  assert.match(teach, /Suggest tags with AI/);
+  assert.match(teach, /without changing your original material/);
+  assert.match(gateway, /aiIndexAsset/);
+  assert.match(gateway, /\/ai-index/);
+});
