@@ -30,8 +30,18 @@ export function createInstituteGateway(http: HttpClient) {
       http.request<InstitutePublicProgramDto[]>(`/api/v1/institute/public/programs?limit=${limit}`),
     publicSessions: (limit = 20) =>
       http.request<InstitutePublicSessionDto[]>(`/api/v1/institute/public/sessions?limit=${limit}`),
+    mySpaces: () =>
+      http.request<InstituteKnowledgeSpaceDto[]>('/api/v1/institute/spaces', { auth: 'required' }),
     createSpace: (body: { hostKind: InstituteHostKind; hostReference?: string | null; name: string; purpose: string; visibility: InstituteSpaceVisibility }) =>
       http.request<InstituteKnowledgeSpaceDto>('/api/v1/institute/spaces', { method: 'POST', body, auth: 'required' }),
+    createPrivateProjectSpace: (projectId: string, body: { name?: string | null; purpose?: string | null; visibility: Extract<InstituteSpaceVisibility, 'PRIVATE' | 'INTERNAL'> }) =>
+      http.request<InstituteKnowledgeSpaceDto>(`/api/v1/institute/project-spaces/securepay/${encodeURIComponent(projectId)}`, {
+        method: 'POST', body, auth: 'required',
+      }),
+    createCommunityProjectSpace: (projectId: string, body: { name?: string | null; purpose?: string | null; visibility: InstituteSpaceVisibility }) =>
+      http.request<InstituteKnowledgeSpaceDto>(`/api/v1/institute/project-spaces/community/${encodeURIComponent(projectId)}`, {
+        method: 'POST', body, auth: 'required',
+      }),
     createAsset: (body: {
       spaceId: string; kind: InstituteAssetKind; title: string; summary: string; body?: string | null;
       mediaReference?: string | null; sourceNote?: string | null;
