@@ -164,7 +164,7 @@ export function InstituteSessionStudio({
         <div className="mt-4 rounded-xl border border-forest-100 bg-forest-50 p-4">
           <p className="text-sm font-medium text-forest-900">{session.title}</p>
           <p className="mt-1 text-xs text-forest-700">
-            {session.kind.replaceAll('_', ' ').toLowerCase()} · {session.status.toLowerCase()} · {new Date(session.startsAt).toLocaleString()}
+            {session.kind.replace(/_/g, ' ').toLowerCase()} · {session.status.toLowerCase()} · {new Date(session.startsAt).toLocaleString()}
           </p>
           {storeOfferId && <p className="mt-2 text-xs text-sand-600">Store offer: {storeOfferId}</p>}
         </div>
