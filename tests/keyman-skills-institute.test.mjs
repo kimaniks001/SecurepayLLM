@@ -180,3 +180,14 @@ test('Community Project learning can compile a reusable unpublished Project Reco
   assert.match(panel, /remains unpublished until you review and publish it/);
   assert.match(gateway, /draft-record/);
 });
+
+
+test('Knowledge Space drafts can be reopened, revised and then explicitly published', () => {
+  const studio = fs.readFileSync(new URL('../src/features/institute/InstituteTeachStudio.tsx', import.meta.url), 'utf8');
+  const gateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
+  assert.match(studio, /Return to drafts and published knowledge/);
+  assert.match(studio, /Save revision/);
+  assert.match(studio, /Nothing has been published/);
+  assert.match(gateway, /spaces\/\$\{encodeURIComponent\(spaceId\)\}\/assets/);
+  assert.match(gateway, /draft-content/);
+});
