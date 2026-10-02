@@ -202,3 +202,16 @@ test('AI/search excerpts retain a route back to the exact complete published Ins
   assert.match(gateway, /public\/assets/);
   assert.match(gateway, /assets\/\$\{encodeURIComponent\(assetId\)\}\/read/);
 });
+
+
+test('original-source reader covers authored material, Community experience and Project observations without exposing raw evidence locators', () => {
+  const reader = fs.readFileSync(new URL('../src/features/institute/InstituteSourceReader.tsx', import.meta.url), 'utf8');
+  const gateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
+  assert.match(reader, /readCommunityContribution/);
+  assert.match(reader, /readProjectObservation/);
+  assert.match(reader, /publicProjectObservation/);
+  assert.match(reader, /Evidence is attached to the originating Project record/);
+  assert.match(reader, /private storage reference is not exposed/);
+  assert.match(gateway, /community-contributions/);
+  assert.match(gateway, /project-observations/);
+});
