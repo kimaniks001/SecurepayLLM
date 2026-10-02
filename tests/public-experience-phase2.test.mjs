@@ -36,7 +36,7 @@ const h = (component, props = {}, ...children) => api.createElement(component, p
 const html = element => api.renderToStaticMarkup(element);
 const text = markup => markup.replace(/<[^>]*>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 const noop = () => {};
-const actions = { home: noop, signIn: noop, section: noop, skipToKs001: noop };
+const actions = { home: noop, signIn: noop, join: noop, institute: noop, section: noop, skipToKs001: noop };
 const homeProps = { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, onFocusComposer: noop, onBrowseStores: noop, onSignIn: noop, onRecover: noop, onHelp: noop, onSection: noop };
 const publicHome = html(h(api.PublicHome, homeProps));
 const publicHomeText = text(publicHome);
@@ -48,23 +48,19 @@ const APP_NAV = ['Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifi
 test('signed out: NavBar renders the public navigation and none of the signed-in app destinations', () => {
   const markup = html(h(api.PublicShellProvider, { value: actions }, h(api.NavBar, { view: 'signed-out', onNavigate: noop })));
   const out = text(markup);
-  for (const label of ['How it works', 'The Trust Project', 'For Business', 'Sign in', 'Skip to KS001']) assert.match(out, new RegExp(label));
+  for (const label of ['How it works', 'The Trust Project', 'For Business', 'Institute', 'Sign in', 'Skip to KS001']) assert.match(out, new RegExp(label));
   for (const label of APP_NAV) assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} must not appear in the public nav`);
   assert.doesNotMatch(markup, /fixed bottom-0/, 'no signed-out bottom navigation');
 });
-// Phase 4 final UI polish (UR-223, explicitly authorised): the signed-in NavBar's PRESENTATION changed (44px targets,
-// mark-only brand at md, the wordmark's alt moved to the button's aria-label). Its information architecture must not:
-// destinations, labels, order and element structure stay identical to main once presentational attributes are removed.
-const structural = markup => markup.replace(/ class="[^"]*"/g, '').replace(/ alt="[^"]*"/g, '').replace(/ aria-label="SecurePay"/g, '');
-test('signed in (no public shell): NavBar structure is identical to main (presentation-only Phase 4 polish)', async () => {
-  const baseline = await bundleOf(`
-export { NavBar } from './src/components/NavBar';
-export { createElement } from 'react';
-export { renderToStaticMarkup } from 'react-dom/server';`, [{ name: 'main-navbar', setup(b) { b.onLoad({ filter: /src\/components\/NavBar\.tsx$/ }, () => ({ contents: execFileSync('git', ['show', 'cb6aa531cd4614a941c2e8b0707e190870c0975c:src/components/NavBar.tsx'], { encoding: 'utf8' }), loader: 'tsx' })); } }]);
-  for (const view of ['signed-in', 'agreements', 'money', 'store', 'community', 'account', 'notifications']) {
-    const now = html(h(api.NavBar, { view, onNavigate: noop }));
-    const then = baseline.renderToStaticMarkup(baseline.createElement(baseline.NavBar, { view, onNavigate: noop }));
-    assert.equal(structural(now), structural(then), `signed-in NavBar structure changed for view ${view}`);
+// Skills Institute is a first-class signed-in workspace and also has a deliberate public source-first doorway.
+// The remaining signed-in destinations stay private.
+test('signed in (no public shell): Institute is added without removing existing destinations', () => {
+  for (const view of ['signed-in', 'agreements', 'money', 'store', 'community', 'institute', 'account', 'notifications']) {
+    const now = text(html(h(api.NavBar, { view, onNavigate: noop })));
+    for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications']) {
+      assert.match(now, new RegExp(`\\b${label}\\b`), `${label} remains available for view ${view}`);
+    }
+    assert.match(now, /\bInstitute\b/, 'Institute is a signed-in first-class destination');
   }
 });
 test('the mobile menu button exposes its state and controls the sheet', () => {

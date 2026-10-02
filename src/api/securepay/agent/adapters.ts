@@ -16,7 +16,9 @@ export interface AgreementsHomeComponentView { type: 'AGREEMENTS_HOME'; home: Ag
 // AgentState#offeredDiscoveryEntityIds / ContextView#interactionState). The backend already verified
 // targetEntityId names a real, currently active entity before this component ever reached the wire.
 export interface DiscoveryOfferComponentView { type: 'DISCOVERY_OFFER'; targetEntityId: string }
-export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView | DiscoveryOfferComponentView | InstrumentPromptView | UnavailableInputView;
+export interface OpportunityChoiceView { reference: string; displayName: string; role: string; capability: string; availability: string; rateMinor: number | string | null; currency: string; status: string }
+export interface OpportunityChoicesComponentView { type: 'OPPORTUNITY_CHOICES'; mode: string; sourceKind: string; subjectReference: string; status: string; choices: OpportunityChoiceView[]; message: string }
+export type AgentComponentView = MessageResponse | PreviewView | DiscoveryView | AgreementWorkspaceComponentView | AgreementsHomeComponentView | DiscoveryOfferComponentView | OpportunityChoicesComponentView | InstrumentPromptView | UnavailableInputView;
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
 const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
 
@@ -96,6 +98,12 @@ export function agentComponentView(component: ComponentDto): AgentComponentView 
     return typeof data.targetEntityId === 'string' && data.targetEntityId.length > 0
       ? { type: 'DISCOVERY_OFFER', targetEntityId: data.targetEntityId }
       : null;
+  }
+  if (component.type === 'OPPORTUNITY_CHOICES' && typeof data.mode === 'string' && typeof data.subjectReference === 'string' && typeof data.status === 'string' && typeof data.message === 'string' && Array.isArray(data.choices)) {
+    const choices = data.choices.filter((choice): choice is Record<string, unknown> => !!choice && typeof choice === 'object')
+      .filter(choice => typeof choice.reference === 'string' && typeof choice.displayName === 'string' && typeof choice.role === 'string')
+      .map(choice => ({ reference: String(choice.reference), displayName: String(choice.displayName), role: String(choice.role), capability: String(choice.capability ?? ''), availability: String(choice.availability ?? ''), rateMinor: typeof choice.rateMinor === 'number' || typeof choice.rateMinor === 'string' ? choice.rateMinor : null, currency: String(choice.currency ?? ''), status: String(choice.status ?? '') }));
+    return { type: 'OPPORTUNITY_CHOICES', mode: data.mode, sourceKind: typeof data.sourceKind === 'string' ? data.sourceKind : '', subjectReference: data.subjectReference, status: data.status, choices, message: data.message };
   }
   // Phase 1: the safe, model-proposable input affordances (PERSON_PICKER, DATE_PICKER, AMOUNT_INPUT, ...).
   const instrument = instrumentComponentView(component);

@@ -38,6 +38,8 @@ import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
 import { createMoneySnapshotGateway } from './money-snapshot';
 import { createFinancialInstitutionsGateway } from './financial-institutions';
+import { createInstituteGateway } from './institute';
+import { createAgentOpportunityGateway } from './agentOpportunity';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
@@ -64,5 +66,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     authorization: createAuthorizationGateway(http),
     developer: createDeveloperGateway(http),
     moneySnapshot: createMoneySnapshotGateway(http),
+    institute: createInstituteGateway(http),
+    agentOpportunity: createAgentOpportunityGateway(http),
   };
 }
