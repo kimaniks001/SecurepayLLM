@@ -4,6 +4,7 @@ import { NavBar } from '../../components/NavBar';
 import type { InstituteGateway } from '../../api/securepay/institute';
 import type { InstitutePublicProgramDto, InstitutePublicSessionDto, InstituteSourceDto } from '../../api/securepay/institute/dto';
 import type { AppView } from '../../types';
+import { InstituteSourceReader } from './InstituteSourceReader';
 
 function sourceLabel(source: InstituteSourceDto) {
   if (source.sourceType === 'PROJECT_OBSERVATION') {
@@ -142,6 +143,7 @@ export function PublicInstituteExperience({
                         </div>
                       )}
                       <p className="mt-3 text-[0.66rem] text-sand-500">{source.provenance}</p>
+                      <InstituteSourceReader gateway={gateway} source={source} authenticated={false} />
                     </article>
                   ))}
                 </div>
