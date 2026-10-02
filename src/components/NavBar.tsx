@@ -1,4 +1,4 @@
-import { Home, FileText, Wallet, Store, Users, User, Bell } from 'lucide-react';
+import { Home, FileText, Wallet, Store, Users, User, Bell, BookOpen } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
@@ -10,12 +10,13 @@ interface NavBarProps {
   onNavigate: (view: AppView) => void;
 }
 
-const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
+const navItems: { icon: typeof Home; label: string; mobileLabel?: string; view: AppView }[] = [
   { icon: Home, label: 'Home', view: 'signed-in' },
   { icon: FileText, label: 'Agreements', view: 'agreements' },
   { icon: Wallet, label: 'Money', view: 'money' },
   { icon: Store, label: 'Store', view: 'store' },
-  { icon: Users, label: 'Community', view: 'community' },
+  { icon: Users, label: 'Community', mobileLabel: 'Community', view: 'community' },
+  { icon: BookOpen, label: 'Institute', mobileLabel: 'Learn', view: 'institute' },
   { icon: User, label: 'Account', view: 'account' },
 ];
 
@@ -36,6 +37,7 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
     if (itemView === 'money' && (view === 'money' || view === 'dispute')) return true;
     if (itemView === 'store' && view === 'store') return true;
     if (itemView === 'community' && (view === 'community' || view === 'circle' || view === 'ecosystem')) return true;
+    if (itemView === 'institute' && view === 'institute') return true;
     if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'vision-board' || view === 'recovery')) return true;
     return false;
   };
@@ -90,7 +92,7 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
             }`}
           >
             <item.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-            <span className="text-[0.6rem] font-medium">{item.label}</span>
+            <span className="text-[0.6rem] font-medium">{item.mobileLabel ?? item.label}</span>
           </button>
         ))}
         <button
