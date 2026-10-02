@@ -1,4 +1,5 @@
 import { segment, type HttpClient } from '../http';
+import { createTrustProjectProgrammesGateway } from './programmes';
 import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
@@ -280,6 +281,8 @@ export function createCommunityGateway(http: HttpClient) {
           method: 'POST', body: input, auth: 'required',
         }),
     },
+
+    programmes: createTrustProjectProgrammesGateway(http),
 
     // Named Circles (Slice 3) -- "the homes inside The Trust Project", against
     // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real
