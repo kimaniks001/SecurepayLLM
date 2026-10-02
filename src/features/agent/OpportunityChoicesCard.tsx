@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AgentOpportunityGateway } from '../../api/securepay/agentOpportunity';
 import type { OpportunityChoicesComponentView } from '../../api/securepay/agent/adapters';
+import { decimalMoney } from '../../decimalMoney';
 
 export function OpportunityChoicesCard({
   component, gateway, live,
@@ -34,9 +35,7 @@ export function OpportunityChoicesCard({
 
   const money = (minor: number | string | null, currency: string) => {
     if (minor === null || minor === '') return 'Rate on request';
-    const n = Number(minor);
-    if (!Number.isFinite(n)) return 'Rate on request';
-    return currency + ' ' + (n / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return decimalMoney(String(minor), currency);
   };
 
   return <section className="rounded-2xl border border-forest-100 bg-white shadow-card overflow-hidden" aria-label="SecurePay choices">
