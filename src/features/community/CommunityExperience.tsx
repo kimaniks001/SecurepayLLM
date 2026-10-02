@@ -1040,7 +1040,6 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   // Community LIVE is human Community content only. Store discovery remains available through the
   // deliberate cross-domain Search surface and explicit transitions, never injected into LIVE.
   const objects = realObjects;
-  const selectedStore = undefined;
 
   const banner = (
     <>
@@ -1244,22 +1243,6 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onSubmit: () => void controller.submitReply(),
         }}
         onWithdrawReply={id => void controller.withdrawReply(id)}
-      />
-    );
-  } else if (state.view === 'object' && selectedStore) {
-    const object = storeResultToCommunityObject(selectedStore);
-    body = (
-      <CommunityObjectDetail
-        object={object}
-        offer={selectedStore.offer}
-        onBack={() => controller.backToHome()}
-        onICanHelp={() => controller.showNotice('This area is not available yet.')}
-        onDiscuss={() => controller.showNotice('This area is not available yet.')}
-        onViewOffer={() => {
-          const ids = parseStoreOfferCommunityObjectId(object.id);
-          if (ids) onOpenStoreOffer(ids.canonicalKsNumber, ids.offerId);
-        }}
-        onToTrade={() => controller.showNotice('This area is not available yet.')}
       />
     );
   } else if (state.communityTab === 'live' && state.search.status === 'error' && state.feed.status !== 'ready' && objects.length === 0) {
@@ -1527,7 +1510,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <TrustProjectImpactHome
           gateway={communityGateway}
           activeMember={isActiveMember}
-          onOpenCircles={() => void controller.showCommunityTab('my-circles')}
+          onOpenCircles={() => void controller.showCommunityTab('circles')}
           onJoin={onJoinTrustProject}
           onOpenVision={() => onNavigate('vision-board')}
         />
