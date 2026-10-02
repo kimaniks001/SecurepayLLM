@@ -1131,7 +1131,7 @@ export function createCommunityController(
 
     showNotice(text: string) { update({ notice: text }); },
     dismissNotice() { update({ notice: null }); },
-    async refreshFeed() { await loadRealFeed(); },
+    async refreshFeed() { await loadFeed(); },
 
     // ─── Phase 6 Slice 5 (Discovery & Identity) -- "find → understand → open → decide for yourself" ─────
 
