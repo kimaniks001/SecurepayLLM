@@ -126,6 +126,17 @@ test('Projects can open one reusable Institute Knowledge Space', () => {
 const publicInstitute = fs.readFileSync(new URL('../src/features/institute/PublicInstituteExperience.tsx', import.meta.url), 'utf8');
 const publicNav = fs.readFileSync(new URL('../src/features/public/PublicNav.tsx', import.meta.url), 'utf8');
 
+test('Project learning preserves granular structured context for future dreamers', () => {
+  const panel = fs.readFileSync(new URL('../src/features/community/CommunityProjectLearningPanel.tsx', import.meta.url), 'utf8');
+  assert.match(panel, /project_stage/);
+  assert.match(panel, /source_supplier/);
+  assert.match(panel, /disposal_method/);
+  assert.match(panel, /destination/);
+  assert.match(panel, /Quoted/);
+  assert.match(panel, /Actual \/ happened/);
+  assert.match(gateway, /attributes\?: Record<string, string>/);
+});
+
 test('public Institute is useful before sign-in and keeps personal AI learning authenticated', () => {
   assert.doesNotMatch(publicNav, />Institute</); // signed-out nav stays intentionally minimal; public Institute is reached through the public experience doorway.
   assert.match(publicInstitute, /Learn from what people have actually done/);
