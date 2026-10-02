@@ -191,3 +191,14 @@ test('Knowledge Space drafts can be reopened, revised and then explicitly publis
   assert.match(gateway, /spaces\/\$\{encodeURIComponent\(spaceId\)\}\/assets/);
   assert.match(gateway, /draft-content/);
 });
+
+
+test('AI/search excerpts retain a route back to the exact complete published Institute source', () => {
+  const reader = fs.readFileSync(new URL('../src/features/institute/InstituteSourceReader.tsx', import.meta.url), 'utf8');
+  const gateway = fs.readFileSync(new URL('../src/api/securepay/institute/index.ts', import.meta.url), 'utf8');
+  assert.match(reader, /Open original source/);
+  assert.match(reader, /AI summaries and search excerpts do not replace it/);
+  assert.match(reader, /found\.sourceRef !== source\.sourceRef/);
+  assert.match(gateway, /public\/assets/);
+  assert.match(gateway, /assets\/\$\{encodeURIComponent\(assetId\)\}\/read/);
+});
