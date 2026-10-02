@@ -291,7 +291,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   </SurfaceBody>
                 </Surface>
 
-                {state.preferencesSaveError && <StatusNotice tone="warning" icon={false}>{state.preferencesSaveError}</StatusNotice>
+                {state.preferencesSaveError && <StatusNotice tone="warning" icon={false}>{state.preferencesSaveError}</StatusNotice>}
                 {state.preferencesJustSaved && !state.preferencesSaveError && <StatusNotice tone="success" icon={false}>Saved.</StatusNotice>}
                 <Button onClick={() => void controller.savePreferences()} disabled={state.preferencesSaving} className="w-full py-2.5">
                   {state.preferencesSaving ? 'Saving…' : 'Save preferences'}
