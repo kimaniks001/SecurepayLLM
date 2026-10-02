@@ -31,6 +31,10 @@ interface CommunityHomeProps {
   searchPlaceholder?: string;
   noResultsMessage?: string;
   showSearch?: boolean;
+  heading?: string;
+  description?: string;
+  composerLabel?: string;
+  composerDescription?: string;
 }
 
 export function CommunityHome({
@@ -42,6 +46,10 @@ export function CommunityHome({
   searchPlaceholder = 'Search people, businesses, questions, needs, work...',
   noResultsMessage,
   showSearch = true,
+  heading = 'Community LIVE',
+  description = 'Belong. Serve. Learn. Share what happened. Pass useful knowledge on.',
+  composerLabel = 'What is happening, where can people help, or what did you learn?',
+  composerDescription = 'Ask a useful question, share a need, tell a real work story, or invite people to help.',
 }: CommunityHomeProps) {
   const results = objects;
 
@@ -55,8 +63,8 @@ export function CommunityHome({
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
-          <h1 className="font-display text-xl text-forest-800 font-medium">Community LIVE</h1>
-          <p className="text-[0.85rem] text-sand-600 mt-0.5">Belong. Serve. Learn. Share what happened. Pass useful knowledge on.</p>
+          <h1 className="font-display text-xl text-forest-800 font-medium">{heading}</h1>
+          <p className="text-[0.85rem] text-sand-600 mt-0.5">{description}</p>
         </div>
 
         {/* Search is optional in production LIVE; broad cross-domain search has its own deliberate surface. */}
@@ -103,9 +111,9 @@ export function CommunityHome({
         >
           <span className="flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-600">
             <Sparkles className="w-3.5 h-3.5" />
-            What is happening, where can people help, or what did you learn?
+            {composerLabel}
           </span>
-          <p className="text-[0.72rem] text-sand-600 mt-0.5">Ask a useful question, share a need, tell a real work story, or invite people to help.</p>
+          <p className="text-[0.72rem] text-sand-600 mt-0.5">{composerDescription}</p>
         </button>
 
         {/* Needs & Opportunities */}
