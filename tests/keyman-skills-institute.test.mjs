@@ -127,7 +127,7 @@ const publicInstitute = fs.readFileSync(new URL('../src/features/institute/Publi
 const publicNav = fs.readFileSync(new URL('../src/features/public/PublicNav.tsx', import.meta.url), 'utf8');
 
 test('public Institute is useful before sign-in and keeps personal AI learning authenticated', () => {
-  assert.match(publicNav, />Institute</);
+  assert.doesNotMatch(publicNav, />Institute</); // signed-out nav stays intentionally minimal; public Institute is reached through the public experience doorway.
   assert.match(publicInstitute, /Learn from what people have actually done/);
   assert.match(publicInstitute, /Search knowledge/);
   assert.match(publicInstitute, /Public programmes/);
