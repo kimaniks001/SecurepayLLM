@@ -50,10 +50,12 @@ export function InstituteExperience({
   gateway,
   onNavigate,
   preferredSpaceId,
+  onOpenStoreOffer,
 }: {
   gateway: InstituteGateway;
   onNavigate: (view: AppView) => void;
   preferredSpaceId?: string | null;
+  onOpenStoreOffer: (canonicalKsNumber: string, offerId: string) => void;
 }) {
   const [mode, setMode] = useState<'learn' | 'my-learning' | 'teach' | 'master-support'>(preferredSpaceId ? 'teach' : 'learn');
   const [query, setQuery] = useState('');
@@ -143,7 +145,7 @@ export function InstituteExperience({
       {mode === 'master-support' && (
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-            <InstituteMasterSupport gateway={gateway} onNavigate={onNavigate} />
+            <InstituteMasterSupport gateway={gateway} onOpenStoreOffer={onOpenStoreOffer} />
           </div>
         </main>
       )}
@@ -215,7 +217,7 @@ export function InstituteExperience({
             <InstitutePrograms
               gateway={gateway}
               onStarted={() => setMode('my-learning')}
-              onNavigate={onNavigate}
+              onOpenStoreOffer={onOpenStoreOffer}
             />
           )}
 
