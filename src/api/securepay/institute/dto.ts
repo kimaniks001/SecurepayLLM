@@ -251,3 +251,30 @@ export interface InstituteKnowledgeCandidateDto {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export type InstituteSessionKind =
+  | 'PUBLIC_TALK' | 'LIVE_CLASS' | 'PRIVATE_SESSION' | 'WORKSHOP'
+  | 'COHORT' | 'MENTORING' | 'REVIEW' | 'PODCAST_LIVE';
+
+export type InstituteSessionVisibility = 'PUBLIC' | 'COMMUNITY' | 'PRIVATE';
+
+export interface InstituteSessionDto {
+  id: string;
+  spaceId: string;
+  programId: string | null;
+  hostIdentityId: string;
+  kind: InstituteSessionKind;
+  title: string;
+  description: string;
+  visibility: InstituteSessionVisibility;
+  accessMode: InstituteAccessMode;
+  commercialReference: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  capacity: number | null;
+  status: 'DRAFT' | 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  recordingAssetId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
