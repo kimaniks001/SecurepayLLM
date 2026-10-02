@@ -1,7 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
   BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
-  StoreProfileResponse, StoreSearchParams, UpdateStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
+  StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
 /**
