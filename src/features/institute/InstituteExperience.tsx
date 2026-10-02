@@ -49,11 +49,13 @@ function SourceCard({ source }: { source: InstituteSourceDto }) {
 export function InstituteExperience({
   gateway,
   onNavigate,
+  preferredSpaceId,
 }: {
   gateway: InstituteGateway;
   onNavigate: (view: AppView) => void;
+  preferredSpaceId?: string | null;
 }) {
-  const [mode, setMode] = useState<'learn' | 'my-learning' | 'teach' | 'master-support'>('learn');
+  const [mode, setMode] = useState<'learn' | 'my-learning' | 'teach' | 'master-support'>(preferredSpaceId ? 'teach' : 'learn');
   const [query, setQuery] = useState('');
   const [tagsText, setTagsText] = useState('');
   const [featured, setFeatured] = useState<InstituteSourceDto[]>([]);
@@ -133,7 +135,7 @@ export function InstituteExperience({
       {mode === 'teach' && (
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
-            <InstituteTeachStudio gateway={gateway} />
+            <InstituteTeachStudio gateway={gateway} preferredSpaceId={preferredSpaceId} />
           </div>
         </main>
       )}
