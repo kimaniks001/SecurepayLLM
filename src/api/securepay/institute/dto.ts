@@ -314,3 +314,18 @@ export interface InstituteProjectObservationDto {
   verifiedAt: string | null;
   createdAt: string;
 }
+
+
+export interface InstituteAiIndexedTagDto {
+  type: string;
+  value: string;
+  reason: string | null;
+  origin: 'AI_SUGGESTED';
+}
+
+export interface InstituteAiIndexResultDto {
+  assetId: string;
+  provider: string;
+  indexedAt: string;
+  tags: InstituteAiIndexedTagDto[];
+}
