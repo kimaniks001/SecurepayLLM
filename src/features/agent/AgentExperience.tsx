@@ -317,6 +317,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
   const [institute, setInstitute] = useState(false);
+  const [institutePreferredSpaceId, setInstitutePreferredSpaceId] = useState<string | null>(null);
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
@@ -541,6 +542,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const navigateTo = (view: AppView) => {
     setNotice(null);
     setInstitute(false);
+    setInstitutePreferredSpaceId(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
     setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); setVisionLibrary(false); setDreamHandoffError(null); // a scoped Help context never outlives its screen
@@ -812,6 +814,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // Community, then let the SAME real Agent conversation controller select the source.
         onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
         onJoinTrustProject={() => { setCommunity(false); joinRoute.open(); }}
+        onOpenInstituteSpace={spaceId => {
+          setCommunity(false);
+          setInstitutePreferredSpaceId(spaceId);
+          setInstitute(true);
+        }}
       />
     );
   }
@@ -845,7 +852,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }
 
   if (institute && sessionState.status === 'signed-in') {
-    return <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} />;
+    return <InstituteExperience gateway={instituteGateway} onNavigate={navigateTo} preferredSpaceId={institutePreferredSpaceId} />;
   }
 
   if (projects && sessionState.status === 'signed-in') {
