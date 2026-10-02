@@ -16,7 +16,6 @@ export function OpportunityChoicesCard({
   const [error, setError] = useState<string | null>(null);
   const [sharePurpose, setSharePurpose] = useState(true);
   const [shareLocation, setShareLocation] = useState(false);
-  const [shareParticipants, setShareParticipants] = useState(false);
   const [communityLive, setCommunityLive] = useState(true);
   const [whatsApp, setWhatsApp] = useState(false);
   const [participantStatement, setParticipantStatement] = useState('');
@@ -57,7 +56,6 @@ export function OpportunityChoicesCard({
         shareScope: {
           purpose_or_work_summary: sharePurpose,
           location: shareLocation,
-          participant_names: shareParticipants,
         },
         consentText: 'I allow only the selected information to be considered for Community Saver participation.',
       });
@@ -71,8 +69,8 @@ export function OpportunityChoicesCard({
     if (busy || permissionSaved) return;
     const channels = [communityLive ? 'COMMUNITY_LIVE' : null, whatsApp ? 'WHATSAPP' : null].filter((v): v is string => !!v);
     if (channels.length === 0) { setError('Choose at least one Outreach channel.'); return; }
-    const fields = [sharePurpose ? 'purpose_or_work_summary' : null, shareLocation ? 'location' : null, shareParticipants ? 'participant_names' : null]
-      .filter((v): v is string => !!v);
+    const fields = [sharePurpose ? 'purpose_or_work_summary' : null, shareLocation ? 'location' : null,
+      participantStatement.trim() ? 'participant_statement' : null].filter((v): v is string => !!v);
     if (fields.length === 0) { setError('Choose at least one item that may be shared.'); return; }
     setBusy('outreach'); setError(null);
     try {
@@ -103,7 +101,6 @@ export function OpportunityChoicesCard({
         <p className="text-sm font-medium text-forest-900">What may be shared?</p>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={sharePurpose} onChange={e => setSharePurpose(e.target.checked)} />Purpose / work summary</label>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={shareLocation} onChange={e => setShareLocation(e.target.checked)} />Location</label>
-        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={shareParticipants} onChange={e => setShareParticipants(e.target.checked)} />Participant names</label>
         {outreach ? <>
           <p className="pt-2 text-sm font-medium text-forest-900">Where may it be used?</p>
           <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={communityLive} onChange={e => setCommunityLive(e.target.checked)} />Community LIVE</label>
