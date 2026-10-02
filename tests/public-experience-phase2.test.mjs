@@ -36,7 +36,7 @@ const h = (component, props = {}, ...children) => api.createElement(component, p
 const html = element => api.renderToStaticMarkup(element);
 const text = markup => markup.replace(/<[^>]*>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 const noop = () => {};
-const actions = { home: noop, signIn: noop, section: noop, skipToKs001: noop };
+const actions = { home: noop, signIn: noop, join: noop, institute: noop, section: noop, skipToKs001: noop };
 const homeProps = { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, onFocusComposer: noop, onBrowseStores: noop, onSignIn: noop, onRecover: noop, onHelp: noop, onSection: noop };
 const publicHome = html(h(api.PublicHome, homeProps));
 const publicHomeText = text(publicHome);
@@ -44,16 +44,16 @@ const strip = src => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
 const publicFiles = async () => (await readdir('src/features/public')).map(f => `src/features/public/${f}`);
 
 // ------------------------------------------------------------------ PUBLIC NAV
-const APP_NAV = ['Agreements', 'Money', 'Store', 'Community', 'Institute', 'Account', 'Notifications', 'Projects', 'Vision Board'];
+const APP_NAV = ['Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications', 'Projects', 'Vision Board'];
 test('signed out: NavBar renders the public navigation and none of the signed-in app destinations', () => {
   const markup = html(h(api.PublicShellProvider, { value: actions }, h(api.NavBar, { view: 'signed-out', onNavigate: noop })));
   const out = text(markup);
-  for (const label of ['How it works', 'The Trust Project', 'For Business', 'Sign in', 'Skip to KS001']) assert.match(out, new RegExp(label));
+  for (const label of ['How it works', 'The Trust Project', 'For Business', 'Institute', 'Sign in', 'Skip to KS001']) assert.match(out, new RegExp(label));
   for (const label of APP_NAV) assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} must not appear in the public nav`);
   assert.doesNotMatch(markup, /fixed bottom-0/, 'no signed-out bottom navigation');
 });
-// Keyman Skills Institute V1 deliberately adds one first-class destination. The pre-existing
-// signed-in destinations must remain present and Institute must not leak into the public nav.
+// Skills Institute is a first-class signed-in workspace and also has a deliberate public source-first doorway.
+// The remaining signed-in destinations stay private.
 test('signed in (no public shell): Institute is added without removing existing destinations', () => {
   for (const view of ['signed-in', 'agreements', 'money', 'store', 'community', 'institute', 'account', 'notifications']) {
     const now = text(html(h(api.NavBar, { view, onNavigate: noop })));
