@@ -9,7 +9,7 @@ import type {
   InstituteSessionDto, InstituteSessionKind, InstituteSessionVisibility, InstitutePaidSessionPackageDto,
   InstituteProjectObservationDto, InstituteProjectObservationType, InstituteProjectObservationVisibility,
   InstituteProjectObservationVerification, InstituteAiIndexResultDto,
-  InstituteAssetContentDto, InstitutePublishedSourceDto,
+  InstituteAssetContentDto, InstitutePublishedSourceDto, InstituteExperienceSourceDto,
 } from './dto';
 
 export function createInstituteGateway(http: HttpClient) {
@@ -18,6 +18,12 @@ export function createInstituteGateway(http: HttpClient) {
       http.request<InstitutePublishedSourceDto>(`/api/v1/institute/public/assets/${encodeURIComponent(assetId)}`),
     readAsset: (assetId: string) =>
       http.request<InstitutePublishedSourceDto>(`/api/v1/institute/assets/${encodeURIComponent(assetId)}/read`, { auth: 'required' }),
+    readCommunityContribution: (contributionId: string) =>
+      http.request<InstituteExperienceSourceDto>(`/api/v1/institute/community-contributions/${encodeURIComponent(contributionId)}/read`, { auth: 'required' }),
+    publicProjectObservation: (projectId: string, observationId: string) =>
+      http.request<InstituteExperienceSourceDto>(`/api/v1/institute/public/project-observations/${encodeURIComponent(projectId)}/${encodeURIComponent(observationId)}`),
+    readProjectObservation: (projectId: string, observationId: string) =>
+      http.request<InstituteExperienceSourceDto>(`/api/v1/institute/project-observations/${encodeURIComponent(projectId)}/${encodeURIComponent(observationId)}/read`, { auth: 'required' }),
     publicSearch: (q: string, tags: string[] = [], limit = 10) => {
       const params = new URLSearchParams();
       if (q.trim()) params.set('q', q.trim());
