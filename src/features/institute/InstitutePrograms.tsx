@@ -73,7 +73,7 @@ export function InstitutePrograms({
                 <p className="mt-2 text-[0.82rem] leading-relaxed text-sand-600">{program.purpose}</p>
               </div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-50 px-2.5 py-1 text-[0.68rem] text-sand-600">
-                {accessIcon(program.accessMode)}{program.accessMode.replaceAll('_', ' ').toLowerCase()}
+                {accessIcon(program.accessMode)}{program.accessMode.replace(/_/g, ' ').toLowerCase()}
               </span>
             </div>
             <button
