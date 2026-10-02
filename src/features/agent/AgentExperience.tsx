@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
+import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
@@ -33,7 +34,7 @@ import type { ReferralGateway } from '../../api/securepay/referral';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
-import { deviceTimeZone, createAgentController, retryLabel } from './controller';
+import { deviceTimeZone, createAgentController, retryLabel, type AgentController } from './controller';
 import { ConversationSurface } from '../conversation/ConversationSurface';
 import { createInstrumentController } from '../instruments/controller';
 import { InstrumentHost } from '../instruments/ui/InstrumentHost';
@@ -53,12 +54,21 @@ import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
 import { ContinuityChoice } from './ContinuityChoice';
 import { clearComposerDrafts } from '../conversation/drafts';
+import type { SendResult } from '../conversation/ConversationSurface';
+import { conversationTitle, hasMeaningfulWork, isUnsaved, routeInput, startNewDecision } from '../entry/lifecycle';
+import { StartFreshDialog } from '../entry/StartFreshDialog';
+import { ContinueCard } from '../entry/ContinueCard';
+import { FairTradePrinciplesPanel } from '../../components/FairTradePrinciples';
 import { AgreementReview } from '../formation/AgreementReview';
+import { retryPending, submitCorrection } from '../formation/correction';
+import { MicroReview, type ResolveOutcome } from '../formation/MicroReview';
+import { nextStep } from '../formation/nextStep';
+import type { FormationOpenPoint, FormationSide } from '../formation/view';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
-import { createSourceController } from '../sources/controller';
+import { createSourceController, type SourceController } from '../sources/controller';
 import { SourceMenu } from '../sources/ui/SourceMenu';
 import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/DeclaredSourcePanel';
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
@@ -80,6 +90,10 @@ import type { ProjectGateway } from '../../api/securepay/projects';
 import { VisionBoardExperience } from '../visionboard/VisionBoardExperience';
 import { createVisionBoardController } from '../visionboard/controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
+import { VisionDreamHome } from '../visionboard/dreams/VisionDreamHome';
+import { createVisionDreamController } from '../visionboard/dreams/controller';
+import { prepareDreamHandoff } from '../visionboard/dreams/handoff';
+import type { VisionDreamGateway } from '../../api/securepay/visiondreams';
 import { AccountExperience } from '../account/AccountExperience';
 import { createAccountController } from '../account/controller';
 import { SettingsExperience } from '../settings/SettingsExperience';
@@ -133,6 +147,13 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
   </div>;
 }
 const noop = () => {};
+/** User-Ready Beta Gate 1 (EP-CERT-006) -- START NEW, always visible while working: an unrelated intention, never a reset of saved work. */
+function NewWorkButton({ onClick, compact = false }: { onClick: () => void; compact?: boolean }) {
+  return <button type="button" onClick={onClick} aria-label="New — start something unrelated" data-new-work
+    className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-forest-200 bg-white/90 ${compact ? 'px-3' : 'px-4'} text-[0.85rem] font-medium text-forest-700 shadow-soft hover:border-forest-300 hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300`}>
+    <Plus className="h-4 w-4" aria-hidden="true" />New
+  </button>;
+}
 type PublicShellBridge = ReturnType<typeof createPublicShellBridge>;
 
 /**
@@ -150,13 +171,14 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
+  visionDreamGateway: VisionDreamGateway;
   settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
@@ -172,6 +194,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
   const [formationController, setFormationController] = useState(() => createFormationController(gateway));
   const [reviewOpen, setReviewOpen] = useState(false);
+  // User-Ready Beta Gate 1 (EP-CERT-007) -- the ONE open point being decided in a micro-review, if any.
+  const [microReview, setMicroReview] = useState<string | null>(null);
+  // User-Ready Beta Gate 1 (decision D1) -- a new intention waiting on "Start fresh?" because unsaved work would be left behind.
+  const [freshIntent, setFreshIntent] = useState<null | ((set: { controller: AgentController; sourceController: SourceController }) => void)>(null);
+  // User-Ready Beta Gate 1 (EP-CERT-010) -- KS001's compass, opened from KS001 itself (never navigating away from the work).
+  const [compassOpen, setCompassOpen] = useState(false);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   // KS001 Upgrade Phase 2 (Sections 14-17) -- "Save for later" / "Continue Building". Reuses the SAME
   // identityController the handoff flow uses (one sign-in surface, not two), reset alongside it below.
@@ -200,10 +228,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [bringPlanDraft, setBringPlanDraft] = useState<{ text: string; label: string }>({ text: '', label: '' });
   // Public Experience Convergence Phase 3 (Slice 3B) -- the Link / Place form, one at a time.
   const [declaredOpen, setDeclaredOpen] = useState<DeclaredSourceKind | null>(null);
-  const openBringPlan = () => { setDeclaredOpen(null); setBringPlanOpen(true); };
-  const openDeclared = (kind: DeclaredSourceKind) => { setBringPlanOpen(false); setDeclaredOpen(kind); };
+  // User-Ready Beta Gate 1 (EP-CERT-014) -- a panel shows only the outcome of ITS OWN submission, never a stale error left
+  // by some other source (a failed DOCX must not reappear inside a later "Paste" or "Link" panel).
+  const [intakeError, setIntakeError] = useState<string | null>(null);
+  const [declaredDraft, setDeclaredDraft] = useState<{ value: string; label: string }>({ value: '', label: '' });
+  const openBringPlan = () => { setDeclaredOpen(null); setIntakeError(null); setBringPlanOpen(true); };
+  const openDeclared = (kind: DeclaredSourceKind) => { setBringPlanOpen(false); setIntakeError(null); setDeclaredDraft({ value: '', label: '' }); setDeclaredOpen(kind); };
   const [projectsController] = useState(() => createProjectsController(projectGateway));
   const [visionBoardController] = useState(() => createVisionBoardController(visionBoardGateway));
+  const [visionDreamController] = useState(() => createVisionDreamController(visionDreamGateway, gateway));
+  const visionDreamState = useSyncExternalStore(visionDreamController.subscribe, visionDreamController.getSnapshot);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   // Phase 1 Interaction Instruments: bound to the CURRENT conversation controller, so a new
   // conversation always starts with a fresh, closed instrument.
@@ -280,6 +314,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
+  const [visionLibrary, setVisionLibrary] = useState(false);
+  const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
   const [account, setAccount] = useState(false);
   const [settingsView, setSettingsView] = useState(false);
@@ -349,30 +385,115 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Entry Perfection Phase 6 -- refreshing what SecurePay understands refreshes the emerging agreement too, even when the
   // understanding's version is unchanged (a Store price or an open point can still have moved).
   const reviewing = () => { void controller.review(); if (state.conversationId) void formationController.load(state.conversationId); };
-  const startNewConversation = () => {
+  /**
+   * START NEW -- an unrelated intention. Replaces the ACTIVE workspace with fresh controllers (conversation, sources,
+   * formation/Review, handoff, identity, saved-build, instruments/discovery via their memo on the controller) and returns
+   * them, so the caller can put the new intention straight into the NEW conversation (never the old one -- EP-CERT-013).
+   * Saved work is untouched: it lives on the server and is reachable through Continue.
+   */
+  const startNewConversation = (): { controller: AgentController; sourceController: SourceController } => {
     instruments.cancel();
     discovery.close();
     const freshController = createAgentController(gateway, undefined, { timeZone: deviceTimeZone });
+    const freshSourceController = createSourceController(gateway, freshController.ensureConversationId, {
+      onSourceIngested: source => freshController.refreshAfterSourceIngestion(source),
+      onSourceChanged: () => void freshController.review(),
+    });
     setController(freshController);
     setHandoffController(createHandoffController(gateway));
     setFormationController(createFormationController(gateway));
     setReviewOpen(false);
     setIdentityController(createIdentityController(auth, session));
     setSavedBuildController(createSavedBuildController(gateway));
-    setSourceController(createSourceController(gateway, freshController.ensureConversationId, {
-      onSourceIngested: source => freshController.refreshAfterSourceIngestion(source),
-      onSourceChanged: () => void freshController.review(),
-    }));
+    setSourceController(freshSourceController);
     setBringPlanOpen(false);
     setBringPlanDraft({ text: "", label: "" });
     setDeclaredOpen(null);
     setNotice(null);
+    // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
+    setMobileTab('build');
+    setLastSeenStructuredTurnId(null);
+    setMicroReview(null);
+    setFreshIntent(null);
+    setDirectAck(null);
     // Phase 3 (Slice 3A) -- leaving a conversation on purpose leaves its anonymous access behind too.
     gateway.forgetResumableConversation?.();
     // Entry Perfection Phase 9 -- and any unsent words from it (a shared device's next person never sees them).
     clearComposerDrafts();
     setContinuityDismissed(false);
+    return { controller: freshController, sourceController: freshSourceController };
   };
+
+  // ---- User-Ready Beta Gate 1 -- START NEW / CONTINUE (EP-CERT-006/013, decision D1) and ONE universal input (EP-CERT-001).
+  type WorkSet = { controller: AgentController; sourceController: SourceController };
+  const currentSet = (): WorkSet => ({ controller, sourceController });
+  const meaningfulWork = hasMeaningfulWork({ turns: state.turns, sources: sourcesState.sources,
+    factCount: (state.context.data?.entities.length ?? 0) + (state.context.data?.relationships.length ?? 0) });
+  const unsavedWork = isUnsaved(state.conversationId, gateway.resumableConversationId?.() ?? null);
+  const currentTitle = conversationTitle(formationState.data?.what[0]?.value,
+    state.turns.map(turn => turn.sender === 'user' ? { sender: 'user', text: turn.text } : { sender: 'agent' }));
+  /**
+   * Runs a NEW intention in a fresh workspace. Nothing open: the current (empty) one. Unsaved meaningful work: ask first
+   * ("Start fresh?"), holding the intention until the person decides. Otherwise: start fresh cleanly. Returns whether it ran now.
+   */
+  const requestFresh = (run: (set: WorkSet) => void): boolean => {
+    const decision = startNewDecision({ conversationId: state.conversationId, unsaved: unsavedWork, meaningful: meaningfulWork });
+    if (decision === 'none') { run(currentSet()); return true; }
+    if (decision === 'confirm') { setFreshIntent(() => run); return false; }
+    run(startNewConversation());
+    return true;
+  };
+  /**
+   * The ONE input door: <= 1,200 characters is a conversational turn; longer is read in full as a pasted source (the person
+   * never chooses a transport). A source keeps the words until SecurePay has really read them; on failure they are kept.
+   */
+  const submitInput = (text: string, set: WorkSet = currentSet()): SendResult => {
+    if (routeInput(text) === 'source') {
+      return set.sourceController.addPastedText(text).then(outcome => {
+        // Nothing typed ever disappears: a read that FAILED keeps its text on the server (its card offers Try again); one that
+        // was refused or never confirmed (no card) re-opens the paste panel with the words and the reason, ready to retry.
+        if (!outcome.ok && !outcome.source) { setBringPlanDraft({ text, label: '' }); setIntakeError(outcome.error); setBringPlanOpen(true); }
+        return outcome.ok || !!outcome.source;
+      });
+    }
+    const snapshot = set.controller.getSnapshot();
+    if (snapshot.busy || snapshot.pending) return false;
+    void set.controller.send(text);
+    return true;
+  };
+  const startNewFromConversation = () => { requestFresh(() => setPendingComposerFocus(true)); };
+
+  // ---- User-Ready Beta Gate 1 -- settle ONE decision directly (EP-CERT-003/007, "direct conflict resolution").
+  // One stable clientActionId per intention (point + kept side + typed amount), reused by any retry: never applied twice.
+  const resolveActionIds = useRef(new Map<string, string>());
+  const [directAck, setDirectAck] = useState<string | null>(null);
+  useEffect(() => { setDirectAck(null); }, [lastTurnId]);
+  const resolveConflict = async (point: FormationOpenPoint, side: FormationSide, typed?: { amount: string; currency: string }): Promise<ResolveOutcome> => {
+    const formation = formationState.data;
+    if (!formation || !side.factId) return { ok: false, error: 'This can’t be settled here. Tell KS001 which is right.' };
+    const intention = `${point.id}|${side.factId}|${typed?.amount ?? ''}|${typed?.currency ?? ''}`;
+    const clientActionId = resolveActionIds.current.get(intention) ?? crypto.randomUUID();
+    resolveActionIds.current.set(intention, clientActionId);
+    const outcome = await controller.submitStructuredInput({
+      type: 'RESOLVE_CONFLICT', conflictId: point.id, expectedTradeContextVersion: formation.version, clientActionId,
+      ...(point.topic === 'DATE' ? { targetEntityId: side.factId } : { targetRelationshipId: side.factId }),
+      ...(typed ? { amount: typed.amount, currency: typed.currency } : {}),
+    });
+    if (outcome.ok) {
+      resolveActionIds.current.delete(intention);
+      if (state.conversationId) void formationController.load(state.conversationId);
+      setDirectAck(typed ? `Updated — ${typed.currency} ${Number(typed.amount).toLocaleString('en-KE')}.` : `Using ${side.value}${side.from ? `, from ${side.from}` : ''}.`);
+      return { ok: true };
+    }
+    return { ok: false, error: outcome.stale ? outcome.error : `${outcome.error} You can also tell KS001 which is right.` };
+  };
+  const tellKs001 = async (text: string): Promise<ResolveOutcome> => {
+    const result = await submitCorrection(controller, text);
+    return result.status === 'ok' ? { ok: true } : { ok: false, error: result.message };
+  };
+  const microPoint = microReview ? formationState.data?.openPoints.find(point => point.id === microReview) ?? null : null;
+  const step = nextStep(formationState.data);
+  const goNext = () => { if (step.kind === 'point') setMicroReview(step.point.id); else setReviewOpen(true); };
 
   // Entry Perfection Phase 8 (§28) -- signing out leaves the conversation behind: an unsaved conversation's possession secret
   // must never carry over to the next person on this device (a saved one is already unreachable once signed out).
@@ -418,7 +539,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setNotice(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
-    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); // a scoped Help context never outlives its screen
+    setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); setVisionLibrary(false); setDreamHandoffError(null); // a scoped Help context never outlives its screen
     // Final correction -- sensitive/one-time state must not survive leaving its own screen. Both
     // calls are no-ops (harmless re-render of an unmounted screen) except at the exact moment of
     // actually leaving Recovery or Developer; entering Recovery still separately calls reset() below
@@ -547,6 +668,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   const [continuityDismissed, setContinuityDismissed] = useState(false);
   const [continuityBusy, setContinuityBusy] = useState(false);
+  const [dreamClaimOpen, setDreamClaimOpen] = useState(false);
+  const [dreamClaimThought, setDreamClaimThought] = useState('');
   const resumableAnonymous = gateway.resumableConversationId?.() ?? null;
   const continuityChoice = signedIn && !continuityDismissed && !!resumableAnonymous && resumableAnonymous === state.conversationId
     && handoffState.phase === 'idle';
@@ -555,6 +678,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setContinuityBusy(true);
     try {
       await gateway.saveBuild(resumableAnonymous); // the ONE claim: explicit, with the possession proof, exactly once
+      setDreamClaimOpen(false);
       setContinuityDismissed(true);
     } catch {
       setNotice('SecurePay couldn’t save this to your account just now. It’s still here — try again.');
@@ -562,6 +686,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       setContinuityBusy(false);
     }
   };
+  const finishDreamClaim = (saved: Awaited<ReturnType<typeof visionDreamController.retry>>) => {
+    if (!saved) return;
+    setContinuityDismissed(true); setDreamClaimOpen(false); setDreamClaimThought('');
+    setDreamHandoffError(null); setVisionBoard(true); setHome(false);
+  };
+  const saveTemporaryAsDream = async () => {
+    if (!resumableAnonymous) return;
+    finishDreamClaim(await visionDreamController.claimExisting(resumableAnonymous, dreamClaimThought));
+  };
+  const retryTemporaryDream = async () => finishDreamClaim(await visionDreamController.retry());
+  const reconcileTemporaryDream = async () => finishDreamClaim(await visionDreamController.reconcilePending());
 
   if (joinRoute.value) {
     return (
@@ -627,12 +762,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return (
       <StoreExperience
         gateway={storeGateway}
+        businessGateway={businessGateway}
+        marketNetworkGateway={marketNetworkGateway}
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onUseOffer={fact => { setStore(false); setHome(false); void controller.useOffer(fact); }}
+        onOpenBusinessVision={businessKsNumber => {
+          setStore(false);
+          setVisionLibrary(true);
+          void visionBoardController.loadForOwner(businessKsNumber);
+        }}
       />
     );
   }
@@ -646,6 +788,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
         onOpenCircle={() => navigateTo('circle')}
+        onInvokeKs001InCircle={circleId => {
+          void gateway.createCircleConversation(circleId).then(created => {
+            setCommunity(false);
+            setHome(false);
+            if (created.conversationId) void controller.resumeConversation(created.conversationId);
+          });
+        }}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => { setStoreOfferRoute({ canonicalKsNumber, offerId }); navigateTo('store'); }}
         // Phase 6 Slice 4 (Community → Trade) -- mirrors onUseOffer's own pattern exactly: leave
         // Community, then let the SAME real Agent conversation controller select the source.
@@ -697,9 +846,28 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   if (visionBoard && sessionState.status === 'signed-in') {
     return (
+      <VisionDreamHome
+        controller={visionDreamController}
+        handoffError={dreamHandoffError}
+        onContinue={continuation => {
+          setDreamHandoffError(null);
+          void prepareDreamHandoff(controller, continuation).then(result => {
+            if (result.ok) { setVisionBoard(false); setHome(false); return; }
+            setDreamHandoffError(result.error);
+          });
+        }}
+        onOpenLibrary={() => { setDreamHandoffError(null); setVisionBoard(false); setVisionLibrary(true); }}
+        onNavigate={navigateTo}
+      />
+    );
+  }
+
+  if (visionLibrary && sessionState.status === 'signed-in') {
+    return (
       <VisionBoardExperience
         controller={visionBoardController}
         documentGateway={visionBoardGateway}
+        defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
       />
     );
@@ -829,7 +997,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         ? <div className="space-y-3">{structuredComponents.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>
         : null}
       stillToDecide={<div className="space-y-3">
-        <UnderstoodWorkbench state={state} controller={controller} activeSpec={instrumentState.active} onOpen={openInstrument} onFind={(kind, what) => openDiscovery({ ...emptyQuery(kind), what: what ?? '' }, !!what)} stillToSettle={preview?.stillToSettle} notes={preview?.disclaimer} />
+        <UnderstoodWorkbench state={state} controller={controller} activeSpec={instrumentState.active} onOpen={openInstrument} onFind={(kind, what) => openDiscovery({ ...emptyQuery(kind), what: what ?? '' }, !!what)} stillToSettle={preview?.stillToSettle} notes={preview?.disclaimer}
+          onResolve={concept => {
+            const point = formationState.data?.openPoints.find(p => p.kind === 'CONFLICT' && p.text.toLowerCase().startsWith(concept.toLowerCase()));
+            return point ? () => setMicroReview(point.id) : null;
+          }} />
         {workbenchModel.empty && preview && <RichResponse component={preview} onReview={reviewing} />}
         {panelRest.length > 0 && <div className="space-y-3">{panelRest.map((component, i) => <RichResponse key={i} component={component} onReview={reviewing} />)}</div>}
       </div>}
@@ -842,37 +1014,60 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // person would land back on the generic Home prompt with no visible sign their offer was used.
   const showHome = home || (state.turns.length === 0 && !state.conversationId);
   // The "Bring your plan" panel, opened from either Home's intake.
+  // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the panel, the text
+  // and the reason on screen so the person can try again or change it. From Home it is a NEW intention (EP-CERT-013).
+  const submitPlan = (text: string, label: string, set: WorkSet) => {
+    setBringPlanDraft({ text, label });
+    setBringPlanOpen(true);
+    setIntakeError(null);
+    void set.sourceController.addPastedText(text, label || undefined).then(outcome => {
+      if (outcome.ok) { setBringPlanOpen(false); setBringPlanDraft({ text: '', label: '' }); } else setIntakeError(outcome.error);
+    });
+  };
   const bringPlanPanel = bringPlanOpen ? (
     <BringPlanPanel
       busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-      error={sourcesState.phase === 'error' ? sourcesState.error : null}
+      error={intakeError}
       onClose={() => setBringPlanOpen(false)}
       initialText={bringPlanDraft.text}
       initialLabel={bringPlanDraft.label}
       onSubmit={(text, label) => {
         setBringPlanDraft({ text, label });
-        // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the
-        // panel, the text and the reason on screen so the person can try again or change it.
-        void sourceController.addPastedText(text, label || undefined).then(outcome => {
-          if (outcome.ok) { setBringPlanOpen(false); setBringPlanDraft({ text: '', label: '' }); }
-        });
+        requestFresh(set => { setHome(false); submitPlan(text, label, set); });
       }}
     />
   ) : null;
   const declaredPanel = declaredOpen ? (
     <DeclaredSourcePanel
-      key={declaredOpen}
+      key={`${declaredOpen}:${state.conversationId ?? 'new'}`}
       kind={declaredOpen}
       busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-      error={sourcesState.phase === 'error' ? sourcesState.error : null}
+      error={intakeError}
+      initialValue={declaredDraft.value}
+      initialLabel={declaredDraft.label}
       onClose={() => setDeclaredOpen(null)}
       onSubmit={(value, label) => {
-        const outcome = declaredOpen === 'link' ? sourceController.addLink(value, label || undefined) : sourceController.addPlace(value);
-        void outcome.then(result => { if (result.ok) { setDeclaredOpen(null); setHome(false); } });
+        const kind = declaredOpen;
+        const add = (set: WorkSet) => {
+          setDeclaredDraft({ value, label });
+          setDeclaredOpen(kind);
+          setIntakeError(null);
+          const outcome = kind === 'link' ? set.sourceController.addLink(value, label || undefined) : set.sourceController.addPlace(value);
+          void outcome.then(result => {
+            if (result.ok) { setDeclaredOpen(null); setDeclaredDraft({ value: '', label: '' }); setHome(false); } else setIntakeError(result.error);
+          });
+        };
+        // From Home, a link or place starts something new; inside a conversation it belongs to that conversation.
+        if (showHome) requestFresh(add); else add(currentSet());
       }}
     />
   ) : null;
-  const startFromHome = (text: string) => { setHome(false); if (!state.busy && !state.pending) void controller.send(text); };
+  // EP-CERT-013 -- the Home composer ALWAYS starts something new; continuing earlier work is the separate Continue action.
+  const startFromHome = (text: string): SendResult => {
+    let result: SendResult = false;
+    const ran = requestFresh(set => { setHome(false); result = submitInput(text, set); });
+    return ran ? result : false;
+  };
   // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions straight into
   // the SAME conversation experience the free-text composer would, then immediately opens the relevant
   // source-ingestion path -- never a sign-in wall in front of BUILD.
@@ -881,21 +1076,31 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // ON Home; submitting it calls sourceController.addPastedText, whose own ensureConversationId creates the
   // ONE real conversation and updates state.conversationId, which is what naturally flips showHome to false
   // and lands the person in BUILD -- exactly the same real transition Document/Photo already produce.
-  const pickDocument = (file: File) => { setHome(false); void sourceController.addUpload('DOCUMENT', file); };
-  const pickPhoto = (file: File) => { setHome(false); void sourceController.addUpload('PHOTO', file); };
+  const pickDocument = (file: File) => { requestFresh(set => { setHome(false); void set.sourceController.addUpload('DOCUMENT', file); }); };
+  const pickPhoto = (file: File) => { requestFresh(set => { setHome(false); void set.sourceController.addUpload('PHOTO', file); }); };
+  const resumeSaved = (conversationId: string) => {
+    if (conversationId === state.conversationId) { setHome(false); return; }
+    requestFresh(set => { setHome(false); void set.controller.resumeConversation(conversationId); });
+  };
+  // EP-CERT-013 -- Home shows CONTINUE (explicit, separate) whenever this tab holds meaningful work, and the universal
+  // composer below it always starts something NEW. The composer is only disabled while a brand-new first step is in flight.
+  const continueSlot = state.conversationId && meaningfulWork
+    ? <ContinueCard title={currentTitle} detail={unsavedWork ? 'Not saved yet' : null} onContinue={() => setHome(false)} />
+    : null;
+  const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
   // Public Experience Convergence Phase 2 -- the signed-in app reserves room for its mobile bottom
   // navigation; the public shell has none.
   return <div className={`h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
-      {state.turns.length > 0 && <button onClick={() => setHome(false)} className="px-6 py-3 text-forest-700 underline">Return to conversation</button>}
       {signedIn ? <>
         {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
             Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
-        <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={conversationId => { setHome(false); void controller.resumeConversation(conversationId); }} /></div>
+        <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         <SignedOutHome
-          disabled={state.busy || !!state.pending}
+          continueSlot={continueSlot}
+          disabled={homeDisabled}
           onStart={startFromHome}
           onBringPlan={openBringPlan}
           onPickDocument={pickDocument}
@@ -919,7 +1124,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
         // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
         <PublicHome
-          disabled={state.busy || !!state.pending}
+          continueSlot={continueSlot}
+          disabled={homeDisabled}
           onStart={startFromHome}
           onBringPlan={openBringPlan}
           onPickDocument={pickDocument}
@@ -943,10 +1149,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           (which hides the desktop identity block below) still clearly shows who the person is
           talking to -- one coherent header, not a second bulky bar. */}
       <div className="md:hidden sticky top-0 z-10 bg-cream-50 border-b border-cream-200/60">
-        <div className="flex items-center gap-2 px-3 pt-2 pb-1.5">
-          <img src={securepayMark} alt="" className={`w-5 h-5 ${state.busy ? 'animate-pulse-soft' : ''}`} />
-          <span className="font-display text-[0.8rem] text-forest-800">KS001</span>
-          <span className="text-[0.65rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</span>
+        {/* User-Ready Beta Gate 1 (EP-CERT-006/010) -- who you are talking to, what this conversation is, and + New. */}
+        <div className="flex items-center gap-2 px-3 pt-1.5 pb-1">
+          <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <button type="button" onClick={() => setCompassOpen(true)} aria-label="KS001, guided by the 12 Principles of Fair Trade"
+            className="min-h-11 min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded-lg">
+            <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : currentTitle}</span></span>
+            <span className="block text-[0.65rem] text-sand-600 underline decoration-sand-300 underline-offset-2">Guided by the 12 Principles of Fair Trade</span>
+          </button>
+          <NewWorkButton onClick={startNewFromConversation} compact />
         </div>
         <div className="flex">
           <button
@@ -976,9 +1187,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             conversation. Reuses the one real, canonical SecurePay mark asset -- no generic
             silhouette, no separately-drawn avatar. Mobile's equivalent identity row is in the
             sticky header above. */}
-        <div className="hidden md:flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
-          <img src={securepayMark} alt="" className={`w-7 h-7 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
-          <div><div className="font-display text-sm text-forest-800">KS001</div><div className="text-[0.7rem] text-sand-500">{state.busy ? 'thinking' : 'listening'}</div></div>
+        <div className="hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-cream-200/60">
+          <img src={securepayMark} alt="" className={`w-7 h-7 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-sm text-forest-800">KS001</span>
+              {/* EP-CERT-010 -- KS001 is the voice, the 12 Principles are its compass: one identity, one tap, no navigation. */}
+              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-600 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
+              <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
+            </div>
+            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
+          </div>
+          <NewWorkButton onClick={startNewFromConversation} />
         </div>
         {/* Mobile: what SecurePay understands is one tap away, never a second copy of the desktop panel. */}
         {workbenchModel.items.length > 0 && <button onClick={openUnderstood} className="md:hidden mx-4 mt-3 flex min-h-11 items-center justify-between rounded-xl border border-cream-200 bg-white/80 px-3.5 text-left text-[0.85rem] text-forest-700 shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
@@ -989,7 +1209,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             checking={formationState.checking} error={formationState.error}
             onBack={() => { setReviewOpen(false); setComposerFocusKey(key => key + 1); }}
             onCheck={pointId => { if (state.conversationId) void formationController.check(state.conversationId, pointId); }}
-            onCorrect={text => void controller.send(text)}
+            onCorrect={text => submitCorrection(controller, text)}
+            onRetryCorrection={() => retryPending(controller)}
+            onResolve={(point, side) => resolveConflict(point, side)}
+            onOpenPoint={point => setMicroReview(point.id)}
             onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
             onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
             settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
@@ -999,14 +1222,50 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
             thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
-            disabled={state.busy || !!state.pending} onSend={text => void controller.send(text)} composerFocusKey={composerFocusKey}
+            disabled={state.busy || !!state.pending} onSend={text => submitInput(text)} composerFocusKey={composerFocusKey}
             draftKey={state.conversationId ?? 'new'}
+            leading={<SourceMenu
+              placement="above"
+              disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
+              onBringPlan={openBringPlan}
+              onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
+              onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+              onAddLink={() => openDeclared('link')}
+              onAddPlace={() => openDeclared('place')}
+            />}
             status={<div className="space-y-3">
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
-              {continuityChoice && <ContinuityChoice busy={continuityBusy} onContinue={() => void continueWithThisTab()}
-                onStartFresh={() => startNewConversation()} />}
+              {continuityChoice && <div className="space-y-2">
+                <ContinuityChoice busy={continuityBusy || dreamClaimOpen || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling' || !!visionDreamState.pending}
+                  onContinue={() => void continueWithThisTab()} onStartFresh={() => startNewConversation()} />
+                {!dreamClaimOpen ? <button type="button" onClick={() => { setDreamClaimThought(''); setDreamClaimOpen(true); }}
+                  className="min-h-11 text-[0.8rem] text-forest-700 underline underline-offset-2">Save as a private Dream instead</button>
+                : <div className="rounded-2xl border border-cream-200 bg-white p-4 space-y-3">
+                  <div><p className="text-sm font-medium text-forest-800">Save this as a private Dream</p>
+                    <p className="text-xs text-sand-600 mt-1">Write the thought you want to remember. This saves a private Vision IDEA from this same temporary conversation; it does not turn the note into an Agreement fact or send another KS001 message.</p></div>
+                  <textarea value={dreamClaimThought} onChange={event => setDreamClaimThought(event.target.value)}
+                    disabled={!!visionDreamState.pending || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'}
+                    maxLength={4000} rows={4} aria-label="Dream to remember"
+                    className="w-full rounded-xl border border-cream-200 p-3 text-sm text-forest-800 disabled:opacity-60"
+                    placeholder="What do you want to remember from this idea?" />
+                  <p className="text-xs text-sand-500">{dreamClaimThought.length} / 4,000</p>
+                  {visionDreamState.error && <StatusNotice tone="warning" icon={false}>{visionDreamState.error}</StatusNotice>}
+                  <div className="flex flex-wrap gap-2">
+                    {!visionDreamState.pending && <button type="button" disabled={!dreamClaimThought.trim() || visionDreamState.phase === 'saving'} onClick={() => void saveTemporaryAsDream()}
+                      className="min-h-11 rounded-xl bg-forest-700 px-4 text-sm font-medium text-white disabled:opacity-50">{visionDreamState.phase === 'saving' ? 'Saving…' : 'Save Dream'}</button>}
+                    {visionDreamState.pending && <button type="button" disabled={visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'} onClick={() => void retryTemporaryDream()}
+                      className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm text-forest-700 disabled:opacity-50">Retry same save</button>}
+                    {visionDreamState.pending?.conversationId && <button type="button" disabled={visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling'} onClick={() => void reconcileTemporaryDream()}
+                      className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm text-forest-700 disabled:opacity-50">{visionDreamState.phase === 'reconciling' ? 'Checking…' : 'Check if it saved'}</button>}
+                    {!visionDreamState.pending && <button type="button" onClick={() => setDreamClaimOpen(false)} className="min-h-11 px-3 text-sm text-sand-600 underline">Cancel</button>}
+                  </div>
+                </div>}
+              </div>}
               <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)}
+                onResolvePoint={point => setMicroReview(point.id)}
                 onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
+              {directAck && <p role="status" className="text-[0.85rem] text-forest-800"><span className="font-display">KS001 · </span>{directAck}
+                <button type="button" onClick={() => setDirectAck(null)} className="ml-2 min-h-11 text-[0.8rem] text-sand-700 underline">OK</button></p>}
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
@@ -1038,24 +1297,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     success (Section 65). */}
                 {/* Opens downward: this row sits at the TOP of the scrolling conversation panel, where an upward
                     menu would be clipped (found in live Phase 3 verification). */}
-                <SourceMenu
-                  placement="below"
-                  disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-                  onBringPlan={openBringPlan}
-                  onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
-                  onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
-                  onAddLink={() => openDeclared('link')}
-                  onAddPlace={() => openDeclared('place')}
-                />
-                <button disabled={state.busy} onClick={reviewing} className="min-h-11 underline disabled:opacity-40">Refresh what we have</button>
+                {/* REFRESH re-reads SecurePay's current understanding. It never resets or starts anything (that is + New). */}
+                <button disabled={state.busy} onClick={reviewing} aria-label="Refresh what SecurePay understands" className="min-h-11 underline disabled:opacity-40">Refresh</button>
                 {/* Entry Perfection Phase 6 -- REVIEW THIS opens the emerging agreement itself (no sign-in, nothing created);
                     setting it up securely is a separate, explicit step inside Review. */}
+                {/* User-Ready Beta Gate 1 -- the actual next step ("Resolve price", "Review 2 points", "Review agreement"). */}
                 <button
                   disabled={!state.conversationId || state.busy || !!state.pending || !formationState.data?.reviewable}
-                  onClick={() => setReviewOpen(true)}
+                  onClick={goNext}
                   className="min-h-11 underline disabled:opacity-40"
                 >
-                  Review this
+                  {step.kind === 'none' ? 'Review agreement' : step.label}
                 </button>
                 {/* KS001 Upgrade Phase 5 continuation (Slice 3, UR-145) -- "Review this" is correctly
                     disabled while a suggested (not-yet-confirmed) WHAT still needs the person's own
@@ -1084,21 +1336,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 >
                   {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
                 </button>
-                <button disabled={state.busy} onClick={startNewConversation} className="min-h-11 text-sand-500 underline disabled:opacity-40">Start new conversation</button>
               </div>
               {bringPlanOpen && (
                 <BringPlanPanel
                   busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-                  error={sourcesState.phase === 'error' ? sourcesState.error : null}
+                  error={intakeError}
                   onClose={() => setBringPlanOpen(false)}
                   initialText={bringPlanDraft.text}
                   initialLabel={bringPlanDraft.label}
-                  onSubmit={(text, label) => {
-                    setBringPlanDraft({ text, label });
-                    void sourceController.addPastedText(text, label || undefined).then(outcome => {
-                      if (outcome.ok) { setBringPlanOpen(false); setBringPlanDraft({ text: '', label: '' }); }
-                    });
-                  }}
+                  onSubmit={(text, label) => submitPlan(text, label, currentSet())}
                 />
               )}
               {declaredPanel}
@@ -1109,11 +1355,20 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
+                // EP-CERT-015 -- "Start fresh" fits when nothing else is here yet: only the failed source(s), no words, no facts.
+                onStartFresh={!state.turns.some(turn => turn.sender === 'user') && workbenchModel.items.length === 0
+                  && sourcesState.sources.every(source => source.extractionStatus === 'REMOVED' || source.extractionStatus === 'FAILED' || source.stalled)
+                  ? startNewFromConversation : undefined}
                 factCountsBySourceId={sourceFactCounts}
               />
               {/* Entry Perfection Phase 2 -- an interrupted or still-running read is "checking", never shown as failed. */}
               {sourcesState.phase === 'checking' && <p role="status" className="text-[0.8rem] text-sand-700">SecurePay is checking whether it has finished reading this — nothing will be added twice.</p>}
-              {sourcesState.phase === 'error' && !bringPlanOpen && !declaredOpen && <p role="alert" className="text-[0.8rem] text-ember-700">{sourcesState.error}</p>}
+              {/* EP-CERT-014 -- only when no source card already says it (refused before reading, a connection problem), and
+                  always dismissible: a failure never blocks chatting, adding another source or starting new work. */}
+              {sourcesState.phase === 'error' && !sourcesState.errorSourceId && !bringPlanOpen && !declaredOpen && <div role="alert" className="flex items-start justify-between gap-2 text-[0.82rem] text-ember-800">
+                <span>{sourcesState.error}</span>
+                <button type="button" onClick={() => sourceController.clearError()} className="min-h-11 shrink-0 px-1 text-[0.8rem] text-forest-700 underline">Dismiss</button>
+              </div>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
             </div>}>
@@ -1141,7 +1396,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           </ConversationSurface>
         </div>}
       </div>
-      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-50 bg-ks001-surface min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`}>
+      {/* User-Ready Beta Gate 1 -- WORKSPACE ARCHITECTURE: what SecurePay understands is a slightly recessed plane (level 1);
+          facts sit above it (level 2) and decisions rise above ordinary facts (level 3). */}
+      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 surface-region min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`} data-understood-plane>
         <div className="md:hidden">{understoodContent}</div>
         <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
           {/* Product doctrine (task section 4): the overall panel title is always "What SecurePay
@@ -1163,5 +1420,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     <InstrumentHost controller={instruments} agentBusy={state.busy} agentUncertain={!!state.pending} panelSlot={panelSlot}
       onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }}
       onFind={() => { instruments.cancel(); openDiscovery(emptyQuery('SERVICE')); }} />
+    {freshIntent && <StartFreshDialog title={currentTitle} busy={savedBuildState.phase === 'saving'}
+      onStay={() => setFreshIntent(null)}
+      onSave={() => { const id = state.conversationId; setFreshIntent(null); setHome(false); if (id) void savedBuildController.save(id); }}
+      onStartFresh={() => { const run = freshIntent; run(startNewConversation()); }} />}
+    {compassOpen && <FairTradePrinciplesPanel withKs001 onClose={() => setCompassOpen(false)} />}
+    {microPoint && <MicroReview point={microPoint} busy={state.busy}
+      onUse={(side, typed) => resolveConflict(microPoint, side, typed)}
+      onTell={tellKs001}
+      onCheck={microPoint.checkable && state.conversationId ? () => { void formationController.check(state.conversationId!, microPoint.id); } : undefined}
+      onClose={() => setMicroReview(null)} />}
   </div>;
 }

@@ -61,17 +61,17 @@ function fullGateway(overrides = {}) {
 
 // ─── A/B/K. Real search endpoint, no ranking, no fixture fallback ─────────────────────────
 
-test('A. Empty-query browse fans out across both real kinds via the real Store endpoint, never fixture data', async () => {
+test('A. Empty-query browse fans out across all real Store kinds via the real Store endpoint, never fixture data', async () => {
   const calls = [];
   const controller = api.createStoreController(fullGateway({
     search: async params => { calls.push(params); return [searchResult({ offer: publicOfferView({ id: `offer-${params.kind}` }) })]; },
   }));
   await controller.enter();
-  assert.deepEqual(calls.map(c => c.kind).sort(), ['PRODUCT', 'SERVICE']);
+  assert.deepEqual(calls.map(c => c.kind).sort(), ['CAPACITY', 'PRODUCT', 'SERVICE']);
   assert.equal(calls.every(c => c.category === undefined && c.location === undefined), true);
   const state = controller.getSnapshot();
   assert.equal(state.search.status, 'ready');
-  assert.equal(state.search.data.length, 2);
+  assert.equal(state.search.data.length, 3);
   // Every rendered fact traces to the real DTO field, never a demoOffers/demoStores title.
   assert.ok(state.search.data.every(r => r.offer.title === 'CCTV installation'));
 });
@@ -81,7 +81,7 @@ test('A2. A typed query fans out across category and location for each kind (nev
   const controller = api.createStoreController(fullGateway({ search: async params => { calls.push(params); return []; } }));
   controller.setQuery('security');
   await controller.submitSearch();
-  assert.equal(calls.length, 4); // 2 kinds x {category-only, location-only}
+  assert.equal(calls.length, 6); // 3 kinds x {category-only, location-only}
   for (const call of calls) assert.equal(!!call.category && !!call.location, false, 'category and location must never both be set on one request');
 });
 

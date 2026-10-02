@@ -2,7 +2,7 @@ import { discoveryView, type DiscoveryView } from './discovery';
 import { instrumentComponentView, type InstrumentPromptView, type UnavailableInputView } from './instruments';
 import type { MessageResponse } from '../../../types';
 import { ApiError } from '../http';
-import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceExtractionStatus, AgentSourceKind, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, ConversationHistoryEntryDto, ConversationHistoryResponseDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, SourceReferenceDto, TradeContextDto } from './dto';
+import type { AgentAgreementsHomeFocus, AgentAgreementsHomeViewDto, AgentAgreementWorkspaceFocus, AgentAgreementWorkspaceViewDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceExtractionStatus, AgentSourceKind, AgreementReviewResponseDto, AgreementSufficiencyDto, AgreementSufficiencyState, ComponentDto, ConversationHistoryEntryDto, ConversationHistoryResponseDto, HandoffDto, HandoffOpenMatterDto, HandoffStatus, OpenMatterDto, RelationshipDto, ReviewedSourceDto, ReviewFactDto, SavedBuildDto, SourceReferenceDto, TradeContextDto } from './dto';
 
 export interface PreviewView {
   type: 'AGREEMENT_PREVIEW';
@@ -157,13 +157,24 @@ export function tradeContextView(dto: TradeContextDto) {
   const stringMap = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value) && Object.values(value).every(item => typeof item === 'string');
   if (!dto || typeof dto.conversationId !== 'string' || !Number.isSafeInteger(dto.version)
     || !Array.isArray(dto.entities) || !Array.isArray(dto.relationships)
-    || dto.entities.some(entity => !entity || typeof entity.id !== 'string' || typeof entity.type !== 'string' || typeof entity.name !== 'string' || typeof entity.state !== 'string' || !stringMap(entity.attributes))
-    || dto.relationships.some(relation => !relation || typeof relation.id !== 'string' || typeof relation.kind !== 'string' || typeof relation.subjectEntityId !== 'string' || (relation.objectEntityId != null && typeof relation.objectEntityId !== 'string') || typeof relation.state !== 'string' || !stringMap(relation.qualifiers))) {
+    || dto.entities.some(entity => !entity || typeof entity.id !== 'string' || typeof entity.type !== 'string' || typeof entity.name !== 'string' || typeof entity.state !== 'string' || !stringMap(entity.attributes))) {
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Trade Context. Please refresh.');
+  }
+  // User-Ready Beta Gate 1 Phase 1.10 -- fail soft per relationship. Observed live: a CONDITION with NO subject ("work is complete
+  // when ...") is a legitimate, context-wide relationship, and rejecting it made the whole understanding unreadable ("That didn't go
+  // through") in 3 of 24 campaign conversations. A missing subject/object is null (never invented); a genuinely malformed
+  // relationship is omitted from the view -- every other fact still shows -- and reported to developers only.
+  const readable = (relation: RelationshipDto) => !!relation && typeof relation.id === 'string' && typeof relation.kind === 'string'
+    && (relation.subjectEntityId == null || typeof relation.subjectEntityId === 'string')
+    && (relation.objectEntityId == null || typeof relation.objectEntityId === 'string')
+    && typeof relation.state === 'string' && stringMap(relation.qualifiers);
+  const relationships = dto.relationships.filter(readable);
+  if (relationships.length < dto.relationships.length) {
+    console.warn(`[SecurePay] ${dto.relationships.length - relationships.length} unreadable relationship(s) omitted from the understanding view`);
   }
   const facts = [
     ...dto.entities.map(entity => ({ id: entity.id, targetKind: 'ENTITY' as const, label: entity.type, value: entity.name, state: entity.state, provenance: entity.attributes })),
-    ...dto.relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId, objectId: relation.objectEntityId ?? null }, state: relation.state, provenance: relation.qualifiers })),
+    ...relationships.map(relation => ({ id: relation.id, targetKind: 'RELATIONSHIP' as const, label: relation.kind, value: { subjectId: relation.subjectEntityId ?? null, objectId: relation.objectEntityId ?? null }, state: relation.state, provenance: relation.qualifiers })),
   ];
   // KS001 Upgrade Phase 1 final integration fix -- bounded discovery interaction state (never a Trade
   // Context attribute). Absent/malformed is treated the same as an empty list (a legacy conversation
@@ -180,7 +191,7 @@ export function tradeContextView(dto: TradeContextDto) {
   // an unvalidated shape.
   return { conversationId: dto.conversationId, version: dto.version, facts,
     entities: dto.entities.map(entity => ({ ...entity, source: sourceReferenceView(entity.source) })),
-    relationships: dto.relationships.map(relation => ({ ...relation, objectEntityId: relation.objectEntityId ?? null, source: sourceReferenceView(relation.source) })),
+    relationships: relationships.map(relation => ({ ...relation, subjectEntityId: relation.subjectEntityId ?? null, objectEntityId: relation.objectEntityId ?? null, source: sourceReferenceView(relation.source) })),
     candidates: facts.filter(fact => fact.state === 'CANDIDATE'),
     confirmed: facts.filter(fact => fact.state === 'CONFIRMED'),
     interactionState: { discoveryInvitedEntityIds },

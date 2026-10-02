@@ -5,7 +5,9 @@
  * worth weakening that. Cleared on sign-out and on "Start new conversation".
  */
 const drafts = new Map<string, string>();
-const MAX_DRAFT_CHARS = 1200;
+// User-Ready Beta Gate 1 (EP-CERT-001) -- a draft may be a long paste on its way to being read as a source; it is kept whole
+// (the pasted-source limit), never cut at the chat turn size.
+const MAX_DRAFT_CHARS = 200_000;
 
 export function readDraft(key?: string): string {
   return key ? drafts.get(key) ?? '' : '';

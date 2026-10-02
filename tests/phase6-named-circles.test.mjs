@@ -375,10 +375,10 @@ test('the create-Circle UI offers visibility as a SEPARATE choice from membershi
   assert.match(contents, /Who can find this Circle\?/);
 });
 
-test('the invite-only copy correction: the Circle owner, never "an existing member", is named as the real invitation authority', async () => {
+test('invite-only copy names a real Circle steward, never any existing member, as invitation authority', async () => {
   const contents = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
   assert.doesNotMatch(contents, /an existing member must invite you/);
-  assert.match(contents, /The Circle owner must invite you before you can join/);
+  assert.match(contents, /A Circle steward must invite you before you can join/);
 });
 
 test('the Circle-scoped post Close action is driven by the server-derived canClose field, never the LIVE-only ownObjectIds set', async () => {

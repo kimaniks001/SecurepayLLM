@@ -15,6 +15,8 @@ import type { HttpClient } from '../http';
  */
 export type NotificationCategory = 'AGREEMENTS' | 'MONEY' | 'REVIEWS' | 'SECURITY' | 'COMMUNITY' | 'SUPPORT';
 export type NotificationPriority = 'NORMAL' | 'HIGH';
+export type NotificationPurpose = 'KNOW' | 'DECIDE' | 'DO' | 'REMEMBER';
+export type NotificationImportance = 'CRITICAL' | 'ACTION_REQUIRED' | 'IMPORTANT' | 'FYI' | 'OPTIONAL';
 
 /**
  * PHASE 4 Care convergence (Section 2) — the CLOSED navigation-hint vocabulary a notification's
@@ -39,6 +41,8 @@ export interface NotificationEvent {
   category: NotificationCategory;
   eventKey: string;
   priority: NotificationPriority;
+  purpose: NotificationPurpose;
+  importance: NotificationImportance;
   title: string;
   body: string;
   agreementId: string | null;
@@ -52,6 +56,7 @@ export interface NotificationEvent {
    * that parser does not recognize (Section 3/38's own "unknown actionKey -> no action button" doctrine).
    */
   actionKey: string | null;
+  actionObjectReference: string | null;
   createdAt: string;
   readAt: string | null;
   resolvedAt: string | null;
@@ -84,6 +89,13 @@ export interface UpdateNotificationPreferencesRequest {
   supportCategoryEnabled: boolean;
 }
 
+export interface NotificationQuietHours {
+  enabled: boolean;
+  startLocal: string | null;
+  endLocal: string | null;
+  zoneId: string | null;
+}
+
 export interface ListNotificationsParams {
   category?: NotificationCategory;
   unreadOnly?: boolean;
@@ -109,6 +121,10 @@ export function createNotificationsGateway(http: HttpClient) {
     getPreferences: () => http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { auth: 'required' }),
     updatePreferences: (body: UpdateNotificationPreferencesRequest) =>
       http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { method: 'PUT', body, auth: 'required' }),
+    getQuietHours: () =>
+      http.request<NotificationQuietHours>('/api/v1/notifications/me/quiet-hours', { auth: 'required' }),
+    updateQuietHours: (body: NotificationQuietHours) =>
+      http.request<NotificationQuietHours>('/api/v1/notifications/me/quiet-hours', { method: 'PUT', body, auth: 'required' }),
   };
 }
 export type NotificationsGateway = ReturnType<typeof createNotificationsGateway>;

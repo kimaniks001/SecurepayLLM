@@ -37,7 +37,7 @@ const dto = (over = {}) => ({
 test('the adapter keeps only a real, planned question -- ask=false (the common case) is no question at all', () => {
   const f = api.agreementFormationView(dto());
   assert.deepEqual(f.question, { id: 'q:abc', text: 'minutes.pdf says KES 180,000 and quotation.pdf says KES 175,000. Which total should we use?',
-    choices: ['KES 180,000', 'KES 175,000'], blocksSetUp: true, alreadyAsked: false });
+    choices: ['KES 180,000', 'KES 175,000'], blocksSetUp: true, alreadyAsked: false, openPointIds: ['conflict:1'] });
   assert.equal(api.agreementFormationView(dto({ question: { ask: false, reason: 'REVIEW_READY' } })).question, null);
   assert.equal(api.agreementFormationView(dto({ question: { ask: true, id: 'q:x', text: '  ' } })).question, null);
   assert.equal(api.agreementFormationView(dto({ question: undefined })).question, null);
@@ -50,7 +50,9 @@ test('the agreement leads and the one question sits under it, with bounded quick
   const markup = html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {}, onAnswer: t => answers.push(t), answering: false });
   const out = text(markup);
   assert.ok(out.indexOf('Your agreement is taking shape') < out.indexOf('Which total should we use?'), 'agreement first, question second');
-  assert.match(out, /Review this/);
+  // User-Ready Beta Gate 1 -- ONE open point: the call to action names it (a micro-review), the whole agreement stays one tap away.
+  assert.match(out, /Resolve price/);
+  assert.match(out, /Whole agreement/);
   assert.match(out, /One thing to settle before it can be set up/);
   assert.match(out, /KES 180,000 KES 175,000 I don’t know yet Decide later/);
   assert.match(markup, /aria-live="polite"/);
@@ -61,7 +63,7 @@ test('the agreement leads and the one question sits under it, with bounded quick
 test('no question -> no question card; a not-yet-reviewable agreement shows nothing here (the chat carries it)', () => {
   const none = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ question: { ask: false } })), onReview() {}, onAnswer() {} }));
   assert.doesNotMatch(none, /One point|One thing to settle/);
-  assert.match(none, /Review this/);
+  assert.match(none, /Resolve price/);
   assert.equal(html(api.NextQuestion, { question: null, disabled: false, onAnswer() {} }), '');
   assert.equal(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })), onReview() {}, onAnswer() {} }), '');
 });

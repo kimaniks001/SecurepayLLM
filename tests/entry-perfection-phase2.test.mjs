@@ -134,7 +134,10 @@ test('Bring your plan keeps what was pasted and announces a failure (role=alert)
 });
 test('AgentExperience closes the intake only on real success, keeps the draft, and shows "checking" as a status', async () => {
   const src = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.equal((src.match(/if \(outcome\.ok\) \{ setBringPlanOpen\(false\); setBringPlanDraft/g) ?? []).length, 2);
+  // User-Ready Beta Gate 1 -- ONE shared submitPlan closes the panel only on success, used by BOTH the Home and the in-conversation panel.
+  assert.equal((src.match(/if \(outcome\.ok\) \{ setBringPlanOpen\(false\); setBringPlanDraft/g) ?? []).length, 1);
+  assert.match(src, /onSubmit=\{\(text, label\) => submitPlan\(text, label, currentSet\(\)\)\}/);
+  assert.match(src, /submitPlan\(text, label, set\)/);
   assert.match(src, /initialText=\{bringPlanDraft\.text\}/);
   assert.match(src, /sourcesState\.phase === 'checking' && <p role="status"/);
   assert.match(src, /onSourceIngested: source => controller\.refreshAfterSourceIngestion\(source\)/);

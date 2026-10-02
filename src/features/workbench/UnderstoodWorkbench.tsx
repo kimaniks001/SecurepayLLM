@@ -15,7 +15,7 @@ const SPEC_NOUN: Record<InstrumentSpec['kind'], string> = { who: 'the person', w
  * SecurePay to update its understanding -- it never confirms an Agreement, and the state shown on
  * each row is whatever the backend last returned (never a UI-derived state).
  */
-export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onFind, stillToSettle, notes }: {
+export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onFind, stillToSettle, notes, onResolve }: {
   state: AgentState;
   controller: AgentController;
   activeSpec: InstrumentSpec | null;
@@ -25,6 +25,11 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
   /** Server-derived "still worth settling" lines from the latest AGREEMENT_PREVIEW panel, shown read-only. */
   stillToSettle?: string[];
   notes?: string;
+  /**
+   * User-Ready Beta Gate 1 (EP-CERT-003) -- the opener of the one-decision micro-review for this disagreement, or null when
+   * there is none (the person then tells KS001, as before). Never a dead control.
+   */
+  onResolve?: (concept: string) => (() => void) | null;
 }) {
   const { context } = state;
   const [addOpen, setAddOpen] = useState(false);
@@ -51,15 +56,17 @@ export function UnderstoodWorkbench({ state, controller, activeSpec, onOpen, onF
 
     {/* Entry Perfection Phase 5 -- the person's evidence disagrees. Both sides, each with where it came from; SecurePay
         never picks one. The person resolves it by telling KS001 which is right. */}
-    {workbench.conflicts.map(conflict => <div key={conflict.concept} role="note" className="rounded-xl border border-ember-200 bg-ember-50 px-3.5 py-2.5 text-[0.85rem] leading-snug text-sand-800">
+    {workbench.conflicts.map(conflict => { const open = onResolve?.(conflict.concept) ?? null; return <div key={conflict.concept} role="note" className="surface-decision px-3.5 py-2.5 text-[0.85rem] leading-snug text-sand-800" data-workbench-conflict>
       <span className="font-medium">Your details disagree on {conflict.concept}:</span>{' '}
       {conflict.sides.map((side, i) => <span key={i}>{i > 0 ? (i === conflict.sides.length - 1 ? ' and ' : ', ') : ''}{side.value}{side.from ? ` (${side.from})` : ''}</span>)}.
-      {' '}Tell KS001 which is right.
-    </div>)}
+      {open
+        ? <button type="button" onClick={open} className="mt-2 flex min-h-11 items-center rounded-full border border-forest-300 bg-white px-4 text-[0.82rem] font-medium text-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Resolve</button>
+        : <>{' '}Tell KS001 which is right.</>}
+    </div>; })}
 
     {sections.map(({ section, items }) => <div key={section}>
       <h3 className="px-1 pb-1.5 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">{SECTION_LABEL[section]}</h3>
-      <ul className="overflow-hidden rounded-2xl border border-cream-200 bg-white/80 divide-y divide-cream-100 shadow-soft">
+      <ul className="surface-info overflow-hidden divide-y divide-cream-100">
         {items.map(item => <Row key={item.key} item={item} open={!!item.spec && specKey(item.spec) === activeKey} busy={busy} onOpen={onOpen} onFind={onFind} onUse={() => void adoptAll(item.adopt)} onRequestDiscovery={onRequestDiscovery} />)}
       </ul>
     </div>)}
@@ -139,7 +146,10 @@ function Row({ item, open, busy, onOpen, onFind, onUse, onRequestDiscovery }: { 
     {item.spec
       ? <button type="button" onClick={() => onOpen(item.spec!)} aria-expanded={open} aria-label={`${SECTION_LABEL[item.section]}: ${item.value}. Change ${SPEC_NOUN[item.spec.kind]}`}
           className={`flex min-h-[3.25rem] flex-1 items-center gap-2 px-4 py-2.5 text-left hover:bg-forest-50/60 ${open ? 'bg-forest-50/70' : ''} ${FOCUS}`}>
-          {body}<ChevronRight aria-hidden="true" className={`h-4 w-4 shrink-0 text-sand-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+          {body}
+          {/* EP-CERT-005 -- the direct structured path is visible, not a hidden row tap. */}
+          <span aria-hidden="true" className="shrink-0 text-[0.8rem] font-medium text-forest-700 underline decoration-forest-200 underline-offset-2">{open ? 'Editing' : 'Change'}</span>
+          <ChevronRight aria-hidden="true" className={`h-4 w-4 shrink-0 text-sand-400 transition-transform ${open ? 'rotate-90' : ''}`} />
         </button>
       : <div className="flex min-h-[3.25rem] flex-1 items-center gap-2 px-4 py-2.5">{body}</div>}
     {item.find && <button type="button" onClick={() => onFind(item.find!.kind, item.find!.what)} aria-label={`See ${item.find.what} on SecurePay`}

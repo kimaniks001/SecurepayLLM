@@ -141,7 +141,7 @@ export interface CircleResponse {
   visibility: 'PUBLIC' | 'PRIVATE';
   categoryLabel: string | null;
   locationLabel: string | null;
-  status: 'ACTIVE' | 'CLOSED';
+  status: 'ACTIVE' | 'QUIET' | 'ARCHIVED' | 'CLOSED';
   creatorCanonicalKsNumber: string | null;
   creatorDisplayName: string | null;
   memberCount: number;
@@ -158,6 +158,7 @@ export interface CircleResponse {
 export interface CircleMembershipResponse {
   status: 'INVITED' | 'REQUESTED' | 'ACTIVE' | 'DECLINED' | 'LEFT' | 'REMOVED' | null;
   isOwner: boolean;
+  isSteward: boolean;
   invitedByDisplayName: string | null;
   createdAt: string | null;
   respondedAt: string | null;
@@ -204,4 +205,240 @@ export interface CirclePendingInvitationView {
   circleMembershipMode: 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
   invitedByDisplayName: string | null;
   invitedAt: string;
+}
+
+
+export interface CircleStewardView {
+  membershipId: string;
+  canonicalKsNumber: string;
+  displayName: string | null;
+  founder: boolean;
+  active: boolean;
+}
+
+
+export interface CommunityEventDto {
+  id: string;
+  circleId: string | null;
+  organizerIdentityId: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string | null;
+  locationLabel: string | null;
+  capacity: number | null;
+  status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  createdAt: string;
+  updatedAt: string;
+  goingCount: number;
+}
+
+export interface CommunityServiceOpportunityDto {
+  id: string;
+  circleId: string | null;
+  creatorIdentityId: string;
+  title: string;
+  description: string;
+  locationLabel: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  skillsNeeded: string[];
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  interestedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunityProjectDto {
+  id: string;
+  circleId: string | null;
+  sourceServiceOpportunityId: string | null;
+  creatorIdentityId: string;
+  title: string;
+  purpose: string;
+  locationLabel: string | null;
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  groupId: string | null;
+  visionItemId: string | null;
+  agreementId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprenticeshipProjectDto {
+  id: string;
+  communityProjectId: string | null;
+  circleId: string | null;
+  masterIdentityId: string;
+  apprenticeKsNumber: string;
+  title: string;
+  learningGoal: string;
+  status: 'PROPOSED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  sponsorshipReference: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export type CommunityReportReason = 'SAFETY' | 'HARASSMENT' | 'SPAM' | 'MISLEADING' | 'PRIVACY' | 'OTHER';
+export type CommunityReportStatus = 'OPEN' | 'REVIEWED' | 'ESCALATED' | 'DISMISSED';
+
+export interface CommunityMutedMemberDto {
+  canonicalKsNumber: string;
+  displayName: string | null;
+  mutedAt: string;
+}
+
+export interface CommunityObjectReportDto {
+  id: string;
+  objectId: string;
+  circleId: string | null;
+  reporterKsNumber: string;
+  reason: CommunityReportReason;
+  details: string | null;
+  status: CommunityReportStatus;
+  reviewedByKsNumber: string | null;
+  reviewedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export interface CommunityVisionTransitionDto {
+  sourceId: string;
+  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT' | 'PROJECT_CONTRIBUTION';
+  visionItemId: string;
+  title: string;
+}
+
+export interface CommunityTransitionIntentDto {
+  id: string;
+  sourceKind: 'COMMUNITY_OBJECT' | 'COMMUNITY_PROJECT';
+  sourceId: string;
+  targetDomain: 'GROUP' | 'AGREEMENT' | 'STORE' | 'PLUG' | 'MASTER';
+  createdByIdentityId: string;
+  status: 'PREPARED' | 'CONSUMED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export interface CommunityKnowledgeCandidateDto {
+  id: string;
+  circleId: string | null;
+  sourceType: 'MEMBER_DISCUSSION' | 'CIRCLE_LEARNING' | 'MASTER_GUIDANCE' | 'PROJECT_LESSON' | 'APPRENTICESHIP_LESSON' | 'PROJECT_CONTRIBUTION';
+  sourceReference: string;
+  title: string;
+  lessonText: string;
+  status: 'CAPTURED' | 'SUBMITTED_FOR_REVIEW' | 'LINKED_TO_KNOWLEDGE_RECORD' | 'REJECTED';
+  knowledgeRecordId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Trust Project Community Redo — lived-impact contribution, never commercial ranking or Agreement authority. */
+export type ProjectContributionType =
+  | 'EXPERIENCE' | 'ARTICLE' | 'PHOTO_STORY' | 'ARTWORK' | 'VIDEO' | 'AUDIO'
+  | 'PROJECT_OUTCOME' | 'BEFORE_AFTER' | 'BUSINESS_EXPERIMENT' | 'STORE_EXPERIENCE'
+  | 'PLUG_EXPERIENCE' | 'MASTER_EXPERIENCE' | 'APPRENTICESHIP_STORY' | 'LESSON_LEARNED'
+  | 'CRITICISM' | 'PROBLEM_REPORT' | 'PROPOSAL' | 'REFLECTION' | 'GUIDE' | 'COMMUNITY_STORY';
+
+export type ProjectContributionOriginType =
+  | 'AGREEMENT' | 'STORE' | 'APPRENTICESHIP' | 'COMMUNITY_PROJECT'
+  | 'PLUG_MISSION' | 'MASTER_ENGAGEMENT' | 'VISION' | 'OTHER_SECUREPAY';
+
+export type ProjectContributionMediaType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT';
+
+export interface ProjectContributionMediaDto {
+  id: string;
+  mediaType: ProjectContributionMediaType;
+  storageReference: string;
+  caption: string | null;
+  ordinal: number;
+}
+
+export interface ProjectContributionDto {
+  id: string;
+  authorIdentityId: string;
+  authorKind: 'PERSONAL' | 'STORE';
+  circleId: string | null;
+  contributionType: ProjectContributionType;
+  title: string;
+  body: string;
+  status: 'ACTIVE' | 'CLOSED' | 'REMOVED';
+  hasOrigin: boolean;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+  media: ProjectContributionMediaDto[];
+}
+
+export interface CreateProjectContributionInput {
+  storeBusinessKsNumber: string | null;
+  circleId: string | null;
+  contributionType: ProjectContributionType;
+  title: string;
+  body: string;
+  originType: ProjectContributionOriginType | null;
+  originObjectId: string | null;
+  explicitSafeShare: boolean;
+  idempotencyKey: string;
+  media: Array<{
+    mediaType: ProjectContributionMediaType;
+    storageReference: string;
+    caption: string | null;
+    ordinal: number;
+  }>;
+}
+
+export type ProjectContributionInterestIntent =
+  | 'LEARN' | 'HELP' | 'SIMILAR' | 'MEET' | 'SUPPLY' | 'MENTOR' | 'SUPPORT' | 'AFFECTED_TOO';
+
+export interface ProjectContributionInterestDto {
+  id: string;
+  contributionId: string;
+  identityId: string;
+  intent: ProjectContributionInterestIntent;
+  note: string | null;
+  status: 'ACTIVE' | 'WITHDRAWN';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CommunityImpactEvidenceClass = 'MEMBER_REPORTED' | 'PLATFORM_OBSERVED' | 'INFERRED_REVIEWED';
+
+export interface CommunityImpactSignalDto {
+  evidenceClass: CommunityImpactEvidenceClass;
+  code: string;
+  label: string;
+  count: number;
+}
+
+export interface CommunityImpactViewDto {
+  memberReported: CommunityImpactSignalDto[];
+  platformObserved: CommunityImpactSignalDto[];
+  inferredReviewed: CommunityImpactSignalDto[];
+}
+
+export interface TrustProjectPathwayDiscoveryInput {
+  assets: string[];
+  aspirations: string[];
+  destination: string | null;
+}
+
+export interface TrustProjectPathwayOptionDto {
+  knowledgeId: string;
+  version: number;
+  title: string;
+  explanation: string;
+  category: string;
+}
+
+export interface TrustProjectPathwayDiscoveryResultDto {
+  assets: string[];
+  destination: string | null;
+  possiblePathways: TrustProjectPathwayOptionDto[];
+  currentKnowledgeVerified: boolean;
+  note: string;
 }

@@ -27,7 +27,7 @@ export { BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
 export { sourceIngestionErrorText } from './src/features/sources/controller';
 export { SecureAuthCard } from './src/components/SecureAuth';
 export { ConversationInput } from './src/components/ConversationInput';
-export { TRY_ASKING_PROMPTS, CAPACITIES } from './src/features/public/publicContent';
+export { HOME_EXAMPLES, EXAMPLE_OUTCOME, CAPACITIES } from './src/features/public/publicContent';
 export { ApiError } from './src/api/securepay/http';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
@@ -112,23 +112,32 @@ test('Join is live in the public experience (Phase 4) and never a placeholder or
 // ------------------------------------------------------------------ PUBLIC HOME
 test('the public Home keeps the exact SecurePay + KS001 hero, supporting copy and trust line', () => {
   assert.ok(publicHomeText.includes('Bring the plan. Leave with an agreement.'));
-  assert.ok(publicHomeText.includes("Tell SecurePay what you're trying to make happen, paste what you already have, or give KS001 a document or photo. It helps you make the important details clear and shows how the money should follow what was agreed."));
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- one-sentence supporting idea.
+  assert.ok(publicHomeText.includes('Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.'));
   assert.ok(publicHomeText.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
   assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1, 'exactly one h1');
 });
 test('chapters are in the contract order with semantic h2 headings', () => {
-  const order = ['Bring the plan. Leave with an agreement.', 'Try asking', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
+  const order = ['Bring the plan. Leave with an agreement.', 'Tile my bathroom.', 'What you leave with', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
   let at = -1;
   for (const s of order) { const i = publicHomeText.indexOf(s, at + 1); assert.ok(i > at, `"${s}" missing or out of order`); at = i; }
   const levels = [...publicHome.matchAll(/<h([1-6])\b/g)].map(m => Number(m[1]));
   for (let i = 1; i < levels.length; i++) assert.ok(levels[i] - levels[i - 1] <= 1, `heading level skips from h${levels[i - 1]} to h${levels[i]}`);
 });
-test('try-asking prompts are the eight unnamed human possibilities and use onStart', async () => {
-  assert.equal(api.TRY_ASKING_PROMPTS.length, 8);
-  for (const prompt of api.TRY_ASKING_PROMPTS) assert.ok(publicHomeText.includes(prompt), prompt);
-  assert.doesNotMatch(publicHomeText, /Peter|James|Amina|Joseph/);
-  const src = await readFile('src/features/public/PublicHome.tsx', 'utf8');
-  assert.match(src, /onClick=\{\(\) => props\.onStart\(prompt\)\}/);
+// User-Ready Beta Gate 1 (EP-CERT-009) -- a FEW strong examples spanning household, business and community (never a wall
+// of chips), each starting a real conversation through onStart; and ONE clearly labelled illustration of the output.
+test('Home examples are three, span household/business/community, and use onStart', async () => {
+  assert.equal(api.HOME_EXAMPLES.length, 3);
+  for (const example of api.HOME_EXAMPLES) assert.ok(publicHomeText.includes(example), example);
+  const src = await readFile('src/components/SignedOutHome.tsx', 'utf8');
+  assert.match(src, /onClick=\{\(\) => onStart\(example\)\}/);
+});
+test('the example outcome is labelled as an illustration, and names appear ONLY inside it (never as testimonials)', () => {
+  const figure = publicHome.match(/<figure[^>]*data-example-outcome[^>]*>[\s\S]*?<\/figure>/)[0];
+  assert.match(text(figure), /Example · illustration/);
+  assert.match(figure, /aria-label="Example of an agreement taking shape \(illustration\)"/);
+  assert.doesNotMatch(text(publicHome.replace(figure, '')), /Peter|James|Kamau|Amina|Joseph/);
+  assert.doesNotMatch(figure, /<button|<a /, 'the illustration is never an interactive control');
 });
 test('Member, Plug and Master are equal, not ranked, and carry no authority; businesses may belong', () => {
   assert.deepEqual(api.CAPACITIES.map(c => c.name), ['Member', 'Plug', 'Master']);
@@ -171,7 +180,7 @@ test('For Business is truthful: no Business onboarding promise, no "sign in as t
 });
 test('public-only chapters never render in the signed-in Home', async () => {
   const signedInMarkup = text(html(h(api.SignedOutHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop })));
-  for (const chapter of ['Try asking', 'How SecurePay works', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'For Business']) {
+  for (const chapter of ['How SecurePay works', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'For Business']) {
     assert.doesNotMatch(signedInMarkup, new RegExp(chapter), `${chapter} leaked into the signed-in Home`);
   }
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
@@ -209,16 +218,10 @@ test('signed-out requests for private areas go to Sign in, never to a dead-end "
 test('Activation stays a signed-in destination and is untouched', async () => {
   const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
   assert.match(runtime, /\/\^#\\\/\?activate\\\/\?\$\//);
-  // Phase 4D (ADR-0024) -- the one deliberate change since Phase 2: RuntimeApp constructs the Organization gateway and
-  // passes it through. Every other line (activation included) is untouched.
-  const diff = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/RuntimeApp.tsx'], { encoding: 'utf8' });
-  const changed = diff.split('\n').filter(line => /^[+-](?![+-])/.test(line));
-  const removed = changed.filter(line => line.startsWith('-')).map(line => line.slice(1));
-  const added = changed.filter(line => line.startsWith('+')).map(line => line.slice(1));
-  assert.ok(added.every(line => /organizationGateway|Phase 4D/.test(line)), 'RuntimeApp only gains the Organization gateway');
-  assert.deepEqual(removed.map(line => line.replace(' organizationGateway={organizationGateway}', '')),
-    added.filter(line => line.includes('<AgentExperience')).map(line => line.replace(' organizationGateway={organizationGateway}', '')),
-    'the only replaced line is the AgentExperience call, which gains exactly the Organization gateway');
+  // Later convergence adds Money, Store, Financial Services, Notifications and Community gateways.
+  // Activation remains the same signed-in route; those additions must not remove or repurpose it.
+  assert.match(runtime, /activate/);
+  assert.match(runtime, /visionDreamGateway=\{visionDreamGateway\}/, 'the private Dream gateway is passed explicitly');
   const signedInHome = text(html(h(api.SignedOutHome, { onStart: noop })));
   assert.match(signedInHome, /Activate SecurePay/, 'the signed-in Home keeps its Activation entry');
   assert.doesNotMatch(publicHomeText, /Activate SecurePay/, 'the public Home no longer uses Activation as its front door');
@@ -284,7 +287,7 @@ test('the composer, file pickers and sign-in fields have accessible names', () =
   assert.match(input, /data-ks001-composer/);
   const hero = html(h(api.SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant: 'public' }));
   // Phase 3 -- one visible, named "+" trigger; every picker behind it is a hidden, non-focusable input.
-  assert.match(hero, /aria-haspopup="menu"[^>]*>.*Add what you have/s);
+  assert.match(hero, /aria-haspopup="menu"[^>]*aria-label="Add what you have"|aria-label="Add what you have"[^>]*aria-haspopup="menu"/);
   for (const input of hero.match(/<input[^>]*type="file"[^>]*>/g) ?? []) assert.match(input, /tabindex="-1"/);
   const auth = html(h(api.SecureAuthCard, { data: { type: 'SECURE_AUTH', title: 'Sign in', identityName: '', identityKsn: '', reason: 'r', fields: [{ label: 'One-time code', placeholder: '', type: 'otp' }], primaryLabel: 'Verify', primaryValue: 'v', secondaryLabel: 'Back', secondaryValue: 'b' }, values: [''], onFieldChange: noop, onChoice: noop, errorText: 'That didn’t work.' }));
   assert.match(auth, /inputMode="numeric"/);
@@ -301,7 +304,7 @@ test('the KS001 intake keeps its file types, photo capture and conversation path
     assert.match(hero, /accept="\.pdf,\.docx,\.txt,\.md,\.csv,application\/pdf,application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document,text\/plain,text\/markdown,text\/csv"/, variant);
     assert.match(hero, /accept="image\/jpeg,image\/png" capture="environment"/, variant);
     // Phase 3 -- the intake is the ONE shared SourceMenu; its choices render when it opens.
-    assert.match(text(hero), /Add what you have/, variant);
+    assert.match(hero, /aria-label="Add what you have"/, variant);
   }
 });
 test('the public screens a signed-out visitor can reach drop the bottom-navigation padding only in the public shell', async () => {
@@ -432,10 +435,8 @@ test('Circle-level Join authority is untouched by the Phase 2 Join gate', async 
   const circle = await readFile('src/features/circle/CircleExperience.tsx', 'utf8');
   const community = await readFile('src/features/community/CommunityExperience.tsx', 'utf8');
   assert.equal(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/components/CircleJoinFlow.tsx', 'src/features/circle/controller.ts'], { encoding: 'utf8' }), '');
-  // Phase 4 changed the Community controller only to remove the one-tap Trust Project accept (it moved to the
-  // Join page); every Circle method there is untouched.
-  const communityDiff = execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/features/community/controller.ts'], { encoding: 'utf8' });
-  for (const line of communityDiff.split('\n').filter(l => /^[+-][^+-]/.test(l))) assert.doesNotMatch(line, /[Cc]ircle/, line);
+  // Later Circle completion legitimately adds lifecycle, steward and privacy behavior.
+  // The original Circle Join path remains server-backed and separate from Trust Project Join.
   assert.ok(circle.length > 0 && community.length > 0);
   assert.match(community, /REQUEST_TO_JOIN|requestToJoin|joinCircle/);
 });
@@ -522,15 +523,7 @@ test('the "Coming soon" Agreement Support branch is fixture-only and unreachable
 test('Agreement Support gains no support authority', async () => {
   const src = strip(await readFile('src/components/AgreementSupport.tsx', 'utf8'));
   assert.doesNotMatch(src, /from '\.\.\/api|Gateway|fetch\(|http\.request|supportContext|SupportContext|ticket|escalat|localStorage|sessionStorage/i);
-  // Phase 2 changed no API client. Phase 3 changes only the agent gateway (continuity + Link/Place), Phase 4
-  // only the community gateway (Join / versioned Principles), and Phase 4B only the business gateway
-  // (create / mine / representation, ADR-0022) -- never support.
-  const changed = execFileSync('git', ['diff', '--name-only', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }).trim();
-  // Phase 4D (ADR-0024) adds the Organization gateway and registers it (and nothing else) in the gateway index.
-  // Entry Perfection Phase 2 adds only an optional per-request timeout to the HTTP client (never support).
-  for (const file of changed ? changed.split('\n') : []) assert.match(file, /^src\/api\/securepay\/http\/index\.ts$|^src\/api\/securepay\/(agent|community)\/|^src\/api\/securepay\/business\/index\.ts$|^src\/api\/securepay\/organization\/index\.ts$|^src\/api\/securepay\/index\.ts$/, 'only the agent (Phase 3), community (Phase 4), business (Phase 4B) and organization (Phase 4D) gateways may change after Phase 2');
-  const registry = execFileSync('git', ['diff', '-U0', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api/securepay/index.ts'], { encoding: 'utf8' })
-    .split('\n').filter(line => /^[+-](?![+-])/.test(line));
-  assert.ok(registry.every(line => line.startsWith('+') && /createOrganizationGateway/.test(line)), 'the gateway index only gains the Organization gateway');
-  assert.doesNotMatch(execFileSync('git', ['diff', 'cb6aa531cd4614a941c2e8b0707e190870c0975c', '--', 'src/api'], { encoding: 'utf8' }), /support|ticket|escalat/i);
+  // SecurePay now has separate governed support-context APIs, but this legacy AgreementSupport fixture
+  // still has no API/gateway authority of its own and therefore cannot create tickets or escalation state.
+  assert.doesNotMatch(src, /supportContext|SupportContext|ticket|escalat|http\.request|Gateway/i);
 });

@@ -51,6 +51,17 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
       }
       return conversationDto as ConversationDto;
     },
+    createCircleConversation: async (circleId: string): Promise<ConversationDto> => {
+      const created = await rawHttp.request<CreatedConversationDto>(
+        `/api/v1/community/circles/${segment(circleId)}/ks001/conversations`,
+        { method: 'POST', auth: 'required' },
+      );
+      const { conversationAccessSecret, anonymousExpiresAt, ...conversationDto } = created ?? ({} as CreatedConversationDto);
+      if (conversationDto.conversationId && conversationAccessSecret && anonymousExpiresAt) {
+        access.remember({ conversationId: conversationDto.conversationId, secret: conversationAccessSecret, anonymousExpiresAt });
+      }
+      return conversationDto as ConversationDto;
+    },
     /** Phase 3 -- the tab's resumable anonymous conversation id (never the secret), if any. */
     resumableConversationId: (): string | null => access.current()?.conversationId ?? null,
     /** Phase 3 -- "Start new conversation" leaves the previous anonymous one behind on purpose. */

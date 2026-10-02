@@ -5,6 +5,8 @@ import { createAuthGateway } from './auth';
 import { createAgreementGateway } from './agreements';
 import { createMoneyGateway } from './money';
 import { createStoreGateway } from './store';
+import { createFulfilmentNeedsGateway } from './fulfilment-needs';
+import { createSharedFulfilmentGateway } from './shared-fulfilment';
 import { createCircleGateway } from './circle';
 import { createCommunityGateway } from './community';
 import { createDiscoveryGateway } from './discovery';
@@ -27,18 +29,22 @@ import { createBusinessCurrencyCapabilityGateway } from './business-currency-cap
 import { createBusinessFxApplicationGateway } from './business-fx-application';
 import { createProjectGateway } from './projects';
 import { createVisionBoardGateway } from './visionboard';
+import { createVisionDreamGateway } from './visiondreams';
 import { createSettingsGateway } from './settings';
 import { createNotificationsGateway } from './notifications';
 import { createBusinessGateway } from './business';
 import { createOrganizationGateway } from './organization';
 import { createAuthorizationGateway } from './authorization';
 import { createDeveloperGateway } from './developer';
+import { createMoneySnapshotGateway } from './money-snapshot';
+import { createFinancialInstitutionsGateway } from './financial-institutions';
 export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: AccessTokenProvider, fetcher?: typeof fetch) {
   const validatedBaseUrl = apiBaseUrl(baseUrl);
   const http = createHttpClient(validatedBaseUrl, getAccessToken, fetcher);
   return {
+    financialInstitutions: createFinancialInstitutionsGateway(http),
     mode: 'real' as const, baseUrl: validatedBaseUrl,
-    agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http),
+    agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http), fulfilmentNeeds: createFulfilmentNeedsGateway(http), sharedFulfilment: createSharedFulfilmentGateway(http),
     circle: createCircleGateway(http),
     community: createCommunityGateway(http),
     discovery: createDiscoveryGateway(http),
@@ -50,11 +56,13 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     businessCurrencyCapability: createBusinessCurrencyCapabilityGateway(http), businessFxApplication: createBusinessFxApplicationGateway(http),
     projects: createProjectGateway(http),
     visionBoard: createVisionBoardGateway(http),
+    visionDreams: createVisionDreamGateway(http),
     settings: createSettingsGateway(http),
     notifications: createNotificationsGateway(http),
     business: createBusinessGateway(http),
     organization: createOrganizationGateway(http),
     authorization: createAuthorizationGateway(http),
     developer: createDeveloperGateway(http),
+    moneySnapshot: createMoneySnapshotGateway(http),
   };
 }
