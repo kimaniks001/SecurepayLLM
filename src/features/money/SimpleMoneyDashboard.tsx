@@ -312,6 +312,9 @@ export function SimpleMoneyDashboard({
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
   const [detail, setDetail] = useState<Load<AgreementDetailResponse | null>>({ state: 'ready', value: null });
   const [partners, setPartners] = useState<Load<RegulatedPartnerResponse[]>>({ state: 'loading' });
+  const [partnerDirectoryOpen, setPartnerDirectoryOpen] = useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [partnerInvitationOpen, setPartnerInvitationOpen] = useState(false);
 
   const chooseAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
     onSelectAgreement(agreement);
@@ -423,6 +426,9 @@ export function SimpleMoneyDashboard({
   const mpesaRail = fundingRailState(currentSnapshot, 'MPESA_STK', 'M-PESA');
   const pesalinkRail = fundingRailState(currentSnapshot, 'PESALINK', 'PesaLink');
   const choiceRail = choiceRailState(currentSnapshot, partners);
+  const selectedPartner = partners.state === 'ready'
+    ? partners.value.find(partner => partner.id === selectedPartnerId) ?? null
+    : null;
   const selectedId = selected?.agreementId ?? '';
 
   return (
@@ -665,7 +671,16 @@ export function SimpleMoneyDashboard({
                 </div>
                 <p className="mt-1 text-sm text-sand-600">The institutions that can help good Agreements become possible, safer and easier to complete.</p>
               </div>
-              <div className="text-xs text-sand-500">Banks · SACCOs · MMFs · Insurance</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPartnerDirectoryOpen(open => !open)}
+                  className="rounded-full border border-forest-200 bg-white px-3 py-1.5 text-xs font-semibold text-forest-800 hover:border-forest-300"
+                >
+                  {partnerDirectoryOpen ? 'Close financial partners' : 'View financial partners'}
+                </button>
+                <div className="text-xs text-sand-500">Banks · SACCOs · MMFs · Insurance</div>
+              </div>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <EnablerCard
@@ -693,6 +708,119 @@ export function SimpleMoneyDashboard({
                 note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
               />
             </div>
+
+            {partnerDirectoryOpen && (
+              <div className="mt-6 border-t border-cream-200 pt-5" data-testid="financial-partner-directory">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="font-display text-xl text-forest-900">Financial partners</h3>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-sand-600">
+                      These are regulated institutions SecurePay currently knows about. Their presence here does not by itself make a rail or financial product available for every Agreement.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPartnerInvitationOpen(open => !open)}
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-forest-300 bg-forest-50 px-4 py-2 text-sm font-semibold text-forest-800 hover:bg-forest-100"
+                  >
+                    Become a financial partner
+                  </button>
+                </div>
+
+                {partners.state === 'loading' && <p className="mt-4 text-sm text-sand-500">Loading financial partners…</p>}
+                {partners.state === 'error' && (
+                  <StatusNotice tone="warning">SecurePay could not load the financial-partner directory right now.</StatusNotice>
+                )}
+                {partners.state === 'ready' && partners.value.length === 0 && (
+                  <p className="mt-4 rounded-2xl border border-cream-200 bg-cream-50 p-4 text-sm text-sand-600">
+                    No regulated financial partner is currently listed by SecurePay.
+                  </p>
+                )}
+                {partners.state === 'ready' && partners.value.length > 0 && (
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                    <div className="space-y-2">
+                      {partners.value.map(partner => (
+                        <button
+                          type="button"
+                          key={partner.id}
+                          onClick={() => setSelectedPartnerId(partner.id)}
+                          className={`w-full rounded-2xl border p-4 text-left transition-card ${selectedPartnerId === partner.id ? 'border-forest-300 bg-forest-50' : 'border-cream-200 bg-white hover:border-forest-200'}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="font-semibold text-forest-900">{partner.displayName}</div>
+                              <div className="mt-1 text-xs text-sand-500">{titleCase(partner.partnerType)}</div>
+                            </div>
+                            <StatusPill status={titleCase(partner.status)} />
+                          </div>
+                          <div className="mt-3 text-xs text-sand-600">{partner.supportedCurrencies.join(' · ') || 'Currencies not listed'}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-cream-200 bg-cream-50/70 p-5">
+                      {selectedPartner ? (
+                        <>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Partner profile</div>
+                              <h4 className="mt-1 font-display text-2xl text-forest-900">{selectedPartner.displayName}</h4>
+                              <p className="mt-1 text-xs text-sand-500">{selectedPartner.legalName}</p>
+                            </div>
+                            <StatusPill status={titleCase(selectedPartner.status)} />
+                          </div>
+                          <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+                            <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Type</dt><dd className="mt-1 text-sm font-medium text-forest-900">{titleCase(selectedPartner.partnerType)}</dd></div>
+                            <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Environment</dt><dd className="mt-1 text-sm font-medium text-forest-900">{titleCase(selectedPartner.environment)}</dd></div>
+                            <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Currencies</dt><dd className="mt-1 text-sm font-medium text-forest-900">{selectedPartner.supportedCurrencies.join(', ') || 'Not listed'}</dd></div>
+                          </dl>
+                          <div className="mt-5">
+                            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Capabilities SecurePay knows about</div>
+                            {selectedPartner.capabilities.length > 0 ? (
+                              <div className="mt-2 space-y-2">
+                                {selectedPartner.capabilities.map(capability => (
+                                  <div key={`${capability.capability}-${capability.currency}`} className="rounded-xl border border-cream-200 bg-white p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="text-sm font-semibold text-forest-900">{titleCase(capability.capability)}</div>
+                                      <StatusPill status={capability.enabled ? 'Available' : 'Not active'} />
+                                    </div>
+                                    <div className="mt-1 text-xs text-sand-500">{capability.currency}</div>
+                                    {capability.feeDescription && <p className="mt-2 text-xs leading-5 text-sand-600">{capability.feeDescription}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-sm text-sand-600">No partner capabilities are currently published by SecurePay.</p>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex min-h-48 items-center justify-center text-center text-sm text-sand-500">
+                          Select a financial partner to see what SecurePay currently knows about it.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {partnerInvitationOpen && (
+                  <div className="mt-5 rounded-2xl border border-forest-200 bg-forest-50 p-5" data-testid="financial-partner-invitation">
+                    <div className="flex items-start gap-3">
+                      <Landmark className="mt-0.5 h-5 w-5 shrink-0 text-forest-700" />
+                      <div>
+                        <h4 className="font-display text-xl text-forest-900">Bring your institution into fair trade.</h4>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-sand-700">
+                          Banks, SACCOs, MMFs, insurers and other regulated financial institutions will be able to apply to become SecurePay financial partners, publish verified capabilities and participate in Agreement-led finance.
+                        </p>
+                        <p className="mt-3 text-xs leading-5 text-sand-500">
+                          Partner onboarding is not open from this screen yet. The application and customer-facing partner experience will be added as a separate governed flow rather than a pretend submission form.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}
