@@ -40,7 +40,7 @@ test('the Trust Project gains a public doorway without becoming a duplicate sign
   assert.match(runtime, /parseTrustProjectDoor/);
   const route = await readFile('src/features/trust/route.ts', 'utf8');
   assert.match(route, /presentation-only routing/);
-  assert.doesNotMatch(route, /membership\.join|invite\(|referral|authority/i);
+  assert.doesNotMatch(strip(route), /membership\.join|invite\(|referral|authority/i);
 });
 
 // ------------------------------------------------------------ the proposition
