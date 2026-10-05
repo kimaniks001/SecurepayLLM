@@ -12,7 +12,7 @@ export interface ReleaseInstructionResponse {
   settlementDestinationMaskedDisplay: string | null; sequence: number; createdAt: string;
 }
 export interface ReleaseExceptionResponse { exceptionId: string; instructionId: string; exceptionType: string; customerSafeReason: string | null; requiredAction: string | null; recordedAt: string; compensatedOutcome: boolean }
-export interface ReleaseSettlementStatusResponse { instructionId: string; settlementPhase: string; reservationId: string | null; executionId: string | null; exception: ReleaseExceptionResponse | null; settledAt: string | null }
+export interface ReleaseSettlementStatusResponse { instructionId: string; settlementPhase: string; reservationId: string | null; executionId: string | null; exception: ReleaseExceptionResponse | null; settledAt: string | null; amountMinor?: number | null; currency?: string | null; railCode?: string | null }
 
 export function createPaymentReleaseGateway(http: HttpClient) {
   const base = (agreementId: string) => `/api/v1/agreements/${segment(agreementId)}/payment-release`;
