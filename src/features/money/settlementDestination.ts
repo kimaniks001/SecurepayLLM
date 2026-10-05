@@ -1,5 +1,5 @@
 import { ApiError } from '../../api/securepay/http';
-import type { SettlementDestinationGateway, SettlementDestinationResponse, ExternalDestinationAccountKind } from '../../api/securepay/settlement-destinations';
+import type { SettlementDestinationGateway, SettlementDestinationResponse, ExternalDestinationAccountKind, RegisterMySettlementDestinationRequest } from '../../api/securepay/settlement-destinations';
 import { isUncertainFinancialError, type AttemptStore } from './attempt';
 
 /**
@@ -26,7 +26,7 @@ export async function readSettlementScope(gateway: SettlementDestinationGateway,
   return { current, history };
 }
 
-export interface DestinationForm { accountKind: ExternalDestinationAccountKind; bankCode: string; accountNumber: string; beneficiaryName: string; currency: string }
+export interface DestinationForm { accountKind: ExternalDestinationAccountKind; bankCode: string; accountNumber: string; beneficiaryName: string; currency: string; destinationType?: RegisterMySettlementDestinationRequest['destinationType'] }
 export type SubmitOutcome =
   | { kind: 'ok'; currency: string; scope: ScopeRead }
   | { kind: 'refused' }          // a different request while one is unresolved: nothing sent
@@ -40,7 +40,7 @@ export async function submitDestination(
   mode: 'register' | 'replace',
   form: DestinationForm,
 ): Promise<SubmitOutcome> {
-  const request = { destinationType: 'PRIMARY_SETTLEMENT' as const, currency: form.currency.toUpperCase(), accountKind: form.accountKind, bankCode: form.accountKind === 'BANK' ? form.bankCode : null, accountNumber: form.accountNumber, beneficiaryName: form.beneficiaryName };
+  const request: RegisterMySettlementDestinationRequest = { destinationType: form.destinationType ?? 'PRIMARY_SETTLEMENT', currency: form.currency.toUpperCase(), accountKind: form.accountKind, bankCode: form.accountKind === 'BANK' ? form.bankCode : null, accountNumber: form.accountNumber, beneficiaryName: form.beneficiaryName };
   const signature = `${mode}:${JSON.stringify(request)}`;
   const main = attempts.main.keyFor(signature);
   const verify = attempts.verification.keyFor(signature);

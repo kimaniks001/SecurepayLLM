@@ -146,6 +146,9 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           agreementGateway={gateways.agreements}
           snapshotGateway={gateways.moneySnapshot}
           financialPartners={gateways.financialPartners}
+          paymentIntentGateway={gateways.paymentIntent}
+          settlementGateway={gateways.settlementDestinations}
+          paymentReleaseGateway={gateways.paymentRelease}
           handoff={handoff}
           onSelectAgreement={setJumpAgreement}
         />

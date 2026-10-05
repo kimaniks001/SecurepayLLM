@@ -23,9 +23,13 @@ import type {
 } from '../../api/securepay/agreements/dto';
 import type { FinancialPartnerGateway, RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
 import type { AgreementMoneySnapshotResponse, MoneySnapshotGateway } from '../../api/securepay/money-snapshot';
+import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
+import type { SettlementDestinationGateway } from '../../api/securepay/settlement-destinations';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import { moneyText, minorFromString } from './amount';
 import { resolveSelection, type SelectionTarget } from './selection';
 import type { MoneyHandoff } from './handoff';
+import { MoneyPaymentSettlementJourney } from './MoneyPaymentSettlementJourney';
 
 type Load<T> =
   | { state: 'loading' }
@@ -36,6 +40,9 @@ interface SimpleMoneyDashboardProps {
   agreementGateway: AgreementGateway;
   snapshotGateway: MoneySnapshotGateway;
   financialPartners: FinancialPartnerGateway;
+  paymentIntentGateway: PaymentIntentGateway;
+  settlementGateway: SettlementDestinationGateway;
+  paymentReleaseGateway: PaymentReleaseGateway;
   handoff?: MoneyHandoff | null;
   onSelectAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
 }
@@ -380,6 +387,9 @@ export function SimpleMoneyDashboard({
   agreementGateway,
   snapshotGateway,
   financialPartners,
+  paymentIntentGateway,
+  settlementGateway,
+  paymentReleaseGateway,
   handoff,
   onSelectAgreement,
 }: SimpleMoneyDashboardProps) {
@@ -389,6 +399,7 @@ export function SimpleMoneyDashboard({
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
   const [detail, setDetail] = useState<Load<AgreementDetailResponse | null>>({ state: 'ready', value: null });
   const [partners, setPartners] = useState<Load<RegulatedPartnerResponse[]>>({ state: 'loading' });
+  const [moneyRefreshKey, setMoneyRefreshKey] = useState(0);
 
   const chooseAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
     onSelectAgreement(agreement);
@@ -473,7 +484,7 @@ export function SimpleMoneyDashboard({
       .catch(() => { if (live) setDetail({ state: 'error' }); });
 
     return () => { live = false; };
-  }, [selected?.agreementId, agreementGateway, snapshotGateway]);
+  }, [selected?.agreementId, agreementGateway, snapshotGateway, moneyRefreshKey]);
 
   const currentSnapshot = snapshot.state === 'ready' ? snapshot.value : null;
   const currentDetail = detail.state === 'ready' ? detail.value : null;
@@ -734,6 +745,9 @@ export function SimpleMoneyDashboard({
                     <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
                     <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
                     <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    {economics.taxMinor > 0 && (
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    )}
                     <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
                   </dl>
                 ) : (
@@ -742,6 +756,19 @@ export function SimpleMoneyDashboard({
               </div>
             </div>
           </section>
+
+          <MoneyPaymentSettlementJourney
+            agreementGateway={agreementGateway}
+            paymentIntentGateway={paymentIntentGateway}
+            settlementGateway={settlementGateway}
+            paymentReleaseGateway={paymentReleaseGateway}
+            agreement={selectedSummary}
+            agreementId={selected.agreementId}
+            agreementTitle={selected.title}
+            currency={selected.currency}
+            snapshot={currentSnapshot}
+            onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
+          />
 
           <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
