@@ -1,7 +1,7 @@
 /**
  * Public Experience Convergence Phase 4 -- quick Trust Project share invitations (UR-210).
  *
- * A share link is an ACQUISITION DOORWAY ONLY. It is a public, non-secret `#/join` URL, optionally carrying a
+ * A share link is an ACQUISITION DOORWAY ONLY. It opens the public Trust Project welcome door before Join, optionally carrying a
  * presentation-only `interest` (member | plug | master) that changes explanatory copy on the Join page and
  * nothing else. It creates no membership row, grants no membership, Plug or Master capacity, no referral,
  * attribution, Lifetime Share, reward or authority, and it carries no inviter identity (there is no
@@ -18,10 +18,10 @@ export function parseJoinInterest(value: string | null | undefined): JoinInteres
   return (INTERESTS as readonly string[]).includes(normalized) ? (normalized as JoinInterest) : null;
 }
 
-/** The public Join URL for this app, with only the presentation context -- never a token, never an identity. */
+/** The public Trust Project invitation URL, with presentation context only -- never a token or identity. */
 export function joinUrl(origin: string, interest: JoinInterest | null): string {
   const base = origin.replace(/\/+$/, '');
-  return interest ? `${base}/#/join?interest=${interest}` : `${base}/#/join`;
+  return interest ? `${base}/trust?interest=${interest}` : `${base}/trust`;
 }
 
 /** Human invitation copy. Never promises income or work, never calls the person a Plug or Master already. */
