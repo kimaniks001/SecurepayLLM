@@ -240,7 +240,7 @@ test('Sign in offers “Don’t have a KS Number? Get one” immediately below t
 });
 
 // ------------------------------------------------------------------ public navigation and Home
-const actions = { home: noop, signIn: noop, join: noop, section: noop, skipToKs001: noop };
+const actions = { home: noop, signIn: noop, join: noop, institute: noop, section: noop, skipToKs001: noop };
 test('PublicNav: Sign in is secondary and Join is primary, on desktop and mobile', () => {
   const nav = html(api.PublicNav, { actions });
   assert.match(nav, /Sign in<\/button>/);
@@ -669,26 +669,29 @@ test('signed-in NavBar: mark-only brand at md, wordmark from lg; every desktop c
   assert.ok(!cls(imgs[0]).includes('hidden'), 'the mark is always visible');
   assert.ok(cls(imgs[1]).includes('hidden') && cls(imgs[1]).includes('lg:block'), 'the wordmark returns at lg');
   const items = desktop.match(/<button(?![^>]*aria-label)[^>]*>/g);
-  assert.equal(items.length, 6);
+  assert.equal(items.length, 7);
   for (const b of items) assert.ok(cls(b).includes('min-h-11'), b);
   const bell = desktop.match(/<button[^>]*aria-label="Notifications"[^>]*>/)[0];
   for (const c of ['h-11', 'w-11', 'inline-flex', 'items-center', 'justify-center']) assert.ok(cls(bell).includes(c), c);
-  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(desktop, new RegExp(`>${label}</button>`), `${label} is never hidden or abbreviated`);
+  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Institute', 'Account']) assert.match(desktop, new RegExp(`>${label}</button>`), `${label} is never hidden or abbreviated`);
 });
 
-test('PublicNav is untouched by the UR-223 polish', () => {
-  const now = execFileSync('git', ['diff', '533f259faafc2884395454c61009f67d536015b7', '--', 'src/features/public/PublicNav.tsx'], { encoding: 'utf8' });
-  assert.equal(now, '');
+test('PublicNav keeps private app destinations out while adding the public Institute doorway', () => {
+  const out = text(html(api.PublicNav, { actions }));
+  assert.match(out, /\bInstitute\b/);
+  for (const label of ['Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications', 'Projects', 'Vision Board']) {
+    assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} stays private`);
+  }
 });
 
-test('signed-in mobile bottom nav: every item is 44px high and shares the width (all seven fit at 320px); same labels, icons and order', () => {
+test('signed-in mobile bottom nav: every item is 44px high and shares the width; Institute uses the compact Learn label', () => {
   const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
   const mobile = out.slice(out.indexOf('<nav', 5));
   assert.match(mobile, /<nav class="[^"]*\bmd:hidden fixed bottom-0\b[^"]*\bpx-1\b/);
   const buttons = mobile.match(/<button[^>]*>/g);
-  assert.equal(buttons.length, 7);
+  assert.equal(buttons.length, 8);
   for (const b of buttons) for (const c of ['flex-auto', 'min-h-11', 'justify-center']) assert.ok(cls(b).includes(c), `${c} in ${b}`);
-  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications'], 'no label hidden or abbreviated');
+  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Learn', 'Account', 'Notifications'], 'Institute is compact on mobile while all destinations stay visible');
 });
 
 // ------------------------------------------------------------------ Phase 4A final Workspace navigation closure

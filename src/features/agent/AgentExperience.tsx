@@ -113,8 +113,13 @@ import type { AuthorizationGateway } from '../../api/securepay/authorization';
 import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
 import type { DeveloperGateway } from '../../api/securepay/developer';
+import type { InstituteGateway } from '../../api/securepay/institute';
+import type { AgentOpportunityGateway } from '../../api/securepay/agentOpportunity';
+import { OpportunityChoicesCard } from './OpportunityChoicesCard';
+import { InstituteExperience } from '../institute/InstituteExperience';
+import { PublicInstituteExperience } from '../institute/PublicInstituteExperience';
 
-function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void }) {
+function RichResponse({ component, onReview, live = false, onPrompt, resolvePrompt, onRequestDiscovery, agentOpportunityGateway }: { component: AgentComponentView; onReview: () => void; live?: boolean; onPrompt?: (prompt: InstrumentPromptView) => void; resolvePrompt?: (prompt: InstrumentPromptView) => PromptResolution; onRequestDiscovery?: (targetEntityId: string) => void; agentOpportunityGateway?: AgentOpportunityGateway }) {
   if (component.type === 'MESSAGE') return <MessageBubble text={component.text} sender="agent" />;
   // KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED becomes a real, explicit, visible
   // accept action ONLY on the live/newest turn (matching INSTRUMENT_PROMPT's own doctrine below): an
@@ -125,6 +130,7 @@ function RichResponse({ component, onReview, live = false, onPrompt, resolveProm
     return <div className="pl-1"><button type="button" onClick={() => onRequestDiscovery(component.targetEntityId)}
       className="inline-flex min-h-11 items-center rounded-full border border-forest-200 bg-forest-50/70 px-3.5 text-[0.85rem] font-medium text-forest-800 hover:border-forest-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Look on SecurePay</button></div>;
   }
+  if (component.type === 'OPPORTUNITY_CHOICES') return agentOpportunityGateway ? <OpportunityChoicesCard component={component} gateway={agentOpportunityGateway} live={live} /> : null;
   if (component.type === 'AGREEMENT_PREVIEW') return <AgreementPreviewCard data={component} onChoice={choice => { if (choice === 'review_agreement') onReview(); }} />;
   // Final Phase 3 correction (Section 17/18): the real, server-composed UNDERSTOOD artifact for
   // one Agreement -- built entirely from read_agreement_workspace's own tool output, never
@@ -171,15 +177,15 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agentOpportunityGateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, instituteGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agentOpportunityGateway: AgentOpportunityGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   visionDreamGateway: VisionDreamGateway;
-  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway; instituteGateway: InstituteGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
@@ -314,6 +320,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(false);
+  const [institute, setInstitute] = useState(false);
+  const [institutePreferredSpaceId, setInstitutePreferredSpaceId] = useState<string | null>(null);
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
@@ -537,6 +545,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
   const navigateTo = (view: AppView) => {
     setNotice(null);
+    setInstitute(false);
+    setInstitutePreferredSpaceId(null);
     // Phase 5 -- cleared unconditionally on every navigation so the pre-existing branches below
     // never need editing to know about these five new destinations.
     setAccount(false); setSettingsView(false); setRecoveryView(false); setBusinessView(false); setDeveloperView(false); setNotificationsView(false); setSupportView(false); setHelpContext(null); setVisionLibrary(false); setDreamHandoffError(null); // a scoped Help context never outlives its screen
@@ -550,6 +560,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
+    if (view === 'institute') {
+      setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
+      setProjects(false); setVisionBoard(false); setWorkspace(false); setWorkspaceAgreementId(null); setHome(false);
+      setInstitute(true);
+      return;
+    }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
@@ -654,6 +670,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     home: () => { leaveSignIn(); joinRoute.close(); navigateTo('signed-in'); },
     signIn: () => signInRoute.open(null),
     join: () => { leaveSignIn(); joinRoute.open(); },
+    institute: () => { leaveSignIn(); joinRoute.close(); navigateTo('institute'); },
     section: id => { leaveSignIn(); navigateTo('signed-in'); setPendingSection(id); },
     skipToKs001: () => { if (focusKs001Composer()) return; leaveSignIn(); navigateTo('signed-in'); setPendingComposerFocus(true); },
   });
@@ -784,6 +801,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <CommunityExperience
         gateway={storeGateway}
         communityGateway={communityGateway}
+        instituteGateway={instituteGateway}
         discoveryGateway={discoveryGateway}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
@@ -800,6 +818,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // Community, then let the SAME real Agent conversation controller select the source.
         onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
         onJoinTrustProject={() => { setCommunity(false); joinRoute.open(); }}
+        onOpenInstituteSpace={spaceId => {
+          setCommunity(false);
+          setInstitutePreferredSpaceId(spaceId);
+          setInstitute(true);
+        }}
       />
     );
   }
@@ -832,14 +855,35 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     );
   }
 
+  if (institute) {
+    return sessionState.status === 'signed-in'
+      ? <InstituteExperience
+          gateway={instituteGateway}
+          onNavigate={navigateTo}
+          preferredSpaceId={institutePreferredSpaceId}
+          onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+            setInstitute(false);
+            setStoreOfferRoute({ canonicalKsNumber, offerId });
+            setStore(true);
+          }}
+        />
+      : <PublicInstituteExperience gateway={instituteGateway} onNavigate={navigateTo} onSignIn={() => signInRoute.open(null)} />;
+  }
+
   if (projects && sessionState.status === 'signed-in') {
     return (
       <ProjectsExperience
         controller={projectsController}
         agreementGateway={agreementGateway}
+        instituteGateway={instituteGateway}
         defaultOwnerKsNumber={ownKsNumber}
         onNavigate={navigateTo}
         onOpenVisionBoard={() => navigateTo('vision-board')}
+        onOpenInstituteSpace={spaceId => {
+          setProjects(false);
+          setInstitutePreferredSpaceId(spaceId);
+          setInstitute(true);
+        }}
       />
     );
   }
@@ -1381,7 +1425,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
                       resolvePrompt={prompt => specForPrompt(prompt, workbenchModel)}
                       onPrompt={prompt => { const resolved = specForPrompt(prompt, workbenchModel); if ('spec' in resolved) instruments.open(resolved.spec); }}
-                      onRequestDiscovery={targetEntityId => void controller.requestDiscovery(targetEntityId)} />)}
+                      onRequestDiscovery={targetEntityId => void controller.requestDiscovery(targetEntityId)} agentOpportunityGateway={agentOpportunityGateway} />)}
                   {(() => {
                     const found = turn.response.components.filter((c): c is DiscoveryView => c.type === 'DISCOVERY' && c.payload !== null);
                     return found.length > 0 ? <div className="ml-[2.625rem]"><button type="button" onClick={() => { setMobileTab('understood'); setFoundFocusKey(k => k + 1); }}
