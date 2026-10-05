@@ -347,7 +347,7 @@ test('EP-CERT-012: the shared message carries the note, the reason and the desti
   const message = api.shareText('member', url, 'I think this is what we were talking about.');
   assert.ok(message.startsWith('I think this is what we were talking about.\n\n'));
   assert.match(message, /The Trust Project useful/);
-  assert.ok(message.endsWith('https://securepay.example/#/join?interest=member'));
+  assert.ok(message.endsWith('https://securepay.example/trust?interest=member'));
   assert.equal(api.shareText('member', url, 'x'.repeat(1000)).split('\n\n')[0].length, api.MAX_SHARE_NOTE);
   assert.equal(api.shareText('member', url), `${api.shareText('member', url, '')}`);
   const share = (await src('src/features/public/ShareThis.tsx')).replace(/\/\*[\s\S]*?\*\//g, ''); // code only, not its doctrine comment
