@@ -633,11 +633,8 @@ export function MoneyPaymentSettlementJourney({
     return [...current].sort((a, b) => b.sequence - a.sequence)[0] ?? null;
   }, [currentVersionId, release.instructions]);
 
-  const currentSettlementStatus = currentInstruction
-    ? release.statuses[currentInstruction.instructionId]?.state === 'ready'
-      ? release.statuses[currentInstruction.instructionId].value
-      : null
-    : null;
+  const currentSettlementRead = currentInstruction ? release.statuses[currentInstruction.instructionId] ?? null : null;
+  const currentSettlementStatus = currentSettlementRead?.state === 'ready' ? currentSettlementRead.value : null;
 
   const latestIntent = intents.state === 'ready' ? intents.value[0] ?? null : null;
   const guide = useMemo(() => {
