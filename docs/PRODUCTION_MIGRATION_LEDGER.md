@@ -1935,3 +1935,20 @@ this environment) -- disclosed, not claimed.
 | Illustrative example outcome on Home | FRONTEND_COMPOSITION_ONLY | Labelled "Example · illustration"; never data. |
 | Trust Project "Invite someone" | FRONTEND_COMPOSITION_ONLY | Share doorway only (decision D3); no invitation record. |
 See `docs/USER_READY_BETA_GATE1_DEFECT_REGISTER.md`.
+
+
+## 2026-10-05 — Simple Money page visual convergence
+
+**Frontend composition:** `FRONTEND_COMPOSITION_ONLY` over existing real Money reads.
+
+The default Money route is simplified into one read-first dashboard for a selected Agreement:
+
+- Payment readiness — existing `money-snapshot` authority.
+- Funding — existing Agreement Money positions from the same snapshot.
+- Release — existing backend release-request authority from the same snapshot.
+- Money at a glance — Agreement summary plus one-position funded/released facts only; no cross-position or cross-currency client total is invented.
+- Funding route — existing backend `fundingOptions` only.
+- Banks — live/connected wording only when the existing regulated-partner read returns an `ACTIVE` `BANK`.
+- SACCOs / MMFs / Insurance — visible as fair-trade support categories only. This UI does **not** claim a live partner/capability until SecurePayAPI exposes authoritative discovery for those institution classes.
+
+The previous detailed Money, FX, settlement-destination and partner surfaces remain available under one collapsed **More money details** disclosure. No Money command, Payment Ready rule, release authority, fee authority, ledger rule or settlement semantics changed.
