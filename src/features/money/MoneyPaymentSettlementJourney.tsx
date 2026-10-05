@@ -860,7 +860,11 @@ export function MoneyPaymentSettlementJourney({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="font-semibold text-forest-900">{currentDestination.maskedDestinationDisplay}</div>
-                        <div className="mt-1 text-xs text-sand-500">{currentDestination.currency} · {titleCase(currentDestination.destinationStatus)}</div>
+                        <div className="mt-1 text-xs text-sand-500">
+                          {currentDestination.currency}
+                          {currentDestination.destinationType ? ` · ${titleCase(currentDestination.destinationType)}` : ''}
+                          { ` · ${titleCase(currentDestination.destinationStatus)}` }
+                        </div>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentDestination.verificationStatus === 'VERIFIED' ? 'bg-forest-100 text-forest-800' : 'bg-cream-200 text-sand-700'}`}>
                         {currentDestination.verificationStatus === 'VERIFIED' ? 'Verified' : titleCase(currentDestination.verificationStatus)}
@@ -1043,9 +1047,14 @@ export function MoneyPaymentSettlementJourney({
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Money record</div>
                 <div className="mt-2 font-display text-xl text-forest-900">Settled</div>
                 <p className="mt-1 text-sm text-sand-700">
-                  Money was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}.
+                  {currentSettlementStatus.amountMinor != null && currentSettlementStatus.currency
+                    ? <><MoneyValue amount={moneyText(currentSettlementStatus.amountMinor, currentSettlementStatus.currency)} size="sm" /> was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}.</>
+                    : <>Money was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}. The settlement status does not expose an amount on this response.</>}
                 </p>
-                <div className="mt-2 text-xs text-sand-500">Settlement time: {formatWhen(currentSettlementStatus.settledAt) ?? 'Not shown'}.</div>
+                <div className="mt-2 text-xs text-sand-500">
+                  Settlement time: {formatWhen(currentSettlementStatus.settledAt) ?? 'Not shown'}
+                  {currentSettlementStatus.railCode ? ` · Rail: ${currentSettlementStatus.railCode}` : ''}.
+                </div>
               </div>
             )}
 
