@@ -140,7 +140,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
         <PageHeader
           title="Money"
-          description="See the money state for an Agreement — what is allowed to happen, what has happened, and what supports it."
+          description="Your Agreements first — then the money, next steps and financial support that follow them."
         />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
@@ -152,8 +152,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">
           <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-forest-800 flex items-center justify-between gap-3">
-            <span>More money details</span>
-            <span className="text-xs font-normal text-sand-500 group-open:hidden">Open</span>
+            <span>Full money record & controls</span>
+            <span className="text-xs font-normal text-sand-500 group-open:hidden">Open the deeper record</span>
             <span className="text-xs font-normal text-sand-500 hidden group-open:inline">Close</span>
           </summary>
           <div className="border-t border-cream-200 px-4 md:px-5 py-5 space-y-6">
