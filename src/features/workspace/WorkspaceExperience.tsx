@@ -5,6 +5,7 @@ import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { AgreementHub } from '../../components/AgreementHub';
 import { AgreementDetail } from '../../components/AgreementDetail';
+import { LivingAgreementOverview } from './LivingAgreementOverview';
 import { MoneyDoorway } from '../money/MoneyDoorway';
 import { openMoneyFor } from '../money/handoff';
 import { ErrorStateCard } from '../../components/ErrorState';
@@ -310,6 +311,9 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
+          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts}
+            onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
+            onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
           progress={progress}
           next={agreementNextView(state.selectedAgreementNextActions)}
           events={calendarEvents}

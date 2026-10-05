@@ -1952,3 +1952,9 @@ The default Money route is simplified into one read-first dashboard for a select
 - SACCOs / MMFs / Insurance — visible as fair-trade support categories only. This UI does **not** claim a live partner/capability until SecurePayAPI exposes authoritative discovery for those institution classes.
 
 The previous detailed Money, FX, settlement-destination and partner surfaces remain available under one collapsed **More money details** disclosure. No Money command, Payment Ready rule, release authority, fee authority, ledger rule or settlement semantics changed.
+# Experience Engine Convergence V1 — 5 October 2026
+
+- Authorized coordinated experience redo; writes confined to SecurepayLLM.
+- `LivingAgreementOverview`: REAL_API_WIRED / FRONTEND_COMPOSITION_ONLY. Composes existing detail, effective milestone-state and completion projections, exposing purpose, description, version, work/evidence/people/changes/Money navigation. No write command or locally derived financial/completion authority.
+- Persistent mixed-material Vision canvas: REAL_API_AVAILABLE_NOT_WIRED does **not** apply: no verified canvas persistence/attachment contract. Recorded as an API gap in `docs/EXPERIENCE_ENGINE_CONVERGENCE_V1.md`; no fake saved-board claim.
+- Full programme/browser certification pending; this initial checkpoint is not release completion.
