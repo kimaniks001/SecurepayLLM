@@ -74,6 +74,19 @@ test('the four fair-trade finance enablers remain visible', () => {
   assert.match(moneyHome, /Protection for agreed risks/);
 });
 
+test('financial partners are inspectable and the future partner invitation is visible without faking an application', () => {
+  assert.match(moneyHome, /View financial partners/);
+  assert.match(moneyHome, /Financial partners/);
+  assert.match(moneyHome, /partner\.displayName/);
+  assert.match(moneyHome, /partner\.legalName/);
+  assert.match(moneyHome, /partner\.supportedCurrencies/);
+  assert.match(moneyHome, /selectedPartner\.capabilities/);
+  assert.match(moneyHome, /Become a financial partner/);
+  assert.match(moneyHome, /Bring your institution into fair trade/);
+  assert.match(moneyHome, /Partner onboarding is not open from this screen yet/);
+  assert.doesNotMatch(moneyHome, /submitPartnerApplication|createPartnerApplication|applyNow\(/);
+});
+
 test('only real regulated-partner data may claim a connected bank', () => {
   assert.match(moneyHome, /financialPartners\.list\(\)/);
   assert.match(moneyHome, /partner\.partnerType === 'BANK'/);
