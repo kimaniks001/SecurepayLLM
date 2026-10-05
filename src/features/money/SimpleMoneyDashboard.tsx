@@ -9,7 +9,6 @@ import {
   Users,
   WalletCards,
 } from 'lucide-react';
-import { Button } from '../../components/dna/Button';
 import { MoneyValue } from '../../components/dna/MoneyValue';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { AgreementGateway } from '../../api/securepay/agreements';
