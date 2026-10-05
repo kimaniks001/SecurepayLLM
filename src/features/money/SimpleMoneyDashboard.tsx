@@ -23,9 +23,13 @@ import type {
 } from '../../api/securepay/agreements/dto';
 import type { FinancialPartnerGateway, RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
 import type { AgreementMoneySnapshotResponse, MoneySnapshotGateway } from '../../api/securepay/money-snapshot';
+import type { PaymentIntentGateway } from '../../api/securepay/payment-intent';
+import type { SettlementDestinationGateway } from '../../api/securepay/settlement-destinations';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import { moneyText, minorFromString } from './amount';
 import { resolveSelection, type SelectionTarget } from './selection';
 import type { MoneyHandoff } from './handoff';
+import { MoneyPaymentSettlementJourney } from './MoneyPaymentSettlementJourney';
 
 type Load<T> =
   | { state: 'loading' }
@@ -36,6 +40,9 @@ interface SimpleMoneyDashboardProps {
   agreementGateway: AgreementGateway;
   snapshotGateway: MoneySnapshotGateway;
   financialPartners: FinancialPartnerGateway;
+  paymentIntentGateway: PaymentIntentGateway;
+  settlementGateway: SettlementDestinationGateway;
+  paymentReleaseGateway: PaymentReleaseGateway;
   handoff?: MoneyHandoff | null;
   onSelectAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
 }
@@ -380,6 +387,9 @@ export function SimpleMoneyDashboard({
   agreementGateway,
   snapshotGateway,
   financialPartners,
+  paymentIntentGateway,
+  settlementGateway,
+  paymentReleaseGateway,
   handoff,
   onSelectAgreement,
 }: SimpleMoneyDashboardProps) {
@@ -389,6 +399,7 @@ export function SimpleMoneyDashboard({
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
   const [detail, setDetail] = useState<Load<AgreementDetailResponse | null>>({ state: 'ready', value: null });
   const [partners, setPartners] = useState<Load<RegulatedPartnerResponse[]>>({ state: 'loading' });
+  const [moneyRefreshKey, setMoneyRefreshKey] = useState(0);
 
   const chooseAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
     onSelectAgreement(agreement);
@@ -473,7 +484,7 @@ export function SimpleMoneyDashboard({
       .catch(() => { if (live) setDetail({ state: 'error' }); });
 
     return () => { live = false; };
-  }, [selected?.agreementId, agreementGateway, snapshotGateway]);
+  }, [selected?.agreementId, agreementGateway, snapshotGateway, moneyRefreshKey]);
 
   const currentSnapshot = snapshot.state === 'ready' ? snapshot.value : null;
   const currentDetail = detail.state === 'ready' ? detail.value : null;
@@ -742,6 +753,19 @@ export function SimpleMoneyDashboard({
               </div>
             </div>
           </section>
+
+          <MoneyPaymentSettlementJourney
+            agreementGateway={agreementGateway}
+            paymentIntentGateway={paymentIntentGateway}
+            settlementGateway={settlementGateway}
+            paymentReleaseGateway={paymentReleaseGateway}
+            agreement={selectedSummary}
+            agreementId={selected.agreementId}
+            agreementTitle={selected.title}
+            currency={selected.currency}
+            snapshot={currentSnapshot}
+            onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
+          />
 
           <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
