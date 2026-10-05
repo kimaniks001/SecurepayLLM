@@ -10,6 +10,8 @@ import { SecureLinkExperience } from './features/securelink/SecureLinkExperience
 import { createInvitationInboxController } from './features/invitation-inbox/controller';
 import { parseInvitationRoute, parseMyInvitationRoute } from './features/recipient/route';
 import { parseStoreOfferRoute } from './features/store/route';
+import { TrustProjectWelcome } from './features/trust/TrustProjectWelcome';
+import { parseTrustProjectDoor, type TrustProjectDoorRoute } from './features/trust/route';
 import { createSecurePayApi } from './api/securepay';
 import { createSessionStore, withSessionRefresh } from './api/securepay/session';
 import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
@@ -220,6 +222,34 @@ function useSecureLinkRoute(): [string | null, () => void] {
   return [slug, clear];
 }
 
+/** Dedicated Trust Project public doorway. SecurePay root and action links remain unchanged. */
+function useTrustProjectDoor(): [TrustProjectDoorRoute | null, () => void] {
+  const parse = () => {
+    if (typeof window === 'undefined') return null;
+    return parseTrustProjectDoor(window.location.pathname, window.location.search, window.location.hash);
+  };
+  const [route, setRoute] = useState(parse);
+  useEffect(() => {
+    const onChange = () => setRoute(parse());
+    window.addEventListener('hashchange', onChange);
+    window.addEventListener('popstate', onChange);
+    return () => {
+      window.removeEventListener('hashchange', onChange);
+      window.removeEventListener('popstate', onChange);
+    };
+  }, []);
+  const clear = () => {
+    if (typeof window !== 'undefined') {
+      const isTrustPath = /^\/(?:trust|trust-project)\/?$/.test(window.location.pathname);
+      const isTrustHash = /^#\/?(?:trust|trust-project)(?:\/|\?|$)/.test(window.location.hash);
+      if (isTrustPath) window.history.replaceState(null, '', '/');
+      if (isTrustHash) window.location.hash = '';
+    }
+    setRoute(null);
+  };
+  return [route, clear];
+}
+
 /** Hosted Money session route -- #/money-session/{token}. The token lives only in the hash, like the invitation token. */
 function useMoneySessionRoute(): string | null {
   const parse = () => {
@@ -249,6 +279,7 @@ export default function RuntimeApp() {
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
+  const [trustProjectDoor, clearTrustProjectDoor] = useTrustProjectDoor();
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
@@ -302,6 +333,23 @@ export default function RuntimeApp() {
     return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneyGateway && paymentReleaseGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway && moneySnapshotGateway
       ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
       : <Unavailable />;
+  }
+  if (trustProjectDoor) {
+    const interest = trustProjectDoor.interest;
+    const leaveTrustDoor = () => clearTrustProjectDoor();
+    return (
+      <TrustProjectWelcome
+        interest={interest}
+        onGoSecurePay={() => {
+          leaveTrustDoor();
+          window.location.hash = '';
+        }}
+        onJoin={() => {
+          leaveTrustDoor();
+          window.location.hash = interest ? `#/join?interest=${encodeURIComponent(interest)}` : '#/join';
+        }}
+      />
+    );
   }
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
     ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
