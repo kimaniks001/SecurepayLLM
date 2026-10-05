@@ -49,6 +49,7 @@ import { BusinessCurrencyCapabilitySection } from './BusinessCurrencyCapabilityS
 import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
+import { SimpleMoneyDashboard } from './SimpleMoneyDashboard';
 
 function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
@@ -136,30 +137,47 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
   return (
     <div className="min-h-dvh bg-cream-100 flex flex-col pb-8">
       <MoneyHeader onBack={onLeave} />
-      <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-2xl mx-auto w-full">
-        {/* Final Phase 3 correction (Section 4): the original description overstated what this
-            aggregate proves -- AgreementMoneySummaryService is explicit that it establishes
-            Agreement Money across the actor's readable Agreements only, never personal ownership,
-            money due to the actor, or a general balance. */}
-        <PageHeader title="Money" description="Agreement Money across your Agreements, what it is allowed to do, and what has happened. Nothing here is calculated by this screen." />
-        <MoneyHomeOverview agreementGateway={gateways.agreements} onOpenAgreement={setJumpAgreement} />
-        <AgreementMoneySection
-          authorityGateway={gateways.moneyAuthority}
-          agreementGateway={gateways.agreements}
-          moneyGateway={gateways.money}
-          paymentReleaseGateway={gateways.paymentRelease}
-          paymentIntentGateway={gateways.paymentIntent}
-          snapshotGateway={gateways.moneySnapshot}
-          currencyCapabilityGateway={gateways.currencyCapability}
-          initialAgreement={jumpAgreement}
-          handoff={handoff}
+      <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
+        <PageHeader
+          title="Money"
+          description="See the money state for an Agreement — what is allowed to happen, what has happened, and what supports it."
         />
-        <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
-        <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
-        <BusinessCurrencyCapabilitySection gateway={gateways.businessCurrencyCapability} />
-        <BusinessFxConversionSection capabilityGateway={gateways.businessCurrencyCapability} fxApplicationGateway={gateways.businessFxApplication} />
-        <SettlementDestinationSection gateway={gateways.settlementDestinations} />
-        <FinancialPartnersSection gateway={gateways.financialPartners} />
+        <SimpleMoneyDashboard
+          agreementGateway={gateways.agreements}
+          snapshotGateway={gateways.moneySnapshot}
+          financialPartners={gateways.financialPartners}
+          handoff={handoff}
+          onSelectAgreement={setJumpAgreement}
+        />
+
+        <details className="group rounded-2xl border border-cream-200 bg-white/60">
+          <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-forest-800 flex items-center justify-between gap-3">
+            <span>More money details</span>
+            <span className="text-xs font-normal text-sand-500 group-open:hidden">Open</span>
+            <span className="text-xs font-normal text-sand-500 hidden group-open:inline">Close</span>
+          </summary>
+          <div className="border-t border-cream-200 px-4 md:px-5 py-5 space-y-6">
+            {/* The detailed authority surfaces remain available without dominating the default page. */}
+            <MoneyHomeOverview agreementGateway={gateways.agreements} onOpenAgreement={setJumpAgreement} />
+            <AgreementMoneySection
+              authorityGateway={gateways.moneyAuthority}
+              agreementGateway={gateways.agreements}
+              moneyGateway={gateways.money}
+              paymentReleaseGateway={gateways.paymentRelease}
+              paymentIntentGateway={gateways.paymentIntent}
+              snapshotGateway={gateways.moneySnapshot}
+              currencyCapabilityGateway={gateways.currencyCapability}
+              initialAgreement={jumpAgreement}
+              handoff={handoff}
+            />
+            <CurrencyCapabilitySection gateway={gateways.currencyCapability} />
+            <FxConversionSection regulatedAccountsGateway={gateways.regulatedAccounts} fxApplicationGateway={gateways.fxApplication} />
+            <BusinessCurrencyCapabilitySection gateway={gateways.businessCurrencyCapability} />
+            <BusinessFxConversionSection capabilityGateway={gateways.businessCurrencyCapability} fxApplicationGateway={gateways.businessFxApplication} />
+            <SettlementDestinationSection gateway={gateways.settlementDestinations} />
+            <FinancialPartnersSection gateway={gateways.financialPartners} />
+          </div>
+        </details>
       </div>
     </div>
   );
