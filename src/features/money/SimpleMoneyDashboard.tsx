@@ -1,18 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowRight,
   Banknote,
   Building2,
-  Clock3,
+  CheckCircle2,
+  CircleDollarSign,
+  FileText,
   Landmark,
   LockKeyhole,
+  Route,
   ShieldCheck,
+  Sparkles,
   Users,
   WalletCards,
 } from 'lucide-react';
 import { MoneyValue } from '../../components/dna/MoneyValue';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import type { AgreementGateway } from '../../api/securepay/agreements';
-import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import type {
+  AgreementDetailResponse,
+  CurrentUserAgreementSummaryResponse,
+} from '../../api/securepay/agreements/dto';
 import type { FinancialPartnerGateway, RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
 import type { AgreementMoneySnapshotResponse, MoneySnapshotGateway } from '../../api/securepay/money-snapshot';
 import { moneyText, minorFromString } from './amount';
@@ -32,46 +40,35 @@ interface SimpleMoneyDashboardProps {
   onSelectAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
 }
 
+function amountFromSummary(agreement: Pick<CurrentUserAgreementSummaryResponse, 'proposedAmountMinor' | 'currency'>) {
+  const minor = minorFromString(agreement.proposedAmountMinor);
+  return minor === null ? null : moneyText(minor, agreement.currency);
+}
+
+function titleCase(value: string) {
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, letter => letter.toUpperCase());
+}
+
 function statusTone(status: string) {
-  if (['Ready', 'Available', 'Connected', 'Funded'].includes(status)) return 'bg-forest-100 text-forest-800';
-  if (['Not ready', 'Not funded'].includes(status)) return 'bg-ember-100 text-ember-800';
+  if (['Ready', 'Available', 'Connected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
+  if (['Blocked', 'Not ready', 'Not funded'].includes(status)) return 'bg-ember-100 text-ember-800';
   return 'bg-cream-200 text-sand-700';
 }
 
-function StatusCard({
-  icon,
-  title,
-  status,
-  detail,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  status: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-cream-200 bg-white/70 p-4 min-w-0">
-      <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-cream-100 p-2 text-forest-800 shrink-0">{icon}</div>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-forest-900">{title}</div>
-          <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[0.7rem] font-semibold ${statusTone(status)}`}>
-            {status}
-          </span>
-          <p className="mt-2 text-xs leading-5 text-sand-600">{detail}</p>
-        </div>
-      </div>
-    </div>
-  );
+function StatusPill({ status }: { status: string }) {
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[0.7rem] font-semibold ${statusTone(status)}`}>{status}</span>;
 }
 
 function snapshotReadiness(snapshot: AgreementMoneySnapshotResponse | null) {
   if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the current money state yet.' };
   if (snapshot.paymentReady.state !== 'EVALUATED') {
-    return { status: 'Waiting', detail: 'Payment Ready has not been evaluated for this Agreement yet.' };
+    return { status: 'Waiting', detail: 'Payment Ready has not been evaluated for this Agreement version yet.' };
   }
   if (snapshot.paymentReady.ready) {
-    return { status: 'Ready', detail: 'SecurePay says the evaluated payment conditions are satisfied.' };
+    return { status: 'Ready', detail: 'The evaluated payment conditions are satisfied.' };
   }
   return { status: 'Not ready', detail: 'One or more evaluated payment conditions are still outstanding.' };
 }
@@ -83,42 +80,37 @@ function fundingStatus(snapshot: AgreementMoneySnapshotResponse | null) {
   if (established.some(position => (position.fundedTotalMinor ?? 0) > 0)) {
     return { status: 'Funded', detail: 'SecurePay shows funded money on this Agreement.' };
   }
-  return { status: 'Not funded', detail: 'Agreement Money exists, but SecurePay shows no funded amount yet.' };
+  return { status: 'Not funded', detail: 'Agreement Money exists, but no funded amount is shown yet.' };
 }
 
 function releaseStatus(snapshot: AgreementMoneySnapshotResponse | null) {
   if (!snapshot) return { status: 'Unknown', detail: 'Release authority is not loaded yet.' };
   if (snapshot.releaseRequest.authorityGranted) {
-    return { status: 'Available', detail: 'SecurePay currently grants release-request authority for the evaluated scope.' };
+    return { status: 'Available', detail: 'Release-request authority is currently available for the evaluated scope.' };
   }
   return { status: 'Not ready', detail: 'SecurePay does not currently grant release-request authority.' };
 }
 
-function nextStep(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return 'Choose an Agreement so SecurePay can show its current money state.';
+function movementStatus(snapshot: AgreementMoneySnapshotResponse | null) {
+  if (!snapshot) return { status: 'Unknown', detail: 'Movement preflight has not loaded.' };
   if (snapshot.movement.state === 'READY') {
-    return 'SecurePay says the current movement preflight is ready. Open the detailed money view before taking a financial action.';
+    return { status: 'Ready', detail: 'The current read-only movement preflight passed.' };
   }
-  if (snapshot.paymentReady.state !== 'EVALUATED') {
-    return 'Wait for the Payment Ready evaluation. SecurePay will then show the next safe money step.';
+  if (snapshot.movement.state === 'UNAVAILABLE') {
+    return { status: 'Unknown', detail: 'SecurePay could not complete the movement preflight.' };
   }
-  if (!snapshot.paymentReady.ready) {
-    return 'Review the outstanding Agreement conditions before trying to fund or release money.';
-  }
-  if (snapshot.fundingOptions.length === 0) {
-    return 'Payment Ready is satisfied, but SecurePay does not currently list a funding route for this Agreement.';
-  }
-  return 'Review the funding route and charges before any money action.';
+  return { status: 'Blocked', detail: titleCase(snapshot.movement.reasonCode) };
 }
 
-function MoneyMetric({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs text-sand-500">{label}</dt>
-      <dd className="mt-1 text-lg font-semibold text-forest-900 break-words">{value}</dd>
-      {note && <div className="mt-1 text-xs text-sand-500">{note}</div>}
-    </div>
-  );
+function nextStep(snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
+  const backendNext = agreement?.nextActions?.[0]?.reason;
+  if (backendNext) return backendNext;
+  if (!snapshot) return 'Choose an Agreement to see the next money step.';
+  if (snapshot.movement.state === 'READY') return 'The current money movement preflight is ready.';
+  if (snapshot.paymentReady.state !== 'EVALUATED') return 'Complete the Agreement steps needed before Payment Ready can be evaluated.';
+  if (!snapshot.paymentReady.ready) return 'Resolve the outstanding Agreement conditions before funding or release.';
+  if (snapshot.fundingOptions.length === 0) return 'Payment Ready is satisfied, but SecurePay does not currently list a funding route.';
+  return 'Review the funding route and charges before any money action.';
 }
 
 function enablerBankNote(partners: Load<RegulatedPartnerResponse[]>) {
@@ -127,6 +119,74 @@ function enablerBankNote(partners: Load<RegulatedPartnerResponse[]>) {
   const liveBanks = partners.value.filter(partner => partner.partnerType === 'BANK' && partner.status === 'ACTIVE');
   if (liveBanks.length === 0) return 'No active bank partner is listed by SecurePay right now.';
   return `Connected: ${liveBanks.map(partner => partner.displayName).join(', ')}`;
+}
+
+function AgreementCard({
+  agreement,
+  active,
+  onOpen,
+}: {
+  agreement: CurrentUserAgreementSummaryResponse;
+  active: boolean;
+  onOpen: () => void;
+}) {
+  const amount = amountFromSummary(agreement);
+  const action = agreement.nextActions[0]?.reason ?? (agreement.attentionRequired ? 'This Agreement needs your attention.' : 'No immediate action is shown.');
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-pressed={active}
+      className={`w-full rounded-2xl border p-4 text-left transition-card ${active
+        ? 'border-forest-300 bg-forest-50 shadow-soft'
+        : 'border-cream-200 bg-white/70 hover:border-forest-200 hover:bg-cream-50'}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-lg text-forest-900 truncate">{agreement.title}</div>
+          <div className="mt-1 text-xs text-sand-500">
+            {agreement.counterparty?.displayName ?? agreement.counterparty?.ksNumber ?? titleCase(agreement.agreementType)}
+          </div>
+        </div>
+        <StatusPill status={titleCase(agreement.status)} />
+      </div>
+      <p className="mt-3 line-clamp-2 text-sm leading-5 text-sand-700">{agreement.purpose}</p>
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-cream-200 pt-3">
+        <div>
+          <div className="text-[0.68rem] uppercase tracking-wide text-sand-500">Agreement amount</div>
+          <div className="mt-0.5 text-sm font-semibold text-forest-900">
+            {amount ? <MoneyValue amount={amount} size="sm" /> : 'Not shown'}
+          </div>
+        </div>
+        <div className="max-w-[55%] text-right text-xs leading-4 text-sand-600">{action}</div>
+      </div>
+    </button>
+  );
+}
+
+function FinanceStateCard({
+  icon,
+  title,
+  status,
+  detail,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  status: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-cream-200 bg-white/75 p-4">
+      <div className="flex items-start gap-3">
+        <div className="rounded-xl bg-cream-100 p-2 text-forest-800">{icon}</div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-forest-900">{title}</div>
+          <div className="mt-1"><StatusPill status={status} /></div>
+          <p className="mt-2 text-xs leading-5 text-sand-600">{detail}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EnablerCard({
@@ -141,22 +201,56 @@ function EnablerCard({
   note: string;
 }) {
   return (
-    <div className="rounded-xl border border-cream-200 bg-cream-50 px-4 py-3">
+    <div className="rounded-2xl border border-cream-200 bg-cream-50/80 p-4">
       <div className="flex items-center gap-2 text-forest-900">
         <span className="shrink-0">{icon}</span>
-        <span className="font-semibold text-sm">{title}</span>
+        <span className="font-semibold">{title}</span>
       </div>
-      <p className="mt-1 text-xs text-sand-600">{text}</p>
-      <p className="mt-2 text-[0.7rem] leading-4 text-sand-500">{note}</p>
+      <p className="mt-2 text-sm text-sand-700">{text}</p>
+      <p className="mt-2 text-xs leading-5 text-sand-500">{note}</p>
+    </div>
+  );
+}
+
+function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse }) {
+  if (snapshot.positions.length === 0) {
+    return <p className="text-sm text-sand-600">No Agreement Money position is established yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {snapshot.positions.map((position, index) => {
+        const currency = position.currency ?? position.proposedCurrency ?? '';
+        if (!position.established) {
+          return (
+            <div key={position.obligationId ?? `position-${index}`} className="rounded-xl bg-cream-50 p-3">
+              <div className="text-sm font-medium text-forest-900">{position.obligationTitle ?? 'Agreement Money position'}</div>
+              <div className="mt-1 text-xs text-sand-600">
+                Proposed {position.proposedAmountMinor != null ? <MoneyValue amount={moneyText(position.proposedAmountMinor, currency)} size="sm" /> : 'amount not shown'} · not funded yet
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={position.obligationId ?? `position-${index}`} className="rounded-xl border border-cream-200 bg-white/60 p-3">
+            <div className="text-sm font-medium text-forest-900">{position.obligationTitle ?? 'Agreement Money position'}</div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</dt><dd className="mt-1 text-sm text-forest-900"><MoneyValue amount={moneyText(position.fundedTotalMinor ?? 0, currency)} size="sm" /></dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Progressed</dt><dd className="mt-1 text-sm text-forest-900"><MoneyValue amount={moneyText(position.exercisedOrSettledMinor ?? 0, currency)} size="sm" /></dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Remaining</dt><dd className="mt-1 text-sm text-forest-900"><MoneyValue amount={moneyText(position.remainingFundedMinor ?? 0, currency)} size="sm" /></dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Returned</dt><dd className="mt-1 text-sm text-forest-900"><MoneyValue amount={moneyText(position.releasedTotalMinor ?? 0, currency)} size="sm" /></dd></div>
+            </dl>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /**
- * Simple Money is deliberately a read-first composition over existing backend authority.
- * It does not create Payment Ready, funding, release, partner availability, settlement or balances.
- * SACCO/MMF/insurance are shown as the fair-trade support categories the product is designed to
- * accommodate; only bank connectivity is currently discoverable from the regulated-partner API.
+ * This is the human Money home: Agreements first, then the money truth that follows each Agreement.
+ * It composes existing backend-owned reads. It does not create Payment Ready, funding, release,
+ * settlement, provider availability or balances, and it never manufactures a cross-currency total.
  */
 export function SimpleMoneyDashboard({
   agreementGateway,
@@ -169,7 +263,21 @@ export function SimpleMoneyDashboard({
   const [selected, setSelected] = useState<SelectionTarget | null>(null);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
+  const [detail, setDetail] = useState<Load<AgreementDetailResponse | null>>({ state: 'ready', value: null });
   const [partners, setPartners] = useState<Load<RegulatedPartnerResponse[]>>({ state: 'loading' });
+
+  const chooseAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
+    onSelectAgreement(agreement);
+    setSelectionNotice(null);
+    const result = await resolveSelection(agreementGateway, {
+      agreementId: agreement.agreementId,
+      title: agreement.title,
+      currency: agreement.currency,
+      summaryAmountMinor: agreement.proposedAmountMinor,
+    });
+    setSelected(result.chosen);
+    setSelectionNotice(result.notice);
+  };
 
   useEffect(() => {
     let live = true;
@@ -177,14 +285,16 @@ export function SimpleMoneyDashboard({
       .then(response => {
         if (!live) return;
         setAgreements({ state: 'ready', value: response.items });
-        if (!handoff && response.items.length === 1) {
-          const only = response.items[0];
-          onSelectAgreement(only);
+        // Landing on Money should immediately feel alive. The first backend-returned Agreement is opened
+        // as a neutral default; this is not a client-side priority or financial recommendation.
+        if (!handoff && response.items.length > 0) {
+          const first = response.items[0];
+          onSelectAgreement(first);
           void resolveSelection(agreementGateway, {
-            agreementId: only.agreementId,
-            title: only.title,
-            currency: only.currency,
-            summaryAmountMinor: only.proposedAmountMinor,
+            agreementId: first.agreementId,
+            title: first.title,
+            currency: first.currency,
+            summaryAmountMinor: first.proposedAmountMinor,
           }).then(result => {
             if (!live) return;
             setSelected(result.chosen);
@@ -223,215 +333,248 @@ export function SimpleMoneyDashboard({
   useEffect(() => {
     if (!selected) {
       setSnapshot({ state: 'ready', value: null });
+      setDetail({ state: 'ready', value: null });
       return;
     }
     let live = true;
     setSnapshot({ state: 'loading' });
+    setDetail({ state: 'loading' });
+
     snapshotGateway.read(selected.agreementId)
       .then(value => { if (live) setSnapshot({ state: 'ready', value }); })
       .catch(() => { if (live) setSnapshot({ state: 'error' }); });
+
+    agreementGateway.detail(selected.agreementId)
+      .then(value => { if (live) setDetail({ state: 'ready', value }); })
+      .catch(() => { if (live) setDetail({ state: 'error' }); });
+
     return () => { live = false; };
-  }, [selected?.agreementId, snapshotGateway]);
+  }, [selected?.agreementId, agreementGateway, snapshotGateway]);
 
   const currentSnapshot = snapshot.state === 'ready' ? snapshot.value : null;
+  const currentDetail = detail.state === 'ready' ? detail.value : null;
+  const selectedSummary = useMemo(() => {
+    if (!selected || agreements.state !== 'ready') return null;
+    return agreements.value.find(agreement => agreement.agreementId === selected.agreementId) ?? null;
+  }, [agreements, selected]);
+
   const payment = snapshotReadiness(currentSnapshot);
   const funding = fundingStatus(currentSnapshot);
   const release = releaseStatus(currentSnapshot);
-  const singlePosition = currentSnapshot?.positions.length === 1 ? currentSnapshot.positions[0] : null;
-
-  const summaryAmount = useMemo(() => {
-    if (!selected) return null;
-    const minor = minorFromString(selected.summaryAmountMinor);
-    return minor === null ? null : moneyText(minor, selected.currency ?? '');
-  }, [selected]);
-
-  const chooseAgreement = async (agreement: CurrentUserAgreementSummaryResponse) => {
-    onSelectAgreement(agreement);
-    setSelectionNotice(null);
-    const result = await resolveSelection(agreementGateway, {
-      agreementId: agreement.agreementId,
-      title: agreement.title,
-      currency: agreement.currency,
-      summaryAmountMinor: agreement.proposedAmountMinor,
-    });
-    setSelected(result.chosen);
-    setSelectionNotice(result.notice);
-  };
-
+  const movement = movementStatus(currentSnapshot);
+  const selectedAmount = selectedSummary ? amountFromSummary(selectedSummary) : (
+    selected?.summaryAmountMinor != null && selected.currency
+      ? moneyText(minorFromString(selected.summaryAmountMinor), selected.currency)
+      : null
+  );
+  const economics = currentSnapshot?.movement.economics ?? null;
+  const agreementSnippet = currentDetail?.overview.description?.trim()
+    || currentDetail?.overview.purpose?.trim()
+    || selectedSummary?.purpose?.trim()
+    || 'SecurePay has not loaded a short Agreement description.';
+  const fundingRoutes = currentSnapshot?.fundingOptions ?? [];
   const selectedId = selected?.agreementId ?? '';
 
   return (
-    <div className="space-y-5" data-testid="simple-money-dashboard">
-      <section className="rounded-2xl border border-cream-200 bg-white/70 p-4 md:p-5">
-        {agreements.state === 'loading' && !selected && <p role="status" className="text-sm text-sand-500">Loading your Agreements…</p>}
-        {agreements.state === 'error' && !selected && (
+    <div className="space-y-6" data-testid="simple-money-dashboard">
+      <section className="overflow-hidden rounded-3xl border border-forest-200 bg-gradient-to-br from-forest-50 via-cream-50 to-cream-100 shadow-soft">
+        <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)] lg:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/70 px-3 py-1 text-xs font-semibold text-forest-800">
+              <Sparkles className="h-3.5 w-3.5" />
+              Agreement-led money
+            </div>
+            <h2 className="mt-4 font-display text-3xl text-forest-900 md:text-4xl">Money follows the agreement.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-sand-700 md:text-base">
+              See the trade, the amount, what happens next, and the financial support around it — without losing the deeper money record underneath.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-soft">
+            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-sand-500">Community promise</div>
+            <p className="mt-2 font-display text-lg leading-7 text-forest-900">
+              Clear agreements. Accountable money. More room for people to trade with confidence.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl text-forest-900">Your Agreements</h2>
+            <p className="mt-1 text-sm text-sand-600">Your contracts come first. Choose one to see the money that belongs to it.</p>
+          </div>
+          {agreements.state === 'ready' && agreements.value.length > 0 && (
+            <div className="text-xs text-sand-500">{agreements.value.length} Agreement{agreements.value.length === 1 ? '' : 's'}</div>
+          )}
+        </div>
+
+        {agreements.state === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Agreements…</p>}
+        {agreements.state === 'error' && (
           <StatusNotice tone="warning">SecurePay couldn’t load your Agreement list. No money state is being guessed.</StatusNotice>
         )}
-        {agreements.state === 'ready' && agreements.value.length === 0 && !selected && (
-          <p className="text-sm text-sand-600">You have no Agreements yet. Money follows an Agreement once one exists.</p>
+        {agreements.state === 'ready' && agreements.value.length === 0 && (
+          <div className="rounded-2xl border border-cream-200 bg-white/70 p-5 text-sm text-sand-600">
+            You have no Agreements yet. Money appears here once an Agreement exists.
+          </div>
         )}
-
-        {(selected || (agreements.state === 'ready' && agreements.value.length > 1)) && (
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              {selected ? (
-                <>
-                  <div className="text-base font-semibold text-forest-900 truncate">{selected.title}</div>
-                  <div className="mt-0.5 text-xs text-sand-500">
-                    Agreement Money{selected.currency ? ` · ${selected.currency}` : ''}
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm font-medium text-forest-800">Choose an Agreement</div>
-              )}
-            </div>
-            {agreements.state === 'ready' && agreements.value.length > 1 && (
-              <label className="w-full md:w-auto">
-                <span className="sr-only">Choose an Agreement</span>
-                <select
-                  aria-label="Choose an Agreement"
-                  value={selectedId}
-                  onChange={event => {
-                    const match = agreements.value.find(item => item.agreementId === event.target.value);
-                    if (match) void chooseAgreement(match);
-                  }}
-                  className="w-full md:min-w-72 rounded-xl border border-cream-300 bg-white px-3 py-2 text-sm text-forest-900"
-                >
-                  <option value="">Choose an Agreement</option>
-                  {agreements.value.map(agreement => (
-                    <option key={agreement.agreementId} value={agreement.agreementId}>{agreement.title}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+        {agreements.state === 'ready' && agreements.value.length > 0 && (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {agreements.value.map(agreement => (
+              <AgreementCard
+                key={agreement.agreementId}
+                agreement={agreement}
+                active={agreement.agreementId === selectedId}
+                onOpen={() => void chooseAgreement(agreement)}
+              />
+            ))}
           </div>
         )}
       </section>
 
       {selectionNotice && <StatusNotice tone="warning">{selectionNotice}</StatusNotice>}
-      {snapshot.state === 'loading' && <p role="status" className="text-sm text-sand-500">Reading this Agreement’s money state…</p>}
       {snapshot.state === 'error' && (
         <StatusNotice tone="warning">SecurePay couldn’t load this Agreement’s money snapshot. No financial state is being inferred.</StatusNotice>
       )}
 
       {selected && (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatusCard icon={<Clock3 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
-            <StatusCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
-            <StatusCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
-            <StatusCard
-              icon={<Users className="h-5 w-5" />}
-              title="Financial enablers"
-              status="Support"
-              detail="Banks · SACCOs · MMFs · Insurance"
-            />
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-            <div className="rounded-2xl border border-cream-200 bg-white/70 p-5">
-              <div className="flex items-center gap-2">
-                <Banknote className="h-5 w-5 text-forest-800" />
-                <div>
-                  <h2 className="font-display text-xl text-forest-900">Money at a glance</h2>
-                  <p className="text-xs text-sand-500">Only the simplest facts for this Agreement.</p>
+          <section className="rounded-3xl border border-cream-200 bg-white/80 shadow-soft">
+            <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <FileText className="h-5 w-5 text-forest-700" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-sand-500">What was agreed</span>
+                  {selectedSummary && <StatusPill status={titleCase(selectedSummary.status)} />}
                 </div>
-              </div>
-              <dl className="mt-5 grid grid-cols-2 gap-5 md:grid-cols-4 md:divide-x md:divide-cream-200">
-                <MoneyMetric
-                  label="Agreement summary"
-                  value={summaryAmount ? <MoneyValue amount={summaryAmount} size="md" /> : 'Not shown'}
-                  note="Summary value, not a separate balance"
-                />
-                <div className="md:pl-5">
-                  <MoneyMetric
-                    label="Funded"
-                    value={singlePosition?.established && singlePosition.currency
-                      ? <MoneyValue amount={moneyText(singlePosition.fundedTotalMinor ?? 0, singlePosition.currency)} size="md" />
-                      : currentSnapshot && currentSnapshot.positions.length > 1 ? 'Multiple positions' : 'Not shown'}
-                  />
-                </div>
-                <div className="md:pl-5">
-                  <MoneyMetric
-                    label="Released / returned"
-                    value={singlePosition?.established && singlePosition.currency
-                      ? <MoneyValue amount={moneyText(singlePosition.releasedTotalMinor ?? 0, singlePosition.currency)} size="md" />
-                      : currentSnapshot && currentSnapshot.positions.length > 1 ? 'Multiple positions' : 'Not shown'}
-                  />
-                </div>
-                <div className="md:pl-5">
-                  <MoneyMetric label="Currency" value={selected.currency ?? 'Not shown'} />
-                </div>
-              </dl>
-            </div>
-
-            <aside className="rounded-2xl border border-forest-200 bg-forest-50/70 p-5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-forest-800" />
-                <h2 className="font-display text-xl text-forest-900">What happens next</h2>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-sand-700">{nextStep(currentSnapshot)}</p>
-              <div className="mt-4 border-t border-forest-200 pt-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-sand-500">Funding route</div>
-                {currentSnapshot?.fundingOptions.length ? (
-                  <p className="mt-1 text-sm text-forest-900">
-                    {currentSnapshot.fundingOptions.map(option => option.displayName).join(' · ')}
+                <h2 className="mt-3 font-display text-3xl text-forest-900">{selected.title}</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-sand-700">{agreementSnippet}</p>
+                {selectedSummary?.counterparty && (
+                  <p className="mt-3 text-xs text-sand-500">
+                    With {selectedSummary.counterparty.displayName ?? selectedSummary.counterparty.ksNumber ?? 'the other Agreement participant'}
                   </p>
-                ) : (
-                  <p className="mt-1 text-sm text-sand-600">No funding route is listed yet.</p>
+                )}
+                {currentDetail && currentDetail.terms.length > 0 && (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {currentDetail.terms.slice(0, 4).map(term => (
+                      <span key={term.obligationId} className="rounded-full border border-cream-300 bg-cream-50 px-3 py-1.5 text-xs text-sand-700">
+                        {term.title}
+                      </span>
+                    ))}
+                    {currentDetail.terms.length > 4 && (
+                      <span className="rounded-full bg-cream-100 px-3 py-1.5 text-xs text-sand-500">+{currentDetail.terms.length - 4} more</span>
+                    )}
+                  </div>
                 )}
               </div>
-            </aside>
-          </section>
-
-          <section className="rounded-2xl border border-cream-200 bg-white/70 p-5">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-forest-800" />
-              <div>
-                <h2 className="font-display text-xl text-forest-900">Financial enablers</h2>
-                <p className="text-xs text-sand-500">The support around fair trade, kept simple.</p>
+              <div className="rounded-2xl bg-forest-900 p-5 text-cream-50">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-forest-200">Agreement amount</div>
+                <div className="mt-2 font-display text-3xl">
+                  {selectedAmount ? <MoneyValue amount={selectedAmount} size="lg" /> : 'Not shown'}
+                </div>
+                <div className="mt-4 border-t border-forest-700 pt-4">
+                  <div className="text-xs uppercase tracking-wide text-forest-200">Next step</div>
+                  <p className="mt-2 text-sm leading-6 text-cream-100">{nextStep(currentSnapshot, selectedSummary)}</p>
+                </div>
               </div>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          </section>
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
+            <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
+            <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
+            <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
+          </section>
+
+          <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+            <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
+              <div className="flex items-center gap-2">
+                <CircleDollarSign className="h-5 w-5 text-forest-700" />
+                <div>
+                  <h2 className="font-display text-2xl text-forest-900">Agreement Money</h2>
+                  <p className="text-xs text-sand-500">What SecurePay actually holds for this Agreement’s money positions.</p>
+                </div>
+              </div>
+              <div className="mt-5">
+                {snapshot.state === 'loading' && <p role="status" className="text-sm text-sand-500">Reading Agreement Money…</p>}
+                {currentSnapshot && <PositionMoney snapshot={currentSnapshot} />}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-forest-200 bg-forest-50/70 p-5 md:p-6">
+              <div className="flex items-center gap-2">
+                <Route className="h-5 w-5 text-forest-700" />
+                <h2 className="font-display text-2xl text-forest-900">Funding & charges</h2>
+              </div>
+              <div className="mt-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
+                {fundingRoutes.length > 0 ? (
+                  <ul className="mt-2 space-y-2">
+                    {fundingRoutes.map(route => (
+                      <li key={route.railCode} className="rounded-xl border border-forest-100 bg-white/70 px-3 py-2 text-sm text-forest-900">
+                        <div className="font-medium">{route.displayName}</div>
+                        <div className="text-xs text-sand-500">{route.currency}</div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-sand-600">No funding route is listed yet.</p>
+                )}
+              </div>
+
+              <div className="mt-5 border-t border-forest-200 pt-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
+                {economics && currentSnapshot?.movement.currency ? (
+                  <dl className="mt-3 space-y-2 text-sm">
+                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-forest-700" />
+                  <h2 className="font-display text-2xl text-forest-900">Fair trade finance</h2>
+                </div>
+                <p className="mt-1 text-sm text-sand-600">The institutions that can help good Agreements become possible, safer and easier to complete.</p>
+              </div>
+              <div className="text-xs text-sand-500">Banks · SACCOs · MMFs · Insurance</div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <EnablerCard
                 icon={<Landmark className="h-5 w-5" />}
                 title="Banks"
-                text="Funding and settlement."
+                text="Funding, payment rails and settlement."
                 note={enablerBankNote(partners)}
               />
               <EnablerCard
                 icon={<Users className="h-5 w-5" />}
                 title="SACCOs"
-                text="Community finance."
-                note="Shown as a fair-trade support category; live SACCO capability is not claimed here yet."
+                text="Community finance and member support."
+                note="Visible as a fair-trade support category; live SACCO availability is only shown once SecurePay can prove it."
               />
               <EnablerCard
                 icon={<Building2 className="h-5 w-5" />}
                 title="MMFs"
-                text="Cash parking and liquidity."
-                note="Shown as a fair-trade support category; live MMF capability is not claimed here yet."
+                text="Liquidity and a place for waiting funds."
+                note="Visible as a fair-trade support category; live MMF availability is only shown once SecurePay can prove it."
               />
               <EnablerCard
                 icon={<ShieldCheck className="h-5 w-5" />}
                 title="Insurance"
                 text="Protection for agreed risks."
-                note="Shown as a fair-trade support category; live insurance capability is not claimed here yet."
+                note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
               />
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-cream-200 bg-white/70 p-5">
-            <div className="flex items-center gap-2">
-              <WalletCards className="h-5 w-5 text-forest-800" />
-              <div>
-                <h2 className="font-display text-xl text-forest-900">Funding route</h2>
-                <p className="text-xs text-sand-500">How SecurePay says this Agreement can be funded.</p>
-              </div>
-            </div>
-            <div className="mt-3 rounded-xl bg-cream-50 px-4 py-3 text-sm text-sand-700">
-              {currentSnapshot?.fundingOptions.length
-                ? currentSnapshot.fundingOptions.map(option => `${option.displayName} · ${option.currency}`).join('   •   ')
-                : 'SecurePay does not currently list a funding route for this Agreement.'}
             </div>
           </section>
         </>
