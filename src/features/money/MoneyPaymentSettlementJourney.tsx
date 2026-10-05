@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowRight,
   CheckCircle2,
   Clock3,
   Landmark,
