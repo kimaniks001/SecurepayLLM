@@ -11,10 +11,10 @@ const CAPACITY_INTEREST: Record<string, JoinInterest> = { Member: 'member', Plug
 /**
  * Phase 7 Slice 5B (The Trust Project convergence) -- the low-on-Home "About / Why this exists" section.
  *
- * Current architectural decision: The Trust Project is NOT a separate product surface (no nav item, no
- * dashboard, no second Home, no second identity number). This section is rendered BELOW the KS001 Home
- * (`SignedOutHome` stays first and untouched) and explains the community and shared capabilities around
- * SecurePay. Every capability it names is real on current main; what is not live (the Skills Institute,
+ * Current architectural decision: the signed-in product remains one SecurePay application with no second
+ * dashboard, identity number or app navigation. This embedded section still renders BELOW the KS001 Home,
+ * while a separate PUBLIC Trust Project welcome doorway may introduce people who arrive through a Trust
+ * Project invitation before they enter the same Join, identity and Community machinery underneath. Every capability it names is real on current main; what is not live (the Skills Institute,
  * training, practice spaces) is said to be not available yet -- locked Phase 11D doctrine keeps
  * TRAINING / SKILLS_INSTITUTE out of the capability registry, so nothing here may present them as live.
  *

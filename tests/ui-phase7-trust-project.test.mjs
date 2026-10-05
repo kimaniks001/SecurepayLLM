@@ -30,13 +30,17 @@ test('the section renders AFTER the untouched KS001 Home, inside the same Home b
   assert.match(hero, /Bring the plan\. Leave with an agreement\./);
   assert.doesNotMatch(hero, /Trust Project/, 'the KS001 hero itself is not changed or pushed down by Trust Project copy');
 });
-test('no Trust Project nav item, tab, route, view or page exists', async () => {
+test('the Trust Project gains a public doorway without becoming a duplicate signed-in app surface', async () => {
   const nav = await readFile('src/components/NavBar.tsx', 'utf8');
-  assert.doesNotMatch(nav, /Trust Project|trust-project/i);
+  assert.doesNotMatch(nav, /Trust Project|trust-project/i, 'signed-in app navigation stays SecurePay');
   const types = await readFile('src/types.ts', 'utf8');
-  assert.doesNotMatch(types.match(/export type AppView[\s\S]*?;/)[0], /trust/i);
+  assert.doesNotMatch(types.match(/export type AppView[\s\S]*?;/)[0], /trust/i, 'no second signed-in AppView or identity world');
   const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
-  assert.doesNotMatch(runtime, /trust-project|TrustProject/i);
+  assert.match(runtime, /TrustProjectWelcome/);
+  assert.match(runtime, /parseTrustProjectDoor/);
+  const route = await readFile('src/features/trust/route.ts', 'utf8');
+  assert.match(route, /presentation-only routing/);
+  assert.doesNotMatch(strip(route), /membership\.join|invite\(|referral|authority/i);
 });
 
 // ------------------------------------------------------------ the proposition

@@ -286,12 +286,12 @@ test('share copy is human: no income, work, rank or recruitment promises; the li
     const message = api.SHARE_MESSAGE[key];
     assert.doesNotMatch(message, /earn|income|paid|money|reward|referral|downline|recruit|guarantee|you are a (plug|master)/i, key);
     const url = api.joinUrl('https://securepay.example/', key);
-    assert.equal(url, `https://securepay.example/#/join?interest=${key}`);
+    assert.equal(url, `https://securepay.example/trust?interest=${key}`);
   }
-  assert.equal(api.joinUrl('https://securepay.example', null), 'https://securepay.example/#/join');
-  const wa = api.whatsAppShareUrl(api.shareText('plug', 'https://securepay.example/#/join?interest=plug'));
+  assert.equal(api.joinUrl('https://securepay.example', null), 'https://securepay.example/trust');
+  const wa = api.whatsAppShareUrl(api.shareText('plug', 'https://securepay.example/trust?interest=plug'));
   assert.match(wa, /^https:\/\/wa\.me\/\?text=/);
-  assert.ok(decodeURIComponent(wa.split('text=')[1]).endsWith('https://securepay.example/#/join?interest=plug'));
+  assert.ok(decodeURIComponent(wa.split('text=')[1]).endsWith('https://securepay.example/trust?interest=plug'));
 });
 
 test('the share sheet offers WhatsApp and Copy link, and states that sharing grants nothing', () => {
