@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
-  Banknote,
   Building2,
   CheckCircle2,
   CircleDollarSign,
