@@ -45,7 +45,7 @@ test('simple status and amount surfaces are read from existing backend-owned sna
   assert.match(simple, /snapshot\.releaseRequest\.authorityGranted/);
   assert.match(simple, /snapshot\.fundingOptions/);
   assert.match(simple, /position\.fundedTotalMinor/);
-  assert.match(simple, /position\.releasedTotalMinor/);
+  assert.match(simple, /singlePosition\.releasedTotalMinor/);
 });
 
 test('the simple page never introduces financial commands or hardcoded customer amounts', () => {
