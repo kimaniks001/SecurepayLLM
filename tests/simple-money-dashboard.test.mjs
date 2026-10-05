@@ -51,6 +51,19 @@ test('funding routes and charges use backend snapshot economics only', () => {
   assert.match(moneyHome, /economics\.totalPayableMinor/);
 });
 
+test('the Money home keeps all three launch rails visible around the selected Agreement without inventing executability', () => {
+  for (const label of ['M-PESA', 'PesaLink', 'Choice Bank']) assert.match(moneyHome, new RegExp(label));
+  assert.match(moneyHome, /Money routes for this Agreement/);
+  assert.match(moneyHome, /Visible does not mean executable/);
+  assert.match(moneyHome, /MPESA_STK/);
+  assert.match(moneyHome, /PESALINK/);
+  assert.match(moneyHome, /CHOICE_KS_ACCOUNT/);
+  assert.match(moneyHome, /snapshot\.fundingOptions\.find/);
+  assert.match(moneyHome, /snapshot\?\.movement\.railCode/);
+  assert.match(moneyHome, /Agreement Money/);
+  assert.match(moneyHome, /Release and settlement still require the Agreement, destination and rail gates to pass/);
+});
+
 test('the four fair-trade finance enablers remain visible', () => {
   for (const label of ['Banks', 'SACCOs', 'MMFs', 'Insurance']) {
     assert.match(moneyHome, new RegExp(`title="${label}"`));
@@ -59,6 +72,19 @@ test('the four fair-trade finance enablers remain visible', () => {
   assert.match(moneyHome, /Community finance and member support/);
   assert.match(moneyHome, /Liquidity and a place for waiting funds/);
   assert.match(moneyHome, /Protection for agreed risks/);
+});
+
+test('financial partners are inspectable and the future partner invitation is visible without faking an application', () => {
+  assert.match(moneyHome, /View financial partners/);
+  assert.match(moneyHome, /Financial partners/);
+  assert.match(moneyHome, /partner\.displayName/);
+  assert.match(moneyHome, /partner\.legalName/);
+  assert.match(moneyHome, /partner\.supportedCurrencies/);
+  assert.match(moneyHome, /selectedPartner\.capabilities/);
+  assert.match(moneyHome, /Become a financial partner/);
+  assert.match(moneyHome, /Bring your institution into fair trade/);
+  assert.match(moneyHome, /Partner onboarding is not open from this screen yet/);
+  assert.doesNotMatch(moneyHome, /submitPartnerApplication|createPartnerApplication|applyNow\(/);
 });
 
 test('only real regulated-partner data may claim a connected bank', () => {
