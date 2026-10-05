@@ -34,7 +34,7 @@ interface SimpleMoneyDashboardProps {
 }
 
 function statusTone(status: string) {
-  if (['Ready', 'Available', 'Connected', 'Funded'].includes(status)) return 'bg-mint-100 text-forest-800';
+  if (['Ready', 'Available', 'Connected', 'Funded'].includes(status)) return 'bg-forest-100 text-forest-800';
   if (['Not ready', 'Not funded'].includes(status)) return 'bg-ember-100 text-ember-800';
   return 'bg-cream-200 text-sand-700';
 }
@@ -366,13 +366,13 @@ export function SimpleMoneyDashboard({
               </dl>
             </div>
 
-            <aside className="rounded-2xl border border-mint-200 bg-mint-50/70 p-5">
+            <aside className="rounded-2xl border border-forest-200 bg-forest-50/70 p-5">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-forest-800" />
                 <h2 className="font-display text-xl text-forest-900">What happens next</h2>
               </div>
               <p className="mt-3 text-sm leading-6 text-sand-700">{nextStep(currentSnapshot)}</p>
-              <div className="mt-4 border-t border-mint-200 pt-4">
+              <div className="mt-4 border-t border-forest-200 pt-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-sand-500">Funding route</div>
                 {currentSnapshot?.fundingOptions.length ? (
                   <p className="mt-1 text-sm text-forest-900">
