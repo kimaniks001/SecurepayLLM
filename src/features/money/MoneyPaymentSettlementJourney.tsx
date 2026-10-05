@@ -44,6 +44,7 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOLVED_ATTEMPT } from './attempt';
 import { moneyText } from './amount';
 import { readSettlementScope, submitDestination, type ScopeRead } from './settlementDestination';
+import { requiredActionWords } from '../support/display';
 
 type Load<T> =
   | { state: 'loading' }
@@ -247,7 +248,7 @@ function QuoteReview({
   );
 }
 
-function PaymentTimeline({ evidence }: { evidence: PaymentEvidence }) {
+function PaymentTimeline({ evidence, agreementTitle }: { evidence: PaymentEvidence; agreementTitle: string }) {
   const status = paymentStatus(evidence.intent.status);
   return (
     <div className="rounded-2xl border border-cream-200 bg-white/70 p-4" data-testid="build2-payment-evidence">
@@ -259,9 +260,12 @@ function PaymentTimeline({ evidence }: { evidence: PaymentEvidence }) {
         <MoneyValue amount={moneyText(evidence.intent.amountMinor, evidence.intent.currency)} size="sm" />
       </div>
 
-      {evidence.intent.confirmedAt && (
+      {evidence.intent.status === 'CONFIRMED' && (
         <div className="mt-3 rounded-xl bg-forest-50 p-3 text-sm text-forest-900">
-          Confirmed {formatWhen(evidence.intent.confirmedAt) ?? 'at the time recorded by SecurePay'}.
+          <strong><MoneyValue amount={moneyText(evidence.intent.amountMinor, evidence.intent.currency)} size="sm" /> has been funded into {agreementTitle}.</strong>
+          <div className="mt-1 text-xs text-sand-600">
+            Confirmed {formatWhen(evidence.intent.confirmedAt) ?? 'at the time recorded by SecurePay'}.
+          </div>
         </div>
       )}
 
@@ -820,7 +824,7 @@ export function MoneyPaymentSettlementJourney({
               </div>
             )}
 
-            {paymentEvidence && <div className="mt-4"><PaymentTimeline evidence={paymentEvidence} /></div>}
+            {paymentEvidence && <div className="mt-4"><PaymentTimeline evidence={paymentEvidence} agreementTitle={agreementTitle} /></div>}
           </div>
         </div>
 
@@ -861,9 +865,7 @@ export function MoneyPaymentSettlementJourney({
                       <div>
                         <div className="font-semibold text-forest-900">{currentDestination.maskedDestinationDisplay}</div>
                         <div className="mt-1 text-xs text-sand-500">
-                          {currentDestination.currency}
-                          {currentDestination.destinationType ? ` · ${titleCase(currentDestination.destinationType)}` : ''}
-                          { ` · ${titleCase(currentDestination.destinationStatus)}` }
+                          {currentDestination.currency} · {titleCase(currentDestination.destinationStatus)}
                         </div>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${currentDestination.verificationStatus === 'VERIFIED' ? 'bg-forest-100 text-forest-800' : 'bg-cream-200 text-sand-700'}`}>
@@ -1034,7 +1036,7 @@ export function MoneyPaymentSettlementJourney({
                     <h4 className="font-semibold text-forest-900">Settlement needs attention</h4>
                     <p className="mt-1 text-sm leading-6 text-sand-700">{currentSettlementStatus.exception.customerSafeReason ?? 'The settlement did not complete normally.'}</p>
                     <div className="mt-3 text-xs text-sand-600">
-                      <strong className="text-forest-900">What you need to do:</strong> {currentSettlementStatus.exception.requiredAction ?? 'SecurePay has not provided a customer action.'}
+                      <strong className="text-forest-900">What you need to do:</strong> {requiredActionWords(currentSettlementStatus.exception.requiredAction) ?? 'SecurePay has not provided a customer action.'}
                     </div>
                     <div className="mt-1 text-xs text-sand-500">Recorded {formatWhen(currentSettlementStatus.exception.recordedAt) ?? 'at an unavailable time'}.</div>
                   </div>
@@ -1047,14 +1049,14 @@ export function MoneyPaymentSettlementJourney({
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Money record</div>
                 <div className="mt-2 font-display text-xl text-forest-900">Settled</div>
                 <p className="mt-1 text-sm text-sand-700">
-                  {currentSettlementStatus.amountMinor != null && currentSettlementStatus.currency
-                    ? <><MoneyValue amount={moneyText(currentSettlementStatus.amountMinor, currentSettlementStatus.currency)} size="sm" /> was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}.</>
-                    : <>Money was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}. The settlement status does not expose an amount on this response.</>}
+                  Money was sent to {currentInstruction.settlementDestinationMaskedDisplay ?? 'the authorised destination'} for {agreementTitle}.
                 </p>
                 <div className="mt-2 text-xs text-sand-500">
-                  Settlement time: {formatWhen(currentSettlementStatus.settledAt) ?? 'Not shown'}
-                  {currentSettlementStatus.railCode ? ` · Rail: ${currentSettlementStatus.railCode}` : ''}.
+                  Settlement time: {formatWhen(currentSettlementStatus.settledAt) ?? 'Not shown'}.
                 </div>
+                <p className="mt-2 text-xs text-sand-500">
+                  This settlement response does not expose a settlement amount or rail, so this record does not invent either one.
+                </p>
               </div>
             )}
 
