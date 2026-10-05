@@ -51,6 +51,19 @@ test('funding routes and charges use backend snapshot economics only', () => {
   assert.match(moneyHome, /economics\.totalPayableMinor/);
 });
 
+test('the Money home keeps all three launch rails visible around the selected Agreement without inventing executability', () => {
+  for (const label of ['M-PESA', 'PesaLink', 'Choice Bank']) assert.match(moneyHome, new RegExp(label));
+  assert.match(moneyHome, /Money routes for this Agreement/);
+  assert.match(moneyHome, /Visible does not mean executable/);
+  assert.match(moneyHome, /MPESA_STK/);
+  assert.match(moneyHome, /PESALINK/);
+  assert.match(moneyHome, /CHOICE_KS_ACCOUNT/);
+  assert.match(moneyHome, /snapshot\.fundingOptions\.find/);
+  assert.match(moneyHome, /snapshot\?\.movement\.railCode/);
+  assert.match(moneyHome, /Agreement Money/);
+  assert.match(moneyHome, /Release and settlement still require the Agreement, destination and rail gates to pass/);
+});
+
 test('the four fair-trade finance enablers remain visible', () => {
   for (const label of ['Banks', 'SACCOs', 'MMFs', 'Insurance']) {
     assert.match(moneyHome, new RegExp(`title="${label}"`));
