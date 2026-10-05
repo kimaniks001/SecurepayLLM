@@ -10,6 +10,7 @@ import {
   Route,
   ShieldCheck,
   Sparkles,
+  Smartphone,
   Users,
   WalletCards,
 } from 'lucide-react';
@@ -52,7 +53,7 @@ function titleCase(value: string) {
 }
 
 function statusTone(status: string) {
-  if (['Ready', 'Available', 'Connected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
+  if (['Ready', 'Available', 'Connected', 'Selected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
   if (['Blocked', 'Not ready', 'Not funded'].includes(status)) return 'bg-ember-100 text-ember-800';
   return 'bg-cream-200 text-sand-700';
 }
@@ -110,6 +111,53 @@ function nextStep(snapshot: AgreementMoneySnapshotResponse | null, agreement: Cu
   if (!snapshot.paymentReady.ready) return 'Resolve the outstanding Agreement conditions before funding or release.';
   if (snapshot.fundingOptions.length === 0) return 'Payment Ready is satisfied, but SecurePay does not currently list a funding route.';
   return 'Review the funding route and charges before any money action.';
+}
+
+function fundingRailState(snapshot: AgreementMoneySnapshotResponse | null, railCode: string, name: string) {
+  if (!snapshot) return { status: 'Unknown', detail: `SecurePay has not loaded ${name} availability for this Agreement yet.` };
+  const option = snapshot.fundingOptions.find(route => route.railCode === railCode);
+  if (option) {
+    return {
+      status: 'Available',
+      detail: `${name} is currently eligible to fund this Agreement in ${option.currency}.`,
+    };
+  }
+  return {
+    status: 'Not available',
+    detail: `${name} is part of SecurePay's rail architecture, but it is not currently eligible for this Agreement.`,
+  };
+}
+
+function choiceRailState(snapshot: AgreementMoneySnapshotResponse | null, partners: Load<RegulatedPartnerResponse[]>) {
+  if (snapshot?.movement.railCode === 'CHOICE_KS_ACCOUNT') {
+    return {
+      status: 'Selected',
+      detail: 'The current Agreement movement preflight routes external settlement through Choice Bank.',
+    };
+  }
+  if (partners.state === 'loading') return { status: 'Checking', detail: 'Checking the connected bank-partner record.' };
+  if (partners.state === 'error') return { status: 'Unknown', detail: 'SecurePay could not read the bank-partner state just now.' };
+  const choice = partners.value.find(partner =>
+    partner.partnerCode.toUpperCase().includes('CHOICE')
+    || partner.displayName.toUpperCase().includes('CHOICE')
+    || partner.legalName.toUpperCase().includes('CHOICE')
+  );
+  if (!choice) {
+    return {
+      status: 'Not active',
+      detail: 'Choice Bank is the bank-account/settlement rail in the SecurePay architecture, but no active Choice partner record is visible here.',
+    };
+  }
+  if (choice.status === 'ACTIVE') {
+    return {
+      status: 'Connected',
+      detail: 'Choice Bank is connected as a regulated bank partner. Agreement authority still decides whether money may settle through it.',
+    };
+  }
+  return {
+    status: titleCase(choice.status),
+    detail: 'Choice Bank is known to SecurePay, but the current partner state does not make it executable for this Agreement.',
+  };
 }
 
 function enablerBankNote(partners: Load<RegulatedPartnerResponse[]>) {
@@ -372,6 +420,9 @@ export function SimpleMoneyDashboard({
     || selectedSummary?.purpose?.trim()
     || 'SecurePay has not loaded a short Agreement description.';
   const fundingRoutes = currentSnapshot?.fundingOptions ?? [];
+  const mpesaRail = fundingRailState(currentSnapshot, 'MPESA_STK', 'M-PESA');
+  const pesalinkRail = fundingRailState(currentSnapshot, 'PESALINK', 'PesaLink');
+  const choiceRail = choiceRailState(currentSnapshot, partners);
   const selectedId = selected?.agreementId ?? '';
 
   return (
@@ -484,6 +535,73 @@ export function SimpleMoneyDashboard({
             <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
             <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
             <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
+          </section>
+
+          <section className="rounded-3xl border border-forest-200 bg-white/80 p-5 md:p-6" data-testid="agreement-rail-map">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Route className="h-5 w-5 text-forest-700" />
+                  <h2 className="font-display text-2xl text-forest-900">Money routes for this Agreement</h2>
+                </div>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-sand-600">
+                  The Agreement decides the money scope. SecurePay then shows which rails can bring money in, hold it against the Agreement, and move it out when authority permits.
+                </p>
+              </div>
+              <div className="text-xs text-sand-500">Visible does not mean executable</div>
+            </div>
+
+            <div className="mt-5 grid gap-3 xl:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] xl:items-stretch">
+              <div className="rounded-2xl border border-cream-200 bg-cream-50 p-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">1 · Authority</div>
+                <div className="mt-2 flex items-center gap-2"><FileText className="h-5 w-5 text-forest-700" /><h3 className="font-display text-lg text-forest-900">Agreement</h3></div>
+                <p className="mt-2 text-xs leading-5 text-sand-600">Defines who pays, the authorised amount, currency, conditions and what money is allowed to do.</p>
+              </div>
+
+              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
+
+              <div className="rounded-2xl border border-cream-200 bg-white p-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">2 · Fund</div>
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-xl border border-cream-200 bg-cream-50/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">M-PESA</span></div>
+                      <StatusPill status={mpesaRail.status} />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">{mpesaRail.detail}</p>
+                  </div>
+                  <div className="rounded-xl border border-cream-200 bg-cream-50/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">PesaLink</span></div>
+                      <StatusPill status={pesalinkRail.status} />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">{pesalinkRail.detail}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
+
+              <div className="rounded-2xl border border-forest-200 bg-forest-50/70 p-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">3 · Protect</div>
+                <div className="mt-2 flex items-center gap-2"><WalletCards className="h-5 w-5 text-forest-700" /><h3 className="font-display text-lg text-forest-900">Agreement Money</h3></div>
+                <p className="mt-2 text-xs leading-5 text-sand-600">Funds are recorded against the Agreement. They do not become free-floating money or bypass the Agreement's authority.</p>
+              </div>
+
+              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
+
+              <div className="rounded-2xl border border-cream-200 bg-white p-4">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">4 · Settle</div>
+                <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50/70 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2"><Landmark className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">Choice Bank</span></div>
+                    <StatusPill status={choiceRail.status} />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-sand-600">{choiceRail.detail}</p>
+                </div>
+                <p className="mt-3 text-[0.72rem] leading-5 text-sand-500">Release and settlement still require the Agreement, destination and rail gates to pass.</p>
+              </div>
+            </div>
           </section>
 
           <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
