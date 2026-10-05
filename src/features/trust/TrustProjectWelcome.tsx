@@ -41,7 +41,7 @@ export function TrustProjectWelcome({
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1.03fr_0.97fr] lg:items-center lg:px-8 lg:py-20">
           <div>
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-forest-600">The Trust Project</p>
-            <h1 className="mt-3 max-w-3xl font-display text-4xl font-medium leading-[1.02] tracking-tight text-forest-950 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-3 max-w-3xl font-display text-4xl font-medium leading-[1.02] tracking-tight text-forest-900 sm:text-5xl lg:text-6xl">
               A place to trade fairly, build your life, and belong.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-sand-700 sm:text-lg">
@@ -67,12 +67,12 @@ export function TrustProjectWelcome({
               <p className="mt-auto font-display text-3xl leading-tight">Trade fairly</p>
               <p className="mt-2 text-[0.88rem] leading-relaxed text-cream-100/90">Be found for what you genuinely do, with cleaner agreements underneath the trade.</p>
             </article>
-            <article className="flex flex-col justify-end rounded-[2rem] border border-amber-900/10 bg-[#e7c38d] p-5 text-forest-950 shadow-soft">
+            <article className="flex flex-col justify-end rounded-[2rem] border border-amber-900/10 bg-[#e7c38d] p-5 text-forest-900 shadow-soft">
               <Wrench className="h-7 w-7" aria-hidden="true" />
               <p className="mt-auto font-display text-2xl">Build together</p>
               <p className="mt-1 text-[0.8rem] leading-relaxed">Useful work gives strangers something real to share.</p>
             </article>
-            <article className="flex flex-col justify-end rounded-[2rem] border border-forest-900/10 bg-[#cfd9c8] p-5 text-forest-950 shadow-soft">
+            <article className="flex flex-col justify-end rounded-[2rem] border border-forest-900/10 bg-[#cfd9c8] p-5 text-forest-900 shadow-soft">
               <MapPin className="h-7 w-7" aria-hidden="true" />
               <p className="mt-auto font-display text-2xl">Explore with purpose</p>
               <p className="mt-1 text-[0.8rem] leading-relaxed">Go somewhere new because there is something worth doing there.</p>
@@ -100,7 +100,7 @@ export function TrustProjectWelcome({
       <section className="px-4 py-14 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-forest-600">Membership in real life</p>
-          <h2 className="mt-2 font-display text-3xl text-forest-950 sm:text-4xl">How membership helps</h2>
+          <h2 className="mt-2 font-display text-3xl text-forest-900 sm:text-4xl">How membership helps</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl border border-forest-900/10 bg-white/75 p-5">
               <Store className="h-6 w-6 text-forest-600" aria-hidden="true" />
@@ -141,7 +141,7 @@ export function TrustProjectWelcome({
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-forest-600">Travel with purpose</p>
-            <h2 className="mt-2 font-display text-3xl text-forest-950 sm:text-4xl">Go somewhere because there is something worth doing there.</h2>
+            <h2 className="mt-2 font-display text-3xl text-forest-900 sm:text-4xl">Go somewhere because there is something worth doing there.</h2>
             <p className="mt-4 max-w-2xl text-[0.95rem] leading-relaxed text-sand-700">
               Join a community project in another place. Meet people through useful work. Bring a mentee or family member when the project allows it. Shared purpose gives strangers something natural to talk about before anyone has to ask, “What do they want from me?”
             </p>
@@ -164,7 +164,7 @@ export function TrustProjectWelcome({
       <section className="px-4 py-14 text-center sm:px-6 md:py-20">
         <div className="mx-auto max-w-3xl">
           <img src={securepayMark} alt="" className="mx-auto h-8 w-8 opacity-80" />
-          <h2 className="mt-4 font-display text-3xl text-forest-950 sm:text-4xl">Join us. Here we trade fairly.</h2>
+          <h2 className="mt-4 font-display text-3xl text-forest-900 sm:text-4xl">Join us. Here we trade fairly.</h2>
           <p className="mx-auto mt-4 max-w-2xl text-[0.95rem] leading-relaxed text-sand-700">
             One SecurePay identity underneath. One deliberate choice to belong. No second account, no automatic membership, and no surrender of your independence.
           </p>
