@@ -470,7 +470,7 @@ export function SimpleMoneyDashboard({
               <div className="rounded-2xl bg-forest-900 p-5 text-cream-50">
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-forest-200">Agreement amount</div>
                 <div className="mt-2 font-display text-3xl">
-                  {selectedAmount ? <MoneyValue amount={selectedAmount} size="lg" /> : 'Not shown'}
+                  {selectedAmount ? <MoneyValue amount={selectedAmount} size="lg" className="!text-cream-50" /> : 'Not shown'}
                 </div>
                 <div className="mt-4 border-t border-forest-700 pt-4">
                   <div className="text-xs uppercase tracking-wide text-forest-200">Next step</div>
