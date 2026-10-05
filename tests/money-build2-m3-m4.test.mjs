@@ -149,3 +149,23 @@ test('Build 2 does not pull later marketplace, Community Saver, loan or insuranc
   assert.doesNotMatch(journey, /Community Saver/);
   assert.doesNotMatch(journey, /Compare bank prices|SACCO price ranking|Apply for a loan|Insurance claim|Become a financial partner/);
 });
+
+
+test('Build 2 does not extend frontend response DTOs beyond SecurePayAPI settlement contracts', () => {
+  const destinationDto = fs.readFileSync(new URL('../src/api/securepay/settlement-destinations/dto.ts', import.meta.url), 'utf8');
+  const releaseDto = fs.readFileSync(new URL('../src/api/securepay/payment-release/index.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(destinationDto, /destinationType\?:/);
+  assert.doesNotMatch(releaseDto, /amountMinor\?:|currency\?:|railCode\?:/);
+  assert.doesNotMatch(journey, /currentDestination\.destinationType/);
+  assert.doesNotMatch(journey, /currentSettlementStatus\.amountMinor|currentSettlementStatus\.currency|currentSettlementStatus\.railCode/);
+});
+
+test('confirmed payment is described as Agreement funding rather than generic payment success', () => {
+  assert.match(journey, /has been funded into \{agreementTitle\}/);
+  assert.match(journey, /evidence\.intent\.status === 'CONFIRMED'/);
+  assert.doesNotMatch(journey, /Payment successful/);
+});
+
+test('settlement required action uses the existing safe translation helper', () => {
+  assert.match(journey, /requiredActionWords\(currentSettlementStatus\.exception\.requiredAction\)/);
+});
