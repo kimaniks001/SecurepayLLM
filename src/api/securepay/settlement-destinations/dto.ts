@@ -2,7 +2,6 @@ export interface SettlementDestinationResponse {
   destinationId: string;
   ownerIdentityId: string;
   canonicalKsNumber: string;
-  destinationType?: string | null;
   currency: string;
   destinationStatus: string;
   verificationStatus: string;
