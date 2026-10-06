@@ -148,8 +148,6 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
           title="Money"
           description="Your Agreements first — then the money, next steps and financial support that follow them."
         />
-        <ExperiencePathway active="money" onNavigate={onNavigate} />
-        <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
           snapshotGateway={gateways.moneySnapshot}
@@ -162,6 +160,11 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
           onNavigate={onNavigate}
           onOpenAgreement={onOpenAgreement}
         />
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
+          <ExperiencePathway active="money" onNavigate={onNavigate} />
+        </div>
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">
           <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-forest-800 flex items-center justify-between gap-3">
