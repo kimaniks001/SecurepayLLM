@@ -185,7 +185,12 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
             </div>
 
             {busy && <p role="status" className="text-[0.76rem] text-sand-500">Finding Store matches…</p>}
-            {!busy && routes.length === 0 && <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need is still saved in SecurePay.</p>}
+            {!busy && routes.length === 0 && (
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need is still saved in SecurePay.</p>
+                {onOpenStore && <button type="button" onClick={onOpenStore} className="mt-2 min-h-11 rounded-full border border-forest-200 px-4 text-[0.76rem] font-medium text-forest-700">Browse Store anyway</button>}
+              </div>
+            )}
 
             {routes.length > 0 && (
               <div className="space-y-2">
@@ -313,7 +318,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
             <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version}</p>
           </SurfaceBody>
         </Surface>
-        {fulfilmentNeedsGateway && <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} />}
+        {fulfilmentNeedsGateway && <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} onOpenStore={() => onNavigate('store')} />}
       </div>
     </div>;
   }
