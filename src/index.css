@@ -140,3 +140,248 @@
      `animation`/`keyframes` theme extension — that file is the single source of truth for motion,
      so no manual duplicate is kept here (they were previously redefined verbatim in this file). */
 }
+
+
+/* ==========================================================================
+ * SECUREPAY MASTERPIECE UI — LIFE, CLARITY, MOVEMENT
+ *
+ * Product language:
+ *   uncertainty -> clarity
+ *   idea -> plan
+ *   people -> coordination
+ *   agreement -> action
+ *   work -> evidence
+ *   evidence -> money
+ *
+ * These classes add material warmth and progress feedback without inventing
+ * state. Motion is deliberately restrained and is disabled by the existing
+ * prefers-reduced-motion rule above.
+ * ========================================================================== */
+@layer components {
+  .sp-life-canvas {
+    background-color: #faf7f0;
+    background-image:
+      radial-gradient(70% 42% at 92% 4%, rgba(139, 184, 155, 0.13), transparent 72%),
+      radial-gradient(62% 38% at 2% 24%, rgba(239, 149, 55, 0.055), transparent 72%),
+      linear-gradient(180deg, rgba(253, 252, 248, 0.97), rgba(250, 247, 240, 0.98));
+    position: relative;
+  }
+
+  .sp-life-canvas::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.16;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(36, 73, 54, 0.018) 0, rgba(36, 73, 54, 0.018) 1px, transparent 1px, transparent 4px);
+    mix-blend-mode: multiply;
+  }
+
+  .sp-life-canvas > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sp-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.75rem;
+    border: 1px solid rgba(224, 212, 184, 0.72);
+    background:
+      radial-gradient(circle at 90% 18%, rgba(139, 184, 155, 0.18), transparent 34%),
+      radial-gradient(circle at 76% 84%, rgba(239, 149, 55, 0.07), transparent 30%),
+      rgba(253, 252, 248, 0.9);
+    box-shadow: 0 20px 55px -34px rgba(36, 73, 54, 0.28);
+  }
+
+  .sp-hero::after {
+    content: '';
+    position: absolute;
+    width: 13rem;
+    height: 13rem;
+    right: -6rem;
+    top: -6rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(93, 148, 117, 0.15);
+    box-shadow:
+      0 0 0 2.5rem rgba(139, 184, 155, 0.04),
+      0 0 0 5rem rgba(239, 149, 55, 0.025);
+    pointer-events: none;
+  }
+
+  .sp-kicker {
+    font-size: 0.68rem;
+    line-height: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: #2d5c43;
+  }
+
+  .sp-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'opsz' 120;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    color: #162d21;
+  }
+
+  .sp-real-word {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    color: #2d5c43;
+    position: relative;
+    white-space: nowrap;
+  }
+
+  .sp-real-word::after {
+    content: '';
+    position: absolute;
+    left: 0.02em;
+    right: -0.04em;
+    bottom: -0.08em;
+    height: 0.14em;
+    border-radius: 9999px;
+    background: rgba(139, 184, 155, 0.48);
+    transform: rotate(-1.5deg);
+  }
+
+  .sp-primary-action {
+    min-height: 3.5rem;
+    border-radius: 1.2rem;
+    background: linear-gradient(135deg, #244936, #2d5c43 72%, #3a7355);
+    color: #fdfcf8;
+    box-shadow: 0 12px 24px -16px rgba(22, 45, 33, 0.72);
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .sp-primary-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -17px rgba(22, 45, 33, 0.75);
+  }
+
+  .sp-primary-action:active {
+    transform: translateY(0) scale(0.992);
+  }
+
+  .sp-action-tile {
+    min-height: 6.7rem;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(224, 212, 184, 0.65);
+    background: rgba(255, 255, 255, 0.76);
+    box-shadow: 0 5px 18px -13px rgba(36, 73, 54, 0.24);
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .sp-action-tile:hover {
+    transform: translateY(-2px);
+    border-color: rgba(139, 184, 155, 0.72);
+    box-shadow: 0 12px 28px -18px rgba(36, 73, 54, 0.3);
+  }
+
+  .sp-section {
+    border-radius: 1.35rem;
+    border: 1px solid rgba(224, 212, 184, 0.64);
+    background: rgba(255, 255, 255, 0.76);
+    box-shadow: 0 8px 26px -21px rgba(36, 73, 54, 0.26);
+  }
+
+  .sp-section-warm {
+    border-radius: 1.35rem;
+    border: 1px solid rgba(237, 229, 208, 0.92);
+    background:
+      radial-gradient(circle at 100% 0%, rgba(239, 149, 55, 0.08), transparent 34%),
+      rgba(253, 252, 248, 0.92);
+  }
+
+  .sp-value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'opsz' 72;
+    letter-spacing: -0.025em;
+    color: #1d3a2b;
+  }
+
+  .sp-progress-track {
+    height: 0.55rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: rgba(224, 212, 184, 0.56);
+  }
+
+  .sp-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2d5c43, #5d9475);
+    transform-origin: left;
+    animation: spResolve 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sp-settle {
+    animation: spSettle 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sp-lift-in {
+    animation: spLiftIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sp-positive-flash {
+    animation: spPositiveFlash 760ms ease-out both;
+  }
+
+  .sp-mobile-tabbar {
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 34px -30px rgba(22, 45, 33, 0.5);
+  }
+
+  .sp-mobile-tab {
+    min-height: 3.55rem;
+    min-width: 3.25rem;
+    border-radius: 1rem;
+  }
+
+  .sp-mobile-tab[aria-current='page'] {
+    background: rgba(220, 235, 224, 0.72);
+    color: #244936;
+  }
+
+  .sp-mobile-tab[aria-current='page']::after {
+    content: '';
+    width: 1.55rem;
+    height: 2px;
+    border-radius: 9999px;
+    background: #2d5c43;
+    position: absolute;
+    bottom: 0.24rem;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  @media (min-width: 768px) {
+    .sp-hero {
+      border-radius: 2rem;
+    }
+  }
+}
+
+@keyframes spResolve {
+  from { transform: scaleX(0); opacity: 0.45; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes spSettle {
+  0% { opacity: 0; transform: translateY(7px) scale(0.992); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spLiftIn {
+  0% { opacity: 0; transform: translateY(13px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spPositiveFlash {
+  0% { background-color: rgba(139, 184, 155, 0.22); }
+  100% { background-color: transparent; }
+}
