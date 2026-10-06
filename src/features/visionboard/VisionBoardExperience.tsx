@@ -271,8 +271,8 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
 
   const selectedItem = state.selected.item;
   if (selectedItem) {
-    return <div className="min-h-dvh bg-cream-100">
-      <NavBar view="agreements" onNavigate={onNavigate} />
+    return <div className="sp-life-canvas min-h-dvh">
+      <NavBar view="vision-board" onNavigate={onNavigate} />
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
         <button onClick={() => controller.closeSelected()} className="flex items-center gap-1.5 text-forest-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
@@ -325,8 +325,8 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
 
   if (state.selectedShelf) {
     const shelf = state.shelves.data?.find(s => s.shelf === state.selectedShelf);
-    return <div className="min-h-dvh bg-cream-100">
-      <NavBar view="agreements" onNavigate={onNavigate} />
+    return <div className="sp-life-canvas min-h-dvh">
+      <NavBar view="vision-board" onNavigate={onNavigate} />
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
         <button onClick={() => controller.closeShelf()} className="flex items-center gap-1.5 text-forest-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Vision Board
@@ -391,8 +391,8 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
     </div>;
   }
 
-  return <div className="min-h-dvh bg-cream-100">
-    <NavBar view="agreements" onNavigate={onNavigate} />
+  return <div className="sp-life-canvas min-h-dvh">
+    <NavBar view="vision-board" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
       <ExperiencePathway active="vision" onNavigate={onNavigate} />
