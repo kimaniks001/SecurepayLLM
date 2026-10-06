@@ -70,4 +70,10 @@ Completion requires understandable arrival, useful empty state, real-data useful
 
 ## Current checkpoint
 
-C0 contract inventory completed; initial C2 landing composition implemented. Programme incomplete. Money implementation unchanged. No API writes, merge, deployment or paid model calls.
+C0 contract inventory completed; initial C2 living Agreement landing composition implemented.
+
+C1 has now started with a shared, authority-neutral journey layer across Vision Board, Store and the living Agreement. It names the four practical jobs — think it through, find what you need, make it clear, fund and move safely — and provides explicit navigation without creating commitments, purchases or Money authority. Vision and Store now hand off into the same Agreement/Money operating model instead of presenting as isolated modules.
+
+Validation for this follow-on slice is still pending: the connector-created commits did not produce a GitHub Actions run and the execution environment cannot reach github.com for a local checkout. The static regression source has been added but no green claim is made yet.
+
+Programme incomplete. Money implementation unchanged. No API writes, merge, deployment or paid model calls.
