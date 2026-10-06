@@ -50,6 +50,7 @@ KS001 remains one guide. It helps think in Vision, fulfil in Store, understand c
 3. **Personal Store opportunities:** existing management controller has a Business opportunities read but passes an empty list for personal Store. Do not represent unsupported or failed reads as zero opportunities.
 4. **Enquiries/activity:** management currently supplies empty arrays. Map verified reads before asserting that a Store has no enquiries/work.
 5. **Contextual Store Money:** existing link opens global Money. Verify Agreement relationship/capacity filters before claiming a Store-scoped financial total.
+6. **Shared fulfilment Plug gate:** current SecurePayAPI `SharedFulfilmentService` can propose a pool and open a pooling window for a poolable need, but exposes no verified Plug assignment/required-Plug gate. Trust Project doctrine requires a Plug in every Community Saver. Do not wire a customer-facing “Start Community Saver” command until a governed Plug coordination/consent bridge exists.
 
 ## Slice checkpoints
 
@@ -79,6 +80,8 @@ C2 now also exposes the selected participant's backend-owned next actions at Agr
 C4 has started materially. Store management now has a real **Today / What needs you?** cockpit driven by offer availability, privacy-safe Business demand matches and qualified Plug missions. Existing Store authority is wired for offer review and availability confirmation. Business demand can now open the existing fulfilment engine's backend matches and supply routes, exposing provider, listed price, lead time, MOQ, delivery, warranty, returns, trade-offs and whether landed cost is actually known. Mini Agreement review now sits before the canonical Store-source → KS001 → Agreement path and shows what, proposed amount, required date, completion evidence, interaction level and missing material decisions while preserving `agreementCreated=false` and `moneyMoved=false`. No supplier is auto-selected, no stock is reserved, no Agreement is created and no money moves.
 
 Vision arrival now has a practical Start Here surface: capture the idea, find what it needs in Store, or review Agreements. A saved Vision item can now explicitly become a real fulfilment need with user-chosen need type, PRIVATE vs MATCHABLE visibility and poolability, then show backend Store matches/routes and open the exact Store offer. This stays within the verified text/shelf persistence contract; the persistent visual canvas gap remains open.
+
+Agreement-derived fulfilment is now wired from the exact current obligation for the responsible participant: explicit need type, PRIVATE/MATCHABLE visibility and poolability → backend routes → exact Store offer. It is withheld for other people's responsibilities, monetary work, and completed/cancelled obligations. Poolability never mutates the Agreement or starts a Community Saver.
 
 Verified continuity limitation: SecurePayAPI's MiniAgreementReviewService is intentionally non-binding and there is no verified bridge that binds the FulfilmentNeed itself as an Agent/Agreement source. The UI carries the selected Store offer into KS001 but does not claim the entire need object was canonically transferred; unresolved need details must still appear in canonical Agreement review.
 
