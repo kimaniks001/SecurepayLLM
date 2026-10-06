@@ -793,57 +793,56 @@ export function SimpleMoneyDashboard({
             </section>
           </details>
 
-          <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-            <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
-              <div className="flex items-center gap-2">
-                <CircleDollarSign className="h-5 w-5 text-forest-700" />
+          <details className="rounded-3xl border border-cream-200 bg-white/80">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Charges</div>
+                <div className="mt-1 font-display text-xl text-forest-900">See charges & funding route</div>
+              </div>
+              <span className="text-xs text-sand-500">Open details</span>
+            </summary>
+            <div className="border-t border-cream-200 p-5 md:p-6">
+              <div className="grid gap-5 lg:grid-cols-2">
                 <div>
-                  <h2 className="font-display text-2xl text-forest-900">Money position detail</h2>
-                  <p className="text-xs text-sand-500">The same backend positions, kept here for deeper inspection.</p>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
+                  {fundingRoutes.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
+                  )}
+                </div>
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
+                  {economics && currentSnapshot?.movement.currency ? (
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      {economics.taxMinor > 0 && (
+                        <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      )}
+                      <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    </dl>
+                  ) : (
+                    <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
+                  )}
                 </div>
               </div>
-              <div className="mt-5">
-                {snapshot.state === 'loading' && <p role="status" className="text-sm text-sand-500">Reading Agreement Money…</p>}
-                {currentSnapshot && <PositionMoney snapshot={currentSnapshot} />}
-              </div>
             </div>
+          </details>
 
-            <div className="rounded-3xl border border-forest-200 bg-forest-50/70 p-5 md:p-6">
-              <div className="flex items-center gap-2">
-                <Route className="h-5 w-5 text-forest-700" />
-                <h2 className="font-display text-2xl text-forest-900">Funding & charges</h2>
+          <details className="rounded-3xl border border-cream-200 bg-white/70">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Payment execution</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Payment, intent & settlement controls</div>
               </div>
-              <div className="mt-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
-                {fundingRoutes.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
-                )}
-              </div>
-
-              <div className="mt-5 border-t border-forest-200 pt-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
-                {economics && currentSnapshot?.movement.currency ? (
-                  <dl className="mt-3 space-y-2 text-sm">
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    {economics.taxMinor > 0 && (
-                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    )}
-                    <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                  </dl>
-                ) : (
-                  <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <MoneyPaymentSettlementJourney
+              <span className="text-xs text-sand-500">Open controls</span>
+            </summary>
+            <div className="border-t border-cream-200 p-4 md:p-5">
+              <MoneyPaymentSettlementJourney
             agreementGateway={agreementGateway}
             paymentIntentGateway={paymentIntentGateway}
             settlementGateway={settlementGateway}
@@ -854,9 +853,19 @@ export function SimpleMoneyDashboard({
             currency={selected.currency}
             snapshot={currentSnapshot}
             onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
-          />
+              />
+            </div>
+          </details>
 
-          <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
+          <details className="rounded-3xl border border-cream-200 bg-white/70">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Financial partners</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Banks, SACCOs, MMFs & insurance</div>
+              </div>
+              <span className="text-xs text-sand-500">Open details</span>
+            </summary>
+            <section className="border-t border-cream-200 p-5 md:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -893,7 +902,8 @@ export function SimpleMoneyDashboard({
                 note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
               />
             </div>
-          </section>
+            </section>
+          </details>
         </>
       )}
     </div>
