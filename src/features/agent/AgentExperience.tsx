@@ -558,7 +558,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // for clarity, redundantly but harmlessly. See docs/PHASE5_LIFE_BUSINESS_WORLD.md sections G/K.
     recoveryController.reset();
     developerController.clearSensitiveTransientState();
-    if (view === 'store') { setStoreReturnContext(null); setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
+    if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
