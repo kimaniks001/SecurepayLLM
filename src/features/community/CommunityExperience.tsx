@@ -23,6 +23,7 @@ import {
 import { realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 import { useAppNavPadding } from '../public/publicShell';
 import { TrustProjectImpactHome } from './TrustProjectImpactHome';
+import { CircleBoard } from './CircleBoard';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
@@ -367,6 +368,7 @@ function CircleDetailPanel({
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   const canSteward = isOwner || isSteward;
   const stewardMembershipIds = new Set(stewards.filter(s => s.active).map(s => s.membershipId));
+  const [circleSpace, setCircleSpace] = useState<'conversation' | 'board'>('conversation');
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -500,28 +502,61 @@ function CircleDetailPanel({
 
         {isMember && (
           <div className="space-y-3 pt-2 border-t border-cream-100">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle feed</h2>
-              {circle.status === 'ACTIVE' && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="inline-flex rounded-xl border border-cream-200 bg-white p-1">
+                <button
+                  onClick={() => setCircleSpace('conversation')}
+                  className={`rounded-lg px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${circleSpace === 'conversation' ? 'bg-forest-600 text-cream-50' : 'text-forest-700 hover:bg-cream-50'}`}
+                >
+                  Conversation
+                </button>
+                <button
+                  onClick={() => setCircleSpace('board')}
+                  className={`rounded-lg px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${circleSpace === 'board' ? 'bg-forest-600 text-cream-50' : 'text-forest-700 hover:bg-cream-50'}`}
+                >
+                  Circle Board
+                </button>
+              </div>
+              {circleSpace === 'conversation' && circle.status === 'ACTIVE' && (
                 <button onClick={onCompose} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Share</button>
               )}
             </div>
-            {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
-            {!objectsLoading && objects.length === 0 && (
-              <p className="text-[0.8rem] text-sand-500 py-4 text-center">Nothing shared here yet.</p>
+
+            {circleSpace === 'board' ? (
+              <CircleBoard
+                objects={objects}
+                loading={objectsLoading}
+                active={circle.status === 'ACTIVE'}
+                onOpenObject={onOpenObject}
+                onAdd={onCompose}
+              />
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle conversation</h2>
+                  <p className="text-[0.7rem] text-sand-500 mt-0.5">Talk, coordinate and keep the working context together. Formal Agreement decisions still happen in the Agreement.</p>
+                </div>
+                {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+                {!objectsLoading && objects.length === 0 && (
+                  <p className="text-[0.8rem] text-sand-500 py-4 text-center">Nothing shared here yet.</p>
+                )}
+                <div className="space-y-2">
+                  {objects.map(o => (
+                    <button
+                      key={o.id}
+                      onClick={() => onOpenObject(o.id)}
+                      className="w-full text-left rounded-xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[0.85rem] font-medium text-forest-800">{o.title}</div>
+                        <span className="shrink-0 text-[0.64rem] uppercase tracking-wide text-sand-500">{o.objectType.replace('_', ' ').toLowerCase()}</span>
+                      </div>
+                      <p className="text-[0.78rem] text-sand-600 mt-0.5 line-clamp-2">{o.body}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-            <div className="space-y-2">
-              {objects.map(o => (
-                <button
-                  key={o.id}
-                  onClick={() => onOpenObject(o.id)}
-                  className="w-full text-left rounded-xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-colors"
-                >
-                  <div className="text-[0.85rem] font-medium text-forest-800">{o.title}</div>
-                  <p className="text-[0.78rem] text-sand-600 mt-0.5 line-clamp-2">{o.body}</p>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
