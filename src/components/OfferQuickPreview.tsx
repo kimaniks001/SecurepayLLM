@@ -1,9 +1,11 @@
 import { ArrowLeft, MessageCircle, Store } from 'lucide-react';
 import type { StoreOffer } from '../types';
 
-export function OfferQuickPreview({ offer, onBack, onUseThis, onAskKs001, onOpenStore, onOpenFull }: {
+export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', sourceLabel, onUseThis, onAskKs001, onOpenStore, onOpenFull }: {
   offer: StoreOffer;
   onBack: () => void;
+  backLabel?: string;
+  sourceLabel?: string | null;
   onUseThis: () => void;
   onAskKs001: () => void;
   onOpenStore: () => void;
@@ -14,11 +16,12 @@ export function OfferQuickPreview({ offer, onBack, onUseThis, onAskKs001, onOpen
     <div className="sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0" data-store-offer-preview>
       <div className="mx-auto w-full max-w-2xl px-4 py-5 md:px-6 md:py-7">
         <button type="button" onClick={onBack} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-sand-600 hover:text-forest-700">
-          <ArrowLeft className="h-4 w-4" /> Results
+          <ArrowLeft className="h-4 w-4" /> {backLabel}
         </button>
 
         <section className="sp-hero mt-2 px-5 py-5 md:px-7 md:py-6">
           <div className="sp-kicker">Offer preview</div>
+          {sourceLabel && <p className="mt-2 text-xs font-medium text-forest-700">{sourceLabel}</p>}
           <h1 className="sp-display mt-2 text-3xl text-forest-900 md:text-4xl">{offer.title}</h1>
           <button type="button" onClick={onOpenStore} className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm text-forest-700">
             <Store className="h-4 w-4" />
