@@ -933,11 +933,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return <WorkspaceExperience
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
+      fulfilmentNeedsGateway={fulfilmentNeedsGateway}
       agentGateway={gateway}
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
       initialView={workspaceEntry}
       onOpenStore={() => navigateTo('store')}
+      onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+        setWorkspace(false);
+        setWorkspaceAgreementId(null);
+        setStoreOfferRoute({ canonicalKsNumber, offerId });
+        setStore(true);
+      }}
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
