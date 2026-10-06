@@ -47,3 +47,20 @@ test('real business demand and Plug missions appear as attention, not automatic 
   assert.match(html, /1 Plug mission/);
   assert.doesNotMatch(html, /Automatically accepted|Automatically pooled/);
 });
+
+
+test('backend supply routes expose trade-offs without inventing landed cost or commitment', () => {
+  const html = renderToStaticMarkup(React.createElement(StoreManagementHome, {
+    store, offers:[], activity:[], enquiries:[], onBack(){}, onCreateOffer(){},
+    opportunityInspection: {
+      needId:'n1', loading:false, error:null, matches:[{providerKsNumber:'KS2',providerDisplayName:'Mavuno',offerId:'o1',offerKind:'PRODUCT',title:'Tiles',priceMinor:250000,currency:'KES',availabilityState:'AVAILABLE',supplyRoles:['DISTRIBUTOR'],minimumOrderQuantity:10,leadTimeHours:24,serviceAreas:['Nairobi'],deliveryAvailable:true,capacityQuantity:null,capacityUnit:null,warrantyDeclared:true,returnTermsDeclared:false,tradeOffs:['Faster delivery, higher listed price'],updatedAt:'2026-10-06'}],
+      routes:[{routeId:'r1',offerId:'o1',providerKsNumber:'KS2',providerDisplayName:'Mavuno',supplyRoles:['DISTRIBUTOR'],routeLabel:'Local distributor',headlinePriceMinor:250000,currency:'KES',landedCostKnown:false,leadTimeHours:24,minimumOrderQuantity:10,deliveryAvailable:true,warrantyDeclared:true,returnTermsDeclared:false,tradeOffs:['Faster delivery, higher listed price']}],
+    },
+    onOpenRouteOffer(){},
+  }));
+  assert.match(html, /Compare before you commit/);
+  assert.match(html, /Landed cost not established/);
+  assert.match(html, /Faster delivery, higher listed price/);
+  assert.match(html, /Open offer/);
+  assert.doesNotMatch(html, /Selected supplier|Order placed|Agreement created/);
+});
