@@ -869,8 +869,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <VisionBoardExperience
         controller={visionBoardController}
         documentGateway={visionBoardGateway}
+        fulfilmentNeedsGateway={fulfilmentNeedsGateway}
         defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
+        onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          setVisionLibrary(false);
+          setStoreOfferRoute({ canonicalKsNumber, offerId });
+          setStore(true);
+        }}
       />
     );
   }
