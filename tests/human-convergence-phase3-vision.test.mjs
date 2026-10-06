@@ -33,7 +33,8 @@ test('Vision Library leads with search and one Add affordance', () => {
   const root = board.slice(board.lastIndexOf('return <div className="sp-life-canvas min-h-dvh">'));
   assert.match(root, /Vision Library · private/);
   assert.match(root, /Search ideas, plans, references…/);
-  assert.match(root, /> Add<\/Button>/);
+  assert.match(root, /setShowLandingAdd/);
+  assert.match(root, /<Plus className="h-4 w-4" \/> Add/);
   assert.match(root, /Thought or idea/);
   assert.match(root, /Plan/);
   assert.match(root, /Reference or link/);
