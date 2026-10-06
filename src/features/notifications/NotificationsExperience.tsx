@@ -48,7 +48,7 @@ function agreementIdFromNotification(notification: NotificationEvent): string | 
     : null;
 }
 
-export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void): { label: string; run: () => void } | null {
+export function actionFor(notification: NotificationEvent, onOpenAgreement: (agreementId: string) => void, onOpenInvitations: () => void, onNavigate: (view: AppView) => void): { label: string; run: () => void } | null {
   if (notification.resolvedAt) return null;
   const actionKey = parseNotificationActionKey(notification.actionKey);
   if (actionKey === 'OPEN_INVITATIONS') return { label: 'Review invitation', run: onOpenInvitations };
@@ -59,17 +59,23 @@ export function actionFor(notification: NotificationEvent, onOpenAgreement: (agr
   if (actionKey === 'REVIEW_AGREEMENT' && agreementId) {
     return { label: 'Review Agreement', run: () => onOpenAgreement(agreementId) };
   }
+  if (actionKey === 'OPEN_CIRCLE') return { label: 'Open Circle', run: () => onNavigate('community') };
+  if (actionKey === 'OPEN_STORE') return { label: 'Open Store', run: () => onNavigate('store') };
+  if (actionKey === 'OPEN_MASTER_REQUEST' || actionKey === 'OPEN_PLUG_TASK') {
+    return { label: actionKey === 'OPEN_MASTER_REQUEST' ? 'Open Master request' : 'Open Plug work', run: () => onNavigate('ecosystem') };
+  }
   return null;
 }
 
-function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvitations }: {
+function NotificationRow({ notification, onMarkRead, onOpenAgreement, onOpenInvitations, onNavigate }: {
   notification: NotificationEvent;
   onMarkRead: (id: string) => void;
   onOpenAgreement: (agreementId: string) => void;
   onOpenInvitations: () => void;
+  onNavigate: (view: AppView) => void;
 }) {
   const unread = !notification.readAt;
-  const action = actionFor(notification, onOpenAgreement, onOpenInvitations);
+  const action = actionFor(notification, onOpenAgreement, onOpenInvitations, onNavigate);
   return (
     <div className={`rounded-xl border px-4 py-3 ${unread ? 'border-forest-200 bg-forest-50/40' : 'border-cream-200 bg-white'}`}>
       <div className="flex items-start gap-2.5">
@@ -206,7 +212,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                       {label}{label === 'NEEDS YOU' ? ` · ${rows.length}` : ''}
                     </div>
                     {rows.map(notification => (
-                      <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} />
+                      <NotificationRow key={notification.id} notification={notification} onMarkRead={id => void controller.markRead(id)} onOpenAgreement={onOpenAgreement} onOpenInvitations={onOpenInvitations} onNavigate={onNavigate} />
                     ))}
                   </section>
                 ) : null)}
