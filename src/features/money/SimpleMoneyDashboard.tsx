@@ -361,8 +361,8 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
                 </div>
               </div>
               {fundedWidth != null && (
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-cream-200" aria-label="Funding progress against authorised maximum">
-                  <div className="h-full rounded-full bg-forest-500" style={{ width: `${fundedWidth}%` }} />
+                <div className="sp-progress-track mt-3" aria-label="Funding progress against authorised maximum">
+                  <div className="sp-progress-fill" style={{ width: `${fundedWidth}%` }} />
                 </div>
               )}
             </div>
@@ -519,16 +519,18 @@ export function SimpleMoneyDashboard({
 
   return (
     <div className="space-y-6" data-testid="simple-money-dashboard">
-      <section className="overflow-hidden rounded-3xl border border-forest-200 bg-gradient-to-br from-forest-50 via-cream-50 to-cream-100 shadow-soft">
+      <section className="sp-hero overflow-hidden">
         <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/70 px-3 py-1 text-xs font-semibold text-forest-800">
               <Sparkles className="h-3.5 w-3.5" />
               Agreement-led money
             </div>
-            <h2 className="mt-4 font-display text-3xl text-forest-900 md:text-4xl">Money follows the agreement.</h2>
+            <h2 className="sp-display mt-4 text-3xl md:text-5xl">{handoff ? 'Money for this Agreement.' : 'Money follows the agreement.'}</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-sand-700 md:text-base">
-              See the trade, the amount, what happens next, and the financial support around it — without losing the deeper money record underneath.
+              {handoff
+                ? `You came from “${handoff.title}”. Keep that Agreement in view while you see funding, charges, readiness and the next real money step.`
+                : 'See the trade, the amount, what happens next, and the financial support around it — without losing the deeper money record underneath.'}
             </p>
           </div>
           <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-soft">
@@ -540,16 +542,17 @@ export function SimpleMoneyDashboard({
         </div>
       </section>
 
-      <section>
-        <div className="mb-3 flex items-end justify-between gap-4">
+      <details className="sp-section overflow-hidden" open={!handoff}>
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 md:px-5">
           <div>
-            <h2 className="font-display text-2xl text-forest-900">Your Agreements</h2>
-            <p className="mt-1 text-sm text-sand-600">Your contracts come first. Choose one to see the money that belongs to it.</p>
+            <h2 className="font-display text-xl text-forest-900">{handoff ? 'Change Agreement' : 'Your Agreements'}</h2>
+            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'You are already looking at the Agreement you came from.' : 'Choose the Agreement whose money you want to understand.'}</p>
           </div>
           {agreements.state === 'ready' && agreements.value.length > 0 && (
-            <div className="text-xs text-sand-500">{agreements.value.length} Agreement{agreements.value.length === 1 ? '' : 's'}</div>
+            <div className="shrink-0 text-xs text-sand-500">{agreements.value.length} Agreement{agreements.value.length === 1 ? '' : 's'}</div>
           )}
-        </div>
+        </summary>
+        <div className="border-t border-cream-200 px-4 py-4 md:px-5">
 
         {agreements.state === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Agreements…</p>}
         {agreements.state === 'error' && (
@@ -580,7 +583,8 @@ export function SimpleMoneyDashboard({
             ))}
           </div>
         )}
-      </section>
+        </div>
+      </details>
 
       {selectionNotice && <StatusNotice tone="warning">{selectionNotice}</StatusNotice>}
       {snapshot.state === 'error' && (
@@ -589,7 +593,7 @@ export function SimpleMoneyDashboard({
 
       {selected && (
         <>
-          <section className="rounded-3xl border border-cream-200 bg-white/80 shadow-soft">
+          <section className="sp-section sp-lift-in overflow-hidden">
             <div className="grid gap-5 p-5 md:p-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -641,7 +645,7 @@ export function SimpleMoneyDashboard({
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section aria-label="Money at a glance" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
             <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
             <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
