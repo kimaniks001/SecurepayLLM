@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
+import { consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -190,6 +191,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   trustedMediaOrigin: string | null;
   publicShell: PublicShellBridge;
 }) {
+  const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
@@ -240,6 +243,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [visionDreamController] = useState(() => createVisionDreamController(visionDreamGateway, gateway));
   const visionDreamState = useSyncExternalStore(visionDreamController.subscribe, visionDreamController.getSnapshot);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  useEffect(() => {
+    if (externalKs001Message) void controller.send(externalKs001Message);
+    // one-shot message consumed from sessionStorage at mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Phase 1 Interaction Instruments: bound to the CURRENT conversation controller, so a new
   // conversation always starts with a fresh, closed instrument.
   const instruments = useMemo(() => createInstrumentController(controller), [controller]);
@@ -297,7 +306,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
   }, [pendingSection, pendingComposerFocus, home]);
-  const [workspace, setWorkspace] = useState(false);
+  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in');
   // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
   // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
   // simultaneously and ignores this entirely (see the render below).
@@ -306,15 +315,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
   // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
   // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
-  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>('home');
-  const [store, setStore] = useState(!!initialStoreOfferRoute);
+  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
+  const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [community, setCommunity] = useState(false);
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
-  const [visionBoard, setVisionBoard] = useState(false);
+  const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
