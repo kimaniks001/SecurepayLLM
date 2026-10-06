@@ -120,6 +120,7 @@ function App() {
   const [staleViewedVersion, setStaleViewedVersion] = useState<string | null>(null);
   const [openDisputeId, setOpenDisputeId] = useState<string | null>(null);
   const [openMoneyId, setOpenMoneyId] = useState<string | null>(null);
+  const [moneyAgreementContextId, setMoneyAgreementContextId] = useState<string | null>(null);
   const [openOfferId, setOpenOfferId] = useState<string | null>(null);
   const [openStoreId, setOpenStoreId] = useState<string | null>(null);
   const [storeSubView, setStoreSubView] = useState<'home' | 'profile' | 'offer' | 'manage' | 'create' | 'share' | 'external' | 'to-agreement' | 'comparison' | 'changed'>('home');
@@ -659,7 +660,7 @@ function App() {
   };
 
   const handleOpenMoneyFromAgreementPreview = (id: string) => {
-    setOpenAgreementId(id);
+    setMoneyAgreementContextId(id);
     setOpenMoneyId('money-not-ready');
     setView('money');
   };
@@ -1134,7 +1135,7 @@ function App() {
   if (view === 'money') {
     if (openMoneyId) {
       const money = getDemoMoney(openMoneyId);
-      const agreement = openAgreementId ? getDemoAgreementDetail(openAgreementId) : null;
+      const agreement = moneyAgreementContextId ? getDemoAgreementDetail(moneyAgreementContextId) : null;
       const moneyWithAgreementContext = money && agreement
         ? {
             ...money,
@@ -1160,7 +1161,7 @@ function App() {
       return (
         <div className="min-h-screen flex flex-col bg-cream-100">
           <NavBar view={view} onNavigate={handleNavigate} />
-          <MoneyWorkspace detail={moneyWithAgreementContext} onBack={() => { setOpenMoneyId(null); setOpenAgreementId(null); setView('money'); }} />
+          <MoneyWorkspace detail={moneyWithAgreementContext} onBack={() => { setOpenMoneyId(null); setMoneyAgreementContextId(null); setView('money'); }} />
         </div>
       );
     }
