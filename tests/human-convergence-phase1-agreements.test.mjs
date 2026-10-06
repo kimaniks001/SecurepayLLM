@@ -122,6 +122,19 @@ test('preview handoffs retain selected Agreement context for Money and KS001', a
   assert.match(app, /You’re asking about \$\{agreement\.title\} with \$\{agreement\.counterparty\}/);
 });
 
+
+test('real signed-in Agreement Hub carries backend preview authority and canonical handoffs', async () => {
+  const workspace = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
+  const view = await readFile('src/features/workspace/view.ts', 'utf8');
+  assert.match(workspace, /findInHub\(state\.hub\.data, id\)/);
+  assert.match(workspace, /onOpenMoney=\{openHubMoney\}/);
+  assert.match(workspace, /onAskKS001=\{askHubKs001\}/);
+  assert.match(workspace, /agentGateway\.switchAccessGrant\(conversationId, id\)/);
+  assert.match(workspace, /openMoneyFor\(\{/);
+  assert.match(view, /purpose: dto\.purpose \|\| undefined/);
+  assert.match(view, /attentionRequired: dto\.attentionRequired/);
+});
+
 test('full Agreement capabilities remain present behind deliberate Open Agreement', async () => {
   const detail = await readFile('src/components/AgreementDetail.tsx', 'utf8');
   for (const label of ['Overview', 'Terms', 'People', 'Documents', 'Activity', 'Changes', 'Money', 'Progress', 'Calendar & tags', 'Support']) {
