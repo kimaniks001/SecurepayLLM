@@ -42,9 +42,10 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision, onAskKs001 }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision, onAskKs001 }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
+  returnContext?: { label: string; onReturn: () => void } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
@@ -349,7 +350,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       body = (
         <OfferQuickPreview
           offer={state.selectedOffer.data.offer}
-          onBack={() => controller.backToHome()}
+          onBack={() => returnContext ? returnContext.onReturn() : controller.backToHome()}
+          backLabel={returnContext ? `Back to ${returnContext.label}` : 'Results'}
+          sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
           onAskKs001={() => onAskKs001
             ? onAskKs001(`I’m looking at the Store offer “${state.selectedOffer.status === 'ready' ? state.selectedOffer.data.offer.title : ''}”. Help me understand whether it fits what I need using only Store facts SecurePay can verify. Do not create an Agreement, select the provider automatically, or move money.`)
