@@ -126,5 +126,5 @@ test('a Home Problem opens its Agreement on Support (Reviews & issues); ordinary
   assert.match(ws, /onOpenAgreement=\{id => \{ setTabHint\(null\); controller\.openFromHome\(id\); \}\}/);
   assert.doesNotMatch(ws.slice(ws.indexOf('onOpenProblem')), /^[^\n]*reviewCaseId/);
   const home = await readFile('src/components/SignedInHome.tsx', 'utf8');
-  assert.equal((home.match(/<ProblemsList items=\{problems\} onOpenAgreement=\{onOpenProblem \?\? onOpenAgreement\} \/>/g) ?? []).length, 2);
+  assert.equal((home.match(/<ProblemsList items=\{problems\} onOpenAgreement=\{onOpenProblem \?\? onOpenAgreement\} \/>/g) ?? []).length, 1, 'the Masterpiece Home renders one clear Problems list while preserving the Support handoff');
 });
