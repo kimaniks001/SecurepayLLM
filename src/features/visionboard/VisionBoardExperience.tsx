@@ -207,7 +207,7 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
                         <div className="text-[0.62rem] text-sand-400">{route.landedCostKnown ? 'Landed cost known' : 'Landed cost not established'}</div>
                       </div>
                     </div>
-                    {route.tradeOffs.length > 0 && <p className="mt-2 text-[0.68rem] text-sand-600">{route.tradeOffs.slice(0, 2).join(' · ')}</p>}
+                    {route.tradeOffs.length > 0 && <div className="mt-2 space-y-0.5 text-[0.68rem] text-sand-600">{route.tradeOffs.slice(0, 2).map((tradeOff, index) => <p key={index}>• {tradeOff}</p>)}</div>}
                     {onOpenStoreOffer && <button type="button" onClick={() => onOpenStoreOffer(route.providerKsNumber, route.offerId)} className="mt-3 rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white">Open Store offer</button>}
                   </div>
                 ))}
