@@ -5,6 +5,7 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
+import { ExperiencePathway } from '../experience/ExperiencePathway';
 import type { AppView } from '../../types';
 import type { VisionBoardController } from './controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
@@ -261,6 +262,7 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
     <NavBar view="agreements" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
+      <ExperiencePathway active="vision" onNavigate={onNavigate} />
 
       {/* Convergence correction (section 43) -- this is never required to see your own board; it
           only switches to managing a different KS (e.g. a Business you administer). */}
