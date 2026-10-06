@@ -44,7 +44,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
               <div className="mt-1 text-sm text-forest-900">Search offers and Stores</div>
             </div>
             <button type="button" onClick={onManageStore} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">My Store</div>
+              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">My Store</div>
               <div className="mt-1 text-sm font-medium text-forest-800">See what people can find & what needs you</div>
             </button>
           </div>
@@ -62,7 +62,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           />
         </div>
 
-        <p className="mb-5 text-xs leading-5 text-sand-500">Store search uses SecurePay’s real category and place filters across products, services and capacity. If a title-only phrase is not a Store category or place, it may not match yet.</p>
+        <p className="mb-5 text-xs leading-5 text-sand-600">Store search uses SecurePay’s real category and place filters across products, services and capacity. If a title-only phrase is not a Store category or place, it may not match yet.</p>
 
         {/* Stores */}
         {stores.length > 0 && (
