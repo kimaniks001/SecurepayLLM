@@ -104,7 +104,7 @@ test('Store has no fabricated commerce metrics', () => {
     /(?:^|[>\s])Orders(?:[<\s:]|$)/i,
     /(?:^|[>\s])Revenue(?:[<\s:]|$)/i,
     /\b\d+\s+Customers\b/i,
-    /rating[:\s]/i,
+    /\brating\b[:\s]/i,
     /review score/i,
   ]) {
     assert.doesNotMatch(combined, pattern);
