@@ -243,7 +243,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       <div className="md:hidden flex-1 overflow-y-auto scrollbar-thin px-4 py-4 pb-28">
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Four obvious doors first; the full record stays available without crowding the first decision. */}
-          <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-cream-200 bg-white/72 p-1.5 shadow-soft">
+          <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-cream-200 bg-white/70 p-1.5 shadow-soft">
             {primaryMobileSections.map((s) => (
               <button
                 key={s.value}
@@ -258,7 +258,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
               </button>
             ))}
           </div>
-          <details className="rounded-xl border border-cream-200/80 bg-white/55">
+          <details className="rounded-xl border border-cream-200/80 bg-white/60">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3.5 text-[0.72rem] font-medium text-sand-600">
               <span>Full Agreement record</span>
               <span className="text-sand-400">Documents · changes · calendar · support</span>
