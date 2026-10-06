@@ -1,7 +1,6 @@
 import { ArrowLeft, LayoutGrid } from 'lucide-react';
 import { NavBar } from '../../../components/NavBar';
 import { Button } from '../../../components/dna/Button';
-import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import type { AppView } from '../../../types';
 import type { VisionDreamController } from './controller';
