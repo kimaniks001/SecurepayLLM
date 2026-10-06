@@ -17,10 +17,10 @@ const attentionStatuses = new Set<AgreementSummary['status']>([
   'change_requested',
 ]);
 
-function humanState(agreement: AgreementSummary) {
-  if (agreement.status === 'waiting_for_me' || agreement.status === 'ready_for_review') return 'Needs you';
-  if (agreement.status === 'waiting_for_other') return 'Waiting';
-  if (agreement.status === 'change_requested') return 'Needs you';
+function humanState(agreement: AgreementSummary, needsAttention: boolean) {
+  if (needsAttention) return 'Needs you';
+  if (agreement.status === 'waiting_for_me' || agreement.status === 'ready_for_review' || agreement.status === 'waiting_for_other') return 'Waiting';
+  if (agreement.status === 'change_requested') return 'Changed';
   if (agreement.status === 'completed') return 'Complete';
   if (agreement.status === 'cancelled') return 'On hold';
   if (agreement.status === 'expired') return 'Expired';
@@ -91,7 +91,7 @@ export function AgreementQuickPreview({
             <div className="flex flex-wrap items-center gap-2">
               <AgreementStatusBadge status={agreement.status} />
               <span className={`text-[0.76rem] font-semibold ${needsAttention ? 'text-ember-700' : 'text-sand-500'}`}>
-                {humanState(agreement)}
+                {humanState(agreement, needsAttention)}
               </span>
             </div>
             <h2 id="agreement-preview-title" className="mt-3 font-display text-[1.45rem] font-medium leading-tight text-forest-900">
