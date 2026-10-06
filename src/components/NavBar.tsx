@@ -1,4 +1,4 @@
-import { Home, FileText, Wallet, Store, Users, User, Bell } from 'lucide-react';
+import { Home, FileText, Wallet, Store, Users, User, Bell, Lightbulb } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
@@ -23,7 +23,7 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
 // that gives it meaning; Account/notifications remain available from page-level affordances.
 const mobileNavItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: Home, label: 'Home', view: 'signed-in' },
-  { icon: FileText, label: 'Vision', view: 'vision-board' },
+  { icon: Lightbulb, label: 'Vision', view: 'vision-board' },
   { icon: FileText, label: 'Agreements', view: 'agreements' },
   { icon: Store, label: 'Store', view: 'store' },
   { icon: Users, label: 'Community', view: 'community' },
