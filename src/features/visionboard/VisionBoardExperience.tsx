@@ -272,6 +272,10 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         <button onClick={() => controller.closeSelected()} className="flex items-center gap-1.5 text-forest-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
+        <Ks001SurfaceGuide
+          surface="vision"
+          onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Based on this idea and where I am in SecurePay, what real SecurePay products, services or capabilities could help me move it forward? Only suggest things SecurePay can actually verify, and do not turn the idea into a commitment unless I explicitly choose to.`) : undefined}
+        />
         <Surface>
           <SurfaceBody>
             <div className="flex items-start justify-between gap-3">
