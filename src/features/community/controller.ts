@@ -39,7 +39,7 @@ export type CommunityView = 'home' | 'object' | 'compose' | 'circleDetail' | 'ci
 /** Final pre-merge correction -- the page size used for a specific (non-EVERYTHING) discovery scope's
  * real pagination. `EVERYTHING` always uses the backend's own small fixed preview instead. */
 export const SEARCH_PAGE_SIZE = 20;
-export type CommunityHomeTab = 'live' | 'serve' | 'learn' | 'circles' | 'happening' | 'discover';
+export type CommunityHomeTab = 'home' | 'live' | 'serve' | 'learn' | 'circles' | 'happening' | 'discover';
 export type CircleMembershipMode = 'OPEN' | 'REQUEST_TO_JOIN' | 'INVITE_ONLY';
 export type CircleVisibility = 'PUBLIC' | 'PRIVATE';
 const REAL_COMPOSE_TYPES: { value: CommunityObjectType; label: string }[] = [
@@ -297,7 +297,7 @@ const initial: CommunityState = {
   replyDraft: { ...emptyReplyDraft }, helpOffering: false, helpError: null, helpIntentKey: '',
   inviteOpen: false, inviteDraft: { ...emptyInviteDraft },
   principlesOpen: false, principles: { status: 'idle' },
-  communityTab: 'live', discoverCircles: { status: 'idle' }, myCircles: { status: 'idle' },
+  communityTab: 'home', discoverCircles: { status: 'idle' }, myCircles: { status: 'idle' },
   createCircleOpen: false, createCircleDraft: { ...emptyCreateCircleDraft },
   selectedCircleId: null, selectedCircle: null, circleMembership: { status: 'idle' }, circleObjects: { status: 'idle' },
   circleJoinIntentKey: '', circleJoinSubmitting: false, circleJoinError: null,
@@ -804,7 +804,7 @@ export function createCommunityController(
 
     async showCommunityTab(tab: CommunityHomeTab) {
       update({ communityTab: tab });
-      if (tab === 'circles') {
+      if (tab === 'home' || tab === 'circles') {
         if (state.myCircles.status === 'idle') await loadMyCircles();
         if (state.circleInvitations.status === 'idle') await loadCircleInvitations();
       }
