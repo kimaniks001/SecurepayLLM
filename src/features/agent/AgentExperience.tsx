@@ -25,6 +25,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { StoreGateway } from '../../api/securepay/store';
+import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { CircleGateway } from '../../api/securepay/circle';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type { DiscoveryGateway } from '../../api/securepay/discovery';
@@ -171,8 +172,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -764,6 +765,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         gateway={storeGateway}
         businessGateway={businessGateway}
         marketNetworkGateway={marketNetworkGateway}
+        fulfilmentNeedsGateway={fulfilmentNeedsGateway}
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
