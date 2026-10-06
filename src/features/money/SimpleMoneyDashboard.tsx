@@ -45,6 +45,8 @@ interface SimpleMoneyDashboardProps {
   paymentReleaseGateway: PaymentReleaseGateway;
   handoff?: MoneyHandoff | null;
   onSelectAgreement: (agreement: CurrentUserAgreementSummaryResponse) => void;
+  onNavigate?: (view: import('../../types').AppView) => void;
+  onOpenAgreement?: (agreementId: string) => void;
 }
 
 function amountFromSummary(agreement: Pick<CurrentUserAgreementSummaryResponse, 'proposedAmountMinor' | 'currency'>) {
@@ -392,6 +394,8 @@ export function SimpleMoneyDashboard({
   paymentReleaseGateway,
   handoff,
   onSelectAgreement,
+  onNavigate,
+  onOpenAgreement,
 }: SimpleMoneyDashboardProps) {
   const [agreements, setAgreements] = useState<Load<CurrentUserAgreementSummaryResponse[]>>({ state: 'loading' });
   const [selected, setSelected] = useState<SelectionTarget | null>(null);
@@ -549,11 +553,19 @@ export function SimpleMoneyDashboard({
 
         {agreements.state === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Agreements…</p>}
         {agreements.state === 'error' && (
-          <StatusNotice tone="warning">SecurePay couldn’t load your Agreement list. No money state is being guessed.</StatusNotice>
+          <div className="space-y-2">
+            <StatusNotice tone="warning">SecurePay couldn’t load your Agreement list. No money state is being guessed.</StatusNotice>
+            {onNavigate && <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>}
+          </div>
         )}
         {agreements.state === 'ready' && agreements.value.length === 0 && (
-          <div className="rounded-2xl border border-cream-200 bg-white/70 p-5 text-sm text-sand-600">
-            You have no Agreements yet. Money appears here once an Agreement exists.
+          <div className="rounded-2xl border border-cream-200 bg-white/70 p-5">
+            <div className="text-sm font-medium text-forest-900">Money starts with an Agreement.</div>
+            <p className="mt-1 text-sm text-sand-600">You have no Agreements yet. Shape the idea in Vision or start the Agreement, then Money will follow it here.</p>
+            {onNavigate && <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => onNavigate('vision-board')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-medium text-white">Start in Vision</button>
+              <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>
+            </div>}
           </div>
         )}
         {agreements.state === 'ready' && agreements.value.length > 0 && (
@@ -591,6 +603,11 @@ export function SimpleMoneyDashboard({
                   <p className="mt-3 text-xs text-sand-500">
                     With {selectedSummary.counterparty.displayName ?? selectedSummary.counterparty.ksNumber ?? 'the other Agreement participant'}
                   </p>
+                )}
+                {onOpenAgreement && (
+                  <button type="button" onClick={() => onOpenAgreement(selected.agreementId)} className="mt-4 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">
+                    Open this Agreement
+                  </button>
                 )}
                 {currentDetail && currentDetail.terms.length > 0 && (
                   <div className="mt-5 flex flex-wrap gap-2">
