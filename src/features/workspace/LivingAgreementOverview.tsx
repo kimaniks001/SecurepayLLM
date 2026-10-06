@@ -1,12 +1,13 @@
 import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse, WorkspaceNextActionResponse } from '../../api/securepay/agreements/dto';
 import { completionFacts, milestoneReasonWords, milestoneStateWord } from '../execution/display';
 import { ExperiencePathway } from '../experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 
 const actionClass = 'min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left text-sm text-forest-800 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400';
 
 /** Read-only landing projection. Actions open existing, freshly gated workspaces. */
-export function LivingAgreementOverview({ detail, effectiveStates, completion, nextActions, onProgress, onPeople, onDocuments, onChanges, onMoney, onJourneyNavigate }: {
+export function LivingAgreementOverview({ detail, effectiveStates, completion, nextActions, onProgress, onPeople, onDocuments, onChanges, onMoney, onJourneyNavigate, onAskKs001 }: {
   detail: AgreementDetailResponse;
   effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null;
@@ -17,12 +18,14 @@ export function LivingAgreementOverview({ detail, effectiveStates, completion, n
   onChanges: () => void;
   onMoney: () => void;
   onJourneyNavigate?: (view: AppView) => void;
+  onAskKs001?: () => void;
 }) {
   const facts = completionFacts(completion);
   const milestoneStates = new Map(effectiveStates?.map(state => [state.milestoneId, state]));
   const titleOf = (id: string) => detail.milestones.find(milestone => milestone.milestoneId === id)?.title ?? null;
   return <section aria-label="Agreement at a glance" className="space-y-4">
     <ExperiencePathway active="agreement" onNavigate={onJourneyNavigate} />
+    <Ks001SurfaceGuide surface="agreement" onAsk={onAskKs001} />
     <div className="rounded-2xl border border-forest-200 bg-forest-50/50 p-5">
       <p className="text-xs uppercase tracking-wide text-sand-500">What we agreed</p>
       <p className="mt-2 font-display text-xl text-forest-800 break-words">{detail.overview.purpose || detail.overview.title}</p>
