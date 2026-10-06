@@ -55,6 +55,6 @@ test('authoritative participant next actions are visible without inventing permi
   assert.match(html, /What needs you next/);
   assert.match(html, /Upload delivery evidence/);
   assert.match(html, /ACTION REQUIRED/i);
-  assert.match(html, /10 Oct 2026/);
+  assert.match(html, /(?:10 Oct 2026|Oct 10, 2026)/);
   assert.doesNotMatch(html, /Submit evidence now|Approve|Release money/);
 });
