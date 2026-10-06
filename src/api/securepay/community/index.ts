@@ -1,6 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import { createTrustProjectProgrammesGateway } from './programmes';
-import type { BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
+import type {
+  CircleCoordinationPromptDto, CircleCoordinationResponseCode, BusinessMembershipResponse, CurrentPrinciplesResponse, OrganizationMembershipResponse,
   ApprenticeshipProjectDto, CircleMemberView, CircleMembershipResponse, CirclePendingInvitationView, CirclePendingRequestView, CircleResponse, CircleStewardView,
   CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
   CommunityTransitionIntentDto, CommunityVisionTransitionDto, CommunityKnowledgeCandidateDto,
@@ -287,6 +288,41 @@ export function createCommunityGateway(http: HttpClient) {
     // `CommunityCircleController` (`/api/v1/community/circles`). Every method requires the real
     // signed-in identity; the backend independently enforces ACTIVE Trust Project membership (and,
     // for content/membership actions, ACTIVE Circle membership) on top of authentication.
+    coordination: {
+      mine: (circleId: string) =>
+        http.request<CircleCoordinationPromptDto[]>(
+          `/api/v1/community/circles/${segment(circleId)}/coordination-prompts/mine`,
+          { auth: 'required' },
+        ),
+      create: (
+        circleId: string,
+        body: {
+          promptText: string;
+          contextType?: string | null;
+          contextReference?: string | null;
+          allowedResponses: CircleCoordinationResponseCode[];
+          targetCanonicalKsNumbers?: string[] | null;
+          expiresAt?: string | null;
+        },
+        idempotencyKey: string,
+      ) =>
+        http.request<CircleCoordinationPromptDto>(
+          `/api/v1/community/circles/${segment(circleId)}/coordination-prompts`,
+          { method: 'POST', body, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey } },
+        ),
+      respond: (
+        circleId: string,
+        promptId: string,
+        responseCode: CircleCoordinationResponseCode,
+        idempotencyKey: string,
+        channel: 'IN_APP' | 'WHATSAPP' | 'SMS' | 'EMAIL' = 'IN_APP',
+      ) =>
+        http.request<CircleCoordinationPromptDto>(
+          `/api/v1/community/circles/${segment(circleId)}/coordination-prompts/${segment(promptId)}/responses`,
+          { method: 'POST', body: { responseCode, channel }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey } },
+        ),
+    },
+
     circles: {
       create: (
         name: string, purpose: string, membershipMode: string, visibility: string, categoryLabel: string | null,
