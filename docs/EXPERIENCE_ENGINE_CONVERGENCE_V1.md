@@ -74,6 +74,12 @@ C0 contract inventory completed; initial C2 living Agreement landing composition
 
 C1 has now started with a shared, authority-neutral journey layer across Vision Board, Store and the living Agreement. It names the four practical jobs — think it through, find what you need, make it clear, fund and move safely — and provides explicit navigation without creating commitments, purchases or Money authority. Vision and Store now hand off into the same Agreement/Money operating model instead of presenting as isolated modules.
 
-Validation for this follow-on slice is still pending: the connector-created commits did not produce a GitHub Actions run and the execution environment cannot reach github.com for a local checkout. The static regression source has been added but no green claim is made yet.
+C2 now also exposes the selected participant's backend-owned next actions at Agreement arrival, including reason, attention class and deadline. It does not translate action codes into guessed permissions; actions route into existing gated work.
+
+C4 has started materially. Store management now has a real **Today / What needs you?** cockpit driven by offer availability, privacy-safe Business demand matches and qualified Plug missions. Existing Store authority is wired for offer review and availability confirmation. Business demand can now open the existing fulfilment engine's backend matches and supply routes, exposing provider, listed price, lead time, MOQ, delivery, warranty, returns, trade-offs and whether landed cost is actually known. The person can then open the real Store offer and continue through the existing explicit Offer → Agreement path. No supplier is auto-selected, no stock is reserved, no Agreement is created and no money moves.
+
+Vision arrival now has a practical Start Here surface: capture the idea, find what it needs in Store, or review Agreements. This stays within the verified text/shelf persistence contract; the persistent visual canvas gap remains open.
+
+Validation for these follow-on slices is still pending: the connector-created commits did not produce a GitHub Actions run and the execution environment cannot reach github.com for a local checkout. The static regression source has been added but no green claim is made yet.
 
 Programme incomplete. Money implementation unchanged. No API writes, merge, deployment or paid model calls.
