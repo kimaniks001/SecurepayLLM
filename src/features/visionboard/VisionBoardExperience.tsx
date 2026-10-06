@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, Lock, Sparkles, Unlock } from 'lucide-react';
+import { ArrowLeft, Lock, Plus, Search, Sparkles, Unlock } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
@@ -244,6 +244,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   const [switchKsInput, setSwitchKsInput] = useState('');
   const [showSwitchKs, setShowSwitchKs] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showLandingAdd, setShowLandingAdd] = useState(false);
   const [newType, setNewType] = useState<VisionItemTypeCode>('IDEA');
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
@@ -269,6 +270,16 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
     }
   }, [state.selected.item]);
 
+  const beginAdd = (shelf: VisionShelfCode, type: VisionItemTypeCode) => {
+    setNewType(type);
+    setNewTitle('');
+    setNewContent('');
+    setNewUsagePolicy('REFERENCE_ONLY');
+    setShowCreate(true);
+    setShowLandingAdd(false);
+    void controller.openShelf(shelf);
+  };
+
   const selectedItem = state.selected.item;
   if (selectedItem) {
     return <div className="sp-life-canvas min-h-dvh">
@@ -277,10 +288,6 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         <button onClick={() => controller.closeSelected()} className="flex items-center gap-1.5 text-forest-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <Ks001SurfaceGuide
-          surface="vision"
-          onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Based on this idea and where I am in SecurePay, what real SecurePay products, services or capabilities could help me move it forward? Only suggest things SecurePay can actually verify, and do not turn the idea into a commitment unless I explicitly choose to.`) : undefined}
-        />
         <Surface>
           <SurfaceBody>
             <div className="flex items-start justify-between gap-3">
@@ -318,7 +325,21 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
             <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version}</p>
           </SurfaceBody>
         </Surface>
-        {fulfilmentNeedsGateway && <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} onOpenStore={() => onNavigate('store')} />}
+        <details className="rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Ask KS001 about this idea</summary>
+          <div className="border-t border-cream-200 p-4">
+            <Ks001SurfaceGuide
+              surface="vision"
+              onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Help me explore or organise it without turning it into a commitment. Only suggest SecurePay capabilities that can actually be verified.`) : undefined}
+            />
+          </div>
+        </details>
+        {fulfilmentNeedsGateway && <details className="rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Find real Store options for this need</summary>
+          <div className="border-t border-cream-200 p-4">
+            <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} onOpenStore={() => onNavigate('store')} />
+          </div>
+        </details>}
       </div>
     </div>;
   }
@@ -341,6 +362,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
 
         {showCreate && state.selectedShelf && <Surface>
           <SurfaceBody className="space-y-2">
+            <p className="text-xs text-sand-500">Saved here means private Vision memory. It does not create a Project, Agreement, Store request or payment authority.</p>
             <select value={newType} onChange={e => setNewType(e.target.value as VisionItemTypeCode)} className="w-full rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]">
               {ITEM_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ').toLowerCase()}</option>)}
             </select>
@@ -395,44 +417,57 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
     <NavBar view="vision-board" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <section className="sp-hero px-5 py-6 md:px-7 md:py-7">
-        <div className="sp-kicker">Vision</div>
-        <h1 className="sp-display mt-2 max-w-2xl text-[2.35rem] md:text-5xl">What are you trying to move forward?</h1>
-        <p className="mt-4 max-w-2xl text-[0.84rem] leading-6 text-sand-600">
-          Capture the idea while it is still light. SecurePay can help you remember it, find what it needs and make the commitment clear only when you are ready.
+        <div className="sp-kicker">Vision Library · private</div>
+        <h1 className="sp-display mt-2 max-w-2xl text-[2.2rem] md:text-4xl">Keep what matters. Organise only when useful.</h1>
+        <p className="mt-3 max-w-2xl text-[0.84rem] leading-6 text-sand-600">
+          Search saved ideas, plans, references and guidance. Nothing in this Library is an Agreement or Money authority, and nothing is shared unless you deliberately create a matchable need.
         </p>
       </section>
-      <ExperiencePathway active="vision" onNavigate={onNavigate} />
-      <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m on my Vision Board. Based on what I am working on here, what real SecurePay products, services or capabilities could help me next? Only suggest things SecurePay can actually verify and explain why they fit.') : undefined} />
 
-      <section aria-label="Start from your Vision" className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-        <button
-          type="button"
-          onClick={() => void controller.openShelf('IDEAS_GROWTH')}
-          className="sp-action-tile px-4 py-4 text-left"
-        >
-          <span className="sp-kicker !tracking-[0.12em]">1 · Think</span>
-          <span className="mt-2 block font-display text-lg text-forest-900">Capture the idea</span>
-          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Notes, plans and things you want SecurePay to remember.</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => onNavigate('store')}
-          className="sp-action-tile px-4 py-4 text-left"
-        >
-          <span className="sp-kicker !tracking-[0.12em]">2 · Find</span>
-          <span className="mt-2 block font-display text-lg text-forest-900">Find what it needs</span>
-          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Explore real Store offers before you commit to anything.</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => onNavigate('agreements')}
-          className="sp-action-tile px-4 py-4 text-left"
-        >
-          <span className="sp-kicker !tracking-[0.12em]">3 · Clarify</span>
-          <span className="mt-2 block font-display text-lg text-forest-900">Make it clear</span>
-          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Review the Agreements already taking shape or active.</span>
-        </button>
+      <section aria-label="Vision Library actions" className="rounded-2xl border border-cream-200 bg-white/80 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <label className="relative flex-1">
+            <span className="sr-only">Search your Vision Library</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sand-400" />
+            <input
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void controller.search(searchInput.trim()); }}
+              placeholder="Search ideas, plans, references…"
+              className="min-h-11 w-full rounded-xl border border-cream-200 bg-white pl-10 pr-3 text-sm text-forest-800"
+            />
+          </label>
+          <Button variant="secondary" onClick={() => void controller.search(searchInput.trim())}>Search</Button>
+          <Button onClick={() => setShowLandingAdd(value => !value)}><Plus className="h-4 w-4" /> Add</Button>
+        </div>
+        {showLandingAdd && <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => beginAdd('IDEAS_GROWTH', 'IDEA')} className="min-h-11 rounded-xl border border-cream-200 bg-cream-50 px-3 text-left text-sm text-forest-800">Thought or idea</button>
+          <button type="button" onClick={() => beginAdd('BUSINESS_PLANS', 'PLAN')} className="min-h-11 rounded-xl border border-cream-200 bg-cream-50 px-3 text-left text-sm text-forest-800">Plan</button>
+          <button type="button" onClick={() => beginAdd('BUSINESS_DOCUMENTS', 'REFERENCE_DOCUMENT')} className="min-h-11 rounded-xl border border-cream-200 bg-cream-50 px-3 text-left text-sm text-forest-800">Reference or link</button>
+          <button type="button" onClick={() => beginAdd('QUOTATIONS', 'REFERENCE_DOCUMENT')} className="min-h-11 rounded-xl border border-cream-200 bg-cream-50 px-3 text-left text-sm text-forest-800">Quotation reference</button>
+        </div>}
       </section>
+
+      {state.searchQuery && <section aria-label="Vision search results" className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-xl text-forest-800">Search results</h2>
+          <button type="button" className="min-h-11 text-sm text-forest-700 underline" onClick={() => { setSearchInput(''); void controller.search(''); }}>Clear search</button>
+        </div>
+        {state.items.status === 'loading' && <p role="status" className="text-sm text-sand-500">Searching your private Library…</p>}
+        {state.items.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.items.error}</StatusNotice>}
+        {state.items.status === 'ready' && state.items.data?.length === 0 && <p className="text-sm text-sand-500">Nothing in your Vision Library matches that search yet.</p>}
+        <ul className="space-y-2">
+          {state.items.data?.map(item => <li key={item.itemId}>
+            <button type="button" onClick={() => controller.open(item)} className="min-h-14 w-full rounded-2xl border border-cream-200 bg-white px-4 py-3 text-left hover:border-forest-300">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-forest-800">{item.title}</span>
+                <span className="text-[0.65rem] uppercase tracking-wide text-sand-400">{item.itemType.replace(/_/g, ' ')}</span>
+              </div>
+              {item.content && <p className="mt-1 line-clamp-2 text-xs text-sand-500">{item.content}</p>}
+            </button>
+          </li>)}
+        </ul>
+      </section>}
 
       {/* Convergence correction (section 43) -- this is never required to see your own board; it
           only switches to managing a different KS (e.g. a Business you administer). */}
@@ -454,7 +489,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
       {state.shelves.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Vision Board…</p>}
       {state.shelves.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.shelves.error}</StatusNotice>}
 
-      {state.shelves.status === 'ready' && state.shelves.data && <div className="grid grid-cols-2 gap-3">
+      {state.shelves.status === 'ready' && state.shelves.data && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {state.shelves.data.map(shelf => <button
           key={shelf.shelf}
           onClick={() => void controller.openShelf(shelf.shelf)}
@@ -468,7 +503,26 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         </button>)}
       </div>}
 
-      {state.boarded && <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />}
+      {state.boarded && <details className="rounded-2xl border border-cream-200 bg-white/70">
+        <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Prepare a quotation, invoice or receipt</summary>
+        <div className="border-t border-cream-200 p-4">
+          <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />
+        </div>
+      </details>}
+
+      <details className="rounded-2xl border border-cream-200 bg-white/70">
+        <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Ask KS001 to help organise this</summary>
+        <div className="border-t border-cream-200 p-4">
+          <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m in my private Vision Library. Help me organise or explore what I have here. Do not turn an idea into a Project, Agreement, Store request or Money instruction unless I explicitly choose that step.') : undefined} />
+        </div>
+      </details>
+
+      <details className="rounded-2xl border border-cream-200 bg-white/70">
+        <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Where this can go next</summary>
+        <div className="border-t border-cream-200 p-4">
+          <ExperiencePathway active="vision" onNavigate={onNavigate} />
+        </div>
+      </details>
     </div>
   </div>;
 }
