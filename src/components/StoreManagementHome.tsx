@@ -24,6 +24,7 @@ interface StoreManagementHomeProps {
   onTogglePlugAvailability?: () => void;
   onInspectOpportunity?: (needId: string) => void;
   onOpenRouteOffer?: (providerKsNumber: string, offerId: string) => void;
+  onReviewRoute?: (needId: string, route: SupplyRouteDto) => void;
   opportunityInspection?: {
     needId: string;
     loading: boolean;
@@ -33,7 +34,7 @@ interface StoreManagementHomeProps {
   } | null;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, opportunityInspection }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, opportunityInspection }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -228,15 +229,26 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                     <span>{route.returnTermsDeclared ? 'Return terms declared' : 'Return terms not declared'}</span>
                   </div>
 
-                  {onOpenRouteOffer && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenRouteOffer(route.providerKsNumber, route.offerId)}
-                      className="mt-3 rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white"
-                    >
-                      Open offer
-                    </button>
-                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {onReviewRoute && (
+                      <button
+                        type="button"
+                        onClick={() => onReviewRoute(opportunityInspection.needId, route)}
+                        className="rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white"
+                      >
+                        Review for Agreement
+                      </button>
+                    )}
+                    {onOpenRouteOffer && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenRouteOffer(route.providerKsNumber, route.offerId)}
+                        className="rounded-lg border border-forest-200 px-3 py-1.5 text-[0.7rem] font-medium text-forest-700"
+                      >
+                        Open offer
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
