@@ -394,40 +394,44 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   return <div className="sp-life-canvas min-h-dvh">
     <NavBar view="vision-board" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
-      <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
+      <section className="sp-hero px-5 py-6 md:px-7 md:py-7">
+        <div className="sp-kicker">Vision</div>
+        <h1 className="sp-display mt-2 max-w-2xl text-[2.35rem] md:text-5xl">What are you trying to move forward?</h1>
+        <p className="mt-4 max-w-2xl text-[0.84rem] leading-6 text-sand-600">
+          Capture the idea while it is still light. SecurePay can help you remember it, find what it needs and make the commitment clear only when you are ready.
+        </p>
+      </section>
       <ExperiencePathway active="vision" onNavigate={onNavigate} />
       <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m on my Vision Board. Based on what I am working on here, what real SecurePay products, services or capabilities could help me next? Only suggest things SecurePay can actually verify and explain why they fit.') : undefined} />
 
-      <section aria-label="Start from your Vision" className="rounded-2xl border border-forest-200 bg-forest-50/50 p-4">
-        <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Start here</p>
-        <h2 className="mt-1 font-display text-lg text-forest-800">What are you trying to move forward?</h2>
-        <p className="mt-1 text-[0.78rem] text-sand-600">Keep the thinking light. Capture the idea first, then find what it needs or make the commitment clear when you are ready.</p>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => void controller.openShelf('IDEAS_GROWTH')}
-            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
-          >
-            <span className="block text-[0.8rem] font-medium text-forest-800">Capture the idea</span>
-            <span className="mt-1 block text-[0.68rem] text-sand-500">Notes, plans and things you want SecurePay to remember.</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onNavigate('store')}
-            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
-          >
-            <span className="block text-[0.8rem] font-medium text-forest-800">Find what it needs</span>
-            <span className="mt-1 block text-[0.68rem] text-sand-500">Explore real Store offers before you commit to anything.</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onNavigate('agreements')}
-            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
-          >
-            <span className="block text-[0.8rem] font-medium text-forest-800">Make it clear</span>
-            <span className="mt-1 block text-[0.68rem] text-sand-500">Review the Agreements already taking shape or active.</span>
-          </button>
-        </div>
+      <section aria-label="Start from your Vision" className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => void controller.openShelf('IDEAS_GROWTH')}
+          className="sp-action-tile px-4 py-4 text-left"
+        >
+          <span className="sp-kicker !tracking-[0.12em]">1 · Think</span>
+          <span className="mt-2 block font-display text-lg text-forest-900">Capture the idea</span>
+          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Notes, plans and things you want SecurePay to remember.</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('store')}
+          className="sp-action-tile px-4 py-4 text-left"
+        >
+          <span className="sp-kicker !tracking-[0.12em]">2 · Find</span>
+          <span className="mt-2 block font-display text-lg text-forest-900">Find what it needs</span>
+          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Explore real Store offers before you commit to anything.</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('agreements')}
+          className="sp-action-tile px-4 py-4 text-left"
+        >
+          <span className="sp-kicker !tracking-[0.12em]">3 · Clarify</span>
+          <span className="mt-2 block font-display text-lg text-forest-900">Make it clear</span>
+          <span className="mt-1 block text-[0.7rem] leading-4 text-sand-500">Review the Agreements already taking shape or active.</span>
+        </button>
       </section>
 
       {/* Convergence correction (section 43) -- this is never required to see your own board; it
