@@ -24,7 +24,9 @@ export type NotificationImportance = 'CRITICAL' | 'ACTION_REQUIRED' | 'IMPORTANT
  * as this exact wire string). Never itself authority (Section 27) — it only routes to an existing,
  * independently-authorized surface.
  */
-export type NotificationActionKey = 'OPEN_INVITATIONS' | 'OPEN_AGREEMENT' | 'REVIEW_AGREEMENT';
+export type NotificationActionKey =
+  | 'OPEN_INVITATIONS' | 'OPEN_AGREEMENT' | 'REVIEW_AGREEMENT'
+  | 'OPEN_MASTER_REQUEST' | 'OPEN_PLUG_TASK' | 'OPEN_CIRCLE' | 'OPEN_STORE' | 'OPEN_FINANCIAL_SERVICES';
 
 /**
  * The one place a raw, persisted `actionKey` string is trusted. An unrecognized or absent value returns
@@ -32,7 +34,11 @@ export type NotificationActionKey = 'OPEN_INVITATIONS' | 'OPEN_AGREEMENT' | 'REV
  * action button" doctrine).
  */
 export function parseNotificationActionKey(raw: string | null): NotificationActionKey | null {
-  if (raw === 'OPEN_INVITATIONS' || raw === 'OPEN_AGREEMENT' || raw === 'REVIEW_AGREEMENT') return raw;
+  if (
+    raw === 'OPEN_INVITATIONS' || raw === 'OPEN_AGREEMENT' || raw === 'REVIEW_AGREEMENT'
+    || raw === 'OPEN_MASTER_REQUEST' || raw === 'OPEN_PLUG_TASK' || raw === 'OPEN_CIRCLE'
+    || raw === 'OPEN_STORE' || raw === 'OPEN_FINANCIAL_SERVICES'
+  ) return raw;
   return null;
 }
 
