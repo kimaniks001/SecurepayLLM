@@ -3,6 +3,7 @@ import type { StoreIdentity, StoreOffer } from '../types';
 import { ResultCard } from '../features/discovery/ui/ResultCard';
 import { resultFromStoreOffer } from '../features/discovery/result';
 import { ExperiencePathway } from '../features/experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 import type { AppView } from '../types';
 
 interface StoreHomeProps {
@@ -18,6 +19,7 @@ interface StoreHomeProps {
   searchStatus?: 'idle' | 'loading' | 'ready' | 'error';
   searchErrorText?: string | null;
   onJourneyNavigate?: (view: AppView) => void;
+  onAskKs001?: () => void;
 }
 
 /**
@@ -28,7 +30,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onJourneyNavigate }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onJourneyNavigate, onAskKs001 }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
@@ -38,6 +40,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
         </div>
 
         <ExperiencePathway active="store" onNavigate={onJourneyNavigate} className="mb-5" />
+        <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
 
         {/* Search */}
         <div className="relative mb-5">
