@@ -89,13 +89,14 @@ export interface MoneyGateways {
   moneySnapshot: MoneySnapshotGateway;
 }
 
-export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, onAskKs001 }: {
+export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, onAskKs001, onOpenAgreement }: {
   gateways: MoneyGateways;
   auth: AuthGateway;
   session: SessionStore;
   onLeave: () => void;
   onNavigate?: (view: AppView) => void;
   onAskKs001?: () => void;
+  onOpenAgreement?: (agreementId: string) => void;
 }) {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
@@ -158,6 +159,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
           paymentReleaseGateway={gateways.paymentRelease}
           handoff={handoff}
           onSelectAgreement={setJumpAgreement}
+          onNavigate={onNavigate}
+          onOpenAgreement={onOpenAgreement}
         />
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">
