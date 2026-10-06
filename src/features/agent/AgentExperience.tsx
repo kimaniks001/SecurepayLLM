@@ -914,6 +914,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           setStore(true);
         }}
         onAskKs001={askKs001FromSurface}
+        onBack={() => { setVisionLibrary(false); setVisionBoard(true); }}
       />
     );
   }
