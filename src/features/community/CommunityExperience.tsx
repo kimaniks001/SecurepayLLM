@@ -1669,7 +1669,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   }
 
   return (
-    <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+    <div className={`sp-life-canvas min-h-dvh flex flex-col ${navPadding}`}>
       <NavBar view={'community' as AppView} onNavigate={onNavigate} />
       {state.notice && (
         <div className="px-4 py-2">

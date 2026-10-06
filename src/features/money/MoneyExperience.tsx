@@ -109,7 +109,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
   if (sessionState.status !== 'signed-in') {
     const data = secureAuthView(identityState);
     return (
-      <div className="min-h-dvh bg-cream-100 flex flex-col">
+      <div className="sp-life-canvas min-h-dvh flex flex-col">
         <MoneyHeader onBack={onLeave} />
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-lg space-y-4">
@@ -141,7 +141,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
   }
 
   return (
-    <div className="min-h-dvh bg-cream-100 flex flex-col pb-8">
+    <div className="sp-life-canvas min-h-dvh flex flex-col pb-24 md:pb-8">
       <MoneyHeader onBack={onLeave} />
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
         <PageHeader

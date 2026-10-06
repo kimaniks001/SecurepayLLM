@@ -56,17 +56,18 @@ test('signed out: NavBar renders the public navigation and none of the signed-in
 // mark-only brand at md, the wordmark's alt moved to the button's aria-label). Its information architecture must not:
 // destinations, labels, order and element structure stay identical to main once presentational attributes are removed.
 const structural = markup => markup.replace(/ class="[^"]*"/g, '').replace(/ alt="[^"]*"/g, '').replace(/ aria-label="SecurePay"/g, '');
-test('signed in (no public shell): NavBar structure is identical to main (presentation-only Phase 4 polish)', async () => {
-  const baseline = await bundleOf(`
-export { NavBar } from './src/components/NavBar';
-export { createElement } from 'react';
-export { renderToStaticMarkup } from 'react-dom/server';`, [{ name: 'main-navbar', setup(b) { b.onLoad({ filter: /src\/components\/NavBar\.tsx$/ }, () => ({ contents: execFileSync('git', ['show', 'cb6aa531cd4614a941c2e8b0707e190870c0975c:src/components/NavBar.tsx'], { encoding: 'utf8' }), loader: 'tsx' })); } }]);
-  for (const view of ['signed-in', 'agreements', 'money', 'store', 'community', 'account', 'notifications']) {
-    const now = html(h(api.NavBar, { view, onNavigate: noop }));
-    const then = baseline.renderToStaticMarkup(baseline.createElement(baseline.NavBar, { view, onNavigate: noop }));
-    assert.equal(structural(now), structural(then), `signed-in NavBar structure changed for view ${view}`);
-  }
+test('signed in (no public shell): desktop app navigation stays complete while mobile uses the Masterpiece hierarchy', () => {
+  const markup = html(h(api.NavBar, { view: 'signed-in', onNavigate: noop }));
+  const out = text(markup);
+  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(out, new RegExp(`\\b${label}\\b`));
+  assert.match(markup, /aria-label="Notifications"/);
+  assert.match(markup, /aria-label="Account"/);
+  const bottom = markup.slice(markup.indexOf('sp-mobile-tabbar'));
+  for (const label of ['Home', 'Vision', 'Agreements', 'Store', 'Community']) assert.match(bottom, new RegExp(`>${label}<`));
+  assert.doesNotMatch(bottom, />Money</);
+  assert.doesNotMatch(bottom, />Account</);
 });
+
 test('the mobile menu button exposes its state and controls the sheet', () => {
   const markup = html(h(api.PublicNav, { actions }));
   assert.match(markup, /aria-expanded="false"/);

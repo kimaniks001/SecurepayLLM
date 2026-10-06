@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
+import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
 import { RecentActivity } from './RecentActivity';
-import { HomeWorkbenchSummary } from './HomeWorkbenchSummary';
 import { UpcomingEventsList } from './UpcomingEventsList';
 import { ProblemsList } from './ProblemsList';
 import { AgreementMoneyByCurrencySummary } from './AgreementMoneyByCurrencySummary';
@@ -74,87 +74,151 @@ export function SignedInHome({
   onOpenProblem,
 }: SignedInHomeProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
-  return (
-    <div className="flex-1 flex overflow-hidden">
-      {/* Left: conversation entry */}
-      <div className="flex-1 md:flex-[1.35] flex flex-col min-w-0 bg-cream-50">
-        <div className="flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-cream-200/60">
-          <img src={securepayMark} alt="SecurePay" className="w-7 h-7" />
-          <div>
-            <div className="font-display text-sm text-forest-800">SecurePay</div>
-            <div className="text-[0.7rem] text-sand-500">{greeting}</div>
-          </div>
-        </div>
+  const needsCount = attentionItems.length + invitations.length;
+  const waitingCount = waitingItems.length;
+  const momentumCount = recentActivity.length + upcomingEvents.length;
+  const quickActions = [
+    { label: 'Plan', help: 'Turn an idea into a clear plan', icon: FileText, prompt: 'Help me turn an idea into a clear plan.' },
+    { label: 'Compare', help: 'Make the options obvious', icon: Search, prompt: 'Help me compare my options before I decide.' },
+    { label: 'Prepare Agreement', help: 'Make the commitment clear', icon: CheckCircle2, prompt: 'Help me prepare a clear agreement from what I am trying to do.' },
+    { label: 'Find People', help: 'Connect the right people', icon: Users, prompt: 'Help me work out who I need and how SecurePay can help me find them.' },
+  ];
 
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="flex justify-center mb-6 animate-fade-in-down">
-              <img src={securepayMark} alt="SecurePay" className="w-14 h-14" />
+  return (
+    <div className="sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 md:px-8 md:py-8">
+        <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
+          <div className="relative z-10 max-w-3xl">
+            <div className="flex items-center gap-3">
+              <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
+              <div>
+                <div className="sp-kicker">KS001</div>
+                <div className="mt-0.5 text-xs text-sand-500">{greeting}</div>
+              </div>
             </div>
-            <h1 className="font-display text-2xl md:text-3xl text-forest-800 font-medium leading-tight text-balance animate-fade-in-up">
-              Tell SecurePay what you're trying to make happen.
+
+            <h1 className="sp-display mt-5 max-w-2xl text-[2.65rem] md:text-6xl">
+              What do you want to make <span className="sp-real-word">real</span> today?
             </h1>
-            <p className="mt-3 text-[0.9rem] text-sand-600 leading-relaxed max-w-lg mx-auto animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              {subheading}
+            <p className="mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base">
+              {subheading} KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.
             </p>
-            <div className="mt-6 max-w-xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <ConversationInput onSend={onStart} placeholder="Ask SecurePay anything..." />
+
+            <div className="mt-6">
+              <ConversationInput onSend={onStart} placeholder="Tell KS001 what you want to make happen…" />
             </div>
-            <div className="mt-3 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[placeholder*="Tell KS001"], textarea[placeholder*="Tell KS001"]');
+                input?.focus();
+              }}
+              className="sp-primary-action mt-3 flex w-full items-center justify-between px-5 text-[0.92rem] font-semibold md:max-w-xl"
+            >
+              <span className="flex items-center gap-2.5"><Sparkles className="h-4 w-4" /> Start with KS001</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+
+            <div className="mt-3">
               <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
             </div>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              {suggestedPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => onStart(prompt)}
-                  className="text-[0.8rem] text-sand-600 bg-cream-100 hover:bg-cream-200 border border-cream-200 rounded-full px-3.5 py-1.5 transition-colors hover:text-forest-700"
-                >
-                  {prompt}
-                </button>
-              ))}
+          </div>
+        </section>
+
+        <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
+          {quickActions.map(({ label, help, icon: Icon, prompt }, index) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => onStart(prompt)}
+              className="sp-action-tile sp-settle p-3.5 text-left"
+              style={{ animationDelay: `${index * 55}ms` }}
+            >
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
+                <Icon className="h-[18px] w-[18px]" />
+              </span>
+              <span className="mt-3 block text-[0.82rem] font-semibold leading-4 text-forest-900">{label}</span>
+              <span className="mt-1 block text-[0.68rem] leading-4 text-sand-500">{help}</span>
+            </button>
+          ))}
+        </section>
+
+        <section className="mt-7 md:grid md:grid-cols-[1.15fr_0.85fr] md:gap-6">
+          <div>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <div className="sp-kicker">Your world today</div>
+                <h2 className="font-display mt-1 text-2xl text-forest-900">See what is moving.</h2>
+              </div>
+              <button onClick={onNavigateAgreements} className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700">
+                Agreements <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="sp-section p-3.5">
+                <div className="sp-value text-2xl">{needsCount}</div>
+                <div className="mt-1 text-[0.68rem] font-medium text-sand-600">Need you</div>
+              </div>
+              <div className="sp-section p-3.5">
+                <div className="sp-value text-2xl">{waitingCount}</div>
+                <div className="mt-1 text-[0.68rem] font-medium text-sand-600">Waiting</div>
+              </div>
+              <div className="sp-section p-3.5">
+                <div className="sp-value text-2xl">{momentumCount}</div>
+                <div className="mt-1 text-[0.68rem] font-medium text-sand-600">Moving</div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-5">
+              <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
+              <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
+              <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
+              <ProblemsList items={problems} onOpenAgreement={onOpenProblem ?? onOpenAgreement} />
+              <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
             </div>
           </div>
 
-          {/* Mobile: needs attention + waiting below the fold */}
-          <div className="md:hidden mt-8 space-y-6">
-            <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
-            <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
-            <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
-            <ProblemsList items={problems} onOpenAgreement={onOpenProblem ?? onOpenAgreement} />
-            <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
-            <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
-            <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
-            <button
-              onClick={onNavigateAgreements}
-              className="w-full text-center text-[0.85rem] font-medium text-forest-600 hover:text-forest-700 py-2"
-            >
-              View all agreements
-            </button>
+          <div className="mt-7 md:mt-0">
+            <div className="sp-section-warm p-4 md:sticky md:top-20">
+              <div className="sp-kicker">Progress you can feel</div>
+              <h2 className="font-display mt-1 text-xl text-forest-900">Small wins become real work.</h2>
+              <p className="mt-2 text-[0.78rem] leading-5 text-sand-600">
+                SecurePay keeps the hard parts underneath. You keep the clear next step in front of you.
+              </p>
+
+              <div className="mt-4 sp-progress-track" aria-hidden="true">
+                <div className="sp-progress-fill" style={{ width: `${Math.min(100, 24 + Math.min(76, momentumCount * 12))}%` }} />
+              </div>
+
+              <div className="mt-5 space-y-5">
+                <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
+                <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
+              </div>
+
+              <div className="mt-5 border-t border-cream-300/70 pt-4">
+                <div className="text-[0.7rem] font-semibold text-forest-800">Not sure where to begin?</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {suggestedPrompts.slice(0, 3).map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => onStart(prompt)}
+                      className="min-h-11 rounded-full border border-cream-300 bg-white/75 px-3 text-[0.72rem] text-sand-700 transition-colors hover:border-forest-300 hover:text-forest-800"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          {belowHome}
-        </div>
+        </section>
+
+        {belowHome && <div className="mt-12">{belowHome}</div>}
       </div>
 
-      {/* Right: workbench */}
-      <div className="hidden md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-100/50 min-w-0 overflow-y-auto scrollbar-thin">
-        <div className="px-5 py-5 space-y-5">
-          <HomeWorkbenchSummary
-            needsCount={attentionItems.length}
-            waitingCount={waitingItems.length}
-            recentCount={recentActivity.length}
-            onNavigateAgreements={onNavigateAgreements}
-          />
-          <InvitationsForYou items={invitations} onReview={onReviewInvitation} onViewAll={onViewAllInvitations} />
-          <NeedsAttentionList items={attentionItems} onOpenAgreement={onOpenAgreement} />
-          <WaitingOnOthersList items={waitingItems} onOpenAgreement={onOpenAgreement} />
-          <ProblemsList items={problems} onOpenAgreement={onOpenProblem ?? onOpenAgreement} />
-          <UpcomingEventsList items={upcomingEvents} onOpenAgreement={onOpenAgreement} />
-          <RecentActivity items={recentActivity} onOpenAgreement={onOpenAgreement} />
-          <AgreementMoneyByCurrencySummary items={moneyByCurrency} />
-        </div>
-      </div>
       {fairTradeOpen && <FairTradePrinciplesPanel onClose={() => setFairTradeOpen(false)} />}
     </div>
   );
+
 }

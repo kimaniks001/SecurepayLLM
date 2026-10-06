@@ -341,44 +341,31 @@ export const markup = [
 // byte-identical markup against the Bolt baseline (the old AgentIcon-as-logo glyph is intentionally
 // gone) — it instead asserts every non-brand-mark part of Bolt's fixture markup is untouched. Phase 6
 // convergence additionally re-locks the headline copy itself and adds the Fair Trade affordance.
-test('SignedInHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap and locked copy correction', async () => {
+test('SignedInHome masterpiece keeps the canonical brand, Fair Trade doorway and fixture truth while changing the experience language', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { SignedInHome } from './src/components/SignedInHome';
 const noop = () => {};
 export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { onStart: noop, attentionItems: [], waitingItems: [], recentActivity: [], onOpenAgreement: noop, onNavigateAgreements: noop }));`;
-  const touched = /src\/components\/SignedInHome\.tsx$/;
-  async function render(baseline) {
-    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
-    const mod = { exports: {} };
-    new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
-    return mod.exports.markup;
-  }
-  const current = await render(false);
-  const baseline = await render(true);
-  assert.notEqual(current, baseline, 'expected the canonical brand mark swap and locked copy correction to change SignedInHome markup');
-  // The old Bolt AgentIcon-as-logo glyph (a circle+shoulders SVG path) must be gone from the real component...
+  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+  const current = mod.exports.markup;
+
   assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
-  // ...and the Bolt baseline fixture must still have it, proving the diff is really about the icon.
-  assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
-  // The canonical mark image must be present in its place.
   assert.match(current, /<img[^>]*alt="SecurePay"/);
-  // The old paraphrased headline must be gone from current, but still present in the untouched
-  // Bolt baseline (proving the diff is really the locked-copy fix).
-  assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
-  assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
-  assert.ok(current.includes('Tell SecurePay what you&#x27;re trying to make happen.'), 'expected the exact locked headline (React-escaped apostrophe in static markup)');
-  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'), 'expected the quiet Fair Trade affordance beneath the input (Phase 2 capitalisation)');
-  // Everything else — greeting, subheading, conversation input — must be untouched.
-  for (const text of [
-    'Welcome back, James',
-    'SecurePay remembers your agreements, people and activity',
-    'Ask SecurePay anything...',
-    'What did Peter agree to?',
-  ]) {
-    assert.ok(current.includes(text), `expected current markup to still include ${JSON.stringify(text)}`);
-    assert.ok(baseline.includes(text), `expected Bolt baseline markup to still include ${JSON.stringify(text)}`);
+  assert.match(current, /What do you want to make/);
+  assert.match(current, />real<\/span>/);
+  assert.match(current, /today\?/);
+  assert.match(current, /Start with KS001/);
+  assert.match(current, /Tell KS001 what you want to make happen/);
+  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'));
+
+  // Fixture-only personal copy remains fixture-only; the separate real-mode test above still proves
+  // production Home never invents a display name or private memory.
+  for (const value of ['Welcome back, James', 'SecurePay remembers your agreements, people and activity', 'What did Peter agree to?']) {
+    assert.ok(current.includes(value), `expected fixture markup to retain ${JSON.stringify(value)}`);
   }
 });
 

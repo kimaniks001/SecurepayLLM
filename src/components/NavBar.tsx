@@ -1,4 +1,4 @@
-import { Home, FileText, Wallet, Store, Users, User, Bell } from 'lucide-react';
+import { Home, FileText, Wallet, Store, Users, User, Bell, Lightbulb } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
@@ -19,6 +19,16 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: User, label: 'Account', view: 'account' },
 ];
 
+// Masterpiece mobile doctrine: five obvious destinations. Money is reached from the Agreement
+// that gives it meaning; Account/notifications remain reachable from the quiet mobile top bar.
+const mobileNavItems: { icon: typeof Home; label: string; view: AppView }[] = [
+  { icon: Home, label: 'Home', view: 'signed-in' },
+  { icon: Lightbulb, label: 'Vision', view: 'vision-board' },
+  { icon: FileText, label: 'Agreements', view: 'agreements' },
+  { icon: Store, label: 'Store', view: 'store' },
+  { icon: Users, label: 'Community', view: 'community' },
+];
+
 /**
  * Public Experience Convergence Phase 2 -- signed-out visitors get the public navigation (see
  * `PublicShell`); the signed-in app navigation below is unchanged.
@@ -36,7 +46,8 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
     if (itemView === 'money' && (view === 'money' || view === 'dispute')) return true;
     if (itemView === 'store' && view === 'store') return true;
     if (itemView === 'community' && (view === 'community' || view === 'circle' || view === 'ecosystem')) return true;
-    if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'vision-board' || view === 'recovery')) return true;
+    if (itemView === 'vision-board' && view === 'vision-board') return true;
+    if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'recovery')) return true;
     return false;
   };
   const notificationsActive = view === 'notifications';
@@ -78,28 +89,60 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
         </div>
       </nav>
 
-      {/* Mobile bottom nav */}
-      {/* Phase 4 (UR-223): 44px-high targets that share the width (content + leftover), so all seven fit at 320px -- same icons, labels and order. */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-1 py-1.5 flex items-center justify-around">
-        {navItems.map((item) => (
+      {/* Mobile top bar — identity and attention stay reachable without becoming primary destinations. */}
+      <nav className="md:hidden sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-cream-200/70 bg-cream-50/95 px-4 backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => onNavigate('signed-in')}
+          aria-label="SecurePay Home"
+          className="flex min-h-11 items-center"
+        >
+          <img src={securepayWordmark} alt="SecurePay" className="h-6 w-auto" />
+        </button>
+        <div className="flex items-center gap-1">
           <button
-            key={item.label}
-            onClick={() => onNavigate(item.view)}
-            className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${
-              isActive(item.view) ? 'text-forest-600' : 'text-sand-400'
+            type="button"
+            onClick={() => onNavigate('notifications')}
+            aria-label="Notifications"
+            aria-current={notificationsActive ? 'page' : undefined}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+              notificationsActive ? 'bg-forest-50 text-forest-700' : 'text-sand-600 hover:bg-cream-100 hover:text-forest-700'
             }`}
           >
-            <item.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-            <span className="text-[0.6rem] font-medium">{item.label}</span>
+            <Bell aria-hidden="true" className="h-5 w-5" />
           </button>
-        ))}
-        <button
-          onClick={() => onNavigate('notifications')}
-          className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
-        >
-          <Bell style={{ width: 18, height: 18 }} />
-          <span className="text-[0.55rem] font-medium leading-tight">Notifications</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('account')}
+            aria-label="Account"
+            aria-current={isActive('account') ? 'page' : undefined}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+              isActive('account') ? 'bg-forest-50 text-forest-700' : 'text-sand-600 hover:bg-cream-100 hover:text-forest-700'
+            }`}
+          >
+            <User aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile bottom nav — five obvious destinations, large enough to understand at a glance. */}
+      <nav className="sp-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-xl border-t border-cream-200/80 px-2 pt-1.5 flex items-center justify-around">
+        {mobileNavItems.map((item) => {
+          const active = isActive(item.view);
+          return (
+            <button
+              key={item.label}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(item.view)}
+              className={`sp-mobile-tab relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors ${
+                active ? 'text-forest-700' : 'text-sand-500'
+              }`}
+            >
+              <item.icon aria-hidden="true" style={{ width: 20, height: 20 }} />
+              <span className="text-[0.64rem] font-semibold">{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </>
   );

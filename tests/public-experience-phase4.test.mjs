@@ -681,14 +681,17 @@ test('PublicNav is untouched by the UR-223 polish', () => {
   assert.equal(now, '');
 });
 
-test('signed-in mobile bottom nav: every item is 44px high and shares the width (all seven fit at 320px); same labels, icons and order', () => {
+test('signed-in mobile navigation has five obvious 44px destinations plus quiet Account and Notifications reachability', () => {
   const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
-  const mobile = out.slice(out.indexOf('<nav', 5));
-  assert.match(mobile, /<nav class="[^"]*\bmd:hidden fixed bottom-0\b[^"]*\bpx-1\b/);
-  const buttons = mobile.match(/<button[^>]*>/g);
-  assert.equal(buttons.length, 7);
-  for (const b of buttons) for (const c of ['flex-auto', 'min-h-11', 'justify-center']) assert.ok(cls(b).includes(c), `${c} in ${b}`);
-  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account', 'Notifications'], 'no label hidden or abbreviated');
+  const marker = out.indexOf('sp-mobile-tabbar');
+  assert.ok(marker > -1);
+  const mobile = out.slice(out.lastIndexOf('<nav', marker));
+  const buttons = mobile.match(/<button[^>]*>/g) ?? [];
+  assert.equal(buttons.length, 5);
+  for (const b of buttons) for (const clsName of ['min-h-11', 'justify-center']) assert.ok(cls(b).includes(clsName), `${clsName} in ${b}`);
+  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Vision', 'Agreements', 'Store', 'Community']);
+  assert.match(out, /aria-label="Notifications"/);
+  assert.match(out, /aria-label="Account"/);
 });
 
 // ------------------------------------------------------------------ Phase 4A final Workspace navigation closure
