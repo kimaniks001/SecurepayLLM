@@ -15,7 +15,6 @@ export function AgreementCard({ agreement, onOpen }: AgreementCardProps) {
 
   return (
     <button
-      data-agreement-id={agreement.id}
       onClick={() => onOpen(agreement.id)}
       className="w-full text-left rounded-2xl border border-cream-200 bg-white px-5 py-4 hover:border-forest-300 hover:shadow-soft transition-all"
     >
