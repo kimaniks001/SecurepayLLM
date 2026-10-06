@@ -88,3 +88,11 @@ Verified continuity limitation: SecurePayAPI's MiniAgreementReviewService is int
 Validation for these follow-on slices is still pending: the connector-created commits did not produce a GitHub Actions run and the execution environment cannot reach github.com for a local checkout. The static regression source has been added but no green claim is made yet.
 
 Programme incomplete. Money implementation unchanged. No API writes, merge, deployment or paid model calls.
+
+## KS001 contextual convergence
+
+- Vision, Store discovery, Store management and Living Agreement now expose an explicit **KS001 here with you** doorway.
+- The user-triggered request carries the surface context into the existing KS001 conversation and asks only for real, verifiable SecurePay products/services/capabilities relevant to that surface.
+- This is situational context, not authority. It cannot create Agreements, select suppliers or move money.
+- Verified backend gap: SecurePayAPI's current Agent capability registry / Knowledge Core is narrower than the real platform and is largely question-reactive rather than fully surface-aware. See `docs/KS001_PRODUCT_INTELLIGENCE_CONTRACT.md`.
+- Money-surface KS001 continuity is not claimed complete in this PR because Money is routed outside the persistent Agent shell and the backend Agent deliberately has no Money command authority.
