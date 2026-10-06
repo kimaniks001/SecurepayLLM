@@ -3,6 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
+import { OfferQuickPreview } from '../../components/OfferQuickPreview';
 import { OfferToTradeHandoff } from '../../components/OfferToTradeHandoff';
 import { SecureLinkShareSheet } from '../../components/SecureLinkShareSheet';
 import { StoreManagementHome } from '../../components/StoreManagementHome';
@@ -58,6 +59,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showFullOffer, setShowFullOffer] = useState(false);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } | null>(null);
 
   useEffect(() => {
-    if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
+    if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
     else void controller.enter();
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -282,7 +284,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (state.view === 'home') {
     body = (
       <StoreHome
-        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) void controller.openOffer(found.canonicalKsNumber, id); } }}
+        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={() => {}}
         onManageStore={() => requireAuth('manage')}
         onCreateOffer={() => requireAuth('create')}
@@ -300,7 +302,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } else if (state.view === 'profile') {
     if (state.selectedStore.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedStore.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
-    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id)} />;
+    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} />;
   } else if (state.view === 'offer' || state.view === 'toAgreement') {
     if (state.selectedOffer.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedOffer.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedOffer.status !== 'ready') body = <LoadingNotice text="Loading this offer…" />;
@@ -326,20 +328,35 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           }}
         />
       );
-    } else {
+    } else if (showFullOffer) {
       body = (
         <>
           <OfferDetail
             offer={state.selectedOffer.data.offer}
-            onBack={() => controller.backToHome()}
+            onBack={() => setShowFullOffer(false)}
             onInterested={() => onNavigate('signed-in')}
             onUseThis={() => controller.useThis()}
-            onAskSecurePay={() => onNavigate('signed-in')}
+            onAskSecurePay={() => onAskKs001
+              ? onAskKs001(`I’m looking at the Store offer “${state.selectedOffer.status === 'ready' ? state.selectedOffer.data.offer.title : ''}”. Help me understand or compare this offer using only Store facts SecurePay can verify. Do not create an Agreement, choose the provider for me, or make payment claims.`)
+              : onNavigate('signed-in')}
             onShare={() => setShowShareSheet(true)}
             onViewStore={id => void controller.openStore(id)}
           />
           {showShareSheet && <SecureLinkShareSheet offer={state.selectedOffer.data.offer} onClose={() => setShowShareSheet(false)} />}
         </>
+      );
+    } else {
+      body = (
+        <OfferQuickPreview
+          offer={state.selectedOffer.data.offer}
+          onBack={() => controller.backToHome()}
+          onUseThis={() => controller.useThis()}
+          onAskKs001={() => onAskKs001
+            ? onAskKs001(`I’m looking at the Store offer “${state.selectedOffer.status === 'ready' ? state.selectedOffer.data.offer.title : ''}”. Help me understand whether it fits what I need using only Store facts SecurePay can verify. Do not create an Agreement, select the provider automatically, or move money.`)
+            : onNavigate('signed-in')}
+          onOpenStore={() => void controller.openStore(state.selectedOffer.status === 'ready' ? state.selectedOffer.data.store.id : '')}
+          onOpenFull={() => setShowFullOffer(true)}
+        />
       );
     }
   } else if (state.view === 'manage') {
@@ -365,7 +382,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         plugMissions={plugMissions}
         onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
         onInspectOpportunity={fulfilmentNeedsGateway ? needId => void inspectOpportunity(needId) : undefined}
-        onOpenRouteOffer={(providerKsNumber, offerId) => void controller.openOffer(providerKsNumber, offerId)}
+        onOpenRouteOffer={(providerKsNumber, offerId) => { setShowFullOffer(false); void controller.openOffer(providerKsNumber, offerId); }}
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
