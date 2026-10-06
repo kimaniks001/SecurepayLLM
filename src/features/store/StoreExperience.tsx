@@ -15,6 +15,7 @@ import type { SessionStore } from '../../api/securepay/session';
 import type { BusinessGateway, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
 import type { PlugAvailabilityResponse, PlugMissionDto } from '../../api/securepay/marketnetwork/dto';
+import type { FulfilmentNeedsGateway, FulfilmentNeedMatchDto, SupplyRouteDto } from '../../api/securepay/fulfilment-needs';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
@@ -39,8 +40,8 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
-  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; auth: AuthGateway; session: SessionStore;
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
@@ -62,6 +63,13 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [plugAvailabilityBusy, setPlugAvailabilityBusy] = useState(false);
   const [plugAvailabilityError, setPlugAvailabilityError] = useState<string | null>(null);
   const [plugMissions, setPlugMissions] = useState<PlugMissionDto[]>([]);
+  const [opportunityInspection, setOpportunityInspection] = useState<{
+    needId: string;
+    loading: boolean;
+    error: string | null;
+    matches: FulfilmentNeedMatchDto[];
+    routes: SupplyRouteDto[];
+  } | null>(null);
 
   useEffect(() => {
     if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
@@ -127,6 +135,20 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     } catch {
       // Store remains fully usable when Plug availability cannot be loaded.
       setPlugAvailability(null);
+    }
+  };
+
+  const inspectOpportunity = async (needId: string) => {
+    if (!fulfilmentNeedsGateway) return;
+    setOpportunityInspection({ needId, loading: true, error: null, matches: [], routes: [] });
+    try {
+      const [matches, routes] = await Promise.all([
+        fulfilmentNeedsGateway.matches(needId),
+        fulfilmentNeedsGateway.routes(needId),
+      ]);
+      setOpportunityInspection({ needId, loading: false, error: null, matches, routes });
+    } catch (error) {
+      setOpportunityInspection({ needId, loading: false, error: errorText(error), matches: [], routes: [] });
     }
   };
 
@@ -322,6 +344,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         plugAvailabilityError={plugAvailabilityError}
         plugMissions={plugMissions}
         onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
+        onInspectOpportunity={fulfilmentNeedsGateway ? needId => void inspectOpportunity(needId) : undefined}
+        onOpenRouteOffer={(providerKsNumber, offerId) => void controller.openOffer(providerKsNumber, offerId)}
+        opportunityInspection={opportunityInspection}
       />
     );
   } else {
