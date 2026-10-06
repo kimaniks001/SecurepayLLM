@@ -71,7 +71,7 @@ export function FulfilmentMiniAgreementReview({ review, route, onBack, onOpenOff
           Inspect the offer
         </button>
       </div>
-      <p className="mt-2 text-[0.7rem] text-sand-500">Continuing carries this Store source into the existing Agreement-building flow. You will still review the canonical Agreement before setting it up.</p>
+      <p className="mt-2 text-[0.7rem] text-sand-500">Continuing carries the selected Store offer into the existing Agreement-building flow. The fulfilment review itself is not an Agreement source, so any missing need details must still appear in the canonical review before you set it up.</p>
     </section>
   );
 }
