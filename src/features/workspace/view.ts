@@ -156,6 +156,8 @@ export function agreementSummaryView(dto: CurrentUserAgreementSummaryResponse, o
   return {
     id: dto.agreementId,
     title: dto.title,
+    purpose: dto.purpose || undefined,
+    attentionRequired: dto.attentionRequired,
     counterparty: dto.counterparty?.displayName ?? 'Not yet joined',
     // Backend's SafeCounterpartyResponse carries no role for the counterparty (only this caller's own
     // currentActor.roleCode) — left unavailable rather than mislabeling the caller's own role.
