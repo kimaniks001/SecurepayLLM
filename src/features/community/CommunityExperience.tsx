@@ -1429,9 +1429,39 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
           </div>)}
-          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
-            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
-            <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
+          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div>
+                <p className="text-[0.78rem] text-sand-600 mt-1 whitespace-pre-line">{item.purpose}</p>
+              </div>
+              <span className="shrink-0 text-[0.66rem] uppercase tracking-wide text-sand-500">{item.status.toLowerCase()}</span>
+            </div>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location still being organised'} · Community project</div>
+
+            <div className="mt-3 rounded-xl border border-forest-100 bg-forest-50/35 px-3 py-3">
+              <div className="text-[0.72rem] font-medium text-forest-800">Taking part should not make the organiser your travel agent.</div>
+              <p className="text-[0.7rem] text-sand-600 mt-1">Use the Project to coordinate the work. If you need accommodation, transport, local services or human coordination, prepare the appropriate Store or Plug path.</p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <button
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,'STORE')
+                    .then(() => controller.showNotice('Store help prepared. Nothing has been booked or paid for.'))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.73rem] font-medium text-forest-600"
+                >
+                  Find practical services
+                </button>
+                <button
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,'PLUG')
+                    .then(() => controller.showNotice('Plug coordination prepared. No one has been assigned yet.'))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.73rem] font-medium text-forest-600"
+                >
+                  Ask for Plug coordination
+                </button>
+              </div>
+            </div>
+
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
               <button
                 onClick={() => void communityGateway.transitions.projectToVision(item.id)
