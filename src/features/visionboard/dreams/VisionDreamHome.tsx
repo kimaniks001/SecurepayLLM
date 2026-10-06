@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { NavBar } from '../../../components/NavBar';
 import { Button } from '../../../components/dna/Button';
 import { Surface, SurfaceBody } from '../../../components/dna/Surface';
@@ -23,20 +24,29 @@ export function VisionDreamHome({
   onNavigate: (view: AppView) => void;
   handoffError?: string | null;
 }) {
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   return <div className="min-h-dvh bg-cream-100">
-    <NavBar view="agreements" onNavigate={onNavigate} />
-    <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-6">
+    <NavBar view="vision-board" onNavigate={onNavigate} />
+    <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-6" data-vision-home>
+      {!state.selected && <section className="sp-hero px-5 py-5 md:px-7 md:py-6">
+        <div className="sp-kicker">Your private thinking space</div>
+        <h1 className="sp-display mt-2 text-3xl md:text-4xl">Think freely. Keep what matters.</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-sand-600">Start with one thought, return to a Dream, or open your private Library when you want more structure. Nothing becomes a commitment until you choose.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => document.getElementById('vision-dream-thought')?.focus()}>Add a thought</Button>
+          <Button variant="secondary" onClick={onOpenLibrary}>Search & organise</Button>
+        </div>
+      </section>}
       <VisionDreamExperience controller={controller} onContinue={onContinue} />
       {handoffError && <StatusNotice tone="warning" icon={false}>{handoffError}</StatusNotice>}
       <Surface>
         <SurfaceBody className="space-y-3">
           <h2 className="font-display text-xl text-forest-800">Your Vision Library</h2>
           <p className="text-sm text-sand-600">
-            Your existing plans, guidance and templates remain separate from the Dreams
-            you are still exploring.
+            Search saved ideas, plans, references, quotations and established guidance. The Library is still private operating memory, not Agreement authority.
           </p>
           <Button variant="secondary" onClick={onOpenLibrary}>
-            Open Vision Library
+            Open Library
           </Button>
         </SurfaceBody>
       </Surface>
