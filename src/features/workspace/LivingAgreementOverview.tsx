@@ -1,4 +1,4 @@
-import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse } from '../../api/securepay/agreements/dto';
+import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse, WorkspaceNextActionResponse } from '../../api/securepay/agreements/dto';
 import { completionFacts, milestoneReasonWords, milestoneStateWord } from '../execution/display';
 import { ExperiencePathway } from '../experience/ExperiencePathway';
 import type { AppView } from '../../types';
@@ -6,10 +6,11 @@ import type { AppView } from '../../types';
 const actionClass = 'min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left text-sm text-forest-800 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400';
 
 /** Read-only landing projection. Actions open existing, freshly gated workspaces. */
-export function LivingAgreementOverview({ detail, effectiveStates, completion, onProgress, onPeople, onDocuments, onChanges, onMoney, onJourneyNavigate }: {
+export function LivingAgreementOverview({ detail, effectiveStates, completion, nextActions, onProgress, onPeople, onDocuments, onChanges, onMoney, onJourneyNavigate }: {
   detail: AgreementDetailResponse;
   effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null;
+  nextActions?: WorkspaceNextActionResponse[];
   onProgress: () => void;
   onPeople: () => void;
   onDocuments: () => void;
@@ -27,6 +28,31 @@ export function LivingAgreementOverview({ detail, effectiveStates, completion, o
       <p className="mt-2 font-display text-xl text-forest-800 break-words">{detail.overview.purpose || detail.overview.title}</p>
       {detail.overview.description && <p className="mt-2 text-sm text-sand-600 break-words">{detail.overview.description}</p>}
       <p className="mt-3 text-xs text-sand-500">{detail.currentVersion ? `Current version ${detail.currentVersion.versionNumber}` : 'Current version unavailable'}</p>
+    </div>
+    <div className="rounded-2xl border border-cream-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-sand-500">What needs you next</p>
+          <h2 className="mt-1 font-display text-lg text-forest-800">{nextActions?.length ? 'SecurePay has something for you to review' : 'Nothing is currently asking for your action'}</h2>
+        </div>
+        {nextActions?.length ? <span className="rounded-full bg-ember-50 px-2.5 py-1 text-xs font-medium text-ember-700">{nextActions.length}</span> : null}
+      </div>
+      {nextActions?.length ? (
+        <ul className="mt-3 space-y-2">
+          {nextActions.slice(0, 3).map((action, index) => (
+            <li key={`${action.actionCode}:${action.deadline ?? index}`} className="rounded-xl border border-cream-200 bg-cream-50/50 px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium text-forest-800">{action.reason}</span>
+                <span className="text-[0.68rem] uppercase tracking-wide text-sand-500">{action.attentionClass.replace(/_/g, ' ')}</span>
+              </div>
+              <p className="mt-1 text-xs text-sand-500">{action.category.replace(/_/g, ' ')}{action.deadline ? ` · due ${new Date(action.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-sand-600">You can still inspect progress, people, changes and Money below.</p>
+      )}
+      <button type="button" onClick={onProgress} className={`${actionClass} mt-4 w-full`}>Open the work</button>
     </div>
     <div className="rounded-2xl border border-cream-200 bg-white p-5">
       <h2 className="font-display text-lg text-forest-800">Where we are</h2>
