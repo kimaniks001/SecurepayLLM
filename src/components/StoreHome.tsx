@@ -2,6 +2,8 @@ import { Search, ShoppingBag, Store, Plus, MessageCircle } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
 import { ResultCard } from '../features/discovery/ui/ResultCard';
 import { resultFromStoreOffer } from '../features/discovery/result';
+import { ExperiencePathway } from '../features/experience/ExperiencePathway';
+import type { AppView } from '../types';
 
 interface StoreHomeProps {
   onOpenOffer: (id: string) => void;
@@ -15,6 +17,7 @@ interface StoreHomeProps {
   onQueryChange: (query: string) => void;
   searchStatus?: 'idle' | 'loading' | 'ready' | 'error';
   searchErrorText?: string | null;
+  onJourneyNavigate?: (view: AppView) => void;
 }
 
 /**
@@ -25,7 +28,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onJourneyNavigate }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
@@ -33,6 +36,8 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           <h1 className="font-display text-xl text-forest-800 font-medium">Store</h1>
           <p className="text-[0.85rem] text-sand-600 mt-0.5">What sellers have published on SecurePay. Any offer can become the start of your own agreement.</p>
         </div>
+
+        <ExperiencePathway active="store" onNavigate={onJourneyNavigate} className="mb-5" />
 
         {/* Search */}
         <div className="relative mb-5">
