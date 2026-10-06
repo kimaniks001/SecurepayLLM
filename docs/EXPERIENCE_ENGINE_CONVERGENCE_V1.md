@@ -71,23 +71,36 @@ Completion requires understandable arrival, useful empty state, real-data useful
 
 ## Current checkpoint
 
-C0 contract inventory completed; initial C2 living Agreement landing composition implemented.
+The four-surface experience convergence is **feature-complete within the verified frontend/backend contracts** on PR #107.
 
-C1 has now started with a shared, authority-neutral journey layer across Vision Board, Store and the living Agreement. It names the four practical jobs — think it through, find what you need, make it clear, fund and move safely — and provides explicit navigation without creating commitments, purchases or Money authority. Vision and Store now hand off into the same Agreement/Money operating model instead of presenting as isolated modules.
+- **Vision:** practical Start Here, saved-item fulfilment derivation, explicit PRIVATE/MATCHABLE + poolability choice, real Store routes, exact offer handoff, contextual KS001, and no-route recovery are wired. The persistent mixed-material visual canvas remains a documented backend-contract gap and is not faked.
+- **Store:** discovery, practical Store-management cockpit, availability attention, privacy-safe Business demand matches, qualified Plug missions, route comparison, mini Agreement review and exact Offer → Agreement handoff are wired. Empty/error states preserve a useful next action.
+- **Agreement:** living overview, exact version, participant next attention, authoritative work/evidence/people/changes/Money navigation, Agreement-derived fulfilment and Store fallback are wired without inventing authority.
+- **Money:** Agreement-led dashboard remains the financial authority surface and now participates in the shared journey, includes purposeful no-Agreement recovery, contextual KS001 explanation, and can return to the exact selected Agreement through a one-shot in-memory handoff.
+- **Cross-surface continuity:** Vision → Store → Agreement → Money and Agreement → fulfilment → Store flows preserve user intent without browser storage, automatic commitments or hidden Money actions.
+- **Community Saver:** deliberately not exposed because current SecurePayAPI shared-fulfilment authority does not prove/enforce the required Plug gate.
+- **Fulfilment → Agreement:** the selected Store offer can enter canonical Agreement formation, but the full FulfilmentNeed is not falsely claimed as a canonical Agreement source because no verified bridge exists.
 
-C2 now also exposes the selected participant's backend-owned next actions at Agreement arrival, including reason, attention class and deadline. It does not translate action codes into guessed permissions; actions route into existing gated work.
+### Automated certification
 
-C4 has started materially. Store management now has a real **Today / What needs you?** cockpit driven by offer availability, privacy-safe Business demand matches and qualified Plug missions. Existing Store authority is wired for offer review and availability confirmation. Business demand can now open the existing fulfilment engine's backend matches and supply routes, exposing provider, listed price, lead time, MOQ, delivery, warranty, returns, trade-offs and whether landed cost is actually known. Mini Agreement review now sits before the canonical Store-source → KS001 → Agreement path and shows what, proposed amount, required date, completion evidence, interaction level and missing material decisions while preserving `agreementCreated=false` and `moneyMoved=false`. No supplier is auto-selected, no stock is reserved, no Agreement is created and no money moves.
+Head `d6a5897832c1ae87dcf95537af31a573d7ba3b99` passed:
 
-Vision arrival now has a practical Start Here surface: capture the idea, find what it needs in Store, or review Agreements. A saved Vision item can now explicitly become a real fulfilment need with user-chosen need type, PRIVATE vs MATCHABLE visibility and poolability, then show backend Store matches/routes and open the exact Store offer. This stays within the verified text/shelf persistence contract; the persistent visual canvas gap remains open.
+- **Final UI Convergence Certification #213:** full frontend regression ✅, typecheck ✅, lint-errors gate ✅, production build ✅.
+- **Vision Money Gap Validation #268:** Vision/Money regressions ✅, Phase 8 Money doctrine ✅, Money experience regressions ✅, full frontend regression ✅, typecheck ✅, lint-errors gate ✅, production build ✅.
+- **Vision V1 UI verification #252:** running at this checkpoint; its Vision Dream regressions and full frontend Node regression were already green when this record was updated.
 
-Agreement-derived fulfilment is now wired from the exact current obligation for the responsible participant: explicit need type, PRIVATE/MATCHABLE visibility and poolability → backend routes → exact Store offer. It is withheld for other people's responsibilities, monetary work, and completed/cancelled obligations. Poolability never mutates the Agreement or starts a Community Saver.
+No SecurePayAPI writes, merge, deployment or paid model calls were made.
 
-Verified continuity limitation: SecurePayAPI's MiniAgreementReviewService is intentionally non-binding and there is no verified bridge that binds the FulfilmentNeed itself as an Agent/Agreement source. The UI carries the selected Store offer into KS001 but does not claim the entire need object was canonically transferred; unresolved need details must still appear in canonical Agreement review.
+### Remaining non-UI contract gaps
 
-Validation for these follow-on slices is still pending: the connector-created commits did not produce a GitHub Actions run and the execution environment cannot reach github.com for a local checkout. The static regression source has been added but no green claim is made yet.
+These are intentionally not disguised as frontend completion work:
 
-Programme incomplete. Money implementation unchanged. No API writes, merge, deployment or paid model calls.
+1. Persistent mixed-material Vision canvas/media/canvas-layout storage authority.
+2. Governed FulfilmentNeed → canonical Agreement-source bridge.
+3. Enforced Plug assignment/consent gate for Community Saver/shared fulfilment.
+4. Full SecurePay product/service catalogue + surface-aware KS001 intelligence in SecurePayAPI (separate authorized build).
+
+C7 automated regression/type/build certification is green. Live deployed desktop/mobile browser walkthrough and screenshots remain a separate release-certification step because this PR has not been deployed.
 
 ## KS001 contextual convergence
 
@@ -95,4 +108,4 @@ Programme incomplete. Money implementation unchanged. No API writes, merge, depl
 - The user-triggered request carries the surface context into the existing KS001 conversation and asks only for real, verifiable SecurePay products/services/capabilities relevant to that surface.
 - This is situational context, not authority. It cannot create Agreements, select suppliers or move money.
 - Verified backend gap: SecurePayAPI's current Agent capability registry / Knowledge Core is narrower than the real platform and is largely question-reactive rather than fully surface-aware. See `docs/KS001_PRODUCT_INTELLIGENCE_CONTRACT.md`.
-- Money-surface KS001 continuity is not claimed complete in this PR because Money is routed outside the persistent Agent shell and the backend Agent deliberately has no Money command authority.
+- Money now exposes an explicit contextual KS001 doorway and returns into the same Agent experience through a one-shot in-memory handoff. The Agent still has no Money command authority; current financial truth and executable actions remain Money-backend owned.
