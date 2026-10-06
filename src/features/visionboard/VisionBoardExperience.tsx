@@ -6,6 +6,7 @@ import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import { ExperiencePathway } from '../experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 import type { VisionBoardController } from './controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
@@ -101,6 +102,7 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
   item: VisionItemDto;
   gateway: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onAskKs001?: (message: string) => void;
 }) {
   const [type, setType] = useState<FulfilmentNeedType>('OTHER');
   const [privacy, setPrivacy] = useState<FulfilmentNeedPrivacyLevel>('PRIVATE');
@@ -224,7 +226,7 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
  * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
  * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
-export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer }: {
+export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001 }: {
   controller: VisionBoardController;
   documentGateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>;
   fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
@@ -384,6 +386,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
       <ExperiencePathway active="vision" onNavigate={onNavigate} />
+      <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m on my Vision Board. Based on what I am working on here, what real SecurePay products, services or capabilities could help me next? Only suggest things SecurePay can actually verify and explain why they fit.') : undefined} />
 
       <section aria-label="Start from your Vision" className="rounded-2xl border border-forest-200 bg-forest-50/50 p-4">
         <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Start here</p>
