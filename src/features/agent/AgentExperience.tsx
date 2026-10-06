@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -192,6 +192,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   publicShell: PublicShellBridge;
 }) {
   const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalAgreementId] = useState(() => consumeAgreementEntry());
   const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
@@ -306,13 +307,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
   }, [pendingSection, pendingComposerFocus, home]);
-  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in');
+  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
   // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
   // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
   // simultaneously and ignores this entirely (see the render below).
   const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
-  const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
+  const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(externalAgreementId);
   // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
   // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
   const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
