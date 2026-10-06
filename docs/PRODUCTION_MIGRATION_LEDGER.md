@@ -1952,3 +1952,24 @@ The default Money route is simplified into one read-first dashboard for a select
 - SACCOs / MMFs / Insurance — visible as fair-trade support categories only. This UI does **not** claim a live partner/capability until SecurePayAPI exposes authoritative discovery for those institution classes.
 
 The previous detailed Money, FX, settlement-destination and partner surfaces remain available under one collapsed **More money details** disclosure. No Money command, Payment Ready rule, release authority, fee authority, ledger rule or settlement semantics changed.
+# Experience Engine Convergence V1 — 5 October 2026
+
+- Authorized coordinated experience redo; writes confined to SecurepayLLM.
+- `LivingAgreementOverview`: REAL_API_WIRED / FRONTEND_COMPOSITION_ONLY. Composes existing detail, effective milestone-state and completion projections, exposing purpose, description, version, work/evidence/people/changes/Money navigation. No write command or locally derived financial/completion authority.
+- Persistent mixed-material Vision canvas: REAL_API_AVAILABLE_NOT_WIRED does **not** apply: no verified canvas persistence/attachment contract. Recorded as an API gap in `docs/EXPERIENCE_ENGINE_CONVERGENCE_V1.md`; no fake saved-board claim.
+- Full programme/browser certification pending; this initial checkpoint is not release completion.
+
+## 2026-10-06 — Experience Engine practical continuity slices
+
+- Connected pathway (Vision → Store → Agreement → Money): FRONTEND_COMPOSITION_ONLY over existing routes; no authority change.
+- Agreement arrival next-attention: REAL_API_WIRED from the existing participant nextActions projection. The UI renders backend reason / attention class / deadline and does not infer permissions from action codes.
+- Store Today / What needs you? cockpit: REAL_API_WIRED for offer availability, Business Store opportunities and qualified Plug missions. Existing Store commands are reused for offer review/edit and availability confirmation.
+- Fulfilment route comparison: REAL_API_WIRED from existing /fulfilment-needs/{id}/matches and /routes reads. Listed price, lead time, MOQ, delivery, warranty/returns, trade-offs and landedCostKnown remain backend-owned.
+- Fulfilment mini-agreement review: REAL_API_WIRED from existing /mini-agreement-review. It remains explicitly non-binding (agreementCreated=false, moneyMoved=false) and then hands the selected Store offer into the existing canonical Store-source → KS001 → Agreement formation path.
+- Continuity gap: SecurePayAPI's MiniAgreementReviewService explicitly does not create/amend an Agreement, and no verified endpoint binds a FulfilmentNeed itself as an Agent/Agreement source. The UI therefore carries the selected Store offer into KS001 but does not claim the full fulfilment-need object or its missing decisions were canonically transferred. Those must appear again in canonical Agreement review unless/until a governed bridge exists.
+- Vision item → fulfilment need: REAL_API_WIRED using /fulfilment-needs/from-vision/{visionItemId} plus matches/routes. Need type, PRIVATE vs MATCHABLE, and poolability are explicit user choices. poolable=true is never represented as joining a Community Saver, pooling window, or another Agreement.
+- Persistent mixed-material Vision canvas remains blocked on the previously recorded API gap.
+- Latest follow-on commits have regression pins but have not yet produced a GitHub Actions run; no green certification claim is made for this head.
+
+- Agreement obligation → fulfilment need: REAL_API_WIRED from the exact current Agreement obligation for the responsible participant. The UI withholds this from monetary obligations, other participants' responsibilities, and completed/cancelled work.
+- Shared fulfilment / Community Saver remains NOT WIRED. SecurePayAPI can propose/open pooling without a verified Plug gate; Trust Project doctrine requires a Plug for every Community Saver, so the UI intentionally does not expose proposeFromNeed/openWindow until that governance contract exists.

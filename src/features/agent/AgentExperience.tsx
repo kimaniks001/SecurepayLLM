@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -25,6 +26,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { StoreGateway } from '../../api/securepay/store';
+import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { CircleGateway } from '../../api/securepay/circle';
 import type { CommunityGateway } from '../../api/securepay/community';
 import type { DiscoveryGateway } from '../../api/securepay/discovery';
@@ -171,8 +173,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -189,6 +191,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   trustedMediaOrigin: string | null;
   publicShell: PublicShellBridge;
 }) {
+  const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalAgreementId] = useState(() => consumeAgreementEntry());
+  const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
@@ -239,6 +244,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [visionDreamController] = useState(() => createVisionDreamController(visionDreamGateway, gateway));
   const visionDreamState = useSyncExternalStore(visionDreamController.subscribe, visionDreamController.getSnapshot);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  useEffect(() => {
+    if (externalKs001Message) void controller.send(externalKs001Message);
+    // one-shot message consumed from the in-memory route handoff at mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Phase 1 Interaction Instruments: bound to the CURRENT conversation controller, so a new
   // conversation always starts with a fresh, closed instrument.
   const instruments = useMemo(() => createInstrumentController(controller), [controller]);
@@ -296,24 +307,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
   }, [pendingSection, pendingComposerFocus, home]);
-  const [workspace, setWorkspace] = useState(false);
+  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
   // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
   // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
   // simultaneously and ignores this entirely (see the render below).
   const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
-  const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(null);
+  const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(externalAgreementId);
   // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
   // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
-  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>('home');
-  const [store, setStore] = useState(!!initialStoreOfferRoute);
+  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
+  const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [community, setCommunity] = useState(false);
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
   const [projects, setProjects] = useState(false);
-  const [visionBoard, setVisionBoard] = useState(false);
+  const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
@@ -623,6 +634,31 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setWorkspaceAgreementId(null);
     setNotice('That isn’t available here. You can keep talking with KS001.');
   };
+  const askKs001FromSurface = (message: string) => {
+    const text = message.trim();
+    if (!text) return;
+    setNotice(null);
+    setStore(false);
+    setCommunity(false);
+    setCircle(false);
+    setEcosystem(false);
+    setEcosystemAgreementId(null);
+    setProjects(false);
+    setVisionBoard(false);
+    setVisionLibrary(false);
+    setWorkspace(false);
+    setWorkspaceAgreementId(null);
+    setAccount(false);
+    setSettingsView(false);
+    setBusinessView(false);
+    setDeveloperView(false);
+    setNotificationsView(false);
+    setSupportView(false);
+    setHelpContext(null);
+    setHome(false);
+    void controller.send(text);
+  };
+
   /** Opens the given Agreement directly in the Workspace -- the same real mechanism
    * WorkspaceExperience's own controller uses internally, not a new one. PHASE 4 Care convergence:
    * `NotificationsExperience` itself now decides WHETHER to call this at all (gated on the notification's
@@ -764,6 +800,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         gateway={storeGateway}
         businessGateway={businessGateway}
         marketNetworkGateway={marketNetworkGateway}
+        fulfilmentNeedsGateway={fulfilmentNeedsGateway}
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
@@ -775,6 +812,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           setVisionLibrary(true);
           void visionBoardController.loadForOwner(businessKsNumber);
         }}
+        onAskKs001={askKs001FromSurface}
       />
     );
   }
@@ -867,8 +905,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       <VisionBoardExperience
         controller={visionBoardController}
         documentGateway={visionBoardGateway}
+        fulfilmentNeedsGateway={fulfilmentNeedsGateway}
         defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
+        onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          setVisionLibrary(false);
+          setStoreOfferRoute({ canonicalKsNumber, offerId });
+          setStore(true);
+        }}
+        onAskKs001={askKs001FromSurface}
       />
     );
   }
@@ -925,11 +970,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return <WorkspaceExperience
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
+      fulfilmentNeedsGateway={fulfilmentNeedsGateway}
       agentGateway={gateway}
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
       initialView={workspaceEntry}
       onOpenStore={() => navigateTo('store')}
+      onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+        setWorkspace(false);
+        setWorkspaceAgreementId(null);
+        setStoreOfferRoute({ canonicalKsNumber, offerId });
+        setStore(true);
+      }}
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
@@ -938,6 +990,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenVisionBoard={() => navigateTo('vision-board')}
       onOpenAccount={() => navigateTo('account')}
       onOpenNotifications={() => navigateTo('notifications')}
+      onAskKs001={askKs001FromSurface}
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);

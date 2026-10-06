@@ -15,12 +15,14 @@ import type { SessionStore } from '../../api/securepay/session';
 import type { BusinessGateway, BusinessRepresentationDto } from '../../api/securepay/business';
 import type { MarketNetworkGateway } from '../../api/securepay/marketnetwork';
 import type { PlugAvailabilityResponse, PlugMissionDto } from '../../api/securepay/marketnetwork/dto';
+import type { FulfilmentNeedsGateway, FulfilmentNeedMatchDto, SupplyRouteDto } from '../../api/securepay/fulfilment-needs';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createStoreController, errorText } from './controller';
 import { availabilityOptionsFor } from './view';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
+import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
 
@@ -39,14 +41,15 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
-  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; auth: AuthGateway; session: SessionStore;
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision, onAskKs001 }: {
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
+  onAskKs001?: (message: string) => void;
 }) {
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
@@ -62,6 +65,19 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [plugAvailabilityBusy, setPlugAvailabilityBusy] = useState(false);
   const [plugAvailabilityError, setPlugAvailabilityError] = useState<string | null>(null);
   const [plugMissions, setPlugMissions] = useState<PlugMissionDto[]>([]);
+  const [opportunityInspection, setOpportunityInspection] = useState<{
+    needId: string;
+    loading: boolean;
+    error: string | null;
+    matches: FulfilmentNeedMatchDto[];
+    routes: SupplyRouteDto[];
+  } | null>(null);
+  const [miniAgreementReview, setMiniAgreementReview] = useState<{
+    route: SupplyRouteDto;
+    review: import('../../api/securepay/fulfilment-needs').MiniAgreementReviewDto | null;
+    loading: boolean;
+    error: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (initialOfferRoute) void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId);
@@ -127,6 +143,31 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     } catch {
       // Store remains fully usable when Plug availability cannot be loaded.
       setPlugAvailability(null);
+    }
+  };
+
+  const reviewRouteForAgreement = async (needId: string, route: SupplyRouteDto) => {
+    if (!fulfilmentNeedsGateway) return;
+    setMiniAgreementReview({ route, review: null, loading: true, error: null });
+    try {
+      const review = await fulfilmentNeedsGateway.miniAgreementReview(needId, route.offerId);
+      setMiniAgreementReview({ route, review, loading: false, error: null });
+    } catch (error) {
+      setMiniAgreementReview({ route, review: null, loading: false, error: errorText(error) });
+    }
+  };
+
+  const inspectOpportunity = async (needId: string) => {
+    if (!fulfilmentNeedsGateway) return;
+    setOpportunityInspection({ needId, loading: true, error: null, matches: [], routes: [] });
+    try {
+      const [matches, routes] = await Promise.all([
+        fulfilmentNeedsGateway.matches(needId),
+        fulfilmentNeedsGateway.routes(needId),
+      ]);
+      setOpportunityInspection({ needId, loading: false, error: null, matches, routes });
+    } catch (error) {
+      setOpportunityInspection({ needId, loading: false, error: errorText(error), matches: [], routes: [] });
     }
   };
 
@@ -252,6 +293,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onQueryChange={q => controller.setQuery(q)}
         searchStatus={state.search.status === 'idle' ? 'idle' : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
         searchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
+        onJourneyNavigate={onNavigate}
+        onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
       />
     );
   } else if (state.view === 'profile') {
@@ -310,6 +353,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         enquiries={[]}
         onBack={() => controller.backToHome()}
         onCreateOffer={() => controller.openBuilder(null)}
+        onEditOffer={offerId => controller.openBuilder(offerId)}
+        onConfirmAvailability={offerId => void controller.confirmAvailability(offerId)}
         businessMode={state.managedBusiness !== null}
         opportunities={state.mine.status === 'ready' ? state.mine.data.opportunities : []}
         onOpenGrow={state.managedBusiness ? () => onOpenBusinessVision(state.managedBusiness!.ksNumber) : undefined}
@@ -319,6 +364,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         plugAvailabilityError={plugAvailabilityError}
         plugMissions={plugMissions}
         onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
+        onInspectOpportunity={fulfilmentNeedsGateway ? needId => void inspectOpportunity(needId) : undefined}
+        onOpenRouteOffer={(providerKsNumber, offerId) => void controller.openOffer(providerKsNumber, offerId)}
+        onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
+        onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
+        opportunityInspection={opportunityInspection}
       />
     );
   } else {
@@ -333,6 +383,44 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onBack={() => controller.backFromBuilder()}
         onSubmit={() => void controller.submitDraft()}
       />
+    );
+  }
+
+  if (miniAgreementReview) {
+    const route = miniAgreementReview.route;
+    return (
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        <NavBar view={navBarView} onNavigate={handleNavigate} />
+        <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6">
+          {miniAgreementReview.loading && <LoadingNotice text="Preparing the Agreement review…" />}
+          {miniAgreementReview.error && (
+            <div className="rounded-2xl border border-ember-200 bg-ember-50 px-4 py-4">
+              <p role="alert" className="text-sm text-ember-700">{miniAgreementReview.error}</p>
+              <button type="button" onClick={() => setMiniAgreementReview(null)} className="mt-3 min-h-11 text-sm text-forest-700 underline">Back to Store</button>
+            </div>
+          )}
+          {miniAgreementReview.review && (
+            <FulfilmentMiniAgreementReview
+              review={miniAgreementReview.review}
+              route={route}
+              onBack={() => setMiniAgreementReview(null)}
+              onOpenOffer={() => { setMiniAgreementReview(null); void controller.openOffer(route.providerKsNumber, route.offerId); }}
+              onContinue={() => {
+                const review = miniAgreementReview.review;
+                if (!review) return;
+                const amount = review.proposedAmountMinor !== null ? String(review.proposedAmountMinor / 100) : undefined;
+                onUseOffer({
+                  amount,
+                  currency: amount ? review.currency : undefined,
+                  sourceDescription: `Fulfilment route: ${review.what} — ${review.providerDisplayName ?? review.providerKsNumber} — offer ${review.offerId}`,
+                  sourceId: review.offerId,
+                  sourceOwnerKsNumber: review.providerKsNumber,
+                });
+              }}
+            />
+          )}
+        </div>
+      </div>
     );
   }
 

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
@@ -27,6 +28,7 @@ const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
+const fulfilmentNeedsGateway = api ? withSessionRefresh(api.fulfilmentNeeds, ['fromVision', 'fromAgreementObligation', 'get', 'matches', 'routes', 'miniAgreementReview', 'shareToCommunity'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;
 const communityGateway = api ? withSessionRefresh(api.community, ['create', 'feed', 'mine', 'get', 'close'], session, api.auth) : undefined;
 const discoveryGateway = api ? withSessionRefresh(api.discovery, ['search'], session, api.auth) : undefined;
@@ -331,7 +333,25 @@ export default function RuntimeApp() {
   }
   if (moneyRoute) {
     return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneyGateway && paymentReleaseGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway && moneySnapshotGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+      ? <MoneyExperience
+          gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }}
+          auth={api.auth}
+          session={session}
+          onLeave={clearMoneyRoute}
+          onNavigate={view => {
+            if (view === 'money') return;
+            storeEntryView(view);
+            clearMoneyRoute();
+          }}
+          onAskKs001={() => {
+            storeKs001EntryMessage('I’m on SecurePay Money. Explain which real SecurePay products, services or capabilities may help around the Agreement and this Money stage. Do not claim current financial authority, payment readiness, fees, release rights or executable actions unless SecurePay can verify them.');
+            clearMoneyRoute();
+          }}
+          onOpenAgreement={agreementId => {
+            storeAgreementEntry(agreementId);
+            clearMoneyRoute();
+          }}
+        />
       : <Unavailable />;
   }
   if (trustProjectDoor) {
@@ -351,8 +371,8 @@ export default function RuntimeApp() {
       />
     );
   }
-  return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+  return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
+    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

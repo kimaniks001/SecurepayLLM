@@ -1,8 +1,9 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { EvidenceDto, NextActionDto, ObligationDto } from '../../api/securepay/agreements';
 import type { AgreementCompletionResponse, AgreementDetailResponse, MilestoneEffectiveStateResponse } from '../../api/securepay/agreements/dto';
 import { completionFacts, evidenceTypeWords, milestoneReasonWords, milestoneStateWord, nextActionWords, obligationStatusWord, requirementWords, satisfiedWords } from './display';
 import { STATEMENT_MAX, type ExecutionController, type Notice } from './controller';
+import type { FulfilmentNeedsGateway, FulfilmentNeedDto, FulfilmentNeedPrivacyLevel, FulfilmentNeedType, SupplyRouteDto } from '../../api/securepay/fulfilment-needs';
 
 const FOCUS = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300';
 const BTN = `min-h-11 rounded-full px-4 text-[0.85rem] font-medium ${FOCUS} disabled:opacity-40`;
@@ -16,13 +17,54 @@ const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 
  * no dependency inferred from sequence order, no invented milestone for a simple Agreement, and no button that means "the Agreement
  * is complete" (that is a read-only projection).
  */
-export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney }: {
+export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney, fulfilmentGateway, onOpenStoreOffer, onOpenStore }: {
   controller: ExecutionController; detail: AgreementDetailResponse; effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null; ownParticipantId: string | null; onOpenMoney?: () => void;
+  fulfilmentGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onOpenStore?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   useEffect(() => { void controller.load(); }, [controller, detail.currentVersion?.versionId]);
   const facts = completionFacts(completion);
+  const [fulfilmentTarget, setFulfilmentTarget] = useState<ObligationDto | null>(null);
+  const [fulfilmentType, setFulfilmentType] = useState<FulfilmentNeedType>('OTHER');
+  const [fulfilmentPrivacy, setFulfilmentPrivacy] = useState<FulfilmentNeedPrivacyLevel>('PRIVATE');
+  const [fulfilmentPoolable, setFulfilmentPoolable] = useState(false);
+  const [fulfilmentNeed, setFulfilmentNeed] = useState<FulfilmentNeedDto | null>(null);
+  const [fulfilmentRoutes, setFulfilmentRoutes] = useState<SupplyRouteDto[]>([]);
+  const [fulfilmentBusy, setFulfilmentBusy] = useState(false);
+  const [fulfilmentError, setFulfilmentError] = useState<string | null>(null);
+
+  const openFulfilment = (obligation: ObligationDto) => {
+    setFulfilmentTarget(obligation);
+    setFulfilmentNeed(null);
+    setFulfilmentRoutes([]);
+    setFulfilmentError(null);
+    setFulfilmentType('OTHER');
+    setFulfilmentPrivacy('PRIVATE');
+    setFulfilmentPoolable(false);
+  };
+
+  const deriveFulfilment = async () => {
+    if (!fulfilmentGateway || !fulfilmentTarget) return;
+    setFulfilmentBusy(true);
+    setFulfilmentError(null);
+    try {
+      const created = await fulfilmentGateway.fromAgreementObligation(detail.overview.agreementId, fulfilmentTarget.id, {
+        derivationKey: `agreement-ui:${detail.overview.agreementId}:${fulfilmentTarget.id}:${detail.currentVersion?.versionId ?? 'current'}`,
+        type: fulfilmentType,
+        poolable: fulfilmentPoolable,
+        privacyLevel: fulfilmentPrivacy,
+      });
+      setFulfilmentNeed(created);
+      setFulfilmentRoutes(await fulfilmentGateway.routes(created.id));
+    } catch (error) {
+      setFulfilmentError(error instanceof Error ? error.message : 'SecurePay could not find fulfilment options for this work.');
+    } finally {
+      setFulfilmentBusy(false);
+    }
+  };
   const me = ownParticipantId;
   const nameOf = (participantId: string) => { const p = detail.participants.find(x => x.participantId === participantId); return p ? (p.displayName || p.ksNumber || null) : null; };
   const currentList = controller.current();
@@ -71,6 +113,9 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
       </div>}
       {next && next.requiredEvidenceTypes.length > 0 && <p className="text-[0.8rem] text-sand-700">Evidence asked for: {next.requiredEvidenceTypes.map(evidenceTypeWords).join(', ')}.</p>}
       {monetary && next?.actionType === 'FUND_AGREEMENT' && onOpenMoney && <button type="button" className={`${SECONDARY} mt-1.5`} onClick={onOpenMoney}>Open Money</button>}
+      {fulfilmentGateway && mine && !monetary && !['COMPLETED', 'CANCELLED'].includes(o.status) && (
+        <button type="button" className={`${SECONDARY} mt-1.5`} onClick={() => openFulfilment(o)}>Find what this work needs</button>
+      )}
 
       {!detailsLoaded && <button type="button" className={`${SECONDARY} mt-2`} onClick={() => void controller.loadDetails(o.id)}>See details</button>}
       {ev && <div className="mt-2">
@@ -162,6 +207,67 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
   const rest = currentList.filter(o => !placed.has(o.id));
 
   return <section aria-label="Work in this Agreement" className="space-y-4">
+    {fulfilmentTarget && (
+      <section aria-label="Find fulfilment for Agreement work" className="rounded-2xl border border-forest-200 bg-forest-50/50 p-4">
+        <button type="button" onClick={() => setFulfilmentTarget(null)} className="min-h-11 text-[0.8rem] text-forest-700 underline">← Back to Agreement work</button>
+        <p className="mt-1 text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Solve this obligation</p>
+        <h3 className="mt-1 font-display text-lg text-forest-800">{fulfilmentTarget.title}</h3>
+        {fulfilmentTarget.description && <p className="mt-1 text-[0.78rem] text-sand-600">{fulfilmentTarget.description}</p>}
+        <p className="mt-2 text-[0.72rem] text-sand-600">SecurePay derives the need from this exact Agreement obligation. You choose the need type, privacy and whether compatible pooling is allowed.</p>
+
+        {!fulfilmentNeed && (
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="text-[0.72rem] text-sand-600">Need type
+                <select value={fulfilmentType} onChange={e => setFulfilmentType(e.target.value as FulfilmentNeedType)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  {(['PRODUCT','TRANSPORT','ACCOMMODATION','LABOUR','COURIER','STORAGE','EQUIPMENT','SERVICE','OTHER'] as FulfilmentNeedType[]).map(value => <option key={value} value={value}>{value.replace(/_/g, ' ').toLowerCase()}</option>)}
+                </select>
+              </label>
+              <label className="text-[0.72rem] text-sand-600">Visibility
+                <select value={fulfilmentPrivacy} onChange={e => setFulfilmentPrivacy(e.target.value as FulfilmentNeedPrivacyLevel)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  <option value="PRIVATE">Private — search for me only</option>
+                  <option value="MATCHABLE">Matchable — eligible Stores may see safe demand</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-start gap-2 text-[0.78rem] text-forest-800">
+              <input type="checkbox" checked={fulfilmentPoolable} onChange={e => setFulfilmentPoolable(e.target.checked)} className="mt-0.5" />
+              <span>Allow compatible pooling <span className="block text-[0.68rem] text-sand-500">This does not amend the Agreement or join a Community Saver. Any shared fulfilment still needs its own governed coordination and consent.</span></span>
+            </label>
+            {fulfilmentError && <p role="alert" className="text-[0.78rem] text-ember-700">{fulfilmentError}</p>}
+            <button type="button" disabled={fulfilmentBusy} onClick={() => void deriveFulfilment()} className={PRIMARY}>{fulfilmentBusy ? 'Finding options…' : 'Find options'}</button>
+          </div>
+        )}
+
+        {fulfilmentNeed && (
+          <div className="mt-3 space-y-3">
+            <div className="rounded-xl border border-forest-100 bg-white px-3 py-3">
+              <div className="text-[0.78rem] font-medium text-forest-800">{fulfilmentNeed.description}</div>
+              <div className="mt-1 text-[0.68rem] text-sand-500">{fulfilmentNeed.type.replace(/_/g, ' ')} · {fulfilmentNeed.privacyLevel === 'MATCHABLE' ? 'Matchable' : 'Private'}{fulfilmentNeed.poolable ? ' · Poolable' : ''}</div>
+            </div>
+            {fulfilmentRoutes.length === 0 ? (
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need remains tied to this Agreement obligation.</p>
+                {onOpenStore && <button type="button" onClick={onOpenStore} className={`${SECONDARY} mt-2`}>Browse Store anyway</button>}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {fulfilmentRoutes.slice(0, 5).map(route => (
+                  <div key={route.routeId} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><div className="text-[0.8rem] font-medium text-forest-800">{route.routeLabel}</div><div className="mt-0.5 text-[0.68rem] text-sand-500">{route.providerDisplayName ?? route.providerKsNumber}{route.leadTimeHours !== null ? ` · ${route.leadTimeHours}h lead time` : ''}</div></div>
+                      <div className="text-right text-[0.72rem] text-forest-800">{route.headlinePriceMinor !== null ? `${route.currency} ${(route.headlinePriceMinor / 100).toLocaleString()}` : 'Price not listed'}<div className="text-[0.62rem] text-sand-400">{route.landedCostKnown ? 'Landed cost known' : 'Landed cost not established'}</div></div>
+                    </div>
+                    {route.tradeOffs.length > 0 && <p className="mt-2 text-[0.68rem] text-sand-600">{route.tradeOffs.slice(0, 2).join(' · ')}</p>}
+                    {onOpenStoreOffer && <button type="button" onClick={() => onOpenStoreOffer(route.providerKsNumber, route.offerId)} className={`${PRIMARY} mt-3`}>Open Store offer</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+    )}
     <div className={`rounded-2xl border px-4 py-3 ${facts.tone === 'complete' ? 'border-forest-200 bg-forest-50' : 'border-cream-200 bg-white'}`}>
       <h3 className="font-display text-[1.05rem] text-forest-800">{facts.headline}</h3>
       <p className="text-[0.85rem] leading-snug text-sand-800">{facts.text}</p>

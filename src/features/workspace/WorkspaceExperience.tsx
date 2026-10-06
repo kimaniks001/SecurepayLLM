@@ -5,6 +5,7 @@ import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { AgreementHub } from '../../components/AgreementHub';
 import { AgreementDetail } from '../../components/AgreementDetail';
+import { LivingAgreementOverview } from './LivingAgreementOverview';
 import { MoneyDoorway } from '../money/MoneyDoorway';
 import { openMoneyFor } from '../money/handoff';
 import { ErrorStateCard } from '../../components/ErrorState';
@@ -24,6 +25,7 @@ import type { AgreementReviewGateway } from '../../api/securepay/agreement-revie
 import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
+import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText, type WorkspaceEntry } from './controller';
 import { navigateWorkspace } from './navigation';
@@ -79,10 +81,11 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
+  fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
   /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
    * with the main signed-in Agent experience -- never a second, separate mini-conversation.
    * Optional so this component still renders for any caller not yet wired with an Agent. */
@@ -92,6 +95,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   /** Phase 4 final navigation correction -- the one-shot entry view: 'home' (default) or 'hub' (Agreements). Read at mount only. */
   initialView?: WorkspaceEntry;
   onOpenStore?: () => void;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
   /** Phase 7 Slice 5B -- the real Community view (the Trust Project doorway and the nav item). Optional, mirroring onOpenStore. */
   onOpenCommunity?: () => void;
   /** Public Experience Convergence Phase 4 -- the live Join page; membership states are resolved there. */
@@ -107,6 +111,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
   onOpenAccount?: () => void;
   /** Phase 4A final navigation closure -- the real Notifications view (shared NavBar item). Optional, mirroring onOpenStore. */
   onOpenNotifications?: () => void;
+  onAskKs001?: (message: string) => void;
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway, initialView));
@@ -310,6 +315,11 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
+          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions}
+            onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
+            onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
+            onJourneyNavigate={handleNavigate}
+            onAskKs001={onAskKs001 ? () => onAskKs001(`I’m looking at the Agreement “${dto.overview.title}”. Based on its current state and what SecurePay knows here, what real SecurePay products, services or capabilities could help next? Only suggest things SecurePay can actually verify, and do not assume any action is authorised unless the backend says so.`) : undefined} />}
           progress={progress}
           next={agreementNextView(state.selectedAgreementNextActions)}
           events={calendarEvents}
@@ -320,7 +330,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           initialTab={tabHint?.agreementId === boltDetail.id ? tabHint.tab : undefined}
           onOpenHelp={onOpenSupport ? () => onOpenSupport({ kind: 'agreement', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null }) : undefined}
           reviewPanel={<ReviewPanel key={boltDetail.id} gateway={gateway.review} agreementGateway={gateway} agreementId={boltDetail.id} currentVersionId={dto.currentVersion?.versionId ?? null} initialCaseId={tabHint?.agreementId === boltDetail.id ? tabHint.reviewCaseId ?? null : null} onGetHelp={onOpenSupport ? review => onOpenSupport({ kind: 'review', agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null, reviewCaseId: review.reviewCaseId, reviewAgreementVersionId: review.agreementVersionId }) : undefined} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
-          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
+          progressPanel={<ProgressPanel controller={executionFor(boltDetail.id)} detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} ownParticipantId={(() => { const rows = state.detail.data.myConfirmation; return rows && rows.length === 1 ? rows[0].participantId : null; })()} onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} fulfilmentGateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} onOpenStore={onOpenStore} />}
           changesPanel={<ChangesPanel controller={amendmentsFor(boltDetail.id)} detail={dto} />}
           topExtra={<>
             {/* Phase 6 Slice 4 (Community → Trade), item 19 -- quiet, provenance-only "Started from"

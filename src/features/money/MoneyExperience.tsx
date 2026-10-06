@@ -50,6 +50,9 @@ import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
 import { SimpleMoneyDashboard } from './SimpleMoneyDashboard';
+import { ExperiencePathway } from '../experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
+import type { AppView } from '../../types';
 
 function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
@@ -86,11 +89,14 @@ export interface MoneyGateways {
   moneySnapshot: MoneySnapshotGateway;
 }
 
-export function MoneyExperience({ gateways, auth, session, onLeave }: {
+export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, onAskKs001, onOpenAgreement }: {
   gateways: MoneyGateways;
   auth: AuthGateway;
   session: SessionStore;
   onLeave: () => void;
+  onNavigate?: (view: AppView) => void;
+  onAskKs001?: () => void;
+  onOpenAgreement?: (agreementId: string) => void;
 }) {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
@@ -142,6 +148,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           title="Money"
           description="Your Agreements first — then the money, next steps and financial support that follow them."
         />
+        <ExperiencePathway active="money" onNavigate={onNavigate} />
+        <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
           snapshotGateway={gateways.moneySnapshot}
@@ -151,6 +159,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           paymentReleaseGateway={gateways.paymentRelease}
           handoff={handoff}
           onSelectAgreement={setJumpAgreement}
+          onNavigate={onNavigate}
+          onOpenAgreement={onOpenAgreement}
         />
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">

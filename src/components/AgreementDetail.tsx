@@ -78,6 +78,8 @@ interface AgreementDetailProps {
   progressPanel?: React.ReactNode;
   /** Real mode: something the caller should see before the tabs (e.g. a version that needs their review). */
   topExtra?: React.ReactNode;
+  /** Real projection composed by the caller; section controls navigate without changing authority. */
+  overviewPanel?: (open: (section: 'progress' | 'people' | 'documents' | 'changes') => void) => React.ReactNode;
 }
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
@@ -108,7 +110,7 @@ const mobileSections: { value: MobileSection; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>(initialTab ?? 'overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -117,6 +119,10 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
   const showReuse = detail.status === 'completed';
   const structure = progress;
   const moneyForAgreement = money;
+  const openSection = (section: 'progress' | 'people' | 'documents' | 'changes') => {
+    setTab(section);
+    setMobileSection(section === 'people' ? 'people-terms' : section === 'changes' ? 'activity-changes' : section);
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -172,7 +178,10 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4">
           <div className="max-w-2xl mx-auto space-y-4">
-            {tab === 'overview' && <AgreementOverview detail={detail} next={next} />}
+            {tab === 'overview' && <>
+              <AgreementOverview detail={detail} next={next} />
+              {overviewPanel?.(openSection)}
+            </>}
             {tab === 'terms' && <AgreementTerms detail={detail} />}
             {tab === 'people' && <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
@@ -250,6 +259,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           {mobileSection === 'overview' && (
             <>
               <AgreementOverview detail={detail} next={next} />
+              {overviewPanel?.(openSection)}
               {showReuse && <AgreementReuse detail={detail} />}
               {detail.status === 'cancelled' && (
                 <StatusNotice tone="error" icon={false}>

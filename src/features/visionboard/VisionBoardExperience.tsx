@@ -5,10 +5,13 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
+import { ExperiencePathway } from '../experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 import type { VisionBoardController } from './controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
-import type { GenerateDocumentRequest, VisionDocumentDto, VisionItemTypeCode, VisionShelfCode } from '../../api/securepay/visionboard/dto';
+import type { GenerateDocumentRequest, VisionDocumentDto, VisionItemTypeCode, VisionShelfCode, VisionItemDto } from '../../api/securepay/visionboard/dto';
+import type { FulfilmentNeedsGateway, FulfilmentNeedDto, FulfilmentNeedMatchDto, SupplyRouteDto, FulfilmentNeedType, FulfilmentNeedPrivacyLevel } from '../../api/securepay/fulfilment-needs';
 
 const ITEM_TYPE_OPTIONS: VisionItemTypeCode[] = [
   'IDEA', 'PLAN', 'BUSINESS_RULE', 'METHOD', 'TEMPLATE', 'REFERENCE_DOCUMENT', 'GUIDELINE',
@@ -95,6 +98,129 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
   );
 }
 
+function VisionNeedPanel({ item, gateway, onOpenStoreOffer, onOpenStore }: {
+  item: VisionItemDto;
+  gateway: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onOpenStore?: () => void;
+}) {
+  const [type, setType] = useState<FulfilmentNeedType>('OTHER');
+  const [privacy, setPrivacy] = useState<FulfilmentNeedPrivacyLevel>('PRIVATE');
+  const [poolable, setPoolable] = useState(false);
+  const [need, setNeed] = useState<FulfilmentNeedDto | null>(null);
+  const [matches, setMatches] = useState<FulfilmentNeedMatchDto[]>([]);
+  const [routes, setRoutes] = useState<SupplyRouteDto[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const derive = async () => {
+    setBusy(true); setError(null);
+    try {
+      const created = await gateway.fromVision(item.itemId, {
+        derivationKey: `vision-ui:${item.itemId}:v${item.version}`,
+        type,
+        poolable,
+        privacyLevel: privacy,
+      });
+      setNeed(created);
+      const [foundMatches, foundRoutes] = await Promise.all([
+        gateway.matches(created.id),
+        gateway.routes(created.id),
+      ]);
+      setMatches(foundMatches);
+      setRoutes(foundRoutes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'SecurePay could not find options for this Vision item.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Surface>
+      <SurfaceBody className="space-y-3">
+        <div>
+          <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Make this practical</div>
+          <h2 className="mt-1 font-display text-lg text-forest-800">What does this idea need?</h2>
+          <p className="mt-1 text-[0.76rem] text-sand-600">Turn this saved Vision item into structured demand. You choose whether it stays private, can be matched to Stores, and whether pooling is allowed.</p>
+        </div>
+
+        {!need && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="text-[0.72rem] text-sand-600">
+                Need type
+                <select value={type} onChange={e => setType(e.target.value as FulfilmentNeedType)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  {(['PRODUCT','TRANSPORT','ACCOMMODATION','LABOUR','COURIER','STORAGE','EQUIPMENT','SERVICE','OTHER'] as FulfilmentNeedType[]).map(value => (
+                    <option key={value} value={value}>{value.replace(/_/g, ' ').toLowerCase()}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[0.72rem] text-sand-600">
+                Visibility
+                <select value={privacy} onChange={e => setPrivacy(e.target.value as FulfilmentNeedPrivacyLevel)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  <option value="PRIVATE">Private — only use for my search</option>
+                  <option value="MATCHABLE">Matchable — eligible Stores may see safe demand</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-start gap-2 text-[0.78rem] text-forest-800">
+              <input type="checkbox" checked={poolable} onChange={e => setPoolable(e.target.checked)} className="mt-0.5" />
+              <span>Allow pooling when compatible <span className="block text-[0.68rem] text-sand-500">This only marks the need as poolable. It does not join a Community Saver or another person’s agreement.</span></span>
+            </label>
+            {error && <StatusNotice tone="warning" icon={false}>{error}</StatusNotice>}
+            <Button disabled={busy} onClick={() => void derive()} className="w-full sm:w-auto">
+              {busy ? 'Finding options…' : 'Find real options'}
+            </Button>
+          </>
+        )}
+
+        {need && (
+          <>
+            <div className="rounded-xl border border-forest-100 bg-forest-50/50 px-3 py-3">
+              <div className="text-[0.78rem] font-medium text-forest-800">{need.description}</div>
+              <div className="mt-1 text-[0.68rem] text-sand-500">
+                {need.type.replace(/_/g, ' ')} · {need.privacyLevel === 'MATCHABLE' ? 'Matchable' : 'Private'}{need.poolable ? ' · Poolable' : ''}
+              </div>
+            </div>
+
+            {busy && <p role="status" className="text-[0.76rem] text-sand-500">Finding Store matches…</p>}
+            {!busy && routes.length === 0 && (
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need is still saved in SecurePay.</p>
+                {onOpenStore && <button type="button" onClick={onOpenStore} className="mt-2 min-h-11 rounded-full border border-forest-200 px-4 text-[0.76rem] font-medium text-forest-700">Browse Store anyway</button>}
+              </div>
+            )}
+
+            {routes.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Options SecurePay found</div>
+                {routes.slice(0, 5).map(route => (
+                  <div key={route.routeId} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[0.8rem] font-medium text-forest-800">{route.routeLabel}</div>
+                        <div className="mt-0.5 text-[0.68rem] text-sand-500">{route.providerDisplayName ?? route.providerKsNumber}{route.leadTimeHours !== null ? ` · ${route.leadTimeHours}h` : ''}</div>
+                      </div>
+                      <div className="text-right text-[0.72rem] text-forest-800">
+                        {route.headlinePriceMinor !== null ? `${route.currency} ${(route.headlinePriceMinor / 100).toLocaleString()}` : 'Price not listed'}
+                        <div className="text-[0.62rem] text-sand-400">{route.landedCostKnown ? 'Landed cost known' : 'Landed cost not established'}</div>
+                      </div>
+                    </div>
+                    {route.tradeOffs.length > 0 && <div className="mt-2 space-y-0.5 text-[0.68rem] text-sand-600">{route.tradeOffs.slice(0, 2).map((tradeOff, index) => <p key={index}>• {tradeOff}</p>)}</div>}
+                    {onOpenStoreOffer && <button type="button" onClick={() => onOpenStoreOffer(route.providerKsNumber, route.offerId)} className="mt-3 rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white">Open Store offer</button>}
+                  </div>
+                ))}
+                {matches.length > routes.length && <p className="text-[0.68rem] text-sand-500">{matches.length} provider matches found; {routes.length} currently have comparable supply routes.</p>}
+              </div>
+            )}
+          </>
+        )}
+      </SurfaceBody>
+    </Surface>
+  );
+}
+
 /**
  * SecurePay Final Completion Phase 5B -- the Vision Board: private KS operating memory (ideas,
  * plans, guidance, methods, templates). This is not a shared workspace, not a Project, and not an
@@ -105,11 +231,14 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
  * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
  * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
-export function VisionBoardExperience({ controller, documentGateway, defaultOwnerKsNumber, onNavigate }: {
+export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001 }: {
   controller: VisionBoardController;
   documentGateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>;
+  fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
   defaultOwnerKsNumber?: string | null;
   onNavigate: (view: AppView) => void;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onAskKs001?: (message: string) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [switchKsInput, setSwitchKsInput] = useState('');
@@ -148,6 +277,10 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
         <button onClick={() => controller.closeSelected()} className="flex items-center gap-1.5 text-forest-700 text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
+        <Ks001SurfaceGuide
+          surface="vision"
+          onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Based on this idea and where I am in SecurePay, what real SecurePay products, services or capabilities could help me move it forward? Only suggest things SecurePay can actually verify, and do not turn the idea into a commitment unless I explicitly choose to.`) : undefined}
+        />
         <Surface>
           <SurfaceBody>
             <div className="flex items-start justify-between gap-3">
@@ -185,6 +318,7 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
             <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version}</p>
           </SurfaceBody>
         </Surface>
+        {fulfilmentNeedsGateway && <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} onOpenStore={() => onNavigate('store')} />}
       </div>
     </div>;
   }
@@ -261,6 +395,40 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
     <NavBar view="agreements" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
+      <ExperiencePathway active="vision" onNavigate={onNavigate} />
+      <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m on my Vision Board. Based on what I am working on here, what real SecurePay products, services or capabilities could help me next? Only suggest things SecurePay can actually verify and explain why they fit.') : undefined} />
+
+      <section aria-label="Start from your Vision" className="rounded-2xl border border-forest-200 bg-forest-50/50 p-4">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Start here</p>
+        <h2 className="mt-1 font-display text-lg text-forest-800">What are you trying to move forward?</h2>
+        <p className="mt-1 text-[0.78rem] text-sand-600">Keep the thinking light. Capture the idea first, then find what it needs or make the commitment clear when you are ready.</p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => void controller.openShelf('IDEAS_GROWTH')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Capture the idea</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Notes, plans and things you want SecurePay to remember.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('store')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Find what it needs</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Explore real Store offers before you commit to anything.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('agreements')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Make it clear</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Review the Agreements already taking shape or active.</span>
+          </button>
+        </div>
+      </section>
 
       {/* Convergence correction (section 43) -- this is never required to see your own board; it
           only switches to managing a different KS (e.g. a Business you administer). */}
