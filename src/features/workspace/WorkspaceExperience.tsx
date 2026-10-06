@@ -81,7 +81,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -111,6 +111,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   onOpenAccount?: () => void;
   /** Phase 4A final navigation closure -- the real Notifications view (shared NavBar item). Optional, mirroring onOpenStore. */
   onOpenNotifications?: () => void;
+  onAskKs001?: (message: string) => void;
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway, initialView));
@@ -317,7 +318,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
           overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions}
             onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
             onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
-            onJourneyNavigate={handleNavigate} />}
+            onJourneyNavigate={handleNavigate}
+            onAskKs001={onAskKs001 ? () => onAskKs001(`I’m looking at the Agreement “${dto.overview.title}”. Based on its current state and what SecurePay knows here, what real SecurePay products, services or capabilities could help next? Only suggest things SecurePay can actually verify, and do not assume any action is authorised unless the backend says so.`) : undefined} />}
           progress={progress}
           next={agreementNextView(state.selectedAgreementNextActions)}
           events={calendarEvents}
