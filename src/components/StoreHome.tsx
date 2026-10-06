@@ -34,25 +34,35 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
-        <div className="mb-5">
-          <h1 className="font-display text-xl text-forest-800 font-medium">Store</h1>
-          <p className="text-[0.85rem] text-sand-600 mt-0.5">What sellers have published on SecurePay. Any offer can become the start of your own agreement.</p>
-        </div>
-
-        <ExperiencePathway active="store" onNavigate={onJourneyNavigate} className="mb-5" />
-        <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
+        <section className="sp-hero mb-4 px-5 py-5 md:px-7 md:py-6">
+          <div className="sp-kicker">Store</div>
+          <h1 className="sp-display mt-2 text-3xl text-forest-900 md:text-4xl">What are you looking for?</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-sand-600">Find real offers published on SecurePay. Preview first, choose only when ready, and let Agreement handle the commitment.</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Store modes">
+            <div className="rounded-xl border border-forest-200 bg-forest-50 px-4 py-3">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-forest-700">Find</div>
+              <div className="mt-1 text-sm text-forest-900">Search offers and Stores</div>
+            </div>
+            <button type="button" onClick={onManageStore} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">My Store</div>
+              <div className="mt-1 text-sm font-medium text-forest-800">See what people can find & what needs you</div>
+            </button>
+          </div>
+        </section>
 
         {/* Search */}
-        <div className="relative mb-5">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
           <input
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search by a word or a place…" aria-label="Search the Store"
+            placeholder="Search a category or place…" aria-label="Search the Store"
             className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
           />
         </div>
+
+        <p className="mb-5 text-xs leading-5 text-sand-600">Store search uses SecurePay’s real category and place filters across products, services and capacity. If a title-only phrase is not a Store category or place, it may not match yet.</p>
 
         {/* Stores */}
         {stores.length > 0 && (
@@ -109,26 +119,41 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           )}
         </div>
 
-        {/* Trader actions */}
-        <div className="rounded-2xl border border-cream-200 bg-cream-50/50 px-4 py-3">
-          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">For traders</div>
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={onCreateOffer}
-              className="flex items-center gap-2 text-[0.825rem] font-medium text-forest-700 bg-forest-50 hover:bg-forest-100 rounded-lg px-3 py-2 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Create an offer
-            </button>
-            <button
-              onClick={onManageStore}
-              className="flex items-center gap-2 text-[0.825rem] font-medium text-sand-600 hover:text-forest-600 transition-colors"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              Manage my store
-            </button>
+        <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Offer something on SecurePay</summary>
+          <div className="border-t border-cream-200 p-4">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={onCreateOffer}
+                className="flex min-h-11 items-center gap-2 rounded-lg bg-forest-50 px-3 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Create an offer
+              </button>
+              <button
+                onClick={onManageStore}
+                className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-[0.825rem] font-medium text-sand-600 hover:text-forest-600"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                Manage my Store
+              </button>
+            </div>
           </div>
-        </div>
+        </details>
+
+        <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Ask KS001 about what you need</summary>
+          <div className="border-t border-cream-200 p-4">
+            <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
+          </div>
+        </details>
+
+        <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Where Store fits in SecurePay</summary>
+          <div className="border-t border-cream-200 p-4">
+            <ExperiencePathway active="store" onNavigate={onJourneyNavigate} />
+          </div>
+        </details>
 
         {/* Agent */}
         <button
@@ -137,7 +162,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
         >
           <span className="flex items-center gap-1.5 text-[0.825rem] text-forest-600 font-medium">
             <MessageCircle className="w-3.5 h-3.5" />
-            Ask SecurePay to find an offer
+            Tell KS001 what you need
           </span>
           <p className="text-[0.72rem] text-sand-600 mt-0.5">Describe what you need and SecurePay will search for matching offers</p>
         </button>
