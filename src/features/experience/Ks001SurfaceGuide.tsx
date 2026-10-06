@@ -1,4 +1,4 @@
-type GuideSurface = 'vision' | 'store' | 'agreement';
+type GuideSurface = 'vision' | 'store' | 'agreement' | 'money';
 
 const COPY: Record<GuideSurface, { title: string; body: string; action: string }> = {
   vision: {
@@ -15,6 +15,11 @@ const COPY: Record<GuideSurface, { title: string; body: string; action: string }
     title: 'KS001 knows which Agreement you are looking at',
     body: 'Ask what needs attention, what SecurePay can help with next, or which real capability may reduce friction.',
     action: 'Ask KS001 what can help next',
+  },
+  money: {
+    title: 'KS001 can explain the path around Money',
+    body: 'Ask which SecurePay capabilities may help with the Agreement before, around or after Money. Current financial authority still comes only from the Money screen.',
+    action: 'Ask KS001 what can help around this Money state',
   },
 };
 
