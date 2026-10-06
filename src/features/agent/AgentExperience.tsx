@@ -991,6 +991,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenAccount={() => navigateTo('account')}
       onOpenNotifications={() => navigateTo('notifications')}
       onAskKs001={askKs001FromSurface}
+      homeComposerLeading={<SourceMenu
+        placement="below"
+        disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
+        onBringPlan={openBringPlan}
+        onPickDocument={file => { setWorkspace(false); setWorkspaceAgreementId(null); pickDocument(file); }}
+        onPickPhoto={file => { setWorkspace(false); setWorkspaceAgreementId(null); pickPhoto(file); }}
+        onAddLink={() => openDeclared('link')}
+        onAddPlace={() => openDeclared('place')}
+      />}
+      homeIntakePanel={<>
+        {bringPlanPanel}
+        {declaredPanel}
+      </>}
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);
@@ -1086,6 +1099,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       initialLabel={bringPlanDraft.label}
       onSubmit={(text, label) => {
         setBringPlanDraft({ text, label });
+        setWorkspace(false);
+        setWorkspaceAgreementId(null);
         requestFresh(set => { setHome(false); submitPlan(text, label, set); });
       }}
     />
@@ -1110,8 +1125,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             if (result.ok) { setDeclaredOpen(null); setDeclaredDraft({ value: '', label: '' }); setHome(false); } else setIntakeError(result.error);
           });
         };
-        // From Home, a link or place starts something new; inside a conversation it belongs to that conversation.
-        if (showHome) requestFresh(add); else add(currentSet());
+        // From either Home composition, a link or place starts something new; inside a live conversation it belongs there.
+        if (workspace) { setWorkspace(false); setWorkspaceAgreementId(null); }
+        if (showHome || workspace) requestFresh(add); else add(currentSet());
       }}
     />
   ) : null;
