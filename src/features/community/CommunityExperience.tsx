@@ -145,7 +145,7 @@ function TrustProjectBanner({
 function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect: (tab: CommunityHomeTab) => void }) {
   const tabs: { value: CommunityHomeTab; label: string }[] = [
     { value: 'live', label: 'LIVE' },
-    { value: 'serve', label: 'SERVE' },
+    { value: 'serve', label: 'PROJECTS & ACTIVITIES' },
     { value: 'learn', label: 'LEARN' },
     { value: 'circles', label: 'CIRCLES' },
     { value: 'happening', label: 'HAPPENING' },
@@ -1482,6 +1482,14 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                   Prepare {target.charAt(0)+target.slice(1).toLowerCase()}
                 </button>
               ))}
+              {item.circleId && (
+                <button
+                  onClick={() => void controller.openCircle(item.circleId!)}
+                  className="text-[0.75rem] font-medium text-forest-600"
+                >
+                  Plan the day in Circle
+                </button>
+              )}
               <button
                 onClick={() => { setLessonProjectId(lessonProjectId === item.id ? null : item.id); setLessonDraft(''); }}
                 className="text-[0.75rem] font-medium text-forest-600"
