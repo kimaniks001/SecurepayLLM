@@ -120,6 +120,7 @@ function App() {
   const [staleViewedVersion, setStaleViewedVersion] = useState<string | null>(null);
   const [openDisputeId, setOpenDisputeId] = useState<string | null>(null);
   const [openMoneyId, setOpenMoneyId] = useState<string | null>(null);
+  const [moneyAgreementContextId, setMoneyAgreementContextId] = useState<string | null>(null);
   const [openOfferId, setOpenOfferId] = useState<string | null>(null);
   const [openStoreId, setOpenStoreId] = useState<string | null>(null);
   const [storeSubView, setStoreSubView] = useState<'home' | 'profile' | 'offer' | 'manage' | 'create' | 'share' | 'external' | 'to-agreement' | 'comparison' | 'changed'>('home');
@@ -658,6 +659,28 @@ function App() {
     setStaleViewedVersion(null);
   };
 
+  const handleOpenMoneyFromAgreementPreview = (id: string) => {
+    setMoneyAgreementContextId(id);
+    setOpenMoneyId('money-not-ready');
+    setView('money');
+  };
+
+  const handleAskKS001FromAgreementPreview = (id: string) => {
+    const agreement = demoAgreements.find((item) => item.id === id);
+    setOpenAgreementId(id);
+    setAgentResponses([]);
+    setAgentState('listening');
+    setView('conversation');
+    setTurns(agreement ? [{
+      id: nextId(),
+      sender: 'agent',
+      responses: [{
+        type: 'MESSAGE',
+        text: `You’re asking about ${agreement.title} with ${agreement.counterparty}. Ask me anything about this Agreement.`,
+      }],
+    }] : []);
+  };
+
   const handleOpenTakingShape = (_id: string) => {
     setView('conversation');
     setAgentState('listening');
@@ -745,7 +768,13 @@ function App() {
     return (
       <div className="min-h-screen flex flex-col bg-cream-100">
         <NavBar view={view} onNavigate={handleNavigate} />
-        <AgreementHub agreements={demoAgreements} onOpenAgreement={handleOpenAgreement} onOpenTakingShape={handleOpenTakingShape} />
+        <AgreementHub
+          agreements={demoAgreements}
+          onOpenAgreement={handleOpenAgreement}
+          onOpenTakingShape={handleOpenTakingShape}
+          onOpenMoney={handleOpenMoneyFromAgreementPreview}
+          onAskKS001={handleAskKS001FromAgreementPreview}
+        />
       </div>
     );
   }
@@ -1106,7 +1135,20 @@ function App() {
   if (view === 'money') {
     if (openMoneyId) {
       const money = getDemoMoney(openMoneyId);
-      if (!money) {
+      const agreement = moneyAgreementContextId ? getDemoAgreementDetail(moneyAgreementContextId) : null;
+      const moneyWithAgreementContext = money && agreement
+        ? {
+            ...money,
+            agreementLink: {
+              ...money.agreementLink,
+              agreementId: agreement.id,
+              agreementTitle: agreement.title,
+              agreementVersion: agreement.version,
+              amount: agreement.amount,
+            },
+          }
+        : money;
+      if (!moneyWithAgreementContext) {
         return (
           <div className="min-h-screen flex flex-col bg-cream-100">
             <NavBar view={view} onNavigate={handleNavigate} />
@@ -1119,7 +1161,7 @@ function App() {
       return (
         <div className="min-h-screen flex flex-col bg-cream-100">
           <NavBar view={view} onNavigate={handleNavigate} />
-          <MoneyWorkspace detail={money} onBack={() => { setOpenMoneyId(null); setView('money'); }} />
+          <MoneyWorkspace detail={moneyWithAgreementContext} onBack={() => { setOpenMoneyId(null); setMoneyAgreementContextId(null); setView('money'); }} />
         </div>
       );
     }
