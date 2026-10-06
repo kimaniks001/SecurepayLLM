@@ -273,7 +273,13 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
     else if (state.hub.status !== 'ready') body = <LoadingNotice text="Loading your agreements…" />;
     else {
       const agreements = hubAgreementSummaries(state.hub.data);
-      body = <AgreementHub agreements={agreements} onOpenAgreement={id => controller.openFromHub(id)} onOpenTakingShape={id => controller.openFromHub(id)} />;
+      body = <AgreementHub
+        agreements={agreements}
+        onOpenAgreement={id => controller.openFromHub(id)}
+        onOpenTakingShape={id => controller.openFromHub(id)}
+        onOpenMoney={agreement => openMoneyFor({ agreementId: agreement.id, title: agreement.title, versionLabel: null, currentVersionId: null })}
+        onAskKs001={onAskKs001 ? agreement => onAskKs001(`I’m looking over the Agreement “${agreement.title}”. Give me the shortest useful summary of what matters now and what, if anything, needs me.`) : undefined}
+      />;
     }
   } else if (state.view === 'detail') {
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
