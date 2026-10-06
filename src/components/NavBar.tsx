@@ -134,7 +134,7 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
               key={item.label}
               aria-current={active ? 'page' : undefined}
               onClick={() => onNavigate(item.view)}
-              className={`sp-mobile-tab relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors ${
+              className={`sp-mobile-tab relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors ${
                 active ? 'text-forest-700' : 'text-sand-500'
               }`}
             >
