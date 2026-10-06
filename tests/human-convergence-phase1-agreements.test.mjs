@@ -27,6 +27,8 @@ const { AgreementQuickPreview, createElement, renderToStaticMarkup } = module.ex
 const base = {
   id: 'agr-kamau',
   title: 'Plumbing repair',
+  purpose: 'Kitchen leak plumbing repair',
+  attentionRequired: false,
   counterparty: 'Joseph Kamau',
   counterpartyRole: 'Provider',
   amount: 'KES 12,000',
@@ -52,6 +54,7 @@ test('quick preview answers what, who, value, status and next without full Agree
   const html = render(base);
   assert.match(html, /Agreement preview/);
   assert.match(html, /Plumbing repair/);
+  assert.match(html, /Kitchen leak plumbing repair/);
   assert.match(html, /Joseph Kamau/);
   assert.match(html, /KES 12,000/);
   assert.match(html, /Active/);
@@ -68,12 +71,22 @@ test('attention rises only for Agreement states that genuinely need the particip
   const needsMe = render({
     ...base,
     status: 'waiting_for_me',
+    attentionRequired: true,
     statusLabel: 'Waiting for your confirmation',
     nextAction: 'Review current version',
   });
   assert.match(needsMe, /Needs your attention/);
   assert.match(needsMe, /Waiting for your confirmation/);
   assert.match(needsMe, />Review</);
+
+  const lifecycleButNotAttention = render({
+    ...base,
+    status: 'change_requested',
+    attentionRequired: false,
+    statusLabel: 'Change recorded',
+    nextAction: 'Waiting for Peter',
+  });
+  assert.doesNotMatch(lifecycleButNotAttention, /Needs your attention/);
 });
 
 test('quiet Agreements get a calm next state instead of manufactured urgency', () => {
@@ -98,6 +111,7 @@ test('preview handoffs retain selected Agreement context for Money and KS001', a
   const app = await readFile('src/App.tsx', 'utf8');
   assert.match(app, /handleOpenMoneyFromAgreementPreview/);
   assert.match(app, /setOpenAgreementId\(id\)/);
+  assert.match(app, /moneyAgreementContextId/);
   assert.match(app, /moneyWithAgreementContext/);
   assert.match(app, /agreementId: agreement\.id/);
   assert.match(app, /handleAskKS001FromAgreementPreview/);
