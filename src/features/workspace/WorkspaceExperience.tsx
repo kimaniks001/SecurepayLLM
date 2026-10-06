@@ -81,7 +81,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, homeComposerLeading, homeIntakePanel, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -112,6 +112,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   /** Phase 4A final navigation closure -- the real Notifications view (shared NavBar item). Optional, mirroring onOpenStore. */
   onOpenNotifications?: () => void;
   onAskKs001?: (message: string) => void;
+  homeComposerLeading?: React.ReactNode;
+  homeIntakePanel?: React.ReactNode;
   onLeave: (startText?: string) => void;
 }) {
   const [controller] = useState(() => createWorkspaceController(gateway, initialView));
@@ -258,6 +260,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
           // to the dedicated Invitations surface (RuntimeApp's own useInvitationInboxRoute).
           onViewAllInvitations={() => { window.location.hash = '#/invitations'; }}
           // Phase 7 Slice 5B -- The Trust Project, as a small doorway BELOW the person's own Home.
+          composerLeading={homeComposerLeading}
+          intakePanel={homeIntakePanel}
           belowHome={onOpenCommunity && onOpenStore
             ? <div className="mt-16"><TrustProjectSection compact membership={trustProjectMembership} onExploreCommunity={onOpenCommunity} onOpenStores={onOpenStore} onJoin={onJoinTrustProject} /></div>
             : undefined}
