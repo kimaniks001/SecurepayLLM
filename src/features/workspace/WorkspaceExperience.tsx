@@ -29,7 +29,7 @@ import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-need
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText, type WorkspaceEntry } from './controller';
 import { navigateWorkspace } from './navigation';
-import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, hubAgreementSummaries, invitationsForYouView, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
+import { agreementCalendarView, agreementDetailView, agreementNextView, agreementProgressView, attentionItemsFromHub, conflictSeverityLabel, findInHub, hubAgreementSummaries, invitationsForYouView, moneyByCurrencyView, moneyDetailView, problemsView, recentActivityView, upcomingHomeEventsView, waitingItemsFromHub } from './view';
 import type { AgentController } from '../agent/controller';
 
 type Gateway = Pick<AgreementGateway,
@@ -268,8 +268,45 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
     if (state.hub.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.hub.error))} onChoice={() => controller.goHub()} /></div>;
     else if (state.hub.status !== 'ready') body = <LoadingNotice text="Loading your agreements…" />;
     else {
-      const agreements = hubAgreementSummaries(state.hub.data);
-      body = <AgreementHub agreements={agreements} onOpenAgreement={id => controller.openFromHub(id)} onOpenTakingShape={id => controller.openFromHub(id)} />;
+      const hubData = state.hub.data;
+      const agreements = hubAgreementSummaries(hubData);
+      const openHubMoney = (id: string) => {
+        const found = findInHub(hubData, id);
+        if (!found) return;
+        openMoneyFor({
+          agreementId: id,
+          title: found.summary.title,
+          versionLabel: null,
+          currentVersionId: found.summary.currentAgreementVersionId ?? null,
+        });
+      };
+      const askHubKs001 = (id: string) => {
+        const found = findInHub(hubData, id);
+        if (!found || !onAskKs001) return;
+        const prompt = `I’m looking at the Agreement “${found.summary.title}”. Help me understand what needs attention and what happens next. Use this Agreement’s current SecurePay facts and do not assume any action is authorised unless the backend says so.`;
+        if (agentGateway && agentController) {
+          void (async () => {
+            try {
+              const conversationId = await agentController.ensureConversationId();
+              await agentGateway.switchAccessGrant(conversationId, id);
+              onAskKs001(prompt);
+            } catch (error) {
+              setNotice(errorText(error));
+            }
+          })();
+          return;
+        }
+        onAskKs001(prompt);
+      };
+      body = (
+        <AgreementHub
+          agreements={agreements}
+          onOpenAgreement={id => controller.openFromHub(id)}
+          onOpenTakingShape={id => controller.openFromHub(id)}
+          onOpenMoney={openHubMoney}
+          onAskKS001={askHubKs001}
+        />
+      );
     }
   } else if (state.view === 'detail') {
     if (state.detail.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.detail.error))} onChoice={() => controller.backToHub()} /></div>;
