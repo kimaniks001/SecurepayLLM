@@ -141,8 +141,9 @@ test('signed-in people get a smaller doorway with the full explanation one tap a
 
 test('the real signed-in Home (Workspace) keeps its own headline and adds only the compact doorway BELOW it; its Community nav now works', async () => {
   const home = await readFile('src/components/SignedInHome.tsx', 'utf8');
-  assert.match(home, /Tell SecurePay what you're trying to make happen\./);
-  assert.ok(home.indexOf('View all agreements') < home.indexOf('{belowHome}'), 'the doorway sits below the person\'s own Home');
+  assert.match(home, /What do you want to make/);
+  assert.match(home, /sp-real-word">real/);
+  assert.ok(home.indexOf('Your world today') < home.indexOf('{belowHome}'), 'the doorway sits below the person\'s own Home');
   assert.doesNotMatch(strip(home), /Trust Project/, 'SignedInHome itself carries no Trust Project copy');
   const ws = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
   assert.match(ws, /belowHome=\{onOpenCommunity && onOpenStore\s*\? <div className="mt-16"><TrustProjectSection compact membership=\{trustProjectMembership\}/);
