@@ -98,11 +98,11 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
   );
 }
 
-function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
+function VisionNeedPanel({ item, gateway, onOpenStoreOffer, onOpenStore }: {
   item: VisionItemDto;
   gateway: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
-  onAskKs001?: (message: string) => void;
+  onOpenStore?: () => void;
 }) {
   const [type, setType] = useState<FulfilmentNeedType>('OTHER');
   const [privacy, setPrivacy] = useState<FulfilmentNeedPrivacyLevel>('PRIVATE');
