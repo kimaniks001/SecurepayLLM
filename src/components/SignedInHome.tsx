@@ -6,7 +6,6 @@ import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinci
 import { NeedsAttentionList } from './NeedsAttentionList';
 import { WaitingOnOthersList } from './WaitingOnOthersList';
 import { RecentActivity } from './RecentActivity';
-import { HomeWorkbenchSummary } from './HomeWorkbenchSummary';
 import { UpcomingEventsList } from './UpcomingEventsList';
 import { ProblemsList } from './ProblemsList';
 import { AgreementMoneyByCurrencySummary } from './AgreementMoneyByCurrencySummary';
