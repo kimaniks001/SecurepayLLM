@@ -64,6 +64,10 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
               {store.serviceAreas.slice(0, 3).map(area => <span key={area} className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">{area}</span>)}
               {store.operator && <span className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">Acting as {store.operator}</span>}
             </div>
+            <button type="button" onClick={onCreateOffer}
+              className="sp-primary-action mt-4 inline-flex min-h-12 items-center gap-2 px-4 text-sm font-semibold">
+              <Plus className="h-4 w-4" /> Add offer
+            </button>
           </div>
         </section>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Building2,
@@ -227,35 +227,23 @@ function AgreementCard({
   onOpen: () => void;
 }) {
   const amount = amountFromSummary(agreement);
-  const action = agreement.nextActions[0]?.reason ?? (agreement.attentionRequired ? 'This Agreement needs your attention.' : 'No immediate action is shown.');
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-pressed={active}
-      className={`w-full rounded-2xl border p-4 text-left transition-card ${active
-        ? 'border-forest-300 bg-forest-50 shadow-soft'
-        : 'border-cream-200 bg-white/70 hover:border-forest-200 hover:bg-cream-50'}`}
+      className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+        active ? 'border-forest-300 bg-forest-50' : 'border-cream-200 bg-white hover:border-forest-200'
+      }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-lg text-forest-900 truncate">{agreement.title}</div>
-          <div className="mt-1 text-xs text-sand-500">
-            {agreement.counterparty?.displayName ?? agreement.counterparty?.ksNumber ?? titleCase(agreement.agreementType)}
-          </div>
-        </div>
-        <StatusPill status={titleCase(agreement.status)} />
-      </div>
-      <p className="mt-3 line-clamp-2 text-sm leading-5 text-sand-700">{agreement.purpose}</p>
-      <div className="mt-4 flex items-end justify-between gap-3 border-t border-cream-200 pt-3">
-        <div>
-          <div className="text-[0.68rem] uppercase tracking-wide text-sand-500">Agreement amount</div>
-          <div className="mt-0.5 text-sm font-semibold text-forest-900">
-            {amount ? <MoneyValue amount={amount} size="sm" /> : 'Not shown'}
-          </div>
-        </div>
-        <div className="max-w-[55%] text-right text-xs leading-4 text-sand-600">{action}</div>
-      </div>
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-forest-900">{agreement.title}</span>
+        <span className="mt-0.5 block truncate text-xs text-sand-500">
+          {agreement.counterparty?.displayName ?? agreement.counterparty?.ksNumber ?? titleCase(agreement.agreementType)}
+          {amount ? ` · ${amount}` : ''}
+        </span>
+      </span>
+      <StatusPill status={titleCase(agreement.status)} />
     </button>
   );
 }
@@ -272,15 +260,18 @@ function FinanceStateCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-cream-200 bg-white/75 p-4">
-      <div className="flex items-start gap-3">
+    <div className="rounded-2xl border border-cream-200 bg-white/80 p-3.5">
+      <div className="flex items-center gap-3">
         <div className="rounded-xl bg-cream-100 p-2 text-forest-800">{icon}</div>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-forest-900">{title}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[0.72rem] font-medium text-sand-500">{title}</div>
           <div className="mt-1"><StatusPill status={status} /></div>
-          <p className="mt-2 text-xs leading-5 text-sand-600">{detail}</p>
         </div>
       </div>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-[0.7rem] font-medium text-forest-700">Why?</summary>
+        <p className="mt-1 text-xs leading-5 text-sand-600">{detail}</p>
+      </details>
     </div>
   );
 }
@@ -397,7 +388,11 @@ export function SimpleMoneyDashboard({
   onNavigate,
   onOpenAgreement,
 }: SimpleMoneyDashboardProps) {
+  const AGREEMENT_PAGE_SIZE = 20;
   const [agreements, setAgreements] = useState<Load<CurrentUserAgreementSummaryResponse[]>>({ state: 'loading' });
+  const [agreementPage, setAgreementPage] = useState(0);
+  const [agreementTotal, setAgreementTotal] = useState(0);
+  const initialSelectionMade = useRef(false);
   const [selected, setSelected] = useState<SelectionTarget | null>(null);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
@@ -420,13 +415,14 @@ export function SimpleMoneyDashboard({
 
   useEffect(() => {
     let live = true;
-    agreementGateway.currentUserAgreements()
+    agreementGateway.currentUserAgreements(agreementPage, AGREEMENT_PAGE_SIZE)
       .then(response => {
         if (!live) return;
         setAgreements({ state: 'ready', value: response.items });
-        // Landing on Money should immediately feel alive. The first backend-returned Agreement is opened
-        // as a neutral default; this is not a client-side priority or financial recommendation.
-        if (!handoff && response.items.length > 0) {
+        setAgreementTotal(response.totalElements);
+        // Choose one neutral initial Agreement once. Paging later never changes the person's selection.
+        if (!handoff && !initialSelectionMade.current && response.items.length > 0) {
+          initialSelectionMade.current = true;
           const first = response.items[0];
           onSelectAgreement(first);
           void resolveSelection(agreementGateway, {
@@ -443,8 +439,7 @@ export function SimpleMoneyDashboard({
       })
       .catch(() => { if (live) setAgreements({ state: 'error' }); });
     return () => { live = false; };
-  }, [agreementGateway, handoff, onSelectAgreement]);
-
+  }, [agreementGateway, handoff, onSelectAgreement, agreementPage]);
   useEffect(() => {
     if (!handoff) return;
     let live = true;
@@ -519,37 +514,28 @@ export function SimpleMoneyDashboard({
 
   return (
     <div className="space-y-6" data-testid="simple-money-dashboard">
-      <section className="sp-hero overflow-hidden">
-        <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.8fr)] lg:items-end">
+      <section className="sp-section px-4 py-4 md:px-5">
+        <div className="sp-kicker">Money</div>
+        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-forest-200 bg-white/70 px-3 py-1 text-xs font-semibold text-forest-800">
-              <Sparkles className="h-3.5 w-3.5" />
-              Agreement-led money
-            </div>
-            <h2 className="sp-display mt-4 text-3xl md:text-5xl">{handoff ? 'Money for this Agreement.' : 'Money follows the agreement.'}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-sand-700 md:text-base">
-              {handoff
-                ? `You came from “${handoff.title}”. Keep that Agreement in view while you see funding, charges, readiness and the next real money step.`
-                : 'See the trade, the amount, what happens next, and the financial support around it — without losing the deeper money record underneath.'}
-            </p>
+            <h2 className="font-display text-2xl text-forest-900 md:text-3xl">{handoff ? handoff.title : 'Agreement money'}</h2>
+            <p className="mt-1 text-xs text-sand-500">{handoff ? 'From this Agreement' : 'Agreement first. Money follows.'}</p>
           </div>
-          <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-soft">
-            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-sand-500">Community promise</div>
-            <p className="mt-2 font-display text-lg leading-7 text-forest-900">
-              Clear agreements. Accountable money. More room for people to trade with confidence.
-            </p>
-          </div>
+          {selected && onOpenAgreement && (
+            <button type="button" onClick={() => onOpenAgreement(selected.agreementId)} className="min-h-11 rounded-full border border-cream-300 bg-white px-4 text-xs font-semibold text-forest-700">
+              Open Agreement
+            </button>
+          )}
         </div>
       </section>
-
       <details className="sp-section overflow-hidden" open={!handoff}>
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 md:px-5">
           <div>
-            <h2 className="font-display text-xl text-forest-900">{handoff ? 'Change Agreement' : 'Your Agreements'}</h2>
-            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'You are already looking at the Agreement you came from.' : 'Choose the Agreement whose money you want to understand.'}</p>
+            <h2 className="font-display text-lg text-forest-900">{handoff ? 'Change Agreement' : (selected?.title ?? 'Choose Agreement')}</h2>
+            <p className="mt-0.5 text-xs text-sand-500">{handoff ? 'Current Agreement is already selected.' : '20 at a time — the page stays the same size as your history grows.'}</p>
           </div>
           {agreements.state === 'ready' && agreements.value.length > 0 && (
-            <div className="shrink-0 text-xs text-sand-500">{agreements.value.length} Agreement{agreements.value.length === 1 ? '' : 's'}</div>
+            <div className="shrink-0 text-xs text-sand-500">{agreementTotal} Agreement{agreementTotal === 1 ? '' : 's'}</div>
           )}
         </summary>
         <div className="border-t border-cream-200 px-4 py-4 md:px-5">
@@ -572,7 +558,7 @@ export function SimpleMoneyDashboard({
           </div>
         )}
         {agreements.state === 'ready' && agreements.value.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="space-y-2">
             {agreements.value.map(agreement => (
               <AgreementCard
                 key={agreement.agreementId}
@@ -581,6 +567,15 @@ export function SimpleMoneyDashboard({
                 onOpen={() => void chooseAgreement(agreement)}
               />
             ))}
+            {agreementTotal > AGREEMENT_PAGE_SIZE && (
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button type="button" disabled={agreementPage === 0} onClick={() => setAgreementPage(page => Math.max(0, page - 1))}
+                  className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs font-medium text-forest-700 disabled:opacity-40">Previous</button>
+                <span className="text-xs text-sand-500">{agreementPage * AGREEMENT_PAGE_SIZE + 1}–{Math.min(agreementTotal, (agreementPage + 1) * AGREEMENT_PAGE_SIZE)} of {agreementTotal}</span>
+                <button type="button" disabled={(agreementPage + 1) * AGREEMENT_PAGE_SIZE >= agreementTotal} onClick={() => setAgreementPage(page => page + 1)}
+                  className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs font-medium text-forest-700 disabled:opacity-40">Next</button>
+              </div>
+            )}
           </div>
         )}
         </div>
@@ -602,7 +597,10 @@ export function SimpleMoneyDashboard({
                   {selectedSummary && <StatusPill status={titleCase(selectedSummary.status)} />}
                 </div>
                 <h2 className="mt-3 font-display text-3xl text-forest-900">{selected.title}</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-sand-700">{agreementSnippet}</p>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-medium text-forest-700">Agreement summary</summary>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-sand-700">{agreementSnippet}</p>
+                </details>
                 {selectedSummary?.counterparty && (
                   <p className="mt-3 text-xs text-sand-500">
                     With {selectedSummary.counterparty.displayName ?? selectedSummary.counterparty.ksNumber ?? 'the other Agreement participant'}
@@ -614,16 +612,12 @@ export function SimpleMoneyDashboard({
                   </button>
                 )}
                 {currentDetail && currentDetail.terms.length > 0 && (
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {currentDetail.terms.slice(0, 4).map(term => (
-                      <span key={term.obligationId} className="rounded-full border border-cream-300 bg-cream-50 px-3 py-1.5 text-xs text-sand-700">
-                        {term.title}
-                      </span>
-                    ))}
-                    {currentDetail.terms.length > 4 && (
-                      <span className="rounded-full bg-cream-100 px-3 py-1.5 text-xs text-sand-500">+{currentDetail.terms.length - 4} more</span>
-                    )}
-                  </div>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-medium text-forest-700">{currentDetail.terms.length} Agreement term{currentDetail.terms.length === 1 ? '' : 's'}</summary>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {currentDetail.terms.map(term => <span key={term.obligationId} className="rounded-full border border-cream-300 bg-cream-50 px-3 py-1.5 text-xs text-sand-700">{term.title}</span>)}
+                    </div>
+                  </details>
                 )}
               </div>
               <div className="rounded-2xl bg-forest-900 p-5 text-cream-50">
@@ -635,12 +629,12 @@ export function SimpleMoneyDashboard({
                   <div className="text-xs uppercase tracking-wide text-forest-200">Next step</div>
                   <p className="mt-2 text-sm leading-6 text-cream-100">{nextStep(currentSnapshot, selectedSummary)}</p>
                 </div>
-                <div className="mt-4 border-t border-forest-700 pt-4">
-                  <div className="text-xs uppercase tracking-wide text-forest-200">Money responsibility</div>
+                <details className="mt-4 border-t border-forest-700 pt-4">
+                  <summary className="cursor-pointer text-xs font-medium text-forest-100">Who pays?</summary>
                   <p className="mt-2 text-sm text-cream-100">
                     {economics?.payerRole ? `Payer role: ${titleCase(economics.payerRole)}` : 'SecurePay has not established a payer role in the current movement economics.'}
                   </p>
-                </div>
+                </details>
               </div>
             </div>
           </section>
@@ -652,7 +646,11 @@ export function SimpleMoneyDashboard({
             <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
           </section>
 
-          <section className="rounded-3xl border border-forest-200 bg-white/80 p-5 md:p-6" data-testid="agreement-money-flow">
+          <details className="rounded-2xl border border-cream-200 bg-white/75" data-testid="agreement-money-flow">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-forest-800">
+              <span>How money works for this Agreement</span><span className="text-xs font-normal text-sand-500">Read explanation</span>
+            </summary>
+            <section className="border-t border-cream-200 p-4 md:p-5">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -726,7 +724,8 @@ export function SimpleMoneyDashboard({
                 <p className="mt-3 text-[0.72rem] leading-5 text-sand-500">Settlement still requires Agreement authority, a valid destination, provider/rail gates and a successful movement preflight.</p>
               </div>
             </div>
-          </section>
+            </section>
+          </details>
 
           <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
             <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
@@ -749,14 +748,18 @@ export function SimpleMoneyDashboard({
                 <h2 className="font-display text-2xl text-forest-900">Funding & charges</h2>
               </div>
               <div className="mt-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
-                {fundingRoutes.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
-                )}
+                <details>
+                  <summary className="cursor-pointer text-sm font-semibold text-forest-800">
+                    Funding options {fundingRoutes.length > 0 ? `(${fundingRoutes.length})` : ''}
+                  </summary>
+                  {fundingRoutes.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-sand-600">No eligible funding route is listed right now.</p>
+                  )}
+                </details>
               </div>
 
               <div className="mt-5 border-t border-forest-200 pt-4">
@@ -791,8 +794,12 @@ export function SimpleMoneyDashboard({
             onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
           />
 
-          <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <details className="rounded-2xl border border-cream-200 bg-white/75">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-forest-800">
+              <span>Financial services around this Agreement</span><span className="text-xs font-normal text-sand-500">Banks · SACCOs · MMFs · Insurance</span>
+            </summary>
+            <section className="border-t border-cream-200 p-4 md:p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-forest-700" />
@@ -827,8 +834,9 @@ export function SimpleMoneyDashboard({
                 text="Protection for agreed risks."
                 note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
               />
-            </div>
-          </section>
+              </div>
+            </section>
+          </details>
         </>
       )}
     </div>

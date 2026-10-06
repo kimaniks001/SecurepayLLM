@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, Lock, Sparkles, Unlock } from 'lucide-react';
+import { ArrowLeft, Lock, MoreHorizontal, Plus, Search, Sparkles, Unlock } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
@@ -231,7 +231,7 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer, onOpenStore }: {
  * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
  * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
-export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001 }: {
+export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001, onBack }: {
   controller: VisionBoardController;
   documentGateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>;
   fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
@@ -239,6 +239,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
   onAskKs001?: (message: string) => void;
+  onBack?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [switchKsInput, setSwitchKsInput] = useState('');
@@ -249,6 +250,9 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   const [newContent, setNewContent] = useState('');
   const [newUsagePolicy, setNewUsagePolicy] = useState<import('../../api/securepay/visionboard/dto').VisionItemUsagePolicy>('REFERENCE_ONLY');
   const [searchInput, setSearchInput] = useState('');
+  const [rootSearchOpen, setRootSearchOpen] = useState(false);
+  const [rootAddOpen, setRootAddOpen] = useState(false);
+  const [rootMoreOpen, setRootMoreOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
 
@@ -394,6 +398,90 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   return <div className="sp-life-canvas min-h-dvh">
     <NavBar view="vision-board" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={onBack ?? (() => onNavigate('signed-in'))}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-forest-700">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => { setRootSearchOpen(false); setRootAddOpen(v => !v); }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-cream-200 bg-white px-3 text-sm font-semibold text-forest-800">
+            <Plus className="h-4 w-4" /> Add
+          </button>
+          <button type="button" onClick={() => { setRootAddOpen(false); setRootSearchOpen(v => !v); }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="Search Vision">
+            <Search className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={() => { setRootAddOpen(false); setRootSearchOpen(false); setRootMoreOpen(v => !v); }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="More Vision tools">
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {rootSearchOpen && (
+        <div className="sp-section flex gap-2 p-3">
+          <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search your whole Vision Board"
+            className="min-h-11 flex-1 rounded-xl border border-cream-200 bg-white px-3 text-sm" />
+          <Button variant="secondary" onClick={() => void controller.search(searchInput.trim())}>Search</Button>
+        </div>
+      )}
+
+      {rootAddOpen && (
+        <div className="sp-section p-3">
+          <p className="text-xs font-semibold text-forest-900">Where should this live?</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(state.shelves.data ?? []).map(shelf => (
+              <button key={shelf.shelf} type="button" onClick={() => { setShowCreate(true); setRootAddOpen(false); void controller.openShelf(shelf.shelf); }}
+                className="min-h-12 rounded-xl border border-cream-200 bg-white px-3 text-left text-xs font-medium text-forest-800">
+                {shelf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rootMoreOpen && (
+        <div className="sp-section space-y-4 p-4">
+          <div>
+            <div className="text-xs font-semibold text-forest-900">Documents</div>
+            <p className="mt-1 text-xs text-sand-500">Prepare a quotation, invoice or receipt from real Vision information.</p>
+            {state.boarded && <div className="mt-2"><DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} /></div>}
+          </div>
+          <div className="border-t border-cream-200 pt-4">
+            <div className="text-xs font-semibold text-forest-900">Another KS Board</div>
+            {showSwitchKs ? (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input value={switchKsInput} onChange={e => setSwitchKsInput(e.target.value)} placeholder="Business KS Number you manage" className="min-h-11 flex-1 rounded-lg border border-cream-200 px-3 text-[0.85rem]" />
+                <Button onClick={() => { if (switchKsInput.trim()) { void controller.loadForOwner(switchKsInput.trim()); setShowSwitchKs(false); setRootMoreOpen(false); } }} className="px-3">Switch</Button>
+                <Button variant="secondary" onClick={() => setShowSwitchKs(false)} className="px-3">Cancel</Button>
+              </div>
+            ) : (
+              <button onClick={() => setShowSwitchKs(true)} className="mt-2 min-h-11 text-sm font-medium text-forest-700 underline">
+                {state.ownerKsNumber ? 'Manage a different KS Board' : 'Manage a Business KS Board'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {state.searchQuery && state.items.status === 'ready' && (
+        <section className="sp-section p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div><div className="sp-kicker">Search</div><h2 className="mt-1 font-display text-xl text-forest-900">{state.items.data?.length ?? 0} result{state.items.data?.length === 1 ? '' : 's'}</h2></div>
+            <button type="button" onClick={() => { setSearchInput(''); setRootSearchOpen(false); controller.closeShelf(); }} className="min-h-11 text-xs font-medium text-forest-700">Clear</button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(state.items.data ?? []).map(vitem => (
+              <button key={vitem.id} onClick={() => controller.open(vitem)} className="w-full rounded-xl border border-cream-200 bg-white px-3 py-3 text-left">
+                <span className="block text-sm font-medium text-forest-800">{vitem.title}</span>
+                <span className="mt-0.5 block text-xs text-sand-500">{vitem.shelf.replace(/_/g, ' ').toLowerCase()}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="sp-hero px-5 py-6 md:px-7 md:py-7">
         <div className="sp-kicker">Vision</div>
         <h1 className="sp-display mt-2 max-w-2xl text-[2.35rem] md:text-5xl">What are you trying to move forward?</h1>
@@ -434,22 +522,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         </button>
       </section>
 
-      {/* Convergence correction (section 43) -- this is never required to see your own board; it
-          only switches to managing a different KS (e.g. a Business you administer). */}
       {state.ownerKsNumber && <p className="text-[0.75rem] text-sand-500">Managing the Vision Board for <span className="text-forest-700">{state.ownerKsNumber}</span>.</p>}
-      {showSwitchKs ? (
-        <Surface>
-          <SurfaceBody className="flex gap-2">
-            <input value={switchKsInput} onChange={e => setSwitchKsInput(e.target.value)} placeholder="Business KS Number you manage" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
-            <Button onClick={() => { if (switchKsInput.trim()) { void controller.loadForOwner(switchKsInput.trim()); setShowSwitchKs(false); } }} className="px-3">Switch</Button>
-            <Button variant="secondary" onClick={() => setShowSwitchKs(false)} className="px-3">Cancel</Button>
-          </SurfaceBody>
-        </Surface>
-      ) : (
-        <button onClick={() => setShowSwitchKs(true)} className="text-[0.78rem] text-forest-700 underline">
-          {state.ownerKsNumber ? 'Manage a different KS' : 'Manage a Business KS instead'}
-        </button>
-      )}
 
       {state.shelves.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Vision Board…</p>}
       {state.shelves.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.shelves.error}</StatusNotice>}
@@ -468,7 +541,6 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         </button>)}
       </div>}
 
-      {state.boarded && <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />}
     </div>
   </div>;
 }

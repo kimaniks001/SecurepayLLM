@@ -689,16 +689,20 @@ export function MoneyPaymentSettlementJourney({
           <div className="flex items-center gap-2">
             <ReceiptText className="h-5 w-5 text-forest-700" />
             <div>
-              <h2 className="font-display text-2xl text-forest-900">Funding this Agreement</h2>
-              <p className="text-sm text-sand-600">Review the authoritative cost before creating a payment.</p>
+              <h2 className="font-display text-2xl text-forest-900">Fund this Agreement</h2>
+              <p className="text-xs text-sand-500">{fundingOptions.length} available route{fundingOptions.length === 1 ? '' : 's'}</p>
             </div>
           </div>
 
-          <div className="mt-5 space-y-3">
+          <details className="mt-4" open={fundingOptions.length === 1}>
+            <summary className="min-h-11 cursor-pointer rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm font-semibold text-forest-800">
+              {fundingOptions.length === 0 ? 'No funding route available' : fundingOptions.length === 1 ? fundingOptions[0].displayName : `Choose funding route (${fundingOptions.length})`}
+            </summary>
+            <div className="mt-2 space-y-2">
             {fundingOptions.length === 0 ? (
-              <p className="rounded-xl bg-cream-50 p-4 text-sm text-sand-600">No funding route is currently available for this Agreement.</p>
+              <p className="rounded-xl bg-cream-50 p-3 text-sm text-sand-600">Nothing to choose right now.</p>
             ) : fundingOptions.map(rail => (
-              <div key={rail.railCode} className="rounded-2xl border border-cream-200 bg-cream-50/70 p-4">
+              <div key={rail.railCode} className="rounded-xl border border-cream-200 bg-white p-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -724,14 +728,11 @@ export function MoneyPaymentSettlementJourney({
                     <div className="text-xs text-sand-500">No quote step for this rail.</div>
                   )}
                 </div>
-                {!rail.quoteAvailable && rail.railCode === 'MPESA_STK' && (
-                  <p className="mt-2 text-xs leading-5 text-sand-600">
-                    M-PESA remains a funding rail, but SecurePay will not manufacture a provider quote when the backend says none is available.
-                  </p>
-                )}
+
               </div>
             ))}
-          </div>
+            </div>
+          </details>
 
           {quoteError && <div className="mt-4"><StatusNotice tone="warning">{quoteError}</StatusNotice></div>}
           {quoteSelection && (
@@ -785,14 +786,12 @@ export function MoneyPaymentSettlementJourney({
             </div>
           )}
 
-          <div className="mt-6 border-t border-cream-200 pt-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-display text-xl text-forest-900">Payment journey</h3>
-                <p className="mt-1 text-xs text-sand-500">A payment is a stateful journey. Pending is never treated as success or failure.</p>
-              </div>
-              <Button variant="ghost" onClick={() => void loadIntents()}>Refresh</Button>
-            </div>
+          <details className="mt-5 border-t border-cream-200 pt-4">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-forest-800">
+              <span>Payment history {intents.state === 'ready' && intents.value.length > 0 ? `(${intents.value.length})` : ''}</span>
+              <span className="text-xs font-normal text-sand-500">View details</span>
+            </summary>
+            <div className="mt-2 flex justify-end"><Button variant="ghost" onClick={() => void loadIntents()}>Refresh</Button></div>
 
             {intents.state === 'loading' && <p role="status" className="mt-3 text-sm text-sand-500">Loading Agreement payments…</p>}
             {intents.state === 'error' && <div className="mt-3"><StatusNotice tone="warning">Payments could not be loaded, so SecurePay will not guess whether one is in progress.</StatusNotice></div>}
@@ -825,18 +824,16 @@ export function MoneyPaymentSettlementJourney({
             )}
 
             {paymentEvidence && <div className="mt-4"><PaymentTimeline evidence={paymentEvidence} agreementTitle={agreementTitle} /></div>}
-          </div>
+          </details>
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-forest-700" />
-              <div>
-                <h2 className="font-display text-2xl text-forest-900">Where your money will go</h2>
-                <p className="text-sm text-sand-600">Your settlement destination for this Agreement currency.</p>
-              </div>
-            </div>
+          <details className="rounded-2xl border border-cream-200 bg-white/80" open={!currentDestination || showDestinationForm || !!destinationError}>
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <span className="flex items-center gap-2 text-sm font-semibold text-forest-900"><ShieldCheck className="h-4 w-4 text-forest-700" /> Where released money goes</span>
+              <span className="text-xs text-sand-500">{currentDestination ? currentDestination.maskedDestinationDisplay : 'Not set'}</span>
+            </summary>
+            <div className="border-t border-cream-200 p-4">
 
             {!scopeCurrency ? (
               <p className="mt-4 text-sm text-sand-600">SecurePay has not established the Agreement currency, so no settlement destination is being guessed.</p>
@@ -974,16 +971,15 @@ export function MoneyPaymentSettlementJourney({
                 )}
               </>
             )}
-          </div>
-
-          <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
-            <div className="flex items-center gap-2">
-              <WalletCards className="h-5 w-5 text-forest-700" />
-              <div>
-                <h2 className="font-display text-2xl text-forest-900">Release & settlement</h2>
-                <p className="text-sm text-sand-600">Release authority, an instruction, provider processing and settlement are different states.</p>
-              </div>
             </div>
+          </details>
+
+          <details className="rounded-2xl border border-cream-200 bg-white/80" open={!!currentSettlementStatus?.exception}>
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+              <span className="flex items-center gap-2 text-sm font-semibold text-forest-900"><WalletCards className="h-4 w-4 text-forest-700" /> Release & settlement</span>
+              <span className="text-xs text-sand-500">{currentSettlementStatus?.settledAt ? 'Settled' : release.authority.state === 'ready' && release.authority.value.authorized ? 'Release available' : 'Protected'}</span>
+            </summary>
+            <div className="border-t border-cream-200 p-4">
 
             <div className="mt-5 grid gap-2">
               <div className="flex items-start gap-3 rounded-xl bg-cream-50 p-3">
@@ -1021,8 +1017,8 @@ export function MoneyPaymentSettlementJourney({
                   <div className="text-sm font-semibold text-forest-900">{currentSettlementStatus?.settledAt ? 'Settled' : 'Money still protected'}</div>
                   <div className="text-xs leading-5 text-sand-600">
                     {currentSettlementStatus?.settledAt
-                      ? `Settlement completed ${formatWhen(currentSettlementStatus.settledAt) ?? 'at the time recorded by SecurePay'} for this Agreement.`
-                      : 'Until SecurePay has authoritative settlement completion evidence, this screen does not call the money settled.'}
+                      ? `Completed ${formatWhen(currentSettlementStatus.settledAt) ?? ''}.`
+                      : 'No completed settlement is recorded yet.'}
                   </div>
                 </div>
               </div>
@@ -1065,7 +1061,8 @@ export function MoneyPaymentSettlementJourney({
                 <RefreshCw className="mr-1 inline h-4 w-4" /> Refresh settlement
               </Button>
             </div>
-          </div>
+            </div>
+          </details>
         </div>
       </div>
     </section>

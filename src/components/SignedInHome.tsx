@@ -46,6 +46,10 @@ interface SignedInHomeProps {
   /** Phase 7 Slice 5B -- an optional lower-page doorway (The Trust Project), rendered BELOW the conversation
    *  and the person's own lists; omitted, the markup is unchanged. */
   belowHome?: ReactNode;
+  /** Real KS001 source intake control, supplied by the owning Agent shell. */
+  composerLeading?: ReactNode;
+  /** Paste / Link / Place review panel. Kept adjacent to the composer so capability is visible without leaving Home. */
+  intakePanel?: ReactNode;
   /** Phase 7 Slice 6 -- a Problem is a Review/dispute fact: open its Agreement on Support (Reviews &amp; issues). Defaults to onOpenAgreement. */
   onOpenProblem?: (id: string) => void;
 }
@@ -71,6 +75,8 @@ export function SignedInHome({
   subheading = fixtureSubheading,
   suggestedPrompts = fixturePrompts,
   belowHome,
+  composerLeading,
+  intakePanel,
   onOpenProblem,
 }: SignedInHomeProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
@@ -105,7 +111,8 @@ export function SignedInHome({
             </p>
 
             <div className="mt-6">
-              <ConversationInput onSend={onStart} placeholder="Tell KS001 what you want to make happen…" />
+              <ConversationInput onSend={onStart} placeholder="Tell KS001 what you want to make happen…" leading={composerLeading} />
+              {intakePanel && <div className="mt-3">{intakePanel}</div>}
             </div>
             <button
               type="button"
