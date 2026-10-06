@@ -38,6 +38,7 @@ export function TrustProjectImpactHome({
   const [contributions,setContributions]=useState<ProjectContributionDto[]>([]);
   const [projects,setProjects]=useState<CommunityProjectDto[]>([]);
   const [storyProjectId,setStoryProjectId]=useState('');
+  const [safeShareConfirmed,setSafeShareConfirmed]=useState(false);
   const [impact,setImpact]=useState<CommunityImpactViewDto|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
@@ -88,7 +89,7 @@ export function TrustProjectImpactHome({
   }
 
   const submitContribution=async()=>{
-    if(!storyProjectId||!title.trim()||!body.trim()) return;
+    if(!storyProjectId||!safeShareConfirmed||!title.trim()||!body.trim()) return;
     setSubmitting(true); setError(null);
     try {
       const created=await gateway.contributions.create({
@@ -99,12 +100,12 @@ export function TrustProjectImpactHome({
         body:body.trim(),
         originType:'COMMUNITY_PROJECT',
         originObjectId:storyProjectId,
-        explicitSafeShare:false,
+        explicitSafeShare:true,
         idempotencyKey:globalThis.crypto?.randomUUID?.() ?? `contribution-${Date.now()}`,
         media:[],
       });
       setContributions(items=>[created,...items]);
-      setTitle(''); setBody(''); setType('EXPERIENCE'); setComposerOpen(false);
+      setTitle(''); setBody(''); setType('EXPERIENCE'); setSafeShareConfirmed(false); setComposerOpen(false);
     } catch(e) { setError(e instanceof Error ? e.message : 'Contribution could not be published.'); }
     finally { setSubmitting(false); }
   };
@@ -181,7 +182,11 @@ export function TrustProjectImpactHome({
         </select>
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Give this moment a clear title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
         <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="What happened? What did people see, learn, change or struggle with?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-        <button disabled={submitting||!storyProjectId||!title.trim()||!body.trim()} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Add to this Project story'}</button>
+        <label className="flex items-start gap-2 rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.72rem] text-sand-600">
+          <input type="checkbox" checked={safeShareConfirmed} onChange={e=>setSafeShareConfirmed(e.target.checked)} className="mt-0.5" />
+          <span>I am choosing to share this Project story with Community. Private Agreement and payment details must stay out of the post.</span>
+        </label>
+        <button disabled={submitting||!storyProjectId||!safeShareConfirmed||!title.trim()||!body.trim()} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Add to this Project story'}</button>
         <p className="text-[0.68rem] text-sand-500">This story is linked to the Project, not to private Agreement or payment data.</p>
       </div>}
     </div>
