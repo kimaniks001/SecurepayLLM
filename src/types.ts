@@ -726,6 +726,8 @@ export interface AgreementVersion {
 export interface AgreementSummary {
   id: string;
   title: string;
+  purpose?: string;
+  attentionRequired?: boolean;
   counterparty: string;
   counterpartyRole: string;
   amount: string;
