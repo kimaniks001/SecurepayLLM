@@ -9,7 +9,7 @@ test('Community HOME exposes the five human-purpose surfaces', () => {
   const start = experience.indexOf('const tabs:');
   const end = experience.indexOf('];', start);
   const tabs = experience.slice(start, end);
-  for (const label of ['LIVE','SERVE','LEARN','CIRCLES','HAPPENING']) assert.match(tabs, new RegExp(label));
+  for (const label of ['LIVE','PROJECTS & ACTIVITIES','LEARN','CIRCLES','HAPPENING']) assert.match(tabs, new RegExp(label));
   assert.doesNotMatch(tabs, /Discover Circles/);
 });
 

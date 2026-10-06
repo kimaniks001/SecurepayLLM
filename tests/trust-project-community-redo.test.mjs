@@ -38,9 +38,10 @@ test('pathway discovery remains possibility not assignment', () => {
   assert.match(home, /They do not assign you a role/);
 });
 
-test('plain Home contribution does not silently publish private SecurePay provenance', () => {
-  assert.match(home, /originType:null/);
-  assert.match(home, /originObjectId:null/);
-  assert.match(home, /explicitSafeShare:false/);
-  assert.match(home, /not linked to private Agreement or payment data/);
+test('Community story publishing is project-first and requires explicit safe-share', () => {
+  assert.match(home, /originType:'COMMUNITY_PROJECT'/);
+  assert.match(home, /originObjectId:storyProjectId/);
+  assert.match(home, /explicitSafeShare:true/);
+  assert.match(home, /safeShareConfirmed/);
+  assert.match(home, /not to private Agreement or payment data/);
 });

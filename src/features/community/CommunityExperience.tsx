@@ -23,6 +23,7 @@ import {
 import { realObjectToCommunityObject, combineRealResponses, myActiveHelpResponseId } from './view';
 import { useAppNavPadding } from '../public/publicShell';
 import { TrustProjectImpactHome } from './TrustProjectImpactHome';
+import { CircleBoard } from './CircleBoard';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store'>;
 
@@ -144,7 +145,7 @@ function TrustProjectBanner({
 function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect: (tab: CommunityHomeTab) => void }) {
   const tabs: { value: CommunityHomeTab; label: string }[] = [
     { value: 'live', label: 'LIVE' },
-    { value: 'serve', label: 'SERVE' },
+    { value: 'serve', label: 'PROJECTS & ACTIVITIES' },
     { value: 'learn', label: 'LEARN' },
     { value: 'circles', label: 'CIRCLES' },
     { value: 'happening', label: 'HAPPENING' },
@@ -331,7 +332,8 @@ function CircleDetailPanel({
   objects, objectsLoading, onOpenObject, onCompose,
   members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
-  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001,
+  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001, communityGateway,
+  messageBody, messageSubmitting, messageError, onMessageChange, onSendMessage,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
@@ -363,10 +365,17 @@ function CircleDetailPanel({
   onOpenCloseConfirm: () => void;
   onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
   onInvokeKs001: () => void;
+  communityGateway: CommunityGateway;
+  messageBody: string;
+  messageSubmitting: boolean;
+  messageError: string | null;
+  onMessageChange: (body: string) => void;
+  onSendMessage: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   const canSteward = isOwner || isSteward;
   const stewardMembershipIds = new Set(stewards.filter(s => s.active).map(s => s.membershipId));
+  const [circleSpace, setCircleSpace] = useState<'conversation' | 'board'>('conversation');
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -492,7 +501,7 @@ function CircleDetailPanel({
           <div className="rounded-xl border border-forest-100 bg-forest-50/40 px-4 py-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-[0.78rem] font-medium text-forest-800">KS001 in this Circle</div>
-              <p className="text-[0.7rem] text-sand-600 mt-0.5">Invite KS001 to help organise this Circle's discussion. It cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
+              <p className="text-[0.7rem] text-sand-600 mt-0.5">KS001 opens in this Circle's shared context, so it can help members catch up and organise what the Circle has already shared. A member's private conversations stay separate. KS001 cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
             </div>
             <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001</button>
           </div>
@@ -500,28 +509,85 @@ function CircleDetailPanel({
 
         {isMember && (
           <div className="space-y-3 pt-2 border-t border-cream-100">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle feed</h2>
-              {circle.status === 'ACTIVE' && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="inline-flex rounded-xl border border-cream-200 bg-white p-1">
+                <button
+                  onClick={() => setCircleSpace('conversation')}
+                  className={`rounded-lg px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${circleSpace === 'conversation' ? 'bg-forest-600 text-cream-50' : 'text-forest-700 hover:bg-cream-50'}`}
+                >
+                  Conversation
+                </button>
+                <button
+                  onClick={() => setCircleSpace('board')}
+                  className={`rounded-lg px-3 py-1.5 text-[0.75rem] font-medium transition-colors ${circleSpace === 'board' ? 'bg-forest-600 text-cream-50' : 'text-forest-700 hover:bg-cream-50'}`}
+                >
+                  Circle Board
+                </button>
+              </div>
+              {circleSpace === 'conversation' && circle.status === 'ACTIVE' && (
                 <button onClick={onCompose} className="text-[0.78rem] font-medium text-forest-600 hover:text-forest-700">+ Share</button>
               )}
             </div>
-            {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
-            {!objectsLoading && objects.length === 0 && (
-              <p className="text-[0.8rem] text-sand-500 py-4 text-center">Nothing shared here yet.</p>
+
+            {circleSpace === 'board' ? (
+              <CircleBoard
+                circleId={circle.id}
+                gateway={communityGateway}
+                objects={objects}
+                loading={objectsLoading}
+                active={circle.status === 'ACTIVE'}
+                onOpenObject={onOpenObject}
+                onAdd={onCompose}
+              />
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle conversation</h2>
+                  <p className="text-[0.7rem] text-sand-500 mt-0.5">Talk, coordinate and keep the working context together. Formal Agreement decisions still happen in the Agreement.</p>
+                </div>
+                {circle.status === 'ACTIVE' && (
+                  <div className="rounded-2xl border border-cream-200 bg-white p-3">
+                    <textarea
+                      value={messageBody}
+                      onChange={e => onMessageChange(e.target.value)}
+                      rows={2}
+                      placeholder="Message the Circle…"
+                      className="w-full resize-none bg-transparent px-1 py-1 text-[0.84rem] text-forest-800 placeholder:text-sand-400 focus:outline-none"
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-[0.67rem] text-sand-500">A Circle message is coordination, not an Agreement decision.</p>
+                      <button
+                        onClick={onSendMessage}
+                        disabled={messageSubmitting || !messageBody.trim()}
+                        className="shrink-0 rounded-xl bg-forest-600 px-3.5 py-2 text-[0.75rem] font-medium text-cream-50 hover:bg-forest-700 disabled:opacity-50"
+                      >
+                        {messageSubmitting ? 'Sending…' : 'Send'}
+                      </button>
+                    </div>
+                    {messageError && <p role="alert" className="mt-2 text-[0.72rem] text-red-600">{messageError}</p>}
+                  </div>
+                )}
+                {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
+                {!objectsLoading && objects.length === 0 && (
+                  <p className="text-[0.8rem] text-sand-500 py-4 text-center">Nothing shared here yet.</p>
+                )}
+                <div className="space-y-2">
+                  {objects.map(o => (
+                    <button
+                      key={o.id}
+                      onClick={() => onOpenObject(o.id)}
+                      className="w-full text-left rounded-xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[0.85rem] font-medium text-forest-800">{o.title}</div>
+                        <span className="shrink-0 text-[0.64rem] uppercase tracking-wide text-sand-500">{o.objectType.replace('_', ' ').toLowerCase()}</span>
+                      </div>
+                      <p className="text-[0.78rem] text-sand-600 mt-0.5 line-clamp-2">{o.body}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-            <div className="space-y-2">
-              {objects.map(o => (
-                <button
-                  key={o.id}
-                  onClick={() => onOpenObject(o.id)}
-                  className="w-full text-left rounded-xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-300 transition-colors"
-                >
-                  <div className="text-[0.85rem] font-medium text-forest-800">{o.title}</div>
-                  <p className="text-[0.78rem] text-sand-600 mt-0.5 line-clamp-2">{o.body}</p>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -997,7 +1063,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [purposeLoading, setPurposeLoading] = useState(false);
   const [purposeError, setPurposeError] = useState<string | null>(null);
   const [purposeCreate, setPurposeCreate] = useState<'service' | 'event' | 'apprenticeship' | null>(null);
-  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', locationLabel: '', skills: '' });
+  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', outcome: '', locationLabel: '', skills: '' });
   const [eventDraft, setEventDraft] = useState({ title: '', description: '', startsAt: '', locationLabel: '' });
   const [apprenticeshipDraft, setApprenticeshipDraft] = useState({ apprenticeKsNumber: '', title: '', learningGoal: '' });
   const [purposeSubmitting, setPurposeSubmitting] = useState(false);
@@ -1149,6 +1215,12 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
         onSetLifecycle={status => void controller.setCircleLifecycle(status)}
         onInvokeKs001={() => onInvokeKs001InCircle(state.selectedCircle!.id)}
+        communityGateway={communityGateway}
+        messageBody={state.circleMessageDraft.body}
+        messageSubmitting={state.circleMessageDraft.submitting}
+        messageError={state.circleMessageDraft.error}
+        onMessageChange={body => controller.setCircleMessageBody(body)}
+        onSendMessage={() => void controller.submitCircleMessage()}
       />
     );
   } else if (state.view === 'compose') {
@@ -1259,31 +1331,39 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
-            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Service need</button>
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Projects & Activities</h2><p className="text-[0.8rem] text-sand-500">Start with an intention. Ask the Community for people and skills, then shape it into something real.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Declare intention</button>
           </div>
           {purposeCreate === 'service' && (
             <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
-              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What help is needed?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Describe the practical need" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="General location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="Skills needed, comma separated (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <div>
+                <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Declare the intention</div>
+                <p className="text-[0.72rem] text-sand-500 mt-0.5">Start with the change you want to make. This is not a request for money or materials.</p>
+              </div>
+              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What are you trying to do?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Why does it matter?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.outcome} onChange={e => setServiceDraft(d => ({...d,outcome:e.target.value}))} placeholder="What would you like to see happen?" rows={2} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="Where is this happening? (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="What do you want from the Community? skills, labour, mentoring…" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <div className="rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.7rem] text-sand-600">
+                Materials, equipment and funding are organised separately through the appropriate Store / Agreement / Money path. Community participation is about people, skills, labour, knowledge and presence.
+              </div>
               <button
-                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim()}
+                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim() || !serviceDraft.outcome.trim()}
                 onClick={() => {
                   setPurposeSubmitting(true); setPurposeError(null);
                   void communityGateway.serviceOpportunities.create({
-                    title: serviceDraft.title.trim(), description: serviceDraft.description.trim(),
+                    title: serviceDraft.title.trim(), description: `${serviceDraft.description.trim()}\n\nWhat we hope to see: ${serviceDraft.outcome.trim()}`,
                     locationLabel: serviceDraft.locationLabel.trim() || null,
                     skillsNeeded: serviceDraft.skills.split(',').map(x => x.trim()).filter(Boolean),
                   }).then(created => {
                     setServiceItems(items => [created, ...items]);
-                    setServiceDraft({ title: '', description: '', locationLabel: '', skills: '' });
+                    setServiceDraft({ title: '', description: '', outcome: '', locationLabel: '', skills: '' });
                     setPurposeCreate(null);
                   }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
                 }}
                 className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
-              >Create service opportunity</button>
+              >Declare intention</button>
             </div>
           )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
@@ -1353,9 +1433,39 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
             <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
             <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
           </div>)}
-          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
-            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.purpose}</p>
-            <div className="text-[0.68rem] text-sand-500 mt-2">Community project · {item.status.toLowerCase()}</div>
+          {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div>
+                <p className="text-[0.78rem] text-sand-600 mt-1 whitespace-pre-line">{item.purpose}</p>
+              </div>
+              <span className="shrink-0 text-[0.66rem] uppercase tracking-wide text-sand-500">{item.status.toLowerCase()}</span>
+            </div>
+            <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location still being organised'} · Community project</div>
+
+            <div className="mt-3 rounded-xl border border-forest-100 bg-forest-50/35 px-3 py-3">
+              <div className="text-[0.72rem] font-medium text-forest-800">Taking part should not make the organiser your travel agent.</div>
+              <p className="text-[0.7rem] text-sand-600 mt-1">Use the Project to coordinate the work. If you need accommodation, transport, local services or human coordination, prepare the appropriate Store or Plug path.</p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <button
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,'STORE')
+                    .then(() => controller.showNotice('Store help prepared. Nothing has been booked or paid for.'))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.73rem] font-medium text-forest-600"
+                >
+                  Find practical services
+                </button>
+                <button
+                  onClick={() => void communityGateway.transitions.prepareProject(item.id,'PLUG')
+                    .then(() => controller.showNotice('Plug coordination prepared. No one has been assigned yet.'))
+                    .catch(error => controller.showNotice(errorText(error)))}
+                  className="text-[0.73rem] font-medium text-forest-600"
+                >
+                  Ask for Plug coordination
+                </button>
+              </div>
+            </div>
+
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
               <button
                 onClick={() => void communityGateway.transitions.projectToVision(item.id)
@@ -1376,6 +1486,14 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                   Prepare {target.charAt(0)+target.slice(1).toLowerCase()}
                 </button>
               ))}
+              {item.circleId && (
+                <button
+                  onClick={() => void controller.openCircle(item.circleId!)}
+                  className="text-[0.75rem] font-medium text-forest-600"
+                >
+                  Plan the day in Circle
+                </button>
+              )}
               <button
                 onClick={() => { setLessonProjectId(lessonProjectId === item.id ? null : item.id); setLessonDraft(''); }}
                 className="text-[0.75rem] font-medium text-forest-600"
