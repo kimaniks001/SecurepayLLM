@@ -22,6 +22,7 @@ import { availabilityOptionsFor } from './view';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
+import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
 
@@ -41,7 +42,7 @@ function LoadingNotice({ text }: { text: string }) {
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
 export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision }: {
-  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes'>; auth: AuthGateway; session: SessionStore;
+  gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
@@ -69,6 +70,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     error: string | null;
     matches: FulfilmentNeedMatchDto[];
     routes: SupplyRouteDto[];
+  } | null>(null);
+  const [miniAgreementReview, setMiniAgreementReview] = useState<{
+    route: SupplyRouteDto;
+    review: import('../../api/securepay/fulfilment-needs').MiniAgreementReviewDto | null;
+    loading: boolean;
+    error: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -135,6 +142,17 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     } catch {
       // Store remains fully usable when Plug availability cannot be loaded.
       setPlugAvailability(null);
+    }
+  };
+
+  const reviewRouteForAgreement = async (needId: string, route: SupplyRouteDto) => {
+    if (!fulfilmentNeedsGateway) return;
+    setMiniAgreementReview({ route, review: null, loading: true, error: null });
+    try {
+      const review = await fulfilmentNeedsGateway.miniAgreementReview(needId, route.offerId);
+      setMiniAgreementReview({ route, review, loading: false, error: null });
+    } catch (error) {
+      setMiniAgreementReview({ route, review: null, loading: false, error: errorText(error) });
     }
   };
 
@@ -346,6 +364,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onTogglePlugAvailability={plugAvailability ? () => void togglePlugAvailability() : undefined}
         onInspectOpportunity={fulfilmentNeedsGateway ? needId => void inspectOpportunity(needId) : undefined}
         onOpenRouteOffer={(providerKsNumber, offerId) => void controller.openOffer(providerKsNumber, offerId)}
+        onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         opportunityInspection={opportunityInspection}
       />
     );
@@ -361,6 +380,44 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onBack={() => controller.backFromBuilder()}
         onSubmit={() => void controller.submitDraft()}
       />
+    );
+  }
+
+  if (miniAgreementReview) {
+    const route = miniAgreementReview.route;
+    return (
+      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        <NavBar view={navBarView} onNavigate={handleNavigate} />
+        <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6">
+          {miniAgreementReview.loading && <LoadingNotice text="Preparing the Agreement review…" />}
+          {miniAgreementReview.error && (
+            <div className="rounded-2xl border border-ember-200 bg-ember-50 px-4 py-4">
+              <p role="alert" className="text-sm text-ember-700">{miniAgreementReview.error}</p>
+              <button type="button" onClick={() => setMiniAgreementReview(null)} className="mt-3 min-h-11 text-sm text-forest-700 underline">Back to Store</button>
+            </div>
+          )}
+          {miniAgreementReview.review && (
+            <FulfilmentMiniAgreementReview
+              review={miniAgreementReview.review}
+              route={route}
+              onBack={() => setMiniAgreementReview(null)}
+              onOpenOffer={() => { setMiniAgreementReview(null); void controller.openOffer(route.providerKsNumber, route.offerId); }}
+              onContinue={() => {
+                const review = miniAgreementReview.review;
+                if (!review) return;
+                const amount = review.proposedAmountMinor !== null ? String(review.proposedAmountMinor / 100) : undefined;
+                onUseOffer({
+                  amount,
+                  currency: amount ? review.currency : undefined,
+                  sourceDescription: `Fulfilment route: ${review.what} — ${review.providerDisplayName ?? review.providerKsNumber} — offer ${review.offerId}`,
+                  sourceId: review.offerId,
+                  sourceOwnerKsNumber: review.providerKsNumber,
+                });
+              }}
+            />
+          )}
+        </div>
+      </div>
     );
   }
 
