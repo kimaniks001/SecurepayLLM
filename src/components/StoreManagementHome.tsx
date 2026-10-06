@@ -1,6 +1,7 @@
 import { ArrowLeft, Plus, FileText, ShoppingBag, Link2 } from 'lucide-react';
 import type { PlugAvailabilityResponse, PlugMissionDto } from '../api/securepay/marketnetwork/dto';
 import type { BusinessStoreOpportunityResponse } from '../api/securepay/store/dto';
+import type { FulfilmentNeedMatchDto, SupplyRouteDto } from '../api/securepay/fulfilment-needs';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
 
 interface StoreManagementHomeProps {
@@ -21,9 +22,18 @@ interface StoreManagementHomeProps {
   plugAvailabilityError?: string | null;
   plugMissions?: PlugMissionDto[];
   onTogglePlugAvailability?: () => void;
+  onInspectOpportunity?: (needId: string) => void;
+  onOpenRouteOffer?: (providerKsNumber: string, offerId: string) => void;
+  opportunityInspection?: {
+    needId: string;
+    loading: boolean;
+    error: string | null;
+    matches: FulfilmentNeedMatchDto[];
+    routes: SupplyRouteDto[];
+  } | null;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, opportunityInspection }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -156,10 +166,85 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                   <div className="text-[0.65rem] text-sand-400 mt-2">
                     Matches: {opportunity.matchedOffers.map(match => match.title).join(', ')}
                   </div>
+                  {onInspectOpportunity && (
+                    <button
+                      type="button"
+                      onClick={() => onInspectOpportunity(opportunity.fulfilmentNeedId)}
+                      className="mt-2 rounded-lg border border-cream-200 px-3 py-1.5 text-[0.7rem] font-medium text-forest-700 hover:border-forest-300"
+                    >
+                      Compare supply routes
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           </div>
+        )}
+
+        {opportunityInspection && (
+          <section aria-label="Supply routes" className="rounded-2xl border border-forest-200 bg-forest-50/40 px-4 py-4">
+            <div className="text-[0.7rem] font-semibold uppercase tracking-wide text-sand-500">Supply routes</div>
+            <h2 className="mt-1 font-display text-lg text-forest-800">Compare before you commit</h2>
+            <p className="mt-1 text-[0.72rem] text-sand-600">These are backend-matched routes for this fulfilment need. SecurePay is not selecting a supplier or calculating a landed cost that the backend does not know.</p>
+
+            {opportunityInspection.loading && <p role="status" className="mt-3 text-[0.76rem] text-sand-500">Checking routes…</p>}
+            {opportunityInspection.error && <p role="alert" className="mt-3 text-[0.76rem] text-ember-600">{opportunityInspection.error}</p>}
+
+            {!opportunityInspection.loading && !opportunityInspection.error && opportunityInspection.routes.length === 0 && (
+              <p className="mt-3 text-[0.76rem] text-sand-500">No supply route is available for this need yet.</p>
+            )}
+
+            <div className="mt-3 space-y-2">
+              {opportunityInspection.routes.map(route => (
+                <div key={route.routeId} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[0.8rem] font-medium text-forest-800">{route.routeLabel}</div>
+                      <div className="mt-0.5 text-[0.68rem] text-sand-500">
+                        {route.providerDisplayName ?? route.providerKsNumber}
+                        {route.leadTimeHours !== null ? ` · ${route.leadTimeHours}h lead time` : ''}
+                        {route.minimumOrderQuantity !== null ? ` · MOQ ${route.minimumOrderQuantity}` : ''}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[0.72rem] font-medium text-forest-800">
+                        {route.headlinePriceMinor !== null ? `${route.currency} ${(route.headlinePriceMinor / 100).toLocaleString()}` : 'Price not listed'}
+                      </div>
+                      <div className="text-[0.62rem] text-sand-400">{route.landedCostKnown ? 'Landed cost known' : 'Landed cost not established'}</div>
+                    </div>
+                  </div>
+
+                  {route.tradeOffs.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {route.tradeOffs.slice(0, 3).map((tradeOff, index) => (
+                        <li key={index} className="text-[0.68rem] text-sand-600">• {tradeOff}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.64rem] text-sand-500">
+                    <span>{route.deliveryAvailable === null ? 'Delivery not stated' : route.deliveryAvailable ? 'Delivery available' : 'No delivery declared'}</span>
+                    <span>{route.warrantyDeclared ? 'Warranty declared' : 'Warranty not declared'}</span>
+                    <span>{route.returnTermsDeclared ? 'Return terms declared' : 'Return terms not declared'}</span>
+                  </div>
+
+                  {onOpenRouteOffer && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRouteOffer(route.providerKsNumber, route.offerId)}
+                      className="mt-3 rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white"
+                    >
+                      Open offer
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {opportunityInspection.matches.length > opportunityInspection.routes.length && (
+              <p className="mt-3 text-[0.68rem] text-sand-500">{opportunityInspection.matches.length} provider match{opportunityInspection.matches.length === 1 ? '' : 'es'} found; routes above are the backend-composed supply options currently available.</p>
+            )}
+          </section>
         )}
 
         {plugAvailability && (
