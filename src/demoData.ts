@@ -10,6 +10,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-bathroom',
     title: 'Bathroom retiling',
+    purpose: 'Bathroom tiling work in Westlands',
+    attentionRequired: true,
     counterparty: 'Peter Mwangi',
     counterpartyRole: 'Provider',
     amount: 'KES 68,000 labour',
@@ -25,6 +27,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-iphone',
     title: 'Used iPhone 15 Pro purchase',
+    purpose: 'Purchase of a used iPhone 15 Pro',
+    attentionRequired: true,
     counterparty: 'Daniel Otieno',
     counterpartyRole: 'Seller',
     amount: 'KES 95,000',
@@ -40,6 +44,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-chama',
     title: 'Greenfields Chama',
+    purpose: 'Monthly Greenfields Chama contributions',
+    attentionRequired: false,
     counterparty: '7 members',
     counterpartyRole: 'Group',
     amount: 'KES 5,000 / month',
@@ -54,6 +60,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-kitchen',
     title: 'Kitchen renovation',
+    purpose: 'Kitchen renovation work in Westlands',
+    attentionRequired: false,
     counterparty: 'Peter Mwangi',
     counterpartyRole: 'Provider',
     amount: 'KES 320,000 labour',
@@ -69,6 +77,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-plumbing',
     title: 'Plumbing repair',
+    purpose: 'Kitchen leak plumbing repair',
+    attentionRequired: false,
     counterparty: 'Joseph Kamau',
     counterpartyRole: 'Provider',
     amount: 'KES 12,000',
@@ -84,6 +94,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-shape',
     title: 'Solar installation',
+    purpose: 'Plan a solar installation with Grace',
+    attentionRequired: false,
     counterparty: 'Grace Wanjiru',
     counterpartyRole: 'Provider',
     amount: 'Not yet agreed',
@@ -99,6 +111,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-cancelled',
     title: 'Bathroom tiling with David',
+    purpose: 'Bathroom tiling work with David',
+    attentionRequired: false,
     counterparty: 'David Otieno',
     counterpartyRole: 'Provider',
     amount: 'KES 55,000',
@@ -113,6 +127,8 @@ export const demoAgreements: AgreementSummary[] = [
   {
     id: 'agr-expired',
     title: 'Bathroom tiling invitation',
+    purpose: 'Expired invitation for bathroom tiling',
+    attentionRequired: false,
     counterparty: 'David Otieno',
     counterpartyRole: 'Provider',
     amount: 'KES 55,000',

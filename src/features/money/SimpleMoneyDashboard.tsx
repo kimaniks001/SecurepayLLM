@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   Building2,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
-  CircleDollarSign,
   FileText,
   Landmark,
   LockKeyhole,
   Route,
+  Search,
   ShieldCheck,
   Sparkles,
   Smartphone,
@@ -86,10 +88,14 @@ function fundingStatus(snapshot: AgreementMoneySnapshotResponse | null) {
   if (!snapshot) return { status: 'Unknown', detail: 'Funding information is not loaded yet.' };
   const established = snapshot.positions.filter(position => position.established);
   if (established.length === 0) return { status: 'Not funded', detail: 'No established Agreement Money position is shown.' };
-  if (established.some(position => (position.fundedTotalMinor ?? 0) > 0)) {
+  const knownFunded = established.map(position => position.fundedTotalMinor).filter((value): value is number => value != null);
+  if (knownFunded.some(value => value > 0)) {
     return { status: 'Funded', detail: 'SecurePay shows funded money on this Agreement.' };
   }
-  return { status: 'Not funded', detail: 'Agreement Money exists, but no funded amount is shown yet.' };
+  if (knownFunded.length !== established.length) {
+    return { status: 'Unknown', detail: 'SecurePay has not returned a funded amount for every established money position.' };
+  }
+  return { status: 'Not funded', detail: 'Agreement Money exists, but SecurePay shows no funded amount yet.' };
 }
 
 function releaseStatus(snapshot: AgreementMoneySnapshotResponse | null) {
@@ -101,25 +107,21 @@ function releaseStatus(snapshot: AgreementMoneySnapshotResponse | null) {
 }
 
 function movementStatus(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'Movement preflight has not loaded.' };
+  if (!snapshot) return { status: 'Unavailable', detail: 'SecurePay has not loaded the current movement state.' };
   if (snapshot.movement.state === 'READY') {
-    return { status: 'Ready', detail: 'The current read-only movement preflight passed.' };
+    return { status: 'Money can move', detail: 'The current read-only movement preflight passed.' };
   }
   if (snapshot.movement.state === 'UNAVAILABLE') {
-    return { status: 'Unknown', detail: 'SecurePay could not complete the movement preflight.' };
+    return { status: 'Unavailable', detail: 'SecurePay could not complete the movement preflight. This is unknown, not blocked.' };
   }
-  return { status: 'Blocked', detail: titleCase(snapshot.movement.reasonCode) };
+  return { status: 'Money cannot move yet', detail: titleCase(snapshot.movement.reasonCode) };
 }
 
-function nextStep(snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
-  const backendNext = agreement?.nextActions?.[0]?.reason;
+function nextStep(_snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
+  const backendNext = agreement && agreement.nextActions.length > 0 ? agreement.nextActions[0].reason : undefined;
   if (backendNext) return backendNext;
-  if (!snapshot) return 'Choose an Agreement to see the next money step.';
-  if (snapshot.movement.state === 'READY') return 'The current money movement preflight is ready.';
-  if (snapshot.paymentReady.state !== 'EVALUATED') return 'Complete the Agreement steps needed before Payment Ready can be evaluated.';
-  if (!snapshot.paymentReady.ready) return 'Resolve the outstanding Agreement conditions before funding or release.';
-  if (snapshot.fundingOptions.length === 0) return 'Payment Ready is satisfied, but SecurePay does not currently list a funding route.';
-  return 'Review the funding route and charges before any money action.';
+  if (!agreement) return 'Choose an Agreement to see its current money position.';
+  return 'Nothing needs you right now.';
 }
 
 
@@ -227,34 +229,26 @@ function AgreementCard({
   onOpen: () => void;
 }) {
   const amount = amountFromSummary(agreement);
-  const action = agreement.nextActions[0]?.reason ?? (agreement.attentionRequired ? 'This Agreement needs your attention.' : 'No immediate action is shown.');
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-pressed={active}
-      className={`w-full rounded-2xl border p-4 text-left transition-card ${active
+      className={`flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-card ${active
         ? 'border-forest-300 bg-forest-50 shadow-soft'
-        : 'border-cream-200 bg-white/70 hover:border-forest-200 hover:bg-cream-50'}`}
+        : 'border-cream-200 bg-white/75 hover:border-forest-200 hover:bg-cream-50'}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-lg text-forest-900 truncate">{agreement.title}</div>
-          <div className="mt-1 text-xs text-sand-500">
-            {agreement.counterparty?.displayName ?? agreement.counterparty?.ksNumber ?? titleCase(agreement.agreementType)}
-          </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-forest-900">{agreement.title}</div>
+        <div className="mt-0.5 truncate text-xs text-sand-500">
+          {agreement.counterparty?.displayName ?? agreement.counterparty?.ksNumber ?? titleCase(agreement.agreementType)}
         </div>
-        <StatusPill status={titleCase(agreement.status)} />
       </div>
-      <p className="mt-3 line-clamp-2 text-sm leading-5 text-sand-700">{agreement.purpose}</p>
-      <div className="mt-4 flex items-end justify-between gap-3 border-t border-cream-200 pt-3">
-        <div>
-          <div className="text-[0.68rem] uppercase tracking-wide text-sand-500">Agreement amount</div>
-          <div className="mt-0.5 text-sm font-semibold text-forest-900">
-            {amount ? <MoneyValue amount={amount} size="sm" /> : 'Not shown'}
-          </div>
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-semibold text-forest-900">
+          {amount ? <MoneyValue amount={amount} size="sm" /> : 'Amount not shown'}
         </div>
-        <div className="max-w-[55%] text-right text-xs leading-4 text-sand-600">{action}</div>
+        <div className="mt-0.5 text-[0.68rem] text-sand-500">{titleCase(agreement.status)}</div>
       </div>
     </button>
   );
@@ -330,8 +324,8 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
         }
 
         const authorised = position.authorisedMaxAmountMinor;
-        const funded = position.fundedTotalMinor ?? 0;
-        const fundedWidth = authorised != null && authorised > 0
+        const funded = position.fundedTotalMinor;
+        const fundedWidth = authorised != null && authorised > 0 && funded != null
           ? Math.min(100, Math.max(0, (funded / authorised) * 100))
           : null;
 
@@ -357,7 +351,7 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
                 </div>
                 <div className="text-right">
                   <div className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</div>
-                  <div className="mt-1"><MoneyValue amount={moneyText(funded, currency)} size="md" /></div>
+                  <div className="mt-1">{funded == null ? 'Not shown' : <MoneyValue amount={moneyText(funded, currency)} size="md" />}</div>
                 </div>
               </div>
               {fundedWidth != null && (
@@ -368,10 +362,10 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-cream-200 pt-4 sm:grid-cols-4">
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</dt><dd className="mt-1"><MoneyValue amount={moneyText(funded, currency)} size="sm" /></dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Progressed</dt><dd className="mt-1"><MoneyValue amount={moneyText(position.exercisedOrSettledMinor ?? 0, currency)} size="sm" /></dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Remaining funded</dt><dd className="mt-1"><MoneyValue amount={moneyText(position.remainingFundedMinor ?? 0, currency)} size="sm" /></dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Released / returned</dt><dd className="mt-1"><MoneyValue amount={moneyText(position.releasedTotalMinor ?? 0, currency)} size="sm" /></dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</dt><dd className="mt-1">{funded == null ? 'Unavailable' : <MoneyValue amount={moneyText(funded, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Progressed / earned</dt><dd className="mt-1">{position.exercisedOrSettledMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.exercisedOrSettledMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Remaining funded</dt><dd className="mt-1">{position.remainingFundedMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.remainingFundedMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Released / returned</dt><dd className="mt-1">{position.releasedTotalMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.releasedTotalMinor, currency)} size="sm" />}</dd></div>
             </dl>
           </div>
         );
@@ -397,7 +391,11 @@ export function SimpleMoneyDashboard({
   onNavigate,
   onOpenAgreement,
 }: SimpleMoneyDashboardProps) {
+  const AGREEMENTS_PER_PAGE = 12;
   const [agreements, setAgreements] = useState<Load<CurrentUserAgreementSummaryResponse[]>>({ state: 'loading' });
+  const [agreementPage, setAgreementPage] = useState(0);
+  const [agreementTotal, setAgreementTotal] = useState(0);
+  const [agreementSearch, setAgreementSearch] = useState('');
   const [selected, setSelected] = useState<SelectionTarget | null>(null);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<Load<AgreementMoneySnapshotResponse | null>>({ state: 'ready', value: null });
@@ -420,13 +418,15 @@ export function SimpleMoneyDashboard({
 
   useEffect(() => {
     let live = true;
-    agreementGateway.currentUserAgreements()
+    setAgreements({ state: 'loading' });
+    agreementGateway.currentUserAgreements(agreementPage, AGREEMENTS_PER_PAGE)
       .then(response => {
         if (!live) return;
         setAgreements({ state: 'ready', value: response.items });
-        // Landing on Money should immediately feel alive. The first backend-returned Agreement is opened
-        // as a neutral default; this is not a client-side priority or financial recommendation.
-        if (!handoff && response.items.length > 0) {
+        setAgreementTotal(response.totalElements);
+        // On the first page only, open the first backend-returned Agreement as a neutral default.
+        // Later pages never replace a person's current selection.
+        if (!handoff && agreementPage === 0 && !selected && response.items.length > 0) {
           const first = response.items[0];
           onSelectAgreement(first);
           void resolveSelection(agreementGateway, {
@@ -443,7 +443,7 @@ export function SimpleMoneyDashboard({
       })
       .catch(() => { if (live) setAgreements({ state: 'error' }); });
     return () => { live = false; };
-  }, [agreementGateway, handoff, onSelectAgreement]);
+  }, [agreementGateway, handoff, onSelectAgreement, agreementPage]);
 
   useEffect(() => {
     if (!handoff) return;
@@ -497,6 +497,21 @@ export function SimpleMoneyDashboard({
     return agreements.value.find(agreement => agreement.agreementId === selected.agreementId) ?? null;
   }, [agreements, selected]);
 
+  const visibleAgreements = useMemo(() => {
+    if (agreements.state !== 'ready') return [];
+    const query = agreementSearch.trim().toLowerCase();
+    if (!query) return agreements.value;
+    return agreements.value.filter(agreement => {
+      const amount = amountFromSummary(agreement)?.toLowerCase() ?? '';
+      const counterparty = agreement.counterparty?.displayName?.toLowerCase() ?? agreement.counterparty?.ksNumber?.toLowerCase() ?? '';
+      return agreement.title.toLowerCase().includes(query)
+        || agreement.purpose.toLowerCase().includes(query)
+        || counterparty.includes(query)
+        || amount.includes(query);
+    });
+  }, [agreements, agreementSearch]);
+  const agreementPageCount = Math.max(1, Math.ceil(agreementTotal / AGREEMENTS_PER_PAGE));
+
   const payment = snapshotReadiness(currentSnapshot);
   const funding = fundingStatus(currentSnapshot);
   const release = releaseStatus(currentSnapshot);
@@ -546,43 +561,77 @@ export function SimpleMoneyDashboard({
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 md:px-5">
           <div>
             <h2 className="font-display text-xl text-forest-900">{handoff ? 'Change Agreement' : 'Your Agreements'}</h2>
-            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'You are already looking at the Agreement you came from.' : 'Choose the Agreement whose money you want to understand.'}</p>
+            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'You are already looking at the Agreement you came from.' : 'Choose the Agreement whose money you want to understand. This compact selector is not a second Agreement dashboard.'}</p>
           </div>
-          {agreements.state === 'ready' && agreements.value.length > 0 && (
-            <div className="shrink-0 text-xs text-sand-500">{agreements.value.length} Agreement{agreements.value.length === 1 ? '' : 's'}</div>
-          )}
+          {agreementTotal > 0 && <div className="shrink-0 text-xs text-sand-500">{agreementTotal} Agreement{agreementTotal === 1 ? '' : 's'}</div>}
         </summary>
         <div className="border-t border-cream-200 px-4 py-4 md:px-5">
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sand-400" />
+            <input
+              type="search"
+              value={agreementSearch}
+              onChange={event => setAgreementSearch(event.target.value)}
+              placeholder="Search this page by title, person or amount"
+              className="min-h-11 w-full rounded-xl border border-cream-200 bg-white pl-10 pr-3 text-sm text-forest-900 outline-none focus:border-forest-400"
+              aria-label="Search Agreements on this page"
+            />
+          </div>
 
-        {agreements.state === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Agreements…</p>}
-        {agreements.state === 'error' && (
-          <div className="space-y-2">
-            <StatusNotice tone="warning">SecurePay couldn’t load your Agreement list. No money state is being guessed.</StatusNotice>
-            {onNavigate && <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>}
-          </div>
-        )}
-        {agreements.state === 'ready' && agreements.value.length === 0 && (
-          <div className="rounded-2xl border border-cream-200 bg-white/70 p-5">
-            <div className="text-sm font-medium text-forest-900">Money starts with an Agreement.</div>
-            <p className="mt-1 text-sm text-sand-600">You have no Agreements yet. Shape the idea in Vision or start the Agreement, then Money will follow it here.</p>
-            {onNavigate && <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => onNavigate('vision-board')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-medium text-white">Start in Vision</button>
-              <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>
-            </div>}
-          </div>
-        )}
-        {agreements.state === 'ready' && agreements.value.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {agreements.value.map(agreement => (
-              <AgreementCard
-                key={agreement.agreementId}
-                agreement={agreement}
-                active={agreement.agreementId === selectedId}
-                onOpen={() => void chooseAgreement(agreement)}
-              />
-            ))}
-          </div>
-        )}
+          {agreements.state === 'loading' && <p role="status" className="text-sm text-sand-500">Loading Agreements…</p>}
+          {agreements.state === 'error' && (
+            <div className="space-y-2">
+              <StatusNotice tone="warning">SecurePay couldn’t load this Agreement page. No money state is being guessed.</StatusNotice>
+              {onNavigate && <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>}
+            </div>
+          )}
+          {agreements.state === 'ready' && agreements.value.length === 0 && agreementTotal === 0 && (
+            <div className="rounded-2xl border border-cream-200 bg-white/70 p-5">
+              <div className="text-sm font-medium text-forest-900">Money starts with an Agreement.</div>
+              <p className="mt-1 text-sm text-sand-600">You have no Agreements yet. Shape the idea in Vision or start the Agreement, then Money will follow it here.</p>
+              {onNavigate && <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => onNavigate('vision-board')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-medium text-white">Start in Vision</button>
+                <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>
+              </div>}
+            </div>
+          )}
+          {agreements.state === 'ready' && visibleAgreements.length === 0 && agreements.value.length > 0 && (
+            <p className="py-4 text-sm text-sand-500">No Agreement on this page matches that search. Try another page or clear the search.</p>
+          )}
+          {agreements.state === 'ready' && visibleAgreements.length > 0 && (
+            <div className="space-y-2">
+              {visibleAgreements.map(agreement => (
+                <AgreementCard
+                  key={agreement.agreementId}
+                  agreement={agreement}
+                  active={agreement.agreementId === selectedId}
+                  onOpen={() => void chooseAgreement(agreement)}
+                />
+              ))}
+            </div>
+          )}
+
+          {agreementTotal > AGREEMENTS_PER_PAGE && (
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-cream-200 pt-3">
+              <button
+                type="button"
+                disabled={agreementPage === 0}
+                onClick={() => { setAgreementSearch(''); setAgreementPage(page => Math.max(0, page - 1)); }}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-cream-200 bg-white px-3 text-sm font-medium text-forest-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </button>
+              <span className="text-xs text-sand-500">Page {agreementPage + 1} of {agreementPageCount}</span>
+              <button
+                type="button"
+                disabled={agreementPage + 1 >= agreementPageCount}
+                onClick={() => { setAgreementSearch(''); setAgreementPage(page => Math.min(agreementPageCount - 1, page + 1)); }}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-cream-200 bg-white px-3 text-sm font-medium text-forest-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </details>
 
@@ -645,6 +694,16 @@ export function SimpleMoneyDashboard({
             </div>
           </section>
 
+          <section aria-label="Your money position" className="rounded-3xl border border-forest-200 bg-white/85 p-5 md:p-6">
+            <div className="mb-4">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Your money position</div>
+              <h2 className="mt-1 font-display text-2xl text-forest-900">Where the money is now</h2>
+              <p className="mt-1 text-sm text-sand-600">These figures come from SecurePay’s Agreement Money positions. Missing values stay unavailable — never zeroed.</p>
+            </div>
+            {snapshot.state === 'loading' && <p role="status" className="text-sm text-sand-500">Reading Agreement Money…</p>}
+            {currentSnapshot && <PositionMoney snapshot={currentSnapshot} />}
+          </section>
+
           <section aria-label="Money at a glance" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
             <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
@@ -652,7 +711,15 @@ export function SimpleMoneyDashboard({
             <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
           </section>
 
-          <section className="rounded-3xl border border-forest-200 bg-white/80 p-5 md:p-6" data-testid="agreement-money-flow">
+          <details className="rounded-3xl border border-forest-200 bg-white/80" data-testid="agreement-money-flow">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Financial details</div>
+                <div className="mt-1 font-display text-xl text-forest-900">See payment route & settlement architecture</div>
+              </div>
+              <span className="text-xs text-sand-500">Open details</span>
+            </summary>
+            <section className="border-t border-forest-100 p-5 md:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -726,59 +793,59 @@ export function SimpleMoneyDashboard({
                 <p className="mt-3 text-[0.72rem] leading-5 text-sand-500">Settlement still requires Agreement authority, a valid destination, provider/rail gates and a successful movement preflight.</p>
               </div>
             </div>
-          </section>
+            </section>
+          </details>
 
-          <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-            <div className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
-              <div className="flex items-center gap-2">
-                <CircleDollarSign className="h-5 w-5 text-forest-700" />
+          <details className="rounded-3xl border border-cream-200 bg-white/80">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Charges</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Funding & charges</div>
+              </div>
+              <span className="text-xs text-sand-500">Open details</span>
+            </summary>
+            <div className="border-t border-cream-200 p-5 md:p-6">
+              <div className="grid gap-5 lg:grid-cols-2">
                 <div>
-                  <h2 className="font-display text-2xl text-forest-900">Agreement Money</h2>
-                  <p className="text-xs text-sand-500">What SecurePay actually holds for this Agreement’s money positions.</p>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
+                  {fundingRoutes.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
+                  )}
+                </div>
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
+                  {economics && currentSnapshot?.movement.currency ? (
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      {economics.taxMinor > 0 && (
+                        <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      )}
+                      <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                    </dl>
+                  ) : (
+                    <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
+                  )}
                 </div>
               </div>
-              <div className="mt-5">
-                {snapshot.state === 'loading' && <p role="status" className="text-sm text-sand-500">Reading Agreement Money…</p>}
-                {currentSnapshot && <PositionMoney snapshot={currentSnapshot} />}
-              </div>
             </div>
+          </details>
 
-            <div className="rounded-3xl border border-forest-200 bg-forest-50/70 p-5 md:p-6">
-              <div className="flex items-center gap-2">
-                <Route className="h-5 w-5 text-forest-700" />
-                <h2 className="font-display text-2xl text-forest-900">Funding & charges</h2>
+          <details className="rounded-3xl border border-cream-200 bg-white/70">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Payment execution</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Payment, intent & settlement controls</div>
               </div>
-              <div className="mt-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
-                {fundingRoutes.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
-                )}
-              </div>
-
-              <div className="mt-5 border-t border-forest-200 pt-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
-                {economics && currentSnapshot?.movement.currency ? (
-                  <dl className="mt-3 space-y-2 text-sm">
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    {economics.taxMinor > 0 && (
-                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    )}
-                    <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                  </dl>
-                ) : (
-                  <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <MoneyPaymentSettlementJourney
+              <span className="text-xs text-sand-500">Open controls</span>
+            </summary>
+            <div className="border-t border-cream-200 p-4 md:p-5">
+              <MoneyPaymentSettlementJourney
             agreementGateway={agreementGateway}
             paymentIntentGateway={paymentIntentGateway}
             settlementGateway={settlementGateway}
@@ -789,9 +856,19 @@ export function SimpleMoneyDashboard({
             currency={selected.currency}
             snapshot={currentSnapshot}
             onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
-          />
+              />
+            </div>
+          </details>
 
-          <section className="rounded-3xl border border-cream-200 bg-white/80 p-5 md:p-6">
+          <details className="rounded-3xl border border-cream-200 bg-white/70">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Financial partners</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Banks, SACCOs, MMFs & insurance</div>
+              </div>
+              <span className="text-xs text-sand-500">Open details</span>
+            </summary>
+            <section className="border-t border-cream-200 p-5 md:p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -828,7 +905,8 @@ export function SimpleMoneyDashboard({
                 note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
               />
             </div>
-          </section>
+            </section>
+          </details>
         </>
       )}
     </div>

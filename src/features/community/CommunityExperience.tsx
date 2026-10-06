@@ -144,14 +144,15 @@ function TrustProjectBanner({
  */
 function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect: (tab: CommunityHomeTab) => void }) {
   const tabs: { value: CommunityHomeTab; label: string }[] = [
+    { value: 'home', label: 'HOME' },
     { value: 'live', label: 'LIVE' },
     { value: 'serve', label: 'PROJECTS & ACTIVITIES' },
-    { value: 'learn', label: 'LEARN' },
-    { value: 'circles', label: 'CIRCLES' },
     { value: 'happening', label: 'HAPPENING' },
+    { value: 'circles', label: 'CIRCLES' },
+    { value: 'learn', label: 'LEARN' },
   ];
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3 flex gap-1.5">
+    <div className="max-w-2xl mx-auto px-4 md:px-6 pt-3 flex gap-1.5 overflow-x-auto pb-1" aria-label="Community sections">
       {tabs.map(t => (
         <button
           key={t.value}
@@ -446,7 +447,7 @@ function CircleDetailPanel({
                 disabled={joinSubmitting}
                 className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.85rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
               >
-                {joinSubmitting ? 'Joining…' : 'Join'}
+                {joinSubmitting ? 'Joining…' : 'Join Circle'}
               </button>
             )}
             {circle.membershipMode === 'REQUEST_TO_JOIN' && (
@@ -455,7 +456,7 @@ function CircleDetailPanel({
                 disabled={joinSubmitting}
                 className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.85rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
               >
-                {joinSubmitting ? 'Requesting…' : 'Request to join'}
+                {joinSubmitting ? 'Requesting…' : 'Ask to join'}
               </button>
             )}
             {circle.membershipMode === 'INVITE_ONLY' && (
@@ -493,7 +494,9 @@ function CircleDetailPanel({
 
         {isMember && circle.status !== 'ACTIVE' && (
           <div className="rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-[0.78rem] text-sand-600">
-            This Circle is {circle.status.toLowerCase()}. Existing members can read its history, but new posts and membership activity are paused.
+            {circle.status === 'QUIET'
+              ? 'This Circle is quiet right now. Existing members can read its history, but new posts and membership activity are paused.'
+              : 'This Circle is archived. Past activity is still available to existing members, but new posts and membership activity are paused.'}
           </div>
         )}
 
@@ -503,7 +506,7 @@ function CircleDetailPanel({
               <div className="text-[0.78rem] font-medium text-forest-800">KS001 in this Circle</div>
               <p className="text-[0.7rem] text-sand-600 mt-0.5">KS001 opens in this Circle's shared context, so it can help members catch up and organise what the Circle has already shared. A member's private conversations stay separate. KS001 cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
             </div>
-            <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001</button>
+            <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001 in this Circle</button>
           </div>
         )}
 
@@ -1317,6 +1320,79 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onWithdrawReply={id => void controller.withdrawReply(id)}
       />
     );
+  } else if (state.communityTab === 'home') {
+    const myCircles = state.myCircles.status === 'ready' ? state.myCircles.data : [];
+    const invitations = state.circleInvitations.status === 'ready' ? state.circleInvitations.data : [];
+    const openService = serviceItems.filter(item => item.status === 'OPEN').slice(0, 3);
+    const upcomingEvents = communityEvents.filter(event => event.status === 'CONFIRMED' && new Date(event.startsAt).getTime() >= Date.now()).slice(0, 3);
+    const activeProjects = communityProjects.filter(project => project.status === 'ACTIVE').slice(0, 3);
+    body = (
+      <>
+        {banner}
+        {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-5">
+            <section className="sp-hero px-5 py-5 md:px-7 md:py-6">
+              <div className="sp-kicker">Community Home</div>
+              <h1 className="sp-display mt-2 text-3xl text-forest-900 md:text-4xl">Real people. Real work. Real ways to take part.</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-sand-600">Start with what needs you, what you already belong to, and what is happening soon. LIVE stays separate for the wider Community.</p>
+            </section>
+
+            <section aria-label="What needs me" className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div><div className="sp-kicker">What needs me</div><h2 className="mt-1 font-display text-xl text-forest-900">Ways to contribute</h2></div>
+                <button type="button" onClick={() => void controller.showCommunityTab('serve')} className="min-h-11 text-sm font-medium text-forest-700">See projects</button>
+              </div>
+              {purposeLoading && <p role="status" className="text-sm text-sand-600">Loading Community work…</p>}
+              {!purposeLoading && openService.length === 0 && <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 text-sm text-sand-600">No opportunities need your attention right now.</div>}
+              {openService.map(item => <button key={item.id} type="button" onClick={() => void controller.showCommunityTab('serve')} className="w-full min-h-11 rounded-2xl border border-cream-200 bg-white px-4 py-3 text-left hover:border-forest-300">
+                <div className="text-sm font-medium text-forest-900">{item.title}</div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-sand-600">{item.description}</p>
+                <div className="mt-2 text-xs text-sand-600">{item.locationLabel ?? 'Location not yet stated'}{item.skillsNeeded.length ? ` · Needs: ${item.skillsNeeded.join(', ')}` : ''}</div>
+              </button>)}
+            </section>
+
+            <section aria-label="What I joined" className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div><div className="sp-kicker">What I joined</div><h2 className="mt-1 font-display text-xl text-forest-900">My Circles</h2></div>
+                <button type="button" onClick={() => void controller.showCommunityTab('circles')} className="min-h-11 text-sm font-medium text-forest-700">Open Circles</button>
+              </div>
+              {state.myCircles.status === 'loading' && <p role="status" className="text-sm text-sand-600">Loading your Circles…</p>}
+              {invitations.length > 0 && <div className="rounded-2xl border border-forest-200 bg-forest-50/50 px-4 py-3 text-sm text-forest-800">{invitations.length} Circle invitation{invitations.length === 1 ? '' : 's'} waiting for you.</div>}
+              {state.myCircles.status === 'ready' && myCircles.length === 0 && invitations.length === 0 && <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 text-sm text-sand-600">You have not joined a Circle yet. Find one around a place, skill, profession, interest or useful problem.</div>}
+              {myCircles.slice(0, 3).map(circle => <CircleCard key={circle.id} circle={circle} onOpen={() => void controller.openCircle(circle.id)} />)}
+            </section>
+
+            <section aria-label="Happening soon" className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div><div className="sp-kicker">Happening soon</div><h2 className="mt-1 font-display text-xl text-forest-900">Events</h2></div>
+                <button type="button" onClick={() => void controller.showCommunityTab('happening')} className="min-h-11 text-sm font-medium text-forest-700">See events</button>
+              </div>
+              {!purposeLoading && upcomingEvents.length === 0 && <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 text-sm text-sand-600">Nothing is scheduled yet.</div>}
+              {upcomingEvents.map(event => <button key={event.id} type="button" onClick={() => void controller.showCommunityTab('happening')} className="w-full min-h-11 rounded-2xl border border-cream-200 bg-white px-4 py-3 text-left hover:border-forest-300">
+                <div className="text-sm font-medium text-forest-900">{event.title}</div>
+                <div className="mt-1 text-xs text-sand-600">{new Date(event.startsAt).toLocaleString()}{event.locationLabel ? ` · ${event.locationLabel}` : ' · Location not yet stated'}</div>
+              </button>)}
+            </section>
+
+            <section aria-label="What people are working on" className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div><div className="sp-kicker">What people are working on</div><h2 className="mt-1 font-display text-xl text-forest-900">Community Projects</h2></div>
+                <button type="button" onClick={() => void controller.showCommunityTab('learn')} className="min-h-11 text-sm font-medium text-forest-700">See project work</button>
+              </div>
+              {!purposeLoading && activeProjects.length === 0 && <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 text-sm text-sand-600">No active projects match this view right now.</div>}
+              {activeProjects.map(project => <button key={project.id} type="button" onClick={() => void controller.showCommunityTab('learn')} className="w-full min-h-11 rounded-2xl border border-cream-200 bg-white px-4 py-3 text-left hover:border-forest-300">
+                <div className="text-sm font-medium text-forest-900">{project.title}</div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-sand-600">{project.purpose}</p>
+                <div className="mt-2 text-xs text-sand-600">{project.locationLabel ?? 'Location still being organised'}</div>
+              </button>)}
+            </section>
+
+            <button type="button" onClick={() => void controller.showCommunityTab('live')} className="w-full min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Community LIVE</button>
+          </div>
+        </div>
+      </>
+    );
   } else if (state.communityTab === 'live' && state.search.status === 'error' && state.feed.status !== 'ready' && objects.length === 0) {
     body = (
       <>
@@ -1372,7 +1448,13 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           {serviceItems.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
             <div className="text-[0.9rem] font-medium text-forest-800">{item.title}</div>
             <p className="text-[0.78rem] text-sand-600 mt-1">{item.description}</p>
-            <div className="text-[0.68rem] text-sand-500 mt-2">{item.locationLabel ?? 'Location to be agreed'}{item.skillsNeeded.length ? ` · ${item.skillsNeeded.join(', ')}` : ''}</div>
+            <div className="mt-2 grid gap-1 text-[0.68rem] text-sand-600">
+              <div><span className="font-medium text-forest-700">Where:</span> {item.locationLabel ?? 'Location not yet stated'}</div>
+              <div><span className="font-medium text-forest-700">When:</span> {item.startsAt ? new Date(item.startsAt).toLocaleString() : 'Time not yet stated'}</div>
+              <div><span className="font-medium text-forest-700">Needed:</span> {item.skillsNeeded.length ? item.skillsNeeded.join(', ') : 'Skills or help not yet specified'}</div>
+              <div><span className="font-medium text-forest-700">Compensation:</span> Not specified by this Community opportunity</div>
+            </div>
+            <p className="mt-2 text-[0.7rem] text-sand-600">Expressing interest does not award the work or create an Agreement.</p>
             <div className="mt-3 flex items-center gap-4">
               <button onClick={() => void communityGateway.serviceOpportunities.volunteer(item.id,true).then(updated => setServiceItems(items => items.map(x => x.id===updated.id?updated:x)))} className="text-[0.75rem] font-medium text-forest-600">I'm interested</button>
               <button
@@ -1429,9 +1511,16 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
           {purposeError && <p role="alert" className="text-[0.8rem] text-red-600">{purposeError}</p>}
-          {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-3">
-            <div className="text-[0.88rem] font-medium text-forest-800">{item.title}</div><p className="text-[0.78rem] text-sand-600 mt-1">{item.learningGoal}</p>
-            <div className="text-[0.68rem] text-sand-500 mt-2">Apprentice {item.apprenticeKsNumber} · {item.status.toLowerCase()}</div>
+          {apprenticeships.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
+            <div className="sp-kicker">Apprenticeship Project</div>
+            <div className="mt-1 text-[0.9rem] font-medium text-forest-800">{item.title}</div>
+            <p className="mt-1 text-[0.78rem] leading-5 text-sand-600"><span className="font-medium text-forest-700">Learning:</span> {item.learningGoal}</p>
+            <div className="mt-2 grid gap-1 text-[0.68rem] text-sand-600">
+              <div><span className="font-medium text-forest-700">Apprentice:</span> {item.apprenticeKsNumber}</div>
+              <div><span className="font-medium text-forest-700">Master:</span> SecurePay has recorded the supervising Master identity.</div>
+              <div><span className="font-medium text-forest-700">Status:</span> {item.status.toLowerCase()}</div>
+              <div><span className="font-medium text-forest-700">Sponsorship:</span> {item.sponsorshipReference ? 'Programme support reference recorded' : 'No sponsorship is established here'}</div>
+            </div>
           </div>)}
           {communityProjects.map(item => <div key={item.id} className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
             <div className="flex items-start justify-between gap-3">

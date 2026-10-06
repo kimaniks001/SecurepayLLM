@@ -101,9 +101,10 @@ export function VisionDreamExperience({ controller, onContinue }: {
       </div>
       <h1 className="font-display text-2xl md:text-3xl text-forest-800">What's on your mind?</h1>
       <p className="text-sand-600 text-sm">A thought, something you saw, a question or an idea. It doesn't have to be a plan.</p>
+      <p className="text-xs text-sand-500">Private by default. Nothing here becomes a Project, Agreement, Store request or Money instruction unless you deliberately choose a next step.</p>
       <label className="block">
         <span className="sr-only">Start with your thought</span>
-        <textarea value={thought} onChange={e => setThought(e.target.value)} rows={4}
+        <textarea id="vision-dream-thought" value={thought} onChange={e => setThought(e.target.value)} rows={4}
           maxLength={4000} placeholder="I've been thinking about..."
           className="block w-full rounded-2xl border border-cream-200 bg-cream-50/50 p-4 text-forest-800 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-400" />
       </label>

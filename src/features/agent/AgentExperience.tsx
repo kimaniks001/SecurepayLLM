@@ -319,6 +319,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
   const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
+  const [storeReturnContext, setStoreReturnContext] = useState<null | { kind: 'vision' | 'community' | 'agreement'; agreementId?: string }>(null);
   const [community, setCommunity] = useState(false);
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
@@ -557,7 +558,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // for clarity, redundantly but harmlessly. See docs/PHASE5_LIFE_BUSINESS_WORLD.md sections G/K.
     recoveryController.reset();
     developerController.clearSensitiveTransientState();
-    if (view === 'store') { setWorkspace(false); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
+    if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
@@ -804,9 +805,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         auth={auth}
         session={session}
         initialOfferRoute={storeOfferRoute}
+        returnContext={storeReturnContext ? {
+          label: storeReturnContext.kind === 'vision' ? 'Vision' : storeReturnContext.kind === 'community' ? 'Community' : 'Agreement',
+          onReturn: () => {
+            const context = storeReturnContext;
+            setStore(false);
+            setStoreOfferRoute(null);
+            setStoreReturnContext(null);
+            if (context.kind === 'vision') { setVisionLibrary(true); return; }
+            if (context.kind === 'community') { setCommunity(true); return; }
+            setWorkspaceAgreementId(context.agreementId ?? null);
+            setWorkspaceEntry(context.agreementId ? 'home' : 'hub');
+            setWorkspace(true);
+          },
+        } : null}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
-        onUseOffer={fact => { setStore(false); setHome(false); void controller.useOffer(fact); }}
+        onUseOffer={fact => { setStoreReturnContext(null); setStore(false); setHome(false); void controller.useOffer(fact); }}
         onOpenBusinessVision={businessKsNumber => {
           setStore(false);
           setVisionLibrary(true);
@@ -833,7 +848,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             if (created.conversationId) void controller.resumeConversation(created.conversationId);
           });
         }}
-        onOpenStoreOffer={(canonicalKsNumber, offerId) => { setStoreOfferRoute({ canonicalKsNumber, offerId }); navigateTo('store'); }}
+        onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          setCommunity(false);
+          setStoreReturnContext({ kind: 'community' });
+          setStoreOfferRoute({ canonicalKsNumber, offerId });
+          setStore(true);
+        }}
         // Phase 6 Slice 4 (Community → Trade) -- mirrors onUseOffer's own pattern exactly: leave
         // Community, then let the SAME real Agent conversation controller select the source.
         onUseThis={fact => { setCommunity(false); setHome(false); void controller.useCommunitySource(fact); }}
@@ -910,6 +930,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         onNavigate={navigateTo}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => {
           setVisionLibrary(false);
+          setStoreReturnContext({ kind: 'vision' });
           setStoreOfferRoute({ canonicalKsNumber, offerId });
           setStore(true);
         }}
@@ -975,10 +996,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
       initialView={workspaceEntry}
-      onOpenStore={() => navigateTo('store')}
-      onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+      onOpenStore={() => {
+        const agreementId = workspaceAgreementId;
         setWorkspace(false);
-        setWorkspaceAgreementId(null);
+        setStoreReturnContext({ kind: 'agreement', agreementId: agreementId ?? undefined });
+        setStoreOfferRoute(null);
+        setStore(true);
+      }}
+      onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+        const agreementId = workspaceAgreementId;
+        setWorkspace(false);
+        setStoreReturnContext({ kind: 'agreement', agreementId: agreementId ?? undefined });
         setStoreOfferRoute({ canonicalKsNumber, offerId });
         setStore(true);
       }}

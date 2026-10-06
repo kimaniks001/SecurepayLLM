@@ -69,14 +69,35 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 space-y-5">
-        <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
+        <section aria-label="What people can find" className="sp-section px-4 py-4 md:px-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="sp-kicker">What people can find</div>
+              <h2 className="mt-1 font-display text-xl text-forest-900">{published.length > 0 ? `${published.length} published offer${published.length === 1 ? '' : 's'}` : 'No published offers yet'}</h2>
+              <p className="mt-1 text-[0.76rem] leading-5 text-sand-600">
+                {published.length > 0
+                  ? 'These are the offers currently visible from this Store. Price and availability below come from the Store records SecurePay has.'
+                  : 'Add what people can find from your Store. Drafts stay private until you publish them.'}
+              </p>
+              {store.serviceAreas.length > 0 && <p className="mt-2 text-[0.72rem] text-sand-500">Service area: {store.serviceAreas.join(' · ')}</p>}
+            </div>
+            <button type="button" onClick={onCreateOffer} className="sp-primary-action min-h-11 shrink-0 px-4 text-sm font-semibold">
+              <Plus className="h-4 w-4" /> Add offer
+            </button>
+          </div>
+          {published.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {published.slice(0, 4).map(offer => <div key={offer.id} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+              <div className="text-sm font-medium text-forest-800">{offer.title}</div>
+              <div className="mt-1 text-xs text-sand-500">{offer.price} · {offer.availability}</div>
+            </div>)}
+          </div>}
+        </section>
 
-        <section aria-label="Store at a glance" className="grid grid-cols-4 gap-2">
+        <section aria-label="Store at a glance" className="grid grid-cols-3 gap-2">
           {[
             ['Published', published.length],
             ['Drafts', drafts.length],
-            ['Check', needsAvailabilityCheck.length],
-            ['Matches', opportunities.length],
+            ['Needs check', needsAvailabilityCheck.length],
           ].map(([label, count]) => (
             <div key={String(label)} className="sp-section px-2 py-3 text-center">
               <div className="sp-value text-xl">{count}</div>
@@ -100,7 +121,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
 
           {todayCount === 0 ? (
             <div className="mt-3 rounded-xl border border-forest-100 bg-white/70 px-3 py-3">
-              <div className="text-[0.8rem] font-medium text-forest-800">Nothing needs action right now.</div>
+              <div className="text-[0.8rem] font-medium text-forest-800">Nothing needs you right now.</div>
               <p className="mt-0.5 text-[0.7rem] text-sand-500">Your published offers can keep working. You can create something new or review your Store below.</p>
             </div>
           ) : (
@@ -139,8 +160,25 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
           )}
         </section>
 
+        {businessMode && <section aria-label="Store opportunities summary" className="sp-section px-4 py-4">
+          <div className="sp-kicker">What opportunities are here?</div>
+          {opportunities.length === 0 ? (
+            <>
+              <h2 className="mt-1 font-display text-lg text-forest-900">No matching Store opportunities right now</h2>
+              <p className="mt-1 text-[0.74rem] text-sand-500">SecurePay only shows privacy-safe MATCHABLE fulfilment demand that actually matches this Business Store. No demand is invented when none exists.</p>
+            </>
+          ) : (
+            <>
+              <h2 className="mt-1 font-display text-lg text-forest-900">{opportunities.length} demand match{opportunities.length === 1 ? '' : 'es'} to review</h2>
+              <p className="mt-1 text-[0.74rem] text-sand-500">These are options to inspect, not awarded work and not automatic supplier selection.</p>
+            </>
+          )}
+        </section>}
+
         {businessMode && (
-          <div>
+          <details className="rounded-2xl border border-cream-200 bg-white/70">
+            <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Store Vision</summary>
+            <div className="border-t border-cream-200 p-4">
             <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Store Vision</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
@@ -160,7 +198,8 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                 <div className="text-[0.68rem] text-sand-500 mt-1">Open SecurePay Money for authoritative financial truth.</div>
               </button>
             </div>
-          </div>
+            </div>
+          </details>
         )}
 
         {businessMode && opportunities.length > 0 && (
@@ -273,6 +312,13 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
           </section>
         )}
 
+        <details className="rounded-2xl border border-cream-200 bg-white/70">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Ask KS001 about my Store</summary>
+          <div className="border-t border-cream-200 p-4">
+            <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
+          </div>
+        </details>
+
         {plugAvailability && (
           <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
             <div className="flex items-start justify-between gap-4">
@@ -323,6 +369,11 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
             )}
           </div>
         )}
+
+        <div className="pt-1">
+          <div className="sp-kicker">Manage Store</div>
+          <p className="mt-1 text-[0.74rem] text-sand-500">Detailed offer administration stays here after the Store's public state, attention and opportunities.</p>
+        </div>
 
         {/* Create offer */}
         <button
