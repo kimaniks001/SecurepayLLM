@@ -330,7 +330,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
           <div className="border-t border-cream-200 p-4">
             <Ks001SurfaceGuide
               surface="vision"
-              onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Help me explore or organise it without turning it into a commitment. Only suggest SecurePay capabilities that can actually be verified.`) : undefined}
+              onAsk={onAskKs001 ? () => onAskKs001(`I’m working on the Vision item “${selectedItem.title}”. Help me explore or organise it, but do not turn the idea into a commitment. Only suggest SecurePay capabilities that can actually be verified.`) : undefined}
             />
           </div>
         </details>
