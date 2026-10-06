@@ -264,6 +264,38 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
       <PageHeader title="My Vision Board" description="Keep the ideas, plans, documents, methods and reminders you want SecurePay to remember when helping you. Come back anytime, add to them, refine them or lock what you want to keep unchanged." />
       <ExperiencePathway active="vision" onNavigate={onNavigate} />
 
+      <section aria-label="Start from your Vision" className="rounded-2xl border border-forest-200 bg-forest-50/50 p-4">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Start here</p>
+        <h2 className="mt-1 font-display text-lg text-forest-800">What are you trying to move forward?</h2>
+        <p className="mt-1 text-[0.78rem] text-sand-600">Keep the thinking light. Capture the idea first, then find what it needs or make the commitment clear when you are ready.</p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => void controller.openShelf('IDEAS_GROWTH')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Capture the idea</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Notes, plans and things you want SecurePay to remember.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('store')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Find what it needs</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Explore real Store offers before you commit to anything.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('agreements')}
+            className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300"
+          >
+            <span className="block text-[0.8rem] font-medium text-forest-800">Make it clear</span>
+            <span className="mt-1 block text-[0.68rem] text-sand-500">Review the Agreements already taking shape or active.</span>
+          </button>
+        </div>
+      </section>
+
       {/* Convergence correction (section 43) -- this is never required to see your own board; it
           only switches to managing a different KS (e.g. a Business you administer). */}
       {state.ownerKsNumber && <p className="text-[0.75rem] text-sand-500">Managing the Vision Board for <span className="text-forest-700">{state.ownerKsNumber}</span>.</p>}
