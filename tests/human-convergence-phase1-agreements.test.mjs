@@ -87,6 +87,8 @@ test('attention rises only for Agreement states that genuinely need the particip
     nextAction: 'Waiting for Peter',
   });
   assert.doesNotMatch(lifecycleButNotAttention, /Needs your attention/);
+  assert.doesNotMatch(lifecycleButNotAttention, />Needs you</);
+  assert.match(lifecycleButNotAttention, />Changed</);
 });
 
 test('quiet Agreements get a calm next state instead of manufactured urgency', () => {
