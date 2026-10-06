@@ -3,6 +3,7 @@ import type { CommunityGateway } from '../../api/securepay/community';
 import { TrustProjectCapabilityPanel } from './TrustProjectCapabilityPanel';
 import type {
   CommunityImpactViewDto,
+  CommunityProjectDto,
   ProjectContributionDto,
   ProjectContributionInterestIntent,
   ProjectContributionType,
@@ -35,6 +36,8 @@ export function TrustProjectImpactHome({
   onOpenVision: () => void;
 }) {
   const [contributions,setContributions]=useState<ProjectContributionDto[]>([]);
+  const [projects,setProjects]=useState<CommunityProjectDto[]>([]);
+  const [storyProjectId,setStoryProjectId]=useState('');
   const [impact,setImpact]=useState<CommunityImpactViewDto|null>(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState<string|null>(null);
@@ -53,9 +56,11 @@ export function TrustProjectImpactHome({
     if(!activeMember) return;
     setLoading(true); setError(null);
     try {
-      const [live,currentImpact]=await Promise.all([gateway.contributions.live(20,0),gateway.impact()]);
+      const [live,currentImpact,currentProjects]=await Promise.all([gateway.contributions.live(20,0),gateway.impact(),gateway.projects.list(50,0)]);
       setContributions(live);
       setImpact(currentImpact);
+      setProjects(currentProjects);
+      setStoryProjectId(current => current && currentProjects.some(project => project.id === current) ? current : (currentProjects.find(project => project.status === 'ACTIVE')?.id ?? ''));
     } catch(e) {
       setError(e instanceof Error ? e.message : 'Community impact could not be loaded.');
     } finally { setLoading(false); }
@@ -83,7 +88,7 @@ export function TrustProjectImpactHome({
   }
 
   const submitContribution=async()=>{
-    if(!title.trim()||!body.trim()) return;
+    if(!storyProjectId||!title.trim()||!body.trim()) return;
     setSubmitting(true); setError(null);
     try {
       const created=await gateway.contributions.create({
@@ -92,8 +97,8 @@ export function TrustProjectImpactHome({
         contributionType:type,
         title:title.trim(),
         body:body.trim(),
-        originType:null,
-        originObjectId:null,
+        originType:'COMMUNITY_PROJECT',
+        originObjectId:storyProjectId,
         explicitSafeShare:false,
         idempotencyKey:globalThis.crypto?.randomUUID?.() ?? `contribution-${Date.now()}`,
         media:[],
@@ -158,23 +163,31 @@ export function TrustProjectImpactHome({
 
     <div className="rounded-2xl border border-cream-200 bg-cream-50/50 px-4 py-4">
       <div className="flex items-start justify-between gap-3">
-        <div><h2 className="font-display text-base text-forest-800">What happened?</h2>
-          <p className="text-[0.75rem] text-sand-600">Share what worked, what failed, what you made or what you learned.</p></div>
-        <button onClick={()=>setComposerOpen(v=>!v)} className="text-[0.78rem] font-medium text-forest-600">{composerOpen?'Close':'+ Contribute'}</button>
+        <div><h2 className="font-display text-base text-forest-800">Tell the story of a Project</h2>
+          <p className="text-[0.75rem] text-sand-600">Community posts begin with something real people are doing. No free-floating posts.</p></div>
+        <button disabled={projects.length===0} onClick={()=>setComposerOpen(v=>!v)} className="text-[0.78rem] font-medium text-forest-600 disabled:text-sand-400">{composerOpen?'Close':'+ Project update'}</button>
       </div>
-      {composerOpen && <div className="mt-3 space-y-2">
+      {projects.length===0 && <div className="mt-3 rounded-xl border border-dashed border-cream-300 bg-white px-4 py-4">
+        <p className="text-[0.8rem] font-medium text-forest-800">A story needs a Project first.</p>
+        <p className="text-[0.72rem] text-sand-500 mt-1">Start from an intention, form the Project, then let the people living it document what happens.</p>
+      </div>}
+      {composerOpen && projects.length>0 && <div className="mt-3 space-y-2">
+        <select value={storyProjectId} onChange={e=>setStoryProjectId(e.target.value)} className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2 text-[0.8rem]">
+          <option value="">Choose the Project this story belongs to</option>
+          {projects.filter(project=>project.status==='ACTIVE'||project.status==='COMPLETED').map(project=><option key={project.id} value={project.id}>{project.title}</option>)}
+        </select>
         <select value={type} onChange={e=>setType(e.target.value as ProjectContributionType)} className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2 text-[0.8rem]">
           {contributionTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
         </select>
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Give it a clear title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-        <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="Tell people what actually happened." className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-        <button disabled={submitting||!title.trim()||!body.trim()} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Publish contribution'}</button>
-        <p className="text-[0.68rem] text-sand-500">This plain contribution is not linked to private Agreement or payment data.</p>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Give this moment a clear title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+        <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="What happened? What did people see, learn, change or struggle with?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+        <button disabled={submitting||!storyProjectId||!title.trim()||!body.trim()} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Add to this Project story'}</button>
+        <p className="text-[0.68rem] text-sand-500">This story is linked to the Project, not to private Agreement or payment data.</p>
       </div>}
     </div>
 
     <div className="space-y-3">
-      <div className="flex justify-between items-end"><div><h2 className="font-display text-base text-forest-800">What people are experiencing</h2><p className="text-[0.73rem] text-sand-500">Positive, critical and unfinished stories can all belong here.</p></div><button onClick={()=>void load()} className="text-[0.72rem] text-forest-600">Refresh</button></div>
+      <div className="flex justify-between items-end"><div><h2 className="font-display text-base text-forest-800">Projects as they are lived</h2><p className="text-[0.73rem] text-sand-500">Follow the work through ordinary updates, reflection, criticism, learning and outcomes — not only the final result.</p></div><button onClick={()=>void load()} className="text-[0.72rem] text-forest-600">Refresh</button></div>
       {loading && <p role="status" className="text-[0.78rem] text-sand-500">Loading Community impact…</p>}
       {error && <p role="alert" className="text-[0.78rem] text-red-600">{error}</p>}
       {interestNotice && <p role="status" className="text-[0.75rem] text-forest-600">{interestNotice}</p>}
