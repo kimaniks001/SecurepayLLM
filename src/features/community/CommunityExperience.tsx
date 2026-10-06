@@ -332,7 +332,7 @@ function CircleDetailPanel({
   objects, objectsLoading, onOpenObject, onCompose,
   members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
-  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001,
+  onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001, communityGateway,
   messageBody, messageSubmitting, messageError, onMessageChange, onSendMessage,
 }: {
   circle: CircleResponse;
@@ -365,6 +365,7 @@ function CircleDetailPanel({
   onOpenCloseConfirm: () => void;
   onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
   onInvokeKs001: () => void;
+  communityGateway: CommunityGateway;
   messageBody: string;
   messageSubmitting: boolean;
   messageError: string | null;
@@ -530,6 +531,8 @@ function CircleDetailPanel({
 
             {circleSpace === 'board' ? (
               <CircleBoard
+                circleId={circle.id}
+                gateway={communityGateway}
                 objects={objects}
                 loading={objectsLoading}
                 active={circle.status === 'ACTIVE'}
@@ -1212,6 +1215,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
         onSetLifecycle={status => void controller.setCircleLifecycle(status)}
         onInvokeKs001={() => onInvokeKs001InCircle(state.selectedCircle!.id)}
+        communityGateway={communityGateway}
         messageBody={state.circleMessageDraft.body}
         messageSubmitting={state.circleMessageDraft.submitting}
         messageError={state.circleMessageDraft.error}
