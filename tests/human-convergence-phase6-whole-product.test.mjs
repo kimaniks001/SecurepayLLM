@@ -11,6 +11,7 @@ const community = await readFile('src/features/community/CommunityExperience.tsx
 const vision = await readFile('src/features/visionboard/VisionBoardExperience.tsx', 'utf8');
 const notifications = await readFile('src/features/notifications/NotificationsExperience.tsx', 'utf8');
 const notificationApi = await readFile('src/api/securepay/notifications/index.ts', 'utf8');
+const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
 
 test('assembled product contains all five prior Human Convergence contracts', async () => {
   for (const path of [
@@ -26,10 +27,10 @@ test('assembled product contains all five prior Human Convergence contracts', as
 });
 
 test('signed-in navigation exposes one consistent core destination vocabulary', () => {
-  for (const label of ['Home', 'Vision', 'Agreements', 'Money', 'Store', 'Community', 'Account']) {
+  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) {
     assert.match(nav, new RegExp(`label: '${label}'`));
   }
-  assert.match(nav, /view: 'vision-board'/);
+  assert.match(nav, /mobileNavItems[\s\S]*label: 'Vision', view: 'vision-board'/);
   assert.match(nav, /view: 'agreements'/);
   assert.match(nav, /view: 'money'/);
   assert.doesNotMatch(nav, /label: 'Agreement Hub'|label: 'Marketplace'|label: 'Social'/);
@@ -39,8 +40,8 @@ test('Agreement to Money remains in-memory, identifier-free in the URL and retur
   assert.match(moneyHandoff, /in-memory only/i);
   assert.match(moneyHandoff, /window\.location\.hash = '#\/money'/);
   assert.doesNotMatch(moneyHandoff, /agreementId.*URLSearchParams|agreementId.*location\.hash/);
-  assert.match(agent, /onOpenAgreement=\{agreementId =>/);
-  assert.match(agent, /storeAgreementEntry\(agreementId\)/);
+  assert.match(runtime, /onOpenAgreement=\{agreementId =>/);
+  assert.match(runtime, /storeAgreementEntry\(agreementId\)/);
 });
 
 test('Vision and Community Store handoffs preserve only source/return context in memory', () => {
