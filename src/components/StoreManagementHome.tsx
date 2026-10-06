@@ -59,7 +59,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
               <h1 className="sp-display text-[2.2rem] md:text-5xl">{store.name}</h1>
               {store.verified && <span className="rounded-full bg-forest-100 px-2.5 py-1 text-[0.68rem] font-semibold text-forest-800">Verified</span>}
             </div>
-            {store.description && <p className="mt-3 max-w-xl text-[0.82rem] leading-5 text-sand-650">{store.description}</p>}
+            {store.description && <p className="mt-3 max-w-xl text-[0.82rem] leading-5 text-sand-600">{store.description}</p>}
             <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] text-sand-500">
               {store.serviceAreas.slice(0, 3).map(area => <span key={area} className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">{area}</span>)}
               {store.operator && <span className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">Acting as {store.operator}</span>}
