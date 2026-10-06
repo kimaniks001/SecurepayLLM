@@ -12,6 +12,7 @@ interface NavBarProps {
 
 const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: Home, label: 'Home', view: 'signed-in' },
+  { icon: Lightbulb, label: 'Vision', view: 'vision-board' },
   { icon: FileText, label: 'Agreements', view: 'agreements' },
   { icon: Wallet, label: 'Money', view: 'money' },
   { icon: Store, label: 'Store', view: 'store' },
