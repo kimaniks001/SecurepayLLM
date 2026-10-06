@@ -3,6 +3,7 @@ import type { PlugAvailabilityResponse, PlugMissionDto } from '../api/securepay/
 import type { BusinessStoreOpportunityResponse } from '../api/securepay/store/dto';
 import type { FulfilmentNeedMatchDto, SupplyRouteDto } from '../api/securepay/fulfilment-needs';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
+import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 
 interface StoreManagementHomeProps {
   store: StoreIdentity;
@@ -25,6 +26,7 @@ interface StoreManagementHomeProps {
   onInspectOpportunity?: (needId: string) => void;
   onOpenRouteOffer?: (providerKsNumber: string, offerId: string) => void;
   onReviewRoute?: (needId: string, route: SupplyRouteDto) => void;
+  onAskKs001?: () => void;
   opportunityInspection?: {
     needId: string;
     loading: boolean;
@@ -34,7 +36,7 @@ interface StoreManagementHomeProps {
   } | null;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, opportunityInspection }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, onAskKs001, opportunityInspection }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -55,6 +57,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
+        <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
         <section aria-label="What needs you today" className="rounded-2xl border border-forest-200 bg-forest-50/50 px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
