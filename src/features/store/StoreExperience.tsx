@@ -252,6 +252,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onQueryChange={q => controller.setQuery(q)}
         searchStatus={state.search.status === 'idle' ? 'idle' : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
         searchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
+        onJourneyNavigate={onNavigate}
       />
     );
   } else if (state.view === 'profile') {
