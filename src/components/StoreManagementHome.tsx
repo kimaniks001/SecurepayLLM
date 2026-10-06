@@ -46,19 +46,45 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
   const todayCount = needsAvailabilityCheck.length + opportunities.length + plugMissions.length;
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[0.8rem] text-sand-500 hover:text-forest-600 transition-colors mb-2">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Store
-        </button>
-        <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">My Store</h1>
-        <div className="text-[0.78rem] text-sand-500 mt-0.5">{store.name}{store.operator ? ` · Acting as ${store.operator}` : ''}</div>
+    <div className="sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-4 md:px-6 md:pt-6">
+        <section className="sp-hero px-5 py-5 md:px-7 md:py-6">
+          <button onClick={onBack} className="flex min-h-11 items-center gap-1.5 text-[0.78rem] text-sand-500 hover:text-forest-700 transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Store
+          </button>
+          <div className="mt-1 max-w-2xl">
+            <div className="sp-kicker">My Store</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h1 className="sp-display text-[2.2rem] md:text-5xl">{store.name}</h1>
+              {store.verified && <span className="rounded-full bg-forest-100 px-2.5 py-1 text-[0.68rem] font-semibold text-forest-800">Verified</span>}
+            </div>
+            {store.description && <p className="mt-3 max-w-xl text-[0.82rem] leading-5 text-sand-650">{store.description}</p>}
+            <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] text-sand-500">
+              {store.serviceAreas.slice(0, 3).map(area => <span key={area} className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">{area}</span>)}
+              {store.operator && <span className="rounded-full border border-cream-300 bg-white/70 px-2.5 py-1">Acting as {store.operator}</span>}
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 space-y-5">
         <Ks001SurfaceGuide surface="store" onAsk={onAskKs001} />
-        <section aria-label="What needs you today" className="rounded-2xl border border-forest-200 bg-forest-50/50 px-4 py-4">
+
+        <section aria-label="Store at a glance" className="grid grid-cols-4 gap-2">
+          {[
+            ['Published', published.length],
+            ['Drafts', drafts.length],
+            ['Check', needsAvailabilityCheck.length],
+            ['Matches', opportunities.length],
+          ].map(([label, count]) => (
+            <div key={String(label)} className="sp-section px-2 py-3 text-center">
+              <div className="sp-value text-xl">{count}</div>
+              <div className="mt-1 text-[0.62rem] font-medium text-sand-500">{label}</div>
+            </div>
+          ))}
+        </section>
+        <section aria-label="What needs you today" className="sp-section-warm px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[0.7rem] font-semibold uppercase tracking-wide text-sand-500">Today</div>
@@ -136,21 +162,6 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
             </div>
           </div>
         )}
-
-        {/* Authoritative offer-state counts only. */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            ['Published', published.length],
-            ['Drafts', drafts.length],
-            ['Unavailable', unavailable.length],
-          ].map(([label, count]) => (
-            <div key={String(label)} className="rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-center">
-              <FileText className="w-4 h-4 text-sand-400 mx-auto mb-1" />
-              <div className="text-[0.875rem] font-medium text-forest-800">{count}</div>
-              <div className="text-[0.65rem] text-sand-500">{label}</div>
-            </div>
-          ))}
-        </div>
 
         {businessMode && opportunities.length > 0 && (
           <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4">
@@ -316,7 +327,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
         {/* Create offer */}
         <button
           onClick={onCreateOffer}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3 hover:bg-forest-700 transition-colors"
+          className="sp-primary-action w-full flex items-center justify-center gap-2 px-5 text-[0.875rem] font-semibold"
         >
           <Plus className="w-4 h-4" />
           Create new offer
@@ -325,7 +336,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
         {/* Published offers */}
         {published.length > 0 && (
           <div>
-            <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Published offers</div>
+            <div className="mb-2"><div className="sp-kicker">What people can find</div><div className="mt-1 font-display text-xl text-forest-900">Published offers</div></div>
             <div className="space-y-2">
               {published.map((offer) => (
                 <div key={offer.id} className="rounded-xl border border-cream-200 bg-white px-4 py-3">
