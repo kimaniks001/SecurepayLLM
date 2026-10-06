@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
@@ -332,7 +333,21 @@ export default function RuntimeApp() {
   }
   if (moneyRoute) {
     return api && moneyAuthorityGateway && financialPartnerGateway && settlementDestinationGateway && agreementGateway && moneyGateway && paymentReleaseGateway && paymentIntentGateway && currencyCapabilityGateway && fxApplicationGateway && regulatedAccountsGateway && businessCurrencyCapabilityGateway && businessFxApplicationGateway && moneySnapshotGateway
-      ? <MoneyExperience gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }} auth={api.auth} session={session} onLeave={clearMoneyRoute} />
+      ? <MoneyExperience
+          gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }}
+          auth={api.auth}
+          session={session}
+          onLeave={clearMoneyRoute}
+          onNavigate={view => {
+            if (view === 'money') return;
+            storeEntryView(view);
+            clearMoneyRoute();
+          }}
+          onAskKs001={() => {
+            storeKs001EntryMessage('I’m on SecurePay Money. Explain which real SecurePay products, services or capabilities may help around the Agreement and this Money stage. Do not claim current financial authority, payment readiness, fees, release rights or executable actions unless SecurePay can verify them.');
+            clearMoneyRoute();
+          }}
+        />
       : <Unavailable />;
   }
   if (trustProjectDoor) {
