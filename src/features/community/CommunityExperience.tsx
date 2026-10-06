@@ -500,7 +500,7 @@ function CircleDetailPanel({
           <div className="rounded-xl border border-forest-100 bg-forest-50/40 px-4 py-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-[0.78rem] font-medium text-forest-800">KS001 in this Circle</div>
-              <p className="text-[0.7rem] text-sand-600 mt-0.5">Invite KS001 to help organise this Circle's discussion. It cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
+              <p className="text-[0.7rem] text-sand-600 mt-0.5">KS001 opens in this Circle's shared context, so it can help members catch up and organise what the Circle has already shared. A member's private conversations stay separate. KS001 cannot post, RSVP, commit anyone, create an Agreement, or move money.</p>
             </div>
             <button onClick={onInvokeKs001} className="shrink-0 rounded-xl border border-forest-200 px-3 py-2 text-[0.75rem] font-medium text-forest-700 hover:bg-white">Ask KS001</button>
           </div>
