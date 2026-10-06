@@ -9,6 +9,8 @@ test('new Community stories are project-first rather than free-floating', () => 
   assert.match(impact, /No free-floating posts/);
   assert.match(impact, /originType:'COMMUNITY_PROJECT'/);
   assert.match(impact, /originObjectId:storyProjectId/);
+  assert.match(impact, /explicitSafeShare:true/);
+  assert.match(impact, /safeShareConfirmed/);
   assert.match(impact, /Choose the Project this story belongs to/);
 });
 
