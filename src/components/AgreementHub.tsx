@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Search } from 'lucide-react';
 import type { AgreementSummary, AgreementStatus } from '../types';
 import { AgreementCard } from './AgreementCard';
@@ -29,6 +29,7 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape, o
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<AgreementStatus | 'all'>('all');
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewTriggerRef = useRef<HTMLElement | null>(null);
 
   const filtered = useMemo(() => {
     let result = agreements;
@@ -52,15 +53,13 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape, o
   const selectedAgreement = previewId ? agreements.find((a) => a.id === previewId) ?? null : null;
 
   const handleOpenPreview = (id: string) => {
+    previewTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPreviewId(id);
   };
 
   const closePreview = () => {
-    const id = previewId;
     setPreviewId(null);
-    requestAnimationFrame(() => {
-      if (id) document.querySelector<HTMLButtonElement>(`[data-agreement-id="${id}"]`)?.focus();
-    });
+    requestAnimationFrame(() => previewTriggerRef.current?.focus());
   };
 
   const handleOpenFullAgreement = (id: string) => {
