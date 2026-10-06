@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, Lock, Sparkles, Unlock } from 'lucide-react';
+import { ArrowLeft, Lock, MoreHorizontal, Plus, Search, Sparkles, Unlock } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
@@ -231,7 +231,7 @@ function VisionNeedPanel({ item, gateway, onOpenStoreOffer, onOpenStore }: {
  * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
  * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
-export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001 }: {
+export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer, onAskKs001, onBack }: {
   controller: VisionBoardController;
   documentGateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>;
   fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
@@ -239,6 +239,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
   onAskKs001?: (message: string) => void;
+  onBack?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [switchKsInput, setSwitchKsInput] = useState('');
@@ -249,6 +250,8 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   const [newContent, setNewContent] = useState('');
   const [newUsagePolicy, setNewUsagePolicy] = useState<import('../../api/securepay/visionboard/dto').VisionItemUsagePolicy>('REFERENCE_ONLY');
   const [searchInput, setSearchInput] = useState('');
+  const [rootSearchOpen, setRootSearchOpen] = useState(false);
+  const [rootAddOpen, setRootAddOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
 
@@ -394,6 +397,71 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   return <div className="sp-life-canvas min-h-dvh">
     <NavBar view="vision-board" onNavigate={onNavigate} />
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={onBack ?? (() => onNavigate('signed-in'))}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-forest-700">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => { setRootSearchOpen(false); setRootAddOpen(v => !v); }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-cream-200 bg-white px-3 text-sm font-semibold text-forest-800">
+            <Plus className="h-4 w-4" /> Add
+          </button>
+          <button type="button" onClick={() => { setRootAddOpen(false); setRootSearchOpen(v => !v); }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="Search Vision">
+            <Search className="h-4 w-4" />
+          </button>
+          <details className="relative">
+            <summary className="inline-flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="More Vision tools">
+              <MoreHorizontal className="h-5 w-5" />
+            </summary>
+            <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-cream-200 bg-white p-3 shadow-lifted">
+              <p className="text-xs font-semibold text-forest-900">More Vision tools</p>
+              <p className="mt-1 text-xs leading-5 text-sand-500">Documents and another KS Board stay available without occupying the whole page.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      {rootSearchOpen && (
+        <div className="sp-section flex gap-2 p-3">
+          <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search your whole Vision Board"
+            className="min-h-11 flex-1 rounded-xl border border-cream-200 bg-white px-3 text-sm" />
+          <Button variant="secondary" onClick={() => void controller.search(searchInput.trim())}>Search</Button>
+        </div>
+      )}
+
+      {rootAddOpen && (
+        <div className="sp-section p-3">
+          <p className="text-xs font-semibold text-forest-900">Where should this live?</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(state.shelves.data ?? []).map(shelf => (
+              <button key={shelf.shelf} type="button" onClick={() => { setShowCreate(true); setRootAddOpen(false); void controller.openShelf(shelf.shelf); }}
+                className="min-h-12 rounded-xl border border-cream-200 bg-white px-3 text-left text-xs font-medium text-forest-800">
+                {shelf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {state.searchQuery && state.items.status === 'ready' && (
+        <section className="sp-section p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div><div className="sp-kicker">Search</div><h2 className="mt-1 font-display text-xl text-forest-900">{state.items.data?.length ?? 0} result{state.items.data?.length === 1 ? '' : 's'}</h2></div>
+            <button type="button" onClick={() => { setSearchInput(''); setRootSearchOpen(false); controller.closeShelf(); }} className="min-h-11 text-xs font-medium text-forest-700">Clear</button>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(state.items.data ?? []).map(vitem => (
+              <button key={vitem.id} onClick={() => controller.open(vitem)} className="w-full rounded-xl border border-cream-200 bg-white px-3 py-3 text-left">
+                <span className="block text-sm font-medium text-forest-800">{vitem.title}</span>
+                <span className="mt-0.5 block text-xs text-sand-500">{vitem.shelf.replace(/_/g, ' ').toLowerCase()}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="sp-hero px-5 py-6 md:px-7 md:py-7">
         <div className="sp-kicker">Vision</div>
         <h1 className="sp-display mt-2 max-w-2xl text-[2.35rem] md:text-5xl">What are you trying to move forward?</h1>
