@@ -233,6 +233,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   defaultOwnerKsNumber?: string | null;
   onNavigate: (view: AppView) => void;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onAskKs001?: (message: string) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [switchKsInput, setSwitchKsInput] = useState('');
