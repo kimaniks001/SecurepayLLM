@@ -18,7 +18,7 @@ export function ExperiencePathway({ active, onNavigate, className = '' }: {
     <section aria-label="SecurePay journey" className={`rounded-2xl border border-cream-200 bg-white p-4 ${className}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Keep the work connected</p>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">Keep the work connected</p>
           <p className="mt-1 text-[0.82rem] text-sand-600">Move between thinking, finding, agreeing and money without losing the context of what you are trying to make happen.</p>
         </div>
       </div>
@@ -38,11 +38,11 @@ export function ExperiencePathway({ active, onNavigate, className = '' }: {
                   ? 'border-forest-300 bg-forest-50 text-forest-800'
                   : enabled
                     ? 'border-cream-200 bg-cream-50/50 text-sand-700 hover:border-forest-300 hover:bg-forest-50/40'
-                    : 'border-cream-100 bg-cream-50/30 text-sand-400'
+                    : 'border-cream-100 bg-cream-50/30 text-sand-600'
               }`}
             >
               <span className="block text-[0.78rem] font-medium">{area.label}</span>
-              <span className="mt-0.5 block text-[0.68rem] leading-snug text-sand-500">{area.purpose}</span>
+              <span className="mt-0.5 block text-[0.68rem] leading-snug text-sand-600">{area.purpose}</span>
             </button>
           );
         })}
