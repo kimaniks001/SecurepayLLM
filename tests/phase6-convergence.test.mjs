@@ -332,12 +332,14 @@ test('Q4. No generic avatar (AgentIcon or a hand-drawn silhouette) is reintroduc
   }
 });
 
-test('R1. SignedInHome keeps the earlier headline as its own conversational-mode label (Section 36 -- "may remain as the conversational mode label, not the hero promise"); SignedOutHome carries the Phase 3 hero copy; both keep the Fair Trade affordance', async () => {
+test('R1. SignedInHome carries the Masterpiece possibility question while SignedOutHome keeps the Phase 3 public promise; both keep Fair Trade', async () => {
   const signedIn = await readFile('src/components/SignedInHome.tsx', 'utf8');
-  assert.match(signedIn, /Tell SecurePay what you're trying to make happen\./, 'SignedInHome may keep the earlier phrase as its own mode label');
+  assert.match(signedIn, /What do you want to make/);
+  assert.match(signedIn, /sp-real-word">real/);
+  assert.match(signedIn, /Tell KS001 what you want to make happen/);
   assert.match(signedIn, /FairTradeAffordance/, 'SignedInHome must keep the Fair Trade affordance');
   const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(signedOut, /Bring the plan\. Leave with an agreement\./, 'SignedOutHome must carry the Phase 3 hero headline, not only the earlier phrase');
+  assert.match(signedOut, /Bring the plan\. Leave with an agreement\./, 'SignedOutHome keeps the public entry promise');
   assert.match(signedOut, /FairTradeAffordance/, 'SignedOutHome must keep the Fair Trade affordance');
 });
 
