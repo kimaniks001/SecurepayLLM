@@ -246,7 +246,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   useEffect(() => {
     if (externalKs001Message) void controller.send(externalKs001Message);
-    // one-shot message consumed from sessionStorage at mount
+    // one-shot message consumed from the in-memory route handoff at mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
