@@ -313,7 +313,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, agentGateway, agen
           money={money}
           overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts}
             onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
-            onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })} />}
+            onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
+            onJourneyNavigate={handleNavigate} />}
           progress={progress}
           next={agreementNextView(state.selectedAgreementNextActions)}
           events={calendarEvents}
