@@ -20,7 +20,7 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
 ];
 
 // Masterpiece mobile doctrine: five obvious destinations. Money is reached from the Agreement
-// that gives it meaning; Account/notifications remain available from page-level affordances.
+// that gives it meaning; Account/notifications remain reachable from the quiet mobile top bar.
 const mobileNavItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: Home, label: 'Home', view: 'signed-in' },
   { icon: Lightbulb, label: 'Vision', view: 'vision-board' },
@@ -89,8 +89,44 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
         </div>
       </nav>
 
+      {/* Mobile top bar — identity and attention stay reachable without becoming primary destinations. */}
+      <nav className="md:hidden sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-cream-200/70 bg-cream-50/95 px-4 backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => onNavigate('signed-in')}
+          aria-label="SecurePay Home"
+          className="flex min-h-11 items-center"
+        >
+          <img src={securepayWordmark} alt="SecurePay" className="h-6 w-auto" />
+        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onNavigate('notifications')}
+            aria-label="Notifications"
+            aria-current={notificationsActive ? 'page' : undefined}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+              notificationsActive ? 'bg-forest-50 text-forest-700' : 'text-sand-600 hover:bg-cream-100 hover:text-forest-700'
+            }`}
+          >
+            <Bell aria-hidden="true" className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('account')}
+            aria-label="Account"
+            aria-current={isActive('account') ? 'page' : undefined}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+              isActive('account') ? 'bg-forest-50 text-forest-700' : 'text-sand-600 hover:bg-cream-100 hover:text-forest-700'
+            }`}
+          >
+            <User aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+      </nav>
+
       {/* Mobile bottom nav — five obvious destinations, large enough to understand at a glance. */}
-      <nav className="sp-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/96 backdrop-blur-xl border-t border-cream-200/80 px-2 pt-1.5 flex items-center justify-around">
+      <nav className="sp-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-xl border-t border-cream-200/80 px-2 pt-1.5 flex items-center justify-around">
         {mobileNavItems.map((item) => {
           const active = isActive(item.view);
           return (
