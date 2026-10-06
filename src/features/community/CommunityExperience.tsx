@@ -147,7 +147,7 @@ function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect:
     { value: 'home', label: 'HOME' },
     { value: 'live', label: 'LIVE' },
     { value: 'serve', label: 'PROJECTS & ACTIVITIES' },
-    { value: 'happening', label: 'EVENTS' },
+    { value: 'happening', label: 'HAPPENING' },
     { value: 'circles', label: 'CIRCLES' },
     { value: 'learn', label: 'LEARN' },
   ];
