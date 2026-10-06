@@ -19,6 +19,16 @@ const navItems: { icon: typeof Home; label: string; view: AppView }[] = [
   { icon: User, label: 'Account', view: 'account' },
 ];
 
+// Masterpiece mobile doctrine: five obvious destinations. Money is reached from the Agreement
+// that gives it meaning; Account/notifications remain available from page-level affordances.
+const mobileNavItems: { icon: typeof Home; label: string; view: AppView }[] = [
+  { icon: Home, label: 'Home', view: 'signed-in' },
+  { icon: FileText, label: 'Vision', view: 'vision-board' },
+  { icon: FileText, label: 'Agreements', view: 'agreements' },
+  { icon: Store, label: 'Store', view: 'store' },
+  { icon: Users, label: 'Community', view: 'community' },
+];
+
 /**
  * Public Experience Convergence Phase 2 -- signed-out visitors get the public navigation (see
  * `PublicShell`); the signed-in app navigation below is unchanged.
@@ -36,7 +46,8 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
     if (itemView === 'money' && (view === 'money' || view === 'dispute')) return true;
     if (itemView === 'store' && view === 'store') return true;
     if (itemView === 'community' && (view === 'community' || view === 'circle' || view === 'ecosystem')) return true;
-    if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'vision-board' || view === 'recovery')) return true;
+    if (itemView === 'vision-board' && view === 'vision-board') return true;
+    if (itemView === 'account' && (view === 'account' || view === 'settings' || view === 'business' || view === 'developer' || view === 'projects' || view === 'recovery')) return true;
     return false;
   };
   const notificationsActive = view === 'notifications';
@@ -78,28 +89,24 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
         </div>
       </nav>
 
-      {/* Mobile bottom nav */}
-      {/* Phase 4 (UR-223): 44px-high targets that share the width (content + leftover), so all seven fit at 320px -- same icons, labels and order. */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 px-1 py-1.5 flex items-center justify-around">
-        {navItems.map((item) => (
-          <button
-            key={item.label}
-            onClick={() => onNavigate(item.view)}
-            className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${
-              isActive(item.view) ? 'text-forest-600' : 'text-sand-400'
-            }`}
-          >
-            <item.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-            <span className="text-[0.6rem] font-medium">{item.label}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => onNavigate('notifications')}
-          className={`flex flex-auto min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 rounded-lg transition-colors ${notificationsActive ? 'text-forest-600' : 'text-sand-400'}`}
-        >
-          <Bell style={{ width: 18, height: 18 }} />
-          <span className="text-[0.55rem] font-medium leading-tight">Notifications</span>
-        </button>
+      {/* Mobile bottom nav — five obvious destinations, large enough to understand at a glance. */}
+      <nav className="sp-mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-30 bg-cream-50/96 backdrop-blur-xl border-t border-cream-200/80 px-2 pt-1.5 flex items-center justify-around">
+        {mobileNavItems.map((item) => {
+          const active = isActive(item.view);
+          return (
+            <button
+              key={item.label}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(item.view)}
+              className={`sp-mobile-tab relative flex flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors ${
+                active ? 'text-forest-700' : 'text-sand-500'
+              }`}
+            >
+              <item.icon aria-hidden="true" style={{ width: 20, height: 20 }} />
+              <span className="text-[0.64rem] font-semibold">{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </>
   );
