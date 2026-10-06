@@ -442,3 +442,27 @@ export interface TrustProjectPathwayDiscoveryResultDto {
   currentKnowledgeVerified: boolean;
   note: string;
 }
+
+
+export type CircleCoordinationResponseCode =
+  | 'OKAY' | 'ON_MY_WAY' | 'COMING_IN_20_MIN' | 'HOLD' | 'NEED_DETAILS'
+  | 'COUNT_ME_IN' | 'I_CAN_HELP' | 'GOT_IT' | 'DONE' | 'READY' | 'BLOCKED'
+  | 'COME_CHECK' | 'LOOKS_OK_FROM_PHOTOS' | 'NOT_ME' | 'IM_DRIVING'
+  | 'I_NEED_ONE' | 'SKIP' | 'TOO_HIGH';
+
+export interface CircleCoordinationPromptDto {
+  id: string;
+  circleId: string;
+  createdByIdentityId: string;
+  promptText: string;
+  contextType: string | null;
+  contextReference: string | null;
+  allowedResponses: CircleCoordinationResponseCode[];
+  status: 'OPEN' | 'CLOSED' | 'EXPIRED';
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  myResponse: CircleCoordinationResponseCode | null;
+  myRespondedAt: string | null;
+}
