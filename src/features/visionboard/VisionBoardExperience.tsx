@@ -9,7 +9,8 @@ import { ExperiencePathway } from '../experience/ExperiencePathway';
 import type { AppView } from '../../types';
 import type { VisionBoardController } from './controller';
 import type { VisionBoardGateway } from '../../api/securepay/visionboard';
-import type { GenerateDocumentRequest, VisionDocumentDto, VisionItemTypeCode, VisionShelfCode } from '../../api/securepay/visionboard/dto';
+import type { GenerateDocumentRequest, VisionDocumentDto, VisionItemTypeCode, VisionShelfCode, VisionItemDto } from '../../api/securepay/visionboard/dto';
+import type { FulfilmentNeedsGateway, FulfilmentNeedDto, FulfilmentNeedMatchDto, SupplyRouteDto, FulfilmentNeedType, FulfilmentNeedPrivacyLevel } from '../../api/securepay/fulfilment-needs';
 
 const ITEM_TYPE_OPTIONS: VisionItemTypeCode[] = [
   'IDEA', 'PLAN', 'BUSINESS_RULE', 'METHOD', 'TEMPLATE', 'REFERENCE_DOCUMENT', 'GUIDELINE',
@@ -96,6 +97,123 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
   );
 }
 
+function VisionNeedPanel({ item, gateway, onOpenStoreOffer }: {
+  item: VisionItemDto;
+  gateway: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+}) {
+  const [type, setType] = useState<FulfilmentNeedType>('OTHER');
+  const [privacy, setPrivacy] = useState<FulfilmentNeedPrivacyLevel>('PRIVATE');
+  const [poolable, setPoolable] = useState(false);
+  const [need, setNeed] = useState<FulfilmentNeedDto | null>(null);
+  const [matches, setMatches] = useState<FulfilmentNeedMatchDto[]>([]);
+  const [routes, setRoutes] = useState<SupplyRouteDto[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const derive = async () => {
+    setBusy(true); setError(null);
+    try {
+      const created = await gateway.fromVision(item.itemId, {
+        derivationKey: `vision-ui:${item.itemId}:v${item.version}`,
+        type,
+        poolable,
+        privacyLevel: privacy,
+      });
+      setNeed(created);
+      const [foundMatches, foundRoutes] = await Promise.all([
+        gateway.matches(created.id),
+        gateway.routes(created.id),
+      ]);
+      setMatches(foundMatches);
+      setRoutes(foundRoutes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'SecurePay could not find options for this Vision item.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Surface>
+      <SurfaceBody className="space-y-3">
+        <div>
+          <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Make this practical</div>
+          <h2 className="mt-1 font-display text-lg text-forest-800">What does this idea need?</h2>
+          <p className="mt-1 text-[0.76rem] text-sand-600">Turn this saved Vision item into structured demand. You choose whether it stays private, can be matched to Stores, and whether pooling is allowed.</p>
+        </div>
+
+        {!need && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="text-[0.72rem] text-sand-600">
+                Need type
+                <select value={type} onChange={e => setType(e.target.value as FulfilmentNeedType)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  {(['PRODUCT','TRANSPORT','ACCOMMODATION','LABOUR','COURIER','STORAGE','EQUIPMENT','SERVICE','OTHER'] as FulfilmentNeedType[]).map(value => (
+                    <option key={value} value={value}>{value.replace(/_/g, ' ').toLowerCase()}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[0.72rem] text-sand-600">
+                Visibility
+                <select value={privacy} onChange={e => setPrivacy(e.target.value as FulfilmentNeedPrivacyLevel)} className="mt-1 w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-[0.8rem] text-forest-800">
+                  <option value="PRIVATE">Private — only use for my search</option>
+                  <option value="MATCHABLE">Matchable — eligible Stores may see safe demand</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-start gap-2 text-[0.78rem] text-forest-800">
+              <input type="checkbox" checked={poolable} onChange={e => setPoolable(e.target.checked)} className="mt-0.5" />
+              <span>Allow pooling when compatible <span className="block text-[0.68rem] text-sand-500">This only marks the need as poolable. It does not join a Community Saver or another person’s agreement.</span></span>
+            </label>
+            {error && <StatusNotice tone="warning" icon={false}>{error}</StatusNotice>}
+            <Button disabled={busy} onClick={() => void derive()} className="w-full sm:w-auto">
+              {busy ? 'Finding options…' : 'Find real options'}
+            </Button>
+          </>
+        )}
+
+        {need && (
+          <>
+            <div className="rounded-xl border border-forest-100 bg-forest-50/50 px-3 py-3">
+              <div className="text-[0.78rem] font-medium text-forest-800">{need.description}</div>
+              <div className="mt-1 text-[0.68rem] text-sand-500">
+                {need.type.replace(/_/g, ' ')} · {need.privacyLevel === 'MATCHABLE' ? 'Matchable' : 'Private'}{need.poolable ? ' · Poolable' : ''}
+              </div>
+            </div>
+
+            {busy && <p role="status" className="text-[0.76rem] text-sand-500">Finding Store matches…</p>}
+            {!busy && routes.length === 0 && <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need is still saved in SecurePay.</p>}
+
+            {routes.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Options SecurePay found</div>
+                {routes.slice(0, 5).map(route => (
+                  <div key={route.routeId} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[0.8rem] font-medium text-forest-800">{route.routeLabel}</div>
+                        <div className="mt-0.5 text-[0.68rem] text-sand-500">{route.providerDisplayName ?? route.providerKsNumber}{route.leadTimeHours !== null ? ` · ${route.leadTimeHours}h` : ''}</div>
+                      </div>
+                      <div className="text-right text-[0.72rem] text-forest-800">
+                        {route.headlinePriceMinor !== null ? `${route.currency} ${(route.headlinePriceMinor / 100).toLocaleString()}` : 'Price not listed'}
+                        <div className="text-[0.62rem] text-sand-400">{route.landedCostKnown ? 'Landed cost known' : 'Landed cost not established'}</div>
+                      </div>
+                    </div>
+                    {route.tradeOffs.length > 0 && <p className="mt-2 text-[0.68rem] text-sand-600">{route.tradeOffs.slice(0, 2).join(' · ')}</p>}
+                    {onOpenStoreOffer && <button type="button" onClick={() => onOpenStoreOffer(route.providerKsNumber, route.offerId)} className="mt-3 rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white">Open Store offer</button>}
+                  </div>
+                ))}
+                {matches.length > routes.length && <p className="text-[0.68rem] text-sand-500">{matches.length} provider matches found; {routes.length} currently have comparable supply routes.</p>}
+              </div>
+            )}
+          </>
+        )}
+      </SurfaceBody>
+    </Surface>
+  );
+}
+
 /**
  * SecurePay Final Completion Phase 5B -- the Vision Board: private KS operating memory (ideas,
  * plans, guidance, methods, templates). This is not a shared workspace, not a Project, and not an
@@ -106,11 +224,13 @@ function DocumentGenerator({ gateway, ownerKsNumber }: { gateway: Pick<VisionBoa
  * through each domain's own authorized owner-scoped API -- no such feature exists today, and this
  * pass does not build one (see docs/PHASE5_LIFE_BUSINESS_WORLD.md).
  */
-export function VisionBoardExperience({ controller, documentGateway, defaultOwnerKsNumber, onNavigate }: {
+export function VisionBoardExperience({ controller, documentGateway, fulfilmentNeedsGateway, defaultOwnerKsNumber, onNavigate, onOpenStoreOffer }: {
   controller: VisionBoardController;
   documentGateway: Pick<VisionBoardGateway, 'generateQuotation' | 'generateInvoice' | 'generateReceipt'>;
+  fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromVision' | 'matches' | 'routes'>;
   defaultOwnerKsNumber?: string | null;
   onNavigate: (view: AppView) => void;
+  onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [switchKsInput, setSwitchKsInput] = useState('');
@@ -186,6 +306,7 @@ export function VisionBoardExperience({ controller, documentGateway, defaultOwne
             <p className="text-[0.72rem] text-sand-500">Version {selectedItem.version}</p>
           </SurfaceBody>
         </Surface>
+        {fulfilmentNeedsGateway && <VisionNeedPanel item={selectedItem} gateway={fulfilmentNeedsGateway} onOpenStoreOffer={onOpenStoreOffer} />}
       </div>
     </div>;
   }
