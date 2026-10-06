@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
+import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
@@ -345,6 +345,10 @@ export default function RuntimeApp() {
           }}
           onAskKs001={() => {
             storeKs001EntryMessage('I’m on SecurePay Money. Explain which real SecurePay products, services or capabilities may help around the Agreement and this Money stage. Do not claim current financial authority, payment readiness, fees, release rights or executable actions unless SecurePay can verify them.');
+            clearMoneyRoute();
+          }}
+          onOpenAgreement={agreementId => {
+            storeAgreementEntry(agreementId);
             clearMoneyRoute();
           }}
         />
