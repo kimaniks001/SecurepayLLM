@@ -186,7 +186,7 @@
 
   .sp-hero {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 1.75rem;
     border: 1px solid rgba(224, 212, 184, 0.72);
     background:
@@ -199,6 +199,7 @@
   .sp-hero::after {
     content: '';
     position: absolute;
+    overflow: hidden;
     width: 13rem;
     height: 13rem;
     right: -6rem;
