@@ -99,15 +99,18 @@ const tabs: { value: Tab; label: string }[] = [
 
 type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'calendar' | 'support';
 
-const mobileSections: { value: MobileSection; label: string }[] = [
+const primaryMobileSections: { value: MobileSection; label: string }[] = [
   { value: 'overview', label: 'Overview' },
-  { value: 'people-terms', label: 'People & terms' },
+  { value: 'people-terms', label: 'People' },
+  { value: 'money', label: 'Money' },
+  { value: 'progress', label: 'Milestones' },
+];
+
+const moreMobileSections: { value: MobileSection; label: string }[] = [
   { value: 'documents', label: 'Documents' },
   { value: 'activity-changes', label: 'Activity & changes' },
-  { value: 'money', label: 'Money' },
-  { value: 'progress', label: 'Progress' },
   { value: 'calendar', label: 'Calendar & tags' },
-  { value: 'support', label: 'Support' },
+  { value: 'support', label: 'Support & reviews' },
 ];
 
 export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel }: AgreementDetailProps) {
@@ -125,23 +128,24 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[0.8rem] text-sand-500 hover:text-forest-600 transition-colors mb-2">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Agreements
-        </button>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">{detail.title}</h1>
-            <div className="mt-1.5 flex items-center gap-2.5 text-[0.75rem] text-sand-500">
-              {showVersion && (
-                <span>Version: <span className="text-forest-700 font-medium">{detail.version}</span></span>
-              )}
-              {showVersion && <span className="text-sand-300">·</span>}
+    <div className="sp-life-canvas flex-1 flex flex-col overflow-hidden">
+      {/* Header — the Agreement should feel understood before it feels legal. */}
+      <div className="px-4 pt-4 md:px-6 md:pt-5">
+        <div className="sp-hero px-4 py-4 md:px-6 md:py-5">
+          <button onClick={onBack} className="flex min-h-11 items-center gap-1.5 text-[0.78rem] font-medium text-sand-500 hover:text-forest-700 transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Agreements
+          </button>
+          <div className="mt-1 max-w-3xl">
+            <div className="sp-kicker">Living Agreement</div>
+            <h1 className="sp-display mt-2 text-[2rem] md:text-4xl">{detail.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2.5 text-[0.72rem] text-sand-500">
               <AgreementStatusBadge status={detail.status} label={detail.statusLabel} />
+              {showVersion && <span className="rounded-full bg-white/70 px-2.5 py-1">Version {detail.version}</span>}
             </div>
+            <p className="mt-3 max-w-2xl text-[0.78rem] leading-5 text-sand-600">
+              See the people, commitments, progress and money around this Agreement without losing the thread.
+            </p>
           </div>
         </div>
       </div>
@@ -194,7 +198,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
                 {onOpenMoney && (
                   <button
                     onClick={() => onOpenMoney(detail.id)}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.825rem] font-medium py-2.5 hover:bg-forest-700 transition-colors"
+                    className="sp-primary-action w-full flex items-center justify-center gap-2 px-5 text-[0.825rem] font-semibold"
                   >
                     <Wallet className="w-4 h-4" />
                     Open Money
@@ -236,24 +240,45 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       </div>
 
       {/* Mobile: Calm section model */}
-      <div className="md:hidden flex-1 overflow-y-auto scrollbar-thin px-4 py-4">
+      <div className="md:hidden flex-1 overflow-y-auto scrollbar-thin px-4 py-4 pb-28">
         <div className="max-w-2xl mx-auto space-y-4">
-          {/* Section selector */}
-          <div className="flex flex-wrap gap-2">
-            {mobileSections.map((s) => (
+          {/* Four obvious doors first; the full record stays available without crowding the first decision. */}
+          <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-cream-200 bg-white/72 p-1.5 shadow-soft">
+            {primaryMobileSections.map((s) => (
               <button
                 key={s.value}
                 onClick={() => setMobileSection(s.value)}
-                className={`text-[0.75rem] font-medium rounded-full px-3 py-1.5 transition-all ${
+                className={`min-h-11 rounded-xl px-1.5 text-[0.68rem] font-semibold transition-all ${
                   mobileSection === s.value
-                    ? 'bg-forest-600 text-cream-50'
-                    : 'bg-white text-sand-600 border border-cream-200'
+                    ? 'bg-forest-700 text-cream-50 shadow-soft'
+                    : 'text-sand-600 hover:bg-cream-50'
                 }`}
               >
                 {s.label}
               </button>
             ))}
           </div>
+          <details className="rounded-xl border border-cream-200/80 bg-white/55">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3.5 text-[0.72rem] font-medium text-sand-600">
+              <span>Full Agreement record</span>
+              <span className="text-sand-400">Documents · changes · calendar · support</span>
+            </summary>
+            <div className="grid grid-cols-2 gap-2 border-t border-cream-200 p-2.5">
+              {moreMobileSections.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => setMobileSection(s.value)}
+                  className={`min-h-11 rounded-xl border px-3 text-left text-[0.7rem] font-medium ${
+                    mobileSection === s.value
+                      ? 'border-forest-300 bg-forest-50 text-forest-800'
+                      : 'border-cream-200 bg-white text-sand-600'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </details>
 
           {/* Section content */}
           {mobileSection === 'overview' && (
