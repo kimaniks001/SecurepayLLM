@@ -252,6 +252,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
   const [searchInput, setSearchInput] = useState('');
   const [rootSearchOpen, setRootSearchOpen] = useState(false);
   const [rootAddOpen, setRootAddOpen] = useState(false);
+  const [rootMoreOpen, setRootMoreOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
 
@@ -411,15 +412,10 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
             className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="Search Vision">
             <Search className="h-4 w-4" />
           </button>
-          <details className="relative">
-            <summary className="inline-flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="More Vision tools">
-              <MoreHorizontal className="h-5 w-5" />
-            </summary>
-            <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-cream-200 bg-white p-3 shadow-lifted">
-              <p className="text-xs font-semibold text-forest-900">More Vision tools</p>
-              <p className="mt-1 text-xs leading-5 text-sand-500">Documents and another KS Board stay available without occupying the whole page.</p>
-            </div>
-          </details>
+          <button type="button" onClick={() => { setRootAddOpen(false); setRootSearchOpen(false); setRootMoreOpen(v => !v); }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700" aria-label="More Vision tools">
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -441,6 +437,30 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
                 {shelf.label}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {rootMoreOpen && (
+        <div className="sp-section space-y-4 p-4">
+          <div>
+            <div className="text-xs font-semibold text-forest-900">Documents</div>
+            <p className="mt-1 text-xs text-sand-500">Prepare a quotation, invoice or receipt from real Vision information.</p>
+            {state.boarded && <div className="mt-2"><DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} /></div>}
+          </div>
+          <div className="border-t border-cream-200 pt-4">
+            <div className="text-xs font-semibold text-forest-900">Another KS Board</div>
+            {showSwitchKs ? (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input value={switchKsInput} onChange={e => setSwitchKsInput(e.target.value)} placeholder="Business KS Number you manage" className="min-h-11 flex-1 rounded-lg border border-cream-200 px-3 text-[0.85rem]" />
+                <Button onClick={() => { if (switchKsInput.trim()) { void controller.loadForOwner(switchKsInput.trim()); setShowSwitchKs(false); setRootMoreOpen(false); } }} className="px-3">Switch</Button>
+                <Button variant="secondary" onClick={() => setShowSwitchKs(false)} className="px-3">Cancel</Button>
+              </div>
+            ) : (
+              <button onClick={() => setShowSwitchKs(true)} className="mt-2 min-h-11 text-sm font-medium text-forest-700 underline">
+                {state.ownerKsNumber ? 'Manage a different KS Board' : 'Manage a Business KS Board'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -502,22 +522,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         </button>
       </section>
 
-      {/* Convergence correction (section 43) -- this is never required to see your own board; it
-          only switches to managing a different KS (e.g. a Business you administer). */}
       {state.ownerKsNumber && <p className="text-[0.75rem] text-sand-500">Managing the Vision Board for <span className="text-forest-700">{state.ownerKsNumber}</span>.</p>}
-      {showSwitchKs ? (
-        <Surface>
-          <SurfaceBody className="flex gap-2">
-            <input value={switchKsInput} onChange={e => setSwitchKsInput(e.target.value)} placeholder="Business KS Number you manage" className="flex-1 rounded-lg border border-cream-200 px-3 py-2 text-[0.85rem]" />
-            <Button onClick={() => { if (switchKsInput.trim()) { void controller.loadForOwner(switchKsInput.trim()); setShowSwitchKs(false); } }} className="px-3">Switch</Button>
-            <Button variant="secondary" onClick={() => setShowSwitchKs(false)} className="px-3">Cancel</Button>
-          </SurfaceBody>
-        </Surface>
-      ) : (
-        <button onClick={() => setShowSwitchKs(true)} className="text-[0.78rem] text-forest-700 underline">
-          {state.ownerKsNumber ? 'Manage a different KS' : 'Manage a Business KS instead'}
-        </button>
-      )}
 
       {state.shelves.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading your Vision Board…</p>}
       {state.shelves.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.shelves.error}</StatusNotice>}
@@ -536,7 +541,6 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
         </button>)}
       </div>}
 
-      {state.boarded && <DocumentGenerator gateway={documentGateway} ownerKsNumber={state.ownerKsNumber} />}
     </div>
   </div>;
 }
