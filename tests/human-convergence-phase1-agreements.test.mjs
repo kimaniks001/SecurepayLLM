@@ -126,7 +126,7 @@ test('preview handoffs retain selected Agreement context for Money and KS001', a
 test('real signed-in Agreement Hub carries backend preview authority and canonical handoffs', async () => {
   const workspace = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
   const view = await readFile('src/features/workspace/view.ts', 'utf8');
-  assert.match(workspace, /findInHub\(state\.hub\.data, id\)/);
+  assert.match(workspace, /findInHub\(hubData, id\)/);
   assert.match(workspace, /onOpenMoney=\{openHubMoney\}/);
   assert.match(workspace, /onAskKS001=\{askHubKs001\}/);
   assert.match(workspace, /agentGateway\.switchAccessGrant\(conversationId, id\)/);
