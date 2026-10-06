@@ -10,6 +10,8 @@ interface StoreManagementHomeProps {
   enquiries: StoreEnquiry[];
   onBack: () => void;
   onCreateOffer: () => void;
+  onEditOffer?: (offerId: string) => void;
+  onConfirmAvailability?: (offerId: string) => void;
   businessMode?: boolean;
   opportunities?: BusinessStoreOpportunityResponse[];
   onOpenGrow?: () => void;
@@ -21,10 +23,14 @@ interface StoreManagementHomeProps {
   onTogglePlugAvailability?: () => void;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
+  const needsAvailabilityCheck = offers.filter((o) =>
+    o.lifecycle === 'published' && /needs confirmation/i.test(o.availability)
+  );
+  const todayCount = needsAvailabilityCheck.length + opportunities.length + plugMissions.length;
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -38,6 +44,61 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4">
+        <section aria-label="What needs you today" className="rounded-2xl border border-forest-200 bg-forest-50/50 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[0.7rem] font-semibold uppercase tracking-wide text-sand-500">Today</div>
+              <h2 className="mt-1 font-display text-lg text-forest-800">What needs you?</h2>
+              <p className="mt-1 text-[0.76rem] text-sand-600">
+                SecurePay only puts real Store facts here — availability that needs confirming, matching demand and Plug work already visible to you.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white border border-forest-200 px-2.5 py-1 text-[0.72rem] font-medium text-forest-700">
+              {todayCount}
+            </span>
+          </div>
+
+          {todayCount === 0 ? (
+            <div className="mt-3 rounded-xl border border-forest-100 bg-white/70 px-3 py-3">
+              <div className="text-[0.8rem] font-medium text-forest-800">Nothing needs action right now.</div>
+              <p className="mt-0.5 text-[0.7rem] text-sand-500">Your published offers can keep working. You can create something new or review your Store below.</p>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {needsAvailabilityCheck.map(offer => (
+                <div key={offer.id} className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                  <div className="text-[0.78rem] font-medium text-forest-800">{offer.title}</div>
+                  <div className="mt-0.5 text-[0.68rem] text-sand-500">Availability needs confirmation before customers rely on it.</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {onConfirmAvailability && (
+                      <button onClick={() => onConfirmAvailability(offer.id)} className="rounded-lg bg-forest-600 px-3 py-1.5 text-[0.7rem] font-medium text-white">
+                        Confirm availability
+                      </button>
+                    )}
+                    {onEditOffer && (
+                      <button onClick={() => onEditOffer(offer.id)} className="rounded-lg border border-cream-200 px-3 py-1.5 text-[0.7rem] font-medium text-forest-700">
+                        Review offer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {businessMode && opportunities.length > 0 && (
+                <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                  <div className="text-[0.78rem] font-medium text-forest-800">{opportunities.length} demand match{opportunities.length === 1 ? '' : 'es'} worth reviewing</div>
+                  <div className="mt-0.5 text-[0.68rem] text-sand-500">These come from MATCHABLE fulfilment needs that already match this Business Store's published offers.</div>
+                </div>
+              )}
+              {plugMissions.length > 0 && (
+                <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                  <div className="text-[0.78rem] font-medium text-forest-800">{plugMissions.length} Plug mission{plugMissions.length === 1 ? '' : 's'} visible</div>
+                  <div className="mt-0.5 text-[0.68rem] text-sand-500">Only bounded work already permitted for your qualified Plug identity appears here.</div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         {businessMode && (
           <div>
             <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Store Vision</div>
@@ -174,6 +235,18 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                       <div className="text-[0.72rem] text-sand-500">{offer.price} · {offer.availability}</div>
                     </div>
                     <span className="text-[0.68rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5">{offer.isDemoState ? offer.version : `Updated ${offer.version}`}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {onEditOffer && (
+                      <button onClick={() => onEditOffer(offer.id)} className="rounded-lg border border-cream-200 px-2.5 py-1.5 text-[0.68rem] font-medium text-forest-700">
+                        Review
+                      </button>
+                    )}
+                    {/needs confirmation/i.test(offer.availability) && onConfirmAvailability && (
+                      <button onClick={() => onConfirmAvailability(offer.id)} className="rounded-lg bg-forest-600 px-2.5 py-1.5 text-[0.68rem] font-medium text-white">
+                        Confirm availability
+                      </button>
+                    )}
                   </div>
                   {offer.secureLink.url && (
                     <div className="mt-2 flex items-center gap-2 text-[0.68rem] text-sand-400">
