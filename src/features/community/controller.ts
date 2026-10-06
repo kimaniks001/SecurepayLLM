@@ -106,6 +106,9 @@ export function toMembershipUiState(membership: MembershipResponse | null | unde
 export interface ReplyDraft { body: string; submitting: boolean; error: string | null; idempotencyKey: string }
 const emptyReplyDraft: ReplyDraft = { body: '', submitting: false, error: null, idempotencyKey: '' };
 
+export interface CircleMessageDraft { body: string; submitting: boolean; error: string | null; idempotencyKey: string }
+const emptyCircleMessageDraft: CircleMessageDraft = { body: '', submitting: false, error: null, idempotencyKey: '' };
+
 export interface InviteDraft {
   ksNumber: string;
   submitting: boolean;
@@ -233,6 +236,9 @@ export interface CommunityState {
   /** The Circle-scoped post composer -- the exact same draft shape as Community LIVE's own
    * `ComposeDraft`, including its idempotency-key lifecycle, just posting into a Circle instead. */
   circleComposeDraft: ComposeDraft;
+  /** Lightweight Circle coordination message. Persisted as a real Circle-scoped DISCUSSION object,
+   * never as local-only chat state and never as Agreement authority. */
+  circleMessageDraft: CircleMessageDraft;
 
   // ─── Correction (Slice 3 pre-merge completion pass): owner-side Circle management ─────────────────────────
 
@@ -295,7 +301,7 @@ const initial: CommunityState = {
   createCircleOpen: false, createCircleDraft: { ...emptyCreateCircleDraft },
   selectedCircleId: null, selectedCircle: null, circleMembership: { status: 'idle' }, circleObjects: { status: 'idle' },
   circleJoinIntentKey: '', circleJoinSubmitting: false, circleJoinError: null,
-  circleComposeDraft: { ...emptyDraft },
+  circleComposeDraft: { ...emptyDraft }, circleMessageDraft: { ...emptyCircleMessageDraft },
   circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' }, circleStewards: { status: 'idle' },
   circleInviteOpen: false, circleInvitations: { status: 'idle' }, circleInviteDraft: { ...emptyInviteDraft },
   circleCloseConfirmOpen: false, circleClosing: false,
@@ -870,6 +876,7 @@ export function createCommunityController(
         view: 'circleDetail', selectedCircleId: id, selectedCircle: cached,
         circleMembership: { status: 'loading' }, circleObjects: { status: 'idle' },
         circleJoinIntentKey: newIdempotencyKey('circle-join'), circleJoinError: null,
+        circleMessageDraft: { ...emptyCircleMessageDraft, idempotencyKey: newIdempotencyKey('circle-message') },
         circlePendingRequests: { status: 'idle' }, circleMembers: { status: 'idle' }, circleStewards: { status: 'idle' },
         circleInviteOpen: false, circleInviteDraft: { ...emptyInviteDraft },
         circleCloseConfirmOpen: false, circleClosing: false,
@@ -1098,6 +1105,33 @@ export function createCommunityController(
       if (real) await loadObjectConversation(id);
     },
 
+    setCircleMessageBody(body: string) {
+      update({ circleMessageDraft: { ...state.circleMessageDraft, body, error: null } });
+    },
+    async submitCircleMessage() {
+      if (!state.selectedCircleId) return;
+      const body = state.circleMessageDraft.body.trim();
+      if (!body) {
+        update({ circleMessageDraft: { ...state.circleMessageDraft, error: 'Write a message first.' } });
+        return;
+      }
+      update({ circleMessageDraft: { ...state.circleMessageDraft, submitting: true, error: null } });
+      try {
+        const title = body.length <= 56 ? body : body.slice(0, 53).trimEnd() + '…';
+        const created = await community.circles.objects.create(
+          state.selectedCircleId, 'DISCUSSION', title, body, null, state.circleMessageDraft.idempotencyKey);
+        const withoutExisting = state.circleObjects.status === 'ready'
+          ? state.circleObjects.data.filter(o => o.id !== created.id)
+          : [];
+        update({
+          circleObjects: { status: 'ready', data: [created, ...withoutExisting] },
+          circleMessageDraft: { ...emptyCircleMessageDraft, idempotencyKey: newIdempotencyKey('circle-message') },
+        });
+      } catch (error) {
+        update({ circleMessageDraft: { ...state.circleMessageDraft, submitting: false, error: errorText(error) } });
+      }
+    },
+
     openCircleComposer() {
       update({ view: 'circleCompose', circleComposeDraft: { ...emptyDraft, idempotencyKey: newIdempotencyKey('circle-post') } });
     },
@@ -1163,7 +1197,7 @@ export function createCommunityController(
     reset() {
       update({
         ...initial, draft: { ...emptyDraft }, inviteDraft: { ...emptyInviteDraft }, replyDraft: { ...emptyReplyDraft },
-        createCircleDraft: { ...emptyCreateCircleDraft }, circleComposeDraft: { ...emptyDraft },
+        createCircleDraft: { ...emptyCreateCircleDraft }, circleComposeDraft: { ...emptyDraft }, circleMessageDraft: { ...emptyCircleMessageDraft },
         circleInviteDraft: { ...emptyInviteDraft },
       });
     },
