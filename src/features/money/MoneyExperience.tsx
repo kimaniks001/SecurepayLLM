@@ -50,6 +50,9 @@ import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
 import { SimpleMoneyDashboard } from './SimpleMoneyDashboard';
+import { ExperiencePathway } from '../experience/ExperiencePathway';
+import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
+import type { AppView } from '../../types';
 
 function money(minor: number, currency: string) { return moneyText(minor, currency); }
 
@@ -86,11 +89,13 @@ export interface MoneyGateways {
   moneySnapshot: MoneySnapshotGateway;
 }
 
-export function MoneyExperience({ gateways, auth, session, onLeave }: {
+export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, onAskKs001 }: {
   gateways: MoneyGateways;
   auth: AuthGateway;
   session: SessionStore;
   onLeave: () => void;
+  onNavigate?: (view: AppView) => void;
+  onAskKs001?: () => void;
 }) {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
@@ -142,6 +147,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave }: {
           title="Money"
           description="Your Agreements first — then the money, next steps and financial support that follow them."
         />
+        <ExperiencePathway active="money" onNavigate={onNavigate} />
+        <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
           snapshotGateway={gateways.moneySnapshot}
