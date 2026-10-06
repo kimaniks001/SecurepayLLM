@@ -48,3 +48,13 @@ test('whole Agreement completion requires its projection, never the milestone co
   assert.match(render({ completion: { completed: true, status: 'COMPLETED', completedAt: null, reasonCodes: [] } }), /Agreement completed/);
   assert.match(render({ completion: { completed: false, status: 'UNSUPPORTED', completedAt: null, reasonCodes: [] } }), /doesn’t evaluate completion/);
 });
+
+
+test('authoritative participant next actions are visible without inventing permissions', () => {
+  const html = render({ nextActions: [{ actionCode: 'SUBMIT_EVIDENCE', category: 'WORK', reason: 'Upload delivery evidence', deadline: '2026-10-10T00:00:00Z', attentionClass: 'ACTION_REQUIRED' }] });
+  assert.match(html, /What needs you next/);
+  assert.match(html, /Upload delivery evidence/);
+  assert.match(html, /ACTION REQUIRED/i);
+  assert.match(html, /10 Oct 2026/);
+  assert.doesNotMatch(html, /Submit evidence now|Approve|Release money/);
+});
