@@ -3,11 +3,14 @@ import { Search } from 'lucide-react';
 import type { AgreementSummary, AgreementStatus } from '../types';
 import { AgreementCard } from './AgreementCard';
 import { AgreementEmptyState } from './AgreementEmptyState';
+import { AgreementQuickPreview } from './AgreementQuickPreview';
 
 interface AgreementHubProps {
   agreements: AgreementSummary[];
   onOpenAgreement: (id: string) => void;
   onOpenTakingShape: (id: string) => void;
+  onOpenMoney: (id: string) => void;
+  onAskKS001: (id: string) => void;
 }
 
 const filterOptions: { value: AgreementStatus | 'all'; label: string }[] = [
@@ -22,9 +25,10 @@ const filterOptions: { value: AgreementStatus | 'all'; label: string }[] = [
   { value: 'expired', label: 'Expired' },
 ];
 
-export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }: AgreementHubProps) {
+export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape, onOpenMoney, onAskKS001 }: AgreementHubProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<AgreementStatus | 'all'>('all');
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let result = agreements;
@@ -45,13 +49,25 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }:
     return result;
   }, [agreements, filter, search]);
 
-  const handleOpen = (id: string) => {
+  const selectedAgreement = previewId ? agreements.find((a) => a.id === previewId) ?? null : null;
+
+  const handleOpenPreview = (id: string) => {
+    setPreviewId(id);
+  };
+
+  const closePreview = () => {
+    const id = previewId;
+    setPreviewId(null);
+    requestAnimationFrame(() => {
+      if (id) document.querySelector<HTMLButtonElement>(`[data-agreement-id="${id}"]`)?.focus();
+    });
+  };
+
+  const handleOpenFullAgreement = (id: string) => {
     const agreement = agreements.find((a) => a.id === id);
-    if (agreement && agreement.status === 'taking_shape') {
-      onOpenTakingShape(id);
-    } else {
-      onOpenAgreement(id);
-    }
+    setPreviewId(null);
+    if (agreement?.status === 'taking_shape') onOpenTakingShape(id);
+    else onOpenAgreement(id);
   };
 
   return (
@@ -100,11 +116,21 @@ export function AgreementHub({ agreements, onOpenAgreement, onOpenTakingShape }:
         ) : (
           <div className="space-y-3">
             {filtered.map((a) => (
-              <AgreementCard key={a.id} agreement={a} onOpen={handleOpen} />
+              <AgreementCard key={a.id} agreement={a} onOpen={handleOpenPreview} />
             ))}
           </div>
         )}
       </div>
+
+      {selectedAgreement && (
+        <AgreementQuickPreview
+          agreement={selectedAgreement}
+          onClose={closePreview}
+          onOpenAgreement={handleOpenFullAgreement}
+          onOpenMoney={(id) => { setPreviewId(null); onOpenMoney(id); }}
+          onAskKS001={(id) => { setPreviewId(null); onAskKS001(id); }}
+        />
+      )}
     </div>
   );
 }
