@@ -87,6 +87,10 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           ) : searchStatus === 'error' ? (
             <div className="rounded-2xl border border-ember-200 bg-ember-50 px-5 py-6 text-center">
               <p className="text-[0.875rem] text-ember-700">{searchErrorText ?? 'SecurePay could not search the Store.'}</p>
+              <p className="mt-1 text-[0.76rem] text-sand-600">You can still tell KS001 what you need while Store search recovers.</p>
+              <button onClick={onStartConversation} className="mt-3 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-[0.8rem] font-medium text-forest-700">
+                Tell KS001 what you need
+              </button>
             </div>
           ) : offers.length === 0 ? (
             <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
