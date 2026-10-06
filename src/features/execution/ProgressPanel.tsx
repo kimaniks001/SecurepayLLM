@@ -17,11 +17,12 @@ const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 
  * no dependency inferred from sequence order, no invented milestone for a simple Agreement, and no button that means "the Agreement
  * is complete" (that is a read-only projection).
  */
-export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney, fulfilmentGateway, onOpenStoreOffer }: {
+export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney, fulfilmentGateway, onOpenStoreOffer, onOpenStore }: {
   controller: ExecutionController; detail: AgreementDetailResponse; effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null; ownParticipantId: string | null; onOpenMoney?: () => void;
   fulfilmentGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
+  onOpenStore?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   useEffect(() => { void controller.load(); }, [controller, detail.currentVersion?.versionId]);
@@ -245,7 +246,10 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
               <div className="mt-1 text-[0.68rem] text-sand-500">{fulfilmentNeed.type.replace(/_/g, ' ')} · {fulfilmentNeed.privacyLevel === 'MATCHABLE' ? 'Matchable' : 'Private'}{fulfilmentNeed.poolable ? ' · Poolable' : ''}</div>
             </div>
             {fulfilmentRoutes.length === 0 ? (
-              <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need remains tied to this Agreement obligation.</p>
+              <div className="rounded-xl border border-cream-200 bg-white px-3 py-3">
+                <p className="text-[0.76rem] text-sand-500">No supply route is available yet. The need remains tied to this Agreement obligation.</p>
+                {onOpenStore && <button type="button" onClick={onOpenStore} className={`${SECONDARY} mt-2`}>Browse Store anyway</button>}
+              </div>
             ) : (
               <div className="space-y-2">
                 {fulfilmentRoutes.slice(0, 5).map(route => (
