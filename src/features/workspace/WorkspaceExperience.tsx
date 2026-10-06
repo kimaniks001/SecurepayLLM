@@ -268,9 +268,10 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
     if (state.hub.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorStateView(errorText(state.hub.error))} onChoice={() => controller.goHub()} /></div>;
     else if (state.hub.status !== 'ready') body = <LoadingNotice text="Loading your agreements…" />;
     else {
-      const agreements = hubAgreementSummaries(state.hub.data);
+      const hubData = state.hub.data;
+      const agreements = hubAgreementSummaries(hubData);
       const openHubMoney = (id: string) => {
-        const found = findInHub(state.hub.data, id);
+        const found = findInHub(hubData, id);
         if (!found) return;
         openMoneyFor({
           agreementId: id,
@@ -280,7 +281,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
         });
       };
       const askHubKs001 = (id: string) => {
-        const found = findInHub(state.hub.data, id);
+        const found = findInHub(hubData, id);
         if (!found || !onAskKs001) return;
         const prompt = `I’m looking at the Agreement “${found.summary.title}”. Help me understand what needs attention and what happens next. Use this Agreement’s current SecurePay facts and do not assume any action is authorised unless the backend says so.`;
         if (agentGateway && agentController) {
