@@ -1970,3 +1970,6 @@ The previous detailed Money, FX, settlement-destination and partner surfaces rem
 - Vision item → fulfilment need: REAL_API_WIRED using /fulfilment-needs/from-vision/{visionItemId} plus matches/routes. Need type, PRIVATE vs MATCHABLE, and poolability are explicit user choices. poolable=true is never represented as joining a Community Saver, pooling window, or another Agreement.
 - Persistent mixed-material Vision canvas remains blocked on the previously recorded API gap.
 - Latest follow-on commits have regression pins but have not yet produced a GitHub Actions run; no green certification claim is made for this head.
+
+- Agreement obligation → fulfilment need: REAL_API_WIRED from the exact current Agreement obligation for the responsible participant. The UI withholds this from monetary obligations, other participants' responsibilities, and completed/cancelled work.
+- Shared fulfilment / Community Saver remains NOT WIRED. SecurePayAPI can propose/open pooling without a verified Plug gate; Trust Project doctrine requires a Plug for every Community Saver, so the UI intentionally does not expose proposeFromNeed/openWindow until that governance contract exists.
