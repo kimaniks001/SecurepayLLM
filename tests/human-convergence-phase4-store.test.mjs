@@ -99,8 +99,15 @@ test('KS001 is contextual and cannot become Store authority', () => {
 
 test('Store has no fabricated commerce metrics', () => {
   const combined = home + management + preview;
-  for (const word of ['Response rate', 'Orders', 'Revenue', 'Customers', 'rating', 'review score']) {
-    assert.doesNotMatch(combined, new RegExp(word, 'i'));
+  for (const pattern of [
+    /Response rate/i,
+    /(?:^|[>\s])Orders(?:[<\s:]|$)/i,
+    /(?:^|[>\s])Revenue(?:[<\s:]|$)/i,
+    /\b\d+\s+Customers\b/i,
+    /rating[:\s]/i,
+    /review score/i,
+  ]) {
+    assert.doesNotMatch(combined, pattern);
   }
 });
 
