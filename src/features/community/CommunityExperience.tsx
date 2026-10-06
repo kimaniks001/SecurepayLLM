@@ -146,7 +146,7 @@ function CommunityHomeTabs({ tab, onSelect }: { tab: CommunityHomeTab; onSelect:
   const tabs: { value: CommunityHomeTab; label: string }[] = [
     { value: 'home', label: 'HOME' },
     { value: 'live', label: 'LIVE' },
-    { value: 'serve', label: 'PROJECTS' },
+    { value: 'serve', label: 'PROJECTS & ACTIVITIES' },
     { value: 'happening', label: 'EVENTS' },
     { value: 'circles', label: 'CIRCLES' },
     { value: 'learn', label: 'LEARN' },
