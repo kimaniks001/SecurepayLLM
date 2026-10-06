@@ -333,6 +333,7 @@ function CircleDetailPanel({
   members, membersLoading, stewards, onRemoveMember, onAppointSteward, onRemoveSteward,
   pendingRequests, onApproveRequest, onDeclineRequest,
   onOpenInvite, onOpenCloseConfirm, onSetLifecycle, onInvokeKs001,
+  messageBody, messageSubmitting, messageError, onMessageChange, onSendMessage,
 }: {
   circle: CircleResponse;
   membershipStatus: string | null;
@@ -364,6 +365,11 @@ function CircleDetailPanel({
   onOpenCloseConfirm: () => void;
   onSetLifecycle: (status: 'ACTIVE' | 'QUIET' | 'ARCHIVED') => void;
   onInvokeKs001: () => void;
+  messageBody: string;
+  messageSubmitting: boolean;
+  messageError: string | null;
+  onMessageChange: (body: string) => void;
+  onSendMessage: () => void;
 }) {
   const isMember = membershipStatus === 'ACTIVE' || isOwner;
   const canSteward = isOwner || isSteward;
@@ -536,6 +542,28 @@ function CircleDetailPanel({
                   <h2 className="text-[0.75rem] font-medium text-sand-500 uppercase tracking-wide">Circle conversation</h2>
                   <p className="text-[0.7rem] text-sand-500 mt-0.5">Talk, coordinate and keep the working context together. Formal Agreement decisions still happen in the Agreement.</p>
                 </div>
+                {circle.status === 'ACTIVE' && (
+                  <div className="rounded-2xl border border-cream-200 bg-white p-3">
+                    <textarea
+                      value={messageBody}
+                      onChange={e => onMessageChange(e.target.value)}
+                      rows={2}
+                      placeholder="Message the Circle…"
+                      className="w-full resize-none bg-transparent px-1 py-1 text-[0.84rem] text-forest-800 placeholder:text-sand-400 focus:outline-none"
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-[0.67rem] text-sand-500">A Circle message is coordination, not an Agreement decision.</p>
+                      <button
+                        onClick={onSendMessage}
+                        disabled={messageSubmitting || !messageBody.trim()}
+                        className="shrink-0 rounded-xl bg-forest-600 px-3.5 py-2 text-[0.75rem] font-medium text-cream-50 hover:bg-forest-700 disabled:opacity-50"
+                      >
+                        {messageSubmitting ? 'Sending…' : 'Send'}
+                      </button>
+                    </div>
+                    {messageError && <p role="alert" className="mt-2 text-[0.72rem] text-red-600">{messageError}</p>}
+                  </div>
+                )}
                 {objectsLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
                 {!objectsLoading && objects.length === 0 && (
                   <p className="text-[0.8rem] text-sand-500 py-4 text-center">Nothing shared here yet.</p>
@@ -1184,6 +1212,11 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         onOpenCloseConfirm={() => controller.openCircleCloseConfirm()}
         onSetLifecycle={status => void controller.setCircleLifecycle(status)}
         onInvokeKs001={() => onInvokeKs001InCircle(state.selectedCircle!.id)}
+        messageBody={state.circleMessageDraft.body}
+        messageSubmitting={state.circleMessageDraft.submitting}
+        messageError={state.circleMessageDraft.error}
+        onMessageChange={body => controller.setCircleMessageBody(body)}
+        onSendMessage={() => void controller.submitCircleMessage()}
       />
     );
   } else if (state.view === 'compose') {
