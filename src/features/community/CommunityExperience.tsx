@@ -1060,7 +1060,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [purposeLoading, setPurposeLoading] = useState(false);
   const [purposeError, setPurposeError] = useState<string | null>(null);
   const [purposeCreate, setPurposeCreate] = useState<'service' | 'event' | 'apprenticeship' | null>(null);
-  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', locationLabel: '', skills: '' });
+  const [serviceDraft, setServiceDraft] = useState({ title: '', description: '', outcome: '', locationLabel: '', skills: '' });
   const [eventDraft, setEventDraft] = useState({ title: '', description: '', startsAt: '', locationLabel: '' });
   const [apprenticeshipDraft, setApprenticeshipDraft] = useState({ apprenticeKsNumber: '', title: '', learningGoal: '' });
   const [purposeSubmitting, setPurposeSubmitting] = useState(false);
@@ -1327,31 +1327,39 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         {isActiveMember && <CommunityHomeTabs tab={state.communityTab} onSelect={tab => void controller.showCommunityTab(tab)} />}
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div><h2 className="font-display text-lg text-forest-800 font-medium">Serve</h2><p className="text-[0.8rem] text-sand-500">Practical ways to help. Interest is not an assignment or Agreement.</p></div>
-            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Service need</button>
+            <div><h2 className="font-display text-lg text-forest-800 font-medium">Projects & Activities</h2><p className="text-[0.8rem] text-sand-500">Start with an intention. Ask the Community for people and skills, then shape it into something real.</p></div>
+            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Declare intention</button>
           </div>
           {purposeCreate === 'service' && (
             <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
-              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What help is needed?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Describe the practical need" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="General location (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
-              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="Skills needed, comma separated (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <div>
+                <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Declare the intention</div>
+                <p className="text-[0.72rem] text-sand-500 mt-0.5">Start with the change you want to make. This is not a request for money or materials.</p>
+              </div>
+              <input value={serviceDraft.title} onChange={e => setServiceDraft(d => ({...d,title:e.target.value}))} placeholder="What are you trying to do?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.description} onChange={e => setServiceDraft(d => ({...d,description:e.target.value}))} placeholder="Why does it matter?" rows={3} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <textarea value={serviceDraft.outcome} onChange={e => setServiceDraft(d => ({...d,outcome:e.target.value}))} placeholder="What would you like to see happen?" rows={2} className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.locationLabel} onChange={e => setServiceDraft(d => ({...d,locationLabel:e.target.value}))} placeholder="Where is this happening? (optional)" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <input value={serviceDraft.skills} onChange={e => setServiceDraft(d => ({...d,skills:e.target.value}))} placeholder="What do you want from the Community? skills, labour, mentoring…" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+              <div className="rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.7rem] text-sand-600">
+                Materials, equipment and funding are organised separately through the appropriate Store / Agreement / Money path. Community participation is about people, skills, labour, knowledge and presence.
+              </div>
               <button
-                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim()}
+                disabled={purposeSubmitting || !serviceDraft.title.trim() || !serviceDraft.description.trim() || !serviceDraft.outcome.trim()}
                 onClick={() => {
                   setPurposeSubmitting(true); setPurposeError(null);
                   void communityGateway.serviceOpportunities.create({
-                    title: serviceDraft.title.trim(), description: serviceDraft.description.trim(),
+                    title: serviceDraft.title.trim(), description: `${serviceDraft.description.trim()}\n\nWhat we hope to see: ${serviceDraft.outcome.trim()}`,
                     locationLabel: serviceDraft.locationLabel.trim() || null,
                     skillsNeeded: serviceDraft.skills.split(',').map(x => x.trim()).filter(Boolean),
                   }).then(created => {
                     setServiceItems(items => [created, ...items]);
-                    setServiceDraft({ title: '', description: '', locationLabel: '', skills: '' });
+                    setServiceDraft({ title: '', description: '', outcome: '', locationLabel: '', skills: '' });
                     setPurposeCreate(null);
                   }).catch(error => setPurposeError(errorText(error))).finally(() => setPurposeSubmitting(false));
                 }}
                 className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.8rem] font-medium py-2.5 disabled:opacity-50"
-              >Create service opportunity</button>
+              >Declare intention</button>
             </div>
           )}
           {purposeLoading && <p className="text-[0.8rem] text-sand-500">Loading…</p>}
