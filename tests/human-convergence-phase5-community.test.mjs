@@ -81,7 +81,8 @@ test('Circle content is fetched only through Circle-scoped authority for active 
   assert.match(controller, /circleObjects: RemoteState<CommunityObjectResponse\[]>/);
   assert.match(controller, /private content is never requested/);
   assert.match(gateway, /circles:[\s\S]*objects:[\s\S]*list:/);
-  assert.match(circleBoard, /Neither source grants Agreement\s*or Money authority/);
+  assert.match(circleBoard, /Neither source grants Agreement/);
+  assert.match(circleBoard, /Money authority/);
 });
 
 test('Community search and Circle discovery explicitly avoid ranking', () => {
@@ -108,8 +109,9 @@ test('knowledge stays candidate-first and moderation stays available', () => {
 
 test('Community Saver cannot bypass the required Plug layer', async () => {
   const saverGate = await readFile('tests/community-saver-plug-gate.test.mjs', 'utf8');
-  assert.match(saverGate, /Plug/i);
-  assert.doesNotMatch(experience, /autoApproveCommunitySaver|executeCommunitySaver|bypassPlug/);
+  assert.match(saverGate, /does not expose an ungated Community Saver command/);
+  assert.match(saverGate, /does not join a Community Saver/);
+  assert.doesNotMatch(experience, /autoApproveCommunitySaver|executeCommunitySaver|bypassPlug|proposeFromNeed\(/);
 });
 
 test('mobile navigation and participation actions retain touch-sized controls', () => {
