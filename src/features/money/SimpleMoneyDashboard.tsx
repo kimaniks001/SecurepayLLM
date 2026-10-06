@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  CircleDollarSign,
   FileText,
   Landmark,
   LockKeyhole,
