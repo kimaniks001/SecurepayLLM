@@ -119,7 +119,7 @@ function movementStatus(snapshot: AgreementMoneySnapshotResponse | null) {
 }
 
 function nextStep(_snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
-  const backendNext = agreement?.nextActions?.[0]?.reason;
+  const backendNext = agreement && agreement.nextActions.length > 0 ? agreement.nextActions[0].reason : undefined;
   if (backendNext) return backendNext;
   if (!agreement) return 'Choose an Agreement to see its current money position.';
   return 'Nothing needs you right now.';
@@ -561,8 +561,8 @@ export function SimpleMoneyDashboard({
       <details className="sp-section overflow-hidden" open={!handoff}>
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 md:px-5">
           <div>
-            <h2 className="font-display text-xl text-forest-900">{handoff ? 'Change Agreement' : 'Choose an Agreement'}</h2>
-            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'The Agreement you came from stays selected.' : 'A compact Money selector — not a second Agreement dashboard.'}</p>
+            <h2 className="font-display text-xl text-forest-900">{handoff ? 'Change Agreement' : 'Your Agreements'}</h2>
+            <p className="mt-0.5 text-xs text-sand-600">{handoff ? 'You are already looking at the Agreement you came from.' : 'Choose the Agreement whose money you want to understand. This compact selector is not a second Agreement dashboard.'}</p>
           </div>
           {agreementTotal > 0 && <div className="shrink-0 text-xs text-sand-500">{agreementTotal} Agreement{agreementTotal === 1 ? '' : 's'}</div>}
         </summary>
@@ -590,6 +590,10 @@ export function SimpleMoneyDashboard({
             <div className="rounded-2xl border border-cream-200 bg-white/70 p-5">
               <div className="text-sm font-medium text-forest-900">Money starts with an Agreement.</div>
               <p className="mt-1 text-sm text-sand-600">You have no Agreements yet. Shape the idea in Vision or start the Agreement, then Money will follow it here.</p>
+              {onNavigate && <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => onNavigate('vision-board')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-medium text-white">Start in Vision</button>
+                <button type="button" onClick={() => onNavigate('agreements')} className="min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Open Agreements</button>
+              </div>}
             </div>
           )}
           {agreements.state === 'ready' && visibleAgreements.length === 0 && agreements.value.length > 0 && (
@@ -797,7 +801,7 @@ export function SimpleMoneyDashboard({
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
               <div>
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Charges</div>
-                <div className="mt-1 font-display text-xl text-forest-900">See charges & funding route</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Funding & charges</div>
               </div>
               <span className="text-xs text-sand-500">Open details</span>
             </summary>
