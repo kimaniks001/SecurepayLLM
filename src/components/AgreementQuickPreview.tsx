@@ -42,8 +42,8 @@ export function AgreementQuickPreview({
   onAskKS001,
 }: AgreementQuickPreviewProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  const needsAttention = attentionStatuses.has(agreement.status);
-  const actionLabel = primaryActionLabel(agreement);
+  const needsAttention = agreement.attentionRequired ?? attentionStatuses.has(agreement.status);
+  const actionLabel = needsAttention ? primaryActionLabel(agreement) : null;
   const hasAmount = agreement.amount !== 'Not yet specified' && agreement.amount !== 'Not yet agreed';
 
   useEffect(() => {
@@ -134,7 +134,7 @@ export function AgreementQuickPreview({
 
           <div className="rounded-2xl border border-cream-200 bg-white p-4">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-400">What this is</p>
-            <p className="mt-1.5 text-[0.9rem] leading-relaxed text-forest-800">{agreement.title}</p>
+            <p className="mt-1.5 text-[0.9rem] leading-relaxed text-forest-800">{agreement.purpose || agreement.title}</p>
             {(agreement.location || agreement.completion !== '—') && (
               <p className="mt-2 text-[0.76rem] text-sand-500">
                 {agreement.location ? agreement.location : ''}
