@@ -90,7 +90,8 @@ test('Agreement Hub keeps browsing state mounted and opens preview before detail
   assert.match(hub, /onOpen=\{handleOpenPreview\}/);
   assert.match(hub, /<AgreementQuickPreview/);
   assert.match(hub, /requestAnimationFrame/);
-  assert.match(hub, /data-agreement-id/);
+  const card = await readFile('src/components/AgreementCard.tsx', 'utf8');
+  assert.match(card, /data-agreement-id/);
 });
 
 test('preview handoffs retain selected Agreement context for Money and KS001', async () => {
