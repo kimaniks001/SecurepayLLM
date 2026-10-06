@@ -624,6 +624,31 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setWorkspaceAgreementId(null);
     setNotice('That isn’t available here. You can keep talking with KS001.');
   };
+  const askKs001FromSurface = (message: string) => {
+    const text = message.trim();
+    if (!text) return;
+    setNotice(null);
+    setStore(false);
+    setCommunity(false);
+    setCircle(false);
+    setEcosystem(false);
+    setEcosystemAgreementId(null);
+    setProjects(false);
+    setVisionBoard(false);
+    setVisionLibrary(false);
+    setWorkspace(false);
+    setWorkspaceAgreementId(null);
+    setAccount(false);
+    setSettingsView(false);
+    setBusinessView(false);
+    setDeveloperView(false);
+    setNotificationsView(false);
+    setSupportView(false);
+    setHelpContext(null);
+    setHome(false);
+    void controller.send(text);
+  };
+
   /** Opens the given Agreement directly in the Workspace -- the same real mechanism
    * WorkspaceExperience's own controller uses internally, not a new one. PHASE 4 Care convergence:
    * `NotificationsExperience` itself now decides WHETHER to call this at all (gated on the notification's
@@ -777,6 +802,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           setVisionLibrary(true);
           void visionBoardController.loadForOwner(businessKsNumber);
         }}
+        onAskKs001={askKs001FromSurface}
       />
     );
   }
@@ -877,6 +903,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           setStoreOfferRoute({ canonicalKsNumber, offerId });
           setStore(true);
         }}
+        onAskKs001={askKs001FromSurface}
       />
     );
   }
@@ -953,6 +980,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenVisionBoard={() => navigateTo('vision-board')}
       onOpenAccount={() => navigateTo('account')}
       onOpenNotifications={() => navigateTo('notifications')}
+      onAskKs001={askKs001FromSurface}
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);
