@@ -418,7 +418,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 space-y-4">
       <section className="sp-hero px-5 py-6 md:px-7 md:py-7">
         <div className="sp-kicker">Vision Library · private</div>
-        <h1 className="sp-display mt-2 max-w-2xl text-[2.2rem] md:text-4xl">Keep what matters. Organise only when useful.</h1>
+        <h1 className="sp-display mt-2 max-w-2xl text-[2.2rem] md:text-4xl">What are you trying to move forward?</h1>
         <p className="mt-3 max-w-2xl text-[0.84rem] leading-6 text-sand-600">
           Search saved ideas, plans, references and guidance. Nothing in this Library is an Agreement or Money authority, and nothing is shared unless you deliberately create a matchable need.
         </p>
@@ -513,13 +513,14 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
       <details className="rounded-2xl border border-cream-200 bg-white/70">
         <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Ask KS001 to help organise this</summary>
         <div className="border-t border-cream-200 p-4">
-          <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m in my private Vision Library. Help me organise or explore what I have here. Do not turn an idea into a Project, Agreement, Store request or Money instruction unless I explicitly choose that step.') : undefined} />
+          <Ks001SurfaceGuide surface="vision" onAsk={onAskKs001 ? () => onAskKs001('I’m on my Vision Board. Based on what I am working on here, what real SecurePay products, services or capabilities could help me next? Help me organise or explore it, but do not turn an idea into a Project, Agreement, Store request or Money instruction unless I explicitly choose that step.') : undefined} />
         </div>
       </details>
 
       <details className="rounded-2xl border border-cream-200 bg-white/70">
         <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Where this can go next</summary>
         <div className="border-t border-cream-200 p-4">
+          <p className="mb-3 text-xs leading-5 text-sand-500">When you choose: <strong>Find what it needs</strong> through real SecurePay options, or <strong>Make it clear</strong> by moving into the appropriate commitment surface.</p>
           <ExperiencePathway active="vision" onNavigate={onNavigate} />
         </div>
       </details>
