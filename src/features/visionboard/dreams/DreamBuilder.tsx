@@ -21,6 +21,10 @@ type BoardDoc = { v: 1; objects: BoardObject[] };
 
 const MAX_BOARD_BYTES = 524_288;
 const TONES = ['bg-amber-100', 'bg-rose-100', 'bg-sky-100', 'bg-emerald-100'];
+const ADD_TOOLS = [
+  ['Note', 'note', StickyNote], ['Text', 'text', Type], ['Draw', 'draw', PenLine], ['Arrow', 'arrow', ArrowRight],
+  ['Shape', 'shape', Shapes], ['Link', 'link', LinkIcon], ['Checklist', 'checklist', Circle], ['Frame', 'frame', Frame], ['Line', 'line', Minus],
+] as const;
 
 function uid() {
   return (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12));
@@ -102,8 +106,9 @@ export function DreamBuilder({
   }, [dream.dreamId, gateway, legacyInitial]);
 
   useEffect(() => {
-    const ids = doc.objects.filter((o): o is Extract<BoardObject, { kind: 'image' }> => o.kind === 'image')
-      .map(o => o.assetId).filter(id => !assetContent[id]);
+    const ids = doc.objects.filter(o => o.kind === 'image')
+      .map(o => (o as Extract<BoardObject, { kind: 'image' | 'document' }>).assetId)
+      .filter(id => !assetContent[id]);
     if (!ids.length) return;
     let live = true;
     void Promise.all(ids.map(async id => {
@@ -198,7 +203,7 @@ export function DreamBuilder({
   };
 
   const undo = () => {
-    const prior = history.at(-1);
+    const prior = history[history.length - 1];
     if (!prior) return;
     setFuture(f => [doc, ...f].slice(0, 40));
     setHistory(h => h.slice(0, -1));
@@ -345,10 +350,7 @@ export function DreamBuilder({
             <Plus className="size-4" /> Add
           </button>
           {addOpen && <div className="absolute z-30 right-0 mt-2 w-56 rounded-2xl border border-cream-200 bg-white p-2 shadow-xl">
-            {[
-              ['Note', 'note', StickyNote], ['Text', 'text', Type], ['Draw', 'draw', PenLine], ['Arrow', 'arrow', ArrowRight],
-              ['Shape', 'shape', Shapes], ['Link', 'link', LinkIcon], ['Checklist', 'checklist', Circle], ['Frame', 'frame', Frame], ['Line', 'line', Minus],
-            ].map(([label, kind, Icon]) => <button key={String(kind)} type="button"
+            {ADD_TOOLS.map(([label, kind, Icon]) => <button key={kind} type="button"
               onClick={() => kind === 'draw' ? (setTool('draw'), setAddOpen(false)) : add(kind as Parameters<typeof add>[0])}
               className="w-full min-h-10 rounded-xl px-3 text-left text-sm text-forest-800 hover:bg-cream-100 inline-flex items-center gap-2">
               <Icon className="size-4" /> {label}
@@ -436,11 +438,14 @@ export function DreamBuilder({
                 className={`absolute rounded-2xl p-4 cursor-grab active:cursor-grabbing ${objectClass(o)}`} style={style}>
                 <LinkIcon className="size-4 text-forest-600" /><a href={o.url} target="_blank" rel="noreferrer" onPointerDown={e => e.stopPropagation()} className="mt-2 block text-sm text-forest-700 underline break-all">{o.text}</a>
               </div>;
-              return <div key={o.id} onPointerDown={e => beginDrag(e, o)} onClick={e => { e.stopPropagation(); setSelected(o.id); }}
-                className={`absolute rounded-2xl p-4 text-sm text-forest-900 whitespace-pre-wrap overflow-auto cursor-grab active:cursor-grabbing ${objectClass(o)}`} style={style}>
-                {o.kind === 'frame' && <div className="text-xs uppercase tracking-wide text-sand-500 mb-2">{o.text}</div>}
-                {o.kind !== 'frame' && o.text}
-              </div>;
+              if (o.kind === 'note' || o.kind === 'text' || o.kind === 'checklist' || o.kind === 'frame') {
+                return <div key={o.id} onPointerDown={e => beginDrag(e, o)} onClick={e => { e.stopPropagation(); setSelected(o.id); }}
+                  className={`absolute rounded-2xl p-4 text-sm text-forest-900 whitespace-pre-wrap overflow-auto cursor-grab active:cursor-grabbing ${objectClass(o)}`} style={style}>
+                  {o.kind === 'frame' && <div className="text-xs uppercase tracking-wide text-sand-500 mb-2">{o.text}</div>}
+                  {o.kind !== 'frame' && o.text}
+                </div>;
+              }
+              return null;
             })}
           </div>
         </div>
