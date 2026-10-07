@@ -17,11 +17,8 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
   if (sender === 'user') {
     return (
       <div className="flex justify-end animate-fade-in-up">
-        <div className="max-w-[82%] md:max-w-[72%]">
-          <div className="mb-1 pr-1 text-right text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-sand-500">You</div>
-          <div className="rounded-[1.35rem] rounded-tr-md border border-forest-100/80 bg-white/82 px-4 py-3 text-forest-900 shadow-[0_10px_28px_-24px_rgba(36,73,54,0.42)] backdrop-blur-sm">
-            <p className="text-[0.95rem] leading-6">{text}</p>
-          </div>
+        <div className="max-w-[78%] rounded-[1.15rem] rounded-tr-md bg-forest-800 px-4 py-2.5 text-cream-50 shadow-soft">
+          <p className="text-[0.94rem] leading-6">{text}</p>
         </div>
       </div>
     );
@@ -32,10 +29,9 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
       <div className="pt-1 shrink-0">
         <img src={securepayMark} alt="" className="w-8 h-8" />
       </div>
-      <div className="mt-0.5 max-w-[90%] md:max-w-[84%]">
-        <div className="mb-1 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-forest-600">KS001</div>
-        <div className="sp-section-warm rounded-[1.35rem] px-4 py-3.5 md:px-5 md:py-4">
-          <p className="text-[0.97rem] leading-7 text-forest-900">{text}</p>
+      <div className="mt-0.5 max-w-[88%]">
+        <div className="px-1 py-1">
+          <p className="text-[0.96rem] leading-7 text-forest-900">{text}</p>
         </div>
       </div>
     </div>
@@ -48,7 +44,7 @@ export function AgentTyping() {
       <div className="pt-1 shrink-0">
         <img src={securepayMark} alt="" className="w-8 h-8 animate-pulse-soft" />
       </div>
-      <div className="sp-section-warm rounded-full px-3 py-2">
+      <div className="px-1 py-2">
         <TypingIndicator />
       </div>
     </div>
