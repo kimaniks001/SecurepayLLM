@@ -104,6 +104,7 @@ export const enabledMarkup = renderToStaticMarkup(React.createElement(MoneyWorks
 test('production bundle contains no fixture fallback for signed-in Agreement/Money state', async () => {
   const result = await build({ entryPoints: ['src/RuntimeApp.tsx'], bundle: true, write: false, format: 'esm', external: ['react'], metafile: true, define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_SECUREPAY_MODE': '"real"' }, loader: { '.png': 'dataurl' } });
   const paths = Object.keys(result.metafile.inputs);
-  assert.equal(paths.some(path => /src\/moneyData\.ts$/.test(path)), false);
-  assert.equal(paths.some(path => /src\/moneyLabels\.ts$/.test(path)), true);
+  assert.equal(paths.some(path => /src\/moneyData\.ts$/.test(path)), false, 'production must not bundle demo Money fixtures');
+  assert.equal(paths.some(path => /src\/features\/money\/MoneyExperience\.tsx$/.test(path)), true, 'production must bundle canonical real Money experience');
+  assert.equal(paths.some(path => /src\/features\/money\/SimpleMoneyDashboard\.tsx$/.test(path)), true, 'production must bundle the real Agreement-led Money dashboard');
 });
