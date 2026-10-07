@@ -99,7 +99,9 @@ export function AgreementShaping({ formation, changes = [], onReview, onAnswer, 
         <div className="mt-5 flex flex-wrap items-center gap-3 text-[0.75rem] text-sand-600">
           {capturedCount > 0 && <span>{capturedCount} {capturedCount === 1 ? 'detail' : 'details'} captured</span>}
           <span aria-hidden="true">·</span>
-          <span>{open.length === 0 ? 'Ready for a calm review' : <>{open.length} {open.length === 1 ? 'thing' : 'things'} still worth checking</>}</span>
+          <span>{formation.reviewable
+            ? (open.length === 0 ? 'Ready for a calm review' : <>{open.length} {open.length === 1 ? 'thing' : 'things'} still worth checking</>)
+            : 'Still taking shape'}</span>
           {formation.readingSources.length > 0 && <><span aria-hidden="true">·</span><span>Still reading {formation.readingSources.join(', ')}</span></>}
         </div>
 
