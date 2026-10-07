@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, MessageCircle, Wallet } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Printer, Wallet } from 'lucide-react';
 import type { AgreementDetail as AgreementDetailType, AgreementAction, Milestone, MoneyDetail } from '../types';
 import { AgreementStatusBadge } from './AgreementStatusBadge';
 import { AgreementOverview } from './AgreementOverview';
@@ -18,6 +18,8 @@ import { AgreementCalendarAndTags, type ConflictView, type TagView } from './Agr
 import { AgentUnderstoodCard } from './AgentUnderstoodCard';
 import { StatusNotice } from './dna/StatusNotice';
 import type { AgentAgreementWorkspaceViewDto } from '../api/securepay/agent/dto';
+import type { AgreementDetailResponse } from '../api/securepay/agreements/dto';
+import { AgreementPrintRecord } from './AgreementPrintRecord';
 import type { AgreementNextView, CalendarEventView } from '../features/workspace/view';
 
 interface AgreementProgress {
@@ -78,6 +80,8 @@ interface AgreementDetailProps {
   topExtra?: React.ReactNode;
   /** Real projection composed by the caller; section controls navigate without changing authority. */
   overviewPanel?: (open: (section: 'progress' | 'people' | 'documents' | 'changes') => void) => React.ReactNode;
+  /** Current backend Agreement record used only for the printable document. No print field is invented client-side. */
+  printRecord?: AgreementDetailResponse | null;
 }
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
@@ -147,7 +151,7 @@ function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?:
   );
 }
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>(initialTab ?? 'overview');
   const [showAgent, setShowAgent] = useState(false);
@@ -166,10 +170,19 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       {/* Header — the Agreement should feel understood before it feels legal. */}
       <div className="px-4 pt-4 md:px-6 md:pt-5">
         <div className="sp-hero px-4 py-4 md:px-6 md:py-5">
-          <button onClick={onBack} className="flex min-h-11 items-center gap-1.5 text-[0.78rem] font-medium text-sand-500 hover:text-forest-700 transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Agreements
-          </button>
+          <div className="flex items-center justify-between gap-3">
+            <button onClick={onBack} className="flex min-h-11 items-center gap-1.5 text-[0.78rem] font-medium text-sand-500 hover:text-forest-700 transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Agreements
+            </button>
+            {printRecord && (
+              <button type="button" onClick={() => window.print()}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white/80 px-4 text-[0.78rem] font-semibold text-forest-700 shadow-soft hover:border-forest-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+                <Printer className="h-4 w-4" aria-hidden="true" />
+                Print agreement
+              </button>
+            )}
+          </div>
           <div className="mt-1 max-w-3xl">
             <div className="sp-kicker">Living Agreement</div>
             <h1 className="sp-display mt-2 text-[2rem] md:text-4xl">{detail.title}</h1>
@@ -183,6 +196,8 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           </div>
         </div>
       </div>
+
+      {printRecord && <AgreementPrintRecord detail={printRecord} statusLabel={detail.statusLabel} />}
 
       {/* Stale banner */}
       {isStale && onViewCurrent && viewedVersion && (

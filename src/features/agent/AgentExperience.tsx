@@ -1434,7 +1434,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                 </div>}
               </div>}
-              <AgreementShaping formation={formationState.data} onReview={() => setReviewOpen(true)}
+              <AgreementShaping formation={formationState.data} changes={formationState.changes} onReview={() => setReviewOpen(true)}
                 onResolvePoint={point => setMicroReview(point.id)}
                 onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
               {directAck && <p role="status" className="text-[0.85rem] text-forest-800"><span className="font-display">KS001 · </span>{directAck}
