@@ -51,6 +51,12 @@ export function SavedBuildPanel({ savedBuild, identity }: { savedBuild: SavedBui
   );
 }
 
+function fallbackBuildTitle(updatedAt: string) {
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) return 'New work';
+  return `New work · ${new Intl.DateTimeFormat('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date)}`;
+}
+
 const STATE_LABEL: Record<string, string> = { BUILDING: 'Just getting started', REVIEWABLE_WITH_OPEN_ITEMS: 'Worth a look', UNDERSTOOD: 'Ready to review' };
 
 /**
@@ -78,7 +84,7 @@ export function ContinueBuildingList({ savedBuild, onResume }: { savedBuild: Sav
               className="flex w-full min-h-[3.25rem] items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-forest-50/60 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-inset"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.95rem] text-forest-800">{build.title ?? 'Untitled build'}</span>
+                <span className="block truncate text-[0.95rem] text-forest-800">{build.title?.trim() || fallbackBuildTitle(build.buildUpdatedAt)}</span>
                 <span className="mt-0.5 block text-[0.78rem] text-sand-600">
                   {STATE_LABEL[build.sufficiencyState] ?? 'Being built'}
                   {build.openMatterCount > 0 && ` · ${build.openMatterCount} thing${build.openMatterCount === 1 ? '' : 's'} still to decide`}
