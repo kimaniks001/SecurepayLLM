@@ -10,7 +10,7 @@ test('Money lands on the agreement-led home and keeps the deeper authority recor
   assert.match(experience, /Technical & administration record/);
   assert.match(experience, /<details/);
   assert.match(experience, /max-w-6xl/);
-  assert.match(experience, /Your Agreements first/);
+  assert.match(experience, /Choose an Agreement, see where its money stands/);
 });
 
 test('the Money home starts with Agreements, agreed purpose, amount and a money-specific next answer', () => {
