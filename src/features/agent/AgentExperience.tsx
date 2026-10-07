@@ -312,6 +312,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
   // simultaneously and ignores this entirely (see the render below).
   const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
+  const [desktopUnderstoodOpen, setDesktopUnderstoodOpen] = useState(false);
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(externalAgreementId);
   // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
@@ -424,6 +425,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setNotice(null);
     // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
     setMobileTab('build');
+    setDesktopUnderstoodOpen(false);
     setLastSeenStructuredTurnId(null);
     setMicroReview(null);
     setFreshIntent(null);
@@ -1089,7 +1091,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       foundOnSecurePay={discoveryGroups.length > 0 ? <div data-found-on-securepay tabIndex={-1} className="focus:outline-none"><FoundOnSecurePay views={discoveryViews} earlier={discoveryGroups.slice(1)} onOpenStore={openStoreOf} /></div> : undefined}
     />
   );
-  const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
+  const openUnderstood = () => {
+    setMobileTab('understood');
+    setDesktopUnderstoodOpen(true);
+    if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id);
+  };
   // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
@@ -1262,23 +1268,29 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       {/* Phase 6 final correction: a restrained soft-green atmosphere on the active KS001
           conversation surface (see tailwind.config.js's `ks001-surface` token) -- warm cream base,
           quiet green tonal light, no flat solid color and no decorative gradient. */}
-      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50 bg-ks001-surface`}>
+      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 ${desktopUnderstoodOpen ? 'md:flex-[1.45]' : 'md:flex-[1]'} flex-col min-w-0 bg-cream-50 bg-ks001-surface`}>
         {/* Task doctrine (KS001 identity): the person is talking to KS001, not "SecurePay" --
             SecurePay is the system/brand (see NavBar's top-left brand), KS001 is who is in this
             conversation. Reuses the one real, canonical SecurePay mark asset -- no generic
             silhouette, no separately-drawn avatar. Mobile's equivalent identity row is in the
             sticky header above. */}
-        <div className="hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-cream-200/60">
-          <img src={securepayMark} alt="" className={`w-7 h-7 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
+        <div className="hidden md:flex items-center gap-3 px-5 md:px-8 py-3 border-b border-cream-200/60 bg-cream-50/75 backdrop-blur-sm">
+          <img src={securepayMark} alt="" className={`w-8 h-8 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-sm text-forest-800">KS001</span>
-              {/* EP-CERT-010 -- KS001 is the voice, the 12 Principles are its compass: one identity, one tap, no navigation. */}
-              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-600 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
-              <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[0.98rem] text-forest-900">KS001</span>
+              <span className="text-[0.72rem] text-sand-500" aria-live="polite">{state.busy ? 'thinking…' : 'helping you make this clear'}</span>
             </div>
-            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
+            <button type="button" onClick={() => setCompassOpen(true)} className="mt-0.5 text-[0.72rem] text-sand-600 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
           </div>
+          <button type="button" onClick={() => {
+            setDesktopUnderstoodOpen(open => !open);
+            if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id);
+          }} aria-expanded={desktopUnderstoodOpen}
+            className="relative min-h-11 rounded-full border border-forest-200 bg-white px-4 text-[0.82rem] font-medium text-forest-800 shadow-soft hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+            What SecurePay understands
+            {hasUnseenUnderstood && !desktopUnderstoodOpen && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-ember-500" aria-label="New structured content" />}
+          </button>
           <NewWorkButton onClick={startNewFromConversation} />
         </div>
         {/* Mobile: what SecurePay understands is one tap away, never a second copy of the desktop panel. */}
@@ -1479,14 +1491,20 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       </div>
       {/* User-Ready Beta Gate 1 -- WORKSPACE ARCHITECTURE: what SecurePay understands is a slightly recessed plane (level 1);
           facts sit above it (level 2) and decisions rise above ordinary facts (level 3). */}
-      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 surface-region min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`} data-understood-plane>
+      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} ${desktopUnderstoodOpen ? 'md:flex' : 'md:hidden'} md:flex-[0.9] flex-col border-l border-cream-200/60 surface-region min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`} data-understood-plane>
         <div className="md:hidden">{understoodContent}</div>
         <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
           {/* Product doctrine (task section 4): the overall panel title is always "What SecurePay
               understands" -- KS001 talks with the person, SecurePay maintains the structured
               understanding. A backend-supplied `panel.title` (a per-turn contextual heading) must
               never replace this; it simply isn't surfaced as the panel's own title. */}
-          <div className="px-5 py-3 border-b border-cream-200/60"><h2 className="font-display text-sm text-forest-800">What SecurePay understands</h2></div>
+          <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-cream-200/60">
+            <div>
+              <h2 className="font-display text-sm text-forest-800">What SecurePay understands</h2>
+              <p className="mt-0.5 text-[0.7rem] text-sand-500">A working summary — not the Agreement yet.</p>
+            </div>
+            <button type="button" onClick={() => setDesktopUnderstoodOpen(false)} className="min-h-11 px-2 text-[0.78rem] text-sand-600 underline">Close</button>
+          </div>
           <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
             <div ref={setPanelSlot} />
             {understoodContent}
