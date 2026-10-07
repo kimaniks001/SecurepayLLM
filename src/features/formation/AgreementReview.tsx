@@ -76,7 +76,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
           <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
           <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft for review · not agreed</div>
         </div>
-        <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-950">{documentTitle}</h1>
+        <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-900">{documentTitle}</h1>
         {formation.summary && formation.summary !== documentTitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-6 text-sand-700">{formation.summary}</p>}
         <p className="mt-3 text-[0.76rem] text-sand-500">Version {formation.version} · built from the current SecurePay understanding</p>
       </header>
