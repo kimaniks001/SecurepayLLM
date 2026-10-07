@@ -906,6 +906,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return (
       <VisionDreamHome
         controller={visionDreamController}
+        gateway={visionDreamGateway}
         handoffError={dreamHandoffError}
         onContinue={continuation => {
           setDreamHandoffError(null);
