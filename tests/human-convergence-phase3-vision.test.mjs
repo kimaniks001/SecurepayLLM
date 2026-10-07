@@ -15,7 +15,7 @@ test('Vision home is Dream-first, private and lightweight', () => {
   assert.match(dreamHome, /Add a thought/);
   assert.match(dreamHome, /Search & organise/);
   assert.match(dreamHome, /view="vision-board"/);
-  assert.match(dreamExperience, /What's on your mind\?/);
+  assert.match(dreamExperience, /What are you dreaming of\?/);
   assert.match(dreamExperience, /Private by default/);
   assert.match(dreamExperience, /Nothing here becomes a Project, Agreement, Store request or Money instruction/);
 });
