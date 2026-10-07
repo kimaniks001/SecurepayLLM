@@ -111,27 +111,23 @@ test('Join is live in the public experience (Phase 4) and never a placeholder or
 });
 
 // ------------------------------------------------------------------ PUBLIC HOME
-test('the public Home keeps the exact SecurePay + KS001 hero, supporting copy and trust line', () => {
-  assert.ok(publicHomeText.includes('Bring the plan. Leave with an agreement.'));
-  // User-Ready Beta Gate 1 (EP-CERT-009) -- one-sentence supporting idea.
-  assert.ok(publicHomeText.includes('Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.'));
+test('the public Home uses the final shared KS001 possibility hero and value-first trust line', () => {
+  assert.ok(publicHomeText.includes('What do you want to make real today?'));
+  assert.ok(publicHomeText.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
   assert.ok(publicHomeText.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
   assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1, 'exactly one h1');
 });
-test('chapters are in the contract order with semantic h2 headings', () => {
-  const order = ['Bring the plan. Leave with an agreement.', 'Tile my bathroom.', 'What you leave with', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
+test('chapters remain in semantic order after the final KS001 Home', () => {
+  const order = ['What do you want to make real today?', 'What you leave with', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
   let at = -1;
   for (const s of order) { const i = publicHomeText.indexOf(s, at + 1); assert.ok(i > at, `"${s}" missing or out of order`); at = i; }
   const levels = [...publicHome.matchAll(/<h([1-6])\b/g)].map(m => Number(m[1]));
   for (let i = 1; i < levels.length; i++) assert.ok(levels[i] - levels[i - 1] <= 1, `heading level skips from h${levels[i - 1]} to h${levels[i]}`);
 });
-// User-Ready Beta Gate 1 (EP-CERT-009) -- a FEW strong examples spanning household, business and community (never a wall
-// of chips), each starting a real conversation through onStart; and ONE clearly labelled illustration of the output.
-test('Home examples are three, span household/business/community, and use onStart', async () => {
-  assert.equal(api.HOME_EXAMPLES.length, 3);
-  for (const example of api.HOME_EXAMPLES) assert.ok(publicHomeText.includes(example), example);
+test('Home quick starts are the four approved KS001 actions and use onStart', async () => {
+  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(publicHomeText.includes(label), label);
   const src = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(src, /onClick=\{\(\) => onStart\(example\)\}/);
+  assert.match(src, /onClick=\{\(\) => onStart\(prompt\)\}/);
 });
 test('the example outcome is labelled as an illustration, and names appear ONLY inside it (never as testimonials)', () => {
   const figure = publicHome.match(/<figure[^>]*data-example-outcome[^>]*>[\s\S]*?<\/figure>/)[0];
