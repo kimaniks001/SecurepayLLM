@@ -54,7 +54,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
     <div className="w-full max-w-6xl">
       <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-ks001-lockup>
             <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
             <div>
               <div className="sp-kicker">KS001</div>
