@@ -33,7 +33,7 @@ export function Ks001SurfaceGuide({ surface, onAsk }: {
     <section aria-label="SecurePay contextual help" className="rounded-2xl border border-forest-200 bg-forest-50/40 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">SecurePay · here with you</p>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">SecurePay · Trust Project identity KS001</p>
           <h2 className="mt-1 font-display text-base text-forest-800">{copy.title}</h2>
           <p className="mt-1 text-[0.74rem] text-sand-600">{copy.body}</p>
         </div>
