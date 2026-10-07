@@ -1,51 +1,134 @@
-import type { AgreementFormation, FormationOpenPoint } from './view';
+import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import type { AgreementFormation, FormationOpenPoint, FormationTerm } from './view';
 import { NextQuestion } from './NextQuestion';
 import { nextStep } from './nextStep';
 
+function firstSettled(terms: FormationTerm[]): FormationTerm | null {
+  return terms.find(term => !term.needsChecking) ?? terms[0] ?? null;
+}
+
+function MiniTerm({ label, term }: { label: string; term: FormationTerm }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[0.66rem] font-semibold uppercase tracking-[0.13em] text-sand-500">{label}</dt>
+      <dd className="mt-1 break-words font-medium text-forest-900">{term.value}</dd>
+      {term.detail && <dd className="mt-0.5 text-[0.74rem] leading-5 text-sand-600">{term.detail}</dd>}
+    </div>
+  );
+}
+
 /**
- * Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement takes visual priority over the
- * chat: a calm card at the top of the conversation with the one-line summary, the key terms and REVIEW THIS. Nothing here is
- * agreed; the card says so. It never appears for an exploration or a vague intention (nothing reviewable yet).
+ * The living Agreement: once the backend says a coherent arrangement is reviewable, the person no longer sees
+ * "a chat with some extracted facts". They see their Agreement quietly forming from the SAME server-owned
+ * formation projection. No term is re-derived here and nothing displayed as settled becomes Agreement authority.
  */
-export function AgreementShaping({ formation, onReview, onAnswer, answering = false, onResolvePoint }: {
-  formation: AgreementFormation | null; onReview: () => void; onAnswer?: (text: string) => void; answering?: boolean;
-  /** User-Ready Beta Gate 1 (EP-CERT-007) -- one open point opens a micro-review of just that decision. */
+export function AgreementShaping({ formation, changes = [], onReview, onAnswer, answering = false, onResolvePoint }: {
+  formation: AgreementFormation | null; changes?: string[]; onReview: () => void; onAnswer?: (text: string) => void; answering?: boolean;
   onResolvePoint?: (point: FormationOpenPoint) => void;
 }) {
   if (!formation || !formation.reviewable) return null;
+
   const step = nextStep(formation);
   const go = () => { if (step.kind === 'point' && onResolvePoint) onResolvePoint(step.point); else onReview(); };
-  // The planner's one question, when it is about a disagreement SecurePay can settle directly: answered with "Use this", never
-  // with a quick-answer sentence the model would have to interpret (User-Ready Beta Gate 1, "direct conflict resolution").
   const settleable = formation.question && onResolvePoint
-    ? formation.openPoints.find(p => formation.question!.openPointIds.includes(p.id) && p.sides.some(s => s.choosable)) ?? null
+    ? formation.openPoints.find(point => formation.question!.openPointIds.includes(point.id) && point.sides.some(side => side.choosable)) ?? null
     : null;
-  const total = formation.money.find(t => t.label === 'Total price' && !t.needsChecking);
-  const finish = formation.when.find(t => t.label === 'Finish by' && !t.needsChecking);
-  const keyTerms = [formation.what[0] && { label: formation.what[0].label, value: formation.what[0].value }, total && { label: 'Total', value: total.value },
-    finish && { label: 'Finish by', value: finish.value }].filter(Boolean) as { label: string; value: string }[];
-  const open = formation.openPoints.filter(p => p.blocksConfirmation || !p.checked).length;
-  return <section aria-labelledby="agreement-shaping-title" className="surface-info border-forest-200 px-4 py-3.5">
-    <h2 id="agreement-shaping-title" className="font-display text-[0.95rem] text-forest-800">Your agreement is taking shape</h2>
-    {formation.summary && <p className="mt-1 text-[0.85rem] leading-snug text-sand-700">{formation.summary}</p>}
-    {formation.readingSources.length > 0 && <p className="mt-1 text-[0.78rem] text-sand-600">Still reading {formation.readingSources.join(', ')}…</p>}
-    {keyTerms.length > 0 && <dl className="mt-2 grid gap-x-4 gap-y-1 text-[0.82rem] sm:grid-cols-3">
-      {keyTerms.map(t => <div key={t.label} className="min-w-0"><dt className="text-[0.7rem] uppercase tracking-wide text-sand-500">{t.label}</dt><dd className="break-words text-forest-800">{t.value}</dd></div>)}
-    </dl>}
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <button type="button" onClick={go} data-next-step={step.kind} className="inline-flex min-h-11 items-center rounded-full bg-forest-700 px-5 text-[0.9rem] font-medium text-white hover:bg-forest-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-        {step.kind === 'none' ? 'Review agreement' : step.label}
-      </button>
-      {step.kind !== 'review' && step.kind !== 'none' && <button type="button" onClick={onReview} className="min-h-11 text-[0.82rem] text-forest-700 underline">Whole agreement</button>}
-      <span className="text-[0.78rem] text-sand-600">{open === 0 ? 'Nothing is agreed until you set it up.' : `${open} ${open === 1 ? 'point' : 'points'} to check · nothing is agreed yet`}</span>
-    </div>
-    {/* Entry Perfection Phase 7 -- the agreement is primary; the one question it still needs sits under it, never over it. */}
-    {settleable && onResolvePoint
-      ? <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50/80 px-3.5 py-3">
-          <p className="text-[0.9rem] leading-snug text-forest-900">{formation.question!.text}</p>
-          <button type="button" onClick={() => onResolvePoint(settleable)} disabled={answering}
-            className="mt-2 inline-flex min-h-11 items-center rounded-full border border-forest-300 bg-white px-4 text-[0.85rem] font-medium text-forest-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Choose</button>
+
+  const what = firstSettled(formation.what);
+  const money = firstSettled(formation.money);
+  const when = firstSettled(formation.when);
+  const firstDuty = formation.responsibilities.flatMap(group => group.duties)[0] ?? null;
+  const open = formation.openPoints.filter(point => point.blocksConfirmation || !point.checked);
+  const people = formation.who.slice(0, 4);
+  const capturedCount = formation.what.length + formation.money.length + formation.when.length
+    + formation.conditions.length + formation.notIncluded.length + formation.responsibilities.reduce((sum, group) => sum + group.duties.length, 0);
+
+  return (
+    <section aria-labelledby="living-agreement-title" className="sp-living-agreement overflow-hidden">
+      <div className="sp-living-agreement-glow" aria-hidden="true" />
+      <div className="relative px-5 py-5 md:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-forest-700">
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            Your agreement is forming
+          </div>
+          <div className="rounded-full border border-forest-100 bg-white/75 px-3 py-1 text-[0.68rem] font-medium text-sand-600">
+            Version {formation.version}
+          </div>
         </div>
-      : onAnswer && <NextQuestion question={formation.question} disabled={answering} onAnswer={onAnswer} />}
-  </section>;
+
+        <div className="mt-4 max-w-3xl">
+          <h2 id="living-agreement-title" className="font-display text-[1.55rem] leading-tight tracking-[-0.02em] text-forest-950 md:text-[1.8rem]">
+            {formation.summary || what?.value || 'The shape of what you mean'}
+          </h2>
+          <p className="mt-2 max-w-2xl text-[0.82rem] leading-6 text-sand-600">
+            SecurePay is turning the conversation into something you can actually read, correct and agree to. Nothing is agreed yet.
+          </p>
+        </div>
+
+        {changes.length > 0 && (
+          <div role="status" className="sp-agreement-change mt-4">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{changes.join(' · ')}</span>
+          </div>
+        )}
+
+        {people.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {people.map(person => (
+              <span key={person.key} className="rounded-full border border-cream-200 bg-white/80 px-3 py-1.5 text-[0.76rem] text-forest-800 shadow-[0_2px_8px_-6px_rgba(36,73,54,.35)]">
+                {person.name}{person.role ? <span className="text-sand-500"> · {person.role}</span> : null}
+              </span>
+            ))}
+            {formation.who.length > people.length && <span className="px-1 py-1.5 text-[0.75rem] text-sand-500">+{formation.who.length - people.length} more</span>}
+          </div>
+        )}
+
+        {(what || money || when || firstDuty) && (
+          <dl className="mt-5 grid gap-4 rounded-[1.25rem] border border-cream-200/85 bg-white/78 p-4 shadow-[0_16px_40px_-34px_rgba(36,73,54,.45)] sm:grid-cols-2 lg:grid-cols-4">
+            {what && <MiniTerm label={what.label || 'What'} term={what} />}
+            {money && <MiniTerm label={money.label || 'Money'} term={money} />}
+            {when && <MiniTerm label={when.label || 'When'} term={when} />}
+            {firstDuty && <MiniTerm label="Responsibility" term={firstDuty} />}
+          </dl>
+        )}
+
+        <div className="mt-5 flex flex-wrap items-center gap-3 text-[0.75rem] text-sand-600">
+          {capturedCount > 0 && <span>{capturedCount} {capturedCount === 1 ? 'detail' : 'details'} captured</span>}
+          <span aria-hidden="true">·</span>
+          <span>{open.length === 0 ? 'Ready for a calm review' : <>{open.length} {open.length === 1 ? 'thing' : 'things'} still worth checking</>}</span>
+          {formation.readingSources.length > 0 && <><span aria-hidden="true">·</span><span>Still reading {formation.readingSources.join(', ')}</span></>}
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={go} data-next-step={step.kind}
+            className="sp-primary-action inline-flex min-h-12 items-center gap-2 px-5 text-[0.9rem] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+            {step.kind === 'none' ? 'See the agreement' : step.label}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {step.kind !== 'review' && step.kind !== 'none' && (
+            <button type="button" onClick={onReview}
+              className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-forest-700 underline underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              See the whole agreement
+            </button>
+          )}
+        </div>
+
+        {settleable && onResolvePoint ? (
+          <div className="mt-4 rounded-[1.1rem] border border-ember-200/80 bg-ember-50/55 px-4 py-3">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-ember-800">One useful thing to settle</p>
+            <p className="mt-1 text-[0.9rem] leading-6 text-forest-900">{formation.question!.text}</p>
+            <button type="button" onClick={() => onResolvePoint(settleable)} disabled={answering}
+              className="mt-2 inline-flex min-h-11 items-center rounded-full border border-forest-300 bg-white px-4 text-[0.84rem] font-medium text-forest-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+              Choose what is right
+            </button>
+          </div>
+        ) : onAnswer ? (
+          <div className="mt-4">
+            <NextQuestion question={formation.question} disabled={answering} onAnswer={onAnswer} />
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
 }
