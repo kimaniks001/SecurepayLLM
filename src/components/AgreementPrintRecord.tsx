@@ -16,7 +16,7 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
   const milestones = [...detail.milestones].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
 
   return (
-    <article className="agreement-print-record" data-agreement-print aria-label="Printable Agreement record">
+    <article className="agreement-print-record" data-agreement-print aria-hidden="true">
       <header className="agreement-print-header">
         <div>
           <p className="agreement-print-brand">SecurePay</p>
