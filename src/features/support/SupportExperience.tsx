@@ -142,7 +142,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
               </>
             )}
             <Action title="Trouble signing in" consequence="SecurePay will start the real account credential recovery flow." onClick={nav.recovery} />
-            <Action title={signedIn ? 'Something else — ask SecurePay' : 'Ask KS001'} consequence="SecurePay will return you to the same conversation." onClick={nav.askAgent} />
+            <Action title={signedIn ? 'Something else — ask SecurePay' : 'Ask SecurePay'} consequence="SecurePay will return you to the same conversation." onClick={nav.askAgent} />
           </div>
         </section>
 
