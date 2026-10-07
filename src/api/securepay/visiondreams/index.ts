@@ -1,7 +1,7 @@
 import type { HttpClient } from '../http';
 import { segment } from '../http';
 import { CONVERSATION_TOKEN_HEADER, conversationAccess, type ConversationAccessStore } from '../agent/continuity';
-import type { CreateVisionDreamRequest, UpdateVisionDreamRequest, VisionDreamDto } from './dto';
+import type { CreateVisionDreamRequest, UpdateVisionDreamRequest, VisionDreamDto, SaveVisionDreamBoardRequest, VisionDreamBoardDto, VisionDreamAssetDto, UploadVisionDreamAssetRequest } from './dto';
 
 /** One conversation's secret is sent in a header ONLY for its own explicit signed-in Dream claim. */
 export function createVisionDreamGateway(http: HttpClient, access: ConversationAccessStore = conversationAccess) {
