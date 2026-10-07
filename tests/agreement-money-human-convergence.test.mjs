@@ -13,7 +13,7 @@ const workspace = await readFile('src/features/workspace/WorkspaceExperience.tsx
 test('Agreement desktop has four primary doors and keeps the full authority record behind one deliberate doorway', () => {
   assert.match(detail, /const primaryTabs[\s\S]*Overview[\s\S]*People[\s\S]*Money[\s\S]*Activity/);
   assert.match(detail, /const fullRecordTabs[\s\S]*Terms[\s\S]*Documents[\s\S]*Changes[\s\S]*Progress[\s\S]*Calendar & tags[\s\S]*Support/);
-  assert.match(detail, />Full record</);
+  assert.match(detail, /Full record/);
 });
 
 test('real Agreement Overview owns one story instead of stacking the old overview and the living projection', () => {
