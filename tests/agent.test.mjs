@@ -495,34 +495,46 @@ export const markup = renderToStaticMarkup(React.createElement(ContextPanel, { l
 // must be in its place, while the surrounding input/example-prompts stay untouched. Phase 6 convergence
 // additionally re-locks the headline/supporting-text copy itself (task doctrine: exact locked text,
 // not a paraphrase) and adds the quiet Fair Trade affordance beneath the input.
-test('SignedOutHome is the canonical KS001-first Home, not the obsolete Bolt fixture', async () => {
-  const entry = \`
+test('SignedOutHome retains byte-identical fixture markup against Bolt outside the canonical brand mark swap and locked copy correction', async () => {
+  const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { SignedOutHome } from './src/components/SignedOutHome';
 const noop = () => {};
-export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, {
-  onStart: noop,
-  onBringPlan: noop,
-  onPickDocument: noop,
-  onPickPhoto: noop,
-  onAddLink: noop,
-  onAddPlace: noop,
-}));\`;
-  const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
-  const mod = { exports: {} };
-  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
-  const current = mod.exports.markup;
-
-  assert.match(current, /What do you want to make/);
-  assert.match(current, /Start with KS001/);
-  assert.match(current, /Guided by the 12 Principles of Fair Trade/);
-  assert.match(current, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(current.includes(label), \`expected quick start \${label}\`);
-  assert.match(current, /aria-label="Add what you have"/);
-  assert.ok(!current.includes('What are you trying to make happen?'), 'obsolete Bolt-era headline must not return');
+export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { onStart: noop }));`;
+  const touched = /src\/components\/SignedOutHome\.tsx$/;
+  async function render(baseline) {
+    const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' }, plugins: baseline ? [{ name: 'bolt', setup(builder) { builder.onLoad({ filter: touched }, args => ({ contents: execFileSync('git', ['show', `bolt-reference-pass11:${args.path.slice(process.cwd().length + 1)}`], { encoding: 'utf8' }), loader: 'tsx' })); } }] : [] });
+    const mod = { exports: {} };
+    new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
+    return mod.exports.markup;
+  }
+  const current = await render(false);
+  const baseline = await render(true);
+  assert.notEqual(current, baseline, 'expected the canonical brand mark swap and locked copy correction to change SignedOutHome markup');
+  assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(baseline, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
+  assert.match(current, /<img[^>]*alt="SecurePay by KEYMAN/);
+  // The old paraphrased headline/supporting text must be gone from current, but is expected to
+  // still exist in the untouched Bolt baseline (proving the diff is really the locked-copy fix).
+  assert.ok(!current.includes('What are you trying to make happen?'), 'expected the old paraphrased headline to be replaced');
+  assert.ok(baseline.includes('What are you trying to make happen?'), 'expected Bolt baseline to still have the old headline');
+  // KS001 Upgrade Phase 3 (Section 36) -- this earlier locked headline/supporting text is now
+  // deliberately SUPERSEDED by the new Phase 3 hero copy; the OLD text must be gone from current
+  // (it was already asserted absent above via the "old paraphrased headline" check having been
+  // replaced by yet another generation of copy), and the NEW text must be present.
+  assert.ok(current.includes('Bring the plan. Leave with an agreement.'), 'expected the exact Phase 3 headline');
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- one-sentence supporting idea.
+  assert.ok(current.includes('Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.'), 'expected the Gate 1 supporting text');
+  assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'), 'expected the exact Phase 3 trust line');
+  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'), 'expected the quiet Fair Trade affordance beneath the input (Phase 2 capitalisation)');
+  // Image data URIs (base64) are excluded: a "7/12" inside an encoded PNG is not visible copy.
   const visible = current.replace(/data:[^"]+/g, '');
-  assert.ok(!visible.includes('Fair trader score') && !/\\d+\\/12/.test(visible), 'must never grade the person with a fair trade score');
+  assert.ok(!visible.includes('Fair trader score') && !/\d+\/12/.test(visible), 'must never grade the person with a fair trade score');
+  // User-Ready Beta Gate 1 (EP-CERT-009) -- the bathroom example survives as one of three broader examples.
+  assert.ok(current.includes('Tile my bathroom.'), 'expected the bathroom example to remain');
+  assert.ok(current.includes('Set up five cyber cafés with three partners.') && current.includes('organising repairs to our parents'), 'expected business and community examples too');
+  assert.ok(baseline.includes('I need someone to tile my bathroom'), 'expected the Bolt baseline to still include its original example');
 });
 
 test('retry wording is truthful for each pending operation: message, Use this, amount', () => {
