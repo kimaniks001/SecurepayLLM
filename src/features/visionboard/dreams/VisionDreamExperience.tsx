@@ -4,7 +4,7 @@ import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import { dreamContinuation, MAX_KS001_DRAFT, type VisionDreamController } from './controller';
-import { DreamBuilder } from './DreamBuilder';
+import { DreamBuilder } from './DreamBuilder';\nimport type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 
 export function VisionDreamExperience({ controller, onContinue }: {
   controller: VisionDreamController;
@@ -21,7 +21,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
       key={state.selected.dreamId + ':' + state.selected.version}
       dream={state.selected}
       onBack={() => controller.close()}
-      onSave={(title, content, expectedVersion) => controller.saveSummary(title, content, expectedVersion)}
+      onSaveTitle={(title, content, expectedVersion) => controller.saveSummary(title, content, expectedVersion)}
       onExploreKs001={onContinue ? (draftText) => {
         const clean = draftText.trim();
         if (!clean || clean.length > MAX_KS001_DRAFT) return;
