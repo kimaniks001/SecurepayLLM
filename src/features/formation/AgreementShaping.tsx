@@ -26,7 +26,10 @@ export function AgreementShaping({ formation, changes = [], onReview, onAnswer, 
   formation: AgreementFormation | null; changes?: string[]; onReview: () => void; onAnswer?: (text: string) => void; answering?: boolean;
   onResolvePoint?: (point: FormationOpenPoint) => void;
 }) {
-  if (!formation || !formation.reviewable) return null;
+  if (!formation) return null;
+  const hasShape = formation.stage !== 'NOTHING_YET' && (formation.what.length > 0 || formation.who.length > 0 || formation.money.length > 0
+    || formation.when.length > 0 || formation.responsibilities.some(group => group.duties.length > 0) || formation.conditions.length > 0);
+  if (!hasShape) return null;
 
   const step = nextStep(formation);
   const go = () => { if (step.kind === 'point' && onResolvePoint) onResolvePoint(step.point); else onReview(); };
@@ -101,16 +104,24 @@ export function AgreementShaping({ formation, changes = [], onReview, onAnswer, 
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={go} data-next-step={step.kind}
-            className="sp-primary-action inline-flex min-h-12 items-center gap-2 px-5 text-[0.9rem] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-            {step.kind === 'none' ? 'See the agreement' : step.label}
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-          {step.kind !== 'review' && step.kind !== 'none' && (
-            <button type="button" onClick={onReview}
-              className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-forest-700 underline underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-              See the whole agreement
-            </button>
+          {formation.reviewable ? (
+            <>
+              <button type="button" onClick={go} data-next-step={step.kind}
+                className="sp-primary-action inline-flex min-h-12 items-center gap-2 px-5 text-[0.9rem] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+                {step.kind === 'none' ? 'See the agreement' : step.label}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+              {step.kind !== 'review' && step.kind !== 'none' && (
+                <button type="button" onClick={onReview}
+                  className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-forest-700 underline underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+                  See the whole agreement
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="rounded-full border border-cream-200 bg-white/70 px-4 py-2.5 text-[0.78rem] text-sand-600">
+              Keep talking naturally — this document will keep filling itself in.
+            </p>
           )}
         </div>
 
