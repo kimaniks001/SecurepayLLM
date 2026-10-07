@@ -169,7 +169,7 @@ export function humanNextActionReason(action: WorkspaceNextActionResponse): stri
     RECONFIRM_AGREEMENT_VERSION: 'Review and confirm the latest Agreement version',
     NO_ACTION_REQUIRED: 'Nothing needs you right now',
   };
-  return words[action.actionCode] ?? action.reason || humanizeCode(action.actionCode);
+  return words[action.actionCode] ?? (action.reason || humanizeCode(action.actionCode));
 }
 
 export function agreementSummaryView(dto: CurrentUserAgreementSummaryResponse, origin: StatusOrigin): AgreementSummary {
