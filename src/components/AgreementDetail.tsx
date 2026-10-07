@@ -8,8 +8,6 @@ import { AgreementTerms } from './AgreementTerms';
 import { AgreementDocuments } from './AgreementDocuments';
 import { AgreementActivity } from './AgreementActivity';
 import { AgreementChanges } from './AgreementChanges';
-import { MoneyAgreementContext } from './MoneyAgreementContext';
-import { MoneyStatus } from './MoneyStatus';
 import { AgreementSupport } from './AgreementSupport';
 import { AgreementReuse } from './AgreementReuse';
 import { AgreementStaleBanner } from './AgreementStaleBanner';
@@ -84,14 +82,17 @@ interface AgreementDetailProps {
 
 type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
 
-const tabs: { value: Tab; label: string }[] = [
+const primaryTabs: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
-  { value: 'terms', label: 'Terms' },
   { value: 'people', label: 'People' },
-  { value: 'documents', label: 'Documents' },
-  { value: 'activity', label: 'Activity' },
-  { value: 'changes', label: 'Changes' },
   { value: 'money', label: 'Money' },
+  { value: 'activity', label: 'Activity' },
+];
+
+const fullRecordTabs: { value: Tab; label: string }[] = [
+  { value: 'terms', label: 'Terms' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'changes', label: 'Changes' },
   { value: 'progress', label: 'Progress' },
   { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support' },
@@ -112,6 +113,39 @@ const moreMobileSections: { value: MobileSection; label: string }[] = [
   { value: 'calendar', label: 'Calendar & tags' },
   { value: 'support', label: 'Support & reviews' },
 ];
+
+
+function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?: () => void }) {
+  return (
+    <section aria-label="Money for this Agreement" className="rounded-2xl border border-forest-200 bg-white px-5 py-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Money</p>
+          <p className="mt-1 font-display text-2xl text-forest-900">{money.amount}</p>
+          <p className="mt-2 text-sm font-medium text-forest-800">{money.stateLabel}</p>
+          <p className="mt-1 text-sm text-sand-600">
+            {(money.moneyRecordCount ?? 0) > 0
+              ? `${money.moneyRecordCount ?? 0} money event${(money.moneyRecordCount ?? 0) === 1 ? '' : 's'} recorded for this Agreement.`
+              : 'No Agreement Money activity is recorded here yet.'}
+          </p>
+        </div>
+        {onOpen && (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="sp-primary-action min-h-11 shrink-0 px-5 text-[0.825rem] font-semibold"
+          >
+            <Wallet className="mr-2 inline-block h-4 w-4" />
+            See Money
+          </button>
+        )}
+      </div>
+      <p className="mt-4 border-t border-cream-100 pt-3 text-xs leading-5 text-sand-500">
+        SecurePay re-checks current funding, release and movement authority when you open Money. This summary does not create a financial permission.
+      </p>
+    </section>
+  );
+}
 
 export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
@@ -164,8 +198,8 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       {/* Desktop: Tabbed workspace */}
       {topExtra && <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50/60 max-h-[70vh] overflow-y-auto">{topExtra}</div>}
       <div className="hidden md:flex flex-1 flex-col overflow-hidden">
-        <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex gap-1 overflow-x-auto scrollbar-thin">
-          {tabs.map((t) => (
+        <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex items-center gap-1">
+          {primaryTabs.map((t) => (
             <button
               key={t.value}
               onClick={() => setTab(t.value)}
@@ -178,33 +212,41 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
               {t.label}
             </button>
           ))}
+          <details className="relative ml-auto" open={fullRecordTabs.some(t => t.value === tab)}>
+            <summary className={`cursor-pointer list-none text-[0.78rem] font-medium rounded-lg px-3 py-1.5 whitespace-nowrap transition-all ${
+              fullRecordTabs.some(t => t.value === tab)
+                ? 'text-forest-700 bg-forest-50'
+                : 'text-sand-500 hover:text-forest-600 hover:bg-cream-100'
+            }`}>
+              Full record
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 min-w-52 rounded-2xl border border-cream-200 bg-white p-2 shadow-lg">
+              {fullRecordTabs.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setTab(t.value)}
+                  className={`block min-h-11 w-full rounded-xl px-3 text-left text-[0.78rem] font-medium ${
+                    tab === t.value ? 'bg-forest-50 text-forest-800' : 'text-sand-600 hover:bg-cream-50 hover:text-forest-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </details>
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4">
           <div className="max-w-2xl mx-auto space-y-4">
-            {tab === 'overview' && <>
-              <AgreementOverview detail={detail} next={next} />
-              {overviewPanel?.(openSection)}
-            </>}
+            {tab === 'overview' && (overviewPanel ? overviewPanel(openSection) : <AgreementOverview detail={detail} next={next} />)}
             {tab === 'terms' && <AgreementTerms detail={detail} />}
             {tab === 'people' && <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
             {tab === 'activity' && <AgreementActivity activity={detail.activity} />}
             {tab === 'changes' && (changesPanel ?? <AgreementChanges changes={detail.changes} versions={detail.versions} />)}
             {tab === 'money' && moneyForAgreement && (
-              <>
-                <MoneyAgreementContext detail={moneyForAgreement} />
-                <MoneyStatus detail={moneyForAgreement} />
-                {onOpenMoney && (
-                  <button
-                    onClick={() => onOpenMoney(detail.id)}
-                    className="sp-primary-action w-full flex items-center justify-center gap-2 px-5 text-[0.825rem] font-semibold"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    Open Money
-                  </button>
-                )}
-              </>
+              <AgreementMoneySummary money={moneyForAgreement} onOpen={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} />
             )}
             {tab === 'progress' && progressPanel}
             {tab === 'progress' && !progressPanel && structure && (
@@ -283,8 +325,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           {/* Section content */}
           {mobileSection === 'overview' && (
             <>
-              <AgreementOverview detail={detail} next={next} />
-              {overviewPanel?.(openSection)}
+              {overviewPanel ? overviewPanel(openSection) : <AgreementOverview detail={detail} next={next} />}
               {showReuse && <AgreementReuse detail={detail} />}
               {detail.status === 'cancelled' && (
                 <StatusNotice tone="error" icon={false}>
@@ -321,19 +362,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           )}
 
           {mobileSection === 'money' && moneyForAgreement && (
-            <>
-              <MoneyAgreementContext detail={moneyForAgreement} />
-              <MoneyStatus detail={moneyForAgreement} />
-              {onOpenMoney && (
-                <button
-                  onClick={() => onOpenMoney(detail.id)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.825rem] font-medium py-2.5 hover:bg-forest-700 transition-colors"
-                >
-                  <Wallet className="w-4 h-4" />
-                  Open Money
-                </button>
-              )}
-            </>
+            <AgreementMoneySummary money={moneyForAgreement} onOpen={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} />
           )}
 
           {mobileSection === 'progress' && progressPanel}

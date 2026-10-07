@@ -8,11 +8,9 @@ import {
   FileText,
   Landmark,
   LockKeyhole,
-  Route,
   Search,
   ShieldCheck,
   Sparkles,
-  Smartphone,
   Users,
   WalletCards,
 } from 'lucide-react';
@@ -64,8 +62,8 @@ function titleCase(value: string) {
 }
 
 function statusTone(status: string) {
-  if (['Ready', 'Available', 'Connected', 'Selected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
-  if (['Blocked', 'Not ready', 'Not funded', 'Not available'].includes(status)) return 'bg-ember-100 text-ember-800';
+  if (['Yes', 'Ready', 'Available', 'Connected', 'Selected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
+  if (['No', 'Not yet', 'Blocked', 'Not ready', 'Not funded', 'Not available'].includes(status)) return 'bg-ember-100 text-ember-800';
   return 'bg-cream-200 text-sand-700';
 }
 
@@ -74,109 +72,91 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function snapshotReadiness(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the current money state yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the current payment state yet.' };
   if (snapshot.paymentReady.state !== 'EVALUATED') {
-    return { status: 'Waiting', detail: 'Payment Ready has not been evaluated for this Agreement version yet.' };
+    return { status: 'Checking', detail: 'SecurePay has not yet completed the payment-readiness check for this Agreement version.' };
   }
   if (snapshot.paymentReady.ready) {
-    return { status: 'Ready', detail: 'The evaluated payment conditions are satisfied.' };
+    return { status: 'Yes', detail: 'The current Agreement conditions have passed SecurePay’s payment-readiness check.' };
   }
-  return { status: 'Not ready', detail: 'One or more evaluated payment conditions are still outstanding.' };
+  return { status: 'Not yet', detail: 'One or more Agreement conditions still prevent a payment-ready state.' };
 }
 
 function fundingStatus(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'Funding information is not loaded yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the funded-money state yet.' };
   const established = snapshot.positions.filter(position => position.established);
-  if (established.length === 0) return { status: 'Not funded', detail: 'No established Agreement Money position is shown.' };
+  if (established.length === 0) return { status: 'No', detail: 'No money is recorded as funded for this Agreement yet.' };
   const knownFunded = established.map(position => position.fundedTotalMinor).filter((value): value is number => value != null);
   if (knownFunded.some(value => value > 0)) {
-    return { status: 'Funded', detail: 'SecurePay shows funded money on this Agreement.' };
+    return { status: 'Yes', detail: 'SecurePay records funded money against this Agreement.' };
   }
   if (knownFunded.length !== established.length) {
-    return { status: 'Unknown', detail: 'SecurePay has not returned a funded amount for every established money position.' };
+    return { status: 'Unknown', detail: 'The funded amount is unavailable for one or more Agreement Money positions.' };
   }
-  return { status: 'Not funded', detail: 'Agreement Money exists, but SecurePay shows no funded amount yet.' };
+  return { status: 'No', detail: 'SecurePay records no funded amount on the established money positions yet.' };
 }
 
 function releaseStatus(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'Release authority is not loaded yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the release state yet.' };
   if (snapshot.releaseRequest.authorityGranted) {
-    return { status: 'Available', detail: 'Release-request authority is currently available for the evaluated scope.' };
+    return { status: 'Yes', detail: 'A release request is currently allowed for the evaluated scope.' };
   }
-  return { status: 'Not ready', detail: 'SecurePay does not currently grant release-request authority.' };
+  return { status: 'Not yet', detail: 'No release request is currently authorised.' };
+}
+
+function movementBlockedWords(reasonCode: string) {
+  const known: Record<string, string> = {
+    ENVIRONMENT_DISABLED: 'Live money movement is not enabled for this Agreement yet.',
+    PAYMENT_NOT_READY: 'The Agreement has not reached a payment-ready state yet.',
+    RELEASE_NOT_AUTHORISED: 'A release is not authorised yet.',
+    DESTINATION_UNAVAILABLE: 'A valid destination is not available yet.',
+    ECONOMICS_UNRESOLVED: 'SecurePay does not yet have complete movement costs for this action.',
+  };
+  return known[reasonCode] ?? 'SecurePay’s movement checks have not passed yet.';
 }
 
 function movementStatus(snapshot: AgreementMoneySnapshotResponse | null) {
   if (!snapshot) return { status: 'Unavailable', detail: 'SecurePay has not loaded the current movement state.' };
   if (snapshot.movement.state === 'READY') {
-    return { status: 'Money can move', detail: 'The current read-only movement preflight passed.' };
+    return { status: 'Yes', detail: 'SecurePay’s current movement checks have passed.' };
   }
   if (snapshot.movement.state === 'UNAVAILABLE') {
-    return { status: 'Unavailable', detail: 'SecurePay could not complete the movement preflight. This is unknown, not blocked.' };
+    return { status: 'Unavailable', detail: 'SecurePay could not establish a reliable movement answer right now.' };
   }
-  return { status: 'Money cannot move yet', detail: titleCase(snapshot.movement.reasonCode) };
+  return { status: 'Not yet', detail: movementBlockedWords(snapshot.movement.reasonCode) };
 }
 
-function nextStep(_snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
-  const backendNext = agreement && agreement.nextActions.length > 0 ? agreement.nextActions[0].reason : undefined;
-  if (backendNext) return backendNext;
-  if (!agreement) return 'Choose an Agreement to see its current money position.';
-  return 'Nothing needs you right now.';
+function moneyNextStep(snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
+  if (!agreement) return { headline: 'Choose an Agreement', detail: 'Select the Agreement whose money you want to understand.' };
+  if (!snapshot) return { headline: 'Money state unavailable', detail: 'SecurePay has not loaded the current money state yet.' };
+
+  const fundAction = agreement.nextActions.find(action => action.actionCode === 'FUND_AGREEMENT');
+  const funded = snapshot.positions.some(position => position.established && (position.fundedTotalMinor ?? 0) > 0);
+
+  if (snapshot.releaseRequest.authorityGranted) {
+    return { headline: 'A release can be requested', detail: 'SecurePay currently allows a release request for the evaluated scope. Review the release details before acting.' };
+  }
+  if (fundAction && snapshot.fundingOptions.length > 0) {
+    return { headline: 'This Agreement can be funded', detail: fundAction.reason || 'A current Agreement funding action and at least one eligible funding route are available.' };
+  }
+  if (fundAction && snapshot.fundingOptions.length === 0) {
+    return { headline: 'Funding is due, but no payment route is available yet', detail: 'SecurePay shows a funding action for this Agreement but no eligible funding route right now.' };
+  }
+  if (funded) {
+    return { headline: 'Money is funded', detail: 'SecurePay records funded money here. Nothing new is being presented as a financial action right now.' };
+  }
+  if (snapshot.paymentReady.state !== 'EVALUATED') {
+    return { headline: 'Not ready for a payment decision yet', detail: 'SecurePay has not completed the payment-readiness check for this Agreement version.' };
+  }
+  if (!snapshot.paymentReady.ready) {
+    return { headline: 'Not ready for payment yet', detail: 'One or more Agreement conditions still prevent a payment-ready state.' };
+  }
+  if (snapshot.movement.state === 'READY') {
+    return { headline: 'Money checks have passed', detail: 'SecurePay’s movement checks are ready, but no participant action is being inferred from that alone.' };
+  }
+  return { headline: 'Nothing needs you right now', detail: 'SecurePay is not presenting a current funding or release action for you.' };
 }
 
-
-function fundingRailState(snapshot: AgreementMoneySnapshotResponse | null, railCode: string, name: string) {
-  if (!snapshot) {
-    return {
-      status: 'Unknown',
-      detail: `SecurePay has not loaded ${name} availability for this Agreement yet.`,
-      option: null,
-    };
-  }
-  const option = snapshot.fundingOptions.find(route => route.railCode === railCode) ?? null;
-  if (option) {
-    return {
-      status: 'Available',
-      detail: `${name} is currently listed by SecurePay as an eligible funding route for this Agreement.`,
-      option,
-    };
-  }
-  return {
-    status: 'Not available',
-    detail: `${name} is part of SecurePay's rail architecture, but it is not currently available for this Agreement.`,
-    option: null,
-  };
-}
-
-function choiceRailState(snapshot: AgreementMoneySnapshotResponse | null, partners: Load<RegulatedPartnerResponse[]>) {
-  if (snapshot?.movement.railCode === 'CHOICE_KS_ACCOUNT') {
-    return {
-      status: 'Selected',
-      detail: 'Choice Bank is the settlement rail selected by the current backend movement preflight.',
-    };
-  }
-  if (partners.state === 'loading') {
-    return { status: 'Checking', detail: 'Checking SecurePay’s connected bank-partner record.' };
-  }
-  if (partners.state === 'error') {
-    return { status: 'Unknown', detail: 'SecurePay could not read the bank-partner state right now.' };
-  }
-  const choice = partners.value.find(partner =>
-    partner.partnerCode.toUpperCase().includes('CHOICE')
-    || partner.displayName.toUpperCase().includes('CHOICE')
-    || partner.legalName.toUpperCase().includes('CHOICE')
-  );
-  if (choice?.status === 'ACTIVE') {
-    return {
-      status: 'Connected',
-      detail: 'Choice Bank is connected as a regulated bank partner. That does not by itself make settlement executable for this Agreement.',
-    };
-  }
-  return {
-    status: 'Visible',
-    detail: 'Choice Bank is shown for its bank-account and settlement role. SecurePay has not selected it for this Agreement movement.',
-  };
-}
 
 function FundingOptionCard({ route }: { route: AgreementMoneySnapshotResponse['fundingOptions'][number] }) {
   return (
@@ -304,7 +284,7 @@ function EnablerCard({
 
 function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse }) {
   if (snapshot.positions.length === 0) {
-    return <p className="text-sm text-sand-600">No Agreement Money has been funded yet.</p>;
+    return <p className="text-sm text-sand-600">No money is recorded as funded for this Agreement yet.</p>;
   }
 
   return (
@@ -318,7 +298,7 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
               <div className="mt-2 text-sm text-sand-700">
                 Proposed {position.proposedAmountMinor != null ? <MoneyValue amount={moneyText(position.proposedAmountMinor, currency)} size="sm" /> : 'amount not shown'}
               </div>
-              <p className="mt-1 text-xs text-sand-500">No Agreement Money has been funded yet.</p>
+              <p className="mt-1 text-xs text-sand-500">No money is recorded as funded for this Agreement yet.</p>
             </div>
           );
         }
@@ -362,9 +342,9 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-cream-200 pt-4 sm:grid-cols-4">
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</dt><dd className="mt-1">{funded == null ? 'Unavailable' : <MoneyValue amount={moneyText(funded, currency)} size="sm" />}</dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Progressed / earned</dt><dd className="mt-1">{position.exercisedOrSettledMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.exercisedOrSettledMinor, currency)} size="sm" />}</dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Remaining funded</dt><dd className="mt-1">{position.remainingFundedMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.remainingFundedMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Paid in / funded</dt><dd className="mt-1">{funded == null ? 'Unavailable' : <MoneyValue amount={moneyText(funded, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Earned / progressed</dt><dd className="mt-1">{position.exercisedOrSettledMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.exercisedOrSettledMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Still protected</dt><dd className="mt-1">{position.remainingFundedMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.remainingFundedMinor, currency)} size="sm" />}</dd></div>
               <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Released / returned</dt><dd className="mt-1">{position.releasedTotalMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.releasedTotalMinor, currency)} size="sm" />}</dd></div>
             </dl>
           </div>
@@ -522,14 +502,12 @@ export function SimpleMoneyDashboard({
       : null
   );
   const economics = currentSnapshot?.movement.economics ?? null;
+  const humanNext = moneyNextStep(currentSnapshot, selectedSummary);
   const agreementSnippet = currentDetail?.overview.description?.trim()
     || currentDetail?.overview.purpose?.trim()
     || selectedSummary?.purpose?.trim()
     || 'SecurePay has not loaded a short Agreement description.';
   const fundingRoutes = currentSnapshot?.fundingOptions ?? [];
-  const mpesaRail = fundingRailState(currentSnapshot, 'MPESA_STK', 'M-PESA');
-  const pesalinkRail = fundingRailState(currentSnapshot, 'PESALINK', 'PesaLink');
-  const choiceRail = choiceRailState(currentSnapshot, partners);
   const selectedId = selected?.agreementId ?? '';
 
   return (
@@ -681,13 +659,14 @@ export function SimpleMoneyDashboard({
                   {selectedAmount ? <MoneyValue amount={selectedAmount} size="lg" className="!text-cream-50" /> : 'Not shown'}
                 </div>
                 <div className="mt-4 border-t border-forest-700 pt-4">
-                  <div className="text-xs uppercase tracking-wide text-forest-200">Next step</div>
-                  <p className="mt-2 text-sm leading-6 text-cream-100">{nextStep(currentSnapshot, selectedSummary)}</p>
+                  <div className="text-xs uppercase tracking-wide text-forest-200">What happens next</div>
+                  <p className="mt-2 text-base font-semibold leading-6 text-cream-50">{humanNext.headline}</p>
+                  <p className="mt-1 text-sm leading-6 text-cream-100">{humanNext.detail}</p>
                 </div>
                 <div className="mt-4 border-t border-forest-700 pt-4">
-                  <div className="text-xs uppercase tracking-wide text-forest-200">Money responsibility</div>
+                  <div className="text-xs uppercase tracking-wide text-forest-200">Who pays</div>
                   <p className="mt-2 text-sm text-cream-100">
-                    {economics?.payerRole ? `Payer role: ${titleCase(economics.payerRole)}` : 'SecurePay has not established a payer role in the current movement economics.'}
+                    {economics?.payerRole ? titleCase(economics.payerRole) : 'Not established in the current money movement yet.'}
                   </p>
                 </div>
               </div>
@@ -705,207 +684,118 @@ export function SimpleMoneyDashboard({
           </section>
 
           <section aria-label="Money at a glance" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
-            <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
-            <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
-            <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
+            <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Can this Agreement be paid now?" status={payment.status} detail={payment.detail} />
+            <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Has money been funded?" status={funding.status} detail={funding.detail} />
+            <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Can money be released?" status={release.status} detail={release.detail} />
+            <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can SecurePay move money now?" status={movement.status} detail={movement.detail} />
           </section>
 
           <details className="rounded-3xl border border-forest-200 bg-white/80" data-testid="agreement-money-flow">
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
               <div>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Financial details</div>
-                <div className="mt-1 font-display text-xl text-forest-900">See payment route & settlement architecture</div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Full money record</div>
+                <div className="mt-1 font-display text-xl text-forest-900">Payment routes, charges, release & settlement</div>
               </div>
-              <span className="text-xs text-sand-500">Open details</span>
+              <span className="text-xs text-sand-500">Open record</span>
             </summary>
-            <section className="border-t border-forest-100 p-5 md:p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Route className="h-5 w-5 text-forest-700" />
-                  <h2 className="font-display text-2xl text-forest-900">How money moves around this Agreement</h2>
-                </div>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-sand-600">
-                  Agreement first, then funding, Agreement Money, and settlement. Each step remains controlled by backend authority.
-                </p>
-              </div>
-              <div className="text-xs font-medium text-sand-500">Visible does not mean executable.</div>
-            </div>
 
-            <div className="mt-5 grid gap-3 xl:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] xl:items-stretch">
-              <div className="rounded-2xl border border-cream-200 bg-cream-50 p-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">1 · Agreement</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-forest-700" />
-                  <h3 className="font-display text-lg text-forest-900">Authority</h3>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-sand-600">Who pays, the amount, currency and conditions all begin with the Agreement.</p>
-              </div>
-
-              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
-
-              <div className="rounded-2xl border border-cream-200 bg-white p-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">2 · Fund</div>
-                <div className="mt-3 space-y-3">
-                  <div className="rounded-xl border border-cream-200 bg-cream-50/70 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2"><Smartphone className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">M-PESA</span></div>
-                      <StatusPill status={mpesaRail.status} />
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-sand-600">Funding / collection into this Agreement.</p>
-                    <p className="mt-1 text-xs leading-5 text-sand-500">{mpesaRail.detail}</p>
-                  </div>
-                  <div className="rounded-xl border border-cream-200 bg-cream-50/70 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2"><Building2 className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">PesaLink</span></div>
-                      <StatusPill status={pesalinkRail.status} />
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-sand-600">Bank-based funding into this Agreement where eligible.</p>
-                    <p className="mt-1 text-xs leading-5 text-sand-500">{pesalinkRail.detail}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
-
-              <div className="rounded-2xl border border-forest-200 bg-forest-50/70 p-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">3 · Agreement Money</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <WalletCards className="h-5 w-5 text-forest-700" />
-                  <h3 className="font-display text-lg text-forest-900">Protected by the Agreement</h3>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-sand-600">Funded money is recorded against the Agreement and its obligations, not treated as a generic wallet balance.</p>
-              </div>
-
-              <div className="hidden xl:flex items-center justify-center text-sand-400"><ArrowRight className="h-5 w-5" /></div>
-
-              <div className="rounded-2xl border border-cream-200 bg-white p-4">
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">4 · Settle</div>
-                <div className="mt-3 rounded-xl border border-cream-200 bg-cream-50/70 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2"><Landmark className="h-4 w-4 text-forest-700" /><span className="text-sm font-semibold text-forest-900">Choice Bank</span></div>
-                    <StatusPill status={choiceRail.status} />
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-sand-600">Bank/account infrastructure and authorised external settlement where backend authority permits.</p>
-                  <p className="mt-1 text-xs leading-5 text-sand-500">{choiceRail.detail}</p>
-                </div>
-                <p className="mt-3 text-[0.72rem] leading-5 text-sand-500">Settlement still requires Agreement authority, a valid destination, provider/rail gates and a successful movement preflight.</p>
-              </div>
-            </div>
-            </section>
-          </details>
-
-          <details className="rounded-3xl border border-cream-200 bg-white/80">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
-              <div>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Charges</div>
-                <div className="mt-1 font-display text-xl text-forest-900">Funding & charges</div>
-              </div>
-              <span className="text-xs text-sand-500">Open details</span>
-            </summary>
-            <div className="border-t border-cream-200 p-5 md:p-6">
-              <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-6 border-t border-forest-100 p-5 md:p-6">
+              <section aria-label="How SecurePay money works">
                 <div>
-                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Funding route</div>
-                  {fundingRoutes.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-sand-600">SecurePay does not currently list an eligible funding route for this Agreement.</p>
-                  )}
+                  <h2 className="font-display text-2xl text-forest-900">How money follows this Agreement</h2>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-sand-600">
+                    The Agreement decides the obligation first. Funding, protected Agreement Money, release and settlement follow only when their own authority is available.
+                  </p>
                 </div>
-                <div>
-                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Current charges</div>
-                  {economics && currentSnapshot?.movement.currency ? (
-                    <dl className="mt-3 space-y-2 text-sm">
-                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                      <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                      <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                      {economics.taxMinor > 0 && (
-                        <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                      )}
-                      <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
-                    </dl>
-                  ) : (
-                    <p className="mt-2 text-sm text-sand-600">Charges appear here when SecurePay has authoritative movement economics for this Agreement.</p>
-                  )}
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl border border-cream-200 bg-cream-50 p-4">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">1 · Agree</div>
+                    <div className="mt-2 flex items-center gap-2"><FileText className="h-5 w-5 text-forest-700" /><span className="font-semibold text-forest-900">Agreement</span></div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">Amount, responsibilities and conditions start here.</p>
+                  </div>
+                  <div className="rounded-2xl border border-cream-200 bg-white p-4">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">2 · Fund</div>
+                    <div className="mt-2 flex items-center gap-2"><WalletCards className="h-5 w-5 text-forest-700" /><span className="font-semibold text-forest-900">Pay in</span></div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">{fundingRoutes.length > 0 ? `${fundingRoutes.length} eligible funding route${fundingRoutes.length === 1 ? '' : 's'} currently returned.` : 'No eligible funding route is currently returned for this Agreement.'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-forest-200 bg-forest-50/70 p-4">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">3 · Protect</div>
+                    <div className="mt-2 flex items-center gap-2"><LockKeyhole className="h-5 w-5 text-forest-700" /><span className="font-semibold text-forest-900">Agreement Money</span></div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">Funded money remains recorded against this Agreement and its obligations.</p>
+                  </div>
+                  <div className="rounded-2xl border border-cream-200 bg-white p-4">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">4 · Release</div>
+                    <div className="mt-2 flex items-center gap-2"><Landmark className="h-5 w-5 text-forest-700" /><span className="font-semibold text-forest-900">Settle</span></div>
+                    <p className="mt-2 text-xs leading-5 text-sand-600">Money leaves only through an authorised release and successful settlement path.</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </details>
+              </section>
 
-          <details className="rounded-3xl border border-cream-200 bg-white/70">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
-              <div>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Payment execution</div>
-                <div className="mt-1 font-display text-xl text-forest-900">Payment, intent & settlement controls</div>
-              </div>
-              <span className="text-xs text-sand-500">Open controls</span>
-            </summary>
-            <div className="border-t border-cream-200 p-4 md:p-5">
-              <MoneyPaymentSettlementJourney
-            agreementGateway={agreementGateway}
-            paymentIntentGateway={paymentIntentGateway}
-            settlementGateway={settlementGateway}
-            paymentReleaseGateway={paymentReleaseGateway}
-            agreement={selectedSummary}
-            agreementId={selected.agreementId}
-            agreementTitle={selected.title}
-            currency={selected.currency}
-            snapshot={currentSnapshot}
-            onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
-              />
-            </div>
-          </details>
-
-          <details className="rounded-3xl border border-cream-200 bg-white/70">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
-              <div>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">Financial partners</div>
-                <div className="mt-1 font-display text-xl text-forest-900">Banks, SACCOs, MMFs & insurance</div>
-              </div>
-              <span className="text-xs text-sand-500">Open details</span>
-            </summary>
-            <section className="border-t border-cream-200 p-5 md:p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-forest-700" />
-                  <h2 className="font-display text-2xl text-forest-900">Fair trade finance</h2>
+              <section className="border-t border-cream-200 pt-5" aria-label="Funding and charges">
+                <h3 className="font-display text-xl text-forest-900">Funding & charges</h3>
+                <div className="mt-3 grid gap-5 lg:grid-cols-2">
+                  <div>
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Eligible funding routes</div>
+                    {fundingRoutes.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {fundingRoutes.map(route => <FundingOptionCard key={route.railCode} route={route} />)}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-sand-600">No payment method is available for this Agreement yet.</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Current charges</div>
+                    {economics && currentSnapshot?.movement.currency ? (
+                      <dl className="mt-3 space-y-2 text-sm">
+                        <div className="flex justify-between gap-4"><dt className="text-sand-600">Recipient principal</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.recipientPrincipalMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-sand-600">SecurePay charge</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.securePayFeeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-sand-600">Rail/provider</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.providerRailChargeMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                        {economics.taxMinor > 0 && <div className="flex justify-between gap-4"><dt className="text-sand-600">Tax</dt><dd className="font-medium text-forest-900"><MoneyValue amount={moneyText(economics.taxMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>}
+                        <div className="flex justify-between gap-4 border-t border-forest-200 pt-2"><dt className="font-semibold text-forest-900">Total payable</dt><dd className="font-semibold text-forest-900"><MoneyValue amount={moneyText(economics.totalPayableMinor, currentSnapshot.movement.currency)} size="sm" /></dd></div>
+                      </dl>
+                    ) : (
+                      <p className="mt-2 text-sm text-sand-600">Charges appear only when SecurePay has authoritative movement economics for this Agreement.</p>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-1 text-sm text-sand-600">The institutions that can help good Agreements become possible, safer and easier to complete.</p>
-              </div>
-              <div className="text-xs text-sand-500">Banks · SACCOs · MMFs · Insurance</div>
+              </section>
+
+              <section className="border-t border-cream-200 pt-5" aria-label="Payment and settlement controls">
+                <h3 className="font-display text-xl text-forest-900">Payment & settlement</h3>
+                <p className="mt-1 text-sm text-sand-600">Only controls allowed by current backend authority become actionable here.</p>
+                <div className="mt-3">
+                  <MoneyPaymentSettlementJourney
+                    agreementGateway={agreementGateway}
+                    paymentIntentGateway={paymentIntentGateway}
+                    settlementGateway={settlementGateway}
+                    paymentReleaseGateway={paymentReleaseGateway}
+                    agreement={selectedSummary}
+                    agreementId={selected.agreementId}
+                    agreementTitle={selected.title}
+                    currency={selected.currency}
+                    snapshot={currentSnapshot}
+                    onMoneyRefresh={() => setMoneyRefreshKey(key => key + 1)}
+                  />
+                </div>
+              </section>
+
+              <section className="border-t border-cream-200 pt-5" aria-label="Financial support">
+                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h3 className="font-display text-xl text-forest-900">Financial support</h3>
+                    <p className="mt-1 text-sm text-sand-600">Institutions that may support good Agreements. Availability is shown only when SecurePay can prove it.</p>
+                  </div>
+                  <div className="text-xs text-sand-500">Banks · SACCOs · MMFs · Insurance</div>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <EnablerCard icon={<Landmark className="h-5 w-5" />} title="Banks" text="Funding, payment rails and settlement." note={enablerBankNote(partners)} />
+                  <EnablerCard icon={<Users className="h-5 w-5" />} title="SACCOs" text="Community finance and member support." note="Live SACCO availability appears only when SecurePay can prove it." />
+                  <EnablerCard icon={<Building2 className="h-5 w-5" />} title="MMFs" text="Liquidity and a place for waiting funds." note="Live MMF availability appears only when SecurePay can prove it." />
+                  <EnablerCard icon={<ShieldCheck className="h-5 w-5" />} title="Insurance" text="Protection for agreed risks." note="Live cover appears only when SecurePay can prove it." />
+                </div>
+              </section>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <EnablerCard
-                icon={<Landmark className="h-5 w-5" />}
-                title="Banks"
-                text="Funding, payment rails and settlement."
-                note={enablerBankNote(partners)}
-              />
-              <EnablerCard
-                icon={<Users className="h-5 w-5" />}
-                title="SACCOs"
-                text="Community finance and member support."
-                note="Visible as a fair-trade support category; live SACCO availability is only shown once SecurePay can prove it."
-              />
-              <EnablerCard
-                icon={<Building2 className="h-5 w-5" />}
-                title="MMFs"
-                text="Liquidity and a place for waiting funds."
-                note="Visible as a fair-trade support category; live MMF availability is only shown once SecurePay can prove it."
-              />
-              <EnablerCard
-                icon={<ShieldCheck className="h-5 w-5" />}
-                title="Insurance"
-                text="Protection for agreed risks."
-                note="Visible as a fair-trade support category; live cover is only shown once SecurePay can prove it."
-              />
-            </div>
-            </section>
           </details>
         </>
       )}

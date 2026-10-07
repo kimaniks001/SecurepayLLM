@@ -21,8 +21,8 @@ test('all four operating surfaces share one visible journey language', () => {
 test('each surface exposes a practical next move rather than a static destination', () => {
   assert.match(vision, /What are you trying to move forward/);
   assert.match(storeManage, /What needs you/);
-  assert.match(agreement, /What needs you next/);
-  assert.match(moneyDash, /Next step/);
+  assert.match(agreement, /What happens next/);
+  assert.match(moneyDash, /What happens next/);
 });
 
 test('cross-surface dead ends have explicit recovery', () => {

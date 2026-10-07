@@ -8,8 +8,8 @@ const handoff = await readFile('src/features/money/handoff.ts', 'utf8');
 
 test('Money is answer-first before deeper architecture', () => {
   const position = simple.indexOf('Your money position');
-  const movement = simple.indexOf('Can money move?');
-  const architecture = simple.indexOf('See payment route & settlement architecture');
+  const movement = simple.indexOf('Can SecurePay move money now?');
+  const architecture = simple.indexOf('Full money record');
   assert.ok(position > 0);
   assert.ok(movement > position);
   assert.ok(architecture > movement);
@@ -17,10 +17,11 @@ test('Money is answer-first before deeper architecture', () => {
   assert.match(simple, /Nothing needs you right now/);
 });
 
-test('movement state is human-readable and fails unknown safely', () => {
-  assert.match(simple, /Money can move/);
-  assert.match(simple, /Money cannot move yet/);
-  assert.match(simple, /This is unknown, not blocked/);
+test('movement state is human-readable and never leaks backend reason codes into the default answer', () => {
+  assert.match(simple, /Can SecurePay move money now\?/);
+  assert.match(simple, /Live money movement is not enabled for this Agreement yet/);
+  assert.match(simple, /could not establish a reliable movement answer/);
+  assert.doesNotMatch(simple, /titleCase\(snapshot\.movement\.reasonCode\)/);
 });
 
 test('money position never converts missing backend amounts into zero', () => {
@@ -60,15 +61,15 @@ test('charges stay easy to find while route architecture is progressive disclosu
 test('deeper Money capability remains reachable', () => {
   for (const capability of [
     'MoneyPaymentSettlementJourney',
-    'Payment readiness',
-    'Funding',
-    'Release',
-    'Funding route',
-    'Settlement',
+    'Can this Agreement be paid now?',
+    'Has money been funded?',
+    'Can money be released?',
+    'Eligible funding routes',
+    'Payment & settlement',
   ]) {
     assert.ok(simple.includes(capability), `missing Money capability: ${capability}`);
   }
-  assert.match(moneyExperience, /Full money record & controls/);
+  assert.match(moneyExperience, /Technical & administration record/);
   assert.match(moneyExperience, /CurrencyCapabilitySection/);
   assert.match(moneyExperience, /FxConversionSection/);
   assert.match(moneyExperience, /SettlementDestinationSection/);

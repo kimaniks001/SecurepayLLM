@@ -29,7 +29,7 @@ const Label = ({ children }: { children: React.ReactNode }) => <div className="t
 const card = 'rounded-2xl border border-cream-200 bg-white px-5 py-4 space-y-3';
 const rowBtn = 'w-full text-left rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all';
 
-export const HUMAN_SUPPORT_UNAVAILABLE = 'This Help page doesn’t create a support request or contact a person. Use the options above, or ask KS001 for the next step.';
+export const HUMAN_SUPPORT_UNAVAILABLE = 'This Help page doesn’t create a support request or contact a person. Use the options above, or ask SecurePay for the next step.';
 export const HELP_IS_NOT = 'Help & Support is a guide to where SecurePay already shows what it knows. It isn’t a support ticket: opening it doesn’t start a review, contact a person or change anything.';
 
 export interface HelpNav {
@@ -142,7 +142,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
               </>
             )}
             <Action title="Trouble signing in" consequence="SecurePay will start the real account credential recovery flow." onClick={nav.recovery} />
-            <Action title={signedIn ? 'Something else — ask KS001' : 'Ask KS001'} consequence="SecurePay will return you to the same conversation." onClick={nav.askAgent} />
+            <Action title={signedIn ? 'Something else — ask SecurePay' : 'Ask SecurePay'} consequence="SecurePay will return you to the same conversation." onClick={nav.askAgent} />
           </div>
         </section>
 

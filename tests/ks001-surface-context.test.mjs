@@ -8,9 +8,12 @@ const vision = await readFile('src/features/visionboard/VisionBoardExperience.ts
 const store = await readFile('src/features/store/StoreExperience.tsx', 'utf8');
 const agreement = await readFile('src/features/workspace/WorkspaceExperience.tsx', 'utf8');
 
-test('surface guide asks only for real verifiable SecurePay help', () => {
-  assert.match(guide, /only suggest capabilities it can verify as real and relevant/i);
-  assert.match(guide, /never create an Agreement, choose a supplier or move money/i);
+test('surface guide asks for real SecurePay help without exposing internal guardrail doctrine', () => {
+  assert.match(guide, /real SecurePay capabilities/i);
+  assert.match(guide, /Financial authority still comes from the Money screen/i);
+  assert.match(guide, /SecurePay · Trust Project identity KS001/);
+  assert.doesNotMatch(guide, /only suggest capabilities it can verify as real and relevant/i);
+  assert.doesNotMatch(guide, /never create an Agreement, choose a supplier or move money/i);
 });
 
 test('Vision Store and Agreement all provide explicit user-triggered context to the same KS001 controller', () => {

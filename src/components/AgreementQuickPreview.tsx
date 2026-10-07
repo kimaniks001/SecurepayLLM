@@ -178,7 +178,7 @@ export function AgreementQuickPreview({
                 className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white px-3 py-3 text-[0.82rem] font-semibold text-forest-700 transition hover:border-forest-300"
               >
                 <MessageCircle className="h-4 w-4" />
-                Ask KS001
+                Ask SecurePay
               </button>
             </div>
 

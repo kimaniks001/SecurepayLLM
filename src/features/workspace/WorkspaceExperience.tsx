@@ -171,6 +171,20 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   const [turnsBaseline, setTurnsBaseline] = useState(0);
   const restorationConsumed = useRef(false);
 
+  // Human-convergence: warm the read-only Changes projection while the person is reading Overview.
+  // The panel still refreshes from its own authority when opened, but a healthy prefetch means it
+  // keeps real content on screen instead of flashing an avoidable loading state.
+  useEffect(() => {
+    const agreementId = state.selectedAgreementId;
+    if (state.view !== 'detail' || state.detail.status !== 'ready' || !agreementId) return;
+    let amendments = amendmentControllers.get(agreementId);
+    if (!amendments) {
+      amendments = createAmendmentsController(gateway, agreementId, () => controller.reloadDetailQuietly());
+      amendmentControllers.set(agreementId, amendments);
+    }
+    void amendments.loadOverview();
+  }, [state.view, state.detail.status, state.selectedAgreementId, amendmentControllers, gateway, controller]);
+
   /**
    * Real "Ask SecurePay" from inside an Agreement (Final Phase 3 completion): an explicit,
    * idempotent access-grant transition (Section 6) establishes/confirms this conversation's
@@ -352,7 +366,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
           onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           money={money}
-          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions}
+          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions} events={calendarEvents}
             onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
             onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
             onJourneyNavigate={handleNavigate}

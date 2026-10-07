@@ -10,51 +10,58 @@ const module = { exports: {} };
 new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
 const { LivingAgreementOverview } = module.exports;
 const detail = {
-  overview: { title: 'Retile bathroom', purpose: 'A safe, usable bathroom', description: 'Supply and install tiles.' },
+  overview: { title: 'Retile bathroom', purpose: 'A safe, usable bathroom', description: 'Supply and install tiles.', proposedAmountMinor: '9500000', currency: 'KES' },
   currentVersion: { versionNumber: 3 },
   milestones: [{ milestoneId: 'delivery', title: 'Deliver tiles', dueAt: null }, { milestoneId: 'install', title: 'Install tiles', dueAt: null }],
   documents: [],
+  participants: [{ participantId: 'p1' }, { participantId: 'p2' }],
 };
 const render = (overrides = {}) => renderToStaticMarkup(React.createElement(LivingAgreementOverview, {
-  detail, effectiveStates: null, completion: null,
+  detail, effectiveStates: null, completion: null, events: [],
   onProgress() {}, onPeople() {}, onDocuments() {}, onChanges() {}, onMoney() {}, ...overrides,
 }));
 
-test('unknown projections stay unavailable even when a milestone has a stored completed status', () => {
-  const html = render({ detail: { ...detail, milestones: [{ ...detail.milestones[0], status: 'COMPLETED' }] } });
-  assert.match(html, /Live status unavailable/);
-  assert.match(html, /Completion status unavailable/);
-  assert.doesNotMatch(html, /Agreement completed/);
-});
-
-test('milestones use live authority and name dependency only from the supplied projection', () => {
-  const html = render({ effectiveStates: [{ milestoneId: 'delivery', state: 'COMPLETED', reason: null }, { milestoneId: 'install', state: 'WAITING', reason: 'waiting on milestone(s): 11111111-1111-1111-1111-111111111111' }] });
-  assert.match(html, /Completed/);
-  assert.match(html, /Waiting/);
-  assert.match(html, /Waiting on another milestone/);
-  assert.doesNotMatch(html, /11111111/);
-});
-
-test('arrival reveals purpose and exact version with routes to existing authority controls', () => {
+test('Overview owns one concise Agreement story instead of replaying every tab', () => {
   const html = render();
+  assert.match(html, /At a glance/);
   assert.match(html, /A safe, usable bathroom/);
-  assert.match(html, /Current version 3/);
-  assert.match(html, /Open work, conditions &amp; evidence/);
-  assert.match(html, /Agreement Money/);
-  assert.doesNotMatch(html, /Fund now|Release now|Confirm completion/);
+  assert.match(html, /KES/);
+  assert.match(html, /95,000/);
+  assert.match(html, /2 participants/);
+  assert.match(html, /Version/);
+  assert.match(html, />3</);
+  assert.match(html, /Nothing is asking for your action right now/);
+  assert.doesNotMatch(html, /Live status unavailable/);
+  assert.doesNotMatch(html, /Deliver tiles[\s\S]*Install tiles/);
 });
 
-test('whole Agreement completion requires its projection, never the milestone count', () => {
+test('authoritative participant actions are translated from action code into human wording', () => {
+  const html = render({ nextActions: [{ actionCode: 'SUBMIT_EVIDENCE', category: 'WORK', reason: 'evidence required for obligation', deadline: '2026-10-10T00:00:00Z', attentionClass: 'ACTION_REQUIRED' }] });
+  assert.match(html, /What happens next/);
+  assert.match(html, /Add evidence for the work/);
+  assert.doesNotMatch(html, /evidence required for obligation/);
+  assert.match(html, /(?:10 Oct 2026|Oct 10, 2026)/);
+});
+
+test('the next Agreement date is promoted onto Overview instead of being buried in Calendar', () => {
+  const html = render({ events: [{ id: 'e1', title: 'Toyota Car expires', dateLabel: '4 Nov 2026', timeLabel: '', eventTypeLabel: 'Expiry', isDerived: true, cancelled: false, sourceReference: null }] });
+  assert.match(html, /Next date/);
+  assert.match(html, /Toyota Car expires/);
+  assert.match(html, /4 Nov 2026/);
+});
+
+test('whole Agreement completion still comes only from its authoritative completion projection', () => {
   assert.match(render({ completion: { completed: true, status: 'COMPLETED', completedAt: null, reasonCodes: [] } }), /Agreement completed/);
   assert.match(render({ completion: { completed: false, status: 'UNSUPPORTED', completedAt: null, reasonCodes: [] } }), /doesn’t evaluate completion/);
 });
 
-
-test('authoritative participant next actions are visible without inventing permissions', () => {
-  const html = render({ nextActions: [{ actionCode: 'SUBMIT_EVIDENCE', category: 'WORK', reason: 'Upload delivery evidence', deadline: '2026-10-10T00:00:00Z', attentionClass: 'ACTION_REQUIRED' }] });
-  assert.match(html, /What needs you next/);
-  assert.match(html, /Upload delivery evidence/);
-  assert.match(html, /ACTION REQUIRED/i);
-  assert.match(html, /(?:10 Oct 2026|Oct 10, 2026)/);
-  assert.doesNotMatch(html, /Submit evidence now|Approve|Release money/);
+test('Overview routes to deeper authority without duplicating it', () => {
+  const html = render();
+  assert.match(html, /People/);
+  assert.match(html, /Money/);
+  assert.match(html, /Work &amp; evidence/);
+  assert.match(html, /More from this Agreement/);
+  assert.match(html, /Documents/);
+  assert.match(html, /Versions &amp; changes/);
+  assert.doesNotMatch(html, /Fund now|Release now|Confirm completion/);
 });
