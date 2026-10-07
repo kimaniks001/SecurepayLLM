@@ -523,9 +523,9 @@ export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { 
   // deliberately SUPERSEDED by the new Phase 3 hero copy; the OLD text must be gone from current
   // (it was already asserted absent above via the "old paraphrased headline" check having been
   // replaced by yet another generation of copy), and the NEW text must be present.
-  assert.ok(current.includes('Bring the plan. Leave with an agreement.'), 'expected the exact Phase 3 headline');
+  assert.ok(current.includes('What do you want to make'), 'expected the approved canonical Home headline');
   // User-Ready Beta Gate 1 (EP-CERT-009) -- one-sentence supporting idea.
-  assert.ok(current.includes('Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.'), 'expected the Gate 1 supporting text');
+  assert.ok(current.includes('KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'), 'expected the approved canonical Home supporting text');
   assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'), 'expected the exact Phase 3 trust line');
   assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'), 'expected the quiet Fair Trade affordance beneath the input (Phase 2 capitalisation)');
   // Image data URIs (base64) are excluded: a "7/12" inside an encoded PNG is not visible copy.
