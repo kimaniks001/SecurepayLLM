@@ -256,7 +256,7 @@ test('the public Home Join chapter is live, truthful and offers no Business or O
   assert.match(home, /You never have to invite, teach or sell\./);
   assert.match(home, /Joining doesn’t turn on payments, fees, bank accounts or subscriptions\./);
   assert.match(home, /I already have a KS Number/);
-  assert.match(home, /Bring the plan\. Leave with an agreement\./);
+  assert.match(home, /What do you want to make real today\?/);
   assert.doesNotMatch(home, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)|coming soon|opens soon/i);
 });
 

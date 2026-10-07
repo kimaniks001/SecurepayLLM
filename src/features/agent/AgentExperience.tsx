@@ -1230,7 +1230,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           Phase 6 final correction: a compact KS001 identity row now sits above the tabs so mobile
           (which hides the desktop identity block below) still clearly shows who the person is
           talking to -- one coherent header, not a second bulky bar. */}
-      <div className="md:hidden sticky top-0 z-10 bg-cream-50 border-b border-cream-200/60">
+      <div className="md:hidden sticky top-0 z-10 bg-cream-50 border-b border-cream-200/60 backdrop-blur-md">
         {/* User-Ready Beta Gate 1 (EP-CERT-006/010) -- who you are talking to, what this conversation is, and + New. */}
         <div className="flex items-center gap-2 px-3 pt-1.5 pb-1">
           <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
@@ -1263,7 +1263,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       {/* Phase 6 final correction: a restrained soft-green atmosphere on the active KS001
           conversation surface (see tailwind.config.js's `ks001-surface` token) -- warm cream base,
           quiet green tonal light, no flat solid color and no decorative gradient. */}
-      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50 bg-ks001-surface`}>
+      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50 bg-ks001-surface sp-life-canvas`}>
         {/* Task doctrine (KS001 identity): the person is talking to KS001, not "SecurePay" --
             SecurePay is the system/brand (see NavBar's top-left brand), KS001 is who is in this
             conversation. Reuses the one real, canonical SecurePay mark asset -- no generic

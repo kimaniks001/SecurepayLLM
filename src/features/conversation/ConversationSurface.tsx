@@ -95,11 +95,11 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   };
   const jump = () => { pinnedToReplyStart.current = false; dispatch({ type: 'jump' }); scrollToBottom(true); };
 
-  return <div className="flex flex-col h-full">
+  return <div className="sp-life-canvas flex h-full flex-col">
     {/* The pill is anchored to the scroll region (not the composer, whose height varies on phones). */}
     <div className="relative flex-1 min-h-0">
-    <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 overscroll-contain" data-following={follow.following}>
-      <div ref={content} className="space-y-4">
+    <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto scrollbar-thin px-4 py-6 md:px-10 md:py-9 overscroll-contain" data-following={follow.following}>
+      <div ref={content} className="mx-auto w-full max-w-4xl space-y-6">
         <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with KS001" className="space-y-4">
           {children}
           {thinking && <div role="status" aria-label="KS001 is thinking"><AgentTyping /></div>}
@@ -148,17 +148,17 @@ function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay wh
     }
   };
   const onKey = (event: KeyboardEvent<HTMLTextAreaElement>) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } };
-  return <div className="px-4 md:px-6 py-3 border-t border-cream-200/60 bg-cream-50/70 backdrop-blur-sm">
+  return <div className="border-t border-cream-200/55 bg-[#fdfcf8]/90 px-4 py-3.5 backdrop-blur-md md:px-10 md:py-5">
     {offline && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">You’re offline. Your message is kept here — send it when you’re back online.</p>}
     {/* EP-CERT-001 -- never truncated: long text is simply read in full, like anything else the person brings. */}
     {(long || sending) && <p role="status" className="mb-2 text-[0.8rem] text-sand-700">{sending ? 'SecurePay is reading what you pasted. It stays here until it’s read.' : 'That’s longer than a message, so SecurePay will read all of it, like a document you brought.'}</p>}
-    <div className="flex items-end gap-2 rounded-2xl border border-cream-200 bg-white shadow-card px-3 py-2 focus-within:border-forest-300 focus-within:shadow-lifted transition-shadow duration-300">
+    <div className="sp-section mx-auto flex w-full max-w-4xl items-end gap-2 rounded-[1.4rem] border-forest-100/80 bg-white/88 px-3.5 py-3 shadow-[0_18px_48px_-34px_rgba(36,73,54,0.42)] backdrop-blur-sm focus-within:border-forest-300 focus-within:shadow-lifted transition-all duration-300">
       {leading && <div className="-ml-1 shrink-0 self-end">{leading}</div>}
       <textarea ref={field} value={text} onChange={event => setText(event.target.value)} onKeyDown={onKey} rows={1}
         aria-label="Message KS001" data-ks001-composer enterKeyHint="send" placeholder={placeholder} readOnly={sending}
         className="flex-1 min-w-0 resize-none bg-transparent text-[0.95rem] leading-6 text-forest-800 placeholder:text-sand-400 outline-none max-h-32 scrollbar-thin" style={{ minHeight: '24px', fieldSizing: 'content' } as React.CSSProperties} />
       <button onClick={send} disabled={!text.trim() || disabled || sending} aria-label="Send message"
-        className="w-10 h-10 -mr-1 rounded-xl bg-forest-600 text-cream-50 flex items-center justify-center shrink-0 hover:bg-forest-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2">
+        className="w-11 h-11 -mr-1 rounded-[0.95rem] bg-forest-700 text-cream-50 flex items-center justify-center shrink-0 shadow-soft hover:bg-forest-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2">
         <ArrowUp className="w-4 h-4" aria-hidden="true" />
       </button>
     </div>
