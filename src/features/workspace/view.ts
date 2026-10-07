@@ -150,6 +150,28 @@ export function boltAgreementStatus(summary: CurrentUserAgreementSummaryResponse
   return hubBucketStatus[origin.bucket];
 }
 
+export function humanNextActionReason(action: WorkspaceNextActionResponse): string {
+  const words: Record<string, string> = {
+    START_OBLIGATION: 'Start the agreed work',
+    FUND_AGREEMENT: 'Fund this Agreement',
+    SUBMIT_EVIDENCE: 'Add evidence for the work',
+    PROVIDE_LOCATION: 'Add the required location',
+    RECORD_ATTENDANCE: 'Record attendance',
+    SUBMIT_DELIVERY: 'Record the delivery',
+    ACKNOWLEDGE_DELIVERY: 'Confirm the delivery',
+    REVIEW_EVIDENCE: 'Review the submitted evidence',
+    PROVIDE_MORE_INFORMATION: 'Provide the requested information',
+    REPLACE_EVIDENCE: 'Replace the evidence that needs attention',
+    COMPLETE_OBLIGATION: 'Mark the agreed work complete',
+    REVIEW_AMENDMENT: 'Review the proposed change',
+    WAIT_FOR_DEPENDENCY: 'Waiting for another agreed step',
+    WAIT_UNTIL_AVAILABLE: 'This step is not available yet',
+    RECONFIRM_AGREEMENT_VERSION: 'Review and confirm the latest Agreement version',
+    NO_ACTION_REQUIRED: 'Nothing needs you right now',
+  };
+  return words[action.actionCode] ?? action.reason || humanizeCode(action.actionCode);
+}
+
 export function agreementSummaryView(dto: CurrentUserAgreementSummaryResponse, origin: StatusOrigin): AgreementSummary {
   const status = boltAgreementStatus(dto, origin);
   const primaryAction = dto.nextActions[0];
@@ -166,7 +188,7 @@ export function agreementSummaryView(dto: CurrentUserAgreementSummaryResponse, o
     completion: '—',
     status,
     statusLabel: statusLabelText[status],
-    nextAction: primaryAction ? (primaryAction.reason || humanizeCode(primaryAction.actionCode)) : '—',
+    nextAction: primaryAction ? humanNextActionReason(primaryAction) : '—',
     lastActivity: formatShortDate(dto.updatedAt),
     lastActivityTime: formatTime(dto.updatedAt),
     version: '—',
@@ -498,7 +520,7 @@ export function agreementNextView(nextActions: WorkspaceNextActionResponse[]): A
   const first = nextActions[0];
   if (!first) return null;
   return {
-    reason: first.reason,
+    reason: humanNextActionReason(first),
     deadline: first.deadline ? formatShortDate(first.deadline) : null,
     attentionClass: first.attentionClass,
   };
