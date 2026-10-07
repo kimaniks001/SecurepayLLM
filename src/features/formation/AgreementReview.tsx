@@ -70,7 +70,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
         <Printer className="h-4 w-4" aria-hidden="true" /> Print draft
       </button>
     </div>
-    <article data-agreement-print className="sp-agreement-paper px-5 py-6 md:px-8 md:py-8">
+    <article data-agreement-print className="sp-agreement-paper space-y-5 px-5 py-6 md:px-8 md:py-8">
       <header className="border-b border-cream-200 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
