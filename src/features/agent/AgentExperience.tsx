@@ -1383,52 +1383,36 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 min-h-11 text-forest-700 underline disabled:opacity-40">{state.busy && state.outcomeUnknown ? 'Checking…' : retryLabel(state.pending, state.outcomeUnknown)}</button>
               </StatusNotice>}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-forest-700">
-                {/* KS001 Upgrade Phase 3 (Bring what you already have, Section 40) -- one quiet attach
-                    control (Document / Photo / Paste a plan), never a toolbar jungle. Real bytes only
-                    reach SecurePay once the person actually picks a file -- never a local preview shown as
-                    success (Section 65). */}
-                {/* Opens downward: this row sits at the TOP of the scrolling conversation panel, where an upward
-                    menu would be clipped (found in live Phase 3 verification). */}
-                {/* REFRESH re-reads SecurePay's current understanding. It never resets or starts anything (that is + New). */}
-                <button disabled={state.busy} onClick={reviewing} aria-label="Refresh what SecurePay understands" className="min-h-11 underline disabled:opacity-40">Refresh</button>
-                {/* Entry Perfection Phase 6 -- REVIEW THIS opens the emerging agreement itself (no sign-in, nothing created);
-                    setting it up securely is a separate, explicit step inside Review. */}
-                {/* User-Ready Beta Gate 1 -- the actual next step ("Resolve price", "Review 2 points", "Review agreement"). */}
-                <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || !formationState.data?.reviewable}
-                  onClick={goNext}
-                  className="min-h-11 underline disabled:opacity-40"
-                >
-                  {step.kind === 'none' ? 'Review agreement' : step.label}
-                </button>
-                {/* KS001 Upgrade Phase 5 continuation (Slice 3, UR-145) -- "Review this" is correctly
-                    disabled while a suggested (not-yet-confirmed) WHAT still needs the person's own
-                    explicit "Use this." Live testing found this gate itself is legitimate (never a
-                    predicate bug -- see the Phase 5 completion report's own root-cause account), but
-                    nothing told the person WHY the button stayed disabled after a seemingly-complete
-                    conversation. This names the exact real reason, using the server's own
-                    mustResolve description verbatim -- never a second, independently-drifting copy
-                    of the sufficiency rule. */}
-                {/* Entry Perfection Phase 6 -- DELIBERATELY RESTATED: the old hint told the person to confirm facts one by one with
-                    "Use this" before Review, which UR-239 retired. Review waits only for a coherent arrangement, and says so. */}
+              <div className="space-y-2" data-human-next-step>
+                {formationState.data?.reviewable && (
+                  <button
+                    disabled={!state.conversationId || state.busy || !!state.pending}
+                    onClick={goNext}
+                    className="inline-flex min-h-11 items-center rounded-xl bg-forest-700 px-4 text-sm font-semibold text-white shadow-soft hover:bg-forest-800 disabled:opacity-40"
+                  >
+                    {step.kind === 'none' ? 'Review agreement' : step.label}
+                  </button>
+                )}
                 {!state.busy && !state.pending && formationState.data && !formationState.data.reviewable && formationState.data.reviewBlockedReason
                   && formationState.data.stage === 'BUILD' && (
-                  <p className="w-full text-[0.78rem] text-sand-500 basis-full">{formationState.data.reviewBlockedReason}</p>
+                  <p className="text-[0.8rem] leading-5 text-sand-600">{formationState.data.reviewBlockedReason}</p>
                 )}
-                {/* KS001 Upgrade Phase 2 (Sections 14/15/20), final convergence correction (item 8) -- a
-                    PRIVATE pre-agreement save, never "Set up Agreement" done twice: this only binds
-                    ownership to the SAME conversation, it never creates a draft Agreement. Gated on the
-                    server-owned sufficiency.canSave (always true once a real conversation exists, but read
-                    directly rather than assumed, matching "Review this"'s own canReview gate). */}
-                <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || savedBuildState.phase === 'saving'
-                    || (state.context.data?.sufficiency && !state.context.data.sufficiency.canSave)}
-                  onClick={() => { if (state.conversationId) void savedBuildController.save(state.conversationId); }}
-                  className="min-h-11 underline disabled:opacity-40"
-                >
-                  {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
-                </button>
+                {state.conversationId && <details className="group w-fit">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center text-[0.8rem] text-sand-600 underline underline-offset-2">
+                    More options
+                  </summary>
+                  <div className="flex flex-wrap items-center gap-3 pb-1">
+                    <button disabled={state.busy} onClick={reviewing} aria-label="Refresh what SecurePay understands" className="min-h-11 text-[0.8rem] text-forest-700 underline disabled:opacity-40">Refresh understanding</button>
+                    <button
+                      disabled={state.busy || !!state.pending || savedBuildState.phase === 'saving'
+                        || (state.context.data?.sufficiency && !state.context.data.sufficiency.canSave)}
+                      onClick={() => { if (state.conversationId) void savedBuildController.save(state.conversationId); }}
+                      className="min-h-11 text-[0.8rem] text-forest-700 underline disabled:opacity-40"
+                    >
+                      {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
+                    </button>
+                  </div>
+                </details>}
               </div>
               {bringPlanOpen && (
                 <BringPlanPanel
