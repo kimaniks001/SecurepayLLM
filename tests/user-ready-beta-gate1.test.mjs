@@ -306,7 +306,7 @@ test('EP-CERT-005: a source-derived total is directly editable (canonical SET_AM
 });
 
 // ================================================================== EP-CERT-009/010/011 -- Home, KS001 + Principles, depth
-test('EP-CERT-009/010: ONE entry object -- KS001 lockup with its compass directly above ONE composer whose + lives inside it; human quick starts', () => {
+test('EP-CERT-009/010: ONE entry object -- KS001 lockup with its compass directly above ONE composer whose + lives inside it; three examples', () => {
   const hero = html(api.SecurePayHero, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {}, variant: 'public' });
   const t = text(hero);
   assert.ok(t.indexOf('KS001') < t.indexOf('Guided by the 12 Principles of Fair Trade'));
@@ -314,7 +314,7 @@ test('EP-CERT-009/010: ONE entry object -- KS001 lockup with its compass directl
   assert.equal((hero.match(/data-source-menu/g) ?? []).length, 1);
   assert.ok(hero.indexOf('data-source-menu') < hero.indexOf('data-ks001-composer'), 'the + is inside the composer, before the text box');
   assert.doesNotMatch(t, /Add what you have/, 'no separate "Add" subsystem button');
-  assert.match(t, /Plan Turn an idea into a clear plan Compare Make the options obvious Prepare Agreement Make the commitment clear Find People Connect the right people/);
+  assert.match(t, /Tile my bathroom\. Set up five cyber cafés with three partners\. We're organising repairs to our parents' home\./);
 });
 
 test('EP-CERT-010: KS001 is introduced, not renamed -- the compass opens as a moment from KS001 itself, never navigating away', () => {
