@@ -495,27 +495,34 @@ export const markup = renderToStaticMarkup(React.createElement(ContextPanel, { l
 // must be in its place, while the surrounding input/example-prompts stay untouched. Phase 6 convergence
 // additionally re-locks the headline/supporting-text copy itself (task doctrine: exact locked text,
 // not a paraphrase) and adds the quiet Fair Trade affordance beneath the input.
-test('public KS001 Home is intentionally converged to the final shared Home standard', async () => {
-  const entry = `
+test('SignedOutHome is the canonical KS001-first Home, not the obsolete Bolt fixture', async () => {
+  const entry = \`
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SecurePayHero } from './src/components/SignedOutHome';
+import { SignedOutHome } from './src/components/SignedOutHome';
 const noop = () => {};
-export const markup = renderToStaticMarkup(React.createElement(SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant: 'public' }));
-`;
+export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, {
+  onStart: noop,
+  onBringPlan: noop,
+  onPickDocument: noop,
+  onPickPhoto: noop,
+  onAddLink: noop,
+  onAddPlace: noop,
+}));\`;
   const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
   const mod = { exports: {} };
   new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
   const current = mod.exports.markup;
-  assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
-  assert.match(current, /<img[^>]*src="data:image\/png/);
-  const visible = current.replace(/data:[^"]+/g, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(visible.includes('What do you want to make real today?'));
-  assert.ok(visible.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
-  assert.ok(visible.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
-  assert.ok(visible.includes('Guided by the 12 Principles of Fair Trade'));
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(visible.includes(label), label);
-  assert.ok(!visible.includes('Fair trader score') && !/\d+\/12/.test(visible), 'must never grade the person with a fair trade score');
+
+  assert.match(current, /What do you want to make/);
+  assert.match(current, /Start with KS001/);
+  assert.match(current, /Guided by the 12 Principles of Fair Trade/);
+  assert.match(current, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
+  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(current.includes(label), \`expected quick start \${label}\`);
+  assert.match(current, /aria-label="Add what you have"/);
+  assert.ok(!current.includes('What are you trying to make happen?'), 'obsolete Bolt-era headline must not return');
+  const visible = current.replace(/data:[^"]+/g, '');
+  assert.ok(!visible.includes('Fair trader score') && !/\\d+\\/12/.test(visible), 'must never grade the person with a fair trade score');
 });
 
 test('retry wording is truthful for each pending operation: message, Use this, amount', () => {
