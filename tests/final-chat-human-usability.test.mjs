@@ -45,3 +45,12 @@ test('chat does not expose internal lifecycle jargon as primary navigation', () 
   assert.doesNotMatch(primary, />READY_FOR_SETTLEMENT</);
   assert.doesNotMatch(primary, />REQUEST_TO_JOIN</);
 });
+
+test('chat presents one obvious next action and hides maintenance utilities', () => {
+  assert.match(agent, /data-human-next-step/);
+  assert.match(agent, /bg-forest-700/);
+  assert.match(agent, /More options/);
+  assert.match(agent, /Refresh understanding/);
+  const nextStepBlock = agent.slice(agent.indexOf('data-human-next-step'), agent.indexOf('{bringPlanOpen'));
+  assert.ok(nextStepBlock.indexOf('Review agreement') < nextStepBlock.indexOf('More options'));
+});
