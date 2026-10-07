@@ -64,8 +64,8 @@ function titleCase(value: string) {
 }
 
 function statusTone(status: string) {
-  if (['Ready', 'Available', 'Connected', 'Selected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
-  if (['Blocked', 'Not ready', 'Not funded', 'Not available'].includes(status)) return 'bg-ember-100 text-ember-800';
+  if (['Yes', 'Ready', 'Available', 'Connected', 'Selected', 'Funded', 'Active'].includes(status)) return 'bg-forest-100 text-forest-800';
+  if (['No', 'Not yet', 'Blocked', 'Not ready', 'Not funded', 'Not available'].includes(status)) return 'bg-ember-100 text-ember-800';
   return 'bg-cream-200 text-sand-700';
 }
 
@@ -74,54 +74,89 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function snapshotReadiness(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the current money state yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the current payment state yet.' };
   if (snapshot.paymentReady.state !== 'EVALUATED') {
-    return { status: 'Waiting', detail: 'Payment Ready has not been evaluated for this Agreement version yet.' };
+    return { status: 'Checking', detail: 'SecurePay has not yet completed the payment-readiness check for this Agreement version.' };
   }
   if (snapshot.paymentReady.ready) {
-    return { status: 'Ready', detail: 'The evaluated payment conditions are satisfied.' };
+    return { status: 'Yes', detail: 'The current Agreement conditions have passed SecurePay’s payment-readiness check.' };
   }
-  return { status: 'Not ready', detail: 'One or more evaluated payment conditions are still outstanding.' };
+  return { status: 'Not yet', detail: 'One or more Agreement conditions still prevent a payment-ready state.' };
 }
 
 function fundingStatus(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'Funding information is not loaded yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the funded-money state yet.' };
   const established = snapshot.positions.filter(position => position.established);
-  if (established.length === 0) return { status: 'Not funded', detail: 'No established Agreement Money position is shown.' };
+  if (established.length === 0) return { status: 'No', detail: 'No money is recorded as funded for this Agreement yet.' };
   const knownFunded = established.map(position => position.fundedTotalMinor).filter((value): value is number => value != null);
   if (knownFunded.some(value => value > 0)) {
-    return { status: 'Funded', detail: 'SecurePay shows funded money on this Agreement.' };
+    return { status: 'Yes', detail: 'SecurePay records funded money against this Agreement.' };
   }
   if (knownFunded.length !== established.length) {
-    return { status: 'Unknown', detail: 'SecurePay has not returned a funded amount for every established money position.' };
+    return { status: 'Unknown', detail: 'The funded amount is unavailable for one or more Agreement Money positions.' };
   }
-  return { status: 'Not funded', detail: 'Agreement Money exists, but SecurePay shows no funded amount yet.' };
+  return { status: 'No', detail: 'SecurePay records no funded amount on the established money positions yet.' };
 }
 
 function releaseStatus(snapshot: AgreementMoneySnapshotResponse | null) {
-  if (!snapshot) return { status: 'Unknown', detail: 'Release authority is not loaded yet.' };
+  if (!snapshot) return { status: 'Unknown', detail: 'SecurePay has not loaded the release state yet.' };
   if (snapshot.releaseRequest.authorityGranted) {
-    return { status: 'Available', detail: 'Release-request authority is currently available for the evaluated scope.' };
+    return { status: 'Yes', detail: 'A release request is currently allowed for the evaluated scope.' };
   }
-  return { status: 'Not ready', detail: 'SecurePay does not currently grant release-request authority.' };
+  return { status: 'Not yet', detail: 'No release request is currently authorised.' };
+}
+
+function movementBlockedWords(reasonCode: string) {
+  const known: Record<string, string> = {
+    ENVIRONMENT_DISABLED: 'Live money movement is not enabled for this Agreement yet.',
+    PAYMENT_NOT_READY: 'The Agreement has not reached a payment-ready state yet.',
+    RELEASE_NOT_AUTHORISED: 'A release is not authorised yet.',
+    DESTINATION_UNAVAILABLE: 'A valid destination is not available yet.',
+    ECONOMICS_UNRESOLVED: 'SecurePay does not yet have complete movement costs for this action.',
+  };
+  return known[reasonCode] ?? 'SecurePay’s movement checks have not passed yet.';
 }
 
 function movementStatus(snapshot: AgreementMoneySnapshotResponse | null) {
   if (!snapshot) return { status: 'Unavailable', detail: 'SecurePay has not loaded the current movement state.' };
   if (snapshot.movement.state === 'READY') {
-    return { status: 'Money can move', detail: 'The current read-only movement preflight passed.' };
+    return { status: 'Yes', detail: 'SecurePay’s current movement checks have passed.' };
   }
   if (snapshot.movement.state === 'UNAVAILABLE') {
-    return { status: 'Unavailable', detail: 'SecurePay could not complete the movement preflight. This is unknown, not blocked.' };
+    return { status: 'Unavailable', detail: 'SecurePay could not establish a reliable movement answer right now.' };
   }
-  return { status: 'Money cannot move yet', detail: titleCase(snapshot.movement.reasonCode) };
+  return { status: 'Not yet', detail: movementBlockedWords(snapshot.movement.reasonCode) };
 }
 
-function nextStep(_snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
-  const backendNext = agreement && agreement.nextActions.length > 0 ? agreement.nextActions[0].reason : undefined;
-  if (backendNext) return backendNext;
-  if (!agreement) return 'Choose an Agreement to see its current money position.';
-  return 'Nothing needs you right now.';
+function moneyNextStep(snapshot: AgreementMoneySnapshotResponse | null, agreement: CurrentUserAgreementSummaryResponse | null) {
+  if (!agreement) return { headline: 'Choose an Agreement', detail: 'Select the Agreement whose money you want to understand.' };
+  if (!snapshot) return { headline: 'Money state unavailable', detail: 'SecurePay has not loaded the current money state yet.' };
+
+  const fundAction = agreement.nextActions.find(action => action.actionCode === 'FUND_AGREEMENT');
+  const funded = snapshot.positions.some(position => position.established && (position.fundedTotalMinor ?? 0) > 0);
+
+  if (snapshot.releaseRequest.authorityGranted) {
+    return { headline: 'A release can be requested', detail: 'SecurePay currently allows a release request for the evaluated scope. Review the release details before acting.' };
+  }
+  if (fundAction && snapshot.fundingOptions.length > 0) {
+    return { headline: 'This Agreement can be funded', detail: fundAction.reason || 'A current Agreement funding action and at least one eligible funding route are available.' };
+  }
+  if (fundAction && snapshot.fundingOptions.length === 0) {
+    return { headline: 'Funding is due, but no payment route is available yet', detail: 'SecurePay shows a funding action for this Agreement but no eligible funding route right now.' };
+  }
+  if (funded) {
+    return { headline: 'Money is funded', detail: 'SecurePay records funded money here. Nothing new is being presented as a financial action right now.' };
+  }
+  if (snapshot.paymentReady.state !== 'EVALUATED') {
+    return { headline: 'Not ready for a payment decision yet', detail: 'SecurePay has not completed the payment-readiness check for this Agreement version.' };
+  }
+  if (!snapshot.paymentReady.ready) {
+    return { headline: 'Not ready for payment yet', detail: 'One or more Agreement conditions still prevent a payment-ready state.' };
+  }
+  if (snapshot.movement.state === 'READY') {
+    return { headline: 'Money checks have passed', detail: 'SecurePay’s movement checks are ready, but no participant action is being inferred from that alone.' };
+  }
+  return { headline: 'Nothing needs you right now', detail: 'SecurePay is not presenting a current funding or release action for you.' };
 }
 
 
@@ -304,7 +339,7 @@ function EnablerCard({
 
 function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse }) {
   if (snapshot.positions.length === 0) {
-    return <p className="text-sm text-sand-600">No Agreement Money has been funded yet.</p>;
+    return <p className="text-sm text-sand-600">No money is recorded as funded for this Agreement yet.</p>;
   }
 
   return (
@@ -318,7 +353,7 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
               <div className="mt-2 text-sm text-sand-700">
                 Proposed {position.proposedAmountMinor != null ? <MoneyValue amount={moneyText(position.proposedAmountMinor, currency)} size="sm" /> : 'amount not shown'}
               </div>
-              <p className="mt-1 text-xs text-sand-500">No Agreement Money has been funded yet.</p>
+              <p className="mt-1 text-xs text-sand-500">No money is recorded as funded for this Agreement yet.</p>
             </div>
           );
         }
@@ -362,9 +397,9 @@ function PositionMoney({ snapshot }: { snapshot: AgreementMoneySnapshotResponse 
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-cream-200 pt-4 sm:grid-cols-4">
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Funded</dt><dd className="mt-1">{funded == null ? 'Unavailable' : <MoneyValue amount={moneyText(funded, currency)} size="sm" />}</dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Progressed / earned</dt><dd className="mt-1">{position.exercisedOrSettledMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.exercisedOrSettledMinor, currency)} size="sm" />}</dd></div>
-              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Remaining funded</dt><dd className="mt-1">{position.remainingFundedMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.remainingFundedMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Paid in / funded</dt><dd className="mt-1">{funded == null ? 'Unavailable' : <MoneyValue amount={moneyText(funded, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Earned / progressed</dt><dd className="mt-1">{position.exercisedOrSettledMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.exercisedOrSettledMinor, currency)} size="sm" />}</dd></div>
+              <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Still protected</dt><dd className="mt-1">{position.remainingFundedMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.remainingFundedMinor, currency)} size="sm" />}</dd></div>
               <div><dt className="text-[0.68rem] uppercase tracking-wide text-sand-500">Released / returned</dt><dd className="mt-1">{position.releasedTotalMinor == null ? 'Unavailable' : <MoneyValue amount={moneyText(position.releasedTotalMinor, currency)} size="sm" />}</dd></div>
             </dl>
           </div>
@@ -522,6 +557,7 @@ export function SimpleMoneyDashboard({
       : null
   );
   const economics = currentSnapshot?.movement.economics ?? null;
+  const humanNext = moneyNextStep(currentSnapshot, selectedSummary);
   const agreementSnippet = currentDetail?.overview.description?.trim()
     || currentDetail?.overview.purpose?.trim()
     || selectedSummary?.purpose?.trim()
@@ -681,13 +717,14 @@ export function SimpleMoneyDashboard({
                   {selectedAmount ? <MoneyValue amount={selectedAmount} size="lg" className="!text-cream-50" /> : 'Not shown'}
                 </div>
                 <div className="mt-4 border-t border-forest-700 pt-4">
-                  <div className="text-xs uppercase tracking-wide text-forest-200">Next step</div>
-                  <p className="mt-2 text-sm leading-6 text-cream-100">{nextStep(currentSnapshot, selectedSummary)}</p>
+                  <div className="text-xs uppercase tracking-wide text-forest-200">What happens next</div>
+                  <p className="mt-2 text-base font-semibold leading-6 text-cream-50">{humanNext.headline}</p>
+                  <p className="mt-1 text-sm leading-6 text-cream-100">{humanNext.detail}</p>
                 </div>
                 <div className="mt-4 border-t border-forest-700 pt-4">
-                  <div className="text-xs uppercase tracking-wide text-forest-200">Money responsibility</div>
+                  <div className="text-xs uppercase tracking-wide text-forest-200">Who pays</div>
                   <p className="mt-2 text-sm text-cream-100">
-                    {economics?.payerRole ? `Payer role: ${titleCase(economics.payerRole)}` : 'SecurePay has not established a payer role in the current movement economics.'}
+                    {economics?.payerRole ? titleCase(economics.payerRole) : 'Not established in the current money movement yet.'}
                   </p>
                 </div>
               </div>
@@ -705,10 +742,10 @@ export function SimpleMoneyDashboard({
           </section>
 
           <section aria-label="Money at a glance" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Payment readiness" status={payment.status} detail={payment.detail} />
-            <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Funding" status={funding.status} detail={funding.detail} />
-            <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Release" status={release.status} detail={release.detail} />
-            <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can money move?" status={movement.status} detail={movement.detail} />
+            <FinanceStateCard icon={<CheckCircle2 className="h-5 w-5" />} title="Can this Agreement be paid now?" status={payment.status} detail={payment.detail} />
+            <FinanceStateCard icon={<WalletCards className="h-5 w-5" />} title="Has money been funded?" status={funding.status} detail={funding.detail} />
+            <FinanceStateCard icon={<LockKeyhole className="h-5 w-5" />} title="Can money be released?" status={release.status} detail={release.detail} />
+            <FinanceStateCard icon={<ArrowRight className="h-5 w-5" />} title="Can SecurePay move money now?" status={movement.status} detail={movement.detail} />
           </section>
 
           <details className="rounded-3xl border border-forest-200 bg-white/80" data-testid="agreement-money-flow">
