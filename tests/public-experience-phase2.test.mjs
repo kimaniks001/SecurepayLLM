@@ -471,7 +471,7 @@ test('Help speaks in present tense and claims no support capability', () => {
   for (const markup of [renderHelp(false, true), renderHelp(true, false)]) {
     const out = text(markup);
     assert.match(out, /Getting more help/);
-    assert.match(out, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask KS001 for the next step\./);
+    assert.match(out, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask SecurePay for the next step\./);
     assert.doesNotMatch(out, /not yet available|not yet|coming soon|not ready|Talking to a person/i);
     assert.doesNotMatch(out, /ticket number|case number|support hours|live chat|call us|response time|escalat/i);
   }
@@ -494,9 +494,9 @@ test('real Agreement Support speaks the same present-tense support doctrine as H
   const markup = xr(extra.AgreementSupport, { onAskAgent: noop, reviewPanel: extra.createElement('div', null, 'PANEL'), onOpenMoney: noop, onOpenHelp: noop });
   const out = text(markup);
   assert.match(out, /Need more help\?/);
-  assert.match(out, /Nothing here creates a support request or contacts a person\. Use Help & Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001\./);
+  assert.match(out, /Nothing here creates a support request or contacts a person\. Use Help & Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask SecurePay\./);
   assert.doesNotMatch(out, /not yet available|not yet|Coming soon|Request human support|under development|request submitted|ticket|case number|agent assigned|escalat|will contact you/i);
-  for (const action of ['Ask KS001', 'Reviews & issues', 'Money', 'Help & Support']) assert.match(out, new RegExp(action));
+  for (const action of ['Ask SecurePay', 'Reviews & issues', 'Money', 'Help & Support']) assert.match(out, new RegExp(action));
   assert.match(markup, /<div class="text-\[0\.72rem\] text-sand-600">Nothing here creates a support request/);
   assert.deepEqual(lowContrastText(markup), [], 'no sand-400/500 text on the real Agreement Support card');
 });
