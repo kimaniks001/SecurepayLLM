@@ -126,10 +126,10 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 });
 
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
-test('SignedOutHome: carries the approved canonical Home headline, supporting text, and trust line', () => {
+test('SignedOutHome: carries the exact Phase 3 headline, supporting text, and trust line', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
-  assert.match(out, /What do you want to make real today\?/);
-  assert.match(out, /KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action/);
+  assert.match(out, /Bring the plan\. Leave with an agreement\./);
+  assert.match(out, /or give it what you already have/);
   assert.match(out, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
