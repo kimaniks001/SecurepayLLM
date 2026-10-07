@@ -58,7 +58,7 @@ export function AgreementShaping({ formation, changes = [], onReview, onAnswer, 
         </div>
 
         <div className="mt-4 max-w-3xl">
-          <h2 id="living-agreement-title" className="font-display text-[1.55rem] leading-tight tracking-[-0.02em] text-forest-950 md:text-[1.8rem]">
+          <h2 id="living-agreement-title" className="font-display text-[1.55rem] leading-tight tracking-[-0.02em] text-forest-900 md:text-[1.8rem]">
             {formation.summary || what?.value || 'The shape of what you mean'}
           </h2>
           <p className="mt-2 max-w-2xl text-[0.82rem] leading-6 text-sand-600">
