@@ -124,8 +124,8 @@ function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?:
           <p className="mt-1 font-display text-2xl text-forest-900">{money.amount}</p>
           <p className="mt-2 text-sm font-medium text-forest-800">{money.stateLabel}</p>
           <p className="mt-1 text-sm text-sand-600">
-            {money.moneyRecordCount > 0
-              ? `${money.moneyRecordCount} money event${money.moneyRecordCount === 1 ? '' : 's'} recorded for this Agreement.`
+            {(money.moneyRecordCount ?? 0) > 0
+              ? `${money.moneyRecordCount ?? 0} money event${(money.moneyRecordCount ?? 0) === 1 ? '' : 's'} recorded for this Agreement.`
               : 'No Agreement Money activity is recorded here yet.'}
           </p>
         </div>
