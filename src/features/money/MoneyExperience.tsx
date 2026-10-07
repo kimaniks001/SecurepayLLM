@@ -146,7 +146,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
         <PageHeader
           title="Money"
-          description="Your Agreements first — then the money, next steps and financial support that follow them."
+          description="Choose an Agreement, see where its money stands, what happens next, and what you can do."
         />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
@@ -168,12 +168,12 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">
           <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-forest-800 flex items-center justify-between gap-3">
-            <span>Full money record & controls</span>
-            <span className="text-xs font-normal text-sand-500 group-open:hidden">Open the deeper record</span>
+            <span>Technical & administration record</span>
+            <span className="text-xs font-normal text-sand-500 group-open:hidden">Open technical record</span>
             <span className="text-xs font-normal text-sand-500 hidden group-open:inline">Close</span>
           </summary>
           <div className="border-t border-cream-200 px-4 md:px-5 py-5 space-y-6">
-            {/* The detailed authority surfaces remain available without dominating the default page. */}
+            {/* Technical authority and administration surfaces remain available without becoming a second customer journey. */}
             <MoneyHomeOverview agreementGateway={gateways.agreements} onOpenAgreement={setJumpAgreement} />
             <AgreementMoneySection
               authorityGateway={gateways.moneyAuthority}
