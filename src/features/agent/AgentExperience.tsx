@@ -228,6 +228,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     onSourceChanged: () => void controller.review(),
   }));
   const sourcesState = useSyncExternalStore(sourceController.subscribe, sourceController.getSnapshot);
+  type HomePendingSource = {
+    file: File;
+    kind: 'DOCUMENT' | 'PHOTO';
+    phase: 'reading' | 'failed';
+    error?: string;
+    sourceArtifactId?: string;
+  };
+  const [homePendingSource, setHomePendingSource] = useState<HomePendingSource | null>(null);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
   // Entry Perfection Phase 2 -- the pasted text is kept until SecurePay has actually read it (never lost on failure).
   const [bringPlanDraft, setBringPlanDraft] = useState<{ text: string; label: string }>({ text: '', label: '' });
@@ -421,6 +429,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setBringPlanOpen(false);
     setBringPlanDraft({ text: "", label: "" });
     setDeclaredOpen(null);
+    setHomePendingSource(null);
     setNotice(null);
     // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
     setMobileTab('build');
@@ -1115,7 +1124,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       initialLabel={bringPlanDraft.label}
       onSubmit={(text, label) => {
         setBringPlanDraft({ text, label });
-        requestFresh(set => { setHome(false); submitPlan(text, label, set); });
+        requestFresh(set => { if (signedIn) setContinuityDismissed(true); setHome(false); submitPlan(text, label, set); });
       }}
     />
   ) : null;
@@ -1140,14 +1149,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           });
         };
         // From Home, a link or place starts something new; inside a conversation it belongs to that conversation.
-        if (showHome) requestFresh(add); else add(currentSet());
+        if (showHome) requestFresh(set => { if (signedIn) setContinuityDismissed(true); add(set); }); else add(currentSet());
       }}
     />
   ) : null;
   // EP-CERT-013 -- the Home composer ALWAYS starts something new; continuing earlier work is the separate Continue action.
   const startFromHome = (text: string): SendResult => {
     let result: SendResult = false;
-    const ran = requestFresh(set => { setHome(false); result = submitInput(text, set); });
+    const ran = requestFresh(set => {
+      if (signedIn) setContinuityDismissed(true);
+      setHome(false);
+      result = submitInput(text, set);
+    });
     return ran ? result : false;
   };
   // KS001 Upgrade Phase 3 (Section 39) -- signed-out value first: each intake mode transitions straight into
@@ -1158,14 +1171,91 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // ON Home; submitting it calls sourceController.addPastedText, whose own ensureConversationId creates the
   // ONE real conversation and updates state.conversationId, which is what naturally flips showHome to false
   // and lands the person in BUILD -- exactly the same real transition Document/Photo already produce.
-  const pickDocument = (file: File) => { requestFresh(set => { setHome(false); void set.sourceController.addUpload('DOCUMENT', file); }); };
-  const pickPhoto = (file: File) => { requestFresh(set => { setHome(false); void set.sourceController.addUpload('PHOTO', file); }); };
+  const beginHomeUpload = (kind: 'DOCUMENT' | 'PHOTO', file: File) => {
+    requestFresh(set => {
+      // A source chosen from Home is a NEW intention. Keep Home visible until SecurePay has a terminal
+      // source result, so the file can never appear to vanish behind navigation or stale continuity.
+      setHome(true);
+      if (signedIn) setContinuityDismissed(true);
+      setIntakeError(null);
+      setHomePendingSource({ file, kind, phase: 'reading' });
+      void set.sourceController.addUpload(kind, file).then(outcome => {
+        if (outcome.ok) {
+          setHomePendingSource(null);
+          setHome(false);
+          return;
+        }
+        setHomePendingSource({
+          file,
+          kind,
+          phase: 'failed',
+          error: outcome.error,
+          sourceArtifactId: outcome.source?.sourceArtifactId,
+        });
+      });
+    });
+  };
+  const pickDocument = (file: File) => beginHomeUpload('DOCUMENT', file);
+  const pickPhoto = (file: File) => beginHomeUpload('PHOTO', file);
+  const retryHomeSource = () => {
+    const pending = homePendingSource;
+    if (!pending) return;
+    setHomePendingSource({ ...pending, phase: 'reading', error: undefined });
+    const conversationId = state.conversationId;
+    const action = pending.sourceArtifactId && conversationId
+      ? sourceController.retry(conversationId, pending.sourceArtifactId)
+      : sourceController.addUpload(pending.kind, pending.file);
+    void action.then(outcome => {
+      if (outcome.ok) {
+        setHomePendingSource(null);
+        setHome(false);
+      } else {
+        setHomePendingSource({
+          ...pending,
+          phase: 'failed',
+          error: outcome.error,
+          sourceArtifactId: outcome.source?.sourceArtifactId ?? pending.sourceArtifactId,
+        });
+      }
+    });
+  };
+  const removeHomeSource = () => {
+    const pending = homePendingSource;
+    const conversationId = state.conversationId;
+    setHomePendingSource(null);
+    if (pending?.sourceArtifactId && conversationId) void sourceController.remove(conversationId, pending.sourceArtifactId);
+  };
   const resumeSaved = (conversationId: string) => {
     if (conversationId === state.conversationId) { setHome(false); return; }
     requestFresh(set => { setHome(false); void set.controller.resumeConversation(conversationId); });
   };
   // EP-CERT-013 -- Home shows CONTINUE (explicit, separate) whenever this tab holds meaningful work, and the universal
   // composer below it always starts something NEW. The composer is only disabled while a brand-new first step is in flight.
+  const sourceStatusSlot = homePendingSource ? (
+    <div
+      role={homePendingSource.phase === 'failed' ? 'alert' : 'status'}
+      className={`rounded-2xl border px-4 py-3 shadow-soft ${homePendingSource.phase === 'failed' ? 'border-ember-200 bg-ember-50/80' : 'border-forest-100 bg-white/85'}`}
+      data-home-source-status={homePendingSource.phase}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[0.88rem] font-medium text-forest-900">{homePendingSource.file.name}</p>
+          <p className="mt-0.5 text-[0.76rem] text-sand-600">
+            {homePendingSource.phase === 'reading'
+              ? `Reading… · ${Math.max(1, Math.round(homePendingSource.file.size / 1024))} KB`
+              : homePendingSource.error}
+          </p>
+        </div>
+        {homePendingSource.phase === 'reading'
+          ? <span className="shrink-0 text-[0.72rem] font-semibold text-forest-700">Please keep this page open</span>
+          : <div className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" onClick={retryHomeSource} className="min-h-11 rounded-xl bg-forest-700 px-3 text-[0.78rem] font-semibold text-white">Try again</button>
+              <button type="button" onClick={removeHomeSource} className="min-h-11 px-2 text-[0.78rem] text-sand-700 underline">Remove</button>
+            </div>}
+      </div>
+    </div>
+  ) : null;
+
   const continueSlot = state.conversationId && meaningfulWork
     ? <ContinueCard title={currentTitle} detail={unsavedWork ? 'Not saved yet' : null} onContinue={() => setHome(false)} />
     : null;
@@ -1177,11 +1267,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
       {signedIn ? <>
-        {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
-            Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
-        <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         <SignedOutHome
           continueSlot={continueSlot}
+          sourceStatusSlot={sourceStatusSlot}
           disabled={homeDisabled}
           onStart={startFromHome}
           onBringPlan={openBringPlan}
@@ -1190,6 +1278,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
         />
+        {/* Returning work is useful context, but it must never compete with the canonical Home entry. */}
+        <div className="px-4 md:px-6 pt-5"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
         {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
         {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
@@ -1207,6 +1297,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
         <PublicHome
           continueSlot={continueSlot}
+          sourceStatusSlot={sourceStatusSlot}
           disabled={homeDisabled}
           onStart={startFromHome}
           onBringPlan={openBringPlan}

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, Users } from 'lucide-react';
+import { CheckCircle2, FileText, Search, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
@@ -21,6 +21,8 @@ interface SignedOutHomeProps {
   onAddPlace?: () => void;
   /** User-Ready Beta Gate 1 (EP-CERT-013) -- CONTINUE earlier work: shown separately, above START NEW. */
   continueSlot?: ReactNode;
+  /** Visible lifecycle for a source picked from Home: selected → reading → success/failure. */
+  sourceStatusSlot?: ReactNode;
 }
 
 interface SecurePayHeroProps extends SignedOutHomeProps {
@@ -40,7 +42,7 @@ interface SecurePayHeroProps extends SignedOutHomeProps {
  * KS001 = the voice, the 12 Principles = the compass (one lockup directly above the composer, never a footer line), the
  * agreement = the output (see ExampleOutcome). The person gives SecurePay what they have; they never choose a subsystem.
  */
-export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, continueSlot, variant = 'app' }: SecurePayHeroProps) {
+export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, continueSlot, sourceStatusSlot, variant = 'app' }: SecurePayHeroProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace);
   const quickActions = [
@@ -95,17 +97,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             />
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[placeholder*="Tell KS001"], textarea[placeholder*="Tell KS001"]');
-              input?.focus();
-            }}
-            className="sp-primary-action mt-3 flex w-full items-center justify-between px-5 text-[0.92rem] font-semibold md:max-w-xl"
-          >
-            <span className="flex items-center gap-2.5"><Sparkles className="h-4 w-4" /> Start with KS001</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          {sourceStatusSlot && <div className="mt-3 md:max-w-3xl">{sourceStatusSlot}</div>}
 
           <div className="mt-3">
             <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
