@@ -8,6 +8,8 @@ test('conversation promotes the backend formation into one living Agreement surf
 
   assert.match(shaping, /Your agreement is forming/);
   assert.match(shaping, /Nothing is agreed yet/);
+  assert.match(shaping, /Still taking shape/);
+  assert.match(shaping, /formation\.stage !== 'NOTHING_YET'/);
   assert.match(shaping, /formation\.summary/);
   assert.match(shaping, /formation\.who/);
   assert.match(shaping, /formation\.money/);
