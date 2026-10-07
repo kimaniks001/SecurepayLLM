@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
+import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
-import securepayLockup from '../assets/brand/securepay/securepay-lockup-by-keyman.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { SourceMenu } from '../features/sources/ui/SourceMenu';
 import type { SendResult } from '../features/conversation/ConversationSurface';
-import { EXAMPLE_OUTCOME, HOME_EXAMPLES } from '../features/public/publicContent';
+import { EXAMPLE_OUTCOME } from '../features/public/publicContent';
 
 interface SignedOutHomeProps {
   onStart: (text: string) => SendResult;
@@ -43,64 +43,103 @@ interface SecurePayHeroProps extends SignedOutHomeProps {
 export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, continueSlot, variant = 'app' }: SecurePayHeroProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace);
+  const quickActions = [
+    { label: 'Plan', help: 'Turn an idea into a clear plan', icon: FileText, prompt: 'Help me turn an idea into a clear plan.' },
+    { label: 'Compare', help: 'Make the options obvious', icon: Search, prompt: 'Help me compare my options before I decide.' },
+    { label: 'Prepare Agreement', help: 'Make the commitment clear', icon: CheckCircle2, prompt: 'Help me prepare a clear agreement from what I am trying to do.' },
+    { label: 'Find People', help: 'Connect the right people', icon: Users, prompt: 'Help me work out who I need and how SecurePay can help me find them.' },
+  ];
+
   return (
-    <div className="w-full max-w-xl text-center">
-      {/* The canonical brand lockup, kept (visual DNA) but compact: the headline and the composer lead, not dead space. */}
-      <div className="flex justify-center mb-4 animate-fade-in-down">
-        <img src={securepayLockup} alt="SecurePay by KEYMAN — Money should follow the agreement." className="h-20 sm:h-24 md:h-28 w-auto" />
-      </div>
-      <h1 className="font-display text-[2rem] leading-[1.1] sm:text-4xl md:text-5xl text-forest-800 font-medium text-balance animate-fade-in-up">
-        Bring the plan. Leave with an agreement.
-      </h1>
-      <p className={`mt-3 text-[0.95rem] md:text-base ${variant === 'public' ? 'text-sand-700' : 'text-sand-700'} leading-relaxed max-w-lg mx-auto animate-fade-in-up`} style={{ animationDelay: '0.08s' }}>
-        Tell SecurePay what you’re trying to make happen, or give it what you already have. It shapes the agreement with you — you only check what needs deciding.
-      </p>
+    <div className="w-full max-w-6xl">
+      <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
+        <div className="relative z-10 max-w-3xl">
+          <div className="flex items-center gap-3" data-ks001-lockup>
+            <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
+            <div>
+              <div className="sp-kicker">KS001</div>
+              <div className="mt-0.5 text-xs text-sand-600">{variant === 'app' ? 'Welcome back' : 'Start here'}</div>
+            </div>
+          </div>
 
-      {continueSlot && <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '0.12s' }}>{continueSlot}
-        <p className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-sand-600">Or start something new</p>
-      </div>}
+          <h1 className="sp-display mt-5 max-w-2xl text-[2.65rem] md:text-6xl">
+            What do you want to make <span className="sp-real-word">real</span> today?
+          </h1>
+          <p className="mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base">
+            Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.
+          </p>
 
-      <div className={`${continueSlot ? 'mt-2' : 'mt-7'} text-left animate-fade-in-up`} style={{ animationDelay: '0.16s' }}>
-        {/* KS001 + its compass, fused: who you are talking to, and what guides it. */}
-        <div className="mb-2 flex items-center gap-2.5 px-1" data-ks001-lockup>
-          <img src={securepayMark} alt="" className="h-7 w-7 shrink-0" />
-          <div className="min-w-0 leading-tight">
-            <span className="block font-display text-[0.95rem] text-forest-800">KS001</span>
+          {continueSlot && <div className="mt-5">
+            {continueSlot}
+            <p className="mt-3 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-sand-600">Or start something new</p>
+          </div>}
+
+          <div className={continueSlot ? 'mt-3 md:max-w-3xl' : 'mt-6 md:max-w-3xl'}>
+            <ConversationInput
+              onSend={onStart}
+              disabled={disabled}
+              draftKey="home"
+              placeholder="Tell KS001 what you want to make happen…"
+              leading={hasIntake ? (
+                <SourceMenu
+                  variant="composer"
+                  placement="below"
+                  disabled={disabled}
+                  onBringPlan={onBringPlan}
+                  onPickDocument={onPickDocument}
+                  onPickPhoto={onPickPhoto}
+                  onAddLink={onAddLink}
+                  onAddPlace={onAddPlace}
+                />
+              ) : undefined}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[placeholder*="Tell KS001"], textarea[placeholder*="Tell KS001"]');
+              input?.focus();
+            }}
+            className="sp-primary-action mt-3 flex w-full items-center justify-between px-5 text-[0.92rem] font-semibold md:max-w-xl"
+          >
+            <span className="flex items-center gap-2.5"><Sparkles className="h-4 w-4" /> Start with KS001</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+
+          <div className="mt-3">
             <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
           </div>
+
+          {hasIntake && <p className="mt-2 text-[0.78rem] text-sand-600">Use + for a plan, document, spreadsheet, photo, camera, link or place.</p>}
         </div>
-        <div className={variant === 'public' ? 'rounded-2xl shadow-deliberate' : ''}>
-          <ConversationInput
-            onSend={onStart}
+      </section>
+
+      <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
+        {quickActions.map(({ label, help, icon: Icon, prompt }, index) => (
+          <button
+            key={label}
+            type="button"
             disabled={disabled}
-            draftKey="home"
-            placeholder="Tell SecurePay what you’re trying to make happen…"
-            leading={hasIntake ? (
-              <SourceMenu
-                variant="composer" placement="below" disabled={disabled}
-                onBringPlan={onBringPlan} onPickDocument={onPickDocument} onPickPhoto={onPickPhoto}
-                onAddLink={onAddLink} onAddPlace={onAddPlace}
-              />
-            ) : undefined}
-          />
-        </div>
-        {hasIntake && <p className="mt-2 px-1 text-[0.78rem] text-sand-700">Type or paste anything. Use + for a photo, document, link or place.</p>}
-      </div>
-
-      <p className="mt-4 text-[0.8rem] text-sand-700 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-        Start without a KS Number. Nothing becomes an agreement until you review and confirm it.
-      </p>
-
-      <ul className="mt-5 flex flex-wrap items-center justify-center gap-2 animate-fade-in-up" style={{ animationDelay: '0.24s' }} aria-label="Examples to start with">
-        {HOME_EXAMPLES.map(example => (
-          <li key={example}>
-            <button type="button" disabled={disabled} onClick={() => onStart(example)}
-              className="min-h-11 rounded-full border border-cream-300 bg-white/70 px-4 text-[0.85rem] text-forest-800 transition-colors hover:border-forest-300 hover:bg-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-              {example}
-            </button>
-          </li>
+            onClick={() => onStart(prompt)}
+            className="sp-action-tile sp-settle p-3.5 text-left disabled:opacity-40"
+            style={{ animationDelay: String(index * 55) + 'ms' }}
+          >
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
+              <Icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="mt-3 block text-[0.82rem] font-semibold leading-4 text-forest-900">{label}</span>
+            <span className="mt-1 block text-[0.68rem] leading-4 text-sand-600">{help}</span>
+          </button>
         ))}
-      </ul>
+      </section>
+
+      {variant === 'public' && (
+        <p className="mt-4 text-center text-[0.8rem] text-sand-700">
+          Start without a KS Number. Nothing becomes an agreement until you review and confirm it.
+        </p>
+      )}
+
       {fairTradeOpen && <FairTradePrinciplesPanel withKs001 onClose={() => setFairTradeOpen(false)} />}
     </div>
   );
