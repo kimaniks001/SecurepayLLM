@@ -12,11 +12,12 @@ test('Build 1 remains Agreement-first and never leads with a wallet balance', ()
   assert.doesNotMatch(money, /Available balance/);
 });
 
-test('Agreement amount, purpose, counterparty and next action are backend-derived', () => {
+test('Agreement amount, purpose, counterparty and financial next action are backend-derived', () => {
   assert.match(money, /agreement\.purpose/);
   assert.match(money, /agreement\.proposedAmountMinor/);
   assert.match(money, /agreement\.counterparty/);
-  assert.match(money, /agreement\.nextActions\[0\]/);
+  assert.match(money, /agreement\.nextActions\.find\(action => action\.actionCode === 'FUND_AGREEMENT'\)/);
+  assert.doesNotMatch(money, /agreement\.nextActions\[0\]\.reason/);
   assert.match(money, /agreementGateway\.detail\(selected\.agreementId\)/);
 });
 
@@ -24,7 +25,7 @@ test('Payment Ready, release and movement are rendered from the Money snapshot',
   assert.match(money, /snapshot\.paymentReady/);
   assert.match(money, /snapshot\.releaseRequest\.authorityGranted/);
   assert.match(money, /snapshot\.movement\.state/);
-  assert.match(money, /Can money move\?/);
+  assert.match(money, /Can SecurePay move money now\?/);
   assert.doesNotMatch(money, /paymentReady\s*=\s*funded/);
 });
 
@@ -37,25 +38,18 @@ test('Agreement Money positions expose the authoritative five money fields', () 
   assert.doesNotMatch(money, /reduce\([^)]*fundedTotalMinor/);
 });
 
-test('M-PESA is always understandable but only available from MPESA_STK', () => {
-  assert.match(money, /M-PESA/);
-  assert.match(money, /MPESA_STK/);
-  assert.match(money, /snapshot\.fundingOptions\.find\(route => route\.railCode === railCode\)/);
-  assert.match(money, /not currently available for this Agreement/);
+test('only backend-returned funding routes are presented as eligible payment methods', () => {
+  assert.match(money, /const fundingRoutes = currentSnapshot\?\.fundingOptions \?\? \[\]/);
+  assert.match(money, /fundingRoutes\.map\(route => <FundingOptionCard/);
+  assert.match(money, /No payment method is available for this Agreement yet/);
+  assert.doesNotMatch(money, /fundingRailState\(/);
 });
 
-test('PesaLink is always understandable but only available from PESALINK', () => {
-  assert.match(money, /PesaLink/);
-  assert.match(money, /PESALINK/);
-  assert.match(money, /Bank-based funding into this Agreement where eligible/);
-});
-
-test('Choice Bank is presented as settlement infrastructure and only selected from movement evidence', () => {
-  assert.match(money, /Choice Bank/);
-  assert.match(money, /CHOICE_KS_ACCOUNT/);
-  assert.match(money, /snapshot\?\.movement\.railCode === 'CHOICE_KS_ACCOUNT'/);
-  assert.match(money, /bank-account and settlement role/);
-  assert.match(money, /does not by itself make settlement executable/);
+test('bank support is claimed only from the regulated-partner projection', () => {
+  assert.match(money, /financialPartners\.list\(\)/);
+  assert.match(money, /partner\.partnerType === 'BANK'/);
+  assert.match(money, /partner\.status === 'ACTIVE'/);
+  assert.match(money, /Connected:/);
 });
 
 test('rail detail comes from backend funding options including quote capability', () => {
@@ -67,24 +61,24 @@ test('rail detail comes from backend funding options including quote capability'
 });
 
 test('the visual flow preserves Agreement to Fund to Agreement Money to Settle', () => {
-  const agreement = money.indexOf('1 · Agreement');
+  const agreement = money.indexOf('1 · Agree');
   const fund = money.indexOf('2 · Fund');
-  const agreementMoney = money.indexOf('3 · Agreement Money');
-  const settle = money.indexOf('4 · Settle');
+  const agreementMoney = money.indexOf('3 · Protect');
+  const settle = money.indexOf('4 · Release');
   assert.ok(agreement >= 0 && fund > agreement && agreementMoney > fund && settle > agreementMoney);
-  assert.match(money, /Visible does not mean executable/);
+  assert.match(money, /follow only when their own authority is available/);
 });
 
 test('money responsibility is shown only from backend movement economics payerRole', () => {
   assert.match(money, /economics\?\.payerRole/);
-  assert.match(money, /Payer role/);
+  assert.match(money, /Who pays/);
   assert.doesNotMatch(money, /currentActor.*payer/i);
 });
 
 test('empty and unavailable states never guess financial truth', () => {
-  assert.match(money, /No Agreement Money has been funded yet/);
-  assert.match(money, /does not currently list an eligible funding route/);
-  assert.match(money, /could not complete the movement preflight/);
+  assert.match(money, /No money is recorded as funded for this Agreement yet/);
+  assert.match(money, /No payment method is available for this Agreement yet/);
+  assert.match(money, /could not establish a reliable movement answer/);
   assert.match(money, /No money state is being guessed/);
 });
 
