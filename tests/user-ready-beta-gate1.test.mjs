@@ -315,7 +315,7 @@ test('EP-CERT-009/010: ONE entry object -- KS001, one composer, one + menu and f
   assert.ok(hero.indexOf('data-source-menu') < hero.indexOf('data-ks001-composer'), 'the + is inside the composer, before the text box');
   assert.doesNotMatch(t, /Add what you have/, 'no separate "Add" subsystem button');
   for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.match(t, new RegExp(label));
-  assert.match(t, /Start with KS001/);
+  assert.doesNotMatch(t, /Start with KS001/, 'composer is the single Home start action');
 });
 
 test('EP-CERT-010: KS001 is introduced, not renamed -- the compass opens as a moment from KS001 itself, never navigating away', () => {
