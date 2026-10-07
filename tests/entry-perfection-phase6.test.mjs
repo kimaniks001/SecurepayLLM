@@ -4,9 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 
-// Entry Perfection Phase 6 -- Agreement Formation (UI half): the agreement takes priority once it is understood, Review shows
-// what SecurePay thinks is being agreed in human language, open points are calm and actionable, evidence is one tap away,
-// corrections show as updates, and "Set this up securely" is pinned to the version the person reviewed.
+// Entry Perfection Phase 6 -- Agreement Formation (UI half): a real BUILD becomes visible as a living Agreement while it forms;
+// Review still opens only once the backend says it is reviewable. Review shows what SecurePay thinks is being agreed in human
+// language, open points are calm and actionable, evidence is one tap away, corrections show as updates, and "Set this up securely"
+// is pinned to the version the person reviewed.
 const bundle = await build({ stdin: { contents: `
 export { agreementFormationView, whatChanged } from './src/features/formation/view';
 export { createFormationController } from './src/features/formation/controller';
@@ -57,13 +58,23 @@ test('the adapter keeps the server\'s words, never a verified identity it was no
   assert.equal(api.agreementFormationView(null), null);
 });
 
-test('the agreement leads once understood -- and never for an exploration or a vague intention', () => {
+test('the Agreement forms visibly during a real BUILD, but Review still waits for server authority', () => {
   const card = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {} }));
-  assert.match(card, /Your agreement is taking shape/);
+  assert.match(card, /Your agreement is forming/);
   // User-Ready Beta Gate 1 -- two open points: the call to action says so (never a generic "Review this").
   assert.match(card, /Review 2 points/);
-  assert.match(card, /2 points to check · nothing is agreed yet/);
-  assert.equal(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })), onReview() {} }), '');
+  assert.match(card, /2 things still worth checking/);
+
+  const building = text(html(api.AgreementShaping, {
+    formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })),
+    onReview() {},
+  }));
+  assert.match(building, /Your agreement is forming/);
+  assert.match(building, /Still taking shape/);
+  assert.match(building, /Keep talking naturally — this document will keep filling itself in/);
+  assert.doesNotMatch(building, /Review 2 points|See the whole agreement/);
+
+  assert.equal(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'NOTHING_YET', reviewable: false })), onReview() {} }), '');
   assert.equal(html(api.AgreementShaping, { formation: null, onReview() {} }), '');
 });
 
@@ -144,7 +155,7 @@ test('setting it up sends the reviewed version, so a changed agreement is never 
 test('the agent screen opens Review without signing in, and the old "Use this first" gate is gone', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   // Phase 7 restatement: the card now also carries the planned question's quick answers (see entry-perfection-phase7.test.mjs).
-  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\} onReview=\{\(\) => setReviewOpen\(true\)\}/);
+  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\} changes=\{formationState\.changes\} onReview=\{\(\) => setReviewOpen\(true\)\}/);
   assert.match(agent, /onSetUp=\{version => \{ if \(state\.conversationId\) void handoffController\.start\(state\.conversationId, version\); \}\}/);
   assert.doesNotMatch(agent, /Confirm it above with “Use this” first/);
   const panel = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');
