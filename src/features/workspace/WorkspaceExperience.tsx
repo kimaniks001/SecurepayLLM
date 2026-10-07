@@ -354,6 +354,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
       body = (
         <AgreementDetail
           detail={boltDetail}
+          printRecord={dto}
           onBack={() => controller.backToHub()}
           onAskAgent={text => void askAgentAboutAgreement(boltDetail.id, text)}
           isThinking={askBusy}
