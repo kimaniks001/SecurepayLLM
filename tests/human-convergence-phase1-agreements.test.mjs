@@ -60,7 +60,7 @@ test('quick preview answers what, who, value, status and next without full Agree
   assert.match(html, /Active/);
   assert.match(html, /Confirm revised delivery date/);
   assert.match(html, /Money/);
-  assert.match(html, /Ask KS001/);
+  assert.match(html, /Ask SecurePay/);
   assert.match(html, /Open Agreement/);
 });
 
