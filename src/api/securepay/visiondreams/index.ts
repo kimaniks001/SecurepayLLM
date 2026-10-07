@@ -29,6 +29,18 @@ export function createVisionDreamGateway(http: HttpClient, access: ConversationA
       http.request<VisionDreamDto>(item(dreamId), { auth: 'required' }),
     update: (dreamId: string, body: UpdateVisionDreamRequest): Promise<VisionDreamDto> =>
       http.request<VisionDreamDto>(item(dreamId), { method: 'PATCH', auth: 'required', body }),
+    board: (dreamId: string): Promise<VisionDreamBoardDto> =>
+      http.request<VisionDreamBoardDto>(item(dreamId) + '/board', { auth: 'required' }),
+    saveBoard: (dreamId: string, body: SaveVisionDreamBoardRequest): Promise<VisionDreamBoardDto> =>
+      http.request<VisionDreamBoardDto>(item(dreamId) + '/board', { method: 'PUT', auth: 'required', body }),
+    assets: (dreamId: string): Promise<VisionDreamAssetDto[]> =>
+      http.request<VisionDreamAssetDto[]>(item(dreamId) + '/assets', { auth: 'required' }),
+    asset: (dreamId: string, assetId: string): Promise<VisionDreamAssetDto> =>
+      http.request<VisionDreamAssetDto>(item(dreamId) + '/assets/' + segment(assetId), { auth: 'required' }),
+    uploadAsset: (dreamId: string, body: UploadVisionDreamAssetRequest): Promise<VisionDreamAssetDto> =>
+      http.request<VisionDreamAssetDto>(item(dreamId) + '/assets', { method: 'POST', auth: 'required', body }),
+    deleteAsset: (dreamId: string, assetId: string): Promise<void> =>
+      http.request<void>(item(dreamId) + '/assets/' + segment(assetId), { method: 'DELETE', auth: 'required' }),
   };
 }
 export type VisionDreamGateway = ReturnType<typeof createVisionDreamGateway>;
