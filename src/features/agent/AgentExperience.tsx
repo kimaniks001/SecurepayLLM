@@ -1124,7 +1124,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       initialLabel={bringPlanDraft.label}
       onSubmit={(text, label) => {
         setBringPlanDraft({ text, label });
-        requestFresh(set => { setHome(false); submitPlan(text, label, set); });
+        requestFresh(set => { if (signedIn) setContinuityDismissed(true); setHome(false); submitPlan(text, label, set); });
       }}
     />
   ) : null;
@@ -1149,7 +1149,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           });
         };
         // From Home, a link or place starts something new; inside a conversation it belongs to that conversation.
-        if (showHome) requestFresh(add); else add(currentSet());
+        if (showHome) requestFresh(set => { if (signedIn) setContinuityDismissed(true); add(set); }); else add(currentSet());
       }}
     />
   ) : null;
