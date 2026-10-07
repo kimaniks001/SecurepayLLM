@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Printer, Sparkles } from 'lucide-react';
 import type { AgreementFormation, FormationOpenPoint, FormationSide, FormationTerm } from './view';
 import type { ResolveOutcome } from './MicroReview';
 import type { CorrectionOutcome } from './correction';
@@ -61,12 +62,28 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
   useEffect(() => { heading.current?.focus(); }, []);
   const needsChecking = formation.openPoints.filter(p => p.blocksConfirmation || !p.checked);
   const checked = formation.openPoints.filter(p => !p.blocksConfirmation && p.checked);
+  const documentTitle = formation.what[0]?.value || formation.summary || 'Agreement';
   return <section aria-labelledby="agreement-review-title" className="space-y-4 pb-6">
-    <button type="button" onClick={onBack} className="min-h-11 text-[0.85rem] text-forest-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">← Back to the conversation</button>
-    <div>
+    <div className="agreement-screen-only flex flex-wrap items-center justify-between gap-2">
+      <button type="button" onClick={onBack} className="min-h-11 text-[0.85rem] text-forest-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">← Back to the conversation</button>
+      <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white px-4 text-[0.82rem] font-semibold text-forest-700 shadow-soft hover:border-forest-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
+        <Printer className="h-4 w-4" aria-hidden="true" /> Print draft
+      </button>
+    </div>
+    <article data-agreement-print className="sp-agreement-paper px-5 py-6 md:px-8 md:py-8">
+      <header className="border-b border-cream-200 pb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
+          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft for review · not agreed</div>
+        </div>
+        <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-950">{documentTitle}</h1>
+        {formation.summary && formation.summary !== documentTitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-6 text-sand-700">{formation.summary}</p>}
+        <p className="mt-3 text-[0.76rem] text-sand-500">Version {formation.version} · built from the current SecurePay understanding</p>
+      </header>
+      <div className="agreement-screen-only mt-5">
       <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Review this agreement</h2>
       <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is what SecurePay understands so far. Nothing is agreed until you set it up.</p>
-    </div>
+      </div>
 
     {changes.length > 0 && <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-forest-200 bg-forest-50 px-3.5 py-2.5 text-[0.85rem] text-forest-800">
       <span>Updated: {changes.join('; ')}.</span>
@@ -127,7 +144,12 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     {/* Entry Perfection Phase 7 (UR-259) -- checked is "I've seen it", not "it's settled": it stays visibly open. */}
     {checked.length > 0 && <p className="text-[0.78rem] text-sand-500">Checked by you — still open: {checked.map(p => p.text).join(' · ')}</p>}
 
-    <form className="surface-info p-3" onSubmit={e => { e.preventDefault(); const text = correction.trim(); if (text && !tooLong && !correcting) void run(() => onCorrect(text)); }}>
+      <footer className="mt-7 border-t border-cream-200 pt-4 text-[0.72rem] leading-5 text-sand-500">
+        This draft mirrors SecurePay’s current understanding. Printing it does not set up the Agreement, confirm a participant, or move money.
+      </footer>
+    </article>
+
+    <form className="agreement-screen-only surface-info p-3" onSubmit={e => { e.preventDefault(); const text = correction.trim(); if (text && !tooLong && !correcting) void run(() => onCorrect(text)); }}>
       <label htmlFor="review-correction" className="block text-[0.82rem] text-forest-800">Something not right? Tell KS001 in your own words.</label>
       <div className="mt-2 flex gap-2">
         <input id="review-correction" value={correction} onChange={e => setCorrection(e.target.value)} placeholder="e.g. It’s 185,000, not 180"
@@ -145,7 +167,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     </form>
 
     {error && <p role="alert" className="text-[0.85rem] text-ember-800">{error}</p>}
-    <div className="space-y-2">
+    <div className="agreement-screen-only space-y-2">
       <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-forest-700 px-5 text-[0.95rem] font-medium text-white hover:bg-forest-800 disabled:bg-sand-300 disabled:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 sm:w-auto">
         Set this up securely
