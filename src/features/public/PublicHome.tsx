@@ -21,6 +21,7 @@ export interface PublicHomeProps {
   onStart: (text: string) => SendResult;
   /** User-Ready Beta Gate 1 (EP-CERT-013) -- CONTINUE earlier work, shown separately above START NEW. */
   continueSlot?: ReactNode;
+  sourceStatusSlot?: ReactNode;
   onBringPlan: () => void;
   onPickDocument: (file: File) => void;
   onPickPhoto: (file: File) => void;
@@ -60,6 +61,7 @@ export function PublicHome(props: PublicHomeProps) {
             <SecurePayHero
               variant="public"
               continueSlot={props.continueSlot}
+              sourceStatusSlot={props.sourceStatusSlot}
               disabled={props.disabled}
               onStart={props.onStart}
               onBringPlan={props.onBringPlan}
