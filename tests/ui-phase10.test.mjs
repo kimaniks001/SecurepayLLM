@@ -121,15 +121,15 @@ const CTX = { kind: 'agreement', agreementId: 'agr-secret', title: 'Bathroom ret
 test('global Help is a router: choices, each with its exact consequence, and no ticket console', () => {
   const t = text(help({}));
   assert.match(t, /What do you need help with\?/);
-  for (const c of ['An Agreement', 'Money', 'A formal review', 'Store', 'Community', 'Trouble signing in', 'Something else — ask KS001']) assert.match(t, new RegExp(c));
+  for (const c of ['An Agreement', 'Money', 'A formal review', 'Store', 'Community', 'Trouble signing in', 'Something else — ask SecurePay']) assert.match(t, new RegExp(c));
   assert.equal((t.match(/When you press this,/g) ?? []).length, 7);
   assert.match(t, /Store When you press this, SecurePay will open the Store\./); assert.match(t, /Community When you press this, SecurePay will open Community\./);
   assert.doesNotMatch(t, /Store or Community/);
   assert.match(t, /Help & Support is a guide to where SecurePay already shows what it knows\. It isn’t a support ticket/);
 });
-test('signed out: only Trouble signing in and Ask KS001 -- no Agreement/Money assumptions', () => {
+test('signed out: only Trouble signing in and Ask SecurePay -- no Agreement/Money assumptions', () => {
   const t = text(help({ signedIn: false }));
-  assert.match(t, /Trouble signing in/); assert.match(t, /Ask KS001/);
+  assert.match(t, /Trouble signing in/); assert.match(t, /Ask SecurePay/);
   assert.doesNotMatch(t, /An Agreement|Open Money|Notifications|Account & security/);
 });
 test('human support: an explicit limitation, never a button, ticket, number, assignee or status', () => {
@@ -137,7 +137,7 @@ test('human support: an explicit limitation, never a button, ticket, number, ass
     const h = help({ ctx, label: ctx && L({ versionLabel: 'version 2', currentVersionId: 'v2' }) });
     const t = text(h).replace(m.HELP_IS_NOT, '').replace('They aren’t support cases and don’t mean anyone is handling something.', '');
     // Public Experience Convergence Phase 2 closure -- present-tense product language, still no fake support capability.
-    assert.match(t, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask KS001 for the next step\./);
+    assert.match(t, /This Help page doesn’t create a support request or contact a person\. Use the options above, or ask SecurePay for the next step\./);
     assert.doesNotMatch(t, /not yet available|not yet|coming soon|not ready/i);
     assert.doesNotMatch(t, /Coming soon|Request human support|Contact support|Open a ticket|ticket|case number|reference number|Support case|assigned|escalat|under investigation|working on (it|this)|OPEN \/ IN PROGRESS/i);
     assert.doesNotMatch(h, /<button[^>]*>[^<]*(human support|ticket)/i);
@@ -184,12 +184,12 @@ test('context and tab hint are in memory only', async () => {
 });
 
 // ---- Agreement Support convergence
-test('Agreement Support (real path): Ask KS001, Reviews & issues, Money, Help & Support, and an honest human-support limitation -- no "Coming soon"', () => {
+test('Agreement Support (real path): Ask SecurePay, Reviews & issues, Money, Help & Support, and an honest human-support limitation -- no "Coming soon"', () => {
   const t = text(html(m.AgreementSupport, { onAskAgent() {}, reviewPanel: m.createElement('div', null, 'PANEL'), onOpenMoney() {}, onOpenHelp() {} }));
-  assert.match(t, /Ask KS001/); assert.match(t, /Reviews & issues/); assert.match(t, /Money Funding, Payment Ready, release and settlement truth/); assert.match(t, /Help & Support/);
+  assert.match(t, /Ask SecurePay/); assert.match(t, /Reviews & issues/); assert.match(t, /Money Funding, Payment Ready, release and settlement truth/); assert.match(t, /Help & Support/);
   // Public Experience Convergence Phase 2 -- the real path now speaks the same present-tense support doctrine as Help.
   assert.match(t, /Need more help\?/);
-  assert.match(t, /Nothing here creates a support request or contacts a person\. Use Help (?:&amp;|&) Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001\./);
+  assert.match(t, /Nothing here creates a support request or contacts a person\. Use Help (?:&amp;|&) Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask SecurePay\./);
   assert.doesNotMatch(t, /not yet available|not yet|Coming soon|Request human support|under development|ticket|case number|escalat|will contact you/i);
   const fixture = text(html(m.AgreementSupport, { onAskAgent() {} }));
   assert.match(fixture, /Request human support/); assert.match(fixture, /Coming soon/); assert.match(fixture, /Ask SecurePay/);   // fixture path untouched
@@ -221,7 +221,7 @@ test('Money Operations (operations-only) and held-exception resolution are not r
   }
   assert.match(await src('src/RuntimeApp.tsx'), /useMoneyOperationsRoute/);   // still its own gated route
 });
-test('routing: Help is an AppView reached from Account, Agreement Support, Money exception and Review -- not a primary nav tab; Ask KS001 and Recovery use the existing flows', async () => {
+test('routing: Help is an AppView reached from Account, Agreement Support, Money exception and Review -- not a primary nav tab; Ask SecurePay and Recovery use the existing flows', async () => {
   assert.match(await src('src/types.ts'), /'notifications' \| 'support'/);
   assert.match(await src('src/features/account/AccountExperience.tsx'), /onNavigate\('support'\)/);
   assert.doesNotMatch(await src('src/components/NavBar.tsx'), /support/i);
