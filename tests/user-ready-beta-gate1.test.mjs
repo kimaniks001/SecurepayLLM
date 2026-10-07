@@ -103,13 +103,15 @@ test('EP-CERT-013: start-new decision -- nothing open, clean start, or ask first
   assert.equal(api.hasMeaningfulWork({ turns: [], sources: [], factCount: 2 }), true, 'a Store "Use this" seeds facts without a turn');
 });
 
-test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, a saved build) goes through requestFresh -- never into the old conversation', () => {
-  assert.match(agentSrc, /const startFromHome = \(text: string\): SendResult => \{\s*let result: SendResult = false;\s*const ran = requestFresh\(set => \{ setHome\(false\); result = submitInput\(text, set\); \}\);/);
-  assert.match(agentSrc, /const pickDocument = \(file: File\) => \{ requestFresh\(set => \{ setHome\(false\); void set\.sourceController\.addUpload\('DOCUMENT', file\); \}\); \};/);
-  assert.match(agentSrc, /const pickPhoto = \(file: File\) => \{ requestFresh\(set => \{ setHome\(false\); void set\.sourceController\.addUpload\('PHOTO', file\); \}\); \};/);
-  assert.match(agentSrc, /requestFresh\(set => \{ setHome\(false\); submitPlan\(text, label, set\); \}\)/);
-  assert.match(agentSrc, /if \(showHome\) requestFresh\(add\); else add\(currentSet\(\)\);/);
+test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, a saved build) goes through fresh-work routing -- never into the old conversation', () => {
+  assert.match(agentSrc, /const startFromHome = \(text: string\): SendResult => \{[\s\S]{0,320}requestFresh\(set =>/);
+  assert.match(agentSrc, /const beginHomeUpload = \(kind: 'DOCUMENT' \| 'PHOTO', file: File\) => \{\s*requestFresh\(set =>/);
+  assert.match(agentSrc, /const pickDocument = \(file: File\) => beginHomeUpload\('DOCUMENT', file\);/);
+  assert.match(agentSrc, /const pickPhoto = \(file: File\) => beginHomeUpload\('PHOTO', file\);/);
+  assert.match(agentSrc, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
+  assert.match(agentSrc, /if \(showHome\) requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); add\(set\); \}\); else add\(currentSet\(\)\);/);
   assert.match(agentSrc, /requestFresh\(set => \{ setHome\(false\); void set\.controller\.resumeConversation\(conversationId\); \}\)/);
+  assert.match(agentSrc, /setHomePendingSource\(\{ file, kind, phase: 'reading' \}\)/, 'a Home file is visible before ingestion completes');
   assert.doesNotMatch(agentSrc, /Return to conversation/, 'the old implicit "return" link is replaced by an explicit Continue');
   assert.doesNotMatch(agentSrc, /onStart=\{text => void controller\.send/);
 });
