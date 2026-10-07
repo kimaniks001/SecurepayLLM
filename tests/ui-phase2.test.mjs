@@ -381,7 +381,7 @@ test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- neve
   // Submitting it must go through sourceController.addPastedText -- the SAME real ingestion path that
   // creates the ONE real conversation (via ensureConversationId), never a fabricated human chat turn.
   // User-Ready Beta Gate 1 -- from Home it is a NEW intention (requestFresh), read through the same submitPlan.
-  assert.match(panelDecl, /requestFresh\(set => \{ setHome\(false\); submitPlan\(text, label, set\); \}\)/);
+  assert.match(panelDecl, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
   assert.match(agent, /const submitPlan = [\s\S]{0,300}set\.sourceController\.addPastedText/);
 });
 
