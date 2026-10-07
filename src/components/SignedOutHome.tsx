@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
-import securepayLockup from '../assets/brand/securepay/securepay-lockup-by-keyman.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
 import { SourceMenu } from '../features/sources/ui/SourceMenu';
 import type { SendResult } from '../features/conversation/ConversationSurface';
-import { EXAMPLE_OUTCOME, HOME_EXAMPLES } from '../features/public/publicContent';
+import { EXAMPLE_OUTCOME } from '../features/public/publicContent';
 
 interface SignedOutHomeProps {
   onStart: (text: string) => SendResult;
