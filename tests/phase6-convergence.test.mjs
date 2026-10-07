@@ -199,14 +199,13 @@ test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the S
   assert.doesNotMatch(contents, />\s*\d+\s*<\/(span|div)>/, 'the Notifications entry must not render a numeric badge count');
 });
 
-test('J. The Home hero (SignedOutHome) uses the exact KS001 Upgrade Phase 3 headline/supporting/trust copy (deliberately superseding the earlier locked copy -- Section 36), and a Fair Trade affordance beneath the input that never grades the person', async () => {
+test('J. The Home hero uses the final shared KS001 possibility question and keeps Fair Trade/value-first entry', async () => {
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(contents, /Bring the plan\. Leave with an agreement\./, 'exact Phase 3 headline');
-  // User-Ready Beta Gate 1 (EP-CERT-009) -- the supporting idea is shortened to ONE sentence about the outcome.
-  assert.match(contents, /Tell SecurePay what you’re trying to make happen, or give it what you already have\. It shapes the agreement with you — you only check what needs deciding\./, 'Gate 1 supporting text');
-  assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./, 'exact Phase 3 trust line');
-  assert.doesNotMatch(contents, /What are you trying to make happen\?/, 'the old paraphrased headline must be gone');
-  assert.match(contents, /FairTradeAffordance/, 'must render the Fair Trade affordance');
+  assert.match(contents, /What do you want to make/);
+  assert.match(contents, /sp-real-word">real/);
+  assert.match(contents, /Ask anything, or start something new\. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action\./);
+  assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
+  assert.match(contents, /FairTradeAffordance/);
 });
 
 test('J2. The Fair Trade principles panel reproduces the real, authoritative 12 principles verbatim -- in canonical order, with no invented/grading content', async () => {
@@ -332,15 +331,16 @@ test('Q4. No generic avatar (AgentIcon or a hand-drawn silhouette) is reintroduc
   }
 });
 
-test('R1. SignedInHome carries the Masterpiece possibility question while SignedOutHome keeps the Phase 3 public promise; both keep Fair Trade', async () => {
+test('R1. Signed-in and signed-out Home now share the Masterpiece KS001 possibility question and Fair Trade compass', async () => {
   const signedIn = await readFile('src/components/SignedInHome.tsx', 'utf8');
   assert.match(signedIn, /What do you want to make/);
   assert.match(signedIn, /sp-real-word">real/);
-  assert.match(signedIn, /Tell KS001 what you want to make happen/);
-  assert.match(signedIn, /FairTradeAffordance/, 'SignedInHome must keep the Fair Trade affordance');
+  assert.match(signedIn, /FairTradeAffordance/);
   const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(signedOut, /Bring the plan\. Leave with an agreement\./, 'SignedOutHome keeps the public entry promise');
-  assert.match(signedOut, /FairTradeAffordance/, 'SignedOutHome must keep the Fair Trade affordance');
+  assert.match(signedOut, /What do you want to make/);
+  assert.match(signedOut, /sp-real-word">real/);
+  assert.match(signedOut, /FairTradeAffordance/);
+  assert.match(signedOut, /Start without a KS Number/);
 });
 
 test('S1. Notifications loadMore preserves the active category/unreadOnly filters, appends without duplicating, and never fabricates a total -- hasMore only ever means "the last page was full"', async () => {
