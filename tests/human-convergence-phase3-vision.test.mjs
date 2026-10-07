@@ -97,5 +97,5 @@ test('current Vision API does not pretend to support native attachments', () => 
 test('mobile library layout is intentionally single-column first', () => {
   assert.match(board, /grid grid-cols-1 gap-3 sm:grid-cols-2/);
   assert.match(board, /min-h-11/);
-  assert.match(dreamExperience, /min-h-11/);
+  assert.match(dreamHome, /min-h-dvh/);
 });
