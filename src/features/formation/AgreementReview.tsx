@@ -92,7 +92,6 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
 
     {formation.readingSources.length > 0 && <p role="status" className="rounded-xl border border-cream-200 bg-cream-50 px-3.5 py-2.5 text-[0.85rem] text-sand-700">
       Still reading {formation.readingSources.join(', ')} — you can review what I have so far.</p>}
-    {formation.summary && <p className="rounded-xl bg-white/80 px-3.5 py-3 text-[0.95rem] leading-snug text-forest-900 shadow-soft">{formation.summary}</p>}
     {formation.origin && <p className="text-[0.8rem] text-sand-600">Started from the {formation.origin.type.toLowerCase()} offer “{formation.origin.title}”{formation.origin.offeredBy ? ` offered by ${formation.origin.offeredBy} (not a participant yet)` : ''}{formation.origin.priceNow ? ` · current price ${formation.origin.priceNow}` : ''}.</p>}
 
     {needsChecking.length > 0 && <div aria-labelledby="review-open-points" className="surface-decision px-4 py-3">
