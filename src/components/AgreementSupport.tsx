@@ -27,7 +27,7 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
         <button onClick={onAskAgent} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">
           <MessageCircle className="w-4 h-4 text-forest-600 shrink-0" />
           <div>
-            <div className="text-[0.825rem] font-medium text-forest-800">{real ? 'Ask KS001' : 'Ask SecurePay'}</div>
+            <div className="text-[0.825rem] font-medium text-forest-800">{real ? 'Ask SecurePay' : 'Ask SecurePay'}</div>
             <div className="text-[0.72rem] text-sand-600">{real ? 'Ask about this Agreement, its terms, people, progress or history' : 'Ask about terms, people, changes or history'}</div>
           </div>
         </button>
@@ -36,7 +36,7 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
             <div className="text-[0.825rem] font-medium text-forest-800">Need more help?</div>
             {/* Public Experience Convergence Phase 2 -- the same present-tense support doctrine as Help & Support:
                 nothing here creates a support request or contacts a person. */}
-            <div className="text-[0.72rem] text-sand-600">Nothing here creates a support request or contacts a person. Use Help &amp; Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask KS001.</div>
+            <div className="text-[0.72rem] text-sand-600">Nothing here creates a support request or contacts a person. Use Help &amp; Support for the available ways to inspect this Agreement, Money and formal Reviews, or ask SecurePay.</div>
           </div>
         ) : (
         <div className="flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3">
