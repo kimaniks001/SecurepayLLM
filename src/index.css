@@ -385,3 +385,327 @@
   0% { background-color: rgba(139, 184, 155, 0.22); }
   100% { background-color: transparent; }
 }
+
+
+/* ==========================================================================
+ * LIVING AGREEMENT — conversation -> readable Agreement -> printable record
+ * ========================================================================== */
+@layer components {
+  .sp-living-agreement {
+    position: relative;
+    border-radius: 1.6rem;
+    border: 1px solid rgba(185, 211, 194, 0.88);
+    background:
+      radial-gradient(circle at 92% 0%, rgba(139, 184, 155, 0.22), transparent 34%),
+      radial-gradient(circle at 5% 100%, rgba(239, 149, 55, 0.055), transparent 28%),
+      linear-gradient(145deg, rgba(253, 252, 248, 0.98), rgba(248, 251, 247, 0.96));
+    box-shadow: 0 24px 60px -42px rgba(22, 45, 33, 0.52), 0 8px 24px -20px rgba(36, 73, 54, 0.24);
+    animation: spAgreementArrive 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sp-living-agreement-glow {
+    position: absolute;
+    right: -3.5rem;
+    top: -4rem;
+    width: 11rem;
+    height: 11rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(93, 148, 117, 0.16);
+    box-shadow: 0 0 0 2.5rem rgba(139, 184, 155, 0.045);
+    pointer-events: none;
+  }
+
+  .sp-agreement-change {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(139, 184, 155, 0.5);
+    background: rgba(240, 247, 243, 0.82);
+    padding: 0.7rem 0.85rem;
+    color: #244936;
+    font-size: 0.78rem;
+    line-height: 1.3rem;
+    animation: spAgreementSettle 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sp-agreement-paper {
+    border-radius: 1.4rem;
+    border: 1px solid rgba(224, 212, 184, 0.82);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(253, 252, 248, 0.99));
+    box-shadow: 0 28px 70px -48px rgba(22, 45, 33, 0.55), 0 8px 26px -22px rgba(36, 73, 54, 0.28);
+  }
+
+  .agreement-print-record {
+    position: fixed;
+    left: -240vw;
+    top: 0;
+    width: 180mm;
+    pointer-events: none;
+    background: #fff;
+    color: #1f2d25;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .agreement-print-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+
+  .agreement-print-brand {
+    margin: 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1d3a2b;
+  }
+
+  .agreement-print-kicker {
+    margin: 0.2rem 0 0;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7d7058;
+  }
+
+  .agreement-print-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+    font-size: 0.66rem;
+    color: #7d7058;
+  }
+
+  .agreement-print-rule {
+    height: 1px;
+    margin: 1.1rem 0 1.5rem;
+    background: #d8d1c3;
+  }
+
+  .agreement-print-title h1 {
+    margin: 0.35rem 0 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 2rem;
+    line-height: 1.08;
+    font-weight: 500;
+    color: #162d21;
+  }
+
+  .agreement-print-status {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2d5c43;
+  }
+
+  .agreement-print-purpose {
+    margin: 0.7rem 0 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: #3d4b42;
+  }
+
+  .agreement-print-description {
+    margin: 0.45rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: #5f655f;
+  }
+
+  .agreement-print-section {
+    margin-top: 1.55rem;
+    break-inside: avoid;
+  }
+
+  .agreement-print-section h2 {
+    margin: 0 0 0.65rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e1ddd4;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: #496353;
+  }
+
+  .agreement-print-parties {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .agreement-print-party {
+    display: flex;
+    flex-direction: column;
+    gap: 0.14rem;
+    padding: 0.65rem 0;
+  }
+
+  .agreement-print-party strong { font-size: 0.9rem; color: #1d3a2b; }
+  .agreement-print-party span { font-size: 0.74rem; color: #5c665f; }
+  .agreement-print-party small { margin-top: 0.1rem; font-size: 0.66rem; color: #7d7058; }
+
+  .agreement-print-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .agreement-print-details div {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid #e6e2d8;
+    border-radius: 0.4rem;
+  }
+
+  .agreement-print-details dt {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #7d7058;
+  }
+
+  .agreement-print-details dd {
+    margin: 0.25rem 0 0;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #24362c;
+  }
+
+  .agreement-print-obligations {
+    margin: 0;
+    padding-left: 1.15rem;
+  }
+
+  .agreement-print-obligations li {
+    padding: 0.55rem 0 0.65rem 0.25rem;
+    border-bottom: 1px solid #efede8;
+    break-inside: avoid;
+  }
+
+  .agreement-print-obligation-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .agreement-print-obligation-heading strong { font-size: 0.86rem; color: #20372a; }
+  .agreement-print-obligation-heading span { font-size: 0.64rem; text-transform: uppercase; color: #7d7058; }
+  .agreement-print-obligations p { margin: 0.25rem 0 0; font-size: 0.76rem; line-height: 1.5; color: #4e5d54; }
+  .agreement-print-note { font-weight: 600; }
+
+  .agreement-print-confirmation p {
+    margin: 0;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    color: #566159;
+  }
+
+  .agreement-print-signatures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.3rem 2rem;
+    margin-top: 1.5rem;
+  }
+
+  .agreement-print-signatures > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+
+  .agreement-print-signature-line {
+    display: block;
+    height: 1.4rem;
+    border-bottom: 1px solid #8c948e;
+    margin-bottom: 0.25rem;
+  }
+
+  .agreement-print-signatures strong { font-size: 0.76rem; color: #263c30; }
+  .agreement-print-signatures small { font-size: 0.64rem; color: #7d7058; }
+
+  .agreement-print-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.7rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #d8d1c3;
+    font-size: 0.62rem;
+    color: #7d7058;
+  }
+}
+
+@keyframes spAgreementArrive {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spAgreementSettle {
+  0% { opacity: 0; transform: translateY(5px); background-color: rgba(220, 235, 224, 0.95); }
+  100% { opacity: 1; transform: translateY(0); background-color: rgba(240, 247, 243, 0.82); }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 15mm 16mm;
+  }
+
+  html, body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  [data-agreement-print],
+  [data-agreement-print] * {
+    visibility: visible !important;
+  }
+
+  [data-agreement-print] {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #1f2d25 !important;
+  }
+
+  .agreement-screen-only,
+  [data-agreement-print] button,
+  [data-agreement-print] details {
+    display: none !important;
+  }
+
+  .agreement-print-record {
+    display: block !important;
+    pointer-events: auto;
+  }
+
+  .sp-agreement-paper {
+    font-size: 10.5pt;
+  }
+
+  .sp-agreement-paper .surface-decision,
+  .sp-agreement-paper dl,
+  .sp-agreement-paper ul {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
