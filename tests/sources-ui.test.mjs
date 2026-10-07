@@ -126,11 +126,11 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 });
 
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
-test('SignedOutHome: carries the final KS001 possibility headline, supporting text, and trust line', () => {
+test('SignedOutHome app wrapper carries the final KS001 possibility headline and supporting text', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
   assert.match(out, /What do you want to make real today\?/);
   assert.match(out, /Ask anything, or start something new/);
-  assert.match(out, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
+  assert.match(out, /Welcome back/);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
   // Public Experience Convergence Phase 3 -- the intake is now the ONE shared "+" SourceMenu.
@@ -143,10 +143,10 @@ test('SignedOutHome: intake-mode entries only render when their callback is actu
   assert.match(withIntake, /aria-label="Add what you have"/);
   assert.match(withIntake, /type="file"/);
 });
-test('SignedOutHome: the trust line explicitly says a KS Number is not required to start -- signed-out value first (Section 39)', () => {
-  const out = text(html(api.SignedOutHome, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} }));
+test('public SecurePayHero explicitly says a KS Number is not required to start -- signed-out value first', () => {
+  const out = text(html(api.SecurePayHero, { variant: 'public', onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {} }));
   assert.match(out, /Start without a KS Number/);
-  assert.doesNotMatch(out, /sign in|log in/i, 'Home itself must never put a sign-in requirement in front of intake');
+  assert.doesNotMatch(out, /sign in|log in/i, 'public Home itself must never put a sign-in requirement in front of intake');
 });
 
 test('SourceMenu: nothing unwired renders -- no dead controls, no pickers without a handler', () => {
