@@ -4,7 +4,8 @@ import { Button } from '../../../components/dna/Button';
 import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import type { AppView } from '../../../types';
-import type { VisionDreamController } from './controller';\nimport type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
+import type { VisionDreamController } from './controller';
+import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import { VisionDreamExperience } from './VisionDreamExperience';
 
 /**
@@ -17,7 +18,8 @@ import { VisionDreamExperience } from './VisionDreamExperience';
 export function VisionDreamHome({
   controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError,
 }: {
-  controller: VisionDreamController;\n  gateway: VisionDreamGateway;
+  controller: VisionDreamController;
+  gateway: VisionDreamGateway;
   /** Resume this exact conversation and prefill, but NEVER auto-send, the person's note. */
   onContinue: (continuation: { conversationId: string; draftText: string }) => void;
   onOpenLibrary: () => void;
