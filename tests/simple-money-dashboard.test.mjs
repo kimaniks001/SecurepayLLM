@@ -7,27 +7,28 @@ const moneyHome = fs.readFileSync(new URL('../src/features/money/SimpleMoneyDash
 
 test('Money lands on the agreement-led home and keeps the deeper authority record available', () => {
   assert.match(experience, /SimpleMoneyDashboard/);
-  assert.match(experience, /Full money record & controls/);
+  assert.match(experience, /Technical & administration record/);
   assert.match(experience, /<details/);
   assert.match(experience, /max-w-6xl/);
   assert.match(experience, /Your Agreements first/);
 });
 
-test('the Money home starts with Agreements, agreed purpose, amount and backend next action', () => {
+test('the Money home starts with Agreements, agreed purpose, amount and a money-specific next answer', () => {
   assert.match(moneyHome, /Your Agreements/);
   assert.match(moneyHome, /What was agreed/);
   assert.match(moneyHome, /agreement\.purpose/);
   assert.match(moneyHome, /agreement\.proposedAmountMinor/);
-  assert.match(moneyHome, /agreement\.nextActions\[0\]/);
+  assert.match(moneyHome, /find\(action => action\.actionCode === 'FUND_AGREEMENT'\)/);
+  assert.doesNotMatch(moneyHome, /agreement\.nextActions\[0\]\.reason/);
   assert.match(moneyHome, /agreementGateway\.detail\(selected\.agreementId\)/);
   assert.match(moneyHome, /currentDetail\.terms\.slice\(0, 4\)/);
 });
 
 test('the mature Money home surfaces the core finance state without inventing authority', () => {
-  assert.match(moneyHome, /Payment readiness/);
-  assert.match(moneyHome, /Funding/);
-  assert.match(moneyHome, /Release/);
-  assert.match(moneyHome, /Can money move\?/);
+  assert.match(moneyHome, /Can this Agreement be paid now\?/);
+  assert.match(moneyHome, /Has money been funded\?/);
+  assert.match(moneyHome, /Can money be released\?/);
+  assert.match(moneyHome, /Can SecurePay move money now\?/);
   assert.match(moneyHome, /snapshotGateway\.read\(selected\.agreementId\)/);
   assert.match(moneyHome, /snapshot\.paymentReady/);
   assert.match(moneyHome, /snapshot\.releaseRequest\.authorityGranted/);
@@ -69,9 +70,9 @@ test('only real regulated-partner data may claim a connected bank', () => {
 });
 
 test('SACCO, MMF and insurance remain visible without fabricated live availability', () => {
-  assert.match(moneyHome, /live SACCO availability is only shown once SecurePay can prove it/);
-  assert.match(moneyHome, /live MMF availability is only shown once SecurePay can prove it/);
-  assert.match(moneyHome, /live cover is only shown once SecurePay can prove it/);
+  assert.match(moneyHome, /Live SACCO availability appears only when SecurePay can prove it/);
+  assert.match(moneyHome, /Live MMF availability appears only when SecurePay can prove it/);
+  assert.match(moneyHome, /Live cover appears only when SecurePay can prove it/);
   assert.doesNotMatch(moneyHome, /title="SACCOs"[\s\S]{0,350}status="Available"/);
   assert.doesNotMatch(moneyHome, /title="MMFs"[\s\S]{0,350}status="Available"/);
   assert.doesNotMatch(moneyHome, /title="Insurance"[\s\S]{0,350}status="Available"/);
