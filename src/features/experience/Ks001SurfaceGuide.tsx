@@ -2,24 +2,24 @@ type GuideSurface = 'vision' | 'store' | 'agreement' | 'money';
 
 const COPY: Record<GuideSurface, { title: string; body: string; action: string }> = {
   vision: {
-    title: 'KS001 can help from here',
+    title: 'SecurePay can help from here',
     body: 'Ask what real SecurePay capabilities could help move this idea forward before you commit.',
-    action: 'Ask KS001 what SecurePay can help with here',
+    action: 'Ask SecurePay what could help next',
   },
   store: {
-    title: 'KS001 can help you use this, not just browse it',
+    title: 'SecurePay can help you use this, not just browse it',
     body: 'Ask how this Store or fulfilment option could fit your plan or Agreement, and what still needs checking.',
-    action: 'Ask KS001 how this could fit',
+    action: 'Ask SecurePay how this could fit',
   },
   agreement: {
-    title: 'KS001 knows which Agreement you are looking at',
-    body: 'Ask what needs attention, what SecurePay can help with next, or which real capability may reduce friction.',
-    action: 'Ask KS001 what can help next',
+    title: 'SecurePay knows which Agreement you are looking at',
+    body: 'Ask what needs attention, what happens next, or what SecurePay can help you understand here.',
+    action: 'Ask SecurePay about this Agreement',
   },
   money: {
-    title: 'KS001 can explain the path around Money',
-    body: 'Ask which SecurePay capabilities may help with the Agreement before, around or after Money. Current financial authority still comes only from the Money screen.',
-    action: 'Ask KS001 what can help around this Money state',
+    title: 'SecurePay can explain this Money state',
+    body: 'Ask what the numbers mean or why a payment, funding or release step is or is not available. Financial authority still comes from the Money screen.',
+    action: 'Ask SecurePay about this Money state',
   },
 };
 
@@ -30,10 +30,10 @@ export function Ks001SurfaceGuide({ surface, onAsk }: {
   if (!onAsk) return null;
   const copy = COPY[surface];
   return (
-    <section aria-label="KS001 contextual help" className="rounded-2xl border border-forest-200 bg-forest-50/40 p-4">
+    <section aria-label="SecurePay contextual help" className="rounded-2xl border border-forest-200 bg-forest-50/40 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">KS001 · here with you</p>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">SecurePay · here with you</p>
           <h2 className="mt-1 font-display text-base text-forest-800">{copy.title}</h2>
           <p className="mt-1 text-[0.74rem] text-sand-600">{copy.body}</p>
         </div>
@@ -45,7 +45,6 @@ export function Ks001SurfaceGuide({ surface, onAsk }: {
           {copy.action}
         </button>
       </div>
-      <p className="mt-2 text-[0.66rem] text-sand-500">KS001 should only suggest capabilities it can verify as real and relevant. Suggestions never create an Agreement, choose a supplier or move money.</p>
     </section>
   );
 }
