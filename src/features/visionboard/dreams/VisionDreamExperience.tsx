@@ -4,10 +4,12 @@ import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import { dreamContinuation, MAX_KS001_DRAFT, type VisionDreamController } from './controller';
-import { DreamBuilder } from './DreamBuilder';\nimport type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
+import { DreamBuilder } from './DreamBuilder';
+import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 
-export function VisionDreamExperience({ controller, onContinue }: {
+export function VisionDreamExperience({ controller, gateway, onContinue }: {
   controller: VisionDreamController;
+  gateway: VisionDreamGateway;
   onContinue?: (continuation: ReturnType<typeof dreamContinuation>) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
@@ -20,6 +22,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
     return <DreamBuilder
       key={state.selected.dreamId + ':' + state.selected.version}
       dream={state.selected}
+      gateway={gateway}
       onBack={() => controller.close()}
       onSaveTitle={(title, content, expectedVersion) => controller.saveSummary(title, content, expectedVersion)}
       onExploreKs001={onContinue ? (draftText) => {
