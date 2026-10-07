@@ -10,7 +10,7 @@ export { SourceCard, SourcesList } from './src/features/sources/ui/SourceCard';
 export { AI_HANDOFF_PROMPT, BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
 export { SourceMenu } from './src/features/sources/ui/SourceMenu';
 export { DeclaredSourcePanel } from './src/features/sources/ui/DeclaredSourcePanel';
-export { SignedOutHome } from './src/components/SignedOutHome';
+export { SignedOutHome, SecurePayHero } from './src/components/SignedOutHome';
 export { createElement } from 'react';
 export { renderToStaticMarkup } from 'react-dom/server';
 `, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
