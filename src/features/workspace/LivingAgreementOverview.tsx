@@ -4,7 +4,7 @@ import { ExperiencePathway } from '../experience/ExperiencePathway';
 import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import { moneyText, minorFromString } from '../money/amount';
 import type { AppView } from '../../types';
-import type { CalendarEventView } from './view';
+import { humanNextActionReason, type CalendarEventView } from './view';
 
 const actionClass = 'min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left text-sm text-forest-800 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400';
 
@@ -64,11 +64,8 @@ export function LivingAgreementOverview({ detail, effectiveStates: _effectiveSta
     <div className="rounded-3xl border border-cream-200 bg-white p-5 md:p-6">
       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">What happens next</p>
       {next ? <>
-        <h2 className="mt-2 font-display text-xl text-forest-900">{next.reason}</h2>
-        <p className="mt-1 text-sm text-sand-600">
-          {next.category.replace(/_/g, ' ')}
-          {next.deadline ? ` · due ${new Date(next.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
-        </p>
+        <h2 className="mt-2 font-display text-xl text-forest-900">{humanNextActionReason(next)}</h2>
+        {next.deadline && <p className="mt-1 text-sm text-sand-600">Due {new Date(next.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
         {(nextActions?.length ?? 0) > 1 && <p className="mt-2 text-xs text-sand-500">+{(nextActions?.length ?? 1) - 1} other item{(nextActions?.length ?? 1) - 1 === 1 ? '' : 's'} in the full record.</p>}
       </> : <>
         <h2 className="mt-2 font-display text-xl text-forest-900">Nothing is asking for your action right now.</h2>
