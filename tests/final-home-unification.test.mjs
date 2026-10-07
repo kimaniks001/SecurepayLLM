@@ -12,7 +12,7 @@ test('signed-in and public Home share the same KS001 hero', () => {
   assert.match(publicHome, /<SecurePayHero/);
   assert.match(home, /What do you want to make/);
   assert.match(home, /sp-real-word/);
-  assert.match(home, /Start with KS001/);
+  assert.doesNotMatch(home, /Start with KS001/, 'composer is the single Home start action');
 });
 
 test('Home uses one KS001 composer with the source plus menu', () => {
