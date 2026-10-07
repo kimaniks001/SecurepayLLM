@@ -27,7 +27,7 @@ test('the section renders AFTER the untouched KS001 Home, inside the same Home b
   assert.ok(home > 0 && section > home, 'TrustProjectSection must come after SignedOutHome');
   assert.ok(src.lastIndexOf('showHome ?', section) > 0 && src.indexOf('</div> : <>', home) > section, 'it must live in the Home branch only');
   const hero = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(hero, /What do you want to make/);
+  assert.match(hero, /Bring the plan\. Leave with an agreement\./);
   assert.doesNotMatch(hero, /Trust Project/, 'the KS001 hero itself is not changed or pushed down by Trust Project copy');
 });
 test('the Trust Project gains a public doorway without becoming a duplicate signed-in app surface', async () => {
