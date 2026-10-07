@@ -495,13 +495,13 @@ export const markup = renderToStaticMarkup(React.createElement(ContextPanel, { l
 // must be in its place, while the surrounding input/example-prompts stay untouched. Phase 6 convergence
 // additionally re-locks the headline/supporting-text copy itself (task doctrine: exact locked text,
 // not a paraphrase) and adds the quiet Fair Trade affordance beneath the input.
-test('SignedOutHome is intentionally converged to the final KS001 Home standard', async () => {
+test('public KS001 Home is intentionally converged to the final shared Home standard', async () => {
   const entry = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SignedOutHome } from './src/components/SignedOutHome';
+import { SecurePayHero } from './src/components/SignedOutHome';
 const noop = () => {};
-export const markup = renderToStaticMarkup(React.createElement(SignedOutHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop }));
+export const markup = renderToStaticMarkup(React.createElement(SecurePayHero, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, variant: 'public' }));
 `;
   const result = await build({ stdin: { contents: entry, resolveDir: process.cwd() }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.png': 'dataurl' } });
   const mod = { exports: {} };
