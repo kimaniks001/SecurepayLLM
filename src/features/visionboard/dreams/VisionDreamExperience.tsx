@@ -1,97 +1,36 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowRight, Lightbulb, RefreshCw } from 'lucide-react';
+import { ArrowRight, Lightbulb, RefreshCw } from 'lucide-react';
 import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import { dreamContinuation, MAX_KS001_DRAFT, type VisionDreamController } from './controller';
+import { DreamBuilder } from './DreamBuilder';
+import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 
-/**
- * A composable Dream-first Vision surface. Mount above the existing Library once Claude's
- * Gate 1 router changes are reconciled. onContinue must reopen the SAME conversation ID
- * and put draftText in the human composer without sending a KS001 turn automatically.
- */
-export function VisionDreamExperience({ controller, onContinue }: {
+export function VisionDreamExperience({ controller, gateway, onContinue }: {
   controller: VisionDreamController;
+  gateway: VisionDreamGateway;
   onContinue?: (continuation: ReturnType<typeof dreamContinuation>) => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [thought, setThought] = useState('');
-  const [title, setTitle] = useState('');
-  const [note, setNote] = useState('');
   const [confirmAbandon, setConfirmAbandon] = useState(false);
-  const [reviewShare, setReviewShare] = useState(false);
-  const [shareDraft, setShareDraft] = useState('');
 
   useEffect(() => { void controller.load(); }, [controller]);
-  useEffect(() => {
-    setTitle(state.selected?.title ?? '');
-    setNote(state.selected?.content ?? '');
-    setReviewShare(false);
-    setShareDraft('');
-  }, [state.selected]);
 
   if (state.selected) {
-    const selected = state.selected;
-    return <section aria-label="Your Dream" className="space-y-4">
-      <button type="button" onClick={() => controller.close()}
-        className="min-h-11 inline-flex items-center gap-2 text-sm text-forest-700">
-        <ArrowLeft className="size-4" /> All Dreams
-      </button>
-      <Surface><SurfaceBody className="space-y-3">
-        <p className="text-xs uppercase tracking-wide text-sand-500">Your thoughts · private</p>
-        <label className="block space-y-1 text-sm text-sand-600">
-          What shall we call this?
-          <input value={title} onChange={e => setTitle(e.target.value)} disabled={selected.locked || selected.superseded}
-            maxLength={200} className="block w-full min-h-11 rounded-xl border border-cream-200 p-3 text-forest-800 disabled:opacity-60" />
-        </label>
-        <label className="block space-y-1 text-sm text-sand-600">
-          What you have in mind
-          <textarea value={note} onChange={e => setNote(e.target.value)} disabled={selected.locked || selected.superseded}
-            maxLength={4000} rows={5} className="block w-full rounded-xl border border-cream-200 p-3 text-forest-800 disabled:opacity-60"/>
-        </label>
-        <p className="text-xs text-sand-500">This is your editable note, not an agreement or an AI-confirmed fact. It has not been sent to KS001; you can review it as a draft before sharing.</p>
-        {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={selected.locked || selected.superseded || state.phase !== 'ready' || !title.trim()}
-            onClick={() => void controller.saveSummary(title, note, selected.version)}>Save thoughts</Button>
-          <Button variant="secondary" disabled={state.phase === 'loading' || state.phase === 'editing'}
-            onClick={() => void controller.load()}>
-            <RefreshCw className="size-4" /> Refresh note
-          </Button>
-          {onContinue && <Button variant="secondary" onClick={() => {
-            setShareDraft(selected.content?.trim() || selected.title);
-            setReviewShare(true);
-          }}>
-            Explore with KS001 <ArrowRight className="size-4" />
-          </Button>}
-        </div>
-        {reviewShare && onContinue && <div className="space-y-3 rounded-2xl border border-forest-200 bg-forest-50/40 p-4">
-          <p className="font-medium text-sm text-forest-800">What would you like to discuss with KS001?</p>
-          <p className="text-xs text-sand-600">Review or shorten your words before opening the same conversation. Your complete Dream note remains saved; nothing is sent automatically.</p>
-          <label className="block">
-            <span className="sr-only">Draft to discuss with KS001</span>
-            <textarea value={shareDraft} onChange={event => setShareDraft(event.target.value)}
-              rows={5} className="w-full rounded-xl border border-cream-200 bg-white p-3 text-sm text-forest-800"
-              aria-label="Draft to discuss with KS001" />
-          </label>
-          <p className="text-xs text-sand-600" role="status">
-            {shareDraft.length} / {MAX_KS001_DRAFT} characters
-            {shareDraft.trim().length > MAX_KS001_DRAFT ? ' — choose a shorter passage; no words will be silently dropped.' : ''}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={!shareDraft.trim() || shareDraft.trim().length > MAX_KS001_DRAFT}
-              onClick={() => { onContinue(dreamContinuation(selected, shareDraft)); setReviewShare(false); }}>
-              Open KS001 with this draft <ArrowRight className="size-4" />
-            </Button>
-            <Button variant="ghost" onClick={() => setReviewShare(false)}>Keep this private for now</Button>
-          </div>
-        </div>}
-        {selected.superseded && <p className="text-sm text-sand-600">A newer Library version exists. This historical note cannot be edited here.</p>}
-        {selected.locked && <p className="text-sm text-sand-600">
-          This note is locked. Use the existing Vision Library to unlock or supersede it.
-        </p>}
-      </SurfaceBody></Surface>
-    </section>;
+    return <DreamBuilder
+      key={state.selected.dreamId + ':' + state.selected.version}
+      dream={state.selected}
+      gateway={gateway}
+      onBack={() => controller.close()}
+      onSaveTitle={(title, content, expectedVersion) => controller.saveSummary(title, content, expectedVersion)}
+      onExploreKs001={onContinue ? (draftText) => {
+        const clean = draftText.trim();
+        if (!clean || clean.length > MAX_KS001_DRAFT) return;
+        onContinue(dreamContinuation(state.selected!, clean));
+      } : undefined}
+    />;
   }
 
   return <section aria-label="Dreams" className="space-y-5">
@@ -99,8 +38,8 @@ export function VisionDreamExperience({ controller, onContinue }: {
       <div className="flex items-center gap-2 text-forest-700 text-xs uppercase tracking-[0.12em]">
         <Lightbulb className="size-4" /> Vision
       </div>
-      <h1 className="font-display text-2xl md:text-3xl text-forest-800">What's on your mind?</h1>
-      <p className="text-sand-600 text-sm">A thought, something you saw, a question or an idea. It doesn't have to be a plan.</p>
+      <h1 className="font-display text-2xl md:text-3xl text-forest-800">What are you dreaming of?</h1>
+      <p className="text-sand-600 text-sm">Start with a thought, a picture, a sketch or something you have seen. Nothing has to be perfect.</p>
       <p className="text-xs text-sand-500">Private by default. Nothing here becomes a Project, Agreement, Store request or Money instruction unless you deliberately choose a next step.</p>
       <label className="block">
         <span className="sr-only">Start with your thought</span>
@@ -112,7 +51,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
         <span className="text-xs text-sand-500">{thought.length} / 4,000</span>
         <Button disabled={!thought.trim() || state.phase === 'loading' || state.phase === 'saving' || state.phase === 'reconciling' || !!state.pending}
           onClick={async () => { const created = await controller.start(thought); if (created) setThought(''); }}>
-          {state.phase === 'saving' ? 'Saving…' : 'Start a Dream'} <ArrowRight className="size-4" />
+          {state.phase === 'saving' ? 'Saving…' : 'Start building'} <ArrowRight className="size-4" />
         </Button>
       </div>
       {state.error && <StatusNotice tone="warning" icon={false}>{state.error}</StatusNotice>}
@@ -132,16 +71,19 @@ export function VisionDreamExperience({ controller, onContinue }: {
       {state.pending?.conversationId && confirmAbandon && <StatusNotice tone="warning" icon={false}>
         <p>Leaving gives up this tab's temporary access if the save never completed. It does not delete work on SecurePay.</p>
         <div className="flex flex-wrap gap-2 mt-2">
-          <Button variant="secondary" onClick={() => {
-            controller.abandonPending(); setConfirmAbandon(false);
-          }}>Yes, leave this draft</Button>
+          <Button variant="secondary" onClick={() => { controller.abandonPending(); setConfirmAbandon(false); }}>Yes, leave this draft</Button>
           <Button variant="ghost" onClick={() => setConfirmAbandon(false)}>Keep trying</Button>
         </div>
       </StatusNotice>}
     </SurfaceBody></Surface>
 
     <div className="space-y-3">
-      <h2 className="font-display text-xl text-forest-800">Continue thinking</h2>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl text-forest-800">Continue a Dream</h2>
+          <p className="mt-1 text-xs text-sand-500">Open the same private Dream and keep arranging it.</p>
+        </div>
+      </div>
       {state.phase === 'loading' && <p role="status" className="text-sm text-sand-600">Finding your Dreams…</p>}
       {state.phase !== 'loading' && state.dreams.length === 0 && <p className="text-sm text-sand-600">Your first Dream can start with a single sentence.</p>}
       <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -150,7 +92,7 @@ export function VisionDreamExperience({ controller, onContinue }: {
             className="w-full min-h-20 text-left rounded-2xl border border-cream-200 bg-white px-4 py-3 hover:border-forest-400 focus-visible:ring-2 focus-visible:ring-forest-400 disabled:opacity-50"
             onClick={() => controller.select(dream.dreamId)}>
             <span className="block text-sm font-medium text-forest-800">{dream.title}</span>
-            <span className="block text-xs mt-1 text-sand-600 line-clamp-2">{dream.content || 'Continue this thought'}</span>
+            <span className="block text-xs mt-1 text-sand-600 line-clamp-2">Private Dream · open board</span>
           </button>
         </li>)}
       </ul>

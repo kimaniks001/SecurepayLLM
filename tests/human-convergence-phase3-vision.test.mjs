@@ -15,7 +15,7 @@ test('Vision home is Dream-first, private and lightweight', () => {
   assert.match(dreamHome, /Add a thought/);
   assert.match(dreamHome, /Search & organise/);
   assert.match(dreamHome, /view="vision-board"/);
-  assert.match(dreamExperience, /What's on your mind\?/);
+  assert.match(dreamExperience, /What are you dreaming of\?/);
   assert.match(dreamExperience, /Private by default/);
   assert.match(dreamExperience, /Nothing here becomes a Project, Agreement, Store request or Money instruction/);
 });
@@ -97,5 +97,5 @@ test('current Vision API does not pretend to support native attachments', () => 
 test('mobile library layout is intentionally single-column first', () => {
   assert.match(board, /grid grid-cols-1 gap-3 sm:grid-cols-2/);
   assert.match(board, /min-h-11/);
-  assert.match(dreamExperience, /min-h-11/);
+  assert.match(dreamHome, /min-h-dvh/);
 });

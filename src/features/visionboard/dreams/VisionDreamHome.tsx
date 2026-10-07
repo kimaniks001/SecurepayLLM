@@ -5,6 +5,7 @@ import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import type { AppView } from '../../../types';
 import type { VisionDreamController } from './controller';
+import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import { VisionDreamExperience } from './VisionDreamExperience';
 
 /**
@@ -15,9 +16,10 @@ import { VisionDreamExperience } from './VisionDreamExperience';
  * it stays on the draft Vision branch; no shared Home/KS001 route is modified.
  */
 export function VisionDreamHome({
-  controller, onContinue, onOpenLibrary, onNavigate, handoffError,
+  controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError,
 }: {
   controller: VisionDreamController;
+  gateway: VisionDreamGateway;
   /** Resume this exact conversation and prefill, but NEVER auto-send, the person's note. */
   onContinue: (continuation: { conversationId: string; draftText: string }) => void;
   onOpenLibrary: () => void;
@@ -37,7 +39,7 @@ export function VisionDreamHome({
           <Button variant="secondary" onClick={onOpenLibrary}>Search & organise</Button>
         </div>
       </section>}
-      <VisionDreamExperience controller={controller} onContinue={onContinue} />
+      <VisionDreamExperience controller={controller} gateway={gateway} onContinue={onContinue} />
       {handoffError && <StatusNotice tone="warning" icon={false}>{handoffError}</StatusNotice>}
       <Surface>
         <SurfaceBody className="space-y-3">

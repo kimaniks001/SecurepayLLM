@@ -22,3 +22,33 @@ export interface UpdateVisionDreamRequest {
   content: string;
   expectedVersion: number;
 }
+export interface VisionDreamBoardDto {
+  dreamId: string;
+  revision: number;
+  schemaVersion: number;
+  documentJson: string;
+  contentSha256: string | null;
+  savedAt: string | null;
+}
+export interface SaveVisionDreamBoardRequest {
+  schemaVersion: number;
+  documentJson: string;
+  expectedRevision: number;
+  idempotencyKey: string;
+}
+export interface VisionDreamAssetDto {
+  assetId: string;
+  dreamId: string;
+  fileName: string;
+  mimeType: string;
+  byteSize: number;
+  contentSha256: string;
+  createdAt: string;
+  base64Content: string | null;
+}
+export interface UploadVisionDreamAssetRequest {
+  fileName: string;
+  mimeType: string;
+  base64Content: string;
+  idempotencyKey: string;
+}
