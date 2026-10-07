@@ -1267,9 +1267,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
       {signedIn ? <>
-        {/* KS001 Upgrade Phase 2 (Section 17) -- one restrained "Continue Building" section, never a whole
-            Home redesign. Resuming re-opens the SAME conversationId in this SAME controller (Scenario F). */}
-        <div className="px-4 md:px-6 pt-4"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         <SignedOutHome
           continueSlot={continueSlot}
           sourceStatusSlot={sourceStatusSlot}
@@ -1281,6 +1278,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
         />
+        {/* Returning work is useful context, but it must never compete with the canonical Home entry. */}
+        <div className="px-4 md:px-6 pt-5"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
         {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
         {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
