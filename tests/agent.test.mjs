@@ -509,12 +509,12 @@ export const markup = renderToStaticMarkup(React.createElement(SecurePayHero, { 
   const current = mod.exports.markup;
   assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   assert.match(current, /<img[^>]*src="data:image\/png/);
-  assert.ok(current.includes('What do you want to make real today?'));
-  assert.ok(current.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
-  assert.ok(current.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
-  assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'));
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(current.includes(label), label);
-  const visible = current.replace(/data:[^"]+/g, '');
+  const visible = current.replace(/data:[^"]+/g, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  assert.ok(visible.includes('What do you want to make real today?'));
+  assert.ok(visible.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
+  assert.ok(visible.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
+  assert.ok(visible.includes('Guided by the 12 Principles of Fair Trade'));
+  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(visible.includes(label), label);
   assert.ok(!visible.includes('Fair trader score') && !/\d+\/12/.test(visible), 'must never grade the person with a fair trade score');
 });
 
