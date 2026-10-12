@@ -6,6 +6,7 @@ import { SourceReference } from '../features/discovery/ui/SourceReference';
 interface CanonicalAgreementCardProps {
   data: CanonicalAgreementResponse;
   onChoice: (value: string) => void;
+  readOnly?: boolean;
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
@@ -48,7 +49,7 @@ const STATUS_LABEL: Record<string, string> = {
   EXPIRED: 'Expired',
 };
 
-export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCardProps) {
+export function CanonicalAgreementCard({ data, onChoice, readOnly = false }: CanonicalAgreementCardProps) {
   const blocked = data.mustSettle.length > 0;
   return (
     <article data-canonical-agreement className="sp-agreement-paper mx-auto max-w-2xl overflow-hidden px-5 py-6 md:px-8 md:py-8">
@@ -123,7 +124,7 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
         </details>
       </div>
 
-      <footer className="mt-6 border-t border-cream-200 pt-5">
+      {!readOnly && <footer className="mt-6 border-t border-cream-200 pt-5">
         {blocked ? (
           <div className="flex flex-wrap gap-2">
             <button disabled className="min-h-11 rounded-full bg-cream-200 px-4 text-[0.85rem] font-medium text-sand-500">{data.primaryLabel}</button>
@@ -139,7 +140,8 @@ export function CanonicalAgreementCard({ data, onChoice }: CanonicalAgreementCar
           ] }} onChoice={onChoice} />
         )}
         {data.consequence && <p className="mt-3 max-w-xl text-[0.78rem] leading-5 text-sand-700">{data.consequence}</p>}
-      </footer>
+      </footer>}
+      {readOnly && data.consequence && <p className="mt-5 border-t border-cream-200 pt-4 text-[0.8rem] leading-5 text-sand-700">{data.consequence}</p>}
     </article>
   );
 }
