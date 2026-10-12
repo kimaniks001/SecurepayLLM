@@ -331,7 +331,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [storeReturnContext, setStoreReturnContext] = useState<null | { kind: 'vision' | 'community' | 'agreement'; agreementId?: string }>(null);
-  const [community, setCommunity] = useState(false);
+  const [community, setCommunity] = useState(externalEntryView === 'community');
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
