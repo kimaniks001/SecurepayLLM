@@ -217,7 +217,7 @@ test('the confirm CTA names the real operation: this participant confirming this
   assert.match(card.consequence, /against this exact version/); assert.match(card.consequence, /moves no money/);
   assert.doesNotMatch(JSON.stringify(card) + JSON.stringify(api.confirmedView(confirmation())), /\bsign|signed|legally|binding|active|Agreement complete|all set/i);
   const done = api.confirmedView(confirmation({ versionNumber: 3 }));
-  assert.match(done.text, /version 3/); assert.match(done.text, /does not mean every participant has confirmed, and no payment has been made/);
+  assert.match(done.text, /version you just read/); assert.match(done.text, /does not mean every participant has agreed, and no payment has been made/);
 });
 test('an uncertain confirmation is NOT shown as confirmed and retries the SAME request', async () => {
   let first = true;
