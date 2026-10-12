@@ -116,6 +116,20 @@ export function exactVersionView(version: AgreementVersionResponse, parties: { n
   };
 }
 
+
+export function agreedVersionView(version: AgreementVersionResponse, parties: { name: string; role: string }[] = []): CanonicalAgreementResponse {
+  const base = exactVersionView(version, parties);
+  return {
+    ...base,
+    status: 'You agree to this Agreement',
+    primaryLabel: 'Done',
+    primaryValue: 'done',
+    secondaryLabel: 'Done',
+    secondaryValue: 'done',
+    consequence: 'SecurePay has recorded your agreement to the exact Agreement shown here. This does not claim that every other participant has agreed, and it moves no money.',
+  };
+}
+
 /** SecurePay has no recipient change-request or decline operation, so this says so and promises nothing else. */
 export function needsChangingView(): NoticeResponse {
   return {
