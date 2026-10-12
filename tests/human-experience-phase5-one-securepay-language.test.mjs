@@ -57,10 +57,10 @@ test('Phase 5: Store direct entry remains search-first and an offer is never sil
   assert.match(home, /placeholder="What are you looking for\?"/);
 });
 
-test('Phase 5: Community is relevance-first instead of product-architecture-first', async () => {
+test('Phase 5: production Community is relevance-first while shared fixture/public defaults remain stable', async () => {
   const home = await read('src/components/CommunityHome.tsx');
   const experience = await read('src/features/community/CommunityExperience.tsx');
-  assert.match(home, /What is happening that matters to you\?/);
+  assert.match(home, /heading = 'Community LIVE'/);
   assert.match(experience, /heading="What is happening that matters to you\?"/);
   assert.match(experience, /Real questions, needs, projects, opportunities and work stories/);
 });
