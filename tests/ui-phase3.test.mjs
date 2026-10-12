@@ -51,7 +51,7 @@ test('the review CTA names what the backend really does: a DRAFT Agreement, neve
   const review = { candidate, who: [], responsibilities: [], money: [], when: [], conditions: [], authority: [], reviewedSource: null };
   const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const card = api.canonicalAgreementView(review, handoff);
-  assert.equal(card.primaryLabel, 'Create the draft Agreement');
+  assert.equal(card.primaryLabel, 'Keep this Agreement');
   assert.equal(card.primaryValue, 'create_draft');
   assert.match(card.consequence, /draft Agreement/); assert.match(card.consequence, /Nobody else has agreed/); assert.match(card.consequence, /nothing is funded or paid/);
   assert.doesNotMatch(JSON.stringify(card), /Set securely|legally binding|100% secure/i);
