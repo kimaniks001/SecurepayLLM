@@ -50,7 +50,6 @@ import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
 import { SimpleMoneyDashboard } from './SimpleMoneyDashboard';
-import { ExperiencePathway } from '../experience/ExperiencePathway';
 import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 
@@ -145,8 +144,10 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
       <MoneyHeader onBack={onLeave} />
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
         <PageHeader
-          title="Money"
-          description="Choose an Agreement, see where its money stands, what happens next, and what you can do."
+          title={handoff?.agreementTitle ? `Money for ${handoff.agreementTitle}` : 'Money'}
+          description={handoff
+            ? 'This money belongs to the Agreement you were just working on. SecurePay will show only the next verified money step.'
+            : 'See real Agreement Money that needs you, what is waiting, and what has already happened.'}
         />
         <SimpleMoneyDashboard
           agreementGateway={gateways.agreements}
@@ -161,9 +162,8 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
           onOpenAgreement={onOpenAgreement}
         />
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="max-w-2xl">
           <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
-          <ExperiencePathway active="money" onNavigate={onNavigate} />
         </div>
 
         <details className="group rounded-2xl border border-cream-200 bg-white/60">
