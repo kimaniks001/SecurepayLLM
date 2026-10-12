@@ -1,4 +1,5 @@
 import { Bell, User } from 'lucide-react';
+import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import securepayWordmark from '../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import type { AppView } from '../types';
 import { usePublicShell } from '../features/public/publicShell';
@@ -34,8 +35,9 @@ function AppNavBar({ view, onNavigate }: NavBarProps) {
         type="button"
         onClick={() => onNavigate('signed-in')}
         aria-label="SecurePay Home"
-        className="flex min-h-11 items-center"
+        className="flex min-h-11 items-center gap-2"
       >
+        <img src={securepayMark} alt="" className="h-7 w-7 shrink-0" />
         <img src={securepayWordmark} alt="SecurePay" className="h-6 w-auto" />
       </button>
 
