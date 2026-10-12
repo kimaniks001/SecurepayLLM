@@ -172,21 +172,21 @@ const panel = (snapshot, over = {}) => text(html(api.InvitePanel, { controller: 
 test('the ready state: "Invitation ready", copy is not send, the raw token is not shown, focusable region', () => {
   const html5 = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'issued', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: { invitationId: 'i', link: 'https://app.example/#/invitation/RAWTOKEN123' }, error: null, list: { status: 'ready', items: [] }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   const out = text(html5);
-  assert.match(out, /Invitation ready/); assert.match(out, /Nothing has been sent, and no one has joined/); assert.match(out, /Copy invitation link/);
+  assert.match(out, /Agreement invitation ready/); assert.match(out, /Nothing has been sent automatically, and the other person has not joined or agreed/); assert.match(out, /Copy Agreement invitation/);
   assert.match(out, /shows this link only now/);
   assert.doesNotMatch(html5, /RAWTOKEN123/); assert.doesNotMatch(out, /Sent\b|Delivered|Participant added|shared successfully|joined successfully/);
 });
 test('the form says what it does and does not do; labels are real labels', () => {
   const out = panel({ phase: 'form' });
-  assert.match(out, /Who should take part in this Agreement\?/); assert.match(out, /Their KS Number/); assert.match(out, /Their role in this Agreement/);
-  assert.match(out, /Creating an invitation makes a link you can share\. It doesn.t send anything, and nobody has joined or agreed to anything/);
+  assert.match(out, /How should SecurePay send this Agreement\?/); assert.match(out, /Their KS Number/); assert.match(out, /Their part in this Agreement/);
+  assert.match(out, /Creating it does not mean they have joined or agreed/);
   assert.match(out, /Only the account with this KS Number will be able to join/);
   const markup = html(api.InvitePanel, { controller: { subscribe: () => () => {}, getSnapshot: () => ({ phase: 'form', roleCode: null, targetMode: 'KS_NUMBER', ksNumber: '', ksPreview: { status: 'idle' }, contactChannel: 'SMS', contactDestination: '', request: null, issued: null, error: null, list: { status: 'idle' }, proposing: false, proposeError: null, revokingId: null, revokeError: null }), loadList() {}, open() {}, issue() {}, reset() {}, propose() {}, revoke() {}, setKs() {}, checkKs() {}, setRole() {}, setTargetMode() {}, setContactChannel() {}, setContactDestination() {} }, agreementStatus: 'PROPOSED', isCreator: true });
   assert.match(markup, /<label[^>]*for="[^"]+-ks"/); assert.match(markup, /<label[^>]*for="[^"]+-role"/); assert.match(markup, /<select/);
 });
 test('a draft offers Propose, not Invite; a non-creator or a non-invitable status sees no invite controls', () => {
-  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /Propose this Agreement/); assert.doesNotMatch(panel({}, { agreementStatus: 'DRAFT' }), /Invite someone/);
-  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /invites nobody and tells nobody/);
+  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /Make ready to invite/); assert.doesNotMatch(panel({}, { agreementStatus: 'DRAFT' }), /Invite someone/);
+  assert.match(panel({}, { agreementStatus: 'DRAFT' }), /does not invite or notify anybody/);
   assert.equal(panel({}, { isCreator: false }), '');
   for (const status of ['CANCELLED', 'EXPIRED', 'CONFIRMATION_PENDING']) assert.doesNotMatch(panel({}, { agreementStatus: status }), /Invite someone|Propose this/);
   assert.match(panel({}, { agreementStatus: 'PARTICIPANTS_JOINING' }), /Invite someone/);
@@ -359,7 +359,7 @@ test('workspace: reloadDetailQuietly refreshes People without tearing down the v
 // ------------------------------------------------------------ copy + scope
 test('the draft-created notice says nobody has been invited', () => {
   const view = api.handoffNoticeView({ status: 'PROGRESSED', progressedAgreementId: 'a', reviewedSource: null });
-  assert.match(view.text, /Nobody has been invited/);
+  assert.match(view.text, /Nobody else has agreed/); assert.match(view.text, /invite the other person/);
 });
 test('Phase 5 code has no Money, funding or execution affordances', async () => {
   for (const f of ['src/features/invitations/controller.ts', 'src/features/invitations/InvitePanel.tsx']) {

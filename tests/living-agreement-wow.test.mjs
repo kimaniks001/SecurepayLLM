@@ -6,9 +6,9 @@ test('conversation promotes the backend formation into one living Agreement surf
   const shaping = await readFile('src/features/formation/AgreementShaping.tsx', 'utf8');
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
 
-  assert.match(shaping, /Your agreement is forming/);
+  assert.match(shaping, /Your Agreement is taking shape/);
   assert.match(shaping, /Nothing is agreed yet/);
-  assert.match(shaping, /Still taking shape/);
+  assert.match(shaping, /Keep talking normally/);
   assert.match(shaping, /formation\.stage !== 'NOTHING_YET'/);
   assert.match(shaping, /formation\.summary/);
   assert.match(shaping, /formation\.who/);
@@ -24,11 +24,11 @@ test('Review is a readable printable draft but never pretends the Agreement is a
   const review = await readFile('src/features/formation/AgreementReview.tsx', 'utf8');
 
   assert.match(review, /data-agreement-print/);
-  assert.match(review, /Print draft/);
-  assert.match(review, /Draft for review · not agreed/);
+  assert.match(review, /Print Agreement/);
+  assert.match(review, /Not agreed yet/);
   assert.match(review, /Printing it does not set up the Agreement, confirm a participant, or move money/);
-  assert.match(review, /Set this up securely/);
-  assert.match(review, /Nothing is agreed until you set it up/);
+  assert.match(review, /Keep this Agreement/);
+  assert.match(review, /This is the Agreement you are about to keep/);
   assert.match(review, /formation\.openPoints/);
   assert.match(review, /formation\.responsibilities/);
   assert.match(review, /formation\.notIncluded/);
@@ -45,7 +45,7 @@ test('current Agreement detail prints from backend Agreement record rather than 
   assert.match(printRecord, /detail\.participants/);
   assert.match(printRecord, /detail\.terms/);
   assert.match(printRecord, /detail\.milestones/);
-  assert.match(printRecord, /does not create or change a confirmation/);
+  assert.match(printRecord, /printing it does not create or change anyone’s agreement/);
   assert.match(detail, /Print agreement/);
   assert.match(detail, /<AgreementPrintRecord detail=\{printRecord\}/);
   assert.match(workspace, /printRecord=\{dto\}/);

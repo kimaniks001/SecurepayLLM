@@ -292,7 +292,7 @@ test('EP-CERT-007: the micro-review is one decision -- Use this per side, Enter 
 test('direct conflict resolution: a settleable planned question is answered with Choose (structured), not model-interpreted chips', () => {
   const f = api.agreementFormationView(conflictDto(choosableSides));
   const card = text(html(api.AgreementShaping, { formation: f, onReview() {}, onAnswer() {}, onResolvePoint() {} }));
-  assert.match(card, /Resolve price/); assert.match(card, /Choose/);
+  assert.match(card, /Which total should we use\?/); assert.match(card, /Choose what is right/);
   assert.doesNotMatch(card, /I don’t know yet/);
   const review = html(api.AgreementReview, { formation: f, changes: [], busy: false, checking: null, error: null, onBack() {}, onCheck() {}, onCorrect() {}, onSetUp() {}, onAcknowledgeChanges() {}, setUp: null, onResolve: async () => ({ ok: true }) });
   assert.match(review, /aria-label="Use KES 95,000 from quotation\.pdf"/);

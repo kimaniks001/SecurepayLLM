@@ -45,6 +45,17 @@ export interface AmendmentPastDto { amendmentId: string; outcome: string; propos
 export interface AmendmentOverviewDto { agreementId: string; currentVersionId: string; currentVersionNumber: number; changeability: string; callerCanPropose: boolean; open: AmendmentProposalDto | null; history: AmendmentPastDto[] }
 export interface AmendmentDecisionDto { amendmentId: string; status: string; resultingVersionId: string | null; resultingVersionNumber: number | null; replayed: boolean }
 export interface AmendmentResponseBody { idempotencyKey: string; expectedAgreementVersionId: string }
+export interface ProposeAmendmentBody {
+  idempotencyKey: string;
+  expectedAgreementVersionId: string;
+  changes: Array<{
+    type: 'AGREEMENT_TEXT' | 'OBLIGATION_TEXT' | 'OBLIGATION_BENEFICIARY';
+    field?: string;
+    obligationId?: string;
+    value: string;
+  }>;
+  reason?: string;
+}
 export interface AgreementInvitationDto { id: string; roleCode: string; status: string; issuedAt: string; expiresAt: string; revokedAt: string | null }
 export interface AgreementParticipantDto { id: string; identityId: string; roleCode: string; participantStatus: string; addedAt: string }
 export interface ConfirmVersionRequest { idempotencyKey: string; expectedVersionNumber: number; expectedContentHash: string }
@@ -156,6 +167,10 @@ export function createAgreementGateway(http: HttpClient) {
     // acceptance creates the new version (status APPLIED + resultingVersion*). Each response is bound to the exact current
     // version (409 when the Agreement moved) and is idempotent on its key. Always readable, whatever the Agreement status.
     amendmentOverview: (id: string) => http.request<AmendmentOverviewDto>(`${agreement(id)}/amendments/overview`, { auth: 'required' }),
+    // Phase 3 Human Experience — expose the backend's existing structured amendment authority.
+    // The browser supplies only a supported structured change against the exact current version; SecurePay
+    // derives the proposer from the authenticated session and refuses unsupported change classes.
+    proposeAmendment: (id: string, body: ProposeAmendmentBody) => http.request<AgreementAmendmentDto>(`${agreement(id)}/amendments`, { method: 'POST', body, auth: 'required' }),
     acceptAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/accept`, { method: 'POST', body, auth: 'required' }),
     rejectAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/reject`, { method: 'POST', body, auth: 'required' }),
     withdrawAmendment: (id: string, amendmentId: string, body: AmendmentResponseBody) => http.request<AmendmentDecisionDto>(`${agreement(id)}/amendments/${segment(amendmentId)}/withdraw`, { method: 'POST', body, auth: 'required' }),
