@@ -1116,7 +1116,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);
-        setHome(false);
+        setHome(!startText);
         if (startText) void controller.send(startText);
       }}
     />;
