@@ -44,7 +44,7 @@ interface AgreementDetailProps {
   /** Real path only: the canonical Agreement Review surface, shown from the Support tab/section. */
   reviewPanel?: React.ReactNode;
   /** Real path only: open on this tab (one-shot navigation hint from Help). */
-  initialTab?: 'support';
+  initialTab?: 'support' | 'changes' | 'progress';
   /** Real path only: opens Help & Support scoped to this Agreement. */
   onOpenHelp?: () => void;
   onOpenMoney?: (id: string) => void;
@@ -153,7 +153,9 @@ function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?:
 
 export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
-  const [mobileSection, setMobileSection] = useState<MobileSection>(initialTab ?? 'overview');
+  const [mobileSection, setMobileSection] = useState<MobileSection>(
+    initialTab === 'changes' ? 'activity-changes' : initialTab ?? 'overview',
+  );
   const [showAgent, setShowAgent] = useState(false);
 
   const showVersion = detail.status !== 'taking_shape';
