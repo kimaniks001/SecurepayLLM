@@ -20,6 +20,7 @@ import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
 import { REVIEW_AUTHENTICATED_METHODS } from './api/securepay/agreement-review/refresh';
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
+import type { AppView } from './types';
 
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
@@ -169,6 +170,24 @@ function useSkillsRoute(): [boolean, () => void] {
   return [active, clear];
 }
 
+/** Deliberate, non-secret direct entries for the three human surfaces that live inside AgentExperience. */
+function useDirectSurfaceRoute(): AppView | null {
+  const parse = (): AppView | null => {
+    if (typeof window === 'undefined') return null;
+    if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
+    if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
+    if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
+    return null;
+  };
+  const [view, setView] = useState<AppView | null>(parse);
+  useEffect(() => {
+    const onHashChange = () => setView(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return view;
+}
+
 /** Money operations is a first-class, non-secret route for support/ops roles -- read-only, gated server-side by REGULATED_PARTNER_READ. */
 function useMoneyOperationsRoute(): [boolean, () => void] {
   const matches = () => typeof window !== 'undefined' && /^#\/?money-operations\/?$/.test(window.location.hash);
@@ -294,6 +313,7 @@ export default function RuntimeApp() {
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
   const [skillsRoute, clearSkillsRoute] = useSkillsRoute();
+  const directSurfaceRoute = useDirectSurfaceRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
@@ -401,8 +421,9 @@ export default function RuntimeApp() {
       />
     );
   }
+  if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    ? <AgentExperience key={directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {
