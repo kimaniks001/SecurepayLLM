@@ -789,7 +789,8 @@ test('the Account area highlights the quiet Account control (not Home) across ac
     const markup = html(api.NavBar, { view, onNavigate: noop });
     const accountButton = markup.match(/<button[^>]*aria-label="Account"[^>]*>/)[0];
     assert.match(accountButton, /aria-current="page"/, view);
-    assert.match(accountButton, /text-forest-700 bg-forest-50/, view);
+    assert.match(accountButton, /bg-forest-50/ , view);
+    assert.match(accountButton, /text-forest-700/, view);
     const homeButton = markup.match(/<button[^>]*aria-label="SecurePay Home"[^>]*>/)[0];
     assert.doesNotMatch(homeButton, /aria-current="page"/, view);
   }
