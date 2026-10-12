@@ -77,7 +77,7 @@ test('mobile active work stays one plane and keeps optional details reachable wi
   const header = contents.slice(start, end);
   assert.doesNotMatch(header, />Build<|>Understood<|setMobileTab/,
     'mobile must not expose BUILD / UNDERSTOOD as operating modes');
-  assert.match(header, />\s*Details\s*</);
+  assert.match(header, /\n\s*Details\n/);
   assert.match(header, /openUnderstood/);
   assert.doesNotMatch(header, /sourcesState|bringPlanOpen|sourceController/,
     'the details affordance stays independent of source-ingestion state');
