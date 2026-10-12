@@ -74,6 +74,16 @@ test('HumanNext selection is presentation ranking only and chooses the strongest
   assert.equal(api.chooseHumanNext(resume, issue).source, 'formal-review');
 });
 
+test('Continue is navigation rather than stale authority: workspace-backed cards are re-read before routing', async () => {
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(agent, /const rereadWorkspaceHumanNext = async/);
+  assert.match(agent, /Promise\.allSettled\(\[\s*agreementGateway\.hub\(\),\s*agreementGateway\.home\(\),\s*agreementGateway\.myInvitations\(0, 20\)/);
+  assert.match(agent, /const workspaceBacked = candidate\.source === 'formal-review'/);
+  assert.match(agent, /const fresh = chooseHumanNext\(freshWorkspace, conversationHumanNext\)/);
+  assert.match(agent, /routeHumanNext\(fresh\)/);
+  assert.match(agent, /That changed\. Here's what needs you now\./);
+});
+
 test('Phase 2 shell removes permanent module navigation and cognitive-mode tabs without deleting routes', async () => {
   const [nav, agent, workspace, home] = await Promise.all([
     readFile('src/components/NavBar.tsx', 'utf8'),
