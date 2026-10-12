@@ -1394,7 +1394,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             </summary>
             <TrustProjectSection
               compact
-              membership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+              membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
               onExploreCommunity={() => navigateTo('community')}
               onOpenStores={() => navigateTo('store')}
               onJoin={() => joinRoute.open()}
