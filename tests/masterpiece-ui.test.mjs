@@ -77,9 +77,9 @@ test('Money entered from an Agreement keeps that Agreement dominant and still re
 
 test('Vision, Money and Community share the living canvas without changing domain authority', () => {
   assert.match(vision, /sp-life-canvas/);
-  assert.match(vision, /What are you trying to move forward/);
+  assert.match(vision, /Vision stays exploratory until you choose a real next step/);
   assert.match(vision, /Find what it needs/);
-  assert.match(vision, /Make it clear/);
+  assert.match(vision, /Make an Agreement/);
   assert.match(money, /sp-life-canvas|sp-hero/);
   assert.match(community, /sp-life-canvas/);
 });
