@@ -17,12 +17,14 @@ function agreementAmount(detail: AgreementDetailResponse) {
  * It never derives Money permission, evidence acceptance, completion, participant authority or a
  * Community Saver in React.
  */
-export function LivingAgreementOverview({ detail, effectiveStates: _effectiveStates, completion, nextActions, nextActionsKnown = true, events = [], onProgress, onPeople, onDocuments, onChanges, onMoney, onAskKs001 }: {
+export function LivingAgreementOverview({ detail, effectiveStates: _effectiveStates, completion, nextActions, nextActionsKnown = true, releaseAuthority, events = [], onProgress, onPeople, onDocuments, onChanges, onMoney, onAskKs001 }: {
   detail: AgreementDetailResponse;
   effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null;
   nextActions?: WorkspaceNextActionResponse[];
   nextActionsKnown?: boolean;
+  /** Phase 4: read-only Money release authority, only relevant once Agreement completion is authoritative. */
+  releaseAuthority?: { status: 'idle' | 'loading' | 'error' | 'ready'; authorized?: boolean; reasonCode?: string };
   events?: CalendarEventView[];
   onProgress: () => void;
   onPeople: () => void;
@@ -40,6 +42,7 @@ export function LivingAgreementOverview({ detail, effectiveStates: _effectiveSta
     completion,
     nextDate,
     amountLabel: amount,
+    releaseAuthority,
   });
 
   return (
