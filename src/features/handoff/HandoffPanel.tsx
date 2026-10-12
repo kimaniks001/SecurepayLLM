@@ -11,7 +11,6 @@ import type { IdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { canonicalAgreementView, handoffNoticeView, handoffErrorView, expiredHandoffView, sourceReferenceView } from './view';
 import type { AgreementGateway } from '../../api/securepay/agreements';
-import { openMoneyFor } from '../money/handoff';
 
 type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'>;
 
@@ -47,13 +46,13 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
   if (state.phase === 'creating') return <p role="status" className="text-sm text-sand-500 px-1">Preparing your review…</p>;
 
   if (state.phase === 'identity-required') {
-    const authData = secureAuthView(identityState, { title: 'This is ready to set securely. Sign in to continue.',
-      reason: 'Signing in only proves who you are. It does not set anything up or commit you to anything.' });
+    const authData = secureAuthView(identityState, { title: 'Keep this Agreement',
+      reason: 'Sign in so SecurePay can save this Agreement and know who is keeping it. Signing in does not make anyone else agree.' });
     return (
       <div className="space-y-3">
         {state.handoff && <ReviewPreview handoff={state.handoff} />}
         {/* Entry Perfection Phase 6 -- the person has already reviewed it before signing in; identity is needed only to set it. */}
-        <p className="px-1 text-[0.85rem] leading-snug text-sand-700">This is ready to set securely. Sign in to continue. Signing in doesn’t create anything or commit you to anything — you’ll come straight back to this.</p>
+        <p className="px-1 text-[0.85rem] leading-snug text-sand-700">Sign in so SecurePay can keep this Agreement for you. You’ll come straight back to the same Agreement before anything else happens.</p>
       <SecureAuthCard
         data={authData}
         values={identityState.phase === 'otp' ? [identityState.otp] : [identityState.ksNumber, identityState.password]}
@@ -164,19 +163,13 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
       <div className="space-y-3">
         <NoticeCard data={handoffNoticeView(state.handoff)} />
         <p className="px-1 text-[0.85rem] text-sand-700">
-          Your Agreement is safely set. You can connect money now, open it to invite someone and share
-          it, or leave it exactly as it is — none of these happen automatically.
+          Your Agreement is saved. Nobody else has agreed yet. The next useful step is to open this Agreement and invite the other person when you are ready.
         </p>
         <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [
-          ...(agreementId ? [{ label: 'Connect money now', value: 'money' }] : []),
-          ...(agreementId && onOpenAgreement ? [{ label: 'Invite someone to review', value: 'open' }] : []),
-          { label: 'Save — I’m done for now', value: 'save' },
+          ...(agreementId && onOpenAgreement ? [{ label: 'Open Agreement & invite', value: 'open' }] : []),
+          { label: 'Done for now', value: 'save' },
         ] }} onChoice={value => {
-          if (value === 'money' && agreementId) {
-            openMoneyFor({ agreementId, title: agreementTitle, versionLabel: null, currentVersionId: null });
-            handoff.reset();
-            identity.reset();
-          } else if (value === 'open' && onOpenAgreement && agreementId) {
+          if (value === 'open' && onOpenAgreement && agreementId) {
             handoff.reset();
             identity.reset();
             onOpenAgreement(agreementId);
