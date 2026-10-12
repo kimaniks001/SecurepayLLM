@@ -2,7 +2,6 @@ import { Search, ShoppingBag, Store, Plus, MessageCircle } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
 import { ResultCard } from '../features/discovery/ui/ResultCard';
 import { resultFromStoreOffer } from '../features/discovery/result';
-import { ExperiencePathway } from '../features/experience/ExperiencePathway';
 import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 import type { AppView } from '../types';
 
@@ -30,7 +29,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onJourneyNavigate, onAskKs001 }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001 }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
@@ -57,12 +56,12 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search a category or place…" aria-label="Search the Store"
+            placeholder="What are you looking for?" aria-label="Search the Store"
             className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
           />
         </div>
 
-        <p className="mb-5 text-xs leading-5 text-sand-600">Store search uses SecurePay’s real category and place filters across products, services and capacity. If a title-only phrase is not a Store category or place, it may not match yet.</p>
+        <p className="mb-5 text-xs leading-5 text-sand-600">Search uses SecurePay’s real Store filters and published offers. Opening an offer lets you inspect it; it does not buy, agree or move money.</p>
 
         {/* Stores */}
         {stores.length > 0 && (
@@ -148,14 +147,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           </div>
         </details>
 
-        <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
-          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Where Store fits in SecurePay</summary>
-          <div className="border-t border-cream-200 p-4">
-            <ExperiencePathway active="store" onNavigate={onJourneyNavigate} />
-          </div>
-        </details>
-
-        {/* Agent */}
+                {/* Agent */}
         <button
           onClick={onStartConversation}
           className="w-full mt-4 rounded-xl border border-cream-200 bg-cream-50/50 px-4 py-3 text-left hover:bg-cream-50 transition-colors"
