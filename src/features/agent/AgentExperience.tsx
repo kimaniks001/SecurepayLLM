@@ -707,7 +707,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
-    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
+    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystemEntry('help'); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
