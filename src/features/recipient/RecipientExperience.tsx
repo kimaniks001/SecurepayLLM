@@ -8,6 +8,7 @@ import { CanonicalAgreementCard } from '../../components/CanonicalAgreement';
 import { NoticeCard } from '../../components/NoticeCard';
 import { ErrorStateCard } from '../../components/ErrorState';
 import { ChoiceButtons } from '../../components/ChoiceButtons';
+import { AgreementChangeProposal } from '../amendments/AgreementChangeProposal';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
@@ -16,7 +17,7 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { createSignupController } from '../signup/controller';
 import { signupView } from '../signup/view';
-import { recipientReviewView, joinPromptView, joinedStatusView, exactVersionView, participantsView, roleWords, needsChangingView, changedVersionNoticeView, confirmedView, recipientErrorView } from './view';
+import { recipientReviewView, joinPromptView, joinedStatusView, exactVersionView, participantsView, roleWords, changedVersionNoticeView, confirmedView, recipientErrorView } from './view';
 
 const AUTH_CONTEXT = { title: 'SecurePay needs to know who you are', reason: 'Before adding you to this Agreement, SecurePay needs to know who you are. Signing in only proves that — it does not join, confirm or accept anything, and you’ll come straight back to this invitation.', secondaryLabel: 'Not now' };
 
@@ -205,7 +206,12 @@ export function RecipientExperience({ token, invitationId, gateway, auth, sessio
             else if (value === 'need_change') setNeedsChanging(open => !open);
           }}
         />
-        {needsChanging && <NoticeCard data={needsChangingView()} />}
+        {needsChanging && <AgreementChangeProposal
+          gateway={gateway}
+          agreementId={state.join.agreementId}
+          expectedVersionId={state.version.id}
+          currentDescription={typeof state.version.snapshot.description === 'string' ? state.version.snapshot.description : ''}
+        />}
         {state.phase === 'confirming' && <p role="status" className="text-sm text-sand-500 text-center">Recording your confirmation…</p>}
       </div>
     );
