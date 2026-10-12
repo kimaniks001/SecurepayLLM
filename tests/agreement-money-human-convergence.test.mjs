@@ -16,12 +16,13 @@ test('Agreement desktop has four primary doors and keeps the full authority reco
   assert.match(detail, /Full record/);
 });
 
-test('real Agreement Overview owns one story instead of stacking the old overview and the living projection', () => {
+test('real Agreement Overview owns one story: Agreement, one next step, then details', () => {
   assert.match(detail, /overviewPanel \? overviewPanel\(openSection\) : <AgreementOverview/);
-  assert.match(overview, /At a glance/);
-  assert.match(overview, /What happens next/);
-  assert.match(overview, /Where we are/);
+  assert.match(overview, /data-phase4-agreement-centre/);
+  assert.match(overview, /AgreementNextStep/);
+  assert.match(overview, /data-agreement-details/);
   assert.match(overview, /Next date/);
+  assert.doesNotMatch(overview, /ExperiencePathway|Ks001SurfaceGuide/);
 });
 
 test('Agreement Money is a compact handoff, not a second Money application', () => {
