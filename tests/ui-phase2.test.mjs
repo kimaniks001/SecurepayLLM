@@ -335,14 +335,15 @@ test('the handoff review card surfaces the backend source status with Selected e
 // saved-build request state. Asserted directly against the production source, not a comment claiming it.
 // Entry Perfection Phase 6 -- DELIBERATELY RESTATED: "Review this" now opens the emerging agreement and is gated by the
 // server-owned formation projection's `reviewable` (the successor of sufficiency.canReview), never local request state.
-test('Review this consults the server-owned formation reviewable, never only local request state', async () => {
+test('Agreement review remains gated by the server-owned formation projection, not a duplicate Agent button', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  // User-Ready Beta Gate 1 -- the button now names the actual next step (goNext: a micro-review or the whole Review).
-  const onClickIdx = agent.indexOf('onClick={goNext}');
-  assert.ok(onClickIdx > 0, 'expected the contextual next-step onClick to exist');
-  const buttonStart = agent.lastIndexOf('<button', onClickIdx);
-  const button = agent.slice(buttonStart, onClickIdx);
-  assert.match(button, /formationState\.data\?\.reviewable/, 'Review this must consult the server-owned formation projection');
+  const shaping = await readFile('src/features/formation/AgreementShaping.tsx', 'utf8');
+  const humanNext = await readFile('src/features/shell/humanNext.ts', 'utf8');
+  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\}/);
+  assert.match(shaping, /nextStep\(formation\)/);
+  assert.match(shaping, /formation\.reviewable/);
+  assert.match(humanNext, /if \(formation\?\.reviewable\)/);
+  assert.doesNotMatch(agent, /onClick=\{goNext\}/, 'Phase 2 removes the duplicate Review control from the chat toolbar');
 });
 test('Save for later consults the server-owned sufficiency.canSave, never only local busy/pending/saved-build request state', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');

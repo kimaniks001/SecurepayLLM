@@ -293,9 +293,11 @@ test('the uncertain state offers Check what happened / Try again and promises no
   const out = panel({ phase: 'progress-uncertain', handoff: view, error: 'SecurePay could not confirm whether this step completed.' });
   assert.match(out, /not sure that went through/); assert.match(out, /Check what happened/); assert.match(out, /Try again/); assert.match(out, /can.t create a second draft/);
 });
-test('the calm entry wording: Review this, and the old commitment wording is gone from the production path', async () => {
+test('the calm entry wording is owned by the Agreement artifact, not a duplicate chat commitment control', async () => {
   const exp = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.match(exp, /Review this/); assert.doesNotMatch(exp, /Continue with this|Continue to agreement|Set securely/);
+  const shaping = await readFile('src/features/formation/AgreementShaping.tsx', 'utf8');
+  assert.match(shaping, /Review agreement|See the agreement/);
+  assert.doesNotMatch(exp, /Continue with this|Continue to agreement|Set securely/);
   const panelSrc = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');
   assert.doesNotMatch(panelSrc, /Set securely|Setting this securely|canonical Agreement review/);
 });

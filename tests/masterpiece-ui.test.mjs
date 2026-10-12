@@ -30,17 +30,17 @@ test('Home begins with possibility and routes every quick start through the real
   assert.doesNotMatch(home, /\b28 Orders\b|\b16 Leads\b|\$120,000/);
 });
 
-test('mobile navigation keeps five obvious life destinations and preserves quiet account/notification reachability', () => {
-  const mobileStart = nav.indexOf('const mobileNavItems');
-  const mobileEnd = nav.indexOf('];', mobileStart);
-  const mobile = nav.slice(mobileStart, mobileEnd);
-  for (const label of ['Home','Vision','Agreements','Store','Community']) assert.ok(mobile.includes(`label: '${label}'`), label);
-  assert.doesNotMatch(mobile, /label: 'Money'/);
-  assert.doesNotMatch(mobile, /label: 'Account'/);
+test('signed-in shell keeps persistent navigation quiet while preserving attention and identity', () => {
+  assert.match(nav, /data-human-shell-nav/);
+  assert.match(nav, /aria-label="SecurePay Home"/);
   assert.match(nav, /aria-label="Notifications"/);
   assert.match(nav, /aria-label="Account"/);
   assert.match(nav, /onNavigate\('account'\)/);
   assert.match(nav, /onNavigate\('notifications'\)/);
+  assert.doesNotMatch(nav, /mobileNavItems|const navItems/);
+  for (const label of ['Agreements','Money','Store','Community','Vision']) {
+    assert.doesNotMatch(nav, new RegExp(`label: ['"]${label}['"]`), `${label} must not be permanent signed-in navigation`);
+  }
 });
 
 test('Agreement mobile starts with four human questions and keeps the full record behind them', () => {

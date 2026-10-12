@@ -194,9 +194,10 @@ test('G. No new Phase 5 feature file computes a health/readiness/completeness sc
 
 // ─── H. Navigation convergence ─────────────────────────
 
-test('H1. NavBar\'s Account item routes to the real account destination, never back to signed-in Home', async () => {
+test('H1. NavBar\'s quiet Account control routes to the real account destination, never back to signed-in Home', async () => {
   const contents = await readFile('src/components/NavBar.tsx', 'utf8');
-  assert.match(contents, /label:\s*'Account',\s*view:\s*'account'/);
+  assert.match(contents, /aria-label="Account"/);
+  assert.match(contents, /onClick=\{\(\) => onNavigate\('account'\)\}/);
 });
 
 test('H2. AppView includes exactly the five new Phase 5 destinations', async () => {
