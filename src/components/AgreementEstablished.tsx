@@ -1,55 +1,31 @@
-import { ShieldCheck, Check } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import type { AgreementEstablishedResponse } from '../types';
 
 interface AgreementEstablishedCardProps {
   data: AgreementEstablishedResponse;
 }
 
+/**
+ * Quiet certainty only. This component never invents participant names, version labels or confirmation
+ * details that are not present in the response.
+ */
 export function AgreementEstablishedCard({ data }: AgreementEstablishedCardProps) {
   return (
-    <div className="rounded-2xl border border-forest-300 bg-white shadow-lifted overflow-hidden max-w-md mx-auto animate-quiet-in">
-      <div className="px-6 py-5 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-12 h-12 rounded-full bg-forest-50 flex items-center justify-center">
-            <ShieldCheck className="w-6 h-6 text-forest-600" />
-          </div>
+    <article className="sp-agreement-paper mx-auto max-w-2xl px-5 py-6 md:px-8 md:py-8" data-agreement-established>
+      <header className="border-b border-cream-200 pb-5">
+        <div className="flex items-center gap-2 text-forest-700">
+          <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          <span className="text-[0.7rem] font-semibold uppercase tracking-[0.14em]">Agreed</span>
         </div>
-        <h2 className="font-display text-lg text-forest-800">Agreement Established</h2>
-        <p className="mt-1 text-[0.875rem] text-sand-600">{data.title}</p>
-        <p className="mt-1 text-[0.78rem] text-sand-500">Both sides have confirmed the current agreement version.</p>
-
-        <div className="mt-3 flex items-center justify-center gap-2 text-[0.75rem] text-forest-600">
-          <Check className="w-3.5 h-3.5" />
-          <span>James confirmed Demo v2</span>
-          <span className="text-sand-300">·</span>
-          <Check className="w-3.5 h-3.5" />
-          <span>Peter confirmed Demo v2</span>
-        </div>
-
-        <div className="mt-4 rounded-xl bg-cream-50 border border-cream-200 px-4 py-3 text-left space-y-2">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[0.78rem] text-sand-600">Work</span>
-            <span className="text-[0.825rem] text-forest-800">{data.work}</span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-[0.78rem] text-sand-600">Price</span>
-            <span className="text-[0.825rem] font-medium text-forest-800">{data.price}</span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-[0.78rem] text-sand-600">Completion</span>
-            <span className="text-[0.825rem] text-forest-800">{data.completion}</span>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-[0.78rem] text-sand-600">Materials</span>
-            <span className="text-[0.825rem] text-forest-800">{data.materials}</span>
-          </div>
-        </div>
-
-        <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-forest-100 px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />
-          <span className="text-[0.75rem] font-medium text-forest-700">{data.status}</span>
-        </div>
-      </div>
-    </div>
+        <h2 className="mt-2 font-display text-2xl text-forest-900">{data.title}</h2>
+        <p className="mt-1 text-[0.84rem] text-sand-700">{data.status}</p>
+      </header>
+      <dl className="divide-y divide-cream-100">
+        <div className="py-4"><dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">Work</dt><dd className="mt-1 text-[0.95rem] text-forest-900">{data.work}</dd></div>
+        <div className="py-4"><dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">Price</dt><dd className="mt-1 text-[1.05rem] font-medium text-forest-900">{data.price}</dd></div>
+        <div className="py-4"><dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">When</dt><dd className="mt-1 text-[0.95rem] text-forest-900">{data.completion}</dd></div>
+        {data.materials && <div className="py-4"><dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">Materials</dt><dd className="mt-1 text-[0.95rem] text-forest-900">{data.materials}</dd></div>}
+      </dl>
+    </article>
   );
 }
