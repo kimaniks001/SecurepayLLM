@@ -144,7 +144,7 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
       <MoneyHeader onBack={onLeave} />
       <div className="flex-1 px-4 md:px-8 py-6 space-y-6 max-w-6xl mx-auto w-full">
         <PageHeader
-          title={handoff?.agreementTitle ? `Money for ${handoff.agreementTitle}` : 'Money'}
+          title={handoff?.title ? `Money for ${handoff.title}` : 'Money'}
           description={handoff
             ? 'This money belongs to the Agreement you were just working on. SecurePay will show only the next verified money step.'
             : 'See real Agreement Money that needs you, what is waiting, and what has already happened.'}
