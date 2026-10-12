@@ -149,7 +149,7 @@ export function resolveWorkspaceHumanNext(input: {
     const destination: HumanDestination = actionCode === 'FUND_AGREEMENT'
       ? { kind: 'money', agreementId: attention.agreementId, title: attention.title }
       : { kind: 'agreement', agreementId: attention.agreementId, actionCode };
-    const primaryLabel = actionCode === 'REVIEW_AMENDMENT' || actionCode === 'RECONFIRM_AGREEMENT_VERSION'
+    const primaryLabel = attention.kind === 'agreement_changed' || actionCode === 'REVIEW_AMENDMENT' || actionCode === 'RECONFIRM_AGREEMENT_VERSION'
       ? 'Review change'
       : actionCode === 'REVIEW_EVIDENCE' ? 'Inspect the work'
         : actionCode === 'FUND_AGREEMENT' ? 'See payment options'
