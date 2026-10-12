@@ -27,8 +27,8 @@ export function AgreementChangeProposal({ gateway, agreementId, expectedVersionI
   const locked = state.phase === 'sending' || state.phase === 'uncertain';
   const changed = value.trim() !== currentDescription.trim() && value.trim().length > 0;
 
-  const send = async () => {
-    if (!changed || locked) return;
+  const send = async (retry = false) => {
+    if (!changed || (locked && !retry)) return;
     const text = value.trim();
     const idempotencyKey = key.current ?? crypto.randomUUID();
     key.current = idempotencyKey;
@@ -102,7 +102,7 @@ export function AgreementChangeProposal({ gateway, agreementId, expectedVersionI
       <p>{state.message}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={() => void check()} className="min-h-11 rounded-full border border-forest-300 bg-white px-4 text-[0.82rem] text-forest-800">Check what happened</button>
-        <button type="button" onClick={() => { setState({ phase: 'idle' }); void send(); }} className="min-h-11 rounded-full border border-forest-300 bg-white px-4 text-[0.82rem] text-forest-800">Try the same suggestion again</button>
+        <button type="button" onClick={() => void send(true)} className="min-h-11 rounded-full border border-forest-300 bg-white px-4 text-[0.82rem] text-forest-800">Try the same suggestion again</button>
       </div>
     </div>}
     <div className="mt-3 flex flex-wrap gap-2">
