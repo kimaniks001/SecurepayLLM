@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 // KS001 Upgrade Phase 3 completion correction (item 11) -- 375px/320px mobile acceptance for the source-
-// ingestion surfaces (Home intake row, Bring Plan, attach control, SourceCard, BUILD/UNDERSTOOD post-
+// ingestion surfaces (Home intake row, Bring Plan, attach control, SourceCard, one-plane details post-
 // ingestion reachability). This repo has NO rendered-pixel-viewport/screenshot testing mechanism (no
 // jsdom-with-layout, no headless browser) -- every existing "mobile" proof in this suite (see
 // phase6-convergence.test.mjs's own Q1/Q2 tests) is a structural, source-level assertion against the exact
@@ -69,14 +69,17 @@ test('SourceCard: the title area truncates instead of overflowing horizontally a
   assert.match(rowBlock, /min-w-0/, 'the title row needs min-w-0 for truncate to actually take effect inside a flex row');
 });
 
-test('BUILD/UNDERSTOOD mobile tabs are never gated behind any source-ingestion condition -- they remain reachable before, during, and after a source is brought in', async () => {
+test('mobile active work stays one plane and keeps optional details reachable without source gating', async () => {
   const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const start = contents.indexOf('md:hidden sticky top-0 z-10 bg-cream-50');
-  const end = contents.indexOf('flex-1 flex overflow-hidden');
-  assert.ok(start > -1 && end > start, 'expected to find the mobile sticky BUILD/UNDERSTOOD tab block');
-  const tabBlock = contents.slice(start, end);
-  assert.doesNotMatch(tabBlock, /sourcesState|bringPlanOpen|sourceController/,
-    'the BUILD/UNDERSTOOD tabs must never depend on source-ingestion state -- they stay reachable regardless of what is happening with a source');
-  assert.match(tabBlock, /setMobileTab\('build'\)/);
-  assert.match(tabBlock, /openUnderstood/);
+  const start = contents.indexOf('md:hidden sticky top-0 z-10');
+  const end = contents.indexOf('<div className="flex-1 overflow-hidden">', start);
+  assert.ok(start > -1 && end > start, 'expected the compact mobile KS001 work header');
+  const header = contents.slice(start, end);
+  assert.doesNotMatch(header, />Build<|>Understood<|setMobileTab/,
+    'mobile must not expose BUILD / UNDERSTOOD as operating modes');
+  assert.match(header, />\s*Details\s*</);
+  assert.match(header, /openUnderstood/);
+  assert.doesNotMatch(header, /sourcesState|bringPlanOpen|sourceController/,
+    'the details affordance stays independent of source-ingestion state');
+  assert.match(contents, /data-understood-details/);
 });
