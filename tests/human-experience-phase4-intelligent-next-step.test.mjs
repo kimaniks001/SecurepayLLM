@@ -77,6 +77,24 @@ test('Phase 4: Community Saver cannot be automated here and a Plug is explicitly
   assert.doesNotMatch(progress,/sharedFulfilment.*propose|proposeShared/i);
 });
 
+test('Phase 4: Plug/Master human help is contextual and never auto-recommended',async()=>{
+  const [support, ecosystem, agent, workspace] = await Promise.all([
+    readFile('src/components/AgreementSupport.tsx','utf8'),
+    readFile('src/features/ecosystem/EcosystemExperience.tsx','utf8'),
+    readFile('src/features/agent/AgentExperience.tsx','utf8'),
+    readFile('src/features/workspace/WorkspaceExperience.tsx','utf8'),
+  ]);
+  assert.match(support,/data-agreement-human-help/);
+  assert.match(support,/Get human help/);
+  assert.match(support,/SecurePay does not assume either one is needed/);
+  assert.match(ecosystem,/initialSub/);
+  assert.match(ecosystem,/onPlugs=\{\(\) => setSub\('plug'\)\}/);
+  assert.match(ecosystem,/onMasters=\{\(\) => setSub\('master'\)\}/);
+  assert.match(agent,/openEcosystemForAgreement\(agreementId, 'plug'\)/);
+  assert.match(agent,/openEcosystemForAgreement\(agreementId, 'help'\)/);
+  assert.match(workspace,/onOpenHumanHelp/);
+});
+
 test('Phase 4: multiple Agreements are grouped calmly by Needs you, Waiting and Upcoming',async()=>{
   const home=await readFile('src/features/shell/AgreementAttentionSummary.tsx','utf8');
   assert.match(home,/>Needs you</); assert.match(home,/>Waiting</); assert.match(home,/>Upcoming</);
