@@ -11,17 +11,18 @@ const money = await readFile('src/features/money/MoneyExperience.tsx', 'utf8');
 const moneyDash = await readFile('src/features/money/SimpleMoneyDashboard.tsx', 'utf8');
 const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
 
-test('all four operating surfaces share one visible journey language', () => {
+test('Phase 4 lets Agreement orchestrate other surfaces without exposing a cross-domain pathway menu', () => {
   assert.match(vision, /ExperiencePathway active="vision"/);
   assert.match(store, /ExperiencePathway active="store"/);
-  assert.match(agreement, /ExperiencePathway active="agreement"/);
+  assert.match(agreement, /data-phase4-agreement-centre/);
+  assert.doesNotMatch(agreement, /ExperiencePathway/);
   assert.match(money, /ExperiencePathway active="money"/);
 });
 
 test('each surface exposes a practical next move rather than a static destination', () => {
   assert.match(vision, /What are you trying to move forward/);
   assert.match(storeManage, /What needs you/);
-  assert.match(agreement, /What happens next/);
+  assert.match(agreement, /AgreementNextStep/);
   assert.match(moneyDash, /What happens next/);
 });
 
@@ -40,10 +41,11 @@ test('Money can return to the exact Agreement without making financial claims', 
   assert.doesNotMatch(moneyDash, /money is safe to move automatically|release automatically|fund automatically/i);
 });
 
-test('contextual KS001 exists across all four surfaces without becoming authority', () => {
+test('contextual KS001 remains available without becoming cross-domain authority', () => {
   assert.match(vision, /Ks001SurfaceGuide/);
   assert.match(store, /Ks001SurfaceGuide/);
-  assert.match(agreement, /Ks001SurfaceGuide/);
+  assert.match(agreement, /onAskKs001/);
+  assert.match(agreement, /Ask KS001/);
   assert.match(money, /Ks001SurfaceGuide/);
   assert.match(runtime, /Do not claim current financial authority/);
 });
@@ -52,5 +54,5 @@ test('Community Saver remains blocked without the required Plug gate', () => {
   const combined = vision + progress + runtime;
   assert.doesNotMatch(combined, /proposeFromNeed\(/);
   assert.match(vision, /does not join a Community Saver/);
-  assert.match(progress, /does not amend the Agreement or join a Community Saver/);
+  assert.match(progress, /A Plug must verify fit, coordinate consent and practical feasibility before any Community Saver can proceed/);
 });
