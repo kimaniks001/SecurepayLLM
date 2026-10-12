@@ -522,6 +522,7 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
           <p className="text-xs leading-5 text-sand-600">Vision stays exploratory until you choose a real next step. Move only the part you are ready to act on.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => onNavigate('store')}>Find what it needs</Button>
+            <Button variant="secondary" onClick={() => onNavigate('skills')}>Learn what you need</Button>
             <Button variant="secondary" onClick={() => onNavigate('agreements')}>Make an Agreement</Button>
           </div>
           <p className="mt-2 text-[0.72rem] text-sand-500">Opening either surface does not create a purchase, Agreement or Money instruction by itself.</p>
