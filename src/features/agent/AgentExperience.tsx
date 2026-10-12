@@ -64,7 +64,6 @@ import { FairTradePrinciplesPanel } from '../../components/FairTradePrinciples';
 import { AgreementReview } from '../formation/AgreementReview';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { MicroReview, type ResolveOutcome } from '../formation/MicroReview';
-import { nextStep } from '../formation/nextStep';
 import type { FormationOpenPoint, FormationSide } from '../formation/view';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
@@ -76,7 +75,9 @@ import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/Decl
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
-import { workspaceEntryFor, type WorkspaceEntry } from '../workspace/controller';
+import type { WorkspaceEntry } from '../workspace/controller';
+import { attentionItemsFromHub, invitationsForYouView, problemsView } from '../workspace/view';
+import { chooseHumanNext, resolveConversationHumanNext, resolveWorkspaceHumanNext, type HumanNext } from '../shell/humanNext';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
 import { setDetailTabHint } from '../support/tabHint';
@@ -315,16 +316,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
   }, [pendingSection, pendingComposerFocus, home]);
-  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
-  // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
-  // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
-  // simultaneously and ignores this entirely (see the render below).
-  const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
+  // Human Experience Phase 2 — Home is the one KS001 Home. The Agreement workspace mounts only
+  // when the person deliberately enters Agreement work (or a deep link points to one).
+  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
+  // Structured understanding is inspectable detail, never a second operating mode.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(externalAgreementId);
-  // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
-  // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
-  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
+  // Phase 2: Agreement-scoped entry always starts from the authoritative Hub before opening detail.
+  // The old Workspace Home is no longer a second signed-in Home.
+  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>('hub');
   const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [storeReturnContext, setStoreReturnContext] = useState<null | { kind: 'vision' | 'community' | 'agreement'; agreementId?: string }>(null);
@@ -336,6 +337,38 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
+  // Human Experience Phase 2 — the canonical Home may show ONE authoritative thing that needs
+  // the person. These reads never create business truth; they only compose existing Agreement/Review/
+  // Invitation projections into one presentation candidate.
+  type HomeAttentionState = {
+    phase: 'idle' | 'loading' | 'ready' | 'error';
+    attentionItems: ReturnType<typeof attentionItemsFromHub>;
+    invitations: ReturnType<typeof invitationsForYouView>;
+    problems: ReturnType<typeof problemsView>;
+  };
+  const [homeAttention, setHomeAttention] = useState<HomeAttentionState>({ phase: 'idle', attentionItems: [], invitations: [], problems: [] });
+  const canonicalHomeVisible = home || (state.turns.length === 0 && !state.conversationId);
+  useEffect(() => {
+    if (!signedIn || !canonicalHomeVisible) return;
+    let cancelled = false;
+    setHomeAttention(previous => ({ ...previous, phase: 'loading' }));
+    void Promise.allSettled([
+      agreementGateway.hub(),
+      agreementGateway.home(),
+      agreementGateway.myInvitations(0, 20),
+    ]).then(([hubResult, homeResult, invitationsResult]) => {
+      if (cancelled) return;
+      const attentionItems = hubResult.status === 'fulfilled'
+        ? attentionItemsFromHub(hubResult.value.changedReviewRequired, hubResult.value.needsMe)
+        : [];
+      const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
+      const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
+      const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled';
+      setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems });
+    });
+    return () => { cancelled = true; };
+  }, [signedIn, canonicalHomeVisible, agreementGateway]);
+
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
   const [account, setAccount] = useState(false);
   const [settingsView, setSettingsView] = useState(false);
@@ -432,7 +465,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setHomePendingSource(null);
     setNotice(null);
     // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
-    setMobileTab('build');
+    setDetailsOpen(false);
     setLastSeenStructuredTurnId(null);
     setMicroReview(null);
     setFreshIntent(null);
@@ -625,20 +658,27 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       return;
     }
 
-    // Agreement-scoped Plug help temporarily unmounts the workspace. Preserve the exact Agreement id
-    // before clearing the ecosystem context so remounting can reopen it from the authoritative Hub.
+    // Human Experience Phase 2 — Home is not an Agreement dashboard. A Home action always returns
+    // to the one KS001 shell; Agreement destinations still mount the existing authoritative workspace.
     const returningAgreementId = view === 'agreement-detail' ? ecosystemAgreementId : null;
     setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
-    if (view === 'signed-in' || view === 'agreements' || view === 'money' || view === 'agreement-detail') {
+    if (view === 'signed-in') {
+      setWorkspace(false);
+      setWorkspaceAgreementId(null);
+      setHome(true);
+      return;
+    }
+    if (view === 'agreements' || view === 'money' || view === 'agreement-detail') {
       if (sessionState.status === 'signed-in') {
         setWorkspaceAgreementId(returningAgreementId);
-        setWorkspaceEntry(workspaceEntryFor(view));
+        setWorkspaceEntry('hub');
         setWorkspace(true);
+        setHome(false);
         return;
       }
       setWorkspaceAgreementId(null);
       setHome(true);
-      if (view !== 'signed-in') requestSignIn(view);
+      requestSignIn(view);
       return;
     }
     setWorkspaceAgreementId(null);
@@ -824,7 +864,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             if (context.kind === 'vision') { setVisionLibrary(true); return; }
             if (context.kind === 'community') { setCommunity(true); return; }
             setWorkspaceAgreementId(context.agreementId ?? null);
-            setWorkspaceEntry(context.agreementId ? 'home' : 'hub');
+            setWorkspaceEntry('hub');
             setWorkspace(true);
           },
         } : null}
@@ -1103,7 +1143,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
-  const showHome = home || (state.turns.length === 0 && !state.conversationId);
+  const showHome = canonicalHomeVisible;
   // The "Bring your plan" panel, opened from either Home's intake.
   // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the panel, the text
   // and the reason on screen so the person can try again or change it. From Home it is a NEW intention (EP-CERT-013).
@@ -1390,7 +1430,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
             settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
             onUnlink={partyKey => { if (state.conversationId) void formationController.unlink(state.conversationId, partyKey); }}
-            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
+            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
         </div> : <div className="flex-1 overflow-hidden">
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
@@ -1563,7 +1603,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} />
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} />
               </div>,
             ]}
           </ConversationSurface>
