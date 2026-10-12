@@ -41,8 +41,26 @@ test('Phase 4: a failed authoritative next-action read remains UNKNOWN, never em
 });
 
 test('Phase 4: completion does not itself manufacture a Money action',()=>{
-  const next=api.resolveAgreementNext({...base,completion:{...base.completion,completed:true,completedAt:'2026-10-12T10:00:00Z'}});
+  const next=api.resolveAgreementNext({...base,completion:{...base.completion,completed:true,completedAt:'2026-10-12T10:00:00Z'},releaseAuthority:{status:'idle'}});
   assert.equal(next.state,'DONE'); assert.equal(next.destination,undefined);
+});
+
+test('Phase 4: release becomes a Money doorway only from the backend release-authority read',()=>{
+  const completed={...base.completion,completed:true,completedAt:'2026-10-12T10:00:00Z'};
+  const ready=api.resolveAgreementNext({...base,completion:completed,releaseAuthority:{status:'ready',authorized:true,reasonCode:'AUTHORIZED'}});
+  assert.equal(ready.state,'NEEDS_YOU'); assert.equal(ready.destination,'money'); assert.equal(ready.actionLabel,'Review release');
+  assert.match(ready.detail,/release-authority read says release is authorised/i);
+
+  const blocked=api.resolveAgreementNext({...base,completion:completed,releaseAuthority:{status:'ready',authorized:false,reasonCode:'PAYMENT_READY_NOT_SATISFIED'}});
+  assert.equal(blocked.state,'DONE'); assert.equal(blocked.destination,undefined);
+  assert.match(blocked.detail,/Payment Ready isn.t satisfied/i);
+});
+
+test('Phase 4: a release-authority read failure stays unknown and moves no money',()=>{
+  const next=api.resolveAgreementNext({...base,completion:{...base.completion,completed:true},releaseAuthority:{status:'error'}});
+  assert.equal(next.state,'UNKNOWN'); assert.equal(next.destination,undefined);
+  assert.match(next.detail,/does not mean release is allowed or blocked/i);
+  assert.match(next.detail,/Nothing has been moved/);
 });
 
 test('Phase 4: proposed changes route to Changes from Home Continue',()=>{
@@ -121,8 +139,17 @@ test('Phase 4: advanced machinery remains behind Agreement details',async()=>{
   assert.match(overview,/<details[^>]*data-agreement-details/); assert.match(overview,/Changes & history/);
 });
 
-test('Phase 4: there is no frontend assumption that COMPLETED means RELEASE',async()=>{
-  const next=await readFile('src/features/workspace/AgreementNextStep.tsx','utf8');
-  assert.doesNotMatch(next,/completed.*release|completion.*release|COMPLETED.*release/i);
-  assert.doesNotMatch(next,/RELEASE_PAYMENT|RELEASE_MONEY/);
+test('Phase 4: release authority is read only after completion and never exposes a release command in Agreement',async()=>{
+  const [next,workspace,runtime,releaseApi] = await Promise.all([
+    readFile('src/features/workspace/AgreementNextStep.tsx','utf8'),
+    readFile('src/features/workspace/WorkspaceExperience.tsx','utf8'),
+    readFile('src/RuntimeApp.tsx','utf8'),
+    readFile('src/api/securepay/payment-release/index.ts','utf8'),
+  ]);
+  assert.match(workspace,/state\.selectedCompletionFacts\?\.completed/);
+  assert.match(workspace,/paymentReleaseGateway\.releaseAuthority\(completedAgreementId\)/);
+  assert.match(runtime,/paymentReleaseGateway=\{paymentReleaseGateway\}/);
+  assert.match(next,/RELEASE_AUTHORITY_AUTHORIZED/);
+  assert.doesNotMatch(next,/createRelease|reserveRelease|executeRelease|release\(/);
+  assert.doesNotMatch(releaseApi,/createInstruction|reserve\s*:|execute\s*:/);
 });
