@@ -486,6 +486,52 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const unsavedWork = isUnsaved(state.conversationId, gateway.resumableConversationId?.() ?? null);
   const currentTitle = conversationTitle(formationState.data?.what[0]?.value,
     state.turns.map(turn => turn.sender === 'user' ? { sender: 'user', text: turn.text } : { sender: 'agent' }));
+  const conversationHumanNext = resolveConversationHumanNext({
+    conversationId: state.conversationId,
+    title: currentTitle,
+    formation: formationState.data,
+    meaningfulWork,
+    unsavedWork,
+  });
+  const workspaceHumanNext = homeAttention.phase === 'ready'
+    ? resolveWorkspaceHumanNext({
+        problems: homeAttention.problems,
+        invitations: homeAttention.invitations,
+        attentionItems: homeAttention.attentionItems,
+      })
+    : null;
+  const homeHumanNext = signedIn
+    ? chooseHumanNext(workspaceHumanNext, conversationHumanNext)
+    : conversationHumanNext;
+
+  const openHumanNext = (candidate: HumanNext) => {
+    const destination = candidate.destination;
+    if (destination.kind === 'conversation') {
+      setHome(false);
+      return;
+    }
+    if (destination.kind === 'formation-point') {
+      setHome(false);
+      setMicroReview(destination.pointId);
+      return;
+    }
+    if (destination.kind === 'formation-review') {
+      setHome(false);
+      setReviewOpen(true);
+      return;
+    }
+    if (destination.kind === 'invitation') {
+      window.location.hash = `#/my-invitations/${encodeURIComponent(destination.invitationId)}`;
+      return;
+    }
+    if (destination.kind === 'problem') {
+      setDetailTabHint({ agreementId: destination.agreementId, tab: 'support' });
+    }
+    setHome(false);
+    setWorkspaceAgreementId(destination.agreementId);
+    setWorkspaceEntry('hub');
+    setWorkspace(true);
+  };
   /**
    * Runs a NEW intention in a fresh workspace. Nothing open: the current (empty) one. Unsaved meaningful work: ask first
    * ("Start fresh?"), holding the intention until the person decides. Otherwise: start fresh cleanly. Returns whether it ran now.
@@ -546,8 +592,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return result.status === 'ok' ? { ok: true } : { ok: false, error: result.message };
   };
   const microPoint = microReview ? formationState.data?.openPoints.find(point => point.id === microReview) ?? null : null;
-  const step = nextStep(formationState.data);
-  const goNext = () => { if (step.kind === 'point') setMicroReview(step.point.id); else setReviewOpen(true); };
 
   // Entry Perfection Phase 8 (§28) -- signing out leaves the conversation behind: an unsaved conversation's possession secret
   // must never carry over to the next person on this device (a saved one is already unreachable once signed out).
@@ -1139,7 +1183,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       foundOnSecurePay={discoveryGroups.length > 0 ? <div data-found-on-securepay tabIndex={-1} className="focus:outline-none"><FoundOnSecurePay views={discoveryViews} earlier={discoveryGroups.slice(1)} onOpenStore={openStoreOf} /></div> : undefined}
     />
   );
-  const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
+  const openUnderstood = () => { setDetailsOpen(true); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
   // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
@@ -1296,13 +1340,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     </div>
   ) : null;
 
-  const continueSlot = state.conversationId && meaningfulWork
-    ? <ContinueCard title={currentTitle} detail={unsavedWork ? 'Not saved yet' : null} onContinue={() => setHome(false)} />
-    : null;
+  const continueSlot = homeHumanNext
+    ? <ContinueCard
+        title={homeHumanNext.title}
+        headline={homeHumanNext.headline}
+        detail={homeHumanNext.detail}
+        actionLabel={homeHumanNext.primaryLabel}
+        onContinue={() => openHumanNext(homeHumanNext)}
+      />
+    : signedIn && homeAttention.phase === 'ready'
+      ? <section className="mx-auto w-full max-w-2xl border-t border-cream-200 pt-5" aria-label="What needs you now" data-caught-up>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">What needs you now</p>
+          <p className="mt-2 font-display text-lg text-forest-900">You're caught up.</p>
+          <p className="mt-1 text-[0.82rem] text-sand-600">Nothing SecurePay can verify needs your attention right now.</p>
+        </section>
+      : null;
   const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
-  // Public Experience Convergence Phase 2 -- the signed-in app reserves room for its mobile bottom
-  // navigation; the public shell has none.
-  return <div className={`h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
+  return <div className="h-dvh flex flex-col bg-cream-100">
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
@@ -1318,20 +1372,30 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
         />
-        {/* Returning work is useful context, but it must never compete with the canonical Home entry. */}
-        <div className="px-4 md:px-6 pt-5"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
         {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
-        {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
-            section, never a separate product surface, nav item or second Home. Signed-in people get a
-            smaller doorway with the full explanation one tap away. */}
-        <TrustProjectSection
-          compact={sessionState.status === 'signed-in'}
-          membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-          onExploreCommunity={() => navigateTo('community')}
-          onOpenStores={() => navigateTo('store')}
-          onJoin={() => joinRoute.open()}
-        />
+        <div className="mx-auto w-full max-w-3xl px-4 pb-10 md:px-6">
+          <details className="border-t border-cream-200 pt-4">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
+              Other work
+            </summary>
+            <div className="pb-3">
+              <ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} />
+            </div>
+          </details>
+          <details className="border-t border-cream-200">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
+              Explore more
+            </summary>
+            <TrustProjectSection
+              compact
+              membership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+              onExploreCommunity={() => navigateTo('community')}
+              onOpenStores={() => navigateTo('store')}
+              onJoin={() => joinRoute.open()}
+            />
+          </details>
+        </div>
       </> : (
         // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
         // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
