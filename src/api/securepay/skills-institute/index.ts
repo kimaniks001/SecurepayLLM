@@ -5,8 +5,6 @@ export function createSkillsInstituteGateway(http: HttpClient) {
   return {
     publicSearch: (query: string, limit = 10): Promise<SkillsSource[]> =>
       http.request<SkillsSource[]>(`/api/v1/institute/public/search?q=${encodeURIComponent(query)}&limit=${Math.max(1, Math.min(24, limit))}`),
-    search: (query: string, limit = 10): Promise<SkillsSource[]> =>
-      http.request<SkillsSource[]>(`/api/v1/institute/search?q=${encodeURIComponent(query)}&limit=${Math.max(1, Math.min(24, limit))}`, { auth: 'required' }),
     learn: (question: string, tags: string[] = [], sourceLimit = 10): Promise<SkillsLearnResponse> =>
       http.request<SkillsLearnResponse>('/api/v1/institute/learn', {
         method: 'POST',
