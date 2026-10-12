@@ -6,6 +6,7 @@ const vision = await readFile('src/features/visionboard/VisionBoardExperience.ts
 const store = await readFile('src/components/StoreHome.tsx', 'utf8');
 const storeManage = await readFile('src/components/StoreManagementHome.tsx', 'utf8');
 const agreement = await readFile('src/features/workspace/LivingAgreementOverview.tsx', 'utf8');
+const agreementNext = await readFile('src/features/workspace/AgreementNextStep.tsx', 'utf8');
 const progress = await readFile('src/features/execution/ProgressPanel.tsx', 'utf8');
 const money = await readFile('src/features/money/MoneyExperience.tsx', 'utf8');
 const moneyDash = await readFile('src/features/money/SimpleMoneyDashboard.tsx', 'utf8');
@@ -45,7 +46,9 @@ test('contextual KS001 remains available without becoming cross-domain authority
   assert.match(vision, /Ks001SurfaceGuide/);
   assert.match(store, /Ks001SurfaceGuide/);
   assert.match(agreement, /onAskKs001/);
-  assert.match(agreement, /Ask KS001/);
+  assert.match(agreement, /<AgreementNextStep/);
+  assert.match(agreementNext, /onAskKs001/);
+  assert.match(agreementNext, /Ask KS001/);
   assert.match(money, /Ks001SurfaceGuide/);
   assert.match(runtime, /Do not claim current financial authority/);
 });
