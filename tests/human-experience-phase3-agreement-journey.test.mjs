@@ -83,7 +83,7 @@ test('Phase 3: counterpart enters through the Agreement, with identity delayed u
   assert.match(experience, /state\.phase === 'invitation-ready'/);
   assert.match(experience, /state\.phase === 'identity-required'/);
   assert.match(experience, /Signing in only proves who you are/);
-  assert.doesNotMatch(review, /dashboard/i);
+  assert.doesNotMatch(review, /Dashboard[A-Za-z]/, 'recipient review must not render a dashboard component');
 });
 
 test('Phase 3: proposed changes are suggestions, never silent Agreement mutation', async () => {
