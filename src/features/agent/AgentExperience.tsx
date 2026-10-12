@@ -334,6 +334,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
+  const [ecosystemEntry, setEcosystemEntry] = useState<'help' | 'plug' | 'master'>('help');
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
@@ -826,13 +827,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
    * Agreement in scope so PlugExperience can also offer real attribution, not just the general help menu. */
-  const openEcosystemForAgreement = (agreementId: string) => {
+  const openEcosystemForAgreement = (agreementId: string, entry: 'help' | 'plug' | 'master' = 'help') => {
     setWorkspaceAgreementId(agreementId);
     setWorkspace(false);
     setStore(false);
     setCommunity(false);
     setCircle(false);
     setEcosystemAgreementId(agreementId);
+    setEcosystemEntry(entry);
     setEcosystem(true);
   };
 
@@ -1036,6 +1038,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         auth={auth}
         session={session}
         agreementId={ecosystemAgreementId}
+        initialSub={ecosystemEntry}
         onNavigate={navigateTo}
         onAskAgent={() => navigateTo('signed-in')}
       />
@@ -1166,7 +1169,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-      onOpenReferral={openEcosystemForAgreement}
+      onOpenReferral={agreementId => openEcosystemForAgreement(agreementId, 'plug')}
+      onOpenHumanHelp={agreementId => openEcosystemForAgreement(agreementId, 'help')}
       onOpenProjects={() => navigateTo('projects')}
       onOpenVisionBoard={() => navigateTo('vision-board')}
       onOpenAccount={() => navigateTo('account')}
