@@ -81,7 +81,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'home', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -235,7 +235,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
 
   const navBarView: AppView = state.view === 'home' ? 'signed-in' : state.view === 'hub' ? 'agreements' : state.view === 'detail' ? 'agreement-detail' : 'money';
   const handleNavigate = (view: AppView) => navigateWorkspace(view, {
-    goHome: () => controller.goHome(), goHub: () => controller.goHub(), setNotice,
+    goHome: () => onLeave(), goHub: () => controller.goHub(), setNotice,
     onOpenStore, onOpenCommunity, onOpenProjects, onOpenVisionBoard, onOpenAccount, onOpenNotifications,
   });
 
@@ -437,7 +437,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
       {/* Final Completion Phase 5A/5B -- private Projects organization and private Vision Board
           operating memory, one tap from Home/Agreements. Own markup, not part of any locked Bolt
           component, so it never affects fixture parity. */}
-      {(state.view === 'home' || state.view === 'hub') && (onOpenProjects || onOpenVisionBoard) && (
+      {state.view === 'hub' && (onOpenProjects || onOpenVisionBoard) && (
         <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex justify-end gap-4">
           {onOpenProjects && <button onClick={onOpenProjects} className="text-[0.8rem] text-forest-700 underline">My Projects</button>}
           {onOpenVisionBoard && <button onClick={onOpenVisionBoard} className="text-[0.8rem] text-forest-700 underline">My Vision Board</button>}
