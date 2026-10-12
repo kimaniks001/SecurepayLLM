@@ -5,6 +5,16 @@ import type { ResolveOutcome } from './MicroReview';
 import type { CorrectionOutcome } from './correction';
 import { TURN_MAX_CHARS } from '../entry/lifecycle';
 
+const NO_CHANGE_PHRASES = [
+  'nothing', 'nothing change', 'nothing to change', 'no change', 'no changes',
+  'everything is okay', 'everything is ok', 'all good', 'looks good', 'it is okay', 'it is ok',
+];
+export function meansNoAgreementChange(value: string): boolean {
+  const normal = value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normal) return false;
+  return NO_CHANGE_PHRASES.some(phrase => normal === phrase || normal.includes(phrase));
+}
+
 /**
  * Phase 3 Human Experience — REVIEW IS THE AGREEMENT. Every term still comes from the server's canonical
  * formation projection, but implementation/version/provenance machinery stays secondary unless the person asks for it.
@@ -150,7 +160,17 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
       </footer>
     </article>
 
-    <form className="agreement-screen-only border-t border-cream-200 pt-4" onSubmit={e => { e.preventDefault(); const text = correction.trim(); if (text && !tooLong && !correcting) void run(() => onCorrect(text)); }}>
+    <form className="agreement-screen-only border-t border-cream-200 pt-4" onSubmit={e => {
+      e.preventDefault();
+      const text = correction.trim();
+      if (!text || tooLong || correcting) return;
+      if (meansNoAgreementChange(text)) {
+        setCorrection('');
+        setCorrectionNote({ tone: 'ok', text: "Okay. I haven't changed anything.", retry: false });
+        return;
+      }
+      void run(() => onCorrect(text));
+    }}>
       <label htmlFor="review-correction" className="block text-[0.82rem] font-medium text-forest-800">Change something</label>
       <p className="mt-0.5 text-[0.78rem] text-sand-600">Tell KS001 normally, for example “make it KES 90,000” or “nothing, everything is okay”.</p>
       <div className="mt-2 flex gap-2">
