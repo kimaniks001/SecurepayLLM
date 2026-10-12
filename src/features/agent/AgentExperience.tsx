@@ -504,7 +504,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     ? chooseHumanNext(workspaceHumanNext, conversationHumanNext)
     : conversationHumanNext;
 
-  const openHumanNext = (candidate: HumanNext) => {
+  const routeHumanNext = (candidate: HumanNext) => {
     const destination = candidate.destination;
     if (destination.kind === 'conversation') {
       setHome(false);
@@ -531,6 +531,49 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setWorkspaceAgreementId(destination.agreementId);
     setWorkspaceEntry('hub');
     setWorkspace(true);
+  };
+
+  const rereadWorkspaceHumanNext = async (): Promise<HumanNext | null> => {
+    const [hubResult, homeResult, invitationsResult] = await Promise.allSettled([
+      agreementGateway.hub(),
+      agreementGateway.home(),
+      agreementGateway.myInvitations(0, 20),
+    ]);
+    const attentionItems = hubResult.status === 'fulfilled'
+      ? attentionItemsFromHub(hubResult.value.changedReviewRequired, hubResult.value.needsMe)
+      : [];
+    const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
+    const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
+    const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled';
+    setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems });
+    if (!anyReadWorked) return null;
+    return resolveWorkspaceHumanNext({ problems, invitations, attentionItems });
+  };
+
+  const openHumanNext = (candidate: HumanNext) => {
+    const workspaceBacked = candidate.source === 'formal-review'
+      || candidate.source === 'invitation'
+      || candidate.source === 'agreement-next-action';
+    if (!signedIn || !workspaceBacked) {
+      routeHumanNext(candidate);
+      return;
+    }
+
+    // A Home card is navigation, never authority. Re-read before leaving Home so a withdrawn
+    // invitation/change/review cannot behave like stale permission. Destination screens re-read again
+    // before any consequential mutation.
+    void rereadWorkspaceHumanNext().then(freshWorkspace => {
+      const fresh = chooseHumanNext(freshWorkspace, conversationHumanNext);
+      if (!fresh) {
+        setNotice("That changed. You're caught up now.");
+        setHome(true);
+        return;
+      }
+      if (fresh.workId !== candidate.workId || fresh.source !== candidate.source) {
+        setNotice("That changed. Here's what needs you now.");
+      }
+      routeHumanNext(fresh);
+    });
   };
   /**
    * Runs a NEW intention in a fresh workspace. Nothing open: the current (empty) one. Unsaved meaningful work: ask first
