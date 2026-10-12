@@ -17,12 +17,13 @@ const tone = (n: Notice) => n.kind === 'done' ? 'border-forest-200 bg-forest-50 
  * no dependency inferred from sequence order, no invented milestone for a simple Agreement, and no button that means "the Agreement
  * is complete" (that is a read-only projection).
  */
-export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney, fulfilmentGateway, onOpenStoreOffer, onOpenStore }: {
+export function ProgressPanel({ controller, detail, effectiveStates, completion, ownParticipantId, onOpenMoney, fulfilmentGateway, onOpenStoreOffer, onOpenStore, onOpenPlugHelp }: {
   controller: ExecutionController; detail: AgreementDetailResponse; effectiveStates: MilestoneEffectiveStateResponse[] | null;
   completion: AgreementCompletionResponse | null; ownParticipantId: string | null; onOpenMoney?: () => void;
   fulfilmentGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
   onOpenStoreOffer?: (canonicalKsNumber: string, offerId: string) => void;
   onOpenStore?: () => void;
+  onOpenPlugHelp?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   useEffect(() => { void controller.load(); }, [controller, detail.currentVersion?.versionId]);
@@ -236,6 +237,14 @@ export function ProgressPanel({ controller, detail, effectiveStates, completion,
             </label>
             {fulfilmentError && <p role="alert" className="text-[0.78rem] text-ember-700">{fulfilmentError}</p>}
             <button type="button" disabled={fulfilmentBusy} onClick={() => void deriveFulfilment()} className={PRIMARY}>{fulfilmentBusy ? 'Finding options…' : 'Find options'}</button>
+          </div>
+        )}
+
+        {fulfilmentNeed?.poolable && (
+          <div className="mt-3 rounded-xl border border-forest-200 bg-white/80 p-3" data-community-saver-plug-guard>
+            <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-sand-600">Community Saver protection</p>
+            <p className="mt-1 text-[0.8rem] leading-5 text-sand-700">You allowed compatible pooling. SecurePay has not combined this Agreement with anyone else. A Plug must verify fit, coordinate consent and practical feasibility before any Community Saver can proceed.</p>
+            {onOpenPlugHelp && <button type="button" onClick={onOpenPlugHelp} className="mt-2 min-h-11 text-[0.8rem] font-medium text-forest-700 underline">Ask a Plug to help coordinate →</button>}
           </div>
         )}
 
