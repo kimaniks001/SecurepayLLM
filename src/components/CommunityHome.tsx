@@ -46,8 +46,8 @@ export function CommunityHome({
   searchPlaceholder = 'Search people, businesses, questions, needs, work...',
   noResultsMessage,
   showSearch = true,
-  heading = 'Community LIVE',
-  description = 'Belong. Serve. Learn. Share what happened. Pass useful knowledge on.',
+  heading = 'What is happening that matters to you?',
+  description = 'Real people, projects, opportunities and conversations — shown when they are relevant, not as a feature directory.',
   composerLabel = 'What is happening, where can people help, or what did you learn?',
   composerDescription = 'Ask a useful question, share a need, tell a real work story, or invite people to help.',
 }: CommunityHomeProps) {
@@ -225,7 +225,7 @@ export function CommunityHome({
         {/* Empty state */}
         {results.length === 0 && people.length === 0 && businesses.length === 0 && storeSearchStatus !== 'loading' && (
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
-            <p className="text-[0.875rem] text-sand-600">{noResultsMessage ?? `No results for "${query}".`}</p>
+            <p className="text-[0.875rem] text-sand-600">{noResultsMessage ?? (query.trim() ? `Nothing matching “${query.trim()}” is visible here right now.` : 'Nothing from this Community view needs you right now.')}</p>
             {onStartConversation && (
               <button onClick={onStartConversation} className="mt-2 flex items-center gap-1.5 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700 mx-auto">
                 Tell SecurePay what you need
@@ -242,9 +242,9 @@ export function CommunityHome({
           >
             <span className="flex items-center gap-1.5 text-[0.825rem] text-forest-600 font-medium">
               <MessageCircle className="w-3.5 h-3.5" />
-              Ask SecurePay to find help in the community
+              Ask KS001 about this Community context
             </span>
-            <p className="text-[0.72rem] text-sand-600 mt-0.5">SecurePay can surface people, businesses, and offers that match what you need</p>
+            <p className="text-[0.72rem] text-sand-600 mt-0.5">KS001 can help you understand what is here and what you can legitimately do next</p>
           </button>
         )}
       </div>
