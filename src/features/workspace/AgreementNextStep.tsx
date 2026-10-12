@@ -1,5 +1,6 @@
 import type { AgreementCompletionResponse, WorkspaceNextActionResponse } from '../../api/securepay/agreements/dto';
 import type { CalendarEventView } from './view';
+import { releaseReasonWords } from '../money/display';
 
 export type AgreementNextDestination = 'progress' | 'changes' | 'money';
 
@@ -27,8 +28,10 @@ export function resolveAgreementNext(input: {
   completion: AgreementCompletionResponse | null;
   nextDate: CalendarEventView | null;
   amountLabel: string;
+  /** Read-only Money authority, fetched only after Agreement completion. Never executable permission. */
+  releaseAuthority?: { status: 'idle' | 'loading' | 'error' | 'ready'; authorized?: boolean; reasonCode?: string };
 }): AgreementNextPresentation {
-  const { actionsKnown, nextActions, completion, nextDate, amountLabel } = input;
+  const { actionsKnown, nextActions, completion, nextDate, amountLabel, releaseAuthority } = input;
 
   if (!actionsKnown) return {
     state: 'UNKNOWN',
@@ -121,14 +124,46 @@ export function resolveAgreementNext(input: {
     };
   }
 
-  if (completion?.completed) return {
-    state: 'DONE',
-    eyebrow: 'Done',
-    headline: 'The agreed work is complete.',
-    detail: completion.completedAt
-      ? 'SecurePay recorded completion on ' + new Date(completion.completedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + '.'
-      : 'SecurePay records this Agreement as complete.',
-  };
+  if (completion?.completed) {
+    if (releaseAuthority?.status === 'loading') return {
+      state: 'UNKNOWN',
+      eyebrow: 'SecurePay is checking Money',
+      headline: 'The agreed work is complete. SecurePay is checking the current release authority.',
+      detail: 'No release action has been assumed.',
+    };
+    if (releaseAuthority?.status === 'error') return {
+      state: 'UNKNOWN',
+      eyebrow: 'Money status unavailable',
+      headline: "The work is complete, but SecurePay couldn't confirm the current release authority.",
+      detail: 'That does not mean release is allowed or blocked. Nothing has been moved.',
+    };
+    if (releaseAuthority?.status === 'ready' && releaseAuthority.authorized) return {
+      state: 'NEEDS_YOU',
+      eyebrow: 'Needs you',
+      headline: amountLabel + ' has a release step available in Money.',
+      detail: 'SecurePay’s release-authority read says release is authorised right now. Money will re-check the Agreement version, destination and current authority before anything financial can proceed.',
+      actionLabel: 'Review release',
+      destination: 'money',
+      sourceActionCode: 'RELEASE_AUTHORITY_AUTHORIZED',
+    };
+    if (releaseAuthority?.status === 'ready' && !releaseAuthority.authorized) return {
+      state: 'DONE',
+      eyebrow: 'Work complete',
+      headline: 'The agreed work is complete.',
+      detail: releaseAuthority.reasonCode
+        ? releaseReasonWords(releaseAuthority.reasonCode)
+        : 'SecurePay does not currently show a release action for this Agreement.',
+      sourceActionCode: 'RELEASE_AUTHORITY_NOT_AUTHORIZED',
+    };
+    return {
+      state: 'DONE',
+      eyebrow: 'Done',
+      headline: 'The agreed work is complete.',
+      detail: completion.completedAt
+        ? 'SecurePay recorded completion on ' + new Date(completion.completedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + '.'
+        : 'SecurePay records this Agreement as complete.',
+    };
+  }
 
   if (nextDate) return {
     state: 'UPCOMING',
