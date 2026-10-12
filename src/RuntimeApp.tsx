@@ -5,6 +5,7 @@ import { ActivationExperience } from './features/activation/ActivationExperience
 import { MoneyExperience } from './features/money/MoneyExperience';
 import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
 import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
+import { SkillsInstituteExperience } from './features/skills/SkillsInstituteExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { InvitationInboxExperience } from './features/invitation-inbox/InvitationInboxExperience';
 import { SecureLinkExperience } from './features/securelink/SecureLinkExperience';
@@ -44,6 +45,7 @@ const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, MONEY_A
 const agreementReviewGateway = api ? withSessionRefresh(api.agreementReview, REVIEW_AUTHENTICATED_METHODS, session, api.auth) : undefined;
 const paymentReleaseGateway = api ? withSessionRefresh(api.paymentRelease, MONEY_AUTHENTICATED_METHODS.paymentRelease, session, api.auth) : undefined;
 const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, MONEY_AUTHENTICATED_METHODS.moneyOperations, session, api.auth) : undefined;
+const skillsInstituteGateway = api ? withSessionRefresh(api.skillsInstitute, ['learn', 'mine', 'participation'], session, api.auth) : undefined;
 const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, MONEY_AUTHENTICATED_METHODS.currencyCapability, session, api.auth) : undefined;
 const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, MONEY_AUTHENTICATED_METHODS.fxApplication, session, api.auth) : undefined;
 const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, MONEY_AUTHENTICATED_METHODS.regulatedAccounts, session, api.auth) : undefined;
@@ -144,6 +146,19 @@ function useInvitationInboxRoute(): [boolean, () => void] {
 /** Money is a first-class, non-secret route -- no Agreement or payment identifiers are put in the URL. */
 function useMoneyRoute(): [boolean, () => void] {
   const matches = () => typeof window !== 'undefined' && /^#\/?money\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
+/** Skills Institute is a first-class, non-secret route. Learning/certification authority remains server-owned. */
+function useSkillsRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?skills\/?$/.test(window.location.hash);
   const [active, setActive] = useState(matches);
   useEffect(() => {
     const onHashChange = () => setActive(matches());
@@ -278,6 +293,7 @@ export default function RuntimeApp() {
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
+  const [skillsRoute, clearSkillsRoute] = useSkillsRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
@@ -350,6 +366,20 @@ export default function RuntimeApp() {
           onOpenAgreement={agreementId => {
             storeAgreementEntry(agreementId);
             clearMoneyRoute();
+          }}
+        />
+      : <Unavailable />;
+  }
+  if (skillsRoute) {
+    return skillsInstituteGateway
+      ? <SkillsInstituteExperience
+          gateway={skillsInstituteGateway}
+          session={session}
+          onLeave={clearSkillsRoute}
+          onNavigate={view => {
+            if (view === 'skills') return;
+            storeEntryView(view);
+            clearSkillsRoute();
           }}
         />
       : <Unavailable />;
