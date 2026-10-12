@@ -110,7 +110,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
           </div>}
 
-          {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-500">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
+          {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-600">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
         </div>
       </section>
 
