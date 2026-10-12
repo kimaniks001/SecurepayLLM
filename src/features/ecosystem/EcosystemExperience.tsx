@@ -12,7 +12,8 @@ import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import type { AppView } from '../../types';
 
-type Sub = 'help' | 'plug' | 'master' | 'referral';
+export type EcosystemSub = 'help' | 'plug' | 'master' | 'referral';
+type Sub = EcosystemSub;
 
 /**
  * Real router for Referrals + Plugs + Masters (Golden Spine H). Mirrors the same "thin router over
@@ -21,7 +22,7 @@ type Sub = 'help' | 'plug' | 'master' | 'referral';
  * Partners/Agent — this only wires the ones with real backend authority this phase; Solutions/Partners
  * remain the documented demo-only gap, task section 22 doctrine).
  */
-export function EcosystemExperience({ masterGateway, marketNetworkGateway, referralGateway, agreementGateway, auth, session, agreementId, onNavigate, onAskAgent }: {
+export function EcosystemExperience({ masterGateway, marketNetworkGateway, referralGateway, agreementGateway, auth, session, agreementId, initialSub, onNavigate, onAskAgent }: {
   masterGateway: MasterGateway;
   marketNetworkGateway: Pick<MarketNetworkGateway, 'createRequest' | 'candidates' | 'selectCandidate' | 'openRelationship' | 'relationshipLifecycle'>;
   referralGateway: ReferralGateway;
@@ -29,10 +30,12 @@ export function EcosystemExperience({ masterGateway, marketNetworkGateway, refer
   auth: AuthGateway; session: SessionStore;
   /** Present only when entered from a specific Agreement's Support tab (task section 17/18). */
   agreementId?: string | null;
+  /** Phase 4: explicit human-help intent. `help` shows choices; `plug` is used where policy requires a Plug. */
+  initialSub?: Exclude<EcosystemSub, 'referral'>;
   onNavigate: (view: AppView) => void;
   onAskAgent: () => void;
 }) {
-  const [sub, setSub] = useState<Sub>(agreementId ? 'plug' : 'help');
+  const [sub, setSub] = useState<Sub>(initialSub ?? (agreementId ? 'plug' : 'help'));
   const [notice, setNotice] = useState<string | null>(null);
 
   if (sub === 'master') return <MasterExperience gateway={masterGateway} auth={auth} session={session} onNavigate={view => (view === 'ecosystem' ? setSub('help') : onNavigate(view))} />;

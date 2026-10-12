@@ -14,7 +14,8 @@ export type HumanNextSource =
 export type HumanDestination =
   | { kind: 'problem'; agreementId: string }
   | { kind: 'invitation'; invitationId: string }
-  | { kind: 'agreement'; agreementId: string }
+  | { kind: 'agreement'; agreementId: string; actionCode?: string }
+  | { kind: 'money'; agreementId: string; title: string }
   | { kind: 'conversation' }
   | { kind: 'formation-point'; pointId: string }
   | { kind: 'formation-review' };
@@ -144,13 +145,22 @@ export function resolveWorkspaceHumanNext(input: {
 
   const attention = input.attentionItems[0];
   if (attention) {
+    const actionCode = attention.actionValue;
+    const destination: HumanDestination = actionCode === 'FUND_AGREEMENT'
+      ? { kind: 'money', agreementId: attention.agreementId, title: attention.title }
+      : { kind: 'agreement', agreementId: attention.agreementId, actionCode };
+    const primaryLabel = attention.kind === 'agreement_changed' || actionCode === 'REVIEW_AMENDMENT' || actionCode === 'RECONFIRM_AGREEMENT_VERSION'
+      ? 'Review change'
+      : actionCode === 'REVIEW_EVIDENCE' ? 'Inspect the work'
+        : actionCode === 'FUND_AGREEMENT' ? 'See payment options'
+          : 'Continue';
     return {
       workId: attention.agreementId,
       workKind: 'agreement',
       title: attention.title,
       headline: attention.detail,
-      primaryLabel: attention.kind === 'agreement_changed' ? 'Review change' : 'Continue',
-      destination: { kind: 'agreement', agreementId: attention.agreementId },
+      primaryLabel,
+      destination,
       source: 'agreement-next-action',
       priority: 80,
     };

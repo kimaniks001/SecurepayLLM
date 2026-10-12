@@ -25,6 +25,7 @@ import type { InstrumentPromptView } from '../../api/securepay/agent/instruments
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { CircleGateway } from '../../api/securepay/circle';
@@ -76,8 +77,9 @@ import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
 import type { WorkspaceEntry } from '../workspace/controller';
-import { attentionItemsFromHub, invitationsForYouView, problemsView } from '../workspace/view';
+import { attentionItemsFromHub, invitationsForYouView, problemsView, waitingItemsFromHub, upcomingHomeEventsView } from '../workspace/view';
 import { chooseHumanNext, resolveConversationHumanNext, resolveWorkspaceHumanNext, type HumanNext } from '../shell/humanNext';
+import { AgreementAttentionSummary } from '../shell/AgreementAttentionSummary';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
 import { setDetailTabHint } from '../support/tabHint';
@@ -174,8 +176,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -333,6 +335,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
+  const [ecosystemEntry, setEcosystemEntry] = useState<'help' | 'plug' | 'master'>('help');
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
@@ -345,8 +348,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     attentionItems: ReturnType<typeof attentionItemsFromHub>;
     invitations: ReturnType<typeof invitationsForYouView>;
     problems: ReturnType<typeof problemsView>;
+    waitingItems: ReturnType<typeof waitingItemsFromHub>;
+    upcomingEvents: ReturnType<typeof upcomingHomeEventsView>;
   };
-  const [homeAttention, setHomeAttention] = useState<HomeAttentionState>({ phase: 'idle', attentionItems: [], invitations: [], problems: [] });
+  const [homeAttention, setHomeAttention] = useState<HomeAttentionState>({ phase: 'idle', attentionItems: [], invitations: [], problems: [], waitingItems: [], upcomingEvents: [] });
   const canonicalHomeVisible = home || (state.turns.length === 0 && !state.conversationId);
   useEffect(() => {
     if (!signedIn || !canonicalHomeVisible) return;
@@ -356,15 +361,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       agreementGateway.hub(),
       agreementGateway.home(),
       agreementGateway.myInvitations(0, 20),
-    ]).then(([hubResult, homeResult, invitationsResult]) => {
+      agreementGateway.myCalendar(),
+    ]).then(([hubResult, homeResult, invitationsResult, calendarResult]) => {
       if (cancelled) return;
       const attentionItems = hubResult.status === 'fulfilled'
         ? attentionItemsFromHub(hubResult.value.changedReviewRequired, hubResult.value.needsMe)
         : [];
       const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
       const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
-      const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled';
-      setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems });
+      const waitingItems = hubResult.status === 'fulfilled' ? waitingItemsFromHub(hubResult.value.waitingOnOthers) : [];
+      const upcomingEvents = hubResult.status === 'fulfilled' && calendarResult.status === 'fulfilled' ? upcomingHomeEventsView(hubResult.value, calendarResult.value) : [];
+      const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled' || calendarResult.status === 'fulfilled';
+      setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems, waitingItems, upcomingEvents });
     });
     return () => { cancelled = true; };
   }, [signedIn, canonicalHomeVisible, agreementGateway]);
@@ -524,8 +532,18 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       window.location.hash = `#/my-invitations/${encodeURIComponent(destination.invitationId)}`;
       return;
     }
+    if (destination.kind === 'money') {
+      openMoneyFor({ agreementId: destination.agreementId, title: destination.title, versionLabel: null, currentVersionId: null });
+      return;
+    }
     if (destination.kind === 'problem') {
       setDetailTabHint({ agreementId: destination.agreementId, tab: 'support' });
+    }
+    if (destination.kind === 'agreement') {
+      const changes = destination.actionCode === 'REVIEW_AMENDMENT' || destination.actionCode === 'RECONFIRM_AGREEMENT_VERSION';
+      const progress = ['REVIEW_EVIDENCE','START_OBLIGATION','SUBMIT_EVIDENCE','REPLACE_EVIDENCE','COMPLETE_OBLIGATION','PROVIDE_LOCATION','RECORD_ATTENDANCE','SUBMIT_DELIVERY','ACKNOWLEDGE_DELIVERY','PROVIDE_MORE_INFORMATION'].includes(destination.actionCode ?? '');
+      if (changes) setDetailTabHint({ agreementId: destination.agreementId, tab: 'changes' });
+      else if (progress) setDetailTabHint({ agreementId: destination.agreementId, tab: 'progress' });
     }
     setHome(false);
     setWorkspaceAgreementId(destination.agreementId);
@@ -545,7 +563,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
     const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
     const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled';
-    setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems });
+    setHomeAttention(previous => ({ ...previous, phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems }));
     if (!anyReadWorked) return null;
     return resolveWorkspaceHumanNext({ problems, invitations, attentionItems });
   };
@@ -690,7 +708,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
-    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
+    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystemEntry('help'); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
@@ -810,13 +828,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
    * Agreement in scope so PlugExperience can also offer real attribution, not just the general help menu. */
-  const openEcosystemForAgreement = (agreementId: string) => {
+  const openEcosystemForAgreement = (agreementId: string, entry: 'help' | 'plug' | 'master' = 'help') => {
     setWorkspaceAgreementId(agreementId);
     setWorkspace(false);
     setStore(false);
     setCommunity(false);
     setCircle(false);
     setEcosystemAgreementId(agreementId);
+    setEcosystemEntry(entry);
     setEcosystem(true);
   };
 
@@ -1020,6 +1039,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         auth={auth}
         session={session}
         agreementId={ecosystemAgreementId}
+        initialSub={ecosystemEntry}
         onNavigate={navigateTo}
         onAskAgent={() => navigateTo('signed-in')}
       />
@@ -1129,6 +1149,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
       fulfilmentNeedsGateway={fulfilmentNeedsGateway}
+      paymentReleaseGateway={paymentReleaseGateway}
       agentGateway={gateway}
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
@@ -1150,7 +1171,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-      onOpenReferral={openEcosystemForAgreement}
+      onOpenReferral={agreementId => openEcosystemForAgreement(agreementId, 'plug')}
+      onOpenHumanHelp={agreementId => openEcosystemForAgreement(agreementId, 'help')}
       onOpenProjects={() => navigateTo('projects')}
       onOpenVisionBoard={() => navigateTo('vision-board')}
       onOpenAccount={() => navigateTo('account')}
@@ -1363,6 +1385,22 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   // EP-CERT-013 -- Home shows CONTINUE (explicit, separate) whenever this tab holds meaningful work, and the universal
   // composer below it always starts something NEW. The composer is only disabled while a brand-new first step is in flight.
+  const openAgreementAttention = (agreementId: string, actionCode?: string) => {
+    const changes = actionCode === 'REVIEW_AMENDMENT' || actionCode === 'RECONFIRM_AGREEMENT_VERSION';
+    const progress = ['REVIEW_EVIDENCE','START_OBLIGATION','SUBMIT_EVIDENCE','REPLACE_EVIDENCE','COMPLETE_OBLIGATION','PROVIDE_LOCATION','RECORD_ATTENDANCE','SUBMIT_DELIVERY','ACKNOWLEDGE_DELIVERY','PROVIDE_MORE_INFORMATION'].includes(actionCode ?? '');
+    if (actionCode === 'FUND_AGREEMENT') {
+      const item = homeAttention.attentionItems.find(row => row.agreementId === agreementId);
+      openMoneyFor({ agreementId, title: item?.title ?? 'This Agreement', versionLabel: null, currentVersionId: null });
+      return;
+    }
+    if (changes) setDetailTabHint({ agreementId, tab: 'changes' });
+    else if (progress) setDetailTabHint({ agreementId, tab: 'progress' });
+    setHome(false);
+    setWorkspaceAgreementId(agreementId);
+    setWorkspaceEntry('hub');
+    setWorkspace(true);
+  };
+
   const sourceStatusSlot = homePendingSource ? (
     <div
       role={homePendingSource.phase === 'failed' ? 'alert' : 'status'}
@@ -1420,6 +1458,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
         />
+        {homeAttention.phase === 'ready' && (
+          <div className="mx-auto w-full max-w-3xl px-4 md:px-6">
+            <AgreementAttentionSummary
+              needsYou={homeAttention.attentionItems}
+              waiting={homeAttention.waitingItems}
+              upcoming={homeAttention.upcomingEvents}
+              dominantWorkId={homeHumanNext?.workKind === 'agreement' ? homeHumanNext.workId : null}
+              onOpenAgreement={openAgreementAttention}
+            />
+          </div>
+        )}
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
         {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
         <div className="mx-auto w-full max-w-3xl px-4 pb-10 md:px-6">
