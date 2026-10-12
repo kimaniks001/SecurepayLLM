@@ -5,7 +5,6 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { Button } from '../../components/dna/Button';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
-import { ExperiencePathway } from '../experience/ExperiencePathway';
 import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 import type { VisionBoardController } from './controller';
@@ -518,10 +517,14 @@ export function VisionBoardExperience({ controller, documentGateway, fulfilmentN
       </details>
 
       <details className="rounded-2xl border border-cream-200 bg-white/70">
-        <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Where this can go next</summary>
+        <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">When you are ready to act</summary>
         <div className="border-t border-cream-200 p-4">
-          <p className="mb-3 text-xs leading-5 text-sand-500">When you choose: <strong>Find what it needs</strong> through real SecurePay options, or <strong>Make it clear</strong> by moving into the appropriate commitment surface.</p>
-          <ExperiencePathway active="vision" onNavigate={onNavigate} />
+          <p className="text-xs leading-5 text-sand-600">Vision stays exploratory until you choose a real next step. Move only the part you are ready to act on.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => onNavigate('store')}>Find what it needs</Button>
+            <Button variant="secondary" onClick={() => onNavigate('agreements')}>Make an Agreement</Button>
+          </div>
+          <p className="mt-2 text-[0.72rem] text-sand-500">Opening either surface does not create a purchase, Agreement or Money instruction by itself.</p>
         </div>
       </details>
     </div>
