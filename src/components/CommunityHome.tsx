@@ -17,6 +17,7 @@ interface CommunityHomeProps {
   /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
    * real Referrals/Plugs/Masters help entry. */
   onOpenEcosystem?: () => void;
+  onOpenSkills?: () => void;
   /** Only the real "Offers from stores" section can genuinely load/fail; omit for fixture parity. */
   storeSearchStatus?: 'idle' | 'loading' | 'ready' | 'error';
   storeSearchErrorText?: string | null;
@@ -39,7 +40,7 @@ interface CommunityHomeProps {
 
 export function CommunityHome({
   query, onQueryChange, objects, people, businesses,
-  onOpenObject, onOpenPerson, onOpenBusiness, onCreate, onStartConversation, onOpenCircles, onOpenEcosystem,
+  onOpenObject, onOpenPerson, onOpenBusiness, onCreate, onStartConversation, onOpenCircles, onOpenEcosystem, onOpenSkills,
   storeSearchStatus, storeSearchErrorText,
   circlesEntryLabel = 'Your Circles',
   circlesEntryDescription = 'Trusted economic networks — Construction Circle, Creative Professionals, and more',
@@ -179,6 +180,13 @@ export function CommunityHome({
                 <CommunityObjectCard key={obj.id} object={obj} onOpen={onOpenObject} />
               ))}
             </div>
+            {onOpenSkills && <button
+              type="button"
+              onClick={onOpenSkills}
+              className="mt-3 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-[0.8rem] font-medium text-forest-700"
+            >
+              Explore related learning in Skills Institute
+            </button>}
           </div>
         )}
 
