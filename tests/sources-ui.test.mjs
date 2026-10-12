@@ -126,11 +126,12 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 });
 
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
-test('SignedOutHome app wrapper carries the final KS001 possibility headline and supporting text', () => {
+test('SignedOutHome app wrapper carries the Phase 2 task-first headline and supporting text', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
-  assert.match(out, /What do you want to make real today\?/);
-  assert.match(out, /Ask anything, or start something new/);
-  assert.match(out, /Welcome back/);
+  assert.match(out, /What do you want to get done\?/);
+  assert.match(out, /Tell KS001 normally/);
+  assert.match(out, /Here with you/);
+  assert.doesNotMatch(out, /Prepare Agreement|Find People/);
 });
 test('SignedOutHome: intake-mode entries only render when their callback is actually wired -- never a dead control', () => {
   // Public Experience Convergence Phase 3 -- the intake is now the ONE shared "+" SourceMenu.
