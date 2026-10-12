@@ -145,8 +145,6 @@ function HandoffBody({ handoff, identity, onDone, onOpenAgreement }: { handoff: 
 
   if (state.phase === 'progressed' && state.handoff) {
     const agreementId = state.handoff.progressedAgreementId;
-    const agreementTitle = state.handoff.candidate.title ?? 'This Agreement';
-
     // KS001 Upgrade Phase 5 continuation (Slice 4, UR-148) -- this moment used to offer "Create
     // SecureLink" immediately, opening the SecureLink creation form right here. That form's own
     // activateProduct call could NEVER succeed at this exact moment: a freshly-SET Agreement is always
