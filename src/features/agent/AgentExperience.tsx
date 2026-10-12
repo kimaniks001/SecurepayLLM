@@ -331,7 +331,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [storeReturnContext, setStoreReturnContext] = useState<null | { kind: 'vision' | 'community' | 'agreement'; agreementId?: string }>(null);
-  const [community, setCommunity] = useState(false);
+  const [community, setCommunity] = useState(externalEntryView === 'community');
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
@@ -725,6 +725,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false);
       if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
       requestSignIn('vision-board');
+      return;
+    }
+    if (view === 'skills') {
+      // Skills Institute owns its own first-class route so learning can remain public/member-aware
+      // without being turned into a fake in-Agent dashboard.
+      window.location.hash = '#/skills';
       return;
     }
     // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly

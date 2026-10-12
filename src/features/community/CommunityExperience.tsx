@@ -1732,6 +1732,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
           onOpenCircles={onOpenCircle}
+          onOpenSkills={() => onNavigate('skills')}
           showSearch={false}
           // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
           // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
@@ -1748,8 +1749,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           // own dedicated entry point (Slice 5, Section 28-29) -- see the "Search Community" button.
           searchPlaceholder="Search store offers by category or location..."
           noResultsMessage={`No store offers found for "${state.query}".`}
-          heading="Community activity"
-          description="Questions, needs, discussions, work stories and Store references."
+          heading="What is happening that matters to you?"
+          description="Real questions, needs, projects, opportunities and work stories — without turning Community into a feature dashboard."
           composerLabel="Start a question, need or discussion"
           composerDescription="Use a Project Contribution above for experiences, criticism, reflection, art and longer-form stories."
         />

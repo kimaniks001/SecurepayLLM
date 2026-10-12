@@ -142,7 +142,7 @@ test('Agreement context remains visible in the payment and settlement workspace 
   assert.match(journey, /Funding this Agreement/);
   assert.match(journey, /grid gap-5 xl:grid-cols/);
   assert.match(journey, /md:grid-cols/);
-  assert.match(experience, /Choose an Agreement, see where its money stands/);
+  assert.match(experience, /See real Agreement Money that needs you/);
 });
 
 test('Build 2 does not pull later marketplace, Community Saver, loan or insurance-claim work into Money', () => {
