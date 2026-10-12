@@ -81,8 +81,8 @@ test('Phase 6 contract 08 — Agreed never claims Money moved', async () => {
 
 test('Phase 6 contract 09 — evidence never equals completion or release', async () => {
   const progress = await read('src/features/execution/ProgressPanel.tsx');
-  assert.match(progress, /does not by itself complete|does not complete/i);
-  assert.match(progress, /release money|move money/i);
+  assert.match(progress, /Submitting it doesn’t approve it or complete the work/);
+  assert.match(progress, /Approving it doesn’t by itself complete the work or release money/);
 });
 
 test('Phase 6 contract 10 — completion never equals release authority', async () => {
