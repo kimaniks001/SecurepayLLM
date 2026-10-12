@@ -1732,6 +1732,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
           onOpenCircles={onOpenCircle}
+          onOpenSkills={() => onNavigate('skills')}
           showSearch={false}
           // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
           // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
