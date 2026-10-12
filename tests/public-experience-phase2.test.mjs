@@ -52,20 +52,17 @@ test('signed out: NavBar renders the public navigation and none of the signed-in
   for (const label of APP_NAV) assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} must not appear in the public nav`);
   assert.doesNotMatch(markup, /fixed bottom-0/, 'no signed-out bottom navigation');
 });
-// Phase 4 final UI polish (UR-223, explicitly authorised): the signed-in NavBar's PRESENTATION changed (44px targets,
-// mark-only brand at md, the wordmark's alt moved to the button's aria-label). Its information architecture must not:
-// destinations, labels, order and element structure stay identical to main once presentational attributes are removed.
-const structural = markup => markup.replace(/ class="[^"]*"/g, '').replace(/ alt="[^"]*"/g, '').replace(/ aria-label="SecurePay"/g, '');
-test('signed in (no public shell): desktop app navigation stays complete while mobile uses the Masterpiece hierarchy', () => {
+test('signed in (no public shell): the human shell keeps only Home, attention and identity persistent', () => {
   const markup = html(h(api.NavBar, { view: 'signed-in', onNavigate: noop }));
-  const out = text(markup);
-  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(out, new RegExp(`\\b${label}\\b`));
+  assert.match(markup, /data-human-shell-nav/);
+  assert.match(markup, /aria-label="SecurePay Home"/);
   assert.match(markup, /aria-label="Notifications"/);
   assert.match(markup, /aria-label="Account"/);
-  const bottom = markup.slice(markup.indexOf('sp-mobile-tabbar'));
-  for (const label of ['Home', 'Vision', 'Agreements', 'Store', 'Community']) assert.match(bottom, new RegExp(`>${label}<`));
-  assert.doesNotMatch(bottom, />Money</);
-  assert.doesNotMatch(bottom, />Account</);
+  assert.doesNotMatch(markup, /sp-mobile-tabbar/);
+  const out = text(markup);
+  for (const label of ['Agreements', 'Money', 'Store', 'Community', 'Vision']) {
+    assert.doesNotMatch(out, new RegExp(`\\b${label}\\b`), `${label} must not be persistent app navigation`);
+  }
 });
 
 test('the mobile menu button exposes its state and controls the sheet', () => {
@@ -220,8 +217,9 @@ test('Activation stays a signed-in destination and is untouched', async () => {
   assert.match(runtime, /activate/);
   assert.match(runtime, /visionDreamGateway=\{visionDreamGateway\}/, 'the private Dream gateway is passed explicitly');
   const signedInHome = text(html(h(api.SignedOutHome, { onStart: noop })));
-  assert.match(signedInHome, /Activate SecurePay/, 'the signed-in Home keeps its Activation entry');
-  assert.doesNotMatch(publicHomeText, /Activate SecurePay/, 'the public Home no longer uses Activation as its front door');
+  assert.match(signedInHome, /What do you want to get done/);
+  assert.doesNotMatch(signedInHome, /Activate SecurePay/, 'activation no longer competes with the signed-in operating Home');
+  assert.doesNotMatch(publicHomeText, /Activate SecurePay/, 'the public Home does not use Activation as its front door');
 });
 
 // ------------------------------------------------------------------ COPY CLEANUP
@@ -460,9 +458,12 @@ test('signed-out Help renders the public navigation through the shared public sh
   assert.doesNotMatch(src, /PublicNav|usePublicShell/);
 });
 
-test('signed-in Help keeps the unchanged app navigation and its signed-in actions', () => {
-  const out = text(renderHelp(true, false));
-  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(out, new RegExp(`\\b${label}\\b`));
+test('signed-in Help uses the restrained app shell while preserving its contextual help actions', () => {
+  const markup = renderHelp(true, false);
+  const out = text(markup);
+  assert.match(markup, /data-human-shell-nav/);
+  assert.match(markup, /aria-label="Notifications"/);
+  assert.match(markup, /aria-label="Account"/);
   assert.doesNotMatch(out, /Skip to KS001|For Business/);
   for (const action of ['An Agreement', 'A formal review', 'Open notifications', 'Account &amp; security|Account & security']) assert.match(out, new RegExp(action));
 });
