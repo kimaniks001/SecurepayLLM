@@ -23,21 +23,20 @@ const render = (overrides = {}) => renderToStaticMarkup(React.createElement(Livi
 
 test('Overview owns one concise Agreement story instead of replaying every tab', () => {
   const html = render();
-  assert.match(html, /At a glance/);
+  assert.match(html, />Agreement</);
   assert.match(html, /A safe, usable bathroom/);
   assert.match(html, /KES/);
   assert.match(html, /95,000/);
   assert.match(html, /2 participants/);
-  assert.match(html, /Version/);
-  assert.match(html, />3</);
-  assert.match(html, /Nothing is asking for your action right now/);
+  assert.match(html, /Nothing needs your attention today/);
+  assert.match(html, /Agreement details/);
   assert.doesNotMatch(html, /Live status unavailable/);
   assert.doesNotMatch(html, /Deliver tiles[\s\S]*Install tiles/);
 });
 
 test('authoritative participant actions are translated from action code into human wording', () => {
   const html = render({ nextActions: [{ actionCode: 'SUBMIT_EVIDENCE', category: 'WORK', reason: 'evidence required for obligation', deadline: '2026-10-10T00:00:00Z', attentionClass: 'ACTION_REQUIRED' }] });
-  assert.match(html, /What happens next/);
+  assert.match(html, /Needs you/);
   assert.match(html, /Add evidence for the work/);
   assert.doesNotMatch(html, /evidence required for obligation/);
   assert.match(html, /(?:10 Oct 2026|Oct 10, 2026)/);
@@ -51,17 +50,17 @@ test('the next Agreement date is promoted onto Overview instead of being buried 
 });
 
 test('whole Agreement completion still comes only from its authoritative completion projection', () => {
-  assert.match(render({ completion: { completed: true, status: 'COMPLETED', completedAt: null, reasonCodes: [] } }), /Agreement completed/);
+  assert.match(render({ completion: { completed: true, status: 'COMPLETED', completedAt: null, reasonCodes: [] } }), /The agreed work is complete/);
   assert.match(render({ completion: { completed: false, status: 'UNSUPPORTED', completedAt: null, reasonCodes: [] } }), /doesn’t evaluate completion/);
 });
 
 test('Overview routes to deeper authority without duplicating it', () => {
   const html = render();
+  assert.match(html, /Agreement details/);
   assert.match(html, /People/);
   assert.match(html, /Money/);
   assert.match(html, /Work &amp; evidence/);
-  assert.match(html, /More from this Agreement/);
   assert.match(html, /Documents/);
-  assert.match(html, /Versions &amp; changes/);
+  assert.match(html, /Changes &amp; history/);
   assert.doesNotMatch(html, /Fund now|Release now|Confirm completion/);
 });
