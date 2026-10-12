@@ -25,6 +25,7 @@ import type { AgreementReviewGateway } from '../../api/securepay/agreement-revie
 import { createExecutionController } from '../execution/controller';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { MoneyGateway } from '../../api/securepay/money';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { AppView, ErrorStateResponse } from '../../types';
 import { createWorkspaceController, errorText, type WorkspaceEntry } from './controller';
@@ -81,11 +82,13 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, paymentReleaseGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
   fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
+  /** Phase 4: read-only release authority. No create/reserve/execute command is exposed here. */
+  paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>;
   /** Final Phase 3 correction (Sections 9/13): the ONE persistent SecurePay conversation, shared
    * with the main signed-in Agent experience -- never a second, separate mini-conversation.
    * Optional so this component still renders for any caller not yet wired with an Agent. */
@@ -160,6 +163,35 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   // The same snapshot doubles as the server snapshot (no client behaviour change), so the real Workspace
   // entry view can be rendered and asserted outside a browser.
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  type ReleaseAuthorityRead =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'error' }
+    | { status: 'ready'; authorized: boolean; reasonCode: string };
+  const [releaseAuthority, setReleaseAuthority] = useState<ReleaseAuthorityRead>({ status: 'idle' });
+  const completedAgreementId = state.view === 'detail'
+    && state.detail.status === 'ready'
+    && state.selectedCompletionFacts?.completed
+      ? state.detail.data.dto.overview.agreementId
+      : null;
+  useEffect(() => {
+    if (!paymentReleaseGateway || !completedAgreementId) {
+      setReleaseAuthority({ status: 'idle' });
+      return;
+    }
+    let live = true;
+    setReleaseAuthority({ status: 'loading' });
+    void paymentReleaseGateway.releaseAuthority(completedAgreementId)
+      .then(result => {
+        if (!live) return;
+        setReleaseAuthority({ status: 'ready', authorized: result.authorized, reasonCode: result.reasonCode });
+      })
+      .catch(() => {
+        if (live) setReleaseAuthority({ status: 'error' });
+      });
+    return () => { live = false; };
+  }, [paymentReleaseGateway, completedAgreementId]);
+
   const agentState = useSyncExternalStore(
     agentController?.subscribe ?? (() => () => {}),
     agentController?.getSnapshot ?? (() => null),
@@ -370,7 +402,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
           onOpenHumanHelp={onOpenHumanHelp ? () => onOpenHumanHelp(boltDetail.id) : undefined}
           money={money}
-          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions} nextActionsKnown={state.selectedAgreementNextActionsKnown} events={calendarEvents}
+          overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions} nextActionsKnown={state.selectedAgreementNextActionsKnown} releaseAuthority={releaseAuthority} events={calendarEvents}
             onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
             onMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
             onAskKs001={onAskKs001 ? () => onAskKs001(`I’m looking at the Agreement “${dto.overview.title}”. Based on its current state and what SecurePay knows here, what real SecurePay products, services or capabilities could help next? Only suggest things SecurePay can actually verify, and do not assume any action is authorised unless the backend says so.`) : undefined} />}
