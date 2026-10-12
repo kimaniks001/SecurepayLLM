@@ -119,7 +119,7 @@ test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, 
 test('EP-CERT-013: startNewConversation returns the FRESH controllers and resets the whole active workspace (not saved work)', () => {
   const fn = agentSrc.slice(agentSrc.indexOf('const startNewConversation = ('), agentSrc.indexOf('// ---- User-Ready Beta Gate 1 -- START NEW / CONTINUE'));
   for (const reset of ['setController(freshController)', 'setSourceController(freshSourceController)', 'setFormationController(createFormationController(gateway))',
-    'setHandoffController(createHandoffController(gateway))', 'setReviewOpen(false)', 'setMobileTab(\'build\')', 'setMicroReview(null)', 'setFreshIntent(null)',
+    'setHandoffController(createHandoffController(gateway))', 'setReviewOpen(false)', 'setDetailsOpen(false)', 'setMicroReview(null)', 'setFreshIntent(null)',
     'setDirectAck(null)', 'clearComposerDrafts()', 'gateway.forgetResumableConversation?.()', 'instruments.cancel()', 'discovery.close()']) {
     assert.ok(fn.includes(reset), reset);
   }
@@ -144,13 +144,12 @@ test('Journey G: bathroom job → + New → cyber café task: the new intention 
   assert.ok(cafe.getSnapshot().turns.every(t => t.sender !== 'user' || !/bathroom|Kamau/i.test(t.text)), 'no bathroom words in the new conversation');
 });
 
-test('EP-CERT-006: + New is persistent in the conversation identity (mobile and desktop), separate from Refresh, and never buried in utility links', () => {
+test('EP-CERT-006: + New is persistent while routine Refresh is removed from the primary human controls', () => {
   assert.equal((agentSrc.match(/<NewWorkButton onClick=\{startNewFromConversation\}/g) ?? []).length, 2);
   assert.doesNotMatch(agentSrc, />Start new conversation</);
-  assert.match(agentSrc, /aria-label="Refresh what SecurePay understands"[^>]*>Refresh</);
+  assert.doesNotMatch(agentSrc, /aria-label="Refresh what SecurePay understands"[^>]*>Refresh</);
   assert.match(agentSrc, /data-conversation-title/);
-  const refresh = agentSrc.slice(agentSrc.indexOf('const reviewing = () =>'), agentSrc.indexOf('const reviewing = () =>') + 200);
-  assert.doesNotMatch(refresh, /startNewConversation|requestFresh/, 'REFRESH never resets');
+  assert.match(agentSrc, /data-understood-details/);
 });
 
 test('D1: "Start fresh?" -- Save for later / Start fresh / Stay here, Stay here is the safe default; Continue is explicit and separate', () => {
