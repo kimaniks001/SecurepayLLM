@@ -45,6 +45,7 @@ interface SecurePayHeroProps extends SignedOutHomeProps {
 export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, continueSlot, sourceStatusSlot, variant = 'app' }: SecurePayHeroProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace);
+  const publicMode = variant === 'public';
   const quickActions = [
     { label: 'Plan', help: 'Turn an idea into a clear plan', icon: FileText, prompt: 'Help me turn an idea into a clear plan.' },
     { label: 'Compare', help: 'Make the options obvious', icon: Search, prompt: 'Help me compare my options before I decide.' },
@@ -53,35 +54,39 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
   ];
 
   return (
-    <div className="w-full max-w-6xl">
-      <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
-        <div className="relative z-10 max-w-3xl">
+    <div className={publicMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl'}>
+      <section className={publicMode ? 'sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9' : 'sp-lift-in px-1 py-4 md:px-2 md:py-8'}>
+        <div className="relative z-10">
           <div className="flex items-center gap-3" data-ks001-lockup>
             <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
             <div>
               <div className="sp-kicker">KS001</div>
-              <div className="mt-0.5 text-xs text-sand-600">{variant === 'app' ? 'Welcome back' : 'Start here'}</div>
+              <div className="mt-0.5 text-xs text-sand-600">{publicMode ? 'Start here' : 'Here with you'}</div>
             </div>
           </div>
 
-          <h1 className="sp-display mt-5 max-w-2xl text-[2.65rem] md:text-6xl">
-            What do you want to make <span className="sp-real-word">real</span> today?
+          <h1 className={publicMode ? 'sp-display mt-5 max-w-2xl text-[2.65rem] md:text-6xl' : 'sp-display mt-7 max-w-2xl text-[2.45rem] leading-[1.05] md:text-5xl'}>
+            {publicMode
+              ? <>What do you want to make <span className="sp-real-word">real</span> today?</>
+              : <>What do you want to get done?</>}
           </h1>
-          <p className="mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base">
-            Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.
+          <p className={publicMode ? 'mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base' : 'mt-3 max-w-xl text-[0.95rem] leading-6 text-sand-600 md:text-base'}>
+            {publicMode
+              ? 'Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'
+              : 'Tell KS001 normally. SecurePay will help put it together and only ask for what genuinely needs you.'}
           </p>
 
-          {continueSlot && <div className="mt-5">
+          {publicMode && continueSlot && <div className="mt-5">
             {continueSlot}
             <p className="mt-3 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-sand-600">Or start something new</p>
           </div>}
 
-          <div className={continueSlot ? 'mt-3 md:max-w-3xl' : 'mt-6 md:max-w-3xl'}>
+          <div className={publicMode ? (continueSlot ? 'mt-3 md:max-w-3xl' : 'mt-6 md:max-w-3xl') : 'mt-7'}>
             <ConversationInput
               onSend={onStart}
               disabled={disabled}
               draftKey="home"
-              placeholder="Tell KS001 what you want to make happen…"
+              placeholder={publicMode ? 'Tell KS001 what you want to make happen…' : 'Tell KS001 what you want to get done…'}
               leading={hasIntake ? (
                 <SourceMenu
                   variant="composer"
@@ -97,17 +102,19 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             />
           </div>
 
-          {sourceStatusSlot && <div className="mt-3 md:max-w-3xl">{sourceStatusSlot}</div>}
+          {sourceStatusSlot && <div className="mt-3">{sourceStatusSlot}</div>}
 
-          <div className="mt-3">
+          {!publicMode && continueSlot && <div className="mt-8">{continueSlot}</div>}
+
+          {publicMode && <div className="mt-3">
             <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
-          </div>
+          </div>}
 
-          {hasIntake && <p className="mt-2 text-[0.78rem] text-sand-600">Use + for a plan, document, spreadsheet, photo, camera, link or place.</p>}
+          {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-500">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
         </div>
       </section>
 
-      <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
+      {publicMode && <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
         {quickActions.map(({ label, help, icon: Icon, prompt }, index) => (
           <button
             key={label}
@@ -124,9 +131,9 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             <span className="mt-1 block text-[0.68rem] leading-4 text-sand-600">{help}</span>
           </button>
         ))}
-      </section>
+      </section>}
 
-      {variant === 'public' && (
+      {publicMode && (
         <p className="mt-4 text-center text-[0.8rem] text-sand-700">
           Start without a KS Number. Nothing becomes an agreement until you review and confirm it.
         </p>
@@ -164,20 +171,8 @@ export function ExampleOutcome({ className = '' }: { className?: string }) {
  */
 export function SignedOutHome(props: SignedOutHomeProps) {
   return (
-    <div className="surface-canvas flex-1 flex flex-col items-center px-4 sm:px-6 pt-8 pb-12 md:pt-14">
+    <div className="surface-canvas flex-1 flex flex-col items-center px-4 sm:px-6 pt-7 pb-14 md:pt-12">
       <SecurePayHero {...props} variant="app" />
-      <div className="mt-10 w-full max-w-xl">
-        <ExampleOutcome />
-      </div>
-      <div className="mt-8 w-full max-w-xl border-t rule-quiet pt-6 text-center">
-        <p className="text-[0.8rem] text-sand-700">Ready to use SecurePay for your own agreements?</p>
-        <a
-          href="#/activate"
-          className="inline-flex mt-2 min-h-11 items-center justify-center rounded-xl border border-forest-200 bg-forest-50 px-4 text-[0.825rem] font-medium text-forest-700 hover:bg-forest-100 transition-colors"
-        >
-          Activate SecurePay
-        </a>
-      </div>
     </div>
   );
 }
