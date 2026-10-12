@@ -6,7 +6,7 @@ test('conversation promotes the backend formation into one living Agreement surf
   const shaping = await readFile('src/features/formation/AgreementShaping.tsx', 'utf8');
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
 
-  assert.match(shaping, /Your agreement is forming/);
+  assert.match(shaping, /Your Agreement is taking shape/);
   assert.match(shaping, /Nothing is agreed yet/);
   assert.match(shaping, /Keep talking normally/);
   assert.match(shaping, /formation\.stage !== 'NOTHING_YET'/);
@@ -24,10 +24,10 @@ test('Review is a readable printable draft but never pretends the Agreement is a
   const review = await readFile('src/features/formation/AgreementReview.tsx', 'utf8');
 
   assert.match(review, /data-agreement-print/);
-  assert.match(review, /Print draft/);
+  assert.match(review, /Print Agreement/);
   assert.match(review, /Not agreed yet/);
   assert.match(review, /Printing it does not set up the Agreement, confirm a participant, or move money/);
-  assert.match(review, /Set this up securely/);
+  assert.match(review, /Keep this Agreement/);
   assert.match(review, /This is the Agreement you are about to keep/);
   assert.match(review, /formation\.openPoints/);
   assert.match(review, /formation\.responsibilities/);
