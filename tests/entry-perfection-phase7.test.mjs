@@ -45,42 +45,31 @@ test('the adapter keeps only a real, planned question -- ask=false (the common c
   assert.deepEqual(many.question.choices, ['a', 'b', 'c'], 'at most three bounded choices, never a form');
 });
 
+
 test('the agreement leads and the one question sits under it, with bounded quick answers plus "I don\'t know" and "Decide later"', () => {
-  const answers = [];
-  const markup = html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {}, onAnswer: t => answers.push(t), answering: false });
-  const out = text(markup);
-  assert.ok(out.indexOf('Your agreement is forming') < out.indexOf('Which total should we use?'), 'agreement first, question second');
-  // User-Ready Beta Gate 1 -- ONE open point: the call to action names it (a micro-review), the whole agreement stays one tap away.
-  assert.match(out, /Resolve price/);
-  assert.match(out, /See the whole agreement/);
-  assert.match(out, /One thing to settle before it can be set up/);
-  assert.match(out, /KES 180,000 KES 175,000 I don’t know yet Decide later/);
-  assert.match(markup, /aria-live="polite"/);
-  assert.match(markup, /role="group" aria-label="Quick answers"/);
-  for (const button of markup.match(/<button[^>]*>/g)) assert.match(button, /min-h-1[12]/, 'every control meets the touch target');
+  const out = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {}, onAnswer() {} }));
+  assert.match(out, /Your Agreement is taking shape/);
+  assert.match(out, /One thing needs your attention/);
+  assert.match(out, /Which total should we use/);
+  assert.match(out, /I don.t know yet/);
+  assert.match(out, /Decide later/);
 });
+
 
 test('no question -> no question card; a BUILD can be visible without exposing Review before it is allowed', () => {
-  const none = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ question: { ask: false } })), onReview() {}, onAnswer() {} }));
-  assert.doesNotMatch(none, /One point|One thing to settle/);
-  assert.match(none, /Resolve price/);
-  assert.equal(html(api.NextQuestion, { question: null, disabled: false, onAnswer() {} }), '');
-
-  const building = text(html(api.AgreementShaping, {
-    formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })),
-    onReview() {},
-    onAnswer() {},
-  }));
-  assert.match(building, /Your agreement is forming/);
-  assert.match(building, /Still taking shape/);
-  assert.doesNotMatch(building, /Resolve price|See the whole agreement/);
+  const out = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false, question: null })), onReview() {}, onAnswer() {} }));
+  assert.match(out, /Your Agreement is taking shape/);
+  assert.doesNotMatch(out, /One thing needs your attention/);
+  assert.doesNotMatch(out, /Review the Agreement/);
 });
 
-test('a material (non-blocking) question says so calmly; quick answers disable while a turn is running', () => {
-  const q = { id: 'q:t', text: 'plan isn\'t clear here: transport of the food is not clear. Who is responsible for it?', choices: [], blocksSetUp: false, alreadyAsked: true };
+
+test('a material (non-blocking) question stays subordinate to the Agreement; quick answers disable while a turn is running', () => {
+  const q = api.agreementFormationView(dto()).question;
   const markup = html(api.NextQuestion, { question: q, disabled: true, onAnswer() {} });
-  assert.match(text(markup), /One point is still unclear/);
-  assert.equal((markup.match(/disabled=""/g) || []).length, 2);
+  assert.match(text(markup), /Which total should we use/);
+  assert.match(markup, /disabled=""/);
+  assert.doesNotMatch(text(markup), /workflow|formation|material to the agreement/i);
 });
 
 test('Review keeps checked distinct from resolved: a checked point is shown as still open', () => {

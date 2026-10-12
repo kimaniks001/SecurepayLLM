@@ -53,7 +53,7 @@ test('the review CTA names what the backend really does: a DRAFT Agreement, neve
   const card = api.canonicalAgreementView(review, handoff);
   assert.equal(card.primaryLabel, 'Create the draft Agreement');
   assert.equal(card.primaryValue, 'create_draft');
-  assert.match(card.consequence, /draft Agreement/); assert.match(card.consequence, /not sent, accepted, funded or paid/);
+  assert.match(card.consequence, /draft Agreement/); assert.match(card.consequence, /Nobody else has agreed/); assert.match(card.consequence, /nothing is funded or paid/);
   assert.doesNotMatch(JSON.stringify(card), /Set securely|legally binding|100% secure/i);
   assert.equal(card.secondaryLabel, 'Change something'); // corrections go back to the conversation, not an editable form
   assert.equal(card.secondaryValue, 'back_to_conversation');
@@ -87,8 +87,8 @@ test('a confirmed RESPONSIBILITY renders "Confirmed"; a candidate one renders "S
   const card = api.canonicalAgreementView(review, handoff);
   assert.deepEqual(card.responsibilities, review.responsibilities);
   const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
-  assert.match(out, /Peter: handle the tiling.*\(Confirmed\)/);
-  assert.match(out, /Mary: supply the tiles.*\(Suggested\)/);
+  assert.match(out, /Peter: handle the tiling.*Confirmed/);
+  assert.match(out, /Mary: supply the tiles.*Suggested/);
 });
 test('a candidate MONEY fact renders "Suggested"; a confirmed CONDITION and AUTHORITY_RULE render "Confirmed"', () => {
   const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
@@ -100,9 +100,9 @@ test('a candidate MONEY fact renders "Suggested"; a confirmed CONDITION and AUTH
   };
   const card = api.canonicalAgreementView(review, handoff);
   const out = text(markup(api.CanonicalAgreementCard, { data: card, onChoice() {} }));
-  assert.match(out, /amount=42000, currency=KES.*\(Suggested\)/);
-  assert.match(out, /requires=inspection.*\(Confirmed\)/);
-  assert.match(out, /approves=supplier payment.*\(Confirmed\)/);
+  assert.match(out, /amount=42000, currency=KES.*Suggested/);
+  assert.match(out, /requires=inspection.*Confirmed/);
+  assert.match(out, /approves=supplier payment.*Confirmed/);
 });
 test('an empty review section is never rendered just to look complete', () => {
   const handoff = { id: 'h1', status: 'READY_TO_PROGRESS', mustResolve: [], stillToDecide: [], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
@@ -241,9 +241,9 @@ test('an unchanged version across sign-in raises no change notice', async () => 
 test('the signed-out moment shows what would be reviewed BEFORE sign-in, read-only, and says sign-in commits nothing', () => {
   const view = { id: 'h1', status: 'IDENTITY_REQUIRED', candidate, reviewedSource: source(), mustResolve: [], stillToDecide: ['Delivery date'], guidanceNotes: [], reviewSnapshot: { expectedTradeContextVersion: 7, expectedCandidateDigest: 'd7' }, progressedAgreementId: null };
   const out = panel({ phase: 'identity-required', handoff: view });
-  assert.match(out, /What SecurePay understands so far/); assert.match(out, /Leather shoes/); assert.match(out, /KES 4,000\.50/);
+  assert.match(out, /Your Agreement/); assert.match(out, /Leather shoes/); assert.match(out, /KES 4,000\.50/);
   assert.match(out, /Delivery date/); assert.match(out, /SecurePay Store · Leather shoes/);
-  assert.match(out, /Signing in doesn.t create anything or commit you/);
+  assert.match(out, /Sign in so SecurePay can keep this Agreement/);
   assert.doesNotMatch(out, /<input[^>]*readonly/i);
 });
 test('a change during sign-in is stated plainly above the review', () => {
@@ -296,7 +296,7 @@ test('the uncertain state offers Check what happened / Try again and promises no
 test('the calm entry wording is owned by the Agreement artifact, not a duplicate chat commitment control', async () => {
   const exp = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   const shaping = await readFile('src/features/formation/AgreementShaping.tsx', 'utf8');
-  assert.match(shaping, /Review agreement|See the agreement/);
+  assert.match(shaping, /Review the Agreement/);
   assert.doesNotMatch(exp, /Continue with this|Continue to agreement|Set securely/);
   const panelSrc = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');
   assert.doesNotMatch(panelSrc, /Set securely|Setting this securely|canonical Agreement review/);
