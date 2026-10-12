@@ -539,16 +539,16 @@ const renderWorkspace = entry => text(html(api.WorkspaceExperience, { gateway: w
 const HUB_VISIBLE = /Loading your agreements…/;          // the Agreements Hub branch
 const HOME_VISIBLE = /Loading your SecurePay agreements…/; // the Signed-in Home branch
 
-test("navigateTo('signed-in') enters Workspace HOME and navigateTo('agreements') enters the Agreements HUB -- explicitly different", () => {
+test("Phase 2 keeps canonical signed-in Home outside Workspace while Agreement workspace defaults to the Hub", async () => {
+  // Legacy mapping remains available to old callers, but AgentExperience no longer uses Workspace as signed-in Home.
   assert.equal(api.workspaceEntryFor('signed-in'), 'home');
   assert.equal(api.workspaceEntryFor('agreements'), 'hub');
-  assert.equal(api.workspaceEntryFor('money'), 'home');
-  assert.equal(api.workspaceEntryFor('agreement-detail'), 'home', 'a specific Agreement uses initialAgreementId, never the Hub entry');
-  const home = renderWorkspace(api.workspaceEntryFor('signed-in'));
-  assert.match(home, HOME_VISIBLE); assert.doesNotMatch(home, HUB_VISIBLE);
-  const hub = renderWorkspace(api.workspaceEntryFor('agreements'));
+  const hub = renderWorkspace('hub');
   assert.match(hub, HUB_VISIBLE); assert.doesNotMatch(hub, HOME_VISIBLE);
-  assert.match(text(html(api.WorkspaceExperience, { gateway: wsGateway(), onLeave: noop })), HOME_VISIBLE, 'the default entry stays Home');
+  assert.match(text(html(api.WorkspaceExperience, { gateway: wsGateway(), onLeave: noop })), HUB_VISIBLE, 'Agreement workspace defaults to Hub');
+  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
+  assert.match(agent, /if \(view === 'signed-in'\) \{\s*setWorkspace\(false\);\s*setWorkspaceAgreementId\(null\);\s*setHome\(true\);/);
+  assert.doesNotMatch(agent, /setWorkspaceEntry\(workspaceEntryFor\(view\)\)/);
 });
 
 test('the Hub entry loads the Hub (not Home) and is one-shot: Home, Hub, Detail and Back all work afterwards', async () => {
@@ -601,15 +601,14 @@ for (const [name, path] of [
   });
 }
 
-test('AgentExperience: every App-level Workspace entry sets an explicit entry; Store/Community/Account → Agreements reach the Hub', async () => {
+test('AgentExperience: canonical Home stays outside Workspace and Agreement entries still use the authoritative Hub/detail path', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  // the ONE workspace branch of navigateTo (used by NavBar from Store, Community, Account, Help and the sign-in return)
-  assert.match(agent, /if \(sessionState\.status === 'signed-in'\) \{\s*setWorkspaceAgreementId\(returningAgreementId\);\s*setWorkspaceEntry\(workspaceEntryFor\(view\)\);\s*setWorkspace\(true\);/);
+  assert.match(agent, /if \(view === 'signed-in'\) \{\s*setWorkspace\(false\);\s*setWorkspaceAgreementId\(null\);\s*setHome\(true\);/);
+  assert.match(agent, /if \(view === 'agreements' \|\| view === 'money' \|\| view === 'agreement-detail'\)/);
+  assert.match(agent, /setWorkspaceEntry\('hub'\);\s*setWorkspace\(true\);/);
   assert.match(agent, /initialAgreementId=\{workspaceAgreementId\}\s*initialView=\{workspaceEntry\}/);
-  // specific-Agreement openings keep the Home entry + initialAgreementId (never the Hub, never inferred from a null id)
-  // Entry Perfection Phase 6 -- DELIBERATELY RESTATED: the set-up panel inside Review opens the created agreement the same way (3rd).
-  assert.equal((agent.match(/setWorkspaceAgreementId\(agreementId\);\s*setWorkspaceEntry\('home'\);\s*setWorkspace\(true\);/g) ?? []).length, 3);
-  // Store / Community / Account leave the Workspace, so re-entering mounts it fresh on its entry view
+  assert.ok((agent.match(/setWorkspaceAgreementId\(agreementId\);\s*setWorkspaceEntry\('hub'\);\s*setWorkspace\(true\);/g) ?? []).length >= 1,
+    'specific Agreement openings still carry the exact Agreement id into the workspace');
   assert.match(agent, /if \(view === 'store'\) \{ setWorkspace\(false\);/);
   assert.match(agent, /if \(view === 'community'\) \{ setWorkspace\(false\);/);
   assert.doesNotMatch(agent, /setTimeout\([^)]*goHub|querySelector\([^)]*Agreements/);
@@ -659,21 +658,19 @@ test('the Fair Trade affordance keeps its quiet underline and is a 44px target; 
   assert.match(panel, /<svg[^>]*class="[^"]*\bw-5 h-5\b/, 'the X itself stays small');
 });
 
-test('signed-in NavBar: mark-only brand at md, wordmark from lg; every desktop control is >= 44px; Notifications 44×44', () => {
+test('signed-in NavBar: canonical brand plus three quiet 44px shell controls, no permanent module map', () => {
   const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
-  const desktop = out.slice(0, out.indexOf('<nav', 5));
-  const brand = desktop.match(/<button[^>]*aria-label="SecurePay"[^>]*>/)[0];
-  assert.ok(cls(brand).includes('min-h-11') && cls(brand).includes('shrink-0'));
-  const imgs = desktop.match(/<img[^>]*>/g);
-  assert.equal(imgs.length, 2);
-  assert.ok(!cls(imgs[0]).includes('hidden'), 'the mark is always visible');
-  assert.ok(cls(imgs[1]).includes('hidden') && cls(imgs[1]).includes('lg:block'), 'the wordmark returns at lg');
-  const items = desktop.match(/<button(?![^>]*aria-label)[^>]*>/g);
-  assert.equal(items.length, 6);
-  for (const b of items) assert.ok(cls(b).includes('min-h-11'), b);
-  const bell = desktop.match(/<button[^>]*aria-label="Notifications"[^>]*>/)[0];
-  for (const c of ['h-11', 'w-11', 'inline-flex', 'items-center', 'justify-center']) assert.ok(cls(bell).includes(c), c);
-  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) assert.match(desktop, new RegExp(`>${label}</button>`), `${label} is never hidden or abbreviated`);
+  assert.match(out, /data-human-shell-nav/);
+  const brand = out.match(/<button[^>]*aria-label="SecurePay Home"[^>]*>/)[0];
+  assert.ok(cls(brand).includes('min-h-11'));
+  const imgs = out.match(/<img[^>]*>/g) ?? [];
+  assert.equal(imgs.length, 2, 'canonical mark + wordmark');
+  assert.ok(cls(imgs[0]).includes('h-7') && cls(imgs[1]).includes('h-6'));
+  for (const label of ['Notifications', 'Account']) {
+    const button = out.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))[0];
+    for (const c of ['h-11', 'w-11', 'inline-flex', 'items-center', 'justify-center']) assert.ok(cls(button).includes(c), `${label}: ${c}`);
+  }
+  for (const label of ['Agreements', 'Money', 'Store', 'Community', 'Vision']) assert.doesNotMatch(text(out), new RegExp(`\\b${label}\\b`));
 });
 
 test('PublicNav is untouched by the UR-223 polish', () => {
@@ -681,17 +678,14 @@ test('PublicNav is untouched by the UR-223 polish', () => {
   assert.equal(now, '');
 });
 
-test('signed-in mobile navigation has five obvious 44px destinations plus quiet Account and Notifications reachability', () => {
+test('signed-in mobile uses the same restrained shell instead of a five-destination module bar', () => {
   const out = html(api.NavBar, { view: 'signed-in', onNavigate: noop });
-  const marker = out.indexOf('sp-mobile-tabbar');
-  assert.ok(marker > -1);
-  const mobile = out.slice(out.lastIndexOf('<nav', marker));
-  const buttons = mobile.match(/<button[^>]*>/g) ?? [];
-  assert.equal(buttons.length, 5);
-  for (const b of buttons) for (const clsName of ['min-h-11', 'justify-center']) assert.ok(cls(b).includes(clsName), `${clsName} in ${b}`);
-  assert.deepEqual([...mobile.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map(m => m[1]), ['Home', 'Vision', 'Agreements', 'Store', 'Community']);
-  assert.match(out, /aria-label="Notifications"/);
-  assert.match(out, /aria-label="Account"/);
+  assert.doesNotMatch(out, /sp-mobile-tabbar/);
+  for (const label of ['SecurePay Home', 'Notifications', 'Account']) {
+    const button = out.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))[0];
+    assert.ok(cls(button).some(name => name === 'min-h-11' || name === 'h-11'), `${label} is at least 44px high`);
+  }
+  for (const label of ['Vision', 'Agreements', 'Store', 'Community', 'Money']) assert.doesNotMatch(text(out), new RegExp(`\\b${label}\\b`));
 });
 
 // ------------------------------------------------------------------ Phase 4A final Workspace navigation closure
@@ -788,16 +782,15 @@ test('AgentExperience wires the Workspace callbacks to the EXISTING Account / No
   assert.match(agent, /if \(notificationsView && sessionState\.status === 'signed-in'\) \{\s*return <NotificationsExperience[^>]*onOpenAgreement=\{openAgreementFromNotification\}/);
 });
 
-test('the Account area highlights Account (not Home) in the shared NavBar; NavBar active-state doctrine itself is unchanged', async () => {
+test('the Account area highlights the quiet Account control (not Home) across account-related views', async () => {
   for (const [file, view] of [['account/AccountExperience', 'account'], ['settings/SettingsExperience', 'settings'], ['business/BusinessExperience', 'business'], ['developer/DeveloperExperience', 'developer']]) {
-    const src = await readFile(`src/features/${file}.tsx`, 'utf8');
-    assert.match(src, new RegExp(`<NavBar view="${view}" onNavigate=\\{onNavigate\\} />`), file);
-    assert.doesNotMatch(src, /<NavBar view="signed-in"/, file);
-  }
-  for (const view of ['account', 'settings', 'business', 'developer']) {
-    const desktop = html(api.NavBar, { view, onNavigate: noop });
-    const active = [...desktop.slice(0, desktop.indexOf('<nav', 5)).matchAll(/<button[^>]*class="([^"]*)"[^>]*>(?:<svg[\s\S]*?<\/svg>)?([^<]*)<\/button>/g)]
-      .filter(m => /text-forest-700 bg-forest-50/.test(m[1])).map(m => m[2]);
-    assert.deepEqual(active, ['Account'], view);
+    const source = await readFile(`src/features/${file}.tsx`, 'utf8');
+    assert.match(source, new RegExp(`<NavBar view="${view}" onNavigate=\\{onNavigate\\} />`), file);
+    const markup = html(api.NavBar, { view, onNavigate: noop });
+    const accountButton = markup.match(/<button[^>]*aria-label="Account"[^>]*>/)[0];
+    assert.match(accountButton, /aria-current="page"/, view);
+    assert.match(accountButton, /text-forest-700 bg-forest-50/, view);
+    const homeButton = markup.match(/<button[^>]*aria-label="SecurePay Home"[^>]*>/)[0];
+    assert.doesNotMatch(homeButton, /aria-current="page"/, view);
   }
 });
