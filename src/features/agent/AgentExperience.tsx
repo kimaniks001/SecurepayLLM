@@ -727,6 +727,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       requestSignIn('vision-board');
       return;
     }
+    if (view === 'skills') {
+      // Skills Institute owns its own first-class route so learning can remain public/member-aware
+      // without being turned into a fake in-Agent dashboard.
+      window.location.hash = '#/skills';
+      return;
+    }
     // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly
     // like Projects/Vision Board above. Recovery is the one exception: it must be reachable while
     // signed out (that is the entire point of account recovery).
