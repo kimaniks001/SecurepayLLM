@@ -14,11 +14,12 @@ test('active chat has one obvious human focus: KS001 conversation', () => {
   assert.match(conversation, /sp-life-canvas/);
 });
 
-test('structured understanding stays a distinct one-tap/adjacent surface, not mixed into chat', () => {
+test('structured understanding stays one-tap detail, not a permanent adjacent operating plane', () => {
   assert.match(agent, /openUnderstood/);
-  assert.match(agent, /Understood/);
-  assert.match(agent, /data-understood-plane/);
+  assert.match(agent, /data-understood-details/);
   assert.match(agent, /What SecurePay understands/);
+  assert.match(agent, /detailsOpen/);
+  assert.doesNotMatch(agent, /data-understood-plane|setMobileTab/);
 });
 
 test('the person can clearly add something and send a message', () => {
@@ -35,11 +36,12 @@ test('KS001 conversation uses the shared material DNA instead of generic messeng
   assert.doesNotMatch(bubbles, /sender === 'user'[\s\S]{0,500}bg-forest-800 px-4 py-2\.5 text-cream-50/);
 });
 
-test('chat remains usable on mobile without losing BUILD / UNDERSTOOD navigation', () => {
+test('chat remains usable on mobile without forcing cognitive-mode navigation', () => {
   assert.match(agent, /md:hidden sticky top-0/);
   assert.match(agent, /backdrop-blur-md/);
-  assert.match(agent, /setMobileTab\('build'\)/);
+  assert.match(agent, />\s*Details\s*</);
   assert.match(agent, /openUnderstood/);
+  assert.doesNotMatch(agent, /setMobileTab/);
   assert.match(conversation, /min-h-0/);
 });
 
