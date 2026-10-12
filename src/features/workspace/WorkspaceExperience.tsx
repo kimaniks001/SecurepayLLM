@@ -81,7 +81,7 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -103,6 +103,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   /** Phase 7 Slice 5B -- the signed-in person's own membership + canonical KS Number; null when not known. */
   trustProjectMembership?: TrustProjectMembershipFact | null;
   onOpenReferral?: (agreementId: string) => void;
+  /** Phase 4: user-requested Plug/Master chooser scoped to this Agreement; no capability is recommended automatically. */
+  onOpenHumanHelp?: (agreementId: string) => void;
   /** Final Completion Phase 5A -- private Projects organization view. Optional, mirroring onOpenStore. */
   onOpenProjects?: () => void;
   /** Final Completion Phase 5B -- private Vision Board operating memory. Optional, mirroring onOpenProjects. */
@@ -366,6 +368,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
           onRaiseIssue={undefined}
           onOpenMoney={() => openMoneyFor({ agreementId: boltDetail.id, title: dto.overview.title, versionLabel: dto.currentVersion ? `version ${dto.currentVersion.versionNumber}` : null, currentVersionId: dto.currentVersion?.versionId ?? null })}
           onOpenReferral={onOpenReferral ? () => onOpenReferral(boltDetail.id) : undefined}
+          onOpenHumanHelp={onOpenHumanHelp ? () => onOpenHumanHelp(boltDetail.id) : undefined}
           money={money}
           overviewPanel={open => <LivingAgreementOverview detail={dto} effectiveStates={milestoneStates} completion={state.selectedCompletionFacts} nextActions={state.selectedAgreementNextActions} nextActionsKnown={state.selectedAgreementNextActionsKnown} events={calendarEvents}
             onProgress={() => open('progress')} onPeople={() => open('people')} onDocuments={() => open('documents')} onChanges={() => open('changes')}
