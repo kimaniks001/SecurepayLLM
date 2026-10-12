@@ -28,7 +28,7 @@ function ReviewFactSection({ label, facts }: {
       {facts.map((fact, i) => (
         <li key={i} className="text-[0.92rem] leading-6 text-forest-900">
           {fact.description}
-          {!fact.confirmed && <span className="ml-2 text-[0.72rem] font-medium text-sand-600">Suggested</span>}
+          <span className={`ml-2 text-[0.72rem] font-medium ${fact.confirmed ? 'text-forest-600' : 'text-sand-600'}`}>{fact.confirmed ? 'Confirmed' : 'Suggested'}</span>
           {fact.source && <details className="mt-1 text-[0.72rem] text-sand-600">
             <summary className="cursor-pointer select-none underline underline-offset-2">Source</summary>
             <span>{fact.source.displayName}{fact.source.locator ? ` · ${fact.source.locator}` : ''}{fact.source.removed ? ' — source removed' : ''}</span>
@@ -66,6 +66,10 @@ export function CanonicalAgreementCard({ data, onChoice, readOnly = false }: Can
               <div key={i} className="text-[0.95rem] text-forest-900">
                 <span className="font-medium">{party.name}</span>
                 {party.role && <span className="text-sand-600"> · {party.role}</span>}
+                {party.source && <details className="mt-1 text-[0.7rem] text-sand-600">
+                  <summary className="cursor-pointer select-none underline underline-offset-2">Source</summary>
+                  <span>{party.source.displayName}{party.source.locator ? ` · ${party.source.locator}` : ''}{party.source.removed ? ' — source removed' : ''}</span>
+                </details>}
               </div>
             ))}
           </div>
