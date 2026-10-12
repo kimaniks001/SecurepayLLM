@@ -12,12 +12,15 @@ const money = await readFile('src/features/money/MoneyExperience.tsx', 'utf8');
 const moneyDash = await readFile('src/features/money/SimpleMoneyDashboard.tsx', 'utf8');
 const runtime = await readFile('src/RuntimeApp.tsx', 'utf8');
 
-test('Phase 4 lets Agreement orchestrate other surfaces without exposing a cross-domain pathway menu', () => {
-  assert.match(vision, /ExperiencePathway active="vision"/);
-  assert.match(store, /ExperiencePathway active="store"/);
+test('Phase 5 keeps Agreement orchestration while removing the cross-domain module pathway from every ordinary surface', () => {
+  assert.doesNotMatch(vision, /ExperiencePathway/);
+  assert.doesNotMatch(store, /ExperiencePathway/);
   assert.match(agreement, /data-phase4-agreement-centre/);
   assert.doesNotMatch(agreement, /ExperiencePathway/);
-  assert.match(money, /ExperiencePathway active="money"/);
+  assert.doesNotMatch(money, /ExperiencePathway/);
+  assert.match(vision, /Find what it needs/);
+  assert.match(vision, /Make an Agreement/);
+  assert.match(moneyDash, /What happens next/);
 });
 
 test('each surface exposes a practical next move rather than a static destination', () => {
