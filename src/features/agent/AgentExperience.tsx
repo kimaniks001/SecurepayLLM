@@ -1714,14 +1714,65 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     </span>
                     <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-forest-200 bg-white text-xl text-forest-700 group-open:rotate-180">⌄</span>
                   </summary>
-                  <div className="border-t border-forest-100 px-5 pb-5 pt-4 md:px-7">
-                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-forest-700">Taking shape from your conversation</p>
-                    <p className="mt-2 font-display text-xl leading-snug text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
-                    <p className="mt-2 text-[0.85rem] text-sand-700">{formationState.data.reviewable ? "Ready for review, not yet agreed. You can continue exploring; material changes may need another review." : "Still forming, not yet agreed. Continue talking with KS001."}</p>
-                    {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-3 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
-                    {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
-                    {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="mt-4 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-medium text-white">Review Agreement</button>}
-                    <p className="mt-4 border-t border-cream-200 pt-3 text-xs text-sand-600">To return to the conversation, tap “Back to KS001” above.</p>
+                  <div data-agreement-document className="border-t border-forest-100 bg-cream-50/40 px-4 pb-6 pt-5 md:px-8 md:pt-7">
+                    <article className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-soft">
+                      <header className="border-b border-cream-200 px-5 pb-6 pt-6 md:px-8">
+                        <p className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-forest-700">SecurePay · Agreement</p>
+                        <h2 className="mt-3 font-display text-2xl leading-tight text-forest-900 md:text-3xl">{formationState.data.summary || formationState.data.what[0]?.value || 'Your emerging Agreement'}</h2>
+                        <p className="mt-3 text-sm leading-6 text-sand-700">{formationState.data.reviewable ? 'Ready for review. This is not yet an accepted Agreement.' : 'A working draft drawn from your conversation. Nothing is agreed yet.'}</p>
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-forest-50 px-3 py-1 text-xs font-semibold text-forest-800">{formationState.data.reviewable ? 'Ready for review' : 'Forming · Draft'}</span>
+                          <span className="text-xs text-sand-600">Version {formationState.data.version}</span>
+                        </div>
+                      </header>
+                      <div className="space-y-6 px-5 py-6 md:px-8">
+                        {([
+                          ['What we are planning', formationState.data.what],
+                          ['Money', formationState.data.money],
+                          ['When', formationState.data.when],
+                          ['Conditions', formationState.data.conditions],
+                          ['Not included', formationState.data.notIncluded],
+                        ] as const).filter(([, terms]) => terms.length > 0).map(([heading, terms]) =>
+                          <section key={heading} className="space-y-2">
+                            <h3 className="font-display text-lg font-semibold text-forest-900">{heading}</h3>
+                            <dl className="divide-y divide-cream-100 rounded-xl border border-cream-100">
+                              {terms.map(term => <div key={term.key} className="grid gap-1 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-4">
+                                <dt className="text-[0.78rem] font-medium text-sand-600">{term.label}</dt>
+                                <dd className="text-sm leading-6 text-forest-900">{term.value}{term.needsChecking && <span className="ml-2 text-xs font-semibold text-ember-800">Needs checking</span>}{term.detail && <span className="mt-1 block text-xs text-sand-600">{term.detail}</span>}</dd>
+                              </div>)}
+                            </dl>
+                          </section>
+                        )}
+                        {formationState.data.who.length > 0 && <section className="space-y-2">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">People involved</h3>
+                          <ul className="divide-y divide-cream-100 rounded-xl border border-cream-100">
+                            {formationState.data.who.map(person => <li key={person.key} className="px-3 py-3">
+                              <p className="text-sm font-semibold text-forest-900">{person.name}{person.role ? ` · ${person.role}` : ''}</p>
+                              <p className="mt-1 text-xs text-sand-600">{person.identity === 'VERIFIED' ? 'Identity linked · has not accepted this Agreement' : 'Described in conversation · identity not yet verified'}</p>
+                            </li>)}
+                          </ul>
+                        </section>}
+                        {formationState.data.responsibilities.length > 0 && <section className="space-y-3">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">Responsibilities</h3>
+                          {formationState.data.responsibilities.map(group => <div key={group.party} className="rounded-xl border border-cream-100 px-3 py-3">
+                            <h4 className="text-sm font-semibold text-forest-900">{group.party}</h4>
+                            {group.duties.map(duty => <p key={duty.key} className="mt-1 text-sm leading-6 text-forest-800"><span className="font-medium">{duty.label}:</span> {duty.value}</p>)}
+                          </div>)}
+                        </section>}
+                        {formationState.data.openPoints.some(point => point.blocksConfirmation || !point.checked) && <section className="rounded-xl border border-ember-200 bg-ember-50/40 px-4 py-4">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">Still to clarify</h3>
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-forest-800">
+                            {formationState.data.openPoints.filter(point => point.blocksConfirmation || !point.checked).map(point => <li key={point.id}>{point.text}</li>)}
+                          </ul>
+                        </section>}
+                        {formationState.data.readingSources.length > 0 && <p className="text-xs text-sand-600">Still reading: {formationState.data.readingSources.join(', ')}</p>}
+                        <p className="border-t border-cream-100 pt-4 text-xs leading-5 text-sand-600">This document is based on the current SecurePay formation record. A draft or reviewable proposal is not a signed commitment.</p>
+                      </div>
+                    </article>
+                    <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center gap-3">
+                      {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Review Agreement</button>}
+                      <button type="button" onClick={event => { const details = event.currentTarget.closest('details'); if (details) details.open = false; setComposerFocusKey(key => key + 1); }} className="min-h-11 rounded-full border border-forest-200 bg-white px-5 text-sm font-semibold text-forest-800">Back to KS001</button>
+                    </div>
                   </div>
                 </details>
               )}
