@@ -1669,17 +1669,27 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 </section>
               )}
               {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
-                <details aria-label="Agreement forming quietly" data-forming-agreement className="rounded-xl border border-forest-100/70 bg-white/70 px-4 py-2">
-                  <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-[0.8rem] font-medium text-sand-600">
-                    <span>Agreement forming quietly</span>
-                    <span aria-hidden="true">⌄</span>
+                <details aria-label="Your forming Agreement preview" data-forming-agreement className="group overflow-hidden rounded-[1.4rem] border-2 border-forest-200 bg-white shadow-soft transition-shadow open:shadow-lg md:mx-auto md:w-full md:max-w-3xl">
+                  <summary className="flex min-h-[88px] cursor-pointer list-none items-center gap-3 bg-gradient-to-r from-forest-50 via-white to-cream-50 px-4 py-4 text-forest-900 marker:hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-forest-500 md:px-6 [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-forest-700 text-2xl text-white shadow-sm">▤</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-semibold leading-tight md:text-xl">Your Agreement</span>
+                        <span className="rounded-full bg-forest-100 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-forest-800">Forming</span>
+                      </span>
+                      <span className="mt-1 block text-[0.78rem] text-sand-700 group-open:hidden">Tap to see what KS001 is building</span>
+                      <span className="mt-1 hidden text-[0.78rem] font-medium text-forest-700 group-open:block">Back to KS001 · Collapse preview</span>
+                    </span>
+                    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-forest-200 bg-white text-xl text-forest-700 group-open:rotate-180">⌄</span>
                   </summary>
-                  <div className="border-t border-cream-200 py-3">
-                    <p className="font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
-                    <p className="mt-1 text-[0.79rem] text-sand-600">Not agreed yet. Keep talking to KS001.</p>
-                    {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-2 text-sm text-forest-800">{term.label}: {term.value}</p>)}
-                    {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1 text-sm text-forest-800">{term.label}: {term.value}</p>)}
-                    {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="mt-3 min-h-11 text-sm text-forest-700 underline">Review Agreement</button>}
+                  <div className="border-t border-forest-100 px-5 pb-5 pt-4 md:px-7">
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-forest-700">Taking shape from your conversation</p>
+                    <p className="mt-2 font-display text-xl leading-snug text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
+                    <p className="mt-2 text-[0.85rem] text-sand-700">This is a preview, not yet an agreed document. Continue talking with KS001 to develop it.</p>
+                    {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-3 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
+                    {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
+                    {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="mt-4 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-medium text-white">Review Agreement</button>}
+                    <p className="mt-4 border-t border-cream-200 pt-3 text-xs text-sand-600">To return to the conversation, tap “Back to KS001” above.</p>
                   </div>
                 </details>
               )}
