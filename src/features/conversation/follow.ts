@@ -43,8 +43,8 @@ export function followReducer(state: FollowState, event: FollowEvent): FollowSta
  * view (scroll to the bottom). A reply taller than the viewport is scrolled to its FIRST line, so
  * the person starts reading at the beginning rather than being dropped at the end of a long answer.
  */
-export function replyScrollTop(reply: { top: number; height: number }, m: Pick<ScrollMetrics, 'clientHeight' | 'scrollHeight'>, padding = 12): { top: number; pinnedToReplyStart: boolean } {
+export function replyScrollTop(reply: { top: number; height: number }, m: Pick<ScrollMetrics, 'clientHeight' | 'scrollHeight'>, padding = 12, forceStart = false): { top: number; pinnedToReplyStart: boolean } {
   const bottom = bottomTop(m);
-  if (reply.height + padding * 2 <= m.clientHeight) return { top: bottom, pinnedToReplyStart: false };
+  if (!forceStart && reply.height + padding * 2 <= m.clientHeight) return { top: bottom, pinnedToReplyStart: false };
   return { top: Math.min(bottom, Math.max(0, reply.top - padding)), pinnedToReplyStart: true };
 }

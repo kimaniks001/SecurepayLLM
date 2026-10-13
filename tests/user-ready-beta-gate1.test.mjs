@@ -119,7 +119,7 @@ test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, 
 test('EP-CERT-013: startNewConversation returns the FRESH controllers and resets the whole active workspace (not saved work)', () => {
   const fn = agentSrc.slice(agentSrc.indexOf('const startNewConversation = ('), agentSrc.indexOf('// ---- User-Ready Beta Gate 1 -- START NEW / CONTINUE'));
   for (const reset of ['setController(freshController)', 'setSourceController(freshSourceController)', 'setFormationController(createFormationController(gateway))',
-    'setHandoffController(createHandoffController(gateway))', 'setReviewOpen(false)', 'setMobileTab(\'build\')', 'setMicroReview(null)', 'setFreshIntent(null)',
+    'setHandoffController(createHandoffController(gateway))', 'setReviewOpen(false)', 'setDetailsOpen(false)', 'setMicroReview(null)', 'setFreshIntent(null)',
     'setDirectAck(null)', 'clearComposerDrafts()', 'gateway.forgetResumableConversation?.()', 'instruments.cancel()', 'discovery.close()']) {
     assert.ok(fn.includes(reset), reset);
   }
@@ -144,13 +144,12 @@ test('Journey G: bathroom job → + New → cyber café task: the new intention 
   assert.ok(cafe.getSnapshot().turns.every(t => t.sender !== 'user' || !/bathroom|Kamau/i.test(t.text)), 'no bathroom words in the new conversation');
 });
 
-test('EP-CERT-006: + New is persistent in the conversation identity (mobile and desktop), separate from Refresh, and never buried in utility links', () => {
+test('EP-CERT-006: + New is persistent while routine Refresh is removed from the primary human controls', () => {
   assert.equal((agentSrc.match(/<NewWorkButton onClick=\{startNewFromConversation\}/g) ?? []).length, 2);
   assert.doesNotMatch(agentSrc, />Start new conversation</);
-  assert.match(agentSrc, /aria-label="Refresh what SecurePay understands"[^>]*>Refresh</);
+  assert.doesNotMatch(agentSrc, /aria-label="Refresh what SecurePay understands"[^>]*>Refresh</);
   assert.match(agentSrc, /data-conversation-title/);
-  const refresh = agentSrc.slice(agentSrc.indexOf('const reviewing = () =>'), agentSrc.indexOf('const reviewing = () =>') + 200);
-  assert.doesNotMatch(refresh, /startNewConversation|requestFresh/, 'REFRESH never resets');
+  assert.match(agentSrc, /data-understood-details/);
 });
 
 test('D1: "Start fresh?" -- Save for later / Start fresh / Stay here, Stay here is the safe default; Continue is explicit and separate', () => {
@@ -160,9 +159,13 @@ test('D1: "Start fresh?" -- Save for later / Start fresh / Stay here, Stay here 
   assert.match(text(dialog), /Start fresh\? This work hasn’t been saved: Bathroom tiling job/);
   assert.match(text(dialog), /Stay here .*Start fresh .*Save for later/);
   assert.match(dialog, /<button[^>]*data-autofocus[^>]*>Stay here/);
-  const cont = html(api.ContinueCard, { title: 'Bathroom tiling job', detail: 'Not saved yet', onContinue() {} });
-  assert.match(cont, /aria-label="Continue: Bathroom tiling job"/);
-  assert.match(text(html(api.SecurePayHero, { onStart() {}, continueSlot: api.createElement(api.ContinueCard, { title: 'Bathroom tiling job', onContinue() {} }) })), /Continue Bathroom tiling job Continue Or start something new/);
+  const cont = html(api.ContinueCard, { title: 'Bathroom tiling job', headline: 'Your agreement is ready to review.', actionLabel: 'Review agreement', onContinue() {} });
+  assert.match(cont, /aria-label="Review agreement: Bathroom tiling job"/);
+  assert.match(text(cont), /What needs you now Bathroom tiling job Your agreement is ready to review\. Review agreement/);
+  const signedInHero = text(html(api.SecurePayHero, { onStart() {}, continueSlot: api.createElement(api.ContinueCard, { title: 'Bathroom tiling job', onContinue() {} }) }));
+  assert.match(signedInHero, /What do you want to get done/);
+  assert.match(signedInHero, /What needs you now Bathroom tiling job Continue/);
+  assert.doesNotMatch(signedInHero, /Or start something new/);
   assert.match(agentSrc, /onStartFresh=\{\(\) => \{ const run = freshIntent; run\(startNewConversation\(\)\); \}\}/);
 });
 
@@ -289,7 +292,7 @@ test('EP-CERT-007: the micro-review is one decision -- Use this per side, Enter 
 test('direct conflict resolution: a settleable planned question is answered with Choose (structured), not model-interpreted chips', () => {
   const f = api.agreementFormationView(conflictDto(choosableSides));
   const card = text(html(api.AgreementShaping, { formation: f, onReview() {}, onAnswer() {}, onResolvePoint() {} }));
-  assert.match(card, /Resolve price/); assert.match(card, /Choose/);
+  assert.match(card, /Which total should we use\?/); assert.match(card, /Choose what is right/);
   assert.doesNotMatch(card, /I don’t know yet/);
   const review = html(api.AgreementReview, { formation: f, changes: [], busy: false, checking: null, error: null, onBack() {}, onCheck() {}, onCorrect() {}, onSetUp() {}, onAcknowledgeChanges() {}, setUp: null, onResolve: async () => ({ ok: true }) });
   assert.match(review, /aria-label="Use KES 95,000 from quotation\.pdf"/);
@@ -338,7 +341,8 @@ test('EP-CERT-011: one semantic surface hierarchy (canvas, region, information, 
   const css = await src('src/index.css');
   for (const level of ['.surface-canvas', '.surface-region', '.surface-info', '.surface-decision', '.surface-moment', '.text-wisdom']) assert.match(css, new RegExp(`\\${level} \\{`));
   assert.match(css, /family=Fraunces:ital,opsz,wght@/, 'the licensed Fraunces italic via Google Fonts -- no shipped font files');
-  assert.match(agentSrc, /surface-region min-w-0[^`]*data-understood-plane|data-understood-plane/);
+  assert.match(agentSrc, /data-understood-details/);
+  assert.doesNotMatch(agentSrc, /data-understood-plane|setMobileTab/);
   const publicHome = await src('src/features/public/PublicHome.tsx');
   assert.match(publicHome, /<blockquote className="text-wisdom/);
   assert.match(publicHome, /data-process/);

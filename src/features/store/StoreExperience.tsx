@@ -298,6 +298,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         searchErrorText={state.search.status === 'error' ? errorText(state.search.error) : null}
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
+        contextLabel={returnContext?.label ?? null}
       />
     );
   } else if (state.view === 'profile') {

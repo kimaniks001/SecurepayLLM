@@ -26,7 +26,7 @@ export function invitationStatusText(item: AgreementInvitationDto, now = Date.no
 const usable = (item: AgreementInvitationDto, now = Date.now()) => (item.status === 'ISSUED' || item.status === 'VIEWED') && new Date(item.expiresAt).getTime() >= now;
 
 /**
- * Invite someone -- in the People area. Creating an invitation creates a doorway and nothing else: it does not
+ * Invite someone to agree -- in the People area. Creating an invitation creates a doorway and nothing else: it does not
  * send anything, does not add anyone who has joined, and asks nobody to confirm.
  */
 export function InvitePanel({ controller, agreementStatus, isCreator }: { controller: InviteController; agreementStatus: string; isCreator: boolean }) {
@@ -52,18 +52,18 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
 
   const list = state.list.status === 'ready' ? state.list.items : null;
 
-  return <section aria-label="Invite someone" className="mt-4 border-t border-cream-200 pt-4">
+  return <section aria-label="Invite someone to agree" className="mt-4 border-t border-cream-200 pt-4">
     {agreementStatus === 'DRAFT' && <div className="space-y-2">
-      <p className="text-[0.85rem] leading-snug text-sand-700">This Agreement is still a draft. Before you can invite anyone, it has to be marked as proposed. That invites nobody and tells nobody.</p>
-      <button type="button" className={SECONDARY} disabled={state.proposing} onClick={() => void controller.propose()}>Propose this Agreement</button>
+      <p className="text-[0.85rem] leading-snug text-sand-700">This Agreement is still private. Make it ready to share before you invite anyone. This step does not invite or notify anybody.</p>
+      <button type="button" className={SECONDARY} disabled={state.proposing} onClick={() => void controller.propose()}>Make ready to invite</button>
       {state.proposing && <p role="status" className="text-[0.8rem] text-sand-600">Updating the Agreement…</p>}
       {state.proposeError && <p role="alert" className="text-[0.8rem] text-ember-700">{state.proposeError}</p>}
     </div>}
 
-    {invitable && state.phase === 'closed' && <button type="button" className={PRIMARY} onClick={() => controller.open()}>Invite someone</button>}
+    {invitable && state.phase === 'closed' && <button type="button" className={PRIMARY} onClick={() => controller.open()}>Invite someone to agree</button>}
 
     {invitable && ['form', 'issuing', 'uncertain', 'error'].includes(state.phase) && <form onSubmit={e => { e.preventDefault(); void controller.issue(); }} className="space-y-3">
-      <h3 className="font-display text-[1.05rem] text-forest-800">Who should take part in this Agreement?</h3>
+      <h3 className="font-display text-[1.05rem] text-forest-800">How should SecurePay send this Agreement?</h3>
       <div className="flex gap-2" role="radiogroup" aria-label="How do you know them">
         <button type="button" role="radio" aria-checked={state.targetMode === 'KS_NUMBER'} disabled={locked} onClick={() => controller.setTargetMode('KS_NUMBER')}
           className={`min-h-9 rounded-full px-3.5 text-[0.8rem] font-medium ${FOCUS} ${state.targetMode === 'KS_NUMBER' ? 'bg-forest-700 text-cream-50' : 'border border-cream-300 bg-white text-forest-700'}`}>I know their KS Number</button>
@@ -113,15 +113,15 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
         </div>
       )}
       <div>
-        <label htmlFor={`${uid}-role`} className="block text-[0.8rem] text-sand-700">Their role in this Agreement</label>
+        <label htmlFor={`${uid}-role`} className="block text-[0.8rem] text-sand-700">Their part in this Agreement</label>
         <select id={`${uid}-role`} value={state.roleCode ?? ''} disabled={locked} onChange={e => controller.setRole(e.target.value)} aria-describedby={`${uid}-role-help`}
           className={`mt-1 min-h-11 w-full rounded-xl border border-cream-300 bg-white px-3 text-[0.95rem] text-forest-800 ${FOCUS}`}>
           <option value="" disabled>Choose a role</option>
           {INVITE_ROLES.map(role => <option key={role.code} value={role.code}>{role.label}</option>)}
         </select>
-        <p id={`${uid}-role-help`} className="mt-1 text-[0.75rem] text-sand-600">This is the part they’d take in the Agreement, so choose it deliberately.</p>
+        <p id={`${uid}-role-help`} className="mt-1 text-[0.75rem] text-sand-600">Choose the part they would take in this Agreement.</p>
       </div>
-      <p className="text-[0.8rem] leading-snug text-sand-700">Creating an invitation makes a link you can share. It doesn’t send anything, and nobody has joined or agreed to anything.</p>
+      <p className="text-[0.8rem] leading-snug text-sand-700">SecurePay will prepare a private invitation to this Agreement. Creating it does not mean they have joined or agreed.</p>
       <div ref={region} tabIndex={-1} className="focus:outline-none">
         {busy && <p role="status" className="text-[0.85rem] text-sand-600">Creating the invitation…</p>}
         {state.phase === 'uncertain' && <div role="status" className="rounded-xl border border-ember-200 bg-ember-50 px-3 py-2.5 text-[0.85rem] text-sand-800">
@@ -131,19 +131,19 @@ export function InvitePanel({ controller, agreementStatus, isCreator }: { contro
         {state.phase === 'error' && state.error && <p role="alert" className="rounded-xl border border-ember-200 bg-ember-50 px-3 py-2.5 text-[0.85rem] text-sand-800">{state.error}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={PRIMARY} disabled={busy || (state.phase !== 'uncertain' && (!state.roleCode || (state.targetMode === 'KS_NUMBER' ? !(state.ksPreview.status === 'found' && state.ksPreview.checked === normalizeKs(state.ksNumber)) : !state.contactDestination.trim())))}>{state.phase === 'uncertain' ? 'Check and try again' : 'Create invitation'}</button>
+        <button type="submit" className={PRIMARY} disabled={busy || (state.phase !== 'uncertain' && (!state.roleCode || (state.targetMode === 'KS_NUMBER' ? !(state.ksPreview.status === 'found' && state.ksPreview.checked === normalizeKs(state.ksNumber)) : !state.contactDestination.trim())))}>{state.phase === 'uncertain' ? 'Check and try again' : 'Prepare invitation'}</button>
         <button type="button" className={SECONDARY} disabled={busy} onClick={() => controller.reset()}>Cancel</button>
       </div>
     </form>}
 
     {state.phase === 'issued' && state.issued?.link && <div ref={region} tabIndex={-1} className="space-y-2 rounded-2xl border border-forest-200 bg-forest-50/60 px-4 py-3 focus:outline-none">
-      <h3 className="font-display text-[1.05rem] text-forest-800">Invitation ready</h3>
+      <h3 className="font-display text-[1.05rem] text-forest-800">Agreement invitation ready</h3>
       {state.issued.targetKind === 'CONTACT' && state.issued.targetHint && (
         <p className="text-[0.8rem] text-sand-600">For: {state.issued.targetHint}</p>
       )}
-      <p className="text-[0.85rem] leading-snug text-sand-700">The invitation link is ready for you to share. Nothing has been sent, and no one has joined.</p>
+      <p className="text-[0.85rem] leading-snug text-sand-700">This is the Agreement invitation you can share. Nothing has been sent automatically, and the other person has not joined or agreed.</p>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={PRIMARY} onClick={() => void copyLink()}><span className="inline-flex items-center gap-1.5"><Link2 className="h-4 w-4" aria-hidden="true" />Copy invitation link</span></button>
+        <button type="button" className={PRIMARY} onClick={() => void copyLink()}><span className="inline-flex items-center gap-1.5"><Link2 className="h-4 w-4" aria-hidden="true" />Copy Agreement invitation</span></button>
         <button type="button" className={SECONDARY} onClick={() => controller.reset()}>Done</button>
       </div>
       <p role="status" className="min-h-[1.25rem] text-[0.8rem] text-forest-800">{copy === 'copied' ? <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" aria-hidden="true" />Link copied. Copying doesn’t send it to anyone.</span> : copy === 'failed' ? 'Couldn’t copy. Your browser blocked it.' : ''}</p>

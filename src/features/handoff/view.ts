@@ -100,11 +100,11 @@ export function canonicalAgreementView(review: HandoffReviewView, handoff: Hando
     worthSettling,
     mustSettle,
     // Truthful: the backend creates a DRAFT Agreement here -- not a proposal, acceptance or payment.
-    primaryLabel: 'Create the draft Agreement',
+    primaryLabel: 'Keep this Agreement',
     primaryValue: 'create_draft',
-    secondaryLabel: backToConversation ? (readyToProgress ? 'Change something' : 'Back to the conversation') : 'Refresh',
+    secondaryLabel: backToConversation ? (readyToProgress ? 'Change something' : 'Back to the conversation') : 'Check again',
     secondaryValue: backToConversation ? 'back_to_conversation' : 'refresh_review',
-    consequence: 'This creates a draft Agreement. It is not sent, accepted, funded or paid, and nothing is created until you choose.',
+    consequence: 'SecurePay will keep this as a draft Agreement. Nobody else has agreed, nothing is funded or paid, and you stay with the same Agreement after it is created.',
   };
 }
 
@@ -129,8 +129,8 @@ export function handoffNoticeView(handoff: HandoffView): NoticeResponse {
   }
   return {
     type: 'NOTICE',
-    label: 'Draft Agreement created',
-    text: 'A draft Agreement now exists from this review. Nobody has been invited, and it is not sent, accepted, funded or paid. You can open it to invite someone.',
+    label: 'Agreement kept',
+    text: 'This Agreement is now saved as a draft. Nobody else has agreed and nothing is funded or paid. The next useful step is to open it and invite the other person when you are ready.',
     tone: 'important',
   };
 }

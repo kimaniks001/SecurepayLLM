@@ -68,7 +68,10 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
     if (!followingRef.current) return;
     const reply = content.current?.querySelector<HTMLElement>(`[data-turn-id="${CSS.escape(tail.id)}"]`);
     if (!reply) { scrollToBottom(false); return; }
-    const target = replyScrollTop({ top: reply.offsetTop, height: reply.offsetHeight }, el);
+    // A new document can produce a short acknowledgement and a long, rich response below.
+    // Anchor the beginning of KS001's reply even when its message bubble is short;
+    // otherwise later rich content and the status panel land the reader at the bottom.
+    const target = replyScrollTop({ top: reply.offsetTop, height: reply.offsetHeight }, el, 12, true);
     pinnedToReplyStart.current = target.pinnedToReplyStart;
     el.scrollTo({ top: target.top, behavior: 'auto' });
   }, [tail, scrollToBottom]);
@@ -119,7 +122,7 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
-function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…', draftKey, leading }: { disabled: boolean; onSend: (text: string) => SendResult; focusKey?: number; placeholder?: string; draftKey?: string; leading?: ReactNode }) {
+function Composer({ disabled, onSend, focusKey, placeholder = 'Tell KS001 what you want to get done…', draftKey, leading }: { disabled: boolean; onSend: (text: string) => SendResult; focusKey?: number; placeholder?: string; draftKey?: string; leading?: ReactNode }) {
   const [text, setTextState] = useState(() => readDraft(draftKey));
   const [offline, setOffline] = useState(false);
   const [sending, setSending] = useState(false);

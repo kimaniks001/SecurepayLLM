@@ -293,16 +293,16 @@ test('P. The Notifications screen never puts an identifier in a URL query string
 
 // ─── Q-V. Final Correction Pass: Chat Atmosphere / KS001 Mobile / Understanding Title / Notification Truth / Account Completeness ─────
 
-test('Q1. The mobile sticky header shows a real KS001 identity row (real mark icon + name), not just BUILD/UNDERSTOOD tabs alone', async () => {
+test('Q1. The mobile sticky header names KS001 and keeps details secondary instead of BUILD/UNDERSTOOD modes', async () => {
   const contents = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const start = contents.indexOf('md:hidden sticky top-0 z-10 bg-cream-50');
-  const end = contents.indexOf('flex-1 flex overflow-hidden');
+  const start = contents.indexOf('md:hidden sticky top-0 z-10');
+  const end = contents.indexOf('<div className="flex-1 overflow-hidden">', start);
   assert.ok(start > -1 && end > start, 'expected to find the mobile sticky header block');
   const mobileHeaderBlock = contents.slice(start, end);
   assert.match(mobileHeaderBlock, /securepayMark/, 'mobile header must show the real SecurePay mark icon');
   assert.match(mobileHeaderBlock, />KS001</, 'mobile header must name KS001');
-  assert.match(mobileHeaderBlock, /Build/);
-  assert.match(mobileHeaderBlock, /Understood/);
+  assert.match(mobileHeaderBlock, /Details/);
+  assert.doesNotMatch(mobileHeaderBlock, />Build<|>Understood<|setMobileTab/);
 });
 
 test('Q2. The active KS001 conversation surface uses the restrained green atmosphere token, whose value never bundles a bare color into background-image (the exact bug this pass found: an invalid extra layer silently drops the whole declaration)', async () => {

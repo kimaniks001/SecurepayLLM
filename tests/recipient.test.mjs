@@ -371,21 +371,21 @@ export const realCaptionMarkup = renderToStaticMarkup(React.createElement(Recipi
   // The old labour-specific vocabulary must be gone entirely.
   assert.doesNotMatch(bothMarkup, /Labour|Materials|Complete:/);
   // Real facts, when supplied, are shown.
-  assert.match(bothMarkup, /Purpose:/);
-  assert.match(bothMarkup, /Proposed amount:/);
+  assert.match(bothMarkup, /What this is for/);
+  assert.match(bothMarkup, /Price/);
   assert.match(bothMarkup, /Invitation expires 20 October 2026/);
   // When the backend supplies neither, nothing is fabricated to fill the row -- it simply doesn't render.
-  assert.doesNotMatch(neitherMarkup, /Purpose:/);
-  assert.doesNotMatch(neitherMarkup, /Proposed amount:/);
+  assert.doesNotMatch(neitherMarkup, /What this is for/);
+  assert.doesNotMatch(neitherMarkup, /KES 68,000/);
   // Role and expiry are unconditional -- every invitation has these.
-  assert.match(neitherMarkup, /Your role:/);
+  assert.match(neitherMarkup, /Your part/);
   assert.match(neitherMarkup, /Invitation expires/);
   // The card states its own authority boundary regardless of backend notice text.
-  assert.match(bothMarkup, /does not join or accept anything yet/);
+  assert.match(bothMarkup, /You have not joined or agreed to anything/);
   // The demo/real notice-caption swap still works.
-  assert.match(demoCaptionMarkup, /Demo SecureLink invitation/);
+  assert.doesNotMatch(demoCaptionMarkup, /Demo SecureLink invitation/);
   assert.doesNotMatch(realCaptionMarkup, /Demo SecureLink invitation/);
-  assert.match(realCaptionMarkup, /does not join the agreement/);
+  assert.match(realCaptionMarkup, /Viewing this invitation is not acceptance/);
 });
 
 test('recipientReviewView never labels a proposed amount as labour, and never fabricates purpose/amount when the backend omits them', () => {

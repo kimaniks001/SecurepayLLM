@@ -32,13 +32,17 @@ test('UR-145: the Review-gate hint uses the server\'s own reason verbatim, never
 });
 
 test('UR-145: the hint only renders for the real server reason, while nothing is busy, and only while Review is not available', () => {
-  const hintBlock = agentExperience.slice(agentExperience.indexOf('DELIBERATELY RESTATED: the old hint'), agentExperience.indexOf('DELIBERATELY RESTATED: the old hint') + 900);
+  const anchor = agentExperience.indexOf('formationState.data && !formationState.data.reviewable && formationState.data.reviewBlockedReason');
+  assert.ok(anchor > -1, 'expected the server-owned reviewBlockedReason gate');
+  const hintBlock = agentExperience.slice(Math.max(0, anchor - 120), anchor + 520);
   assert.match(hintBlock, /!state\.busy/);
   assert.match(hintBlock, /!state\.pending/);
   assert.match(hintBlock, /!formationState\.data\.reviewable/);
   assert.match(hintBlock, /formationState\.data\.reviewBlockedReason/);
 });
 
-test('UR-145: the Review button\'s disabling predicate is the real server gate (never hard-coded true)', () => {
-  assert.match(agentExperience, /disabled=\{!state\.conversationId \|\| state\.busy \|\| !!state\.pending \|\| !formationState\.data\?\.reviewable\}/);
+test('UR-145: Phase 2 keeps Review server-gated while removing the duplicate chat Review button', () => {
+  assert.match(agentExperience, /<AgreementShaping formation=\{formationState\.data\}/);
+  assert.match(agentExperience, /resolveConversationHumanNext\(\{/);
+  assert.doesNotMatch(agentExperience, /disabled=\{!state\.conversationId \|\| state\.busy \|\| !!state\.pending \|\| !formationState\.data\?\.reviewable\}/);
 });

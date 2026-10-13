@@ -60,9 +60,8 @@ test('the public card orients: nothing joined or agreed, what happens next, no i
   assert.equal(card.role, 'Service provider');
   assert.equal(card.proposedAmount, 'KES 68,000.50'); // integer-exact
   const out = text(api.RecipientReviewCard, { data: card, onChoice() {}, notice: invitation().notice });
-  assert.match(out, /Opening this page has not added you to the Agreement, and nothing has been agreed/);
-  assert.match(out, /What happens next/); assert.match(out, /Joining does not mean you agree/);
-  assert.match(out, /You.ve been invited to look at this before deciding anything/);
+  assert.match(out, /You have not joined or agreed to anything/);
+  assert.match(out, /Review the Agreement first/); assert.match(out, /ask who you are only when that becomes necessary/);
   assert.doesNotMatch(out, /Someone has invited|Accept invitation|Sign contract|Pay now|Join now to see/i);
   assert.doesNotMatch(out, /[^\d]0\.[0-9]|undefined/);
 });
@@ -136,14 +135,14 @@ test('Join calls only the Join authority, then reads the exact version -- it nev
 });
 test('the Join card says joining is participation, not agreement and not payment', () => {
   const card = api.joinPromptView();
-  assert.equal(card.primaryLabel, 'Join this Agreement');
-  assert.match(card.text, /does not mean you agree to the terms, and nothing is paid/);
+  assert.equal(card.primaryLabel, 'Take part');
+  assert.match(card.text, /does not mean you agree and nothing is paid/);
   assert.doesNotMatch(JSON.stringify(card), /Accept|Agree &|Confirm participation|Sign/);
 });
 test('after Join: joined and NOT agreed are two separate statements, with no success ceremony', () => {
   const view = api.joinedStatusView(join());
-  assert.equal(view.title, 'You have joined this Agreement');
-  assert.equal(view.notAgreed, 'You have not yet agreed to these terms.');
+  assert.equal(view.title, 'You can now respond to this Agreement');
+  assert.equal(view.notAgreed, 'You have not agreed yet.');
   const out = text(api.JoinedStatusCard, { data: view });
   assert.match(out, /Service provider/); assert.doesNotMatch(out, /all set|complete|confirmed|success|congrat/i);
 });
@@ -186,7 +185,7 @@ test('the review is the canonical Agreement card, from the backend version only,
   const card = api.exactVersionView(s.version, parties);
   const out = text(api.CanonicalAgreementCard, { data: card, onChoice() {} });
   assert.match(out, /Bathroom retiling/); assert.match(out, /KES 68,000\.50/); assert.match(out, /You/); assert.match(out, /Client/);
-  assert.match(out, /Version:\s*1/);
+  assert.match(out, /Version\s*1/);
 });
 test('no roles are invented when SecurePay does not list participants; the review still stands', async () => {
   const { controller } = setup({ participants: async () => { throw err('http', 403, 'no'); } });
@@ -213,12 +212,12 @@ test('confirmation sends exactly the reviewed version id, number and content has
 });
 test('the confirm CTA names the real operation: this participant confirming this exact version; no Sign, no legal claim', () => {
   const card = api.exactVersionView(version());
-  assert.equal(card.primaryLabel, 'Yes, I confirm this version');
-  assert.equal(card.secondaryLabel, 'This needs changing');
-  assert.match(card.consequence, /recorded against version 1 exactly/); assert.match(card.consequence, /nothing is paid/);
+  assert.equal(card.primaryLabel, 'I agree to this Agreement');
+  assert.equal(card.secondaryLabel, 'Suggest a change');
+  assert.match(card.consequence, /against this exact version/); assert.match(card.consequence, /moves no money/);
   assert.doesNotMatch(JSON.stringify(card) + JSON.stringify(api.confirmedView(confirmation())), /\bsign|signed|legally|binding|active|Agreement complete|all set/i);
   const done = api.confirmedView(confirmation({ versionNumber: 3 }));
-  assert.match(done.text, /version 3/); assert.match(done.text, /does not mean every participant has confirmed, and no payment has been made/);
+  assert.match(done.text, /version you just read/); assert.match(done.text, /does not mean every participant has agreed, and no payment has been made/);
 });
 test('an uncertain confirmation is NOT shown as confirmed and retries the SAME request', async () => {
   let first = true;

@@ -1,6 +1,55 @@
+/** Contextual priority for an explicitly unfinished meeting schedule.
+ * This does not alter server agreement truth or silently resolve any server question. */
+function MeetingScheduleStep({ needDate, needTime, onAnswer }: { needDate: boolean; needTime: boolean; onAnswer: (message: string) => void }) {
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  return <section data-meeting-schedule-step className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft md:p-5">
+    <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
+    <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">{needDate && needTime ? 'What date and time should the meeting start?' : needDate ? 'What date do you propose for the meeting?' : 'What time should the meeting start?'}</h3>
+    <p className="mt-1 text-sm text-sand-700">These are proposals until the people involved agree.</p>
+    <div className="mt-3 flex flex-wrap items-end gap-3">
+      {needDate && <label className="text-sm font-semibold text-forest-800">Date<input aria-label="Proposed meeting date" type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block min-h-11 rounded-xl border border-forest-300 bg-white px-3" /></label>}
+      {needTime && <label className="text-sm font-semibold text-forest-800">Starting time<input aria-label="Proposed meeting starting time" type="time" value={time} onChange={event => setTime(event.target.value)} className="mt-1 block min-h-11 rounded-xl border border-forest-300 bg-white px-3" /></label>}
+      <button type="button" disabled={(needDate && !date) || (needTime && !time)} onClick={() => onAnswer(`For our meeting, I propose ${needDate ? 'the date ' + date : 'the date already discussed'}${needTime ? ' and a starting time of ' + time + ' local time' : ''}. These are proposals, not yet agreed. Please keep the meeting for six people in context.`)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use proposed {needDate && needTime ? 'date and time' : needDate ? 'date' : 'time'}</button>
+    </div>
+    <p className="mt-2 text-xs text-sand-600">Or describe the schedule in your own words below.</p>
+  </section>;
+}
+
+function TimeFromReply({ onAnswer }: { onAnswer: (answer: string) => void }) {
+  const [time, setTime] = useState('');
+  return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-time-picker>
+    <label htmlFor="ks001-meeting-time" className="block text-base font-semibold text-forest-900">What time should the meeting start?</label>
+    <div className="mt-2 flex flex-wrap gap-2">
+      <input id="ks001-meeting-time" type="time" value={time} onChange={event => setTime(event.target.value)} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm" />
+      <button type="button" disabled={!time} onClick={() => onAnswer(`For the meeting date we discussed, I propose a starting time of ${time} local time. Please retain the meeting purpose and participants; this time is not yet agreed.`)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use this time</button>
+    </div>
+  </div>;
+}
+
+
+/** The model can ask a real date question before the formation API emits a question object.
+ * Offer a genuine date input for that visible reply rather than requiring the user to type.
+ * The selected date is sent through the same conversation as a normal answer. */
+function DateFromReply({ onAnswer, withTime = false }: { onAnswer: (text: string) => void; withTime?: boolean }) {
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-date-picker>
+    <label htmlFor="ks001-reply-date" className="block text-sm font-semibold text-forest-900">Choose a proposed date</label>
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input id="ks001-reply-date" type="date" value={date} onChange={event => setDate(event.target.value)}
+        className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" />
+      {withTime && <><label htmlFor="ks001-reply-time" className="sr-only">Meeting start time</label><input id="ks001-reply-time" type="time" value={time} onChange={event => setTime(event.target.value)} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" /></>}
+      <button type="button" disabled={!date || (withTime && !time)} onClick={() => onAnswer(withTime ? `I propose the meeting on ${date} starting at ${time} local time. The date and time are proposals, not yet agreed.` : date)}
+        className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">{withTime ? "Use date and time" : "Use this date"}</button>
+    </div>
+    <p className="mt-2 text-xs text-sand-600">Or propose several dates in your own words below.</p>
+  </div>;
+}
+
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
 import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
@@ -25,6 +74,7 @@ import type { InstrumentPromptView } from '../../api/securepay/agent/instruments
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { MoneyGateway } from '../../api/securepay/money';
+import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { FulfilmentNeedsGateway } from '../../api/securepay/fulfilment-needs';
 import type { CircleGateway } from '../../api/securepay/circle';
@@ -54,6 +104,7 @@ import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
+import { NextQuestion } from '../formation/NextQuestion';
 import { ContinuityChoice } from './ContinuityChoice';
 import { clearComposerDrafts } from '../conversation/drafts';
 import type { SendResult } from '../conversation/ConversationSurface';
@@ -64,7 +115,6 @@ import { FairTradePrinciplesPanel } from '../../components/FairTradePrinciples';
 import { AgreementReview } from '../formation/AgreementReview';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { MicroReview, type ResolveOutcome } from '../formation/MicroReview';
-import { nextStep } from '../formation/nextStep';
 import type { FormationOpenPoint, FormationSide } from '../formation/view';
 import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
@@ -76,7 +126,10 @@ import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/Decl
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
-import { workspaceEntryFor, type WorkspaceEntry } from '../workspace/controller';
+import type { WorkspaceEntry } from '../workspace/controller';
+import { attentionItemsFromHub, invitationsForYouView, problemsView, waitingItemsFromHub, upcomingHomeEventsView } from '../workspace/view';
+import { chooseHumanNext, resolveConversationHumanNext, resolveWorkspaceHumanNext, type HumanNext } from '../shell/humanNext';
+import { AgreementAttentionSummary } from '../shell/AgreementAttentionSummary';
 import { SupportExperience, type HelpNav } from '../support/SupportExperience';
 import { peekSupportContext, clearSupportContext, type SupportContext } from '../support/context';
 import { setDetailTabHint } from '../support/tabHint';
@@ -173,8 +226,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -199,6 +252,51 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
   const [formationController, setFormationController] = useState(() => createFormationController(gateway));
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Phase 3B: inline correction of a server-owned term. Never mutate the formation in the browser.
+  // Phase 4 identity: a KS Number is a proposed participant reference, never consent.
+  const [ksParticipant, setKsParticipant] = useState('');
+  const [ksRole, setKsRole] = useState('');
+  const [ksIdentityStatus, setKsIdentityStatus] = useState('');
+  const [ksIdentityBusy, setKsIdentityBusy] = useState(false);
+  const submitKsParticipant = async () => {
+    if (!ksParticipant.trim() || !ksRole.trim() || ksIdentityBusy) return;
+    setKsIdentityBusy(true);
+    setKsIdentityStatus('');
+    try {
+      const outcome = await controller.selectKsIdentity({
+        ksNumber: ksParticipant.trim(), role: ksRole.trim(),
+        ...(state.context.data?.version !== undefined ? {expectedTradeContextVersion: state.context.data.version} : {}),
+      });
+      if (!outcome.ok) { setKsIdentityStatus(outcome.error); return; }
+      const result = outcome.result;
+      if (result.status === 'RESOLVED') {
+        setKsIdentityStatus(`SecurePay found ${result.displayName || 'this identity'}. It has not been added or accepted; confirm their role before proceeding.`);
+      } else if (result.status === 'ASSOCIATED' || result.status === 'ALREADY_ASSOCIATED') {
+        setKsIdentityStatus(`${result.displayName || 'Identity'} is linked as a proposed participant. This is not an invitation or acceptance.`);
+        if (state.conversationId) void formationController.load(state.conversationId);
+      } else setKsIdentityStatus(`SecurePay reports ${result.status.toLowerCase().replace(/_/g, ' ')}. No participant acceptance has occurred.`);
+    } finally { setKsIdentityBusy(false); }
+  };
+  const [correctionTarget, setCorrectionTarget] = useState<{ key: string; label: string; value: string } | null>(null);
+  const [correctionDraft, setCorrectionDraft] = useState('');
+  const [correctionBusy, setCorrectionBusy] = useState(false);
+  const [correctionStatus, setCorrectionStatus] = useState<string | null>(null);
+  const sendTermCorrection = async (retry = false, proposed = correctionDraft) => {
+    if (!state.conversationId || !correctionTarget || correctionBusy) return;
+    setCorrectionBusy(true);
+    try {
+      const outcome = retry ? await retryPending(controller) : await submitCorrection(controller, `In our Agreement, correct "${correctionTarget.label}" from "${correctionTarget.value}" to: ${proposed.trim()}`);
+      if (outcome.status === 'ok') {
+        setCorrectionTarget(null);
+        setCorrectionDraft('');
+        setCorrectionStatus('Correction received. KS001 has updated the understanding; review the refreshed terms.');
+        await formationController.load(state.conversationId);
+      } else setCorrectionStatus(outcome.message);
+    } finally { setCorrectionBusy(false); }
+  };
+  // Readiness is an API-derived property of the current formation version.
+  // Remember only that an earlier version was reviewable; never reuse its authority.
+  const [lastReviewableVersion, setLastReviewableVersion] = useState<number | null>(null);
   // User-Ready Beta Gate 1 (EP-CERT-007) -- the ONE open point being decided in a micro-review, if any.
   const [microReview, setMicroReview] = useState<string | null>(null);
   // User-Ready Beta Gate 1 (decision D1) -- a new intention waiting on "Start fresh?" because unsaved work would be left behind.
@@ -277,8 +375,43 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [foundFocusKey]);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const formationState = useSyncExternalStore(formationController.subscribe, formationController.getSnapshot);
+  // A meeting explicitly missing its schedule must not be led into an unrelated price question.
+  // Read the person's own statements; never infer an agreed date or time from model prose.
+  const humanMeetingTurns = state.turns.filter(t => t.sender === 'user').map(t => t.text);
+  // Respect sensitive real-life situations without inventing a diagnosis, event
+  // requirements, or a commercial next step. The person can always direct KS001.
+  const currentHumanIntent = humanMeetingTurns.slice(0, 3).join(' ');
+  const isSensitiveHumanSituation = /\b(?:funeral|bereavement|burial|memorial|grief|deceased|passed away|hospitalisation|hospitalization|seriously ill|emergency)\b/i.test(currentHumanIntent);
+
+  const isMeetingScheduleRequest = humanMeetingTurns.some(t => /\bmeeting\b/i.test(t) && /\bdate\b/i.test(t) && /\b(?:time|start)\b/i.test(t) && /\b(?:not yet|undecided|haven't|have not|need to|missing)\b/i.test(t));
+  const humanProposedDate = humanMeetingTurns.some(t => /\b20\d{2}-\d{2}-\d{2}\b/.test(t));
+  const humanProposedTime = humanMeetingTurns.some(t => /\b\d{1,2}:\d{2}\b/.test(t));
+  const showMeetingSchedule = isMeetingScheduleRequest && (!humanProposedDate || !humanProposedTime);
+  const wantsUnsettledPlace = humanMeetingTurns.some(t => /\b(?:where|location|place|venue|destination)\b/i.test(t)
+    && /\b(?:not decided|not yet decided|undecided|still need|haven't decided|have not decided|choose the location|missing)\b/i.test(t));
+  const placeAlreadyProposed = humanMeetingTurns.some(t => /\b(?:Plus Code:|Coordinates:|Private proposed location|Sharing requested with Agreement participants)\b/i.test(t));
+  const showPlaceStep = wantsUnsettledPlace && !placeAlreadyProposed && !showMeetingSchedule;
+  // Ask for supporting material only where the person requests it. The server remains
+  // authoritative about extraction, Agreement facts, readiness and evidence.
+  const requestedMedia = humanMeetingTurns.some(t => /\b(?:photo|photos|photograph|picture|image)\b/i.test(t)
+    && /\b(?:attach|add|upload|show|include|evidence|document|have|need)\b/i.test(t));
+  const requestedDocument = humanMeetingTurns.some(t => /\b(?:minutes|pdf|document|file|attachment|written agreement|signed contract)\b/i.test(t)
+    && /\b(?:attach|add|upload|have|include|based on|use|need)\b/i.test(t));
+  const hasSubmittedSource = sourcesState.sources.some(source => source.extractionStatus !== 'REMOVED' && source.extractionStatus !== 'FAILED');
+  const materialDeferred = humanMeetingTurns.some(t => /continue without attaching supporting material|just keep photo|without attaching/i.test(t));
+  const showMaterialStep = (requestedMedia || requestedDocument) && !hasSubmittedSource && !materialDeferred && !showMeetingSchedule && !showPlaceStep;
+
+
+
   // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
   // source, a correction), so what the person reviews is always the current one.
+  useEffect(() => {
+    if (formationState.data?.reviewable) setLastReviewableVersion(formationState.data.version);
+  }, [formationState.data?.reviewable, formationState.data?.version]);
+  const readinessWasReassessed = lastReviewableVersion !== null
+    && formationState.data !== null
+    && formationState.data.version > lastReviewableVersion
+    && !formationState.data.reviewable;
   const contextVersion = state.context.data?.version;
   useEffect(() => {
     if (state.conversationId && contextVersion !== undefined) void formationController.load(state.conversationId);
@@ -315,27 +448,65 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
   }, [pendingSection, pendingComposerFocus, home]);
-  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || externalEntryView === 'signed-in' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
-  // Final Phase 3 completion pass, Section 4 -- mobile-first BUILD | UNDERSTOOD. BUILD is the
-  // default; a person taps to UNDERSTOOD, never the other way around. Desktop shows both
-  // simultaneously and ignores this entirely (see the render below).
-  const [mobileTab, setMobileTab] = useState<'build' | 'understood'>('build');
+  // Human Experience Phase 2 — Home is the one KS001 Home. The Agreement workspace mounts only
+  // when the person deliberately enters Agreement work (or a deep link points to one).
+  const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
+  // Structured understanding is inspectable detail, never a second operating mode.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [lastSeenStructuredTurnId, setLastSeenStructuredTurnId] = useState<string | null>(null);
   const [workspaceAgreementId, setWorkspaceAgreementId] = useState<string | null>(externalAgreementId);
-  // Phase 4 final navigation correction -- which Workspace view an App-level destination ENTERS on:
-  // 'agreements' -> the Agreements Hub, everything else -> Signed-in Home. One-shot (read at mount).
-  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>(externalEntryView === 'agreements' ? 'hub' : 'home');
+  // Phase 2: Agreement-scoped entry always starts from the authoritative Hub before opening detail.
+  // The old Workspace Home is no longer a second signed-in Home.
+  const [workspaceEntry, setWorkspaceEntry] = useState<WorkspaceEntry>('hub');
   const [store, setStore] = useState(!!initialStoreOfferRoute || externalEntryView === 'store');
   const [storeOfferRoute, setStoreOfferRoute] = useState(initialStoreOfferRoute ?? null);
   const [storeReturnContext, setStoreReturnContext] = useState<null | { kind: 'vision' | 'community' | 'agreement'; agreementId?: string }>(null);
-  const [community, setCommunity] = useState(false);
+  const [community, setCommunity] = useState(externalEntryView === 'community');
   const [circle, setCircle] = useState(false);
   const [ecosystem, setEcosystem] = useState(false);
   const [ecosystemAgreementId, setEcosystemAgreementId] = useState<string | null>(null);
+  const [ecosystemEntry, setEcosystemEntry] = useState<'help' | 'plug' | 'master'>('help');
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
   const [visionLibrary, setVisionLibrary] = useState(false);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
+  // Human Experience Phase 2 — the canonical Home may show ONE authoritative thing that needs
+  // the person. These reads never create business truth; they only compose existing Agreement/Review/
+  // Invitation projections into one presentation candidate.
+  type HomeAttentionState = {
+    phase: 'idle' | 'loading' | 'ready' | 'error';
+    attentionItems: ReturnType<typeof attentionItemsFromHub>;
+    invitations: ReturnType<typeof invitationsForYouView>;
+    problems: ReturnType<typeof problemsView>;
+    waitingItems: ReturnType<typeof waitingItemsFromHub>;
+    upcomingEvents: ReturnType<typeof upcomingHomeEventsView>;
+  };
+  const [homeAttention, setHomeAttention] = useState<HomeAttentionState>({ phase: 'idle', attentionItems: [], invitations: [], problems: [], waitingItems: [], upcomingEvents: [] });
+  const canonicalHomeVisible = home || (state.turns.length === 0 && !state.conversationId);
+  useEffect(() => {
+    if (!signedIn || !canonicalHomeVisible) return;
+    let cancelled = false;
+    setHomeAttention(previous => ({ ...previous, phase: 'loading' }));
+    void Promise.allSettled([
+      agreementGateway.hub(),
+      agreementGateway.home(),
+      agreementGateway.myInvitations(0, 20),
+      agreementGateway.myCalendar(),
+    ]).then(([hubResult, homeResult, invitationsResult, calendarResult]) => {
+      if (cancelled) return;
+      const attentionItems = hubResult.status === 'fulfilled'
+        ? attentionItemsFromHub(hubResult.value.changedReviewRequired, hubResult.value.needsMe)
+        : [];
+      const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
+      const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
+      const waitingItems = hubResult.status === 'fulfilled' ? waitingItemsFromHub(hubResult.value.waitingOnOthers) : [];
+      const upcomingEvents = hubResult.status === 'fulfilled' && calendarResult.status === 'fulfilled' ? upcomingHomeEventsView(hubResult.value, calendarResult.value) : [];
+      const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled' || calendarResult.status === 'fulfilled';
+      setHomeAttention({ phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems, waitingItems, upcomingEvents });
+    });
+    return () => { cancelled = true; };
+  }, [signedIn, canonicalHomeVisible, agreementGateway]);
+
   // Phase 5 -- Life & Business World destinations, all authenticated-only, same router.
   const [account, setAccount] = useState(false);
   const [settingsView, setSettingsView] = useState(false);
@@ -432,7 +603,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setHomePendingSource(null);
     setNotice(null);
     // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
-    setMobileTab('build');
+    setDetailsOpen(false);
     setLastSeenStructuredTurnId(null);
     setMicroReview(null);
     setFreshIntent(null);
@@ -453,6 +624,105 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const unsavedWork = isUnsaved(state.conversationId, gateway.resumableConversationId?.() ?? null);
   const currentTitle = conversationTitle(formationState.data?.what[0]?.value,
     state.turns.map(turn => turn.sender === 'user' ? { sender: 'user', text: turn.text } : { sender: 'agent' }));
+  const conversationHumanNext = resolveConversationHumanNext({
+    conversationId: state.conversationId,
+    title: currentTitle,
+    formation: formationState.data,
+    meaningfulWork,
+    unsavedWork,
+  });
+  const workspaceHumanNext = homeAttention.phase === 'ready'
+    ? resolveWorkspaceHumanNext({
+        problems: homeAttention.problems,
+        invitations: homeAttention.invitations,
+        attentionItems: homeAttention.attentionItems,
+      })
+    : null;
+  const homeHumanNext = signedIn
+    ? chooseHumanNext(workspaceHumanNext, conversationHumanNext)
+    : conversationHumanNext;
+
+  const routeHumanNext = (candidate: HumanNext) => {
+    const destination = candidate.destination;
+    if (destination.kind === 'conversation') {
+      setHome(false);
+      return;
+    }
+    if (destination.kind === 'formation-point') {
+      setHome(false);
+      setMicroReview(destination.pointId);
+      return;
+    }
+    if (destination.kind === 'formation-review') {
+      setHome(false);
+      setReviewOpen(true);
+      return;
+    }
+    if (destination.kind === 'invitation') {
+      window.location.hash = `#/my-invitations/${encodeURIComponent(destination.invitationId)}`;
+      return;
+    }
+    if (destination.kind === 'money') {
+      openMoneyFor({ agreementId: destination.agreementId, title: destination.title, versionLabel: null, currentVersionId: null });
+      return;
+    }
+    if (destination.kind === 'problem') {
+      setDetailTabHint({ agreementId: destination.agreementId, tab: 'support' });
+    }
+    if (destination.kind === 'agreement') {
+      const changes = destination.actionCode === 'REVIEW_AMENDMENT' || destination.actionCode === 'RECONFIRM_AGREEMENT_VERSION';
+      const progress = ['REVIEW_EVIDENCE','START_OBLIGATION','SUBMIT_EVIDENCE','REPLACE_EVIDENCE','COMPLETE_OBLIGATION','PROVIDE_LOCATION','RECORD_ATTENDANCE','SUBMIT_DELIVERY','ACKNOWLEDGE_DELIVERY','PROVIDE_MORE_INFORMATION'].includes(destination.actionCode ?? '');
+      if (changes) setDetailTabHint({ agreementId: destination.agreementId, tab: 'changes' });
+      else if (progress) setDetailTabHint({ agreementId: destination.agreementId, tab: 'progress' });
+    }
+    setHome(false);
+    setWorkspaceAgreementId(destination.agreementId);
+    setWorkspaceEntry('hub');
+    setWorkspace(true);
+  };
+
+  const rereadWorkspaceHumanNext = async (): Promise<HumanNext | null> => {
+    const [hubResult, homeResult, invitationsResult] = await Promise.allSettled([
+      agreementGateway.hub(),
+      agreementGateway.home(),
+      agreementGateway.myInvitations(0, 20),
+    ]);
+    const attentionItems = hubResult.status === 'fulfilled'
+      ? attentionItemsFromHub(hubResult.value.changedReviewRequired, hubResult.value.needsMe)
+      : [];
+    const problems = homeResult.status === 'fulfilled' ? problemsView(homeResult.value.problems) : [];
+    const invitations = invitationsResult.status === 'fulfilled' ? invitationsForYouView(invitationsResult.value.items) : [];
+    const anyReadWorked = hubResult.status === 'fulfilled' || homeResult.status === 'fulfilled' || invitationsResult.status === 'fulfilled';
+    setHomeAttention(previous => ({ ...previous, phase: anyReadWorked ? 'ready' : 'error', attentionItems, invitations, problems }));
+    if (!anyReadWorked) return null;
+    return resolveWorkspaceHumanNext({ problems, invitations, attentionItems });
+  };
+
+  const openHumanNext = (candidate: HumanNext) => {
+    const workspaceBacked = candidate.source === 'formal-review'
+      || candidate.source === 'invitation'
+      || candidate.source === 'agreement-next-action';
+    if (!signedIn || !workspaceBacked) {
+      routeHumanNext(candidate);
+      return;
+    }
+
+    // A Home card is navigation, never authority. Re-read before leaving Home so a withdrawn
+    // invitation/change/review cannot behave like stale permission. Destination screens re-read again
+    // before any consequential mutation.
+    void rereadWorkspaceHumanNext().then(freshWorkspace => {
+      const fresh = chooseHumanNext(freshWorkspace, conversationHumanNext);
+      if (!fresh) {
+        setNotice("That changed. You're caught up now.");
+        setHome(true);
+        return;
+      }
+      if (fresh.workId !== candidate.workId || fresh.source !== candidate.source) {
+        setNotice("That changed. Here's what needs you now.");
+      }
+      routeHumanNext(fresh);
+    });
+  };
   /**
    * Runs a NEW intention in a fresh workspace. Nothing open: the current (empty) one. Unsaved meaningful work: ask first
    * ("Start fresh?"), holding the intention until the person decides. Otherwise: start fresh cleanly. Returns whether it ran now.
@@ -513,8 +783,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return result.status === 'ok' ? { ok: true } : { ok: false, error: result.message };
   };
   const microPoint = microReview ? formationState.data?.openPoints.find(point => point.id === microReview) ?? null : null;
-  const step = nextStep(formationState.data);
-  const goNext = () => { if (step.kind === 'point') setMicroReview(step.point.id); else setReviewOpen(true); };
 
   // Entry Perfection Phase 8 (§28) -- signing out leaves the conversation behind: an unsaved conversation's possession secret
   // must never carry over to the next person on this device (a saved one is already unreachable once signed out).
@@ -570,7 +838,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
-    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
+    if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystemEntry('help'); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
     // Final Completion Phase 5A -- Projects is a private, authenticated-only organizational view
     // over the person's own Agreements; a signed-out visitor is routed to sign in first, exactly
     // like 'agreements'/'money' below, never shown an empty/mock Projects screen.
@@ -587,6 +855,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setWorkspace(false); setWorkspaceAgreementId(null); setProjects(false);
       if (sessionState.status === 'signed-in') { setVisionBoard(true); return; }
       requestSignIn('vision-board');
+      return;
+    }
+    if (view === 'skills') {
+      // Skills Institute owns its own first-class route so learning can remain public/member-aware
+      // without being turned into a fake in-Agent dashboard.
+      window.location.hash = '#/skills';
       return;
     }
     // Phase 5 -- Account/Settings/Business/Developer are all private and authenticated-only, exactly
@@ -625,20 +899,27 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       return;
     }
 
-    // Agreement-scoped Plug help temporarily unmounts the workspace. Preserve the exact Agreement id
-    // before clearing the ecosystem context so remounting can reopen it from the authoritative Hub.
+    // Human Experience Phase 2 — Home is not an Agreement dashboard. A Home action always returns
+    // to the one KS001 shell; Agreement destinations still mount the existing authoritative workspace.
     const returningAgreementId = view === 'agreement-detail' ? ecosystemAgreementId : null;
     setStore(false); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false);
-    if (view === 'signed-in' || view === 'agreements' || view === 'money' || view === 'agreement-detail') {
+    if (view === 'signed-in') {
+      setWorkspace(false);
+      setWorkspaceAgreementId(null);
+      setHome(true);
+      return;
+    }
+    if (view === 'agreements' || view === 'money' || view === 'agreement-detail') {
       if (sessionState.status === 'signed-in') {
         setWorkspaceAgreementId(returningAgreementId);
-        setWorkspaceEntry(workspaceEntryFor(view));
+        setWorkspaceEntry('hub');
         setWorkspace(true);
+        setHome(false);
         return;
       }
       setWorkspaceAgreementId(null);
       setHome(true);
-      if (view !== 'signed-in') requestSignIn(view);
+      requestSignIn(view);
       return;
     }
     setWorkspaceAgreementId(null);
@@ -683,13 +964,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   /** Entry from a specific Agreement's Support tab (task section 17/18) — reuses the same router with an
    * Agreement in scope so PlugExperience can also offer real attribution, not just the general help menu. */
-  const openEcosystemForAgreement = (agreementId: string) => {
+  const openEcosystemForAgreement = (agreementId: string, entry: 'help' | 'plug' | 'master' = 'help') => {
     setWorkspaceAgreementId(agreementId);
     setWorkspace(false);
     setStore(false);
     setCommunity(false);
     setCircle(false);
     setEcosystemAgreementId(agreementId);
+    setEcosystemEntry(entry);
     setEcosystem(true);
   };
 
@@ -824,7 +1106,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             if (context.kind === 'vision') { setVisionLibrary(true); return; }
             if (context.kind === 'community') { setCommunity(true); return; }
             setWorkspaceAgreementId(context.agreementId ?? null);
-            setWorkspaceEntry(context.agreementId ? 'home' : 'hub');
+            setWorkspaceEntry('hub');
             setWorkspace(true);
           },
         } : null}
@@ -893,6 +1175,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         auth={auth}
         session={session}
         agreementId={ecosystemAgreementId}
+        initialSub={ecosystemEntry}
         onNavigate={navigateTo}
         onAskAgent={() => navigateTo('signed-in')}
       />
@@ -1002,6 +1285,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
       fulfilmentNeedsGateway={fulfilmentNeedsGateway}
+      paymentReleaseGateway={paymentReleaseGateway}
       agentGateway={gateway}
       agentController={controller}
       initialAgreementId={workspaceAgreementId}
@@ -1023,7 +1307,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onOpenCommunity={() => navigateTo('community')}
       onJoinTrustProject={() => joinRoute.open()}
       trustProjectMembership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-      onOpenReferral={openEcosystemForAgreement}
+      onOpenReferral={agreementId => openEcosystemForAgreement(agreementId, 'plug')}
+      onOpenHumanHelp={agreementId => openEcosystemForAgreement(agreementId, 'help')}
       onOpenProjects={() => navigateTo('projects')}
       onOpenVisionBoard={() => navigateTo('vision-board')}
       onOpenAccount={() => navigateTo('account')}
@@ -1032,7 +1317,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       onLeave={startText => {
         setWorkspaceAgreementId(null);
         setWorkspace(false);
-        setHome(false);
+        setHome(!startText);
         if (startText) void controller.send(startText);
       }}
     />;
@@ -1099,11 +1384,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       foundOnSecurePay={discoveryGroups.length > 0 ? <div data-found-on-securepay tabIndex={-1} className="focus:outline-none"><FoundOnSecurePay views={discoveryViews} earlier={discoveryGroups.slice(1)} onOpenStore={openStoreOf} /></div> : undefined}
     />
   );
-  const openUnderstood = () => { setMobileTab('understood'); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
+  const hasInspectableDetails = workbenchModel.items.length > 0
+    || structuredComponents.length > 0
+    || discoveryGroups.length > 0
+    || panelRest.length > 0
+    || !!preview;
+  const openUnderstood = () => { setDetailsOpen(true); if (lastResponse) setLastSeenStructuredTurnId(lastResponse.id); };
   // A Store "Use this" seeds a real conversation/Trade Context with no chat turn (see useOffer in
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
-  const showHome = home || (state.turns.length === 0 && !state.conversationId);
+  const showHome = canonicalHomeVisible;
   // The "Bring your plan" panel, opened from either Home's intake.
   // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the panel, the text
   // and the reason on screen so the person can try again or change it. From Home it is a NEW intention (EP-CERT-013).
@@ -1231,6 +1521,22 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   // EP-CERT-013 -- Home shows CONTINUE (explicit, separate) whenever this tab holds meaningful work, and the universal
   // composer below it always starts something NEW. The composer is only disabled while a brand-new first step is in flight.
+  const openAgreementAttention = (agreementId: string, actionCode?: string) => {
+    const changes = actionCode === 'REVIEW_AMENDMENT' || actionCode === 'RECONFIRM_AGREEMENT_VERSION';
+    const progress = ['REVIEW_EVIDENCE','START_OBLIGATION','SUBMIT_EVIDENCE','REPLACE_EVIDENCE','COMPLETE_OBLIGATION','PROVIDE_LOCATION','RECORD_ATTENDANCE','SUBMIT_DELIVERY','ACKNOWLEDGE_DELIVERY','PROVIDE_MORE_INFORMATION'].includes(actionCode ?? '');
+    if (actionCode === 'FUND_AGREEMENT') {
+      const item = homeAttention.attentionItems.find(row => row.agreementId === agreementId);
+      openMoneyFor({ agreementId, title: item?.title ?? 'This Agreement', versionLabel: null, currentVersionId: null });
+      return;
+    }
+    if (changes) setDetailTabHint({ agreementId, tab: 'changes' });
+    else if (progress) setDetailTabHint({ agreementId, tab: 'progress' });
+    setHome(false);
+    setWorkspaceAgreementId(agreementId);
+    setWorkspaceEntry('hub');
+    setWorkspace(true);
+  };
+
   const sourceStatusSlot = homePendingSource ? (
     <div
       role={homePendingSource.phase === 'failed' ? 'alert' : 'status'}
@@ -1256,13 +1562,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     </div>
   ) : null;
 
-  const continueSlot = state.conversationId && meaningfulWork
-    ? <ContinueCard title={currentTitle} detail={unsavedWork ? 'Not saved yet' : null} onContinue={() => setHome(false)} />
-    : null;
+  const continueSlot = homeHumanNext
+    ? <ContinueCard
+        title={homeHumanNext.title}
+        headline={homeHumanNext.headline}
+        detail={homeHumanNext.detail}
+        actionLabel={homeHumanNext.primaryLabel}
+        onContinue={() => openHumanNext(homeHumanNext)}
+      />
+    : signedIn && homeAttention.phase === 'ready'
+      ? <section className="mx-auto w-full max-w-2xl border-t border-cream-200 pt-5" aria-label="What needs you now" data-caught-up>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-sand-500">What needs you now</p>
+          <p className="mt-2 font-display text-lg text-forest-900">You're caught up.</p>
+          <p className="mt-1 text-[0.82rem] text-sand-600">Nothing SecurePay can verify needs your attention right now.</p>
+        </section>
+      : null;
   const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
-  // Public Experience Convergence Phase 2 -- the signed-in app reserves room for its mobile bottom
-  // navigation; the public shell has none.
-  return <div className={`h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
+  return <div className="h-dvh flex flex-col bg-cream-100">
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
@@ -1278,20 +1594,41 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
         />
-        {/* Returning work is useful context, but it must never compete with the canonical Home entry. */}
-        <div className="px-4 md:px-6 pt-5"><ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} /></div>
+        {homeAttention.phase === 'ready' && (
+          <div className="mx-auto w-full max-w-3xl px-4 md:px-6">
+            <AgreementAttentionSummary
+              needsYou={homeAttention.attentionItems}
+              waiting={homeAttention.waitingItems}
+              upcoming={homeAttention.upcomingEvents}
+              dominantWorkId={homeHumanNext?.workKind === 'agreement' ? homeHumanNext.workId : null}
+              onOpenAgreement={openAgreementAttention}
+            />
+          </div>
+        )}
         {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
         {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
-        {/* Phase 7 Slice 5B -- The Trust Project, BELOW the KS001 Home: an "About / why this exists"
-            section, never a separate product surface, nav item or second Home. Signed-in people get a
-            smaller doorway with the full explanation one tap away. */}
-        <TrustProjectSection
-          compact={sessionState.status === 'signed-in'}
-          membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-          onExploreCommunity={() => navigateTo('community')}
-          onOpenStores={() => navigateTo('store')}
-          onJoin={() => joinRoute.open()}
-        />
+        <div className="mx-auto w-full max-w-3xl px-4 pb-10 md:px-6">
+          <details className="border-t border-cream-200 pt-4">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
+              Other work
+            </summary>
+            <div className="pb-3">
+              <ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} />
+            </div>
+          </details>
+          <details className="border-t border-cream-200">
+            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
+              Explore more
+            </summary>
+            <TrustProjectSection
+              compact
+              membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+              onExploreCommunity={() => navigateTo('community')}
+              onOpenStores={() => navigateTo('store')}
+              onJoin={() => joinRoute.open()}
+            />
+          </details>
+        </div>
       </> : (
         // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
         // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
@@ -1317,66 +1654,71 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         />
       )}
     </div> : <>
-      {/* Final Phase 3 completion pass, Section 4 -- mobile-first sticky BUILD | UNDERSTOOD.
-          Phase 6 final correction: a compact KS001 identity row now sits above the tabs so mobile
-          (which hides the desktop identity block below) still clearly shows who the person is
-          talking to -- one coherent header, not a second bulky bar. */}
-      <div className="md:hidden sticky top-0 z-10 bg-cream-50 border-b border-cream-200/60 backdrop-blur-md">
-        {/* User-Ready Beta Gate 1 (EP-CERT-006/010) -- who you are talking to, what this conversation is, and + New. */}
-        <div className="flex items-center gap-2 px-3 pt-1.5 pb-1">
+      {/* Human Experience Phase 2 — one work plane. The artifact/conversation stays primary;
+          structured understanding is available as quiet detail instead of a second mode. */}
+      <div className="md:hidden sticky top-0 z-10 bg-cream-50/95 border-b border-cream-200/60 backdrop-blur-md">
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <button type="button" onClick={() => setCompassOpen(true)} aria-label="KS001, guided by the 12 Principles of Fair Trade"
             className="min-h-11 min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded-lg">
             <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : currentTitle}</span></span>
-            <span className="block text-[0.65rem] text-sand-600 underline decoration-sand-300 underline-offset-2">Guided by the 12 Principles of Fair Trade</span>
+            <span className="block text-[0.65rem] text-sand-500">Your work stays in front.</span>
           </button>
+          {hasInspectableDetails && <button
+            type="button"
+            onClick={openUnderstood}
+            aria-expanded={detailsOpen}
+            className="relative inline-flex min-h-11 items-center rounded-full px-2.5 text-[0.76rem] font-medium text-sand-600 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+          >
+            Details
+            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
+          </button>}
           <NewWorkButton onClick={startNewFromConversation} compact />
         </div>
-        <div className="flex">
-          <button
-            onClick={() => setMobileTab('build')}
-            aria-current={mobileTab === 'build'}
-            className={`flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'build' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
-          >
-            Build
-          </button>
-          <button
-            onClick={openUnderstood}
-            aria-current={mobileTab === 'understood'}
-            className={`relative flex-1 py-2.5 text-[0.8rem] font-medium transition-colors ${mobileTab === 'understood' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}
-          >
-            Understood
-            {hasUnseenUnderstood && <span className="absolute top-2 right-[calc(50%-2.2rem)] w-1.5 h-1.5 rounded-full bg-ember-500" aria-label="New structured content" />}
-          </button>
-        </div>
       </div>
-      <div className="flex-1 flex overflow-hidden">
-      {/* Phase 6 final correction: a restrained soft-green atmosphere on the active KS001
-          conversation surface (see tailwind.config.js's `ks001-surface` token) -- warm cream base,
-          quiet green tonal light, no flat solid color and no decorative gradient. */}
-      <div className={`${mobileTab === 'build' ? 'flex' : 'hidden'} md:flex flex-1 md:flex-[1.35] flex-col min-w-0 bg-cream-50 bg-ks001-surface sp-life-canvas`}>
-        {/* Task doctrine (KS001 identity): the person is talking to KS001, not "SecurePay" --
-            SecurePay is the system/brand (see NavBar's top-left brand), KS001 is who is in this
-            conversation. Reuses the one real, canonical SecurePay mark asset -- no generic
-            silhouette, no separately-drawn avatar. Mobile's equivalent identity row is in the
-            sticky header above. */}
+      <div className="flex-1 overflow-hidden">
+      <div className="flex h-full flex-col min-w-0 bg-cream-50 bg-ks001-surface sp-life-canvas">
         <div className="hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-cream-200/60">
           <img src={securepayMark} alt="" className={`w-7 h-7 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               <span className="font-display text-sm text-forest-800">KS001</span>
-              {/* EP-CERT-010 -- KS001 is the voice, the 12 Principles are its compass: one identity, one tap, no navigation. */}
-              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-600 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
+              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-500 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
               <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
             </div>
             <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
           </div>
+          {hasInspectableDetails && <button
+            type="button"
+            onClick={openUnderstood}
+            aria-expanded={detailsOpen}
+            className="relative inline-flex min-h-11 items-center rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-white/70 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+          >
+            Details
+            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
+          </button>}
           <NewWorkButton onClick={startNewFromConversation} />
         </div>
-        {/* Mobile: what SecurePay understands is one tap away, never a second copy of the desktop panel. */}
-        {workbenchModel.items.length > 0 && <button onClick={openUnderstood} className="md:hidden mx-4 mt-3 flex min-h-11 items-center justify-between rounded-xl border border-cream-200 bg-white/80 px-3.5 text-left text-[0.85rem] text-forest-700 shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-          <span>What SecurePay understands <span className="text-sand-500">· {workbenchModel.items.length}</span></span><span aria-hidden="true" className="text-sand-400">›</span>
-        </button>}
+        {detailsOpen && hasInspectableDetails && <section
+          aria-label="What SecurePay understands"
+          data-understood-details
+          className="max-h-[52%] shrink-0 overflow-y-auto border-b border-cream-200/70 bg-white/88 px-4 py-4 md:px-6"
+        >
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-500">Details</p>
+                <h2 className="mt-0.5 font-display text-lg text-forest-900">What SecurePay understands</h2>
+              </div>
+              <button type="button" onClick={() => setDetailsOpen(false)}
+                className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-cream-50 hover:text-forest-700">
+                Close
+              </button>
+            </div>
+            <div ref={setPanelSlot} />
+            {understoodContent}
+          </div>
+        </section>}
         {reviewOpen && formationState.data?.reviewable && state.conversationId ? <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 md:px-6">
           <AgreementReview formation={formationState.data} changes={formationState.changes} busy={state.busy || !!state.pending}
             checking={formationState.checking} error={formationState.error}
@@ -1390,7 +1732,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
             settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
             onUnlink={partyKey => { if (state.conversationId) void formationController.unlink(state.conversationId, partyKey); }}
-            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
+            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
         </div> : <div className="flex-1 overflow-hidden">
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
@@ -1434,9 +1776,198 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                 </div>}
               </div>}
-              <AgreementShaping formation={formationState.data} changes={formationState.changes} onReview={() => setReviewOpen(true)}
-                onResolvePoint={point => setMicroReview(point.id)}
-                onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
+              {/* Human Phase 2 correction: the real Agreement belongs first. Do not
+                  echo the human's message in a large pretend-work card; their own
+                  words are already preserved in the conversation above. */}
+              {/* One-tap answers belong to the conversation. The server owns the question.
+                  Purpose suggestions are optional human-worded examples only when the person
+                  explicitly said chama and the server asked about purpose. They are not
+                  authoritative classifications or silently accepted Agreement facts. */}
+              {showPlaceStep && !state.busy && !state.pending && <section className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft" data-place-next-step>
+                <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
+                <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">{isSensitiveHumanSituation ? 'Where would you like everyone to gather?' : 'Where should this take place?'}</h3>
+                <p className="mt-1 text-sm text-sand-700">{isSensitiveHumanSituation ? 'You can share a place now or decide later. Your location stays private unless you choose to share it.' : 'Choose a place or use your current location. You can add arrival details and keep it private.'}</p>
+                <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a place</button>
+              </section>}
+              {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Supporting material</p>
+                <h3 className="font-display text-xl font-semibold text-forest-900">{requestedMedia && requestedDocument ? 'Would you like to share the photos or documents?' : requestedMedia ? 'Add a photo to show KS001' : 'Share the document with KS001'}</h3>
+                <p className="text-sm text-sand-700">{isSensitiveHumanSituation ? 'Only share what is useful to you. We can continue without an attachment.' : 'KS001 will use the material to understand your arrangement. Sharing it does not mean anyone has agreed.'}</p>
+                <div className="flex flex-wrap gap-2">
+                  {requestedMedia && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add photo<input type="file" accept="image/*" className="sr-only" aria-label="Add supporting photo" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('PHOTO',file); event.target.value=''; }} /></label>}
+                  {requestedDocument && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add document<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.csv,.xlsx,.xls,.odt" className="sr-only" aria-label="Add supporting document" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('DOCUMENT',file); event.target.value=''; }} /></label>}
+                  <button type="button" onClick={() => void controller.send('I want to continue without attaching supporting material for now.')} className="min-h-11 rounded-full px-4 text-sm font-medium text-forest-700 underline">Not now</button>
+                </div>
+                {sourcesState.phase === 'error' && <p role="alert" className="text-sm text-ember-700">{sourcesState.error}</p>}
+              </section>}
+              {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
+              {formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !state.busy && !state.pending && (
+                <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft md:p-5">
+                  <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
+                  <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
+                    suggestedChoices={
+                      formationState.data.question.choices.length === 0
+                      && /chama/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                      && /what is this for|what.*(purpose|for|used for)|contributions.*for/i.test(formationState.data.question.text)
+                        ? ['Save together', 'Invest together', 'Merry-go-round', 'Support one another']
+                        : /chama|merry.go.round/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                          && /payout order|order.*(decid|receiv|payout)|who.*first|first.*receiv/i.test(formationState.data.question.text)
+                          ? ['Draw lots', 'Agree together', 'Set an order', 'Decide later']
+                          : /\b(8|eight) friends\b/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                            && /how many|number of (people|members|contributors)|including you/i.test(formationState.data.question.text)
+                            ? ['Eight including me', 'Eight friends plus me']
+                            : []
+                    }
+                    onAnswer={text => void controller.send(text)}
+                    onAddPlace={() => openDeclared('place')}
+                    onUploadPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+                    onUploadDocument={file => { void sourceController.addUpload('DOCUMENT', file); }} />
+                  {(() => {
+                    const matched = formationState.data?.openPoints.find(point =>
+                      formationState.data?.question?.openPointIds.includes(point.id) && point.sides.some(side => side.choosable));
+                    if (!matched) return null;
+                    return <div className="mt-3 border-t border-forest-100 pt-3">
+                      <p className="text-xs font-semibold text-forest-700">Choose the correct recorded value</p>
+                      <div role="group" aria-label="Resolve the conflicting facts" className="mt-2 flex flex-wrap gap-2">
+                        {matched.sides.filter(side => side.choosable).map(side => <button type="button" key={side.factId ?? side.value}
+                          onClick={() => void resolveConflict(matched, side)}
+                          className="min-h-11 rounded-full border border-forest-300 bg-forest-50 px-4 text-sm font-semibold text-forest-800">{side.value}</button>)}
+                        <button type="button" onClick={() => setMicroReview(matched.id)} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-700">Neither / another value</button>
+                      </div>
+                    </div>;
+                  })()}
+                  <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
+                </section>
+              )}
+              {formationState.data && formationState.data.stage !== 'NOTHING_YET'
+                && (formationState.data.who.length > 0 || /who|person|member|participant|representative|organisation|organization/i.test(formationState.data.question?.text ?? '')) && (
+                <details data-ks-identity-assist className="rounded-xl border border-forest-100 bg-white p-4 md:mx-auto md:w-full md:max-w-3xl">
+                  <summary className="cursor-pointer text-sm font-semibold text-forest-800">+ Add a person or organisation by KS Number</summary>
+                  <form onSubmit={event => {event.preventDefault(); void submitKsParticipant();}} className="mt-3 space-y-3">
+                    <p className="text-sm text-sand-700">Identify the person or organisation, then state their intended role. SecurePay checks the identity; this does not invite or sign for them.</p>
+                    <label className="block text-xs font-semibold text-forest-800">KS Number<input value={ksParticipant} onChange={event => setKsParticipant(event.target.value)} required placeholder="KS Number" className="mt-1 block min-h-11 w-full rounded-xl border border-forest-200 px-3 text-sm" /></label>
+                    <label className="block text-xs font-semibold text-forest-800">Their role<input value={ksRole} onChange={event => setKsRole(event.target.value)} required placeholder="e.g. Treasurer, contractor, family representative" className="mt-1 block min-h-11 w-full rounded-xl border border-forest-200 px-3 text-sm" /></label>
+                    <button type="submit" disabled={ksIdentityBusy || state.busy || !ksParticipant.trim() || !ksRole.trim()} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-50">{ksIdentityBusy ? 'Checking…' : 'Check KS identity'}</button>
+                    {ksIdentityStatus && <p role="status" className="text-sm text-forest-800">{ksIdentityStatus}</p>}
+                  </form>
+                </details>
+              )}
+              {/* An actual review invitation is visible WITHOUT opening the preview.
+                  It does not stop KS001, and only the server can mark this version reviewable. */}
+              {formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !sourcesState.sources.some(source => source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' || source.stalled) && (
+                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-[1.35rem] border border-forest-200 bg-white px-4 py-3 shadow-soft md:mx-auto md:w-full md:max-w-3xl">
+                  <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Agreement · Ready for review</p>
+                  <p className="mt-1 font-display text-lg text-forest-900">You can review the Agreement.</p>
+                  <p className="mt-1 text-sm text-forest-800">You can review it now or keep building with KS001. Nothing is agreed yet.</p>
+                  <button type="button" onClick={() => setReviewOpen(true)} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2">Review Agreement</button>
+                </section>
+              )}
+              {readinessWasReassessed && (
+                <p role="status" data-readiness-reassessed className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-forest-900">
+                  Your plan has changed since it was ready for review. SecurePay needs to check the updated terms before review is available again.
+                </p>
+              )}
+              {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
+                <details onToggle={event => {
+                  if (!event.currentTarget.open) return;
+                  const agreement = event.currentTarget;
+                  requestAnimationFrame(() => {
+                    agreement.querySelector('[data-agreement-document] h2')?.scrollIntoView({ block: 'start', behavior: 'auto' });
+                  });
+                }} aria-label="Your forming Agreement preview" data-forming-agreement className="group overflow-hidden rounded-[1.4rem] border-2 border-forest-200 bg-white shadow-soft transition-shadow open:shadow-lg md:mx-auto md:w-full md:max-w-3xl">
+                  <summary className="flex min-h-[88px] cursor-pointer list-none items-center gap-3 bg-gradient-to-r from-forest-50 via-white to-cream-50 px-4 py-4 text-forest-900 marker:hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-forest-500 md:px-6 [&::-webkit-details-marker]:hidden">
+                    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-forest-700 text-2xl text-white shadow-sm">▤</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-semibold leading-tight md:text-xl">Your Agreement</span>
+                        <span className={formationState.data.reviewable ? "rounded-full bg-forest-700 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-white" : "rounded-full bg-forest-100 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-forest-800"}>{formationState.data.reviewable ? "Ready for review" : "Forming"}</span>
+                      </span>
+                      <span className="mt-1 block text-[0.78rem] text-sand-700 group-open:hidden">{formationState.data.reviewable ? "Ready to review · You can keep talking" : "Tap to see what KS001 is building"}</span>
+                      <span className="mt-1 hidden text-[0.78rem] font-medium text-forest-700 group-open:block">Back to KS001 · Collapse preview</span>
+                    </span>
+                    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-forest-200 bg-white text-xl text-forest-700 group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div data-agreement-document className="border-t border-forest-100 bg-cream-50/40 px-4 pb-6 pt-5 md:px-8 md:pt-7">
+                    <article className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-soft">
+                      <header className="border-b border-cream-200 px-5 pb-6 pt-6 md:px-8">
+                        <p className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-forest-700">SecurePay · Agreement</p>
+                        <h2 className="mt-3 font-display text-2xl leading-tight text-forest-900 md:text-3xl">{formationState.data.summary || formationState.data.what[0]?.value || 'Your emerging Agreement'}</h2>
+                        <p className="mt-3 text-sm leading-6 text-sand-700">{formationState.data.reviewable ? 'Ready for review. This is not yet an accepted Agreement.' : 'A working draft drawn from your conversation. Nothing is agreed yet.'}</p>
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-forest-50 px-3 py-1 text-xs font-semibold text-forest-800">{formationState.data.reviewable ? 'Ready for review' : 'Forming · Draft'}</span>
+                          <span className="text-xs text-sand-600">Version {formationState.data.version}</span>
+                        </div>
+                      </header>
+                      <div className="space-y-6 px-5 py-6 md:px-8">
+                        {([
+                          ['What we are planning', formationState.data.what],
+                          ['Money', formationState.data.money],
+                          ['When', formationState.data.when],
+                          ['Conditions', formationState.data.conditions],
+                          ['Not included', formationState.data.notIncluded],
+                        ] as const).filter(([, terms]) => terms.length > 0).map(([heading, terms]) =>
+                          <section key={heading} className="space-y-2">
+                            <h3 className="font-display text-lg font-semibold text-forest-900">{heading}</h3>
+                            <dl className="divide-y divide-cream-100 rounded-xl border border-cream-100">
+                              {terms.map(term => <div key={term.key} className="grid gap-1 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-4">
+                                <dt className="flex items-center justify-between gap-2 text-[0.78rem] font-medium text-sand-600">{term.label}<button type="button" disabled={correctionBusy || state.busy || !!state.pending} onClick={() => { setCorrectionTarget({key: term.key, label: term.label, value: term.value}); setCorrectionDraft(''); setCorrectionStatus(null); }} className="min-h-11 rounded-full px-3 text-xs font-semibold text-forest-700 underline underline-offset-2 disabled:opacity-50" aria-label={`Edit ${term.label}`} title={`Edit ${term.label}`}><Pencil className="h-4 w-4" aria-hidden="true" /></button></dt>
+                                <dd className="text-sm leading-6 text-forest-900">{term.value}{term.needsChecking && <span className="ml-2 text-xs font-semibold text-ember-800">Needs checking</span>}{term.detail && <span className="mt-1 block text-xs text-sand-600">{term.detail}</span>}</dd>
+                              </div>)}
+                            </dl>
+                          </section>
+                        )}
+                        {formationState.data.who.length > 0 && <section className="space-y-2">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">People involved</h3>
+                          <ul className="divide-y divide-cream-100 rounded-xl border border-cream-100">
+                            {formationState.data.who.map(person => <li key={person.key} className="px-3 py-3">
+                              <p className="text-sm font-semibold text-forest-900">{person.name}{person.role ? ` · ${person.role}` : ''}</p>
+                              <p className="mt-1 text-xs text-sand-600">{person.identity === 'VERIFIED' ? 'Identity linked · has not accepted this Agreement' : 'Described in conversation · identity not yet verified'}</p>
+                            </li>)}
+                          </ul>
+                        </section>}
+                        {formationState.data.responsibilities.length > 0 && <section className="space-y-3">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">Responsibilities</h3>
+                          {formationState.data.responsibilities.map(group => <div key={group.party} className="rounded-xl border border-cream-100 px-3 py-3">
+                            <h4 className="text-sm font-semibold text-forest-900">{group.party}</h4>
+                            {group.duties.map(duty => <p key={duty.key} className="mt-1 text-sm leading-6 text-forest-800"><span className="font-medium">{duty.label}:</span> {duty.value}</p>)}
+                          </div>)}
+                        </section>}
+                        {formationState.data.openPoints.some(point => point.blocksConfirmation || !point.checked) && <section className="rounded-xl border border-ember-200 bg-ember-50/40 px-4 py-4">
+                          <h3 className="font-display text-lg font-semibold text-forest-900">Still to clarify</h3>
+                          <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-forest-800">
+                            {formationState.data.openPoints.filter(point => point.blocksConfirmation || !point.checked).map(point => <li key={point.id}>{point.text}</li>)}
+                          </ul>
+                        </section>}
+                        {formationState.data.readingSources.length > 0 && <p className="text-xs text-sand-600">Still reading: {formationState.data.readingSources.join(', ')}</p>}
+                        <p className="border-t border-cream-100 pt-4 text-xs leading-5 text-sand-600">This document is based on the current SecurePay formation record. A draft or reviewable proposal is not a signed commitment.</p>
+                      </div>
+                    </article>
+                    {correctionTarget && <form onSubmit={event => { event.preventDefault(); if (correctionDraft.trim()) void sendTermCorrection(); }} className="mx-auto mt-4 max-w-2xl space-y-3 rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft" aria-label="Correct an Agreement detail">
+                      <h3 className="font-display text-lg font-semibold text-forest-900">Correct {correctionTarget.label}</h3>
+                      <p className="text-sm text-sand-700">Currently: {correctionTarget.value}</p>
+                      {(/currency|currenc|\bKES\b|\bUSD\b|\bEUR\b/i.test(correctionTarget.key + ' ' + correctionTarget.label)) && (
+                        <div role="group" aria-label="Choose currency" className="flex flex-wrap gap-2">
+                          {['KES', 'USD', 'EUR'].map(currency => <button type="button" key={currency} disabled={correctionBusy || !!state.pending} onClick={() => { setCorrectionDraft(currency); setCorrectionStatus(null); void sendTermCorrection(false, currency); }}
+                            className="min-h-11 rounded-full border border-forest-300 bg-forest-50 px-4 text-sm font-semibold text-forest-800 hover:bg-forest-100 disabled:opacity-50">{currency}</button>)}
+                        </div>
+                      )}
+                      <label className="block text-sm font-semibold text-forest-800" htmlFor="agreement-correction">What should it say?</label>
+                      <textarea id="agreement-correction" value={correctionDraft} onChange={event => setCorrectionDraft(event.target.value)} disabled={correctionBusy} maxLength={4000} rows={3} autoFocus className="w-full rounded-xl border border-forest-200 bg-white p-3 text-sm text-forest-900 focus:outline-2 focus:outline-forest-500" placeholder="Tell KS001 the correct detail in your own words" />
+                      {correctionStatus && <p role="status" className="text-sm text-forest-800">{correctionStatus}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        <button type="submit" disabled={!correctionDraft.trim() || correctionBusy || !!state.pending} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-50">{correctionBusy ? 'Checking…' : 'Send correction'}</button>
+                        <button type="button" onClick={() => { setCorrectionTarget(null); setCorrectionStatus(null); }} className="min-h-11 rounded-full border border-forest-200 px-5 text-sm text-forest-800">Cancel</button>
+                        {correctionStatus && state.pending && <button type="button" disabled={correctionBusy} onClick={() => void sendTermCorrection(true)} className="min-h-11 rounded-full border border-forest-200 px-5 text-sm text-forest-800">Check again</button>}
+                      </div>
+                    </form>}
+                    {correctionStatus && !correctionTarget && <p role="status" className="mx-auto mt-3 max-w-2xl text-sm text-forest-700">{correctionStatus}</p>}
+                    <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center gap-3">
+                      {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Review Agreement</button>}
+                      <button type="button" onClick={event => { const details = event.currentTarget.closest('details'); if (details) details.open = false; setComposerFocusKey(key => key + 1); }} className="min-h-11 rounded-full border border-forest-200 bg-white px-5 text-sm font-semibold text-forest-800">Back to KS001</button>
+                    </div>
+                  </div>
+                </details>
+              )}
               {directAck && <p role="status" className="text-[0.85rem] text-forest-800"><span className="font-display">KS001 · </span>{directAck}
                 <button type="button" onClick={() => setDirectAck(null)} className="ml-2 min-h-11 text-[0.8rem] text-sand-700 underline">OK</button></p>}
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
@@ -1463,53 +1994,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 min-h-11 text-forest-700 underline disabled:opacity-40">{state.busy && state.outcomeUnknown ? 'Checking…' : retryLabel(state.pending, state.outcomeUnknown)}</button>
               </StatusNotice>}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-forest-700">
-                {/* KS001 Upgrade Phase 3 (Bring what you already have, Section 40) -- one quiet attach
-                    control (Document / Photo / Paste a plan), never a toolbar jungle. Real bytes only
-                    reach SecurePay once the person actually picks a file -- never a local preview shown as
-                    success (Section 65). */}
-                {/* Opens downward: this row sits at the TOP of the scrolling conversation panel, where an upward
-                    menu would be clipped (found in live Phase 3 verification). */}
-                {/* REFRESH re-reads SecurePay's current understanding. It never resets or starts anything (that is + New). */}
-                <button disabled={state.busy} onClick={reviewing} aria-label="Refresh what SecurePay understands" className="min-h-11 underline disabled:opacity-40">Refresh</button>
-                {/* Entry Perfection Phase 6 -- REVIEW THIS opens the emerging agreement itself (no sign-in, nothing created);
-                    setting it up securely is a separate, explicit step inside Review. */}
-                {/* User-Ready Beta Gate 1 -- the actual next step ("Resolve price", "Review 2 points", "Review agreement"). */}
+              {!state.busy && !state.pending && formationState.data && !formationState.data.reviewable && formationState.data.reviewBlockedReason
+                && formationState.data.stage === 'BUILD' && (
+                <p className="text-[0.78rem] leading-5 text-sand-500">{formationState.data.reviewBlockedReason}</p>
+              )}
+              {state.conversationId && <details className="border-t border-cream-200/70 pt-1">
+                <summary className="min-h-11 cursor-pointer list-none py-2.5 text-[0.78rem] font-medium text-sand-500">
+                  More options
+                </summary>
                 <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || !formationState.data?.reviewable}
-                  onClick={goNext}
-                  className="min-h-11 underline disabled:opacity-40"
-                >
-                  {step.kind === 'none' ? 'Review agreement' : step.label}
-                </button>
-                {/* KS001 Upgrade Phase 5 continuation (Slice 3, UR-145) -- "Review this" is correctly
-                    disabled while a suggested (not-yet-confirmed) WHAT still needs the person's own
-                    explicit "Use this." Live testing found this gate itself is legitimate (never a
-                    predicate bug -- see the Phase 5 completion report's own root-cause account), but
-                    nothing told the person WHY the button stayed disabled after a seemingly-complete
-                    conversation. This names the exact real reason, using the server's own
-                    mustResolve description verbatim -- never a second, independently-drifting copy
-                    of the sufficiency rule. */}
-                {/* Entry Perfection Phase 6 -- DELIBERATELY RESTATED: the old hint told the person to confirm facts one by one with
-                    "Use this" before Review, which UR-239 retired. Review waits only for a coherent arrangement, and says so. */}
-                {!state.busy && !state.pending && formationState.data && !formationState.data.reviewable && formationState.data.reviewBlockedReason
-                  && formationState.data.stage === 'BUILD' && (
-                  <p className="w-full text-[0.78rem] text-sand-500 basis-full">{formationState.data.reviewBlockedReason}</p>
-                )}
-                {/* KS001 Upgrade Phase 2 (Sections 14/15/20), final convergence correction (item 8) -- a
-                    PRIVATE pre-agreement save, never "Set up Agreement" done twice: this only binds
-                    ownership to the SAME conversation, it never creates a draft Agreement. Gated on the
-                    server-owned sufficiency.canSave (always true once a real conversation exists, but read
-                    directly rather than assumed, matching "Review this"'s own canReview gate). */}
-                <button
-                  disabled={!state.conversationId || state.busy || !!state.pending || savedBuildState.phase === 'saving'
+                  disabled={state.busy || !!state.pending || savedBuildState.phase === 'saving'
                     || (state.context.data?.sufficiency && !state.context.data.sufficiency.canSave)}
                   onClick={() => { if (state.conversationId) void savedBuildController.save(state.conversationId); }}
-                  className="min-h-11 underline disabled:opacity-40"
+                  className="min-h-11 text-[0.82rem] text-forest-700 underline disabled:opacity-40"
                 >
                   {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
                 </button>
-              </div>
+              </details>}
               {bringPlanOpen && (
                 <BringPlanPanel
                   busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
@@ -1524,7 +2025,20 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
                   extraction-debug screen. BUILD itself remains the primary structured view. */}
               <SourcesList
+                onInterpretPhoto={(source, intent) => {
+                  const name = source.originalName || source.label || 'the photo';
+                  const summary = source.summary?.trim();
+                  const messages = {
+                    confirm: `For the photo "${name}", I confirm that your description is accurate: ${summary || 'no description was available'}. Use this only as a confirmed description of what I showed, not proof of completion, acceptance, delivery or payment.`,
+                    correct: `I want to correct what you understood from the photo "${name}". Your current description is: ${summary || 'none available'}. Please ask me what needs correcting before using it as a trade fact.`,
+                    keep: `Please keep the photo "${name}" as supporting material for this work, without interpreting it as accepted evidence or changing any Agreement terms.`,
+                    bill: `Please analyse the uploaded photo "${name}" as a possible bill, receipt or trade record. Use only details actually visible or reliably extracted: merchant, items, quantities, unit prices, totals, dates and payment indicators. Clearly separate what is stated, uncertain and missing. Reconstruct a proposed trade record for my review, without assuming payment, delivery, tax treatment or anyone's consent. Ask only the next material question.`,
+                  };
+                  void controller.send(messages[intent]);
+                }}
                 sources={sourcesState.sources}
+                photoPreviews={sourcesState.photoPreviews}
+                onReviewAgreement={formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep ? () => setReviewOpen(true) : undefined}
                 busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
@@ -1549,6 +2063,33 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question && !showMeetingSchedule
+                    && /(?:proposed|choose|agree|decide|set|which|what|suggest).*\bdate\b|\bdate\b.*(?:propose|choose|agree|decide|suggest)/i.test(turn.response.message.text)
+                    && <DateFromReply key={turn.id} withTime={/date.*(?:start(?:ing)? time|time)|(?:start(?:ing)? time|time).*date/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))} onAnswer={answer => void controller.send(answer)} />}
+
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question && !showMeetingSchedule
+                    && /meeting/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
+                    && /(?:start(?:ing)? time|date and time)/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
+                    && state.turns.some(t => t.sender === 'user' && /\b20\d{2}-\d{2}-\d{2}\b/.test(t.text))
+                    && !state.turns.some(t => t.sender === 'user' && /\b(?:at|start(?:ing)? at)\s+\d{1,2}:\d{2}\b/i.test(t.text))
+                    && <TimeFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending
+                    && !/[?]\\s*$/.test(turn.response.message.text.trim())
+                    && !formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && (
+                      <div className="ml-10 max-w-xl rounded-xl border border-forest-100 bg-white/70 px-4 py-3" data-ks001-continuation>
+                        {formationState.data?.openPoints.find(point => !point.checked && point.blocksConfirmation)
+                          ? (() => {
+                            const point = formationState.data!.openPoints.find(item => !item.checked && item.blocksConfirmation)!;
+                            return <>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-forest-600">What needs you next</p>
+                              <p className="mt-1 text-[0.96rem] font-semibold leading-6 text-forest-900">{point.text}</p>
+                              {point.sides.some(side => side.choosable) && <button type="button" onClick={() => setMicroReview(point.id)}
+                                className="mt-2 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Choose what is right</button>}
+                            </>;
+                          })()
+                          : <p className="text-[0.92rem] leading-6 text-forest-800">You can add another detail whenever you’re ready.</p>}
+                      </div>
+                    )}
                   {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY' && component.type !== 'AGREEMENT_PREVIEW')
                     .map((component, i) => <RichResponse key={i} component={component} onReview={reviewing}
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
@@ -1557,41 +2098,25 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                       onRequestDiscovery={targetEntityId => void controller.requestDiscovery(targetEntityId)} />)}
                   {(() => {
                     const found = turn.response.components.filter((c): c is DiscoveryView => c.type === 'DISCOVERY' && c.payload !== null);
-                    return found.length > 0 ? <div className="ml-[2.625rem]"><button type="button" onClick={() => { setMobileTab('understood'); setFoundFocusKey(k => k + 1); }}
+                    return found.length > 0 ? <div className="ml-[2.625rem]"><button type="button" onClick={() => { openUnderstood(); setFoundFocusKey(k => k + 1); }}
                       className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white px-4 text-[0.85rem] text-forest-700 shadow-soft hover:bg-forest-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">Found on SecurePay · {foundLabel(found)}<span aria-hidden="true">›</span></button></div> : null;
                   })()}
                 </>}
               </div>),
               handoffState.phase !== 'idle' && <div key="handoff" className="space-y-3">
-                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('home'); setWorkspace(true); }} agreementGateway={agreementGateway} />
+                <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} />
               </div>,
             ]}
           </ConversationSurface>
         </div>}
       </div>
-      {/* User-Ready Beta Gate 1 -- WORKSPACE ARCHITECTURE: what SecurePay understands is a slightly recessed plane (level 1);
-          facts sit above it (level 2) and decisions rise above ordinary facts (level 3). */}
-      <div className={`${mobileTab === 'understood' ? 'flex' : 'hidden'} md:flex md:flex-[1] flex-col border-l border-cream-200/60 surface-region min-w-0 ${mobileTab === 'understood' ? 'flex-1 overflow-y-auto p-4' : ''}`} data-understood-plane>
-        <div className="md:hidden">{understoodContent}</div>
-        <div className="hidden md:flex md:flex-col md:flex-1 md:min-h-0">
-          {/* Product doctrine (task section 4): the overall panel title is always "What SecurePay
-              understands" -- KS001 talks with the person, SecurePay maintains the structured
-              understanding. A backend-supplied `panel.title` (a per-turn contextual heading) must
-              never replace this; it simply isn't surfaced as the panel's own title. */}
-          <div className="px-5 py-3 border-b border-cream-200/60"><h2 className="font-display text-sm text-forest-800">What SecurePay understands</h2></div>
-          <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-4 space-y-4">
-            <div ref={setPanelSlot} />
-            {understoodContent}
-          </div>
-        </div>
-      </div>
       </div>
     </>}
     <DiscoveryHost controller={discovery} panelSlot={panelSlot} contextDetails={contextDetails}
-      onBackToConversation={() => { discovery.close(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }}
+      onBackToConversation={() => { discovery.close(); setDetailsOpen(false); setComposerFocusKey(key => key + 1); }}
       onAddPerson={() => { discovery.close(); const add = workbenchModel.adds.find(a => a.key === 'who'); if (add) instruments.open(add.spec); }} />
     <InstrumentHost controller={instruments} agentBusy={state.busy} agentUncertain={!!state.pending} panelSlot={panelSlot}
-      onBackToConversation={() => { instruments.cancel(); setMobileTab('build'); setComposerFocusKey(key => key + 1); }}
+      onBackToConversation={() => { instruments.cancel(); setDetailsOpen(false); setComposerFocusKey(key => key + 1); }}
       onFind={() => { instruments.cancel(); openDiscovery(emptyQuery('SERVICE')); }} />
     {freshIntent && <StartFreshDialog title={currentTitle} busy={savedBuildState.phase === 'saving'}
       onStay={() => setFreshIntent(null)}

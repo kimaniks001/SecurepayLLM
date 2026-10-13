@@ -76,11 +76,10 @@ test('deeper Money capability remains reachable', () => {
   assert.match(moneyExperience, /FinancialPartnersSection/);
 });
 
-test('answer surface comes before general pathway and KS001 guide', () => {
+test('answer surface comes before contextual KS001 help and no general module pathway returns', () => {
   const dashboard = moneyExperience.indexOf('<SimpleMoneyDashboard');
   const ks001 = moneyExperience.indexOf('<Ks001SurfaceGuide');
-  const pathway = moneyExperience.indexOf('<ExperiencePathway');
   assert.ok(dashboard > 0);
   assert.ok(ks001 > dashboard);
-  assert.ok(pathway > dashboard);
+  assert.doesNotMatch(moneyExperience, /ExperiencePathway/);
 });

@@ -5,11 +5,20 @@ import type { ResolveOutcome } from './MicroReview';
 import type { CorrectionOutcome } from './correction';
 import { TURN_MAX_CHARS } from '../entry/lifecycle';
 
+const NO_CHANGE_PHRASES = [
+  'nothing', 'nothing change', 'nothing to change', 'no change', 'no changes',
+  'everything is okay', 'everything is ok', 'all good', 'looks good', 'it is okay', 'it is ok',
+];
+export function meansNoAgreementChange(value: string): boolean {
+  const normal = value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normal) return false;
+  return NO_CHANGE_PHRASES.some(phrase => normal === phrase || normal.includes(phrase));
+}
+
 /**
- * Entry Perfection Phase 6 -- REVIEW: "What does SecurePay think we are agreeing?" In human agreement language, from the
- * server's canonical projection only. Scannable sections, the current value of every term (a corrected source figure is
- * history, never the value), calm "Needs checking" points, evidence one tap away, corrections in plain words to KS001, and
- * the one explicit action that can lead to confirmation: "Set this up securely" (pinned to the version shown here).
+ * Phase 3 Human Experience — REVIEW IS THE AGREEMENT. Every term still comes from the server's canonical
+ * formation projection, but implementation/version/provenance machinery stays secondary unless the person asks for it.
+ * Corrections remain natural-language messages to KS001; consequential set-up remains version-pinned underneath.
  */
 export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onRetryCorrection, onResolve, onOpenPoint, onSetUp, onAcknowledgeChanges, setUp, settingUpAs, onUnlink }: {
   formation: AgreementFormation; changes: string[]; busy: boolean; checking: string | null; error: string | null;
@@ -34,6 +43,10 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [correction, setCorrection] = useState('');
+  const [readAcknowledged, setReadAcknowledged] = useState(false);
+  // Acknowledging review only unlocks the existing version-pinned setup handoff.
+  // It is not a signature, participant consent, or a payment authorisation.
+  useEffect(() => { setReadAcknowledged(false); }, [formation.conversationId, formation.version]);
   const [resolving, setResolving] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<{ pointId: string; text: string } | null>(null);
   const resolve = async (point: FormationOpenPoint, side: FormationSide) => {
@@ -67,26 +80,39 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     <div className="agreement-screen-only flex flex-wrap items-center justify-between gap-2">
       <button type="button" onClick={onBack} className="min-h-11 text-[0.85rem] text-forest-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">← Back to the conversation</button>
       <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white px-4 text-[0.82rem] font-semibold text-forest-700 shadow-soft hover:border-forest-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-        <Printer className="h-4 w-4" aria-hidden="true" /> Print draft
+        <Printer className="h-4 w-4" aria-hidden="true" /> Print Agreement
       </button>
     </div>
     <article data-agreement-print className="sp-agreement-paper space-y-5 px-5 py-6 md:px-8 md:py-8">
       <header className="border-b border-cream-200 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
-          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft for review · not agreed</div>
+          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft · Not agreed</div>
         </div>
         <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-900">{documentTitle}</h1>
+        <p className="mt-2 text-[0.75rem] font-medium text-sand-600" data-print-version>Agreement version {formation.version} · {formation.reviewable ? "Ready for review" : "Forming"} · No participant acceptance recorded by this review</p>
         {formation.summary && formation.summary !== documentTitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-6 text-sand-700">{formation.summary}</p>}
-        <p className="mt-3 text-[0.76rem] text-sand-500">Version {formation.version} · built from the current SecurePay understanding</p>
+        <details className="agreement-screen-only mt-3 text-[0.76rem] text-sand-600">
+          <summary className="cursor-pointer select-none underline decoration-sand-300 underline-offset-2">Agreement details</summary>
+          <p className="mt-1">Version {formation.version}. SecurePay keeps the version and source record underneath so the Agreement can be audited without making you operate it.</p>
+        </details>
       </header>
+      <div className="agreement-screen-only mt-5 rounded-2xl border border-forest-200 bg-forest-50 p-4" data-review-consent-boundary>
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-forest-700">Review · Not yet a commitment</p>
+        <p className="mt-2 text-sm leading-6 text-forest-900">{formation.reviewable ? 'There is enough information to review this proposal.' : 'This proposal still needs information before review is available.'} {formation.confirmable ? 'SecurePay currently permits you to keep this version as a proposed Agreement.' : 'SecurePay has not yet authorised keeping this version.'}</p>
+        <div className="mt-3 grid gap-2 text-sm text-forest-800 sm:grid-cols-3">
+          <p className="rounded-xl bg-white p-3"><strong className="block">1 · Read</strong>Check what this version says.</p>
+          <p className="rounded-xl bg-white p-3"><strong className="block">2 · Keep</strong>Save the proposal when SecurePay permits it.</p>
+          <p className="rounded-xl bg-white p-3"><strong className="block">3 · Agree</strong>Other participants must separately accept through the authorised process.</p>
+        </div>
+      </div>
       <div className="agreement-screen-only mt-5">
-      <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Review this agreement</h2>
-      <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is what SecurePay understands so far. Nothing is agreed until you set it up.</p>
+      <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Read the Agreement</h2>
+      <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is the Agreement you are about to keep. Nothing is agreed with anyone else yet.</p>
       </div>
 
     {changes.length > 0 && <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-forest-200 bg-forest-50 px-3.5 py-2.5 text-[0.85rem] text-forest-800">
-      <span>Updated: {changes.join('; ')}.</span>
+      <span><strong>Changed:</strong> {changes.join('; ')}.</span>
       <button type="button" onClick={onAcknowledgeChanges} className="min-h-11 shrink-0 px-1 text-[0.8rem] underline">OK</button>
     </div>}
 
@@ -132,7 +158,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
             aria-label={`Not ${p.name} — unlink this identity`}>{checking === p.key ? 'Unlinking…' : 'Not this person'}</button>}
         </li>)}
       </ul>
-      <p className="px-1 pt-1.5 text-[0.75rem] text-sand-500">Nobody else has joined or agreed yet. You can link or invite them after you set this up.</p>
+      <p className="px-1 pt-1.5 text-[0.75rem] text-sand-600">Nobody else has joined or agreed yet. You can invite them after you keep this Agreement.</p>
     </div>}
     <Section title="Money" terms={formation.money} />
     <Section title="When" terms={formation.when} />
@@ -144,14 +170,25 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     {checked.length > 0 && <p className="text-[0.78rem] text-sand-500">Checked by you — still open: {checked.map(p => p.text).join(' · ')}</p>}
 
       <footer className="mt-7 border-t border-cream-200 pt-4 text-[0.72rem] leading-5 text-sand-500">
-        This draft mirrors SecurePay’s current understanding. Printing it does not set up the Agreement, confirm a participant, or move money.
+        SecurePay draft · Version {formation.version}. This printout is a snapshot of the current proposal, not evidence of signature, acceptance, participant identity verification or payment authorisation. Later changes may create a different version.
       </footer>
     </article>
 
-    <form className="agreement-screen-only surface-info p-3" onSubmit={e => { e.preventDefault(); const text = correction.trim(); if (text && !tooLong && !correcting) void run(() => onCorrect(text)); }}>
-      <label htmlFor="review-correction" className="block text-[0.82rem] text-forest-800">Something not right? Tell KS001 in your own words.</label>
+    <form className="agreement-screen-only border-t border-cream-200 pt-4" onSubmit={e => {
+      e.preventDefault();
+      const text = correction.trim();
+      if (!text || tooLong || correcting) return;
+      if (meansNoAgreementChange(text)) {
+        setCorrection('');
+        setCorrectionNote({ tone: 'ok', text: "Okay. I haven't changed anything.", retry: false });
+        return;
+      }
+      void run(() => onCorrect(text));
+    }}>
+      <label htmlFor="review-correction" className="block text-[0.82rem] font-medium text-forest-800">Change something</label>
+      <p className="mt-0.5 text-[0.78rem] text-sand-600">Tell KS001 normally, for example “make it KES 90,000” or “nothing, everything is okay”.</p>
       <div className="mt-2 flex gap-2">
-        <input id="review-correction" value={correction} onChange={e => setCorrection(e.target.value)} placeholder="e.g. It’s 185,000, not 180"
+        <input id="review-correction" value={correction} onChange={e => setCorrection(e.target.value)} placeholder="Tell KS001 what to change…"
           readOnly={correcting} aria-describedby="review-correction-note" aria-invalid={tooLong || undefined}
           className="min-h-11 min-w-0 flex-1 rounded-xl border border-cream-300 px-3 text-[0.9rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300" />
         <button type="submit" disabled={busy || correcting || !correction.trim() || tooLong} className="min-h-11 shrink-0 rounded-full border border-forest-300 px-4 text-[0.85rem] text-forest-700 disabled:opacity-40">{correcting ? 'Sending…' : 'Send'}</button>
@@ -166,12 +203,16 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     </form>
 
     {error && <p role="alert" className="text-[0.85rem] text-ember-800">{error}</p>}
-    <div className="agreement-screen-only space-y-2">
-      <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
+    <div className="agreement-screen-only space-y-3" data-review-keep-guard>
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-cream-200 bg-white p-4 text-sm leading-6 text-forest-900">
+        <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-forest-700" checked={readAcknowledged} onChange={event => setReadAcknowledged(event.target.checked)} disabled={busy} />
+        <span><strong>I have reviewed this version.</strong> I understand that keeping this proposal does not sign it, make other people agree, or authorise money to move.</span>
+      </label>
+      <button type="button" disabled={busy || !formation.confirmable || !readAcknowledged} onClick={() => onSetUp(formation.version)}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-forest-700 px-5 text-[0.95rem] font-medium text-white hover:bg-forest-800 disabled:bg-sand-300 disabled:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 sm:w-auto">
-        Set this up securely
+        Keep this Agreement
       </button>
-      <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'You’ll sign in if you haven’t already. Nothing is agreed until you set it up.' : formation.confirmationBlockedReason}</p>
+      <p className="text-[0.78rem] text-sand-600">{!formation.confirmable ? (formation.confirmationBlockedReason || 'SecurePay must resolve outstanding requirements first.') : !readAcknowledged ? 'Read the document, then check the acknowledgement above to continue.' : 'If sign-in is required it happens next. Other participants must make their own decisions.'}</p>
       {settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
         {settingUpAs.actingFor
           ? `You’ll set this up as yourself, not as ${settingUpAs.actingFor} — setting up an agreement for a business or organization from a conversation isn’t available yet.`

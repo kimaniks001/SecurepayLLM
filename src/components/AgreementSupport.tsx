@@ -7,6 +7,8 @@ interface AgreementSupportProps {
   /** Optional so the existing fixture path stays byte-identical when omitted (Golden Spine H). Opens the
    * real Referral/Plug-attribution view scoped to this exact agreement. */
   onOpenReferral?: () => void;
+  /** Phase 4: opens real Plug/Master capabilities only after the person asks for human help. */
+  onOpenHumanHelp?: () => void;
   /** Real (non-fixture) path only: the canonical Agreement Review surface. When omitted the fixture 'Raise an issue' row is unchanged. */
   reviewPanel?: React.ReactNode;
   /** Real path only. Money entry (canonical Money) and Help & Support entry (scoped to this Agreement). */
@@ -16,7 +18,7 @@ interface AgreementSupportProps {
   initialOpenReviews?: boolean;
 }
 
-export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, reviewPanel, onOpenMoney, onOpenHelp, initialOpenReviews = false }: AgreementSupportProps) {
+export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, onOpenHumanHelp, reviewPanel, onOpenMoney, onOpenHelp, initialOpenReviews = false }: AgreementSupportProps) {
   const [showReviews, setShowReviews] = useState(initialOpenReviews);
   const real = !!reviewPanel;
   return (
@@ -94,6 +96,15 @@ export function AgreementSupport({ onAskAgent, onRaiseIssue, onOpenReferral, rev
             </div>
           </div>
         </button>
+        )}
+        {onOpenHumanHelp && (
+          <button onClick={onOpenHumanHelp} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left" data-agreement-human-help>
+            <Users className="w-4 h-4 text-forest-600 shrink-0" />
+            <div>
+              <div className="text-[0.825rem] font-medium text-forest-800">Get human help</div>
+              <div className="text-[0.72rem] text-sand-600">Choose a Plug for practical coordination or a Master for experienced guidance. SecurePay does not assume either one is needed.</div>
+            </div>
+          </button>
         )}
         {onOpenReferral && (
           <button onClick={onOpenReferral} className="w-full flex items-center gap-3 rounded-xl border border-cream-200 px-4 py-3 hover:border-forest-300 hover:bg-cream-50 transition-all text-left">

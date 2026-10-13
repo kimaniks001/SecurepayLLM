@@ -55,13 +55,13 @@ const sent = (calls, what) => calls.filter(c => c[0] === what).map(c => c[2]);
 // ------------------------------------------------------------ contract / session boundary
 test('every amendment gateway method is authenticated and on the shared refresh list; the single-actor apply is gone', async () => {
   const src = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
-  for (const m of ['amendments', 'amendmentDiff', 'amendmentOverview', 'acceptAmendment', 'rejectAmendment', 'withdrawAmendment']) {
+  for (const m of ['amendments', 'amendmentDiff', 'amendmentOverview', 'proposeAmendment', 'acceptAmendment', 'rejectAmendment', 'withdrawAmendment']) {
     assert.ok(api.AUTHENTICATED_AGREEMENT_METHODS.includes(m), `${m} must be session-refreshed`);
     assert.match(src, new RegExp(`${m}: \\(.*?auth: 'required'`));
   }
   assert.doesNotMatch(src, /applyAmendment|\/apply`/);
   assert.equal(api.AUTHENTICATED_AGREEMENT_METHODS.includes('applyAmendment'), false);
-  assert.doesNotMatch(src, /proposeAmendment/); // authoring is deliberately not built (UR registered): no unused mutation
+  assert.match(src, /proposeAmendment/); // Phase 3 adds version-pinned, idempotent human change proposals.
 });
 test('gateway DTOs match the real backend shapes', async () => {
   const src = await readFile('src/api/securepay/agreements/index.ts', 'utf8');
@@ -119,40 +119,40 @@ test('statuses use SecurePay words only; an unknown status is "unavailable"', ()
 });
 test('a responder sees who proposed, what changes (now vs proposed), who must agree, the live-work effect, and Agree / Reject -- never raw ids', () => {
   const out = text(panel(ready(ov())));
-  assert.match(out, /Versions/); assert.match(out, /Proposed changes/); assert.match(out, /Version 1 · Current version/);
-  assert.match(out, /Peter proposed this against version 1/); assert.match(out, /Reason: Say who the fence is for/);
-  assert.match(out, /Build the fence · Who the work is for/); assert.match(out, /Now: No one yet/); assert.match(out, /Proposed: Wanjiru/);
-  assert.match(out, /Who needs to agree/); assert.match(out, /You — hasn.t answered yet/);
-  assert.match(out, /Work already set up: Nothing has started yet/);
-  assert.match(out, /Agree to this change/); assert.match(out, /Reject this change/); assert.doesNotMatch(out, /Withdraw proposal/);
-  assert.match(out, /Nothing changes until everyone above has agreed/); assert.match(out, /Agreeing to the change is not confirming the new version/);
+  assert.match(out, /Agreement history/); assert.match(out, /Changes/); assert.match(out, /Version 1 · Current version/);
+  assert.match(out, /Peter suggested a change/); assert.match(out, /Reason: Say who the fence is for/);
+  assert.match(out, /Build the fence · Who the work is for/); assert.match(out, /Current: No one yet/); assert.match(out, /Suggested: Wanjiru/);
+  assert.match(out, /Who still needs to agree to this change/); assert.match(out, /You — hasn.t answered yet/);
+  assert.match(out, /Nothing has changed yet/);
+  assert.match(out, /Looks good/); assert.match(out, /Keep the current Agreement/); assert.doesNotMatch(out, /Take back my suggestion/);
+  assert.match(out, /Nothing changes until everyone required agrees/);
   assert.doesNotMatch(out, /[0-9a-f]{8}-[0-9a-f]{4}|KS\d|OBLIGATION_BENEFICIARY|obligation_terms|am-1/);
   assert.doesNotMatch(out, /can.t safely apply|Apply change|Edit Agreement|Save changes/i);
 });
 test('the proposer sees "You proposed this", everyone else\'s answers, and only Withdraw', () => {
   const out = text(panel(ready(ov({ open: open({ proposedByCaller: true, proposedByName: 'Wanjiru', callerMustRespond: false, callerCanWithdraw: true, responders: [{ name: 'Peter', isCaller: false, decision: 'PENDING' }] }) }))));
-  assert.match(out, /You proposed this against version 1/); assert.match(out, /Peter — hasn.t answered yet/); assert.match(out, /Withdraw proposal/);
-  assert.doesNotMatch(out, /Agree to this change|Reject this change/);
+  assert.match(out, /You suggested a change/); assert.match(out, /Peter — hasn.t answered yet/); assert.match(out, /Take back my suggestion/);
+  assert.doesNotMatch(out, /Looks good|Keep the current Agreement/);
 });
 test('a responder who already agreed (others still to answer) gets no controls; a stale proposal offers nothing', () => {
   const agreed = text(panel(ready(ov({ open: open({ callerMustRespond: false, responders: [{ name: 'Wanjiru', isCaller: true, decision: 'ACCEPTED' }, { name: 'Amina', isCaller: false, decision: 'PENDING' }] }) }))));
-  assert.match(agreed, /You — agreed/); assert.match(agreed, /Amina — hasn.t answered yet/); assert.doesNotMatch(agreed, /Agree to this change|Reject this change|Withdraw proposal/);
+  assert.match(agreed, /You — agreed/); assert.match(agreed, /Amina — hasn.t answered yet/); assert.doesNotMatch(agreed, /Looks good|Keep the current Agreement|Take back my suggestion/);
   const stale = text(panel(ready(ov({ currentVersionNumber: 2, open: open() }))));
-  assert.match(stale, /moved on since this was proposed, so SecurePay won.t apply it/); assert.doesNotMatch(stale, /Agree to this change|Reject this change/);
+  assert.match(stale, /moved on since this was proposed, so SecurePay won.t apply it/); assert.doesNotMatch(stale, /Looks good|Keep the current Agreement/);
 });
 test('with nothing waiting, SecurePay\'s own changeability is explained; nothing to propose from here is said honestly', () => {
   for (const [c, re] of [['WORK_STARTED', /Work has started under the current version/], ['FUNDED', /Money has been paid in for this Agreement, so it can.t be changed/], ['CLOSED', /can.t be changed in its current state/], ['NO_COUNTERPARTY', /nobody else has joined yet/], ['WEIRD', /didn.t say whether this Agreement can be changed/]]) {
     assert.match(text(panel(ready(ov({ changeability: c, open: null })))), re, c);
   }
   const can = text(panel(ready(ov({ changeability: 'CAN_PROPOSE', callerCanPropose: true, open: null }))));
-  assert.match(can, /No change is waiting/); assert.match(can, /takes effect only when everyone else on the Agreement agrees/); assert.match(can, /Proposing a change isn.t available from this screen yet/);
+  assert.match(can, /No change is waiting/); assert.match(can, /takes effect only when everyone else on the Agreement agrees/);
 });
 test('history shows each closed proposal with its outcome and the version it created; no actions', () => {
   const d = detail({ currentVersion: { versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Say who the fence is for', materialChange: true }, versionHistory: [{ versionId: 'v2', versionNumber: 2, contentHash: 'h2', createdAt: 'x', amendmentReason: 'Say who the fence is for', materialChange: true }, { versionId: 'v1', versionNumber: 1, contentHash: 'h1', createdAt: 'x', amendmentReason: null, materialChange: false }] });
   const out = text(panel(ready(ov({ currentVersionId: 'v2', currentVersionNumber: 2, changeability: 'CAN_PROPOSE', open: null, history: [past(), past({ amendmentId: 'am-0', outcome: 'REJECTED', resultingVersionNumber: null })] })), d));
   assert.match(out, /Applied · proposed by Peter against version 1/); assert.match(out, /Everyone agreed; it created version 2/); assert.match(out, /Rejected · proposed by Peter/);
   assert.match(out, /Version 2 · Current version/); assert.match(out, /Version 1 · Earlier version/); assert.match(out, /SecurePay marked this a material change/);
-  assert.doesNotMatch(out, /Agree to this change|Reject this change|Withdraw proposal/);
+  assert.doesNotMatch(out, /Looks good|Keep the current Agreement|Take back my suggestion/);
 });
 test('a failed overview read is "couldn\'t be loaded", never "no changes"; versions still shown', () => {
   const bad = text(panel({ overview: { status: 'error' } }));
@@ -391,8 +391,8 @@ test('unsafe comparison: the panel says so and points to the whole current versi
 });
 test('the exact review reuses the Phase 4 canonical card and copy, and the diff is orientation, not the confirmation object', () => {
   const out = text(panelStub({ phase: 'ready', version: ver(2) }));
-  assert.match(out, /Yes, I confirm this version/); assert.match(out, /recorded against version 2 exactly/);
-  assert.match(out, /This needs changing/);
+  assert.match(out, /I agree to this Agreement/); assert.match(out, /against this exact version/);
+  assert.match(out, /Suggest a change/);
 });
 
 // ------------------------------------------------------------ scope
