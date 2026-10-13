@@ -203,6 +203,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
   const [formationController, setFormationController] = useState(() => createFormationController(gateway));
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Readiness is an API-derived property of the current formation version.
+  // Remember only that an earlier version was reviewable; never reuse its authority.
+  const [lastReviewableVersion, setLastReviewableVersion] = useState<number | null>(null);
   // User-Ready Beta Gate 1 (EP-CERT-007) -- the ONE open point being decided in a micro-review, if any.
   const [microReview, setMicroReview] = useState<string | null>(null);
   // User-Ready Beta Gate 1 (decision D1) -- a new intention waiting on "Start fresh?" because unsaved work would be left behind.
@@ -283,6 +286,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const formationState = useSyncExternalStore(formationController.subscribe, formationController.getSnapshot);
   // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
   // source, a correction), so what the person reviews is always the current one.
+  useEffect(() => {
+    if (formationState.data?.reviewable) setLastReviewableVersion(formationState.data.version);
+  }, [formationState.data?.reviewable, formationState.data?.version]);
+  const readinessWasReassessed = lastReviewableVersion !== null
+    && formationState.data !== null
+    && formationState.data.version > lastReviewableVersion
+    && !formationState.data.reviewable;
   const contextVersion = state.context.data?.version;
   useEffect(() => {
     if (state.conversationId && contextVersion !== undefined) void formationController.load(state.conversationId);
@@ -1674,6 +1684,21 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     onAnswer={text => void controller.send(text)} />
                   <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
                 </section>
+              )}
+              {/* An actual review invitation is visible WITHOUT opening the preview.
+                  It does not stop KS001, and only the server can mark this version reviewable. */}
+              {formationState.data?.reviewable && (
+                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-2xl border-2 border-forest-500 bg-forest-50 px-4 py-4 md:mx-auto md:w-full md:max-w-3xl">
+                  <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Ready for review</p>
+                  <p className="mt-1 font-display text-lg text-forest-900">Your Agreement is ready to read.</p>
+                  <p className="mt-1 text-sm text-forest-800">You can review it now or keep building with KS001. Nothing is agreed yet.</p>
+                  <button type="button" onClick={() => setReviewOpen(true)} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2">Review Agreement</button>
+                </section>
+              )}
+              {readinessWasReassessed && (
+                <p role="status" data-readiness-reassessed className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-forest-900">
+                  Your plan has changed since it was ready for review. SecurePay needs to check the updated terms before review is available again.
+                </p>
               )}
               {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
                 <details aria-label="Your forming Agreement preview" data-forming-agreement className="group overflow-hidden rounded-[1.4rem] border-2 border-forest-200 bg-white shadow-soft transition-shadow open:shadow-lg md:mx-auto md:w-full md:max-w-3xl">
