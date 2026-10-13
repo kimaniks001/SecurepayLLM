@@ -1724,6 +1724,20 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                             : []
                     }
                     onAnswer={text => void controller.send(text)} />
+                  {(() => {
+                    const matched = formationState.data?.openPoints.find(point =>
+                      formationState.data?.question?.openPointIds.includes(point.id) && point.sides.some(side => side.choosable));
+                    if (!matched) return null;
+                    return <div className="mt-3 border-t border-forest-100 pt-3">
+                      <p className="text-xs font-semibold text-forest-700">Choose the correct recorded value</p>
+                      <div role="group" aria-label="Resolve the conflicting facts" className="mt-2 flex flex-wrap gap-2">
+                        {matched.sides.filter(side => side.choosable).map(side => <button type="button" key={side.factId ?? side.value}
+                          onClick={() => void resolveConflict(matched, side)}
+                          className="min-h-11 rounded-full border border-forest-300 bg-forest-50 px-4 text-sm font-semibold text-forest-800">{side.value}</button>)}
+                        <button type="button" onClick={() => setMicroReview(matched.id)} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-700">Neither / another value</button>
+                      </div>
+                    </div>;
+                  })()}
                   <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
                 </section>
               )}
