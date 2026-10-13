@@ -386,6 +386,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     && /\b(?:not decided|not yet decided|undecided|still need|haven't decided|have not decided|choose the location|missing)\b/i.test(t));
   const placeAlreadyProposed = humanMeetingTurns.some(t => /\b(?:Plus Code:|Coordinates:|Private proposed location|Sharing requested with Agreement participants)\b/i.test(t));
   const showPlaceStep = wantsUnsettledPlace && !placeAlreadyProposed && !showMeetingSchedule;
+  // Ask for supporting material only where the person requests it. The server remains
+  // authoritative about extraction, Agreement facts, readiness and evidence.
+  const requestedMedia = humanMeetingTurns.some(t => /\b(?:photo|photos|photograph|picture|image)\b/i.test(t)
+    && /\b(?:attach|add|upload|show|include|evidence|document|have|need)\b/i.test(t));
+  const requestedDocument = humanMeetingTurns.some(t => /\b(?:minutes|pdf|document|file|attachment|written agreement|signed contract)\b/i.test(t)
+    && /\b(?:attach|add|upload|have|include|based on|use|need)\b/i.test(t));
+  const hasSubmittedSource = sourcesState.sources.some(source => source.extractionStatus !== 'REMOVED' && source.extractionStatus !== 'FAILED');
+  const showMaterialStep = (requestedMedia || requestedDocument) && !hasSubmittedSource && !showMeetingSchedule && !showPlaceStep;
+
 
 
   // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
@@ -1774,8 +1783,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 <p className="mt-1 text-sm text-sand-700">Choose a place or use your current location. You can add arrival details and keep it private.</p>
                 <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a Place</button>
               </section>}
+              {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-2xl border-2 border-forest-200 bg-white p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Supporting material</p>
+                <h3 className="font-display text-xl font-semibold text-forest-900">{requestedMedia && requestedDocument ? 'Would you like to add the photos or documents?' : requestedMedia ? 'Add a photo to help explain the work' : 'Add your document to help build the Agreement'}</h3>
+                <p className="text-sm text-sand-700">I'll use what you share to help understand the arrangement. An attachment does not, by itself, confirm a fact or mean anyone has agreed.</p>
+                <div className="flex flex-wrap gap-2">
+                  {requestedMedia && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add photo<input type="file" accept="image/*" className="sr-only" aria-label="Add supporting photo" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('PHOTO',file); event.target.value=''; }} /></label>}
+                  {requestedDocument && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add document<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.csv,.xlsx,.xls,.odt" className="sr-only" aria-label="Add supporting document" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('DOCUMENT',file); event.target.value=''; }} /></label>}
+                  <button type="button" onClick={() => void controller.send('I want to continue without attaching supporting material for now.')} className="min-h-11 rounded-full px-4 text-sm font-medium text-forest-700 underline">Not now</button>
+                </div>
+                {sourcesState.phase === 'error' && <p role="alert" className="text-sm text-ember-700">{sourcesState.error}</p>}
+              </section>}
               {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
-              {formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !state.busy && !state.pending && (
+              {formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !state.busy && !state.pending && (
                 <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
                   <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
                   <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
