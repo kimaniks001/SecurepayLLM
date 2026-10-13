@@ -1782,7 +1782,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
                 <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">Where should this take place?</h3>
                 <p className="mt-1 text-sm text-sand-700">Choose a place or use your current location. You can add arrival details and keep it private.</p>
-                <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a Place</button>
+                <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a place</button>
               </section>}
               {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-2xl border-2 border-forest-200 bg-white p-4 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Supporting material</p>
@@ -1849,10 +1849,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               )}
               {/* An actual review invitation is visible WITHOUT opening the preview.
                   It does not stop KS001, and only the server can mark this version reviewable. */}
-              {formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && (
-                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-2xl border-2 border-forest-500 bg-forest-50 px-4 py-4 md:mx-auto md:w-full md:max-w-3xl">
-                  <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Ready for review</p>
-                  <p className="mt-1 font-display text-lg text-forest-900">Your Agreement is ready to read.</p>
+              {formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !sourcesState.sources.some(source => source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' || source.stalled) && (
+                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-2xl border border-forest-200 bg-white px-4 py-3 md:mx-auto md:w-full md:max-w-3xl">
+                  <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Agreement · Ready for review</p>
+                  <p className="mt-1 font-display text-lg text-forest-900">You can review the Agreement.</p>
                   <p className="mt-1 text-sm text-forest-800">You can review it now or keep building with KS001. Nothing is agreed yet.</p>
                   <button type="button" onClick={() => setReviewOpen(true)} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2">Review Agreement</button>
                 </section>
@@ -2081,7 +2081,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                                 className="mt-2 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Choose what is right</button>}
                             </>;
                           })()
-                          : <p className="text-[0.92rem] leading-6 text-forest-800">What else should KS001 know about your plan? <span className="text-sand-600">You can keep talking below.</span></p>}
+                          : <p className="text-[0.92rem] leading-6 text-forest-800">You can add another detail whenever you’re ready.</p>}
                       </div>
                     )}
                   {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY' && component.type !== 'AGREEMENT_PREVIEW')
