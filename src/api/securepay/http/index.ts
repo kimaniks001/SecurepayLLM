@@ -50,7 +50,14 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
       const timer = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeoutMs ?? timeoutMs);
       let status: number | null = null;
       try {
-        const response = await fetcher(`${validatedBaseUrl}${path}`, {
+        // Preview-only same-origin bridge: only KS001 agent paths are routed via
+        // Vercel's narrow /api/agent/* rewrite. Production and other API paths
+        // retain the configured authoritative API origin. No simulated responses.
+        const previewAgent = typeof window !== 'undefined'
+          && /^securepay-[a-z0-9-]+\\.vercel\\.app$/i.test(window.location.hostname)
+          && path.startsWith('/api/agent/');
+        const requestBaseUrl = previewAgent ? window.location.origin : validatedBaseUrl;
+        const response = await fetcher(`${requestBaseUrl}${path}`, {
           method: options.method ?? 'GET', headers,
           body: options.body === undefined ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body),
           signal: controller.signal, credentials: 'omit', cache: 'no-store', redirect: 'error',
