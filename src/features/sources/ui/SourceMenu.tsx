@@ -74,7 +74,7 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
     items.push({ key: 'camera', label: 'Camera', hint: 'Take a photo now', icon: Camera, run: () => cameraInput.current?.click() });
   }
   if (actions.onAddLink) items.push({ key: 'link', label: 'Link', hint: 'Kept as text — never opened', icon: Link2, run: actions.onAddLink });
-  if (actions.onAddPlace) items.push({ key: 'place', label: 'Place', hint: 'In your own words', icon: MapPin, run: actions.onAddPlace });
+  if (actions.onAddPlace) items.push({ key: 'place', label: 'Place', hint: 'Find a place or use your location', icon: MapPin, run: actions.onAddPlace });
   if (actions.onPickVoiceNote) items.push({ key: 'voice', label: 'Voice note', hint: VOICE_NOTE_CONSENT, icon: Mic, run: () => voiceInput.current?.click() });
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
       <button
         ref={triggerRef} type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
         aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
-        aria-label="Add what you have"
+        aria-label="Add a photo, document or place"
         className={triggerClass}
       >
         <Plus className={variant === 'composer' ? 'w-5 h-5' : 'h-4 w-4 text-forest-600'} aria-hidden="true" />
