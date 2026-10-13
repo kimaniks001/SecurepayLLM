@@ -52,12 +52,14 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
   const statusText = sourceStatusText(source);
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   const failed = source.extractionStatus === 'FAILED' || !!source.stalled;
+  const isDocument = source.sourceKind === 'DOCUMENT' || source.mediaType === SPREADSHEET_MEDIA_TYPE;
   return (
-    <div className={`${failed ? 'surface-decision' : 'rounded-2xl border border-cream-200 bg-white/80 shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined}>
+    <div className={`${failed ? 'surface-decision' : isDocument ? 'rounded-2xl border-2 border-forest-200 bg-white shadow-soft' : 'rounded-2xl border border-cream-200 bg-white/80 shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined} data-important-document={isDocument || undefined}>
+      {isDocument && <div className="flex items-center justify-between gap-2 pb-1"><p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-forest-700">Document you provided</p><span className="text-[0.68rem] text-sand-600">Source material · Not yet agreed</span></div>}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <KindIcon source={source} />
-          <span className="text-[0.85rem] font-medium text-forest-800 truncate">{title}</span>
+          <span className={`${isDocument ? "text-[1rem] font-semibold break-words" : "text-[0.85rem] font-medium truncate"} text-forest-800`}>{title}</span>
           {source.documentType && <span className="text-[0.7rem] text-sand-600 shrink-0">· {source.documentType}</span>}
         </div>
         {!failed && <button
@@ -71,6 +73,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
       {source.sourceKind === 'LINK' && source.declaredText && (
         <p className="text-[0.78rem] text-forest-700 break-all" data-declared-link>{source.declaredText}</p>
       )}
+      {isDocument && <p className="text-[0.78rem] leading-5 text-forest-800">{failed ? 'This document could not be read reliably. Its contents must not be assumed.' : isReadable ? 'SecurePay has read this document. Check the details below before relying on them in your Agreement.' : 'SecurePay is receiving and reading your document. Its contents have not yet been confirmed.'}</p>}
       {note && <p className="text-[0.75rem] text-sand-600">{note}</p>}
       {statusText && source.extractionStatus !== 'PROCESSING' && source.extractionStatus !== 'RECEIVED' && (
         <p className="text-[0.72rem] font-medium text-forest-600" data-source-state>{statusText}</p>
@@ -99,7 +102,9 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
         </div>
       ) : (
         <>
-          {source.summary && <p className="text-[0.82rem] text-forest-700 leading-snug">{source.summary}</p>}
+          {isDocument && isReadable && <p className="pt-2 text-xs font-semibold uppercase tracking-wider text-forest-700">What SecurePay understood</p>}
+          {source.summary && <p className={`${isDocument ? 'text-[0.9rem] leading-6' : 'text-[0.82rem] leading-snug'} text-forest-700`}>{source.summary}</p>}
+          {isDocument && isReadable && !source.summary && <p className="text-sm text-sand-600">No readable summary is available yet. Review the Agreement details carefully.</p>}
           {/* KS001 Upgrade Phase 3 completion correction (item 9) -- "N useful detail(s) added to BUILD /
               N thing(s) need clarification," a bounded summary of REAL counts, never a debug screen. The
               workbench itself remains primary; this card only says how much and points there. */}
@@ -114,6 +119,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
                 : ''}
             </p>
           )}
+          {isDocument && isReadable && <p className="text-xs text-sand-600">Only details actually extracted from this document should be attributed to it. Check names, dates and amounts against the original.</p>}
           {source.uncertainties.length > 0 && (
             <div className="pt-1">
               <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">Needs clarification</p>
