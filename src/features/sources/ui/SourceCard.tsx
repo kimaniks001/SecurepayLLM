@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FileSpreadsheet, FileText, Image, Link2, MapPin, Mic, RefreshCw, X } from 'lucide-react';
 import type { AgentSourceArtifactView } from '../controller';
 import { SPREADSHEET_MEDIA_TYPE, sourceKindNote, sourceStatusText } from '../presentation';
@@ -23,11 +24,12 @@ function KindIcon({ source }: { source: AgentSourceArtifactView }) {
  * confidence decimals, internal entity ids, or model names -- only the bounded, safe projection the
  * backend already returns (originalName/label/documentType/summary/uncertainties/status).
  */
-export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpretPhoto, busy, factCount }: {
+export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpretPhoto, previewUrl, busy, factCount }: {
   source: AgentSourceArtifactView;
   onRetry: () => void;
   onRemove: () => void;
   onInterpretPhoto?: (intent: 'confirm' | 'correct' | 'keep' | 'bill') => void;
+  previewUrl?: string;
   /**
    * User-Ready Beta Gate 1 (EP-CERT-015) -- offered on a FAILED card only where it genuinely fits (e.g. the failed source is
    * the only thing in this conversation). A failure never blocks chatting, adding another source or + New.
@@ -53,6 +55,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
   const statusText = sourceStatusText(source);
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   const failed = source.extractionStatus === 'FAILED' || !!source.stalled;
+  const [photoOpen, setPhotoOpen] = useState(false);
   const isPhoto = source.sourceKind === 'PHOTO';
   const isDocument = source.sourceKind === 'DOCUMENT' || source.mediaType === SPREADSHEET_MEDIA_TYPE;
   return (
@@ -75,6 +78,8 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
       {source.sourceKind === 'LINK' && source.declaredText && (
         <p className="text-[0.78rem] text-forest-700 break-all" data-declared-link>{source.declaredText}</p>
       )}
+      {isPhoto && previewUrl && <><button type="button" onClick={() => setPhotoOpen(true)} aria-label={`View full photograph ${title}`} className="block w-full overflow-hidden rounded-xl border border-forest-100"><img src={previewUrl} alt={`Original uploaded photo: ${title}`} className="max-h-72 w-full object-contain bg-cream-50" /></button><p className="text-xs text-sand-600">Tap the photograph to enlarge. This preview is available only in the current browser session.</p></>}
+      {isPhoto && photoOpen && previewUrl && <div role="dialog" aria-modal="true" aria-label={`Full photograph ${title}`} className="fixed inset-0 z-[100] flex flex-col bg-black/90 p-4"><button type="button" onClick={() => setPhotoOpen(false)} className="self-end rounded-full bg-white px-5 py-3 text-sm font-semibold text-forest-900">Close photo</button><img src={previewUrl} alt={`Full uploaded photo: ${title}`} className="min-h-0 flex-1 object-contain" /></div>}
       {isPhoto && <div className="space-y-2 rounded-xl border border-forest-100 bg-cream-50/50 p-3" data-photo-intelligence>
         <p className="text-xs font-semibold uppercase tracking-wide text-forest-700">Photo you shared</p>
         <p className="text-sm text-forest-800">{failed ? 'This photo could not be understood reliably.' : isReadable ? 'Here is what SecurePay could understand from the photo. Is that right?' : 'SecurePay is looking at your photo. Please wait for what it finds.'}</p>
@@ -155,12 +160,13 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
   );
 }
 
-export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, onInterpretPhoto, factCountsBySourceId }: {
+export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, onInterpretPhoto, photoPreviews, factCountsBySourceId }: {
   sources: AgentSourceArtifactView[];
   busy: boolean;
   onRetry: (sourceArtifactId: string) => void;
   onRemove: (sourceArtifactId: string) => void;
   onInterpretPhoto?: (source: AgentSourceArtifactView, intent: 'confirm' | 'correct' | 'keep' | 'bill') => void;
+  photoPreviews?: Record<string, string>;
   /** Offered on failed cards only when the caller judges it fits (see SourceCard). */
   onStartFresh?: () => void;
   /** KS001 Upgrade Phase 3 completion correction (item 9) -- see SourceCard's own `factCount` doctrine. */
@@ -176,6 +182,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, on
           onRetry={() => onRetry(source.sourceArtifactId)}
           onRemove={() => onRemove(source.sourceArtifactId)}
           onInterpretPhoto={intent => onInterpretPhoto?.(source, intent)}
+          previewUrl={photoPreviews?.[source.sourceArtifactId]}
           onStartFresh={onStartFresh}
           factCount={factCountsBySourceId?.[source.sourceArtifactId]}
         />
