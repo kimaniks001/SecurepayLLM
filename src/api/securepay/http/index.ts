@@ -54,7 +54,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
         // Vercel's narrow /api/agent/* rewrite. Production and other API paths
         // retain the configured authoritative API origin. No simulated responses.
         const previewAgent = typeof window !== 'undefined'
-          && /^securepay-[a-z0-9-]+\\.vercel\\.app$/i.test(window.location.hostname)
+          && /^securepay-[a-z0-9-]+\.vercel\.app$/i.test(window.location.hostname)
           && path.startsWith('/api/agent/');
         const requestBaseUrl = previewAgent ? window.location.origin : validatedBaseUrl;
         const response = await fetcher(`${requestBaseUrl}${path}`, {
