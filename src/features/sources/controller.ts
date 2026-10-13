@@ -53,6 +53,7 @@ export type SourcesPhase = 'idle' | 'listing' | 'list-ready' | 'submitting' | 'c
 export interface SourcesState {
   phase: SourcesPhase;
   sources: AgentSourceArtifactView[];
+  photoPreviews: Record<string, string>;
   error: string | null;
   /**
    * User-Ready Beta Gate 1 (EP-CERT-014) -- the source whose own card already shows this failure (with Try again / Remove),
@@ -61,7 +62,7 @@ export interface SourcesState {
    */
   errorSourceId: string | null;
 }
-const initial: SourcesState = { phase: 'idle', sources: [], error: null, errorSourceId: null };
+const initial: SourcesState = { phase: 'idle', sources: [], photoPreviews: {}, error: null, errorSourceId: null };
 
 /**
  * Entry Perfection Phase 2 -- the terminal result of ONE source action, returned only after the UI knows the truth:
@@ -240,7 +241,13 @@ export function createSourceController(
 
     /** Section 6/19/20/65 -- a real upload; resolves only after SecurePay has really received and read (or failed) it. */
     async addUpload(sourceKind: 'DOCUMENT' | 'PHOTO', file: File, label?: string): Promise<SourceActionResult> {
-      return run(conversationId => gateway.uploadSource(conversationId, sourceKind, file, label));
+      if (sourceKind !== 'PHOTO' || !file.type.startsWith('image/')) return run(conversationId => gateway.uploadSource(conversationId, sourceKind, file, label));
+      const preview = URL.createObjectURL(file);
+      const outcome = await run(conversationId => gateway.uploadSource(conversationId, sourceKind, file, label));
+      if (outcome.source && outcome.ok) {
+        update({ photoPreviews: { ...state.photoPreviews, [outcome.source.sourceArtifactId]: preview } });
+      } else URL.revokeObjectURL(preview);
+      return outcome;
     },
 
     /** Section 33 -- an explicit retry re-reads the SAME source as its next attempt; never a duplicate. */
@@ -266,7 +273,7 @@ export function createSourceController(
 
     /** Dismiss a shown error without losing any source. */
     clearError() { if (state.phase === 'error') update({ phase: 'list-ready', error: null, errorSourceId: null }); },
-    reset() { update({ ...initial }); },
+    reset() { Object.values(state.photoPreviews).forEach(url => URL.revokeObjectURL(url)); update({ ...initial, photoPreviews: {} }); },
   };
 }
 export type SourceController = ReturnType<typeof createSourceController>;
