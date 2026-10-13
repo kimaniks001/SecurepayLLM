@@ -1647,12 +1647,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 </div>}
               </div>}
               {state.turns.some(turn => turn.sender === 'user') && (
-                <section aria-label="Your work taking shape" data-living-workspace className="relative overflow-hidden rounded-[1.6rem] border border-forest-200/70 bg-white/95 px-5 py-5 shadow-soft md:px-7">
+                <section aria-label="Your request and progress" data-living-workspace className="relative overflow-hidden rounded-[1.6rem] border border-forest-200/70 bg-white/95 px-5 py-5 shadow-soft md:px-7">
                   <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-forest-100/40 blur-2xl" />
                   <div className="relative flex items-center justify-between gap-3">
-                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-forest-600">Your work</span>
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-forest-600">Your request</span>
                     <span className="rounded-full bg-forest-50 px-3 py-1 text-[0.72rem] font-medium text-forest-700" role="status">
-                      {state.busy ? 'KS001 is thinking…' : state.error ? 'Needs attention' : 'Taking shape'}
+                      {state.busy ? 'KS001 is thinking…' : state.outcomeUnknown ? 'Response unconfirmed' : state.error ? 'Could not continue' : 'Taking shape'}
                     </span>
                   </div>
                   <h2 className="relative mt-3 font-display text-xl leading-snug text-forest-900 md:text-2xl" data-living-work-title>{currentTitle}</h2>
@@ -1664,7 +1664,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                   <div className="relative mt-4 flex flex-wrap items-center gap-3 border-t border-cream-200/70 pt-3">
                     <span className="text-[0.78rem] text-sand-600">
-                      {state.busy ? 'Working from your words. Nothing is agreed yet.' : 'KS001 helps clarify the next meaningful step below.'}
+                      {state.busy ? 'Working from your words. Nothing is agreed yet.' : 'state.outcomeUnknown ? 'The server has not confirmed a response. Use Check again below; your message is preserved.' : state.error ? 'Read the notice below to recover.' : 'KS001 helps clarify the next meaningful step below.''}
                     </span>
                     {hasInspectableDetails && <button type="button" onClick={openUnderstood} className="min-h-11 rounded-full px-3 text-[0.78rem] font-medium text-forest-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
                       See what SecurePay understands
