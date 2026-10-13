@@ -1664,7 +1664,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                   <div className="relative mt-4 flex flex-wrap items-center gap-3 border-t border-cream-200/70 pt-3">
                     <span className="text-[0.78rem] text-sand-600">
-                      {state.busy ? 'Working from your words. Nothing is agreed yet.' : 'state.outcomeUnknown ? 'The server has not confirmed a response. Use Check again below; your message is preserved.' : state.error ? 'Read the notice below to recover.' : 'KS001 helps clarify the next meaningful step below.''}
+                      {state.busy ? 'Working from your words. Nothing is agreed yet.' : state.outcomeUnknown ? 'The server has not confirmed a response. Use Check again below; your message is preserved.' : state.error ? 'Read the notice below to recover.' : 'KS001 helps clarify the next meaningful step below.'}
                     </span>
                     {hasInspectableDetails && <button type="button" onClick={openUnderstood} className="min-h-11 rounded-full px-3 text-[0.78rem] font-medium text-forest-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
                       See what SecurePay understands
