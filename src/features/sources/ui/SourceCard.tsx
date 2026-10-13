@@ -23,10 +23,11 @@ function KindIcon({ source }: { source: AgentSourceArtifactView }) {
  * confidence decimals, internal entity ids, or model names -- only the bounded, safe projection the
  * backend already returns (originalName/label/documentType/summary/uncertainties/status).
  */
-export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, factCount }: {
+export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpretPhoto, busy, factCount }: {
   source: AgentSourceArtifactView;
   onRetry: () => void;
   onRemove: () => void;
+  onInterpretPhoto?: (intent: 'confirm' | 'correct' | 'keep' | 'bill') => void;
   /**
    * User-Ready Beta Gate 1 (EP-CERT-015) -- offered on a FAILED card only where it genuinely fits (e.g. the failed source is
    * the only thing in this conversation). A failure never blocks chatting, adding another source or + New.
@@ -52,6 +53,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
   const statusText = sourceStatusText(source);
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   const failed = source.extractionStatus === 'FAILED' || !!source.stalled;
+  const isPhoto = source.sourceKind === 'PHOTO';
   const isDocument = source.sourceKind === 'DOCUMENT' || source.mediaType === SPREADSHEET_MEDIA_TYPE;
   return (
     <div className={`${failed ? 'surface-decision' : isDocument ? 'rounded-2xl border-2 border-forest-200 bg-white shadow-soft' : 'rounded-2xl border border-cream-200 bg-white/80 shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined} data-important-document={isDocument || undefined}>
@@ -73,6 +75,20 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
       {source.sourceKind === 'LINK' && source.declaredText && (
         <p className="text-[0.78rem] text-forest-700 break-all" data-declared-link>{source.declaredText}</p>
       )}
+      {isPhoto && <div className="space-y-2 rounded-xl border border-forest-100 bg-cream-50/50 p-3" data-photo-intelligence>
+        <p className="text-xs font-semibold uppercase tracking-wide text-forest-700">Photo you shared</p>
+        <p className="text-sm text-forest-800">{failed ? 'This photo could not be understood reliably.' : isReadable ? 'Here is what SecurePay could understand from the photo. Is that right?' : 'SecurePay is looking at your photo. Please wait for what it finds.'}</p>
+        {isReadable && <div className="space-y-2">
+          <p className="text-sm leading-6 text-forest-800">{source.summary || 'No reliable description was returned. You can explain what the photo shows.'}</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy || !source.summary} onClick={() => onInterpretPhoto?.('confirm')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-semibold text-white disabled:opacity-40">Yes, that’s right</button>
+            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('correct')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Correct it</button>
+            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('keep')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Just keep photo</button>
+            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('bill')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Organise bill or receipt</button>
+          </div>
+          <p className="text-xs text-sand-600">Confirming a description does not accept a delivery, prove completion or authorise payment.</p>
+        </div>}
+      </div>}
       {isDocument && <p className="text-[0.78rem] leading-5 text-forest-800">{failed ? 'This document could not be read reliably. Its contents must not be assumed.' : isReadable ? 'SecurePay has read this document. Check the details below before relying on them in your Agreement.' : 'SecurePay is receiving and reading your document. Its contents have not yet been confirmed.'}</p>}
       {note && <p className="text-[0.75rem] text-sand-600">{note}</p>}
       {statusText && source.extractionStatus !== 'PROCESSING' && source.extractionStatus !== 'RECEIVED' && (
@@ -139,11 +155,12 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, busy, fact
   );
 }
 
-export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, factCountsBySourceId }: {
+export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, onInterpretPhoto, factCountsBySourceId }: {
   sources: AgentSourceArtifactView[];
   busy: boolean;
   onRetry: (sourceArtifactId: string) => void;
   onRemove: (sourceArtifactId: string) => void;
+  onInterpretPhoto?: (source: AgentSourceArtifactView, intent: 'confirm' | 'correct' | 'keep' | 'bill') => void;
   /** Offered on failed cards only when the caller judges it fits (see SourceCard). */
   onStartFresh?: () => void;
   /** KS001 Upgrade Phase 3 completion correction (item 9) -- see SourceCard's own `factCount` doctrine. */
@@ -158,6 +175,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, fa
           key={source.sourceArtifactId} source={source} busy={busy}
           onRetry={() => onRetry(source.sourceArtifactId)}
           onRemove={() => onRemove(source.sourceArtifactId)}
+          onInterpretPhoto={intent => onInterpretPhoto?.(source, intent)}
           onStartFresh={onStartFresh}
           factCount={factCountsBySourceId?.[source.sourceArtifactId]}
         />
