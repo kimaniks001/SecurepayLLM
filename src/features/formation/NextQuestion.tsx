@@ -38,14 +38,14 @@ export function NextQuestion({ question, disabled, onAnswer, suggestedChoices = 
       <label className="sr-only" htmlFor="ks001-date-answer">Choose a date</label>
       <input id="ks001-date-answer" type="date" value={dateAnswer} onChange={event => setDateAnswer(event.target.value)} disabled={disabled} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" />
       {asksForTime && <><label className="sr-only" htmlFor="ks001-time-answer">Choose a time</label><input id="ks001-time-answer" type="time" value={timeAnswer} onChange={event => setTimeAnswer(event.target.value)} disabled={disabled} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" /></>}
-      <button type="button" disabled={disabled || !dateAnswer || (asksForTime && !timeAnswer)} onClick={() => onAnswer(asksForTime ? `${dateAnswer} at ${timeAnswer} (local time)` : dateAnswer)} className={`${chip} border-forest-300 bg-forest-700 text-white`}>Use this date</button>
+      <button type="button" disabled={disabled || !dateAnswer || (asksForTime && !timeAnswer)} onClick={() => onAnswer(asksForTime ? `${dateAnswer} at ${timeAnswer} (local time)` : dateAnswer)} className={`${chip} border-forest-300 bg-forest-700 text-white`}>{asksForTime ? 'Use date and time' : 'Use this date'}</button>
     </div>}
     {asksForTime && !wantsDate && choices.length === 0 && <div className="mt-3 flex flex-wrap gap-2">
       <label className="sr-only" htmlFor="ks001-time-only">Choose a time</label>
       <input id="ks001-time-only" type="time" value={timeAnswer} onChange={event => setTimeAnswer(event.target.value)} disabled={disabled} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm" />
       <button type="button" className={`${chip} border-forest-300 bg-forest-700 text-white`} disabled={disabled || !timeAnswer} onClick={() => onAnswer(`${timeAnswer} local time`)}>Use this time</button>
     </div>}
-    {asksForPlace && onAddPlace && <button type="button" disabled={disabled} onClick={onAddPlace} className={`mt-3 ${chip} border-forest-300 bg-white text-forest-800`}>Choose or describe a place</button>}
+    {asksForPlace && onAddPlace && <button type="button" disabled={disabled} onClick={onAddPlace} className={`mt-3 ${chip} border-forest-300 bg-white text-forest-800`}>Choose a place</button>}
     {(asksForMedia || asksForDocument) && <div className="mt-3 flex flex-wrap gap-3">
       {asksForMedia && onUploadPhoto && <label className={`${chip} cursor-pointer border-forest-300 bg-white text-forest-800`}>Add photo<input aria-label="Attach a photo for KS001" type="file" accept="image/*" className="sr-only" disabled={disabled} onChange={event => {const file=event.target.files?.[0];if(file)onUploadPhoto(file);event.target.value='';}} /></label>}
       {onUploadDocument && <label className={`${chip} cursor-pointer border-forest-300 bg-white text-forest-800`}>Add document<input aria-label="Attach a document for KS001" type="file" accept=".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx" className="sr-only" disabled={disabled} onChange={event => {const file=event.target.files?.[0];if(file)onUploadDocument(file);event.target.value='';}} /></label>}
