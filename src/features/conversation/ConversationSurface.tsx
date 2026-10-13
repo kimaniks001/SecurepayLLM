@@ -122,7 +122,7 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
-function Composer({ disabled, onSend, focusKey, placeholder = 'Tell SecurePay what you are trying to make happen…', draftKey, leading }: { disabled: boolean; onSend: (text: string) => SendResult; focusKey?: number; placeholder?: string; draftKey?: string; leading?: ReactNode }) {
+function Composer({ disabled, onSend, focusKey, placeholder = 'Tell KS001 what you want to get done…', draftKey, leading }: { disabled: boolean; onSend: (text: string) => SendResult; focusKey?: number; placeholder?: string; draftKey?: string; leading?: ReactNode }) {
   const [text, setTextState] = useState(() => readDraft(draftKey));
   const [offline, setOffline] = useState(false);
   const [sending, setSending] = useState(false);
