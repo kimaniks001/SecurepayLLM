@@ -382,6 +382,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const humanProposedDate = humanMeetingTurns.some(t => /\b20\d{2}-\d{2}-\d{2}\b/.test(t));
   const humanProposedTime = humanMeetingTurns.some(t => /\b\d{1,2}:\d{2}\b/.test(t));
   const showMeetingSchedule = isMeetingScheduleRequest && (!humanProposedDate || !humanProposedTime);
+  const wantsUnsettledPlace = humanMeetingTurns.some(t => /\b(?:where|location|place|venue|destination)\b/i.test(t)
+    && /\b(?:not decided|not yet decided|undecided|still need|haven't decided|have not decided|choose the location|missing)\b/i.test(t));
+  const placeAlreadyProposed = humanMeetingTurns.some(t => /\b(?:Plus Code:|Coordinates:|Private proposed location|Sharing requested with Agreement participants)\b/i.test(t));
+  const showPlaceStep = wantsUnsettledPlace && !placeAlreadyProposed && !showMeetingSchedule;
+
 
   // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
   // source, a correction), so what the person reviews is always the current one.
@@ -1763,8 +1768,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   Purpose suggestions are optional human-worded examples only when the person
                   explicitly said chama and the server asked about purpose. They are not
                   authoritative classifications or silently accepted Agreement facts. */}
+              {showPlaceStep && !state.busy && !state.pending && <section className="rounded-2xl border-2 border-forest-200 bg-white p-4" data-place-next-step>
+                <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
+                <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">Where should this take place?</h3>
+                <p className="mt-1 text-sm text-sand-700">Identify the proposed location using a name, Plus Code or coordinates. You can add arrival details and keep it private.</p>
+                <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a Place</button>
+              </section>}
               {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
-              {formationState.data?.question && !showMeetingSchedule && !state.busy && !state.pending && (
+              {formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !state.busy && !state.pending && (
                 <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
                   <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
                   <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
