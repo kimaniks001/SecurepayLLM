@@ -43,6 +43,10 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [correction, setCorrection] = useState('');
+  const [readAcknowledged, setReadAcknowledged] = useState(false);
+  // Acknowledging review only unlocks the existing version-pinned setup handoff.
+  // It is not a signature, participant consent, or a payment authorisation.
+  useEffect(() => { setReadAcknowledged(false); }, [formation.conversationId, formation.version]);
   const [resolving, setResolving] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<{ pointId: string; text: string } | null>(null);
   const resolve = async (point: FormationOpenPoint, side: FormationSide) => {
@@ -92,6 +96,15 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
           <p className="mt-1">Version {formation.version}. SecurePay keeps the version and source record underneath so the Agreement can be audited without making you operate it.</p>
         </details>
       </header>
+      <div className="agreement-screen-only mt-5 rounded-2xl border border-forest-200 bg-forest-50 p-4" data-review-consent-boundary>
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-forest-700">Review · Not yet a commitment</p>
+        <p className="mt-2 text-sm leading-6 text-forest-900">{formation.reviewable ? 'There is enough information to review this proposal.' : 'This proposal still needs information before review is available.'} {formation.confirmable ? 'SecurePay currently permits you to keep this version as a proposed Agreement.' : 'SecurePay has not yet authorised keeping this version.'}</p>
+        <div className="mt-3 grid gap-2 text-sm text-forest-800 sm:grid-cols-3">
+          <p className="rounded-xl bg-white p-3"><strong className="block">1 · Read</strong>Check what this version says.</p>
+          <p className="rounded-xl bg-white p-3"><strong className="block">2 · Keep</strong>Save the proposal when SecurePay permits it.</p>
+          <p className="rounded-xl bg-white p-3"><strong className="block">3 · Agree</strong>Other participants must separately accept through the authorised process.</p>
+        </div>
+      </div>
       <div className="agreement-screen-only mt-5">
       <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Read the Agreement</h2>
       <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is the Agreement you are about to keep. Nothing is agreed with anyone else yet.</p>
@@ -189,12 +202,16 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     </form>
 
     {error && <p role="alert" className="text-[0.85rem] text-ember-800">{error}</p>}
-    <div className="agreement-screen-only space-y-2">
-      <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
+    <div className="agreement-screen-only space-y-3" data-review-keep-guard>
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-cream-200 bg-white p-4 text-sm leading-6 text-forest-900">
+        <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-forest-700" checked={readAcknowledged} onChange={event => setReadAcknowledged(event.target.checked)} disabled={busy} />
+        <span><strong>I have reviewed this version.</strong> I understand that keeping this proposal does not sign it, make other people agree, or authorise money to move.</span>
+      </label>
+      <button type="button" disabled={busy || !formation.confirmable || !readAcknowledged} onClick={() => onSetUp(formation.version)}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-forest-700 px-5 text-[0.95rem] font-medium text-white hover:bg-forest-800 disabled:bg-sand-300 disabled:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 sm:w-auto">
         Keep this Agreement
       </button>
-      <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'If SecurePay needs to know who you are, sign-in happens next and returns you to this same Agreement. Keeping it does not make anyone else agree.' : formation.confirmationBlockedReason}</p>
+      <p className="text-[0.78rem] text-sand-600">{!formation.confirmable ? (formation.confirmationBlockedReason || 'SecurePay must resolve outstanding requirements first.') : !readAcknowledged ? 'Read the document, then check the acknowledgement above to continue.' : 'If sign-in is required it happens next. Other participants must make their own decisions.'}</p>
       {settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
         {settingUpAs.actingFor
           ? `You’ll set this up as yourself, not as ${settingUpAs.actingFor} — setting up an agreement for a business or organization from a conversation isn’t available yet.`
