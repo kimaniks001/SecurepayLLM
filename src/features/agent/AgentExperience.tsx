@@ -1682,9 +1682,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-display text-lg font-semibold leading-tight md:text-xl">Your Agreement</span>
-                        <span className="rounded-full bg-forest-100 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-forest-800">Forming</span>
+                        <span className={formationState.data.reviewable ? "rounded-full bg-forest-700 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-white" : "rounded-full bg-forest-100 px-2 py-1 text-[0.66rem] font-semibold uppercase tracking-wider text-forest-800"}>{formationState.data.reviewable ? "Ready for review" : "Forming"}</span>
                       </span>
-                      <span className="mt-1 block text-[0.78rem] text-sand-700 group-open:hidden">Tap to see what KS001 is building</span>
+                      <span className="mt-1 block text-[0.78rem] text-sand-700 group-open:hidden">{formationState.data.reviewable ? "Ready to review · You can keep talking" : "Tap to see what KS001 is building"}</span>
                       <span className="mt-1 hidden text-[0.78rem] font-medium text-forest-700 group-open:block">Back to KS001 · Collapse preview</span>
                     </span>
                     <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-forest-200 bg-white text-xl text-forest-700 group-open:rotate-180">⌄</span>
@@ -1692,7 +1692,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   <div className="border-t border-forest-100 px-5 pb-5 pt-4 md:px-7">
                     <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-forest-700">Taking shape from your conversation</p>
                     <p className="mt-2 font-display text-xl leading-snug text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
-                    <p className="mt-2 text-[0.85rem] text-sand-700">This is a preview, not yet an agreed document. Continue talking with KS001 to develop it.</p>
+                    <p className="mt-2 text-[0.85rem] text-sand-700">{formationState.data.reviewable ? "Ready for review, not yet agreed. You can continue exploring; material changes may need another review." : "Still forming, not yet agreed. Continue talking with KS001."}</p>
                     {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-3 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
                     {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1 text-sm text-forest-800"><span className="font-semibold">{term.label}:</span> {term.value}</p>)}
                     {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="mt-4 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-medium text-white">Review Agreement</button>}
