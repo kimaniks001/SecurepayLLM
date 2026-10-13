@@ -163,13 +163,14 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
   );
 }
 
-export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, onInterpretPhoto, photoPreviews, factCountsBySourceId }: {
+export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, onInterpretPhoto, onReviewAgreement, photoPreviews, factCountsBySourceId }: {
   sources: AgentSourceArtifactView[];
   busy: boolean;
   onRetry: (sourceArtifactId: string) => void;
   onRemove: (sourceArtifactId: string) => void;
   onInterpretPhoto?: (source: AgentSourceArtifactView, intent: 'confirm' | 'correct' | 'keep' | 'bill') => void;
   photoPreviews?: Record<string, string>;
+  onReviewAgreement?: () => void;
   /** Offered on failed cards only when the caller judges it fits (see SourceCard). */
   onStartFresh?: () => void;
   /** KS001 Upgrade Phase 3 completion correction (item 9) -- see SourceCard's own `factCount` doctrine. */
@@ -178,7 +179,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, on
   const visible = sources.filter(source => source.extractionStatus !== 'REMOVED');
   if (visible.length === 0) return null;
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-connected-sources>
       {visible.map(source => (
         <SourceCard
           key={source.sourceArtifactId} source={source} busy={busy}
@@ -190,6 +191,7 @@ export function SourcesList({ sources, busy, onRetry, onRemove, onStartFresh, on
           factCount={factCountsBySourceId?.[source.sourceArtifactId]}
         />
       ))}
+      {onReviewAgreement && visible.some(source => source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL') && <div className="rounded-2xl border border-forest-200 bg-cream-50 px-4 py-3" data-source-to-agreement><p className="text-sm font-semibold text-forest-900">Continue with your Agreement</p><p className="mt-1 text-xs text-sand-700">Your material remains here as a source. Review the terms SecurePay has prepared from the information available. Nothing is agreed yet.</p><button type="button" onClick={onReviewAgreement} className="mt-2 min-h-11 rounded-full bg-forest-700 px-4 text-sm font-semibold text-white">Review Agreement</button></div>}
     </div>
   );
 }
