@@ -1701,7 +1701,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 </p>
               )}
               {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
-                <details aria-label="Your forming Agreement preview" data-forming-agreement className="group overflow-hidden rounded-[1.4rem] border-2 border-forest-200 bg-white shadow-soft transition-shadow open:shadow-lg md:mx-auto md:w-full md:max-w-3xl">
+                <details onToggle={event => {
+                  if (!event.currentTarget.open) return;
+                  const agreement = event.currentTarget;
+                  requestAnimationFrame(() => {
+                    agreement.querySelector('[data-agreement-document] h2')?.scrollIntoView({ block: 'start', behavior: 'auto' });
+                  });
+                }} aria-label="Your forming Agreement preview" data-forming-agreement className="group overflow-hidden rounded-[1.4rem] border-2 border-forest-200 bg-white shadow-soft transition-shadow open:shadow-lg md:mx-auto md:w-full md:max-w-3xl">
                   <summary className="flex min-h-[88px] cursor-pointer list-none items-center gap-3 bg-gradient-to-r from-forest-50 via-white to-cream-50 px-4 py-4 text-forest-900 marker:hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-forest-500 md:px-6 [&::-webkit-details-marker]:hidden">
                     <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-forest-700 text-2xl text-white shadow-sm">▤</span>
                     <span className="min-w-0 flex-1">
