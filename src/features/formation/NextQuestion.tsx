@@ -15,7 +15,7 @@ export function NextQuestion({ question, disabled, onAnswer, suggestedChoices = 
   const [dateAnswer, setDateAnswer] = useState('');
   if (!question) return null;
   // Only offer bounded values already present in the question, never imagined amounts.
-  const explicitMoneyValues = [...question.text.matchAll(/(?:KES|KSh|USD|EUR)\\s*[\\d,]+(?:\\.\\d{1,2})?/gi)].map(match => match[0].replace(/\\s+/g, ' ').trim());
+  const explicitMoneyValues = [...question.text.matchAll(/(?:KES|KSh|USD|EUR)\s*[\d,]+(?:\.\d{1,2})?/gi)].map(match => match[0].replace(/\s+/g, ' ').trim());
   const uniqueMoneyValues = [...new Set(explicitMoneyValues)];
   const conflictPills = question.choices.length === 0 && suggestedChoices.length === 0
     && /which (?:one|amount|total)|which is (?:right|correct)|payments.*add up|different (?:total|amount)/i.test(question.text)
