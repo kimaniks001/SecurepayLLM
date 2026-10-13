@@ -2031,6 +2031,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   void controller.send(messages[intent]);
                 }}
                 sources={sourcesState.sources}
+                photoPreviews={sourcesState.photoPreviews}
                 busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
