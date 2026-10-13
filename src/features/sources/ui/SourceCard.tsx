@@ -59,7 +59,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
   const isPhoto = source.sourceKind === 'PHOTO';
   const isDocument = source.sourceKind === 'DOCUMENT' || source.mediaType === SPREADSHEET_MEDIA_TYPE;
   return (
-    <div className={`${failed ? 'surface-decision' : isDocument ? 'rounded-2xl border-2 border-forest-200 bg-white shadow-soft' : 'rounded-2xl border border-cream-200 bg-white/80 shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined} data-important-document={isDocument || undefined}>
+    <div className={`${failed ? 'surface-decision' : isDocument ? 'rounded-[1.35rem] border border-forest-200 bg-white shadow-soft' : 'rounded-[1.35rem] border border-cream-200 bg-white shadow-soft'} px-4 py-3 space-y-1.5 animate-fade-in-up`} data-source-card={failed ? 'failed' : undefined} data-important-document={isDocument || undefined}>
       {isDocument && <div className="flex items-center justify-between gap-2 pb-1"><p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-forest-700">Document you provided</p><span className="text-[0.68rem] text-sand-600">Source material · Not yet agreed</span></div>}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -80,7 +80,7 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
       )}
       {isPhoto && previewUrl && <><button type="button" onClick={() => setPhotoOpen(true)} aria-label={`View full photograph ${title}`} className="block w-full overflow-hidden rounded-xl border border-forest-100"><img src={previewUrl} alt={`Original uploaded photo: ${title}`} className="max-h-72 w-full object-contain bg-cream-50" /></button><p className="text-xs text-sand-600">Tap the photograph to enlarge. This preview is available only in the current browser session.</p></>}
       {isPhoto && photoOpen && previewUrl && <div role="dialog" aria-modal="true" aria-label={`Full photograph ${title}`} className="fixed inset-0 z-[100] flex flex-col bg-black/90 p-4"><button type="button" onClick={() => setPhotoOpen(false)} className="self-end rounded-full bg-white px-5 py-3 text-sm font-semibold text-forest-900">Close photo</button><img src={previewUrl} alt={`Full uploaded photo: ${title}`} className="min-h-0 flex-1 object-contain" /></div>}
-      {isPhoto && <div className="space-y-2 rounded-xl border border-forest-100 bg-cream-50/50 p-3" data-photo-intelligence>
+      {isPhoto && <div className="space-y-2 rounded-2xl border border-forest-100 bg-cream-50 p-3" data-photo-intelligence>
         <p className="text-xs font-semibold uppercase tracking-wide text-forest-700">Photo you shared</p>
         <p className="text-sm text-forest-800">{failed ? 'This photo could not be understood reliably.' : isReadable ? 'Here is what SecurePay could understand from the photo. Is that right?' : 'SecurePay is looking at your photo. Please wait for what it finds.'}</p>
         {isReadable && <div className="space-y-2">
