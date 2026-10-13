@@ -203,6 +203,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
   const [formationController, setFormationController] = useState(() => createFormationController(gateway));
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Phase 3B: inline correction of a server-owned term. Never mutate the formation in the browser.
+  const [correctionTarget, setCorrectionTarget] = useState<{ key: string; label: string; value: string } | null>(null);
+  const [correctionDraft, setCorrectionDraft] = useState('');
+  const [correctionBusy, setCorrectionBusy] = useState(false);
+  const [correctionStatus, setCorrectionStatus] = useState<string | null>(null);
+  const sendTermCorrection = async (retry = false) => {
+    if (!state.conversationId || !correctionTarget || correctionBusy) return;
+    setCorrectionBusy(true);
+    try {
+      const outcome = retry ? await retryPending(controller) : await submitCorrection(controller, `In our Agreement, correct "${correctionTarget.label}" from "${correctionTarget.value}" to: ${correctionDraft.trim()}`);
+      if (outcome.status === 'ok') {
+        setCorrectionTarget(null);
+        setCorrectionDraft('');
+        setCorrectionStatus('Correction received. KS001 has updated the understanding; review the refreshed terms.');
+        await formationController.load(state.conversationId);
+      } else setCorrectionStatus(outcome.message);
+    } finally { setCorrectionBusy(false); }
+  };
   // Readiness is an API-derived property of the current formation version.
   // Remember only that an earlier version was reviewable; never reuse its authority.
   const [lastReviewableVersion, setLastReviewableVersion] = useState<number | null>(null);
@@ -1743,7 +1761,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                             <h3 className="font-display text-lg font-semibold text-forest-900">{heading}</h3>
                             <dl className="divide-y divide-cream-100 rounded-xl border border-cream-100">
                               {terms.map(term => <div key={term.key} className="grid gap-1 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-4">
-                                <dt className="text-[0.78rem] font-medium text-sand-600">{term.label}</dt>
+                                <dt className="flex items-center justify-between gap-2 text-[0.78rem] font-medium text-sand-600">{term.label}<button type="button" disabled={correctionBusy || state.busy || !!state.pending} onClick={() => { setCorrectionTarget({key: term.key, label: term.label, value: term.value}); setCorrectionDraft(''); setCorrectionStatus(null); }} className="min-h-11 rounded-full px-3 text-xs font-semibold text-forest-700 underline underline-offset-2 disabled:opacity-50" aria-label={`Correct ${term.label}`}>Correct</button></dt>
                                 <dd className="text-sm leading-6 text-forest-900">{term.value}{term.needsChecking && <span className="ml-2 text-xs font-semibold text-ember-800">Needs checking</span>}{term.detail && <span className="mt-1 block text-xs text-sand-600">{term.detail}</span>}</dd>
                               </div>)}
                             </dl>
@@ -1775,6 +1793,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                         <p className="border-t border-cream-100 pt-4 text-xs leading-5 text-sand-600">This document is based on the current SecurePay formation record. A draft or reviewable proposal is not a signed commitment.</p>
                       </div>
                     </article>
+                    {correctionTarget && <form onSubmit={event => { event.preventDefault(); if (correctionDraft.trim()) void sendTermCorrection(); }} className="mx-auto mt-4 max-w-2xl space-y-3 rounded-2xl border-2 border-forest-200 bg-white p-4" aria-label="Correct an Agreement detail">
+                      <h3 className="font-display text-lg font-semibold text-forest-900">Correct {correctionTarget.label}</h3>
+                      <p className="text-sm text-sand-700">Currently: {correctionTarget.value}</p>
+                      <label className="block text-sm font-semibold text-forest-800" htmlFor="agreement-correction">What should it say?</label>
+                      <textarea id="agreement-correction" value={correctionDraft} onChange={event => setCorrectionDraft(event.target.value)} disabled={correctionBusy} maxLength={4000} rows={3} autoFocus className="w-full rounded-xl border border-forest-200 bg-white p-3 text-sm text-forest-900 focus:outline-2 focus:outline-forest-500" placeholder="Tell KS001 the correct detail in your own words" />
+                      {correctionStatus && <p role="status" className="text-sm text-forest-800">{correctionStatus}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        <button type="submit" disabled={!correctionDraft.trim() || correctionBusy || !!state.pending} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-50">{correctionBusy ? 'Checking…' : 'Send correction'}</button>
+                        <button type="button" onClick={() => { setCorrectionTarget(null); setCorrectionStatus(null); }} className="min-h-11 rounded-full border border-forest-200 px-5 text-sm text-forest-800">Cancel</button>
+                        {correctionStatus && state.pending && <button type="button" disabled={correctionBusy} onClick={() => void sendTermCorrection(true)} className="min-h-11 rounded-full border border-forest-200 px-5 text-sm text-forest-800">Check again</button>}
+                      </div>
+                    </form>}
+                    {correctionStatus && !correctionTarget && <p role="status" className="mx-auto mt-3 max-w-2xl text-sm text-forest-700">{correctionStatus}</p>}
                     <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center gap-3">
                       {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Review Agreement</button>}
                       <button type="button" onClick={event => { const details = event.currentTarget.closest('details'); if (details) details.open = false; setComposerFocusKey(key => key + 1); }} className="min-h-11 rounded-full border border-forest-200 bg-white px-5 text-sm font-semibold text-forest-800">Back to KS001</button>
