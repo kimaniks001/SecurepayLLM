@@ -1812,26 +1812,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                       </div>
                     </form>}
                     {correctionStatus && !correctionTarget && <p role="status" className="mx-auto mt-3 max-w-2xl text-sm text-forest-700">{correctionStatus}</p>}
-                    <section aria-label="Keep building your plan" data-vision-exploration className="mx-auto mt-4 max-w-2xl rounded-2xl border border-forest-200 bg-white p-4 md:p-5">
-                      <div className="flex items-start gap-3">
-                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-xl text-forest-800">✦</span>
-                        <div>
-                          <h3 className="font-display text-lg font-semibold text-forest-900">Keep building beyond this Agreement</h3>
-                          <p className="mt-1 text-sm leading-6 text-sand-700">You can explore the next phase, find a fundi or compare Store offers with KS001. An idea is not an accepted change to anyone’s obligations.</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Explore next possibilities">
-                        {['Explore another phase', 'Find a fundi', 'Compare Store offers'].map(idea => <button type="button" key={idea} disabled={state.busy || !!state.pending}
-                          onClick={() => {
-                            const details = document.querySelector<HTMLDetailsElement>('[data-forming-agreement]');
-                            if (details) details.open = false;
-                            setComposerFocusKey(key => key + 1);
-                            void controller.send(`I want to explore this possibility for my wider plan, not automatically change our current Agreement: ${idea}. Please help me plan it before proposing any contractual changes.`);
-                          }}
-                          className="min-h-11 rounded-full border border-forest-200 bg-forest-50 px-4 text-sm font-medium text-forest-800 hover:bg-forest-100 disabled:opacity-50">{idea}</button>)}
-                      </div>
-                      <p className="mt-3 text-xs text-sand-600">Exploration happens through KS001. If a material proposal changes the current formation, SecurePay reassesses its review status.</p>
-                    </section>
                     <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center gap-3">
                       {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Review Agreement</button>}
                       <button type="button" onClick={event => { const details = event.currentTarget.closest('details'); if (details) details.open = false; setComposerFocusKey(key => key + 1); }} className="min-h-11 rounded-full border border-forest-200 bg-white px-5 text-sm font-semibold text-forest-800">Back to KS001</button>
