@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { CheckCircle2, FileText, Search, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
@@ -46,16 +45,10 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
   const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace);
   const publicMode = variant === 'public';
-  const quickActions = [
-    { label: 'Plan', help: 'Turn an idea into a clear plan', icon: FileText, prompt: 'Help me turn an idea into a clear plan.' },
-    { label: 'Compare', help: 'Make the options obvious', icon: Search, prompt: 'Help me compare my options before I decide.' },
-    { label: 'Prepare Agreement', help: 'Make the commitment clear', icon: CheckCircle2, prompt: 'Help me prepare a clear agreement from what I am trying to do.' },
-    { label: 'Find People', help: 'Connect the right people', icon: Users, prompt: 'Help me work out who I need and how SecurePay can help me find them.' },
-  ];
 
   return (
-    <div className={publicMode ? 'w-full max-w-6xl' : 'w-full max-w-3xl'}>
-      <section className={publicMode ? 'sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9' : 'sp-lift-in px-1 py-4 md:px-2 md:py-8'}>
+    <div className={publicMode ? 'w-full max-w-5xl' : 'w-full max-w-3xl'}>
+      <section className={publicMode ? 'sp-lift-in px-2 py-9 md:px-12 md:py-16' : 'sp-lift-in px-1 py-4 md:px-2 md:py-8'}>
         <div className="relative z-10">
           <div className="flex items-center gap-3" data-ks001-lockup>
             <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
@@ -65,15 +58,15 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             </div>
           </div>
 
-          <h1 className={publicMode ? 'sp-display mt-5 max-w-2xl text-[2.65rem] md:text-6xl' : 'sp-display mt-7 max-w-2xl text-[2.45rem] leading-[1.05] md:text-5xl'}>
+          <h1 className={publicMode ? 'sp-display mt-9 max-w-3xl text-[3.2rem] leading-[1.08] md:text-[5.2rem]' : 'sp-display mt-7 max-w-2xl text-[2.45rem] leading-[1.05] md:text-5xl'}>
             {publicMode
-              ? <>What do you want to make <span className="sp-real-word">real</span> today?</>
-              : <>What do you want to get done?</>}
+              ? <>What would you like to <span className="sp-real-word">get done?</span></>
+              : <>What would you like to get done?</>}
           </h1>
-          <p className={publicMode ? 'mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base' : 'mt-3 max-w-xl text-[0.95rem] leading-6 text-sand-600 md:text-base'}>
+          <p className={publicMode ? 'mt-6 max-w-xl text-[1.05rem] leading-7 text-sand-700 md:text-lg' : 'mt-3 max-w-xl text-[0.95rem] leading-6 text-sand-600 md:text-base'}>
             {publicMode
-              ? 'Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'
-              : 'Tell KS001 normally. SecurePay will help put it together and only ask for what genuinely needs you.'}
+              ? 'Tell me in your own words. We can work out the details together.'
+              : 'Start wherever you are. We'll take it from there.'}
           </p>
 
           {publicMode && continueSlot && <div className="mt-5">
@@ -86,7 +79,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
               onSend={onStart}
               disabled={disabled}
               draftKey="home"
-              placeholder={publicMode ? 'Tell KS001 what you want to make happen…' : 'Tell KS001 what you want to get done…'}
+              placeholder={publicMode ? 'Tell me what you'd like to do…' : 'Tell KS001 what you want to get done…'}
               leading={hasIntake ? (
                 <SourceMenu
                   variant="composer"
@@ -113,31 +106,6 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
           {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-600">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
         </div>
       </section>
-
-      {publicMode && <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
-        {quickActions.map(({ label, help, icon: Icon, prompt }, index) => (
-          <button
-            key={label}
-            type="button"
-            disabled={disabled}
-            onClick={() => onStart(prompt)}
-            className="sp-action-tile sp-settle p-3.5 text-left disabled:opacity-40"
-            style={{ animationDelay: String(index * 55) + 'ms' }}
-          >
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
-              <Icon className="h-[18px] w-[18px]" />
-            </span>
-            <span className="mt-3 block text-[0.82rem] font-semibold leading-4 text-forest-900">{label}</span>
-            <span className="mt-1 block text-[0.68rem] leading-4 text-sand-600">{help}</span>
-          </button>
-        ))}
-      </section>}
-
-      {publicMode && (
-        <p className="mt-4 text-center text-[0.8rem] text-sand-700">
-          Start without a KS Number. Nothing becomes an agreement until you review and confirm it.
-        </p>
-      )}
 
       {fairTradeOpen && <FairTradePrinciplesPanel withKs001 onClose={() => setFairTradeOpen(false)} />}
     </div>
