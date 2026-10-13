@@ -204,6 +204,30 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [formationController, setFormationController] = useState(() => createFormationController(gateway));
   const [reviewOpen, setReviewOpen] = useState(false);
   // Phase 3B: inline correction of a server-owned term. Never mutate the formation in the browser.
+  // Phase 4 identity: a KS Number is a proposed participant reference, never consent.
+  const [ksParticipant, setKsParticipant] = useState('');
+  const [ksRole, setKsRole] = useState('');
+  const [ksIdentityStatus, setKsIdentityStatus] = useState('');
+  const [ksIdentityBusy, setKsIdentityBusy] = useState(false);
+  const submitKsParticipant = async () => {
+    if (!ksParticipant.trim() || !ksRole.trim() || ksIdentityBusy) return;
+    setKsIdentityBusy(true);
+    setKsIdentityStatus('');
+    try {
+      const outcome = await controller.selectKsIdentity({
+        ksNumber: ksParticipant.trim(), role: ksRole.trim(),
+        ...(state.context.data?.version !== undefined ? {expectedTradeContextVersion: state.context.data.version} : {}),
+      });
+      if (!outcome.ok) { setKsIdentityStatus(outcome.error); return; }
+      const result = outcome.result;
+      if (result.status === 'RESOLVED') {
+        setKsIdentityStatus(`SecurePay found ${result.displayName || 'this identity'}. It has not been added or accepted; confirm their role before proceeding.`);
+      } else if (result.status === 'ASSOCIATED' || result.status === 'ALREADY_ASSOCIATED') {
+        setKsIdentityStatus(`${result.displayName || 'Identity'} is linked as a proposed participant. This is not an invitation or acceptance.`);
+        if (state.conversationId) void formationController.load(state.conversationId);
+      } else setKsIdentityStatus(`SecurePay reports ${result.status.toLowerCase().replace(/_/g, ' ')}. No participant acceptance has occurred.`);
+    } finally { setKsIdentityBusy(false); }
+  };
   const [correctionTarget, setCorrectionTarget] = useState<{ key: string; label: string; value: string } | null>(null);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [correctionBusy, setCorrectionBusy] = useState(false);
@@ -1702,6 +1726,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     onAnswer={text => void controller.send(text)} />
                   <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
                 </section>
+              )}
+              {formationState.data && formationState.data.stage !== 'NOTHING_YET'
+                && (formationState.data.who.length > 0 || /who|person|member|participant|representative|organisation|organization/i.test(formationState.data.question?.text ?? '')) && (
+                <details data-ks-identity-assist className="rounded-xl border border-forest-100 bg-white p-4 md:mx-auto md:w-full md:max-w-3xl">
+                  <summary className="cursor-pointer text-sm font-semibold text-forest-800">+ Add a person or organisation by KS Number</summary>
+                  <form onSubmit={event => {event.preventDefault(); void submitKsParticipant();}} className="mt-3 space-y-3">
+                    <p className="text-sm text-sand-700">Identify the person or organisation, then state their intended role. SecurePay checks the identity; this does not invite or sign for them.</p>
+                    <label className="block text-xs font-semibold text-forest-800">KS Number<input value={ksParticipant} onChange={event => setKsParticipant(event.target.value)} required placeholder="KS Number" className="mt-1 block min-h-11 w-full rounded-xl border border-forest-200 px-3 text-sm" /></label>
+                    <label className="block text-xs font-semibold text-forest-800">Their role<input value={ksRole} onChange={event => setKsRole(event.target.value)} required placeholder="e.g. Treasurer, contractor, family representative" className="mt-1 block min-h-11 w-full rounded-xl border border-forest-200 px-3 text-sm" /></label>
+                    <button type="submit" disabled={ksIdentityBusy || state.busy || !ksParticipant.trim() || !ksRole.trim()} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-50">{ksIdentityBusy ? 'Checking…' : 'Check KS identity'}</button>
+                    {ksIdentityStatus && <p role="status" className="text-sm text-forest-800">{ksIdentityStatus}</p>}
+                  </form>
+                </details>
               )}
               {/* An actual review invitation is visible WITHOUT opening the preview.
                   It does not stop KS001, and only the server can mark this version reviewable. */}
