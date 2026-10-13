@@ -1650,47 +1650,38 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* Human Phase 2 correction: the real Agreement belongs first. Do not
                   echo the human's message in a large pretend-work card; their own
                   words are already preserved in the conversation above. */}
-              {/* Server-provided choices live with KS001, not inside the forming Agreement.
-                  They send the human's exact chosen words through the existing, idempotent turn path. */}
+              {/* One-tap answers belong to the conversation. The server owns the question.
+                  Purpose suggestions are optional human-worded examples only when the person
+                  explicitly said chama and the server asked about purpose. They are not
+                  authoritative classifications or silently accepted Agreement facts. */}
               {formationState.data?.question && !state.busy && !state.pending && (
                 <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
-                  <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · One thing to clarify</p>
+                  <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
                   <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
+                    suggestedChoices={
+                      formationState.data.question.choices.length === 0
+                      && /chama/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                      && /what is this for|what.*(purpose|for|used for)|contributions.*for/i.test(formationState.data.question.text)
+                        ? ['Save together', 'Invest together', 'Merry-go-round', 'Support one another'] : []
+                    }
                     onAnswer={text => void controller.send(text)} />
-                  <p className="mt-3 text-[0.77rem] text-sand-600">Or answer in your own words below.</p>
+                  <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
                 </section>
               )}
-              {/* The forming Agreement is a quiet read-only companion, never an interruption of KS001.
-                  On mobile it stays collapsed unless the human explicitly opens it. */ }
               {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
-                <aside aria-label="Agreement forming quietly" data-forming-agreement className="order-last rounded-2xl border border-forest-100 bg-white/85 px-4 py-3 md:mx-auto md:w-full md:max-w-3xl md:px-5">
-                  <details className="group md:hidden">
-                    <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-medium text-forest-800">
-                      <span>Agreement forming · View progress</span>
-                      <span aria-hidden="true" className="text-sand-500">⌄</span>
-                    </summary>
-                    <div className="border-t border-cream-200 pt-3 text-[0.86rem] text-sand-700">
-                      <p className="font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
-                      <p className="mt-1">Not ready for approval. Keep talking to KS001.</p>
-                      {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-2">{term.label}: {term.value}</p>)}
-                      {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1">{term.label}: {term.value}</p>)}
-                    </div>
-                  </details>
-                  <div className="hidden md:block">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-forest-600">Agreement forming quietly</p>
-                    <p className="mt-1 font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[0.83rem] text-sand-700">
-                      {formationState.data.what.slice(0, 1).map(term => <span key={term.key}>{term.label}: {term.value}</span>)}
-                      {formationState.data.money.slice(0, 1).map(term => <span key={term.key}>{term.label}: {term.value}</span>)}
-                    </div>
-                    <p className="mt-2 text-[0.76rem] text-sand-600">Still taking shape · Keep talking with KS001. Nothing is agreed yet.</p>
+                <details aria-label="Agreement forming quietly" data-forming-agreement className="rounded-xl border border-forest-100/70 bg-white/70 px-4 py-2">
+                  <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-[0.8rem] font-medium text-sand-600">
+                    <span>Agreement forming quietly</span>
+                    <span aria-hidden="true">⌄</span>
+                  </summary>
+                  <div className="border-t border-cream-200 py-3">
+                    <p className="font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
+                    <p className="mt-1 text-[0.79rem] text-sand-600">Not agreed yet. Keep talking to KS001.</p>
+                    {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-2 text-sm text-forest-800">{term.label}: {term.value}</p>)}
+                    {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1 text-sm text-forest-800">{term.label}: {term.value}</p>)}
+                    {formationState.data.reviewable && <button type="button" onClick={() => setReviewOpen(true)} className="mt-3 min-h-11 text-sm text-forest-700 underline">Review Agreement</button>}
                   </div>
-                  {formationState.data.reviewable && (
-                    <button type="button" onClick={() => setReviewOpen(true)} className="mt-2 min-h-11 text-[0.8rem] font-medium text-forest-700 underline underline-offset-4">
-                      Review when you're ready
-                    </button>
-                  )}
-                </aside>
+                </details>
               )}
               {directAck && <p role="status" className="text-[0.85rem] text-forest-800"><span className="font-display">KS001 · </span>{directAck}
                 <button type="button" onClick={() => setDirectAck(null)} className="ml-2 min-h-11 text-[0.8rem] text-sand-700 underline">OK</button></p>}
