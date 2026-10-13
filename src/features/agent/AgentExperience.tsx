@@ -1662,7 +1662,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                       formationState.data.question.choices.length === 0
                       && /chama/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
                       && /what is this for|what.*(purpose|for|used for)|contributions.*for/i.test(formationState.data.question.text)
-                        ? ['Save together', 'Invest together', 'Merry-go-round', 'Support one another'] : []
+                        ? ['Save together', 'Invest together', 'Merry-go-round', 'Support one another']
+                        : /chama|merry.go.round/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                          && /payout order|order.*(decid|receiv|payout)|who.*first|first.*receiv/i.test(formationState.data.question.text)
+                          ? ['Draw lots', 'Agree together', 'Set an order', 'Decide later']
+                          : /\b(8|eight) friends\b/i.test(state.turns.filter(turn => turn.sender === 'user').map(turn => turn.text).join(' '))
+                            && /how many|number of (people|members|contributors)|including you/i.test(formationState.data.question.text)
+                            ? ['Eight including me', 'Eight friends plus me']
+                            : []
                     }
                     onAnswer={text => void controller.send(text)} />
                   <p className="mt-3 text-[0.77rem] text-sand-600">Or say something different in your own words below.</p>
