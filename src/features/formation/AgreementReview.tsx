@@ -87,9 +87,10 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
       <header className="border-b border-cream-200 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
-          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Not agreed yet</div>
+          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft · Not agreed</div>
         </div>
         <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-900">{documentTitle}</h1>
+        <p className="mt-2 text-[0.75rem] font-medium text-sand-600" data-print-version>Agreement version {formation.version} · {formation.reviewable ? "Ready for review" : "Forming"} · No participant acceptance recorded by this review</p>
         {formation.summary && formation.summary !== documentTitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-6 text-sand-700">{formation.summary}</p>}
         <details className="agreement-screen-only mt-3 text-[0.76rem] text-sand-600">
           <summary className="cursor-pointer select-none underline decoration-sand-300 underline-offset-2">Agreement details</summary>
@@ -169,7 +170,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     {checked.length > 0 && <p className="text-[0.78rem] text-sand-500">Checked by you — still open: {checked.map(p => p.text).join(' · ')}</p>}
 
       <footer className="mt-7 border-t border-cream-200 pt-4 text-[0.72rem] leading-5 text-sand-500">
-        This draft mirrors SecurePay’s current understanding. Printing it does not set up the Agreement, confirm a participant, or move money.
+        SecurePay draft · Version {formation.version}. This printout is a snapshot of the current proposal, not evidence of signature, acceptance, participant identity verification or payment authorisation. Later changes may create a different version.
       </footer>
     </article>
 
