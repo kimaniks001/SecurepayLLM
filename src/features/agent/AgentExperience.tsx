@@ -2019,6 +2019,17 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
                   extraction-debug screen. BUILD itself remains the primary structured view. */}
               <SourcesList
+                onInterpretPhoto={(source, intent) => {
+                  const name = source.originalName || source.label || 'the photo';
+                  const summary = source.summary?.trim();
+                  const messages = {
+                    confirm: `For the photo "${name}", I confirm that your description is accurate: ${summary || 'no description was available'}. Use this only as a confirmed description of what I showed, not proof of completion, acceptance, delivery or payment.`,
+                    correct: `I want to correct what you understood from the photo "${name}". Your current description is: ${summary || 'none available'}. Please ask me what needs correcting before using it as a trade fact.`,
+                    keep: `Please keep the photo "${name}" as supporting material for this work, without interpreting it as accepted evidence or changing any Agreement terms.`,
+                    bill: `Please analyse the uploaded photo "${name}" as a possible bill, receipt or trade record. Use only details actually visible or reliably extracted: merchant, items, quantities, unit prices, totals, dates and payment indicators. Clearly separate what is stated, uncertain and missing. Reconstruct a proposed trade record for my review, without assuming payment, delivery, tax treatment or anyone's consent. Ask only the next material question.`,
+                  };
+                  void controller.send(messages[intent]);
+                }}
                 sources={sourcesState.sources}
                 busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
