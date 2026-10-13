@@ -1723,7 +1723,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                             ? ['Eight including me', 'Eight friends plus me']
                             : []
                     }
-                    onAnswer={text => void controller.send(text)} />
+                    onAnswer={text => void controller.send(text)}
+                    onAddPlace={() => openDeclared('place')}
+                    onUploadPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+                    onUploadDocument={file => { void sourceController.addUpload('DOCUMENT', file); }} />
                   {(() => {
                     const matched = formationState.data?.openPoints.find(point =>
                       formationState.data?.question?.openPointIds.includes(point.id) && point.sides.some(side => side.choosable));
