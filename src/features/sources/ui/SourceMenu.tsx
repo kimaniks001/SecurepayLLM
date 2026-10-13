@@ -59,13 +59,18 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
   const choose = (run: () => void) => () => { setOpen(false); run(); };
 
   const items: Item[] = [];
+  // Photo is the primary Home entry: let people show KS001 before explaining.
+  // Keep other sources available and preserve the original file handlers.
+  if (variant !== 'composer' && actions.onPickPhoto) {
+    items.push({ key: 'photo', label: 'Photo', icon: Image, run: () => photoInput.current?.click() });
+  }
   if (actions.onBringPlan) items.push({ key: 'plan', label: 'Paste a plan', icon: PenLine, run: actions.onBringPlan });
   if (actions.onPickDocument) {
     items.push({ key: 'document', label: 'Document', hint: 'PDF, Word, text or CSV', icon: FileText, run: () => documentInput.current?.click() });
     items.push({ key: 'spreadsheet', label: 'Spreadsheet', hint: 'Excel — values only', icon: FileSpreadsheet, run: () => spreadsheetInput.current?.click() });
   }
   if (actions.onPickPhoto) {
-    items.push({ key: 'photo', label: 'Photo', icon: Image, run: () => photoInput.current?.click() });
+    if (variant === 'composer') items.push({ key: 'photo', label: 'Photo', icon: Image, run: () => photoInput.current?.click() });
     items.push({ key: 'camera', label: 'Camera', hint: 'Take a photo now', icon: Camera, run: () => cameraInput.current?.click() });
   }
   if (actions.onAddLink) items.push({ key: 'link', label: 'Link', hint: 'Kept as text — never opened', icon: Link2, run: actions.onAddLink });
