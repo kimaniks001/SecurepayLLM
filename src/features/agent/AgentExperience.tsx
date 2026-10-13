@@ -382,7 +382,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // requirements, or a commercial next step. The person can always direct KS001.
   const currentHumanIntent = humanMeetingTurns.slice(0, 3).join(' ');
   const isSensitiveHumanSituation = /\b(?:funeral|bereavement|burial|memorial|grief|deceased|passed away|hospitalisation|hospitalization|seriously ill|emergency)\b/i.test(currentHumanIntent);
-  const explicitlyAskedForCost = humanMeetingTurns.some(t => /\b(?:how much|cost|price|budget|payment|pay for|quote|expense)\b/i.test(t));
 
   const isMeetingScheduleRequest = humanMeetingTurns.some(t => /\bmeeting\b/i.test(t) && /\bdate\b/i.test(t) && /\b(?:time|start)\b/i.test(t) && /\b(?:not yet|undecided|haven't|have not|need to|missing)\b/i.test(t));
   const humanProposedDate = humanMeetingTurns.some(t => /\b20\d{2}-\d{2}-\d{2}\b/.test(t));
