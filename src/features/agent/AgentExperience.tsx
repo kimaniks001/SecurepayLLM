@@ -1,16 +1,29 @@
+function TimeFromReply({ onAnswer }: { onAnswer: (answer: string) => void }) {
+  const [time, setTime] = useState('');
+  return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-time-picker>
+    <label htmlFor="ks001-meeting-time" className="block text-base font-semibold text-forest-900">What time should the meeting start?</label>
+    <div className="mt-2 flex flex-wrap gap-2">
+      <input id="ks001-meeting-time" type="time" value={time} onChange={event => setTime(event.target.value)} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm" />
+      <button type="button" disabled={!time} onClick={() => onAnswer(`For the meeting date we discussed, I propose a starting time of ${time} local time. Please retain the meeting purpose and participants; this time is not yet agreed.`)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use this time</button>
+    </div>
+  </div>;
+}
+
 
 /** The model can ask a real date question before the formation API emits a question object.
  * Offer a genuine date input for that visible reply rather than requiring the user to type.
  * The selected date is sent through the same conversation as a normal answer. */
-function DateFromReply({ onAnswer }: { onAnswer: (text: string) => void }) {
+function DateFromReply({ onAnswer, withTime = false }: { onAnswer: (text: string) => void; withTime?: boolean }) {
   const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
   return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-date-picker>
     <label htmlFor="ks001-reply-date" className="block text-sm font-semibold text-forest-900">Choose a proposed date</label>
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <input id="ks001-reply-date" type="date" value={date} onChange={event => setDate(event.target.value)}
         className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" />
-      <button type="button" disabled={!date} onClick={() => onAnswer(date)}
-        className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use this date</button>
+      {withTime && <><label htmlFor="ks001-reply-time" className="sr-only">Meeting start time</label><input id="ks001-reply-time" type="time" value={time} onChange={event => setTime(event.target.value)} className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" /></>}
+      <button type="button" disabled={!date || (withTime && !time)} onClick={() => onAnswer(withTime ? `I propose the meeting on ${date} starting at ${time} local time. The date and time are proposals, not yet agreed.` : date)}
+        className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">{withTime ? "Use date and time" : "Use this date"}</button>
     </div>
     <p className="mt-2 text-xs text-sand-600">Or propose several dates in your own words below.</p>
   </div>;
@@ -1975,8 +1988,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   <MessageBubble text={turn.response.message.text} sender="agent" />
                   {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
                     && /(?:proposed|choose|agree|decide|set|which|what|suggest).*\bdate\b|\bdate\b.*(?:propose|choose|agree|decide|suggest)/i.test(turn.response.message.text)
-                    && <DateFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
+                    && <DateFromReply key={turn.id} withTime={/date.*(?:start(?:ing)? time|time)|(?:start(?:ing)? time|time).*date/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))} onAnswer={answer => void controller.send(answer)} />}
 
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
+                    && /meeting/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
+                    && /(?:start(?:ing)? time|date and time)/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
+                    && state.turns.some(t => t.sender === 'user' && /\\b20\\d{2}-\\d{2}-\\d{2}\\b/.test(t.text))
+                    && !state.turns.some(t => t.sender === 'user' && /\\b(?:at|start(?:ing)? at)\\s+\\d{1,2}:\\d{2}\\b/i.test(t.text))
+                    && <TimeFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
                   {turn.id === lastResponse?.id && !state.busy && !state.pending
                     && !/[?]\\s*$/.test(turn.response.message.text.trim())
                     && !formationState.data?.question && (
