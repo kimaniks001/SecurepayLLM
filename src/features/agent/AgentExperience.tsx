@@ -1,3 +1,21 @@
+/** Contextual priority for an explicitly unfinished meeting schedule.
+ * This does not alter server agreement truth or silently resolve any server question. */
+function MeetingScheduleStep({ needDate, needTime, onAnswer }: { needDate: boolean; needTime: boolean; onAnswer: (message: string) => void }) {
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  return <section data-meeting-schedule-step className="rounded-2xl border-2 border-forest-200 bg-white p-4 md:p-5">
+    <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
+    <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">{needDate && needTime ? 'What date and time should the meeting start?' : needDate ? 'What date do you propose for the meeting?' : 'What time should the meeting start?'}</h3>
+    <p className="mt-1 text-sm text-sand-700">These are proposals until the people involved agree.</p>
+    <div className="mt-3 flex flex-wrap items-end gap-3">
+      {needDate && <label className="text-sm font-semibold text-forest-800">Date<input aria-label="Proposed meeting date" type="date" value={date} onChange={event => setDate(event.target.value)} className="mt-1 block min-h-11 rounded-xl border border-forest-300 bg-white px-3" /></label>}
+      {needTime && <label className="text-sm font-semibold text-forest-800">Starting time<input aria-label="Proposed meeting starting time" type="time" value={time} onChange={event => setTime(event.target.value)} className="mt-1 block min-h-11 rounded-xl border border-forest-300 bg-white px-3" /></label>}
+      <button type="button" disabled={(needDate && !date) || (needTime && !time)} onClick={() => onAnswer(`For our meeting, I propose ${needDate ? 'the date ' + date : 'the date already discussed'}${needTime ? ' and a starting time of ' + time + ' local time' : ''}. These are proposals, not yet agreed. Please keep the meeting for six people in context.`)} className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use proposed {needDate && needTime ? 'date and time' : needDate ? 'date' : 'time'}</button>
+    </div>
+    <p className="mt-2 text-xs text-sand-600">Or describe the schedule in your own words below.</p>
+  </section>;
+}
+
 function TimeFromReply({ onAnswer }: { onAnswer: (answer: string) => void }) {
   const [time, setTime] = useState('');
   return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-time-picker>
@@ -357,6 +375,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [foundFocusKey]);
   const handoffState = useSyncExternalStore(handoffController.subscribe, handoffController.getSnapshot);
   const formationState = useSyncExternalStore(formationController.subscribe, formationController.getSnapshot);
+  // A meeting explicitly missing its schedule must not be led into an unrelated price question.
+  // Read the person's own statements; never infer an agreed date or time from model prose.
+  const humanMeetingTurns = state.turns.filter(t => t.sender === 'user').map(t => t.text);
+  const isMeetingScheduleRequest = humanMeetingTurns.some(t => /\bmeeting\b/i.test(t) && /\bdate\b/i.test(t) && /\b(?:time|start)\b/i.test(t) && /\b(?:not yet|undecided|haven't|have not|need to|missing)\b/i.test(t));
+  const humanProposedDate = humanMeetingTurns.some(t => /\b20\d{2}-\d{2}-\d{2}\b/.test(t));
+  const humanProposedTime = humanMeetingTurns.some(t => /\b\d{1,2}:\d{2}\b/.test(t));
+  const showMeetingSchedule = isMeetingScheduleRequest && (!humanProposedDate || !humanProposedTime);
+
   // Entry Perfection Phase 6 -- the emerging agreement follows every new version of SecurePay's understanding (a turn, a
   // source, a correction), so what the person reviews is always the current one.
   useEffect(() => {
@@ -1737,7 +1763,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   Purpose suggestions are optional human-worded examples only when the person
                   explicitly said chama and the server asked about purpose. They are not
                   authoritative classifications or silently accepted Agreement facts. */}
-              {formationState.data?.question && !state.busy && !state.pending && (
+              {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
+              {formationState.data?.question && !showMeetingSchedule && !state.busy && !state.pending && (
                 <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
                   <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
                   <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
@@ -1986,11 +2013,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
-                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question && !showMeetingSchedule
                     && /(?:proposed|choose|agree|decide|set|which|what|suggest).*\bdate\b|\bdate\b.*(?:propose|choose|agree|decide|suggest)/i.test(turn.response.message.text)
                     && <DateFromReply key={turn.id} withTime={/date.*(?:start(?:ing)? time|time)|(?:start(?:ing)? time|time).*date/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))} onAnswer={answer => void controller.send(answer)} />}
 
-                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question && !showMeetingSchedule
                     && /meeting/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
                     && /(?:start(?:ing)? time|date and time)/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
                     && state.turns.some(t => t.sender === 'user' && /\b20\d{2}-\d{2}-\d{2}\b/.test(t.text))
