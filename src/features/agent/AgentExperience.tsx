@@ -1,3 +1,21 @@
+
+/** The model can ask a real date question before the formation API emits a question object.
+ * Offer a genuine date input for that visible reply rather than requiring the user to type.
+ * The selected date is sent through the same conversation as a normal answer. */
+function DateFromReply({ onAnswer }: { onAnswer: (text: string) => void }) {
+  const [date, setDate] = useState('');
+  return <div className="ml-10 max-w-xl rounded-2xl border border-forest-200 bg-white p-4" data-reply-date-picker>
+    <label htmlFor="ks001-reply-date" className="block text-sm font-semibold text-forest-900">Choose a proposed date</label>
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input id="ks001-reply-date" type="date" value={date} onChange={event => setDate(event.target.value)}
+        className="min-h-11 rounded-xl border border-forest-300 bg-white px-3 text-sm text-forest-900" />
+      <button type="button" disabled={!date} onClick={() => onAnswer(date)}
+        className="min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white disabled:opacity-40">Use this date</button>
+    </div>
+    <p className="mt-2 text-xs text-sand-600">Or propose several dates in your own words below.</p>
+  </div>;
+}
+
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
 import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
 import { Plus, Pencil } from 'lucide-react';
@@ -1955,6 +1973,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
+                    && /(?:proposed|choose|agree|decide|set|which|what|suggest).*\bdate\b|\bdate\b.*(?:propose|choose|agree|decide|suggest)/i.test(turn.response.message.text)
+                    && <DateFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
+
                   {turn.id === lastResponse?.id && !state.busy && !state.pending
                     && !/[?]\\s*$/.test(turn.response.message.text.trim())
                     && !formationState.data?.question && (
