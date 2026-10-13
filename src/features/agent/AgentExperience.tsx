@@ -393,7 +393,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const requestedDocument = humanMeetingTurns.some(t => /\b(?:minutes|pdf|document|file|attachment|written agreement|signed contract)\b/i.test(t)
     && /\b(?:attach|add|upload|have|include|based on|use|need)\b/i.test(t));
   const hasSubmittedSource = sourcesState.sources.some(source => source.extractionStatus !== 'REMOVED' && source.extractionStatus !== 'FAILED');
-  const showMaterialStep = (requestedMedia || requestedDocument) && !hasSubmittedSource && !showMeetingSchedule && !showPlaceStep;
+  const materialDeferred = humanMeetingTurns.some(t => /continue without attaching supporting material|just keep photo|without attaching/i.test(t));
+  const showMaterialStep = (requestedMedia || requestedDocument) && !hasSubmittedSource && !materialDeferred && !showMeetingSchedule && !showPlaceStep;
 
 
 
@@ -1848,7 +1849,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               )}
               {/* An actual review invitation is visible WITHOUT opening the preview.
                   It does not stop KS001, and only the server can mark this version reviewable. */}
-              {formationState.data?.reviewable && (
+              {formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && (
                 <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-2xl border-2 border-forest-500 bg-forest-50 px-4 py-4 md:mx-auto md:w-full md:max-w-3xl">
                   <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Ready for review</p>
                   <p className="mt-1 font-display text-lg text-forest-900">Your Agreement is ready to read.</p>
@@ -2068,7 +2069,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     && <TimeFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
                   {turn.id === lastResponse?.id && !state.busy && !state.pending
                     && !/[?]\\s*$/.test(turn.response.message.text.trim())
-                    && !formationState.data?.question && (
+                    && !formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && (
                       <div className="ml-10 max-w-xl rounded-xl border border-forest-100 bg-white/70 px-4 py-3" data-ks001-continuation>
                         {formationState.data?.openPoints.find(point => !point.checked && point.blocksConfirmation)
                           ? (() => {
