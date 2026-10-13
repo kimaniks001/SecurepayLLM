@@ -1646,6 +1646,32 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                 </div>}
               </div>}
+              {state.turns.some(turn => turn.sender === 'user') && (
+                <section aria-label="Your work taking shape" data-living-workspace className="relative overflow-hidden rounded-[1.6rem] border border-forest-200/70 bg-white/95 px-5 py-5 shadow-soft md:px-7">
+                  <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-forest-100/40 blur-2xl" />
+                  <div className="relative flex items-center justify-between gap-3">
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-forest-600">Your work</span>
+                    <span className="rounded-full bg-forest-50 px-3 py-1 text-[0.72rem] font-medium text-forest-700" role="status">
+                      {state.busy ? 'KS001 is thinking…' : state.error ? 'Needs attention' : 'Taking shape'}
+                    </span>
+                  </div>
+                  <h2 className="relative mt-3 font-display text-xl leading-snug text-forest-900 md:text-2xl" data-living-work-title>{currentTitle}</h2>
+                  <div className="relative mt-4 border-l-2 border-forest-200 pl-4">
+                    <p className="text-[0.69rem] font-semibold uppercase tracking-wider text-sand-500">You told KS001</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[0.91rem] leading-relaxed text-forest-800">
+                      {state.turns.filter(turn => turn.sender === 'user').slice(-1)[0]?.text}
+                    </p>
+                  </div>
+                  <div className="relative mt-4 flex flex-wrap items-center gap-3 border-t border-cream-200/70 pt-3">
+                    <span className="text-[0.78rem] text-sand-600">
+                      {state.busy ? 'Working from your words. Nothing is agreed yet.' : 'KS001 helps clarify the next meaningful step below.'}
+                    </span>
+                    {hasInspectableDetails && <button type="button" onClick={openUnderstood} className="min-h-11 rounded-full px-3 text-[0.78rem] font-medium text-forest-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2">
+                      See what SecurePay understands
+                    </button>}
+                  </div>
+                </section>
+              )}
               <AgreementShaping formation={formationState.data} changes={formationState.changes} onReview={() => setReviewOpen(true)}
                 onResolvePoint={point => setMicroReview(point.id)}
                 onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
