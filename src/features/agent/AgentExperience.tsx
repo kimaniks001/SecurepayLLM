@@ -1993,8 +1993,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   {turn.id === lastResponse?.id && !state.busy && !state.pending && !formationState.data?.question
                     && /meeting/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
                     && /(?:start(?:ing)? time|date and time)/i.test(state.turns.filter(t => t.sender === 'user').map(t => t.text).join(' '))
-                    && state.turns.some(t => t.sender === 'user' && /\\b20\\d{2}-\\d{2}-\\d{2}\\b/.test(t.text))
-                    && !state.turns.some(t => t.sender === 'user' && /\\b(?:at|start(?:ing)? at)\\s+\\d{1,2}:\\d{2}\\b/i.test(t.text))
+                    && state.turns.some(t => t.sender === 'user' && /\b20\d{2}-\d{2}-\d{2}\b/.test(t.text))
+                    && !state.turns.some(t => t.sender === 'user' && /\b(?:at|start(?:ing)? at)\s+\d{1,2}:\d{2}\b/i.test(t.text))
                     && <TimeFromReply key={turn.id} onAnswer={answer => void controller.send(answer)} />}
                   {turn.id === lastResponse?.id && !state.busy && !state.pending
                     && !/[?]\\s*$/.test(turn.response.message.text.trim())
