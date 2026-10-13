@@ -66,7 +66,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
           <p className={publicMode ? 'mt-6 max-w-xl text-[1.05rem] leading-7 text-sand-700 md:text-lg' : 'mt-3 max-w-xl text-[0.95rem] leading-6 text-sand-600 md:text-base'}>
             {publicMode
               ? 'Tell me in your own words. We can work out the details together.'
-              : 'Start wherever you are. We'll take it from there.'}
+              : 'Start wherever you are. We will take it from there.'}
           </p>
 
           {publicMode && continueSlot && <div className="mt-5">
