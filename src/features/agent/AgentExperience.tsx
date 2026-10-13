@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
 import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
@@ -208,11 +208,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [correctionBusy, setCorrectionBusy] = useState(false);
   const [correctionStatus, setCorrectionStatus] = useState<string | null>(null);
-  const sendTermCorrection = async (retry = false) => {
+  const sendTermCorrection = async (retry = false, proposed = correctionDraft) => {
     if (!state.conversationId || !correctionTarget || correctionBusy) return;
     setCorrectionBusy(true);
     try {
-      const outcome = retry ? await retryPending(controller) : await submitCorrection(controller, `In our Agreement, correct "${correctionTarget.label}" from "${correctionTarget.value}" to: ${correctionDraft.trim()}`);
+      const outcome = retry ? await retryPending(controller) : await submitCorrection(controller, `In our Agreement, correct "${correctionTarget.label}" from "${correctionTarget.value}" to: ${proposed.trim()}`);
       if (outcome.status === 'ok') {
         setCorrectionTarget(null);
         setCorrectionDraft('');
@@ -1761,7 +1761,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                             <h3 className="font-display text-lg font-semibold text-forest-900">{heading}</h3>
                             <dl className="divide-y divide-cream-100 rounded-xl border border-cream-100">
                               {terms.map(term => <div key={term.key} className="grid gap-1 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-4">
-                                <dt className="flex items-center justify-between gap-2 text-[0.78rem] font-medium text-sand-600">{term.label}<button type="button" disabled={correctionBusy || state.busy || !!state.pending} onClick={() => { setCorrectionTarget({key: term.key, label: term.label, value: term.value}); setCorrectionDraft(''); setCorrectionStatus(null); }} className="min-h-11 rounded-full px-3 text-xs font-semibold text-forest-700 underline underline-offset-2 disabled:opacity-50" aria-label={`Correct ${term.label}`}>Correct</button></dt>
+                                <dt className="flex items-center justify-between gap-2 text-[0.78rem] font-medium text-sand-600">{term.label}<button type="button" disabled={correctionBusy || state.busy || !!state.pending} onClick={() => { setCorrectionTarget({key: term.key, label: term.label, value: term.value}); setCorrectionDraft(''); setCorrectionStatus(null); }} className="min-h-11 rounded-full px-3 text-xs font-semibold text-forest-700 underline underline-offset-2 disabled:opacity-50" aria-label={`Edit ${term.label}`} title={`Edit ${term.label}`}><Pencil className="h-4 w-4" aria-hidden="true" /></button></dt>
                                 <dd className="text-sm leading-6 text-forest-900">{term.value}{term.needsChecking && <span className="ml-2 text-xs font-semibold text-ember-800">Needs checking</span>}{term.detail && <span className="mt-1 block text-xs text-sand-600">{term.detail}</span>}</dd>
                               </div>)}
                             </dl>
@@ -1796,6 +1796,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                     {correctionTarget && <form onSubmit={event => { event.preventDefault(); if (correctionDraft.trim()) void sendTermCorrection(); }} className="mx-auto mt-4 max-w-2xl space-y-3 rounded-2xl border-2 border-forest-200 bg-white p-4" aria-label="Correct an Agreement detail">
                       <h3 className="font-display text-lg font-semibold text-forest-900">Correct {correctionTarget.label}</h3>
                       <p className="text-sm text-sand-700">Currently: {correctionTarget.value}</p>
+                      {(/currency|currenc|\bKES\b|\bUSD\b|\bEUR\b/i.test(correctionTarget.key + ' ' + correctionTarget.label)) && (
+                        <div role="group" aria-label="Choose currency" className="flex flex-wrap gap-2">
+                          {['KES', 'USD', 'EUR'].map(currency => <button type="button" key={currency} disabled={correctionBusy || !!state.pending} onClick={() => { setCorrectionDraft(currency); setCorrectionStatus(null); void sendTermCorrection(false, currency); }}
+                            className="min-h-11 rounded-full border border-forest-300 bg-forest-50 px-4 text-sm font-semibold text-forest-800 hover:bg-forest-100 disabled:opacity-50">{currency}</button>)}
+                        </div>
+                      )}
                       <label className="block text-sm font-semibold text-forest-800" htmlFor="agreement-correction">What should it say?</label>
                       <textarea id="agreement-correction" value={correctionDraft} onChange={event => setCorrectionDraft(event.target.value)} disabled={correctionBusy} maxLength={4000} rows={3} autoFocus className="w-full rounded-xl border border-forest-200 bg-white p-3 text-sm text-forest-900 focus:outline-2 focus:outline-forest-500" placeholder="Tell KS001 the correct detail in your own words" />
                       {correctionStatus && <p role="status" className="text-sm text-forest-800">{correctionStatus}</p>}
