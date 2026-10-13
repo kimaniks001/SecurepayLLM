@@ -44,7 +44,7 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
       <div className="flex justify-end animate-fade-in-up">
         <div className="max-w-[82%] md:max-w-[72%]">
           <div className="mb-1 pr-1 text-right text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-sand-500">You</div>
-          <div className="rounded-[1.35rem] rounded-tr-md border border-forest-100/80 bg-white/82 px-4 py-3 text-forest-900 shadow-[0_10px_28px_-24px_rgba(36,73,54,0.42)] backdrop-blur-sm">
+          <div className="rounded-[1.35rem] rounded-tr-md border border-forest-100 bg-white px-4 py-3 text-forest-900 shadow-soft">
             <p className="text-[0.95rem] leading-6">{text}</p>
           </div>
         </div>
@@ -60,7 +60,7 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
       </div>
       <div className="mt-0.5 max-w-[90%] md:max-w-[84%]">
         <div className="mb-1 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-forest-600">KS001</div>
-        <div className="sp-section-warm rounded-[1.35rem] px-4 py-3.5 md:px-5 md:py-4">
+        <div className="sp-section-warm rounded-[1.35rem] border border-cream-200 px-4 py-3.5 shadow-soft md:px-5 md:py-4">
           {(() => {
             const questionMatch = visible.match(/([^.!?\n]+\?)(?![\s\S]*\?)/);
             if (!questionMatch || questionMatch.index === undefined) {
@@ -71,7 +71,7 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
             const trailing = visible.slice(questionMatch.index + questionMatch[1].length).trim();
             return <div className="text-forest-900">
               {lead && <p className="whitespace-pre-wrap text-[0.95rem] leading-7">{lead}</p>}
-              <p className="mt-2 text-[1rem] font-semibold leading-7" data-ks001-next-question>{question}</p>
+              <p className="mt-2 text-[1.12rem] font-semibold leading-7" data-ks001-next-question>{question}</p>
               {trailing && <p className="mt-2 whitespace-pre-wrap text-[0.95rem] leading-7">{trailing}</p>}
             </div>;
           })()}
