@@ -56,6 +56,8 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
   const isReadable = source.extractionStatus === 'READY' || source.extractionStatus === 'PARTIAL';
   const failed = source.extractionStatus === 'FAILED' || !!source.stalled;
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoAction, setPhotoAction] = useState<'confirm' | 'correct' | 'keep' | 'bill' | null>(null);
+  const choosePhotoAction = (intent: 'confirm' | 'correct' | 'keep' | 'bill') => { setPhotoAction(intent); onInterpretPhoto?.(intent); };
   const isPhoto = source.sourceKind === 'PHOTO';
   const isDocument = source.sourceKind === 'DOCUMENT' || source.mediaType === SPREADSHEET_MEDIA_TYPE;
   return (
@@ -86,11 +88,12 @@ export function SourceCard({ source, onRetry, onRemove, onStartFresh, onInterpre
         {isReadable && <div className="space-y-2">
           <p className="text-sm leading-6 text-forest-800">{source.summary || 'No reliable description was returned. You can explain what the photo shows.'}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={busy || !source.summary} onClick={() => onInterpretPhoto?.('confirm')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-semibold text-white disabled:opacity-40">Yes, that’s right</button>
-            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('correct')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Correct it</button>
-            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('keep')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Just keep photo</button>
-            <button type="button" disabled={busy} onClick={() => onInterpretPhoto?.('bill')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Organise bill or receipt</button>
+            <button type="button" disabled={busy || !source.summary} onClick={() => choosePhotoAction('confirm')} className="min-h-11 rounded-full bg-forest-700 px-4 text-sm font-semibold text-white disabled:opacity-40">Yes, that’s right</button>
+            <button type="button" disabled={busy} onClick={() => choosePhotoAction('correct')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Correct it</button>
+            <button type="button" disabled={busy} onClick={() => choosePhotoAction('keep')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Just keep photo</button>
+            <button type="button" disabled={busy} onClick={() => choosePhotoAction('bill')} className="min-h-11 rounded-full border border-forest-200 px-4 text-sm text-forest-800">Organise bill or receipt</button>
           </div>
+          {photoAction && <p role="status" className="rounded-xl bg-cream-50 px-3 py-2 text-xs text-forest-800">{photoAction === 'confirm' ? 'Description confirmed for KS001. The underlying Agreement remains unchanged until appropriately reviewed.' : photoAction === 'correct' ? 'KS001 has been asked to clarify the photo. Explain the correction in the conversation.' : photoAction === 'keep' ? 'Keeping this photo as supporting material. No completion or acceptance is implied.' : 'KS001 has been asked to organise the bill as a proposed trade record for your review.'}</p>}
           <p className="text-xs text-sand-600">Confirming a description does not accept a delivery, prove completion or authorise payment.</p>
         </div>}
       </div>}
