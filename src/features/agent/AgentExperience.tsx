@@ -1771,7 +1771,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {showPlaceStep && !state.busy && !state.pending && <section className="rounded-2xl border-2 border-forest-200 bg-white p-4" data-place-next-step>
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
                 <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">Where should this take place?</h3>
-                <p className="mt-1 text-sm text-sand-700">Identify the proposed location using a name, Plus Code or coordinates. You can add arrival details and keep it private.</p>
+                <p className="mt-1 text-sm text-sand-700">Choose a place or use your current location. You can add arrival details and keep it private.</p>
                 <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a Place</button>
               </section>}
               {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
