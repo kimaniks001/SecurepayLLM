@@ -60,7 +60,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
         const response = await fetcher(`${requestBaseUrl}${path}`, {
           method: options.method ?? 'GET', headers,
           body: options.body === undefined ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body),
-          signal: controller.signal, credentials: 'omit', cache: 'no-store', redirect: 'error',
+          signal: controller.signal, credentials: previewAgent ? 'same-origin' : 'omit', cache: 'no-store', redirect: 'error',
         });
         status = response.status;
         const text = await response.text();
