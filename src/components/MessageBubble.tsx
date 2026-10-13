@@ -13,12 +13,22 @@ interface MessageBubbleProps {
  */
 function shortReply(text: string): { visible: string; rest: string } {
   const source = text.trim();
-  const parts = source.match(/[^.!?\\n]+(?:[.!?]+(?=\\s|$)|$)/g)?.map(part => part.trim()).filter(Boolean) ?? [];
-  if (parts.length <= 2) return { visible: source, rest: '' };
-  const firstTwo = parts.slice(0, 2).join(' ');
-  const at = source.indexOf(parts[2]);
-  if (at < 0) return { visible: source, rest: '' };
-  return { visible: source.slice(0, at).trim(), rest: source.slice(at).trim() };
+  const sentences = source.match(/[^.!?\\n]+(?:[.!?]+(?=\\s|$)|$)/g)?.map(part => part.trim()).filter(Boolean) ?? [];
+  if (sentences.length <= 2) return { visible: source, rest: '' };
+
+  // Never hide KS001's actionable question behind "Read the rest".
+  // Keep the first acknowledgement and the final question visible; disclose all
+  // intervening explanation on demand, without changing persisted model output.
+  const last = sentences[sentences.length - 1];
+  if (last.endsWith('?')) {
+    return {
+      visible: [sentences[0], last].join('\\n\\n'),
+      rest: sentences.slice(1, -1).join(' '),
+    };
+  }
+  const at = source.indexOf(sentences[2]);
+  return at < 0 ? { visible: source, rest: '' }
+    : { visible: source.slice(0, at).trim(), rest: source.slice(at).trim() };
 }
 
 /**
