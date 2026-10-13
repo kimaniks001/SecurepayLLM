@@ -22,7 +22,7 @@ function shortReply(text: string): { visible: string; rest: string } {
   const last = sentences[sentences.length - 1];
   if (last.endsWith('?')) {
     return {
-      visible: [sentences[0], last].join('\\n\\n'),
+      visible: [sentences[0], last].join('\n\n'),
       rest: sentences.slice(1, -1).join(' '),
     };
   }
