@@ -378,6 +378,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // A meeting explicitly missing its schedule must not be led into an unrelated price question.
   // Read the person's own statements; never infer an agreed date or time from model prose.
   const humanMeetingTurns = state.turns.filter(t => t.sender === 'user').map(t => t.text);
+  // Respect sensitive real-life situations without inventing a diagnosis, event
+  // requirements, or a commercial next step. The person can always direct KS001.
+  const currentHumanIntent = humanMeetingTurns.slice(0, 3).join(' ');
+  const isSensitiveHumanSituation = /\b(?:funeral|bereavement|burial|memorial|grief|deceased|passed away|hospitalisation|hospitalization|seriously ill|emergency)\b/i.test(currentHumanIntent);
+  const explicitlyAskedForCost = humanMeetingTurns.some(t => /\b(?:how much|cost|price|budget|payment|pay for|quote|expense)\b/i.test(t));
+
   const isMeetingScheduleRequest = humanMeetingTurns.some(t => /\bmeeting\b/i.test(t) && /\bdate\b/i.test(t) && /\b(?:time|start)\b/i.test(t) && /\b(?:not yet|undecided|haven't|have not|need to|missing)\b/i.test(t));
   const humanProposedDate = humanMeetingTurns.some(t => /\b20\d{2}-\d{2}-\d{2}\b/.test(t));
   const humanProposedTime = humanMeetingTurns.some(t => /\b\d{1,2}:\d{2}\b/.test(t));
@@ -1780,14 +1786,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   authoritative classifications or silently accepted Agreement facts. */}
               {showPlaceStep && !state.busy && !state.pending && <section className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft" data-place-next-step>
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
-                <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">Where should this take place?</h3>
-                <p className="mt-1 text-sm text-sand-700">Choose a place or use your current location. You can add arrival details and keep it private.</p>
+                <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">{isSensitiveHumanSituation ? 'Where would you like everyone to gather?' : 'Where should this take place?'}</h3>
+                <p className="mt-1 text-sm text-sand-700">{isSensitiveHumanSituation ? 'You can share a place now or decide later. Your location stays private unless you choose to share it.' : 'Choose a place or use your current location. You can add arrival details and keep it private.'}</p>
                 <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a place</button>
               </section>}
               {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Supporting material</p>
-                <h3 className="font-display text-xl font-semibold text-forest-900">{requestedMedia && requestedDocument ? 'Would you like to add the photos or documents?' : requestedMedia ? 'Add a photo to help explain the work' : 'Add your document to help build the Agreement'}</h3>
-                <p className="text-sm text-sand-700">I'll use what you share to help understand the arrangement. An attachment does not, by itself, confirm a fact or mean anyone has agreed.</p>
+                <h3 className="font-display text-xl font-semibold text-forest-900">{requestedMedia && requestedDocument ? 'Would you like to share the photos or documents?' : requestedMedia ? 'Add a photo to show KS001' : 'Share the document with KS001'}</h3>
+                <p className="text-sm text-sand-700">{isSensitiveHumanSituation ? 'Only share what is useful to you. We can continue without an attachment.' : 'KS001 will use the material to understand your arrangement. Sharing it does not mean anyone has agreed.'}</p>
                 <div className="flex flex-wrap gap-2">
                   {requestedMedia && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add photo<input type="file" accept="image/*" className="sr-only" aria-label="Add supporting photo" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('PHOTO',file); event.target.value=''; }} /></label>}
                   {requestedDocument && <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-800">Add document<input type="file" accept=".pdf,.doc,.docx,.txt,.rtf,.csv,.xlsx,.xls,.odt" className="sr-only" aria-label="Add supporting document" onChange={event => { const file=event.target.files?.[0]; if(file) void sourceController.addUpload('DOCUMENT',file); event.target.value=''; }} /></label>}
