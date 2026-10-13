@@ -1649,9 +1649,38 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* Human Phase 2 correction: the real Agreement belongs first. Do not
                   echo the human's message in a large pretend-work card; their own
                   words are already preserved in the conversation above. */}
-              <AgreementShaping formation={formationState.data} changes={formationState.changes} onReview={() => setReviewOpen(true)}
-                onResolvePoint={point => setMicroReview(point.id)}
-                onAnswer={text => void controller.send(text)} answering={state.busy || !!state.pending} />
+              {/* The forming Agreement is a quiet read-only companion, never an interruption of KS001.
+                  On mobile it stays collapsed unless the human explicitly opens it. */ }
+              {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
+                <aside aria-label="Agreement forming quietly" data-forming-agreement className="order-last rounded-2xl border border-forest-100 bg-white/85 px-4 py-3 md:mx-auto md:w-full md:max-w-3xl md:px-5">
+                  <details className="group md:hidden">
+                    <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-medium text-forest-800">
+                      <span>Agreement forming · View progress</span>
+                      <span aria-hidden="true" className="text-sand-500">⌄</span>
+                    </summary>
+                    <div className="border-t border-cream-200 pt-3 text-[0.86rem] text-sand-700">
+                      <p className="font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
+                      <p className="mt-1">Not ready for approval. Keep talking to KS001.</p>
+                      {formationState.data.what.slice(0, 1).map(term => <p key={term.key} className="mt-2">{term.label}: {term.value}</p>)}
+                      {formationState.data.money.slice(0, 1).map(term => <p key={term.key} className="mt-1">{term.label}: {term.value}</p>)}
+                    </div>
+                  </details>
+                  <div className="hidden md:block">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-forest-600">Agreement forming quietly</p>
+                    <p className="mt-1 font-display text-lg text-forest-900">{formationState.data.summary || 'Your emerging Agreement'}</p>
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[0.83rem] text-sand-700">
+                      {formationState.data.what.slice(0, 1).map(term => <span key={term.key}>{term.label}: {term.value}</span>)}
+                      {formationState.data.money.slice(0, 1).map(term => <span key={term.key}>{term.label}: {term.value}</span>)}
+                    </div>
+                    <p className="mt-2 text-[0.76rem] text-sand-600">Still taking shape · Keep talking with KS001. Nothing is agreed yet.</p>
+                  </div>
+                  {formationState.data.reviewable && (
+                    <button type="button" onClick={() => setReviewOpen(true)} className="mt-2 min-h-11 text-[0.8rem] font-medium text-forest-700 underline underline-offset-4">
+                      Review when you're ready
+                    </button>
+                  )}
+                </aside>
+              )}
               {directAck && <p role="status" className="text-[0.85rem] text-forest-800"><span className="font-display">KS001 · </span>{directAck}
                 <button type="button" onClick={() => setDirectAck(null)} className="ml-2 min-h-11 text-[0.8rem] text-sand-700 underline">OK</button></p>}
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
