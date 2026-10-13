@@ -61,7 +61,20 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
       <div className="mt-0.5 max-w-[90%] md:max-w-[84%]">
         <div className="mb-1 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-forest-600">KS001</div>
         <div className="sp-section-warm rounded-[1.35rem] px-4 py-3.5 md:px-5 md:py-4">
-          <p className="whitespace-pre-wrap text-[0.97rem] leading-7 text-forest-900">{visible}</p>
+          {(() => {
+            const questionMatch = visible.match(/([^\\n.!?]+\\?)(?![\\s\\S]*\\?)/);
+            if (!questionMatch || questionMatch.index === undefined) {
+              return <p className="whitespace-pre-wrap text-[0.97rem] leading-7 text-forest-900">{visible}</p>;
+            }
+            const lead = visible.slice(0, questionMatch.index).trim();
+            const question = questionMatch[1].trim();
+            const trailing = visible.slice(questionMatch.index + questionMatch[1].length).trim();
+            return <div className="text-forest-900">
+              {lead && <p className="whitespace-pre-wrap text-[0.95rem] leading-7">{lead}</p>}
+              <p className="mt-2 text-[1rem] font-semibold leading-7" data-ks001-next-question>{question}</p>
+              {trailing && <p className="mt-2 whitespace-pre-wrap text-[0.95rem] leading-7">{trailing}</p>}
+            </div>;
+          })()}
           {rest && <details className="mt-3 border-t border-forest-100 pt-2" data-ks001-more>
             <summary className="min-h-11 cursor-pointer py-2 text-[0.8rem] font-medium text-forest-700">Read the rest</summary>
             <p className="whitespace-pre-wrap text-[0.89rem] leading-6 text-sand-700">{rest}</p>
