@@ -2033,6 +2033,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 }}
                 sources={sourcesState.sources}
                 photoPreviews={sourcesState.photoPreviews}
+                onReviewAgreement={formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep ? () => setReviewOpen(true) : undefined}
                 busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                 onRetry={id => { if (state.conversationId) void sourceController.retry(state.conversationId, id); }}
                 onRemove={id => { if (state.conversationId) void sourceController.remove(state.conversationId, id); }}
