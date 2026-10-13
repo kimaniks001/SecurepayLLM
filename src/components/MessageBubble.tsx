@@ -13,7 +13,7 @@ interface MessageBubbleProps {
  */
 function shortReply(text: string): { visible: string; rest: string } {
   const source = text.trim();
-  const sentences = source.match(/[^.!?\\n]+(?:[.!?]+(?=\\s|$)|$)/g)?.map(part => part.trim()).filter(Boolean) ?? [];
+  const sentences = source.match(/[^.!?\n]+(?:[.!?]+(?=\s|$)|$)/g)?.map(part => part.trim()).filter(Boolean) ?? [];
   if (sentences.length <= 2) return { visible: source, rest: '' };
 
   // Never hide KS001's actionable question behind "Read the rest".
@@ -62,7 +62,7 @@ export function MessageBubble({ text, sender }: MessageBubbleProps) {
         <div className="mb-1 text-[0.64rem] font-semibold uppercase tracking-[0.16em] text-forest-600">KS001</div>
         <div className="sp-section-warm rounded-[1.35rem] px-4 py-3.5 md:px-5 md:py-4">
           {(() => {
-            const questionMatch = visible.match(/([^\\n.!?]+\\?)(?![\\s\\S]*\\?)/);
+            const questionMatch = visible.match(/([^.!?\n]+\?)(?![\s\S]*\?)/);
             if (!questionMatch || questionMatch.index === undefined) {
               return <p className="whitespace-pre-wrap text-[0.97rem] leading-7 text-forest-900">{visible}</p>;
             }
