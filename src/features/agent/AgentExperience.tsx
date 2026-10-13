@@ -55,6 +55,7 @@ import type { PreviewView } from '../../api/securepay/agent/adapters';
 import { createHandoffController } from '../handoff/controller';
 import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
+import { NextQuestion } from '../formation/NextQuestion';
 import { ContinuityChoice } from './ContinuityChoice';
 import { clearComposerDrafts } from '../conversation/drafts';
 import type { SendResult } from '../conversation/ConversationSurface';
@@ -1649,6 +1650,16 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* Human Phase 2 correction: the real Agreement belongs first. Do not
                   echo the human's message in a large pretend-work card; their own
                   words are already preserved in the conversation above. */}
+              {/* Server-provided choices live with KS001, not inside the forming Agreement.
+                  They send the human's exact chosen words through the existing, idempotent turn path. */}
+              {formationState.data?.question && !state.busy && !state.pending && (
+                <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
+                  <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · One thing to clarify</p>
+                  <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
+                    onAnswer={text => void controller.send(text)} />
+                  <p className="mt-3 text-[0.77rem] text-sand-600">Or answer in your own words below.</p>
+                </section>
+              )}
               {/* The forming Agreement is a quiet read-only companion, never an interruption of KS001.
                   On mobile it stays collapsed unless the human explicitly opens it. */ }
               {formationState.data && formationState.data.stage !== 'NOTHING_YET' && (
