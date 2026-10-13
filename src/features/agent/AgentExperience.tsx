@@ -3,7 +3,7 @@
 function MeetingScheduleStep({ needDate, needTime, onAnswer }: { needDate: boolean; needTime: boolean; onAnswer: (message: string) => void }) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  return <section data-meeting-schedule-step className="rounded-2xl border-2 border-forest-200 bg-white p-4 md:p-5">
+  return <section data-meeting-schedule-step className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft md:p-5">
     <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
     <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">{needDate && needTime ? 'What date and time should the meeting start?' : needDate ? 'What date do you propose for the meeting?' : 'What time should the meeting start?'}</h3>
     <p className="mt-1 text-sm text-sand-700">These are proposals until the people involved agree.</p>
@@ -1778,13 +1778,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   Purpose suggestions are optional human-worded examples only when the person
                   explicitly said chama and the server asked about purpose. They are not
                   authoritative classifications or silently accepted Agreement facts. */}
-              {showPlaceStep && !state.busy && !state.pending && <section className="rounded-2xl border-2 border-forest-200 bg-white p-4" data-place-next-step>
+              {showPlaceStep && !state.busy && !state.pending && <section className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft" data-place-next-step>
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Next step</p>
                 <h3 className="mt-2 font-display text-xl font-semibold text-forest-900">Where should this take place?</h3>
                 <p className="mt-1 text-sm text-sand-700">Choose a place or use your current location. You can add arrival details and keep it private.</p>
                 <button type="button" onClick={() => openDeclared('place')} className="mt-3 min-h-11 rounded-full bg-forest-700 px-5 text-sm font-semibold text-white">Choose a place</button>
               </section>}
-              {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-2xl border-2 border-forest-200 bg-white p-4 space-y-3">
+              {showMaterialStep && !state.busy && !state.pending && <section data-supporting-material-step className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Supporting material</p>
                 <h3 className="font-display text-xl font-semibold text-forest-900">{requestedMedia && requestedDocument ? 'Would you like to add the photos or documents?' : requestedMedia ? 'Add a photo to help explain the work' : 'Add your document to help build the Agreement'}</h3>
                 <p className="text-sm text-sand-700">I'll use what you share to help understand the arrangement. An attachment does not, by itself, confirm a fact or mean anyone has agreed.</p>
@@ -1797,7 +1797,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               </section>}
               {showMeetingSchedule && !state.busy && !state.pending && <MeetingScheduleStep needDate={!humanProposedDate} needTime={!humanProposedTime} onAnswer={text => void controller.send(text)} />}
               {formationState.data?.question && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !state.busy && !state.pending && (
-                <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-2xl border border-forest-100 bg-white p-4 md:p-5">
+                <section aria-label="Answer KS001" data-ks001-quick-answers className="rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft md:p-5">
                   <p className="mb-2 text-[0.67rem] font-semibold uppercase tracking-[0.13em] text-forest-600">KS001 · Your next answer</p>
                   <NextQuestion question={formationState.data.question} disabled={state.busy || !!state.pending}
                     suggestedChoices={
@@ -1850,7 +1850,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* An actual review invitation is visible WITHOUT opening the preview.
                   It does not stop KS001, and only the server can mark this version reviewable. */}
               {formationState.data?.reviewable && !showMeetingSchedule && !showPlaceStep && !showMaterialStep && !sourcesState.sources.some(source => source.extractionStatus === 'RECEIVED' || source.extractionStatus === 'PROCESSING' || source.stalled) && (
-                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-2xl border border-forest-200 bg-white px-4 py-3 md:mx-auto md:w-full md:max-w-3xl">
+                <section role="status" aria-label="Agreement ready for review" data-ready-for-review className="rounded-[1.35rem] border border-forest-200 bg-white px-4 py-3 shadow-soft md:mx-auto md:w-full md:max-w-3xl">
                   <p className="text-[0.73rem] font-bold uppercase tracking-wider text-forest-700">Agreement · Ready for review</p>
                   <p className="mt-1 font-display text-lg text-forest-900">You can review the Agreement.</p>
                   <p className="mt-1 text-sm text-forest-800">You can review it now or keep building with KS001. Nothing is agreed yet.</p>
@@ -1937,7 +1937,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                         <p className="border-t border-cream-100 pt-4 text-xs leading-5 text-sand-600">This document is based on the current SecurePay formation record. A draft or reviewable proposal is not a signed commitment.</p>
                       </div>
                     </article>
-                    {correctionTarget && <form onSubmit={event => { event.preventDefault(); if (correctionDraft.trim()) void sendTermCorrection(); }} className="mx-auto mt-4 max-w-2xl space-y-3 rounded-2xl border-2 border-forest-200 bg-white p-4" aria-label="Correct an Agreement detail">
+                    {correctionTarget && <form onSubmit={event => { event.preventDefault(); if (correctionDraft.trim()) void sendTermCorrection(); }} className="mx-auto mt-4 max-w-2xl space-y-3 rounded-[1.35rem] border border-forest-200 bg-white p-4 shadow-soft" aria-label="Correct an Agreement detail">
                       <h3 className="font-display text-lg font-semibold text-forest-900">Correct {correctionTarget.label}</h3>
                       <p className="text-sm text-sand-700">Currently: {correctionTarget.value}</p>
                       {(/currency|currenc|\bKES\b|\bUSD\b|\bEUR\b/i.test(correctionTarget.key + ' ' + correctionTarget.label)) && (
