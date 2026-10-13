@@ -1782,6 +1782,23 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
                   <MessageBubble text={turn.response.message.text} sender="agent" />
+                  {turn.id === lastResponse?.id && !state.busy && !state.pending
+                    && !/[?]\\s*$/.test(turn.response.message.text.trim())
+                    && !formationState.data?.question && (
+                      <div className="ml-10 max-w-xl rounded-xl border border-forest-100 bg-white/70 px-4 py-3" data-ks001-continuation>
+                        {formationState.data?.openPoints.find(point => !point.checked && point.blocksConfirmation)
+                          ? (() => {
+                            const point = formationState.data!.openPoints.find(item => !item.checked && item.blocksConfirmation)!;
+                            return <>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-forest-600">What needs you next</p>
+                              <p className="mt-1 text-[0.96rem] font-semibold leading-6 text-forest-900">{point.text}</p>
+                              {point.sides.some(side => side.choosable) && <button type="button" onClick={() => setMicroReview(point.id)}
+                                className="mt-2 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Choose what is right</button>}
+                            </>;
+                          })()
+                          : <p className="text-[0.92rem] leading-6 text-forest-800">What else should KS001 know about your plan? <span className="text-sand-600">You can keep talking below.</span></p>}
+                      </div>
+                    )}
                   {turn.response.components.filter(component => (component.type !== 'MESSAGE' || component.text !== turn.response.message.text) && component.type !== 'AGREEMENT_WORKSPACE' && component.type !== 'AGREEMENTS_HOME' && component.type !== 'DISCOVERY' && component.type !== 'AGREEMENT_PREVIEW')
                     .map((component, i) => <RichResponse key={i} component={component} onReview={reviewing}
                       live={turn.id === lastResponse?.id && !state.busy && turn.id === state.turns[state.turns.length - 1]?.id}
