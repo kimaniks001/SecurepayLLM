@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/agent/:path*",
+      "destination": "https://securepay.ke/api/agent/:path*"
+    }
+  ]
+}
