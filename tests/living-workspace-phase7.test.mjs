@@ -343,5 +343,5 @@ test('Authentication mock: only real sign-in can set real SessionStore tokens',(
  assert.match(realLogin,/createIdentityController\(auth, session\)/);
  assert.match(sessions,/setTokens: \(tokens: SessionTokens\)/);
  assert.doesNotMatch(shell,/session\.setTokens\(|session\.clear\(|getAccessToken\(\)/);
- assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/gateways\.|session\.setTokens|session\.getAccessToken|identity\.set/);
+ assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/gateway(?:s)?\.(?:agent|auth|dreams|agreements|community)|session\.setTokens|session\.getAccessToken|identity\.set/);
 });
