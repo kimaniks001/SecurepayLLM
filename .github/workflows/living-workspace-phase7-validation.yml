@@ -10,6 +10,9 @@ on:
       - 'src/api/securepay/agent/**'
       - 'src/RuntimeApp.tsx'
       - 'api/preview-agent.js'
+      - 'api/preview-workspace.js'
+      - 'src/features/visionboard/dreams/DreamBuilder.tsx'
+      - 'src/features/community/CircleBoard.tsx'
       - 'tests/living-workspace-phase7.test.mjs'
       - '.github/workflows/living-workspace-phase7-validation.yml'
   workflow_dispatch:
