@@ -307,7 +307,10 @@ test('Structural S2: only bounded, authenticated ID detail GETs can pass preview
   assert.equal(await call('POST',p,auth),403);
   assert.equal(await call('GET',p+'?admin=true',auth),403);
  }
- for(const p of ['/api/v1/vision-dreams/12345678/assets','/api/v1/community/circles/12345678/objects','/api/v1/agreements/12345678/release'])
+ // S3 authorises these scoped owner/member reads; no anonymous disclosure.
+ for(const p of ['/api/v1/vision-dreams/12345678/assets','/api/v1/community/circles/12345678/objects?limit=30&offset=0'])
+  assert.equal(await call('GET',p),401);
+ for(const p of ['/api/v1/community/circles/12345678/objects?admin=true','/api/v1/agreements/12345678/release'])
   assert.equal(await call('GET',p,auth),403);
  const original=globalThis.fetch;
  try{
@@ -344,4 +347,67 @@ test('Authentication mock: only real sign-in can set real SessionStore tokens',(
  assert.match(sessions,/setTokens: \(tokens: SessionTokens\)/);
  assert.doesNotMatch(shell,/session\.setTokens\(|session\.clear\(|getAccessToken\(\)/);
  assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/gateway(?:s)?\.(?:agent|auth|dreams|agreements|community)|session\.setTokens|session\.getAccessToken|identity\.set/);
+});
+
+test('Structural S3: native Dream Builder and Circle Board never run in mock identity',()=>{
+ const dream=source('src/features/living-workspace/InlineVisionEditor.tsx');
+ const circle=source('src/features/living-workspace/InlineCircleBoard.tsx');
+ const canvas=source('src/features/visionboard/dreams/DreamBuilder.tsx');
+ assert.match(shell,/signedIn && !mockSignedIn && workspaceGateways && mode==='vision'/);
+ assert.match(shell,/signedIn && !mockSignedIn && workspaceGateways && mode==='circle'/);
+ assert.match(shell,/InlineVisionEditor/);
+ assert.match(shell,/InlineCircleBoard/);
+ assert.match(shell,/if\(!mayLeaveDream\(\)\)return/);
+ assert.match(dream,/createVisionDreamController\(gateways\.dreams,gateways\.agent\)/);
+ assert.match(dream,/controller\.openOwnedById\(id\)/);
+ assert.match(dream,/state\.selected\?\.dreamId===id/);
+ assert.match(dream,/<DreamBuilder/);
+ assert.match(canvas,/gateway\.saveBoard\(dream\.dreamId/);
+ assert.match(canvas,/expectedRevision: revision/);
+ assert.match(canvas,/onUnsavedChange/);
+ assert.match(canvas,/beforeunload/);
+ assert.match(circle,/gateways\.community\.circles\.membership\(id\)/);
+ assert.match(circle,/member\.status!=='ACTIVE' && !member\.isOwner/);
+ assert.match(circle,/rows\.some\(item=>item\.circleId!==id\)/);
+ assert.match(circle,/<CircleBoard/);
+ assert.match(circle,/gateways\.community\.circles\.objects\.create/);
+ assert.match(circle,/setIntent\(freshKey\(\)\)/);
+ assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/InlineVisionEditor|InlineCircleBoard|gateways\.dreams|gateways\.community/);
+});
+test('Structural S3: preview relay confines authenticated Dream edits and Circle writes',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async(method,path,opts={})=>{
+  const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
+  await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
+      ...(opts.token?{authorization:'Bearer abcdefghijklmnop'}:{}),
+      ...(opts.key?{'idempotency-key':opts.key}:{}),
+      ...(opts.body?{'content-type':'application/json'}:{})},
+    body:opts.body},res);
+  return res.statusCode;
+ };
+ const circle='/api/v1/community/circles/12345678';
+ const dream='/api/v1/vision-dreams/12345678';
+ assert.equal(await call('GET',circle+'/membership'),401);
+ assert.equal(await call('GET',circle+'/coordination-prompts/mine'),401);
+ assert.equal(await call('PUT',dream+'/board',{body:{expectedRevision:0}}),401);
+ assert.equal(await call('PATCH',dream,{body:{title:'Revised'}}),401);
+ assert.equal(await call('POST',circle+'/objects',{token:true,body:{title:'Demo'}}),400);
+ assert.equal(await call('POST',circle+'/coordination-prompts',{token:true,key:'invalid space',body:{promptText:'test'}}),400);
+ for(const [method,path] of [
+    ['POST',circle+'/members/123/approve'],['POST',circle+'/invitations'],
+    ['POST','/api/v1/agreements/12345678/release'],['PUT',circle+'/lifecycle'],
+    ['PATCH','/api/v1/vision-dreams/12345678/board']]){
+    assert.equal(await call(method,path,{token:true,body:{title:'test'}}),403);
+ }
+ assert.equal(await call('GET',circle+'/objects?limit=30&offset=0&actor=another',{token:true}),403);
+ const original=globalThis.fetch;
+ try{
+   let seen={};
+   globalThis.fetch=async(url,init)=>{seen={url:String(url),headers:init.headers,body:init.body};return new Response('{}',{status:200});};
+   assert.equal(await call('GET',dream+'/board',{token:true}),200);
+   assert.equal(seen.url,'https://securepay.ke'+dream+'/board');
+   assert.equal(await call('PUT',dream+'/board',{token:true,body:{schemaVersion:1,expectedRevision:0,documentJson:'{}'}}),200);
+   assert.equal(await call('POST',circle+'/objects',{token:true,key:'intent-12345678',body:{title:'Circle note',body:'Hello',objectType:'DISCUSSION'}}),200);
+   assert.equal(seen.headers['Idempotency-Key'],'intent-12345678');
+ }finally{globalThis.fetch=original;}
 });
