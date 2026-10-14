@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Lightbulb, Pencil, Image, BookOpen, Store, MapPin, Plus, Clock3, Sparkles, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Lightbulb, Pencil, Image, BookOpen, Store, MapPin, Plus, Clock3, Sparkles, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 type VisionArea = 'discoveries'|'board'|'possibilities'|'allowance';
 type Idea = {id:number; title:string; detail:string; origin:string; saved:boolean};
