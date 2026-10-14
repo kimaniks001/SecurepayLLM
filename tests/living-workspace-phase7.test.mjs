@@ -411,3 +411,24 @@ test('Structural S3: preview relay confines authenticated Dream edits and Circle
    assert.equal(seen.headers['Idempotency-Key'],'intent-12345678');
  }finally{globalThis.fetch=original;}
 });
+
+test('Structural S3: demo account can try local Vision/Circle tools without live authority',()=>{
+ const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
+ const vision=source('src/features/living-workspace/LivingVisionPanel.tsx');
+ const circle=source('src/features/living-workspace/LivingCirclePanel.tsx');
+ assert.match(demo,/data-mock-vision-tools/);
+ assert.match(demo,/<LivingVisionPanel\/>/);
+ assert.match(demo,/data-mock-circle-tools/);
+ assert.match(demo,/<LivingCirclePanel\/>/);
+ assert.match(demo,/never saved/);
+ assert.doesNotMatch(vision,/fetch\(|http\.request|gateway\.|session\./);
+ assert.doesNotMatch(circle,/fetch\(|http\.request|gateway\.|session\./);
+});
+test('Structural S3: unavailable Dream board revision cannot silently be overwritten',()=>{
+ const board=source('src/features/visionboard/dreams/DreamBuilder.tsx');
+ assert.match(board,/serverRevisionKnown\.current = false/);
+ assert.match(board,/serverRevisionKnown\.current = true/);
+ assert.match(board,/if\(!serverRevisionKnown\.current\)/);
+ assert.match(board,/Do not save over an unknown version/);
+ assert.match(board,/expectedRevision: revision/);
+});
