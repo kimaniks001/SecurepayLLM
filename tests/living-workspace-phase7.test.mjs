@@ -57,7 +57,7 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
  assert.ok(!live.includes('Dream Companion'));
  assert.match(shell,/liveStarted && gateway/);
  assert.match(shell,/setLiveStarted\(true\)/);
- assert.match(app,/gateway=\{agentGateway\}/);
+ assert.match(app,/gateway=\{previewAgentGateway\}/);
 });
 
 test('Phase 7: preview relay never becomes a generic cross-origin API gateway', async()=>{
