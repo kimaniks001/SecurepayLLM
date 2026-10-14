@@ -9,7 +9,7 @@
  */
 const UPSTREAM = 'https://securepay.ke';
 const MAX_JSON_BYTES = 64 * 1024;
-const conversationPath = /^\/api\/agent\/conversations\/([A-Za-z0-9_-]{8,128})\/(turns|context|history)$/;
+const conversationPath = /^\/api\/agent\/conversations\/([A-Za-z0-9_-]{8,128})\/(turns|context|history|agreement-formation)$/;
 
 function permitted(method, path) {
   if (path === '/api/agent/conversations') return method === 'POST';
@@ -42,9 +42,12 @@ export default async function handler(req, res) {
   try {
     const url = new URL(requested, UPSTREAM);
     if (url.origin !== UPSTREAM || !permitted(method, url.pathname)) return reject(res, 403, 'Conversation endpoint not allowed');
-    if ([...url.searchParams.keys()].some(key => key !== 'limit')) return reject(res, 400, 'Unexpected query parameter');
+    const endpoint = url.pathname.split('/').at(-1);
+    const allowedQuery = endpoint === 'history' ? ['limit'] : endpoint === 'agreement-formation' ? ['timeZone'] : [];
+    if ([...url.searchParams.keys()].some(key => !allowedQuery.includes(key))) return reject(res, 400, 'Unexpected query parameter');
     if (url.searchParams.has('limit') && (!/^\d{1,3}$/.test(url.searchParams.get('limit')) || Number(url.searchParams.get('limit')) > 100)) return reject(res, 400, 'Invalid history limit');
-    path = url.pathname + url.search;
+    if (url.searchParams.has('timeZone') && !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,3}$/.test(url.searchParams.get('timeZone') || '')) return reject(res, 400, 'Invalid time zone');
+        path = url.pathname + url.search;
   } catch {
     return reject(res, 400, 'Invalid conversation path');
   }
