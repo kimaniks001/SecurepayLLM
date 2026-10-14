@@ -50,7 +50,7 @@ test('Phase 7: Quick Documents distinguish requests, offers and receipts',()=>{
 
 test('Phase 7: live Work bridge uses canonical conversation authority without fabricated persona messages',()=>{
  const live=source('src/features/living-workspace/LiveKs001Session.tsx');
- assert.match(live,/createAgentController\(gateway/);
+ assert.match(shell,/createAgentController\(gateway/);
  assert.match(live,/controller\.send\(next\)/);
  assert.match(live,/controller\.retry\(\)/);
  assert.match(live,/state\.context\.data\.entities/);
@@ -90,4 +90,35 @@ test('Phase 7: preview browser uses same-origin relay rather than production COR
  assert.match(gateway,/api\/preview-agent\?path=/);
  assert.match(gateway,/credentials: 'same-origin'/);
  assert.match(app,/gateway=\{previewAgentGateway\}/);
+});
+
+test('Phase 7: My Work and KS001 share one canonical conversation and formation',()=>{
+ const result=source('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ const ctrl=source('src/features/formation/controller.ts');
+ assert.match(shell,/createFormationController\(gateway\)/);
+ assert.match(shell,/liveConversationId=|conversationId=\{liveConversationId\}/);
+ assert.match(shell,/formationController\.load\(liveConversationId\)/);
+ assert.match(shell,/LiveKs001Session controller=\{liveController!\}/);
+ assert.ok(!result.includes('200 chairs') && !result.includes('chair delivery'));
+ assert.match(result,/formation\.what/);
+ assert.match(result,/formation\.who/);
+ assert.match(result,/formation\.money/);
+ assert.match(result,/formation\.when/);
+ assert.match(result,/formation\.openPoints/);
+ assert.match(result,/formation\.question/);
+ assert.match(result,/needsChecking/);
+ assert.match(result,/conversationId === conversationId/);
+ assert.match(ctrl,/agreementFormationView\(await gateway\.readAgreementFormation/);
+});
+test('Phase 7: preview relay permits only the canonical Agreement Formation read and limited timezone', async()=>{
+ const handler=(await import('../api/preview-agent.js')).default;
+ const invoke=async(method,path)=>{
+   const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
+   await handler({method,query:{path},headers:{host:'securepay-demo.vercel.app',origin:'https://securepay-demo.vercel.app'}},res);
+   return res.statusCode;
+ };
+ assert.equal(await invoke('POST','/api/agent/conversations/example123/agreement-formation'),403);
+ assert.equal(await invoke('GET','/api/agent/conversations/example123/agreement-formation?admin=true'),400);
+ assert.equal(await invoke('GET','/api/agent/conversations/example123/agreement-formation?timeZone=bad%0Avalue'),400);
+ assert.equal(await invoke('GET','/api/agent/conversations/example123/context?timeZone=Africa%2FNairobi'),400);
 });
