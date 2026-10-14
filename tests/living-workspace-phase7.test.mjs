@@ -167,3 +167,61 @@ test('Phase 7: Fair Trade examination is read only through canonical scoped acce
  assert.match(relay,/fair-trade-examination/);
  assert.doesNotMatch(result,/Fair Trade Approved|Certified by SecurePay/);
 });
+
+test('Structural workspace: real private records use the existing SecurePay session and authorised gateways',()=>{
+ const continuity=source('src/features/living-workspace/WorkspaceContinuityPanel.tsx');
+ const adapter=source('src/features/living-workspace/previewWorkspaceGateways.ts');
+ const runtime=source('src/RuntimeApp.tsx');
+ assert.match(continuity,/ensureFreshSession\(session,gateways\.auth\)/);
+ assert.match(continuity,/session\.getSnapshot\(\)\.status!==\x27signed-in\x27/);
+ assert.match(continuity,/gateways\.agent\.listSavedBuilds\(20,0\)/);
+ assert.match(continuity,/gateways\.dreams\.mine\(\)/);
+ assert.match(continuity,/gateways\.community\.circles\.mine\(20,0\)/);
+ assert.match(continuity,/gateways\.community\.membership\.me\(\)/);
+ assert.match(continuity,/m\.status===\x27ACTIVE\x27/);
+ assert.match(continuity,/post\.circleId===null/);
+ assert.match(continuity,/resumeSavedBuild\(item\.savedBuildId\)/);
+ assert.match(continuity,/savedRecord\.conversationId!==item\.conversationId/);
+ assert.match(shell,/liveController\.resumeConversation\(conversationId\)/);
+ assert.match(runtime,/workspaceGateways=\{previewWorkspaceGateways\} session=\{session\}/);
+ assert.match(adapter,/createAuthGateway\(http\)/);
+ assert.match(adapter,/createAgentGateway\(http\)/);
+ assert.match(adapter,/createVisionDreamGateway\(http\)/);
+ assert.match(adapter,/createCommunityGateway\(http\)/);
+ assert.doesNotMatch(continuity,/localStorage|sessionStorage|setMembership|setMemberRole/);
+});
+test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
+ const runtime=source('src/RuntimeApp.tsx');
+ assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
+ assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
+ assert.match(shell,/SignInExperience/);
+ assert.match(shell,/session=\{session\}/);
+});
+test('Structural workspace: preview relay rejects untrusted origins, other peoples private routes and unsigned access',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async({method='GET',path='/api/agent/saved-builds?limit=20',host='securepay-test.vercel.app',origin='https://securepay-test.vercel.app',auth=null,body,headers={}}={})=>{
+   const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},end(b){this.body=b;}};
+   await handler({method,query:{path},headers:{host,origin,...headers,...(auth?{authorization:auth}:{})},body},res);
+   return res;
+ };
+ assert.equal((await call({origin:'https://another.example'})).statusCode,403);
+ assert.equal((await call({host:'securepay.ke',origin:'https://securepay.ke'})).statusCode,403);
+ assert.equal((await call({path:'/api/v1/community/circles/private-id-123/posts',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
+ assert.equal((await call({path:'/api/agent/conversations/secret/context',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
+ assert.equal((await call()).statusCode,401);
+ assert.equal((await call({method:'POST',path:'/api/v1/community/membership/join',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
+ assert.equal((await call({path:'/api/agent/saved-builds?limit=500',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
+ const oldFetch=globalThis.fetch;
+ try{
+   let observed;
+   globalThis.fetch=async(url,opts)=>{observed={url:String(url),opts};return new Response('[]',{status:200});};
+   const r=await call({auth:'Bearer abcdefghijklmnop',headers:{cookie:'VercelProtection=secret'}});
+   assert.equal(r.statusCode,200);
+   assert.equal(observed.url,'https://securepay.ke/api/agent/saved-builds?limit=20');
+   assert.equal(observed.opts.headers.Authorization,'Bearer abcdefghijklmnop');
+   assert.ok(!Object.keys(observed.opts.headers).some(k=>k.toLowerCase()==='cookie'));
+   const resumed=await call({method:'POST',path:'/api/agent/saved-builds/12345678/resume',auth:'Bearer abcdefghijklmnop'});
+   assert.equal(resumed.statusCode,200);
+   assert.equal(observed.opts.body,undefined);
+ }finally{globalThis.fetch=oldFetch;}
+});
