@@ -3,6 +3,7 @@ import { createAuthGateway } from '../../api/securepay/auth';
 import { createAgentGateway } from '../../api/securepay/agent';
 import { createVisionDreamGateway } from '../../api/securepay/visiondreams';
 import { createCommunityGateway } from '../../api/securepay/community';
+import { createAgreementGateway } from '../../api/securepay/agreements';
 
 /**
  * One preview-only transport for existing SecurePay authorities.
@@ -27,6 +28,7 @@ export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: 
     agent: createAgentGateway(http),
     dreams: createVisionDreamGateway(http),
     community: createCommunityGateway(http),
+    agreements: createAgreementGateway(http),
   };
 }
 export type PreviewWorkspaceGateways = ReturnType<typeof createPreviewWorkspaceGateways>;
