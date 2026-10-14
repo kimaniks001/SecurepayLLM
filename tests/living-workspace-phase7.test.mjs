@@ -47,3 +47,15 @@ test('Phase 7: payment and booking claims are explicitly limited',()=>{
 test('Phase 7: Quick Documents distinguish requests, offers and receipts',()=>{
  for(const statement of ['not proof of payment','does not prove payment','not an accepted Agreement'])assert.ok(support.includes(statement));
 });
+
+test('Phase 7: live Work bridge uses canonical conversation authority without fabricated persona messages',()=>{
+ const live=source('src/features/living-workspace/LiveKs001Session.tsx');
+ assert.match(live,/createAgentController\(gateway/);
+ assert.match(live,/controller\.send\(next\)/);
+ assert.match(live,/controller\.retry\(\)/);
+ assert.match(live,/state\.context\.data\.entities/);
+ assert.ok(!live.includes('Dream Companion'));
+ assert.match(shell,/liveStarted && gateway/);
+ assert.match(shell,/setLiveStarted\(true\)/);
+ assert.match(app,/gateway=\{agentGateway\}/);
+});
