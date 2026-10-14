@@ -50,7 +50,7 @@ export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGatew
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
   const liveContextVersion = liveState?.context.data?.version;
-  const lastLiveTurnId = liveState?.turns.at(-1)?.id ?? null;
+  const lastLiveTurnId = liveState?.turns.length ? liveState.turns[liveState.turns.length - 1].id : null;
   const liveBusy = liveState?.busy ?? false;
   const livePending = !!liveState?.pending;
   useEffect(() => {
