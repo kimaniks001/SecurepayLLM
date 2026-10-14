@@ -1,3 +1,4 @@
+import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, HelpCircle } from 'lucide-react';
@@ -16,13 +17,15 @@ function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   </section>;
 }
 
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, examination }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
+  examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
+  const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
@@ -42,6 +45,23 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: 
     </div>}
     {formation && <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>
+      <section aria-label="Fair Trade examination" className="rounded-xl border border-cream-200 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Guided by the 12 Principles of Fair Trade</p>
+        {fairTrade ? <>
+          <p className="mt-2 text-sm font-semibold">Partial examination · not qualified</p>
+          <p className="mt-1 text-xs text-sand-700">Evidence-based observations for this Agreement version. Unexamined principles remain unassessed, not approved.</p>
+          {fairTrade.findings.slice(0,3).map(f=><div key={f.principleNumber} className="mt-3 border-t border-cream-200 pt-2">
+            <p className="text-xs font-semibold">{f.principleTitle} · {f.state==='MATERIAL_CONCERN'?'Material concern':'Needs clarification'}</p>
+            <p className="mt-1 text-xs text-sand-700">{f.explanation}</p>
+          </div>)}
+          {!formation.question && fairTrade.advisoryQuestion && <div className="mt-3 rounded-lg bg-cream-100 p-3">
+            <p className="text-xs font-semibold">One practical detail worth exploring with KS001</p>
+            <p className="mt-2 text-sm">{fairTrade.advisoryQuestion}</p>
+            <p className="mt-2 text-xs text-sand-700">Advisory only. It is not an extra required question or permission to move money.</p>
+          </div>}
+          {fairTrade.findings.length===0 && <p className="mt-2 text-xs text-sand-700">No assessed concerns to display yet. This is not a completed qualification.</p>}
+        </> : <p className="mt-2 text-xs text-sand-700">{examination.status==='loading'?'Checking the current Agreement version…':'Formal Fair Trade examination is not yet available for this preview. Draft review is not qualification.'}</p>}
+      </section>
       {formation.money.length > 0 && <section aria-label="Money follows the Agreement" className="rounded-xl border border-cream-200 bg-cream-50 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
         <p className="mt-2 text-sm leading-6 text-sand-700">The amount shown in this draft is not a payment instruction. The accepted Agreement establishes the parties and conditions; SecurePay Money must separately verify the payment destination.</p>
