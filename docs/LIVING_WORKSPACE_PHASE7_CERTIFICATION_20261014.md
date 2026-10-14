@@ -16,10 +16,16 @@ Phases 1–6 have user-approved *visual directions*. The React previews are expl
 8. **Deployment:** Review differential against real app state, isolate draft-only preview route, signoff feature rollout, monitoring and rollback. No merge or production deploy before approval.
 
 ## Current progress
+- Opt-in live KS001 **My Work** bridge uses the existing `createAgentController` and `AgentGateway` (canonical conversation, real replies, canonical Trade Context, idempotent retry). It is deliberately NOT synced with illustrative Agreement facts. Live-session view state survives workspace-tab changes within the mounted preview. The runtime API environment and first real backend exchange remain to be browser-certified.
+- The `Vision`, `Circle` and `Community` persona behaviours remain UI previews: the backend `TurnRequest` currently accepts `message`, `clientTurnId` and `clientTimeZone`, but not a trusted, permission-bound workspace mode. Never inject a fake system instruction into user text to simulate this.
+- GitHub workflow `.github/workflows/living-workspace-phase7.yml` adds typecheck, lint, contract suite, full regression and build on the isolated design branch; its run must be independently confirmed green.
 - New repository test suite: `tests/living-workspace-phase7.test.mjs`, invoked with `npm run test:living-workspace`.
 - Static contract checks do **not** validate backend access control, payment correctness, accessibility, end-to-end UI, browser render fidelity or LLM responses.
 - Backend adapter work, persistence, actual model context, browser automation, human sessions and production acceptance are not implemented in this branch.
 - **Current gate: NO-GO for production.**
+
+## Live integration smoke test (My Work only)
+Open `#/preview/living-workspace`, choose My Work, and press **Try real KS001 (Work only)**. Enter an original trade intention. Verify a real API reply arrives, open canonical Trade Context, then switch to Vision and back: the Work conversation must remain present. Test an interrupted turn to confirm the retry does not generate a new client turn ID. Check that the right panel states it is not synced and that changing workspaces does not silently transfer content. If the option is absent, the API gateway is not configured on that preview deployment. This is a network/API/manual gate, not currently signed off.
 
 ## Observational certification script
 Open the isolated Vercel preview with a new tester. Ask them to:
