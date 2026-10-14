@@ -1,3 +1,4 @@
+import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
 import { useState } from 'react';
 import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
 
@@ -30,6 +31,8 @@ export function Phase1LivingWorkspacePreview() {
   const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
   const [messages, setMessages] = useState<Record<Mode, string[]>>({ work:[], vision:[], circle:[], community:[] });
   const current = scenarios[mode];
+  const persona = KS001_WORKSPACE_PERSONAS[mode];
+  const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: string) { setActiveTool(name); setToolsOpen(true); setScreen('tools'); }
   function closeTool() { setToolsOpen(false); setScreen('chat'); }
@@ -38,6 +41,7 @@ export function Phase1LivingWorkspacePreview() {
     if (!value) return;
     setMessages(previous => ({ ...previous, [mode]: [...previous[mode], value] }));
     setDrafts(previous => ({ ...previous, [mode]: '' }));
+    setSuggestedTool(recommendWorkspaceTool(mode, value));
   }
   return <main className="min-h-screen bg-cream-50 text-forest-800">
     <header className="border-b border-cream-200 bg-white/90 px-4 py-3 sm:px-7">
@@ -45,7 +49,7 @@ export function Phase1LivingWorkspacePreview() {
         <div><strong className="text-xl tracking-tight">SecurePay</strong><p className="text-xs text-sand-600">Living workspace · Phase 1 preview</p></div>
         <nav aria-label="Workspace experience" className="flex max-w-full rounded-xl bg-cream-100 p-1">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
-            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>{setMode(id);setScreen('chat');setToolsOpen(false);}} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
+            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>{setMode(id);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);}} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/"><ArrowLeft size={15}/> Exit preview</a>
       </div>
@@ -57,12 +61,12 @@ export function Phase1LivingWorkspacePreview() {
         <div className="m-3 rounded-xl bg-cream-100 p-4 text-sm"><strong>{tool.name}</strong><p className="mt-2 text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Phase 1 preview: no external action or private data sharing is performed here.</p></div>
       </aside>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'?'flex':'hidden'} min-h-[72vh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex items-center justify-between border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label}</p><strong className="text-lg">KS001</strong></div><button onClick={()=>openTool(activeTool)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm"><Plus size={18}/> Add / Tools</button></div>
-        <div className="flex-1 space-y-4 p-5"><p className="max-w-[560px] text-sm leading-7">{current.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Message displayed in preview. Live KS001 orchestration is not connected here.</p>}</div>
+        <div className="flex items-center justify-between border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="text-lg">KS001</strong></div><button onClick={()=>openTool(activeTool)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm"><Plus size={18}/> Add / Tools</button></div>
+        <div className="flex-1 space-y-4 p-5"><p className="max-w-[560px] text-sm leading-7">{persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool)} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
         <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
-        <div className="p-5"><p className="text-xs uppercase tracking-wider text-sand-600">Living result</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div>
+        <div className="p-5"><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div>
         <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
         <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver</strong><p className="mt-2 text-xs text-sand-600">Opportunities require a Plug, verification and informed consent. Suggestions do not change Agreements.</p></div></div>
       </aside>
