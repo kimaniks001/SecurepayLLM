@@ -1,3 +1,5 @@
+import { InlineVisionEditor } from './InlineVisionEditor';
+import { InlineCircleBoard } from './InlineCircleBoard';
 import { MockWorkspacePanel } from './MockWorkspacePanel';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
@@ -15,7 +17,7 @@ import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
 import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
@@ -67,12 +69,37 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const exitDemo=()=>{ setMockSignedIn(false); setScreen('chat'); };
   const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
+  const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
+  const [workingCircleId,setWorkingCircleId]=useState<string|null>(null);
+  const [dreamUnsaved,setDreamUnsaved]=useState(false);
+  const noteUnsaved=useCallback((dirty:boolean)=>setDreamUnsaved(dirty),[]);
+  const mayLeaveDream=()=>!dreamUnsaved || window.confirm('Your Dream has changes that have not been confirmed saved. Leave without saving?');
+  const backToWorkspace=()=>{
+    if(!mayLeaveDream())return;
+    setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);
+  };
   useEffect(()=>{
-    const sync=()=>setMode(initialMode());
+    if(!signedIn){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
+  },[signedIn]);
+
+  useEffect(()=>{
+    const sync=()=>{
+      const next=initialMode();
+      if(next!==mode && !mayLeaveDream()){
+        window.location.hash='#/preview/living-workspace/'+mode;
+        return;
+      }
+      if(next!==mode){
+        setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);
+      }
+      setMode(next);
+    };
     window.addEventListener('hashchange',sync);
     return ()=>window.removeEventListener('hashchange',sync);
-  },[]);
+  },[mode,dreamUnsaved]);
   const chooseMode=(next:Mode)=>{
+    if(next!==mode && !mayLeaveDream())return;
+    if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
     setMode(next);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);
     window.location.hash='#/preview/living-workspace/'+next;
   };
@@ -170,11 +197,21 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             <button type="button" onClick={enterDemo} className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm text-white">Try mock sign-in</button>
             {workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)} className="min-h-11 rounded-xl border border-cream-200 px-3 text-sm">Real KS sign-in</button>}
           </> : <span className="rounded-full bg-cream-100 px-3 py-2 text-xs">Signed in with SecurePay</span>}
-          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/"><ArrowLeft size={15}/> Exit preview</a>
+          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!mayLeaveDream())event.preventDefault();}}><ArrowLeft size={15}/> Exit preview</a>
         </div>
       </div>
     </header>
-    <div className="mx-auto flex max-w-[1550px] gap-3 px-3 py-3 sm:px-5 sm:py-5">
+    {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
+      ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
+          <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
+            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}/>
+        </div>
+      : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
+      ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
+          <InlineCircleBoard key={workingCircleId} id={workingCircleId}
+            gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
+        </div>
+      : <div className="mx-auto flex max-w-[1550px] gap-3 px-3 py-3 sm:px-5 sm:py-5">
       {toolsOpen && <aside aria-label="Contextual tools" className={`${screen==='tools'?'flex':'hidden'} w-full shrink-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[225px] xl:w-[250px]`}>
         <div className="flex items-center justify-between border-b border-cream-100 p-4"><strong>Tools</strong><button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button></div>
         <div className="max-h-[65vh] overflow-auto p-3">{tools.map(t=><button key={t.name} onClick={()=>setActiveTool(t.name)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-xs ${activeTool===t.name?'bg-forest-50 font-semibold':'hover:bg-cream-100'}`}><t.icon size={17}/>{t.name}</button>)}</div>
@@ -194,7 +231,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <MockWorkspacePanel key={mode} area={mode}/>
           : signedIn && workspaceGateways && mode!=='work'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
-              session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+              session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
+              onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
           : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
@@ -213,8 +251,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver · Example</strong><p className="mt-2 text-xs text-sand-600">A real Community Saver requires a Plug, verification and informed consent. These suggestions do not change Agreements.</p></div>
         </>}</div>
       </aside>
-    </div>
-    <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Wrench]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openTool(activeTool):setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>
+    </div>}
+    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Wrench]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openTool(activeTool):setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     <p className="px-5 pb-4 text-center text-xs text-sand-600">{mockSignedIn?'DEMO ACCOUNT: no authentication, real records, payments, invitations or membership. ':'Visual shell: the preview does not authorise financial or Agreement actions. '}No money, invitation, approval or booking authority is granted by this page.</p>
   </main>;
 }
