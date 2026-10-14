@@ -1,3 +1,4 @@
+import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
@@ -26,6 +27,12 @@ import type { AppView } from './types';
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
+// The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
+let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
+if (api && typeof window !== 'undefined' && /^[a-z0-9-]+\\.vercel\\.app$/.test(window.location.hostname)) {
+  try { previewAgentGateway = createPreviewAgentGateway(api.baseUrl, session.getAccessToken); }
+  catch { /* An unsupported API origin never falls back to a cross-origin unsafe fetch. */ }
+}
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
@@ -328,7 +335,7 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
-  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={agentGateway} />;
+  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }
