@@ -144,10 +144,10 @@ test('Phase 7: reviewable price-only trade still has practical and money questio
  assert.match(readiness,/What must happen before the payee becomes entitled to the money/);
  assert.match(readiness,/do not initiate payment/);
  assert.match(result,/Draft formed · strengthen before review/);
- assert.match(result,/Payer/);
- assert.match(result,/Agreement conditions/);
- assert.match(result,/Verified payee/);
- assert.match(result,/The person receiving the item is not automatically the person receiving money/);
+ assert.match(result,/Payer to establish/);
+ assert.match(result,/Conditions to agree/);
+ assert.match(result,/Payee to verify/);
+ assert.match(result,/The person receiving the item is not automatically the payee/);
  assert.match(result,/onDiscuss\(prepareQuestionForKs001/);
  assert.match(shell,/liveController\.send\(question\)/);
  assert.doesNotMatch(result,/ready for money/i);
