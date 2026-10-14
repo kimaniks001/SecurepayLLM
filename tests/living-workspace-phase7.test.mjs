@@ -133,3 +133,22 @@ test('Phase 7: Agreement lives only on the right, never duplicated beneath KS001
  assert.match(result,/data-live-formation/);
  assert.match(shell,/LiveWorkResultPanel/);
 });
+
+test('Phase 7: reviewable price-only trade still has practical and money questions',()=>{
+ const readiness=source('src/features/living-workspace/practicalReadiness.ts');
+ const result=source('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ assert.match(readiness,/formation\.question/);
+ assert.match(readiness,/Who is providing what is being agreed, and who should receive payment/);
+ assert.match(readiness,/Who is responsible for paying/);
+ assert.match(readiness,/How will this be delivered, handed over or completed/);
+ assert.match(readiness,/What must happen before the payee becomes entitled to the money/);
+ assert.match(readiness,/do not initiate payment/);
+ assert.match(result,/Draft formed · strengthen before review/);
+ assert.match(result,/Payer/);
+ assert.match(result,/Agreement conditions/);
+ assert.match(result,/Verified payee/);
+ assert.match(result,/The person receiving the item is not automatically the person receiving money/);
+ assert.match(result,/onDiscuss\(prepareQuestionForKs001/);
+ assert.match(shell,/liveController\.send\(question\)/);
+ assert.doesNotMatch(result,/ready for money/i);
+});
