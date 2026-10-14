@@ -16,7 +16,7 @@ import { VisionDreamExperience } from './VisionDreamExperience';
  * it stays on the draft Vision branch; no shared Home/KS001 route is modified.
  */
 export function VisionDreamHome({
-  controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError,
+  controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError, initialDreamId, onEntryHandled,
 }: {
   controller: VisionDreamController;
   gateway: VisionDreamGateway;
@@ -25,6 +25,8 @@ export function VisionDreamHome({
   onOpenLibrary: () => void;
   onNavigate: (view: AppView) => void;
   handoffError?: string | null;
+  initialDreamId?: string | null;
+  onEntryHandled?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   return <div className="min-h-dvh bg-cream-100">
@@ -39,7 +41,7 @@ export function VisionDreamHome({
           <Button variant="secondary" onClick={onOpenLibrary}>Search & organise</Button>
         </div>
       </section>}
-      <VisionDreamExperience controller={controller} gateway={gateway} onContinue={onContinue} />
+      <VisionDreamExperience controller={controller} gateway={gateway} onContinue={onContinue} initialDreamId={initialDreamId} onEntryHandled={onEntryHandled} />
       {handoffError && <StatusNotice tone="warning" icon={false}>{handoffError}</StatusNotice>}
       <Surface>
         <SurfaceBody className="space-y-3">
