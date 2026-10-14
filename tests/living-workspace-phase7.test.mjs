@@ -334,7 +334,7 @@ test('Authentication mock: demo is visibly simulated and never grants a SecurePa
  assert.doesNotMatch(demo,/createSessionStore|setTokens\(|refreshToken|accessToken|fetch\(|axios|localStorage|sessionStorage|setMembership|setRole/);
  assert.match(demo,/simulated signed-in experience/);
  assert.match(demo,/sample records/);
- assert.match(demo,/no real KS001 response/i);
+ assert.match(shell,/not a real KS001 response/);
  for(const section of ['work','vision','circle','community'])assert.ok(demo.includes(section),section);
 });
 test('Authentication mock: only real sign-in can set real SessionStore tokens',()=>{
