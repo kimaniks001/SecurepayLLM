@@ -1,6 +1,6 @@
 import { ApiError, segment, type HttpClient, type RequestOptions } from '../http';
 import { CONVERSATION_TOKEN_HEADER, conversationAccess, type ConversationAccessStore } from './continuity';
-import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, AgreementFormationDto, TurnRequest } from './dto';
+import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, AgreementFormationDto, FairTradeExaminationDto, TurnRequest } from './dto';
 /**
  * Public Experience Convergence Phase 3 (Slice 3A) -- the gateway is the ONE place the anonymous
  * conversation token travels. It attaches `X-SecurePay-Conversation-Token` (a header, never a URL) only to
@@ -104,6 +104,10 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // Entry Perfection Phase 6 -- the emerging agreement (Review), readable before sign-in by whoever holds the conversation.
     readAgreementFormation: (id: string, timeZone?: string) =>
       http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { auth: 'optional' }),
+    // Phase 7: partial, version-bound Fair Trade observations. The SAME conversation
+    // access token/owner policy applies. This read grants no approval or Money rights.
+    readFairTradeExamination: (id: string, timeZone?: string) =>
+      http.request<FairTradeExaminationDto>(`${conversation(id)}/fair-trade-examination${timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : ''}`, { auth: 'optional' }),
     // Entry Perfection Phase 9 (UR-266) -- "that's not the right person": the linked party goes back to being described.
     unlinkParty: (id: string, partyKey: string, expectedVersion: number, timeZone?: string) =>
       http.request<AgreementFormationDto>(`${conversation(id)}/agreement-formation/parties/${encodeURIComponent(partyKey)}/unlink?expectedVersion=${expectedVersion}${timeZone ? `&timeZone=${encodeURIComponent(timeZone)}` : ''}`, { method: 'POST', auth: 'optional' }),
