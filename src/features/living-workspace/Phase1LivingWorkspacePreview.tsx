@@ -1,3 +1,7 @@
+import { SignInExperience } from '../public/SignInExperience';
+import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
+import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
+import type { SessionStore } from '../../api/securepay/session';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
@@ -39,8 +43,28 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGateway }) {
-  const [mode, setMode] = useState<Mode>('work');
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session }: {
+  gateway?: AgentGateway;
+  workspaceGateways?: PreviewWorkspaceGateways;
+  session: SessionStore;
+}) {
+  const initialMode=():Mode=>{
+    if(typeof window==='undefined')return 'work';
+    const match=/^#\/?preview\/living-workspace\/(work|vision|circle|community)\/?$/.exec(window.location.hash);
+    return (match?.[1] as Mode | undefined)??'work';
+  };
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [signInOpen,setSignInOpen]=useState(false);
+  const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
+  useEffect(()=>{
+    const sync=()=>setMode(initialMode());
+    window.addEventListener('hashchange',sync);
+    return ()=>window.removeEventListener('hashchange',sync);
+  },[]);
+  const chooseMode=(next:Mode)=>{
+    setMode(next);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);
+    window.location.hash='#/preview/living-workspace/'+next;
+  };
   const [liveWork,setLiveWork] = useState(false);
   const [liveStarted,setLiveStarted] = useState(false);
   // One authoritative conversation is shared by the chat and the Living Result.
@@ -103,13 +127,29 @@ export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGatew
     setDrafts(previous => ({ ...previous, [mode]: '' }));
     setSuggestedTool(recommendWorkspaceTool(mode, value));
   }
+  const continueSavedConversation = async(conversationId:string)=>{
+    if(!liveController)throw new Error('KS001 conversation service is not available');
+    if(liveController.getSnapshot().busy || liveController.getSnapshot().pending) {
+      throw new Error('Finish the current KS001 turn before switching conversations');
+    }
+    chooseMode('work');setLiveStarted(true);setLiveWork(true);
+    await liveController.resumeConversation(conversationId);
+  };
+  if(signInOpen && workspaceGateways){
+    return <SignInExperience
+      auth={workspaceGateways.auth} session={session}
+      onSignedIn={()=>setSignInOpen(false)} onCancel={()=>setSignInOpen(false)}
+      onRecover={()=>{setSignInOpen(false);window.location.hash='#/recovery';}}
+      onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
+    />;
+  }
   return <main className="min-h-screen bg-cream-50 text-forest-800">
     <header className="border-b border-cream-200 bg-white/90 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
-        <div><strong className="text-xl tracking-tight">SecurePay</strong><p className="text-xs text-sand-600">Living workspace · Phase 7 live My Work preview</p></div>
+        <div><strong className="text-xl tracking-tight">SecurePay</strong><p className="text-xs text-sand-600">Living Workspace · structural continuity preview</p></div>
         <nav aria-label="Workspace experience" className="flex max-w-full rounded-xl bg-cream-100 p-1">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
-            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>{setMode(id);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);}} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
+            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/"><ArrowLeft size={15}/> Exit preview</a>
       </div>
@@ -129,11 +169,23 @@ export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGatew
 </>}
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
-        <div className="p-5">{mode==='work' && liveWork?<LiveWorkResultPanel
+        <div className="p-5">
+        {signedIn && workspaceGateways && mode!=='work'
+          ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
+              session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+          : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
         />:mode==='work'?<LivingAgreementPanel/>:mode==='vision'?<LivingVisionPanel/>:mode==='circle'?<LivingCirclePanel/>:mode==='community'?<LivingCommunityPanel/>:<><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div></>}
+        {mode==='work' && <div className="mt-4">
+          <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
+            session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+        </div>}
+        {!signedIn && mode!=='work' && <div className="mt-4">
+          <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
+            session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+        </div>}
         <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
         <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver</strong><p className="mt-2 text-xs text-sand-600">Opportunities require a Plug, verification and informed consent. Suggestions do not change Agreements.</p></div></div>
       </aside>
