@@ -1,3 +1,4 @@
+import { SelectedWorkspaceRecord, type PrivateRecordArea } from './SelectedWorkspaceRecord';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Bookmark, FolderOpen, Globe2, Layers3, LockKeyhole, RefreshCw, Users } from 'lucide-react';
 import type { SessionStore } from '../../api/securepay/session';
@@ -40,13 +41,14 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
  const [member,setMember]=useState<{status:'idle'|'loading'|'ready'|'error';data:MembershipResponse|null}>({status:'idle',data:null});
  const [busy,setBusy]=useState<string|null>(null);
  const [actionError,setActionError]=useState<string|null>(null);
+ const [selected,setSelected]=useState<{area:PrivateRecordArea;id:string}|null>(null);
  const [revision,setRevision]=useState(0);
 
  const reload=useCallback(()=>setRevision(n=>n+1),[]);
  useEffect(()=>{
    // Session is the one auth boundary. Never retain another identity's records.
    setSaved(empty());setAgreements(empty());setDreams(empty());setCircles(empty());setFeed(empty());
-   setMember({status:'idle',data:null});setActionError(null);
+   setMember({status:'idle',data:null});setActionError(null);setSelected(null);
    if(!signedIn||!gateways)return;
    let stopped=false;
    const apply=<T,>(setter:(next:LoadState<T>)=>void,p:Promise<T[]>)=>{
@@ -135,6 +137,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <p className="text-sm font-semibold">{a.title}</p>
        <p className="mt-1 text-xs text-sand-700">{a.publicReference} · {a.status}</p>
        <p className="mt-1 text-xs text-sand-600">Updated {formatDate(a.updatedAt)}</p>
+       <button type="button" onClick={()=>setSelected({area:'work',id:a.agreementId})} className="mt-2 mr-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Inspect record</button>
        <button type="button" onClick={()=>openRealAgreement(a.agreementId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Agreement</button>
      </article>)}
    </div>}
@@ -146,6 +149,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      {dreams.status==='ready' && dreams.items.map(d=><article key={d.dreamId} className="rounded-xl border border-cream-200 p-3">
        <p className="text-sm font-semibold">{d.title}</p><p className="mt-1 text-xs text-sand-700">Version {d.version} · Updated {formatDate(d.updatedAt)}</p>
        <p className="mt-1 text-xs text-sand-700">{d.locked?'Locked · read under existing Vision permissions':'Saved in your private Vision'}</p>
+       <button type="button" onClick={()=>setSelected({area:'vision',id:d.dreamId})} className="mt-2 mr-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Inspect record</button>
        <button type="button" onClick={()=>openRealDream(d.dreamId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Dream</button>
      </article>)}
      <button type="button" onClick={()=>route('vision')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open the real Vision Board</button>
@@ -160,6 +164,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <p className="mt-1 text-xs text-sand-700">{circle.purpose}</p>
        <p className="mt-1 text-xs text-sand-700">{circle.status} · {circle.visibility} · {circle.memberCount} members</p>
        <p className="mt-2 text-xs text-sand-600">Proposals and decisions stay in the authorised Circle journey.</p>
+       <button type="button" onClick={()=>setSelected({area:'circle',id:circle.id})} className="mt-2 mr-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Inspect record</button>
        <button type="button" onClick={()=>openRealCircle(circle.id)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Circle</button>
      </article>)}
      <button type="button" onClick={()=>route('community')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open real Circles and governance</button>
@@ -181,6 +186,9 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      </>}
      <button type="button" onClick={()=>route('community')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open Trust Project Community</button>
    </div>}
+   {selected?.area===area && <SelectedWorkspaceRecord key={selected.area+':'+selected.id}
+     area={selected.area} id={selected.id} gateways={gateways} session={session}
+     onClose={()=>setSelected(null)}/>}
    <p className="flex gap-2 text-xs text-sand-600"><FolderOpen size={14}/> All records and permissions come from existing SecurePay endpoints. No cross-workspace sharing is implied.</p>
  </section>;
 }
