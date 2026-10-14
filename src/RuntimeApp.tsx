@@ -29,7 +29,7 @@ let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
 // The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
 let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
-if (api && typeof window !== 'undefined' && /^[a-z0-9-]+\\.vercel\\.app$/.test(window.location.hostname)) {
+if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
   try { previewAgentGateway = createPreviewAgentGateway(api.baseUrl, session.getAccessToken); }
   catch { /* An unsupported API origin never falls back to a cross-origin unsafe fetch. */ }
 }
