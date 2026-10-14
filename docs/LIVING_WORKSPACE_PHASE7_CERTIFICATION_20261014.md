@@ -24,6 +24,13 @@ Phases 1–6 have user-approved *visual directions*. The React previews are expl
 - Backend adapter work, persistence, actual model context, browser automation, human sessions and production acceptance are not implemented in this branch.
 - **Current gate: NO-GO for production.**
 
+## CORS isolation: Vercel preview only (October 14, 2026)
+A preview browser cannot fetch `https://securepay.ke/api/agent/conversations` directly unless production explicitly allows its ephemeral origin. **Do not weaken production CORS** for this visual test.
+
+The isolated Vercel deployment now serves `/api/preview-agent?path=...` on its own origin. The opt-in Work-only KS001 gateway forwards only conversation creation, turns, context and history through a narrowly allowlisted Vercel serverless function to the existing `https://securepay.ke` API. The relay rejects non-Vercel hosts, cross-origin calls, unknown endpoints/methods/query parameters, malformed inputs and large requests; it never forwards browser Origin or cookies to SecurePay. Same-origin Vercel auth cookies can reach only Vercel deployment protection. Existing SecurePay conversation secret headers and optional bearer authorisation remain available for backend enforcement.
+
+This resolves the **frontend cross-origin request design**. The deployed serverless function and upstream production response must still be verified in an authenticated browser session. Vercel reporting READY only proves its build/deploy succeeded, not that a real KS001 turn succeeded. If the live button is absent, inspect the preview's API environment configuration; if the relay responds 502, inspect Cloudflare/server-to-server access and upstream API availability. No money, private Agreement permission or CORS production policy is changed.
+
 ## Live integration smoke test (My Work only)
 Open `#/preview/living-workspace`, choose My Work, and press **Try real KS001 (Work only)**. Enter an original trade intention. Verify a real API reply arrives, open canonical Trade Context, then switch to Vision and back: the Work conversation must remain present. Test an interrupted turn to confirm the retry does not generate a new client turn ID. Check that the right panel states it is not synced and that changing workspaces does not silently transfer content. If the option is absent, the API gateway is not configured on that preview deployment. This is a network/API/manual gate, not currently signed off.
 
