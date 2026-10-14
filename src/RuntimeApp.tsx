@@ -1,3 +1,4 @@
+import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -303,6 +304,12 @@ function useMoneySessionRoute(): string | null {
 }
 
 export default function RuntimeApp() {
+  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace\/?$/.test(window.location.hash));
+  useEffect(() => {
+    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace\/?$/.test(window.location.hash));
+    window.addEventListener('hashchange', syncPreview);
+    return () => window.removeEventListener('hashchange', syncPreview);
+  }, []);
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
   const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
@@ -321,6 +328,7 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
+  if (phase1Preview) return <Phase1LivingWorkspacePreview />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }
