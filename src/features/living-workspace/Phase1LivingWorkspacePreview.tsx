@@ -1,3 +1,5 @@
+import { InlineCommunityHub } from './InlineCommunityHub';
+import { UniversalSourceTray } from './UniversalSourceTray';
 import { InlineVisionEditor } from './InlineVisionEditor';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { MockWorkspacePanel } from './MockWorkspacePanel';
@@ -23,10 +25,10 @@ import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPi
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
 const tools = [
+  { name: 'Photos', icon: Camera, description: 'Begin with a photo, preview and caption; it remains local until authorised upload.' },
+  { name: 'Documents', icon: FileText, description: 'Select a document, preview its name and caption without claiming it has been interpreted.' },
+  { name: 'Places', icon: MapPin, description: 'Prepare an address or place as unverified context.' },
   { name: 'People & Invitations', icon: UserRoundPlus, description: 'Find people, invite participants and clarify roles and permissions.' },
-  { name: 'Places', icon: MapPin, description: 'Find or select a saved location for your work.' },
-  { name: 'Documents', icon: FileText, description: 'Attach documents; saved, interpreted and confirmed are distinct states.' },
-  { name: 'Photos', icon: Camera, description: 'Attach photos and caption them in your conversation.' },
   { name: 'Stores', icon: Store, description: 'Find products, suppliers and services.' },
   { name: 'Money', icon: Wallet, description: 'See Agreement funding readiness and authorised next actions.' },
   { name: 'Financial Institutions', icon: Landmark, description: 'Find bank, finance and insurance options.' },
@@ -149,7 +151,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 
   const [screen, setScreen] = useState<Screen>('chat');
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [activeTool, setActiveTool] = useState('People & Invitations');
+  const [activeTool, setActiveTool] = useState('Photos');
   const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
   const [messages, setMessages] = useState<Record<Mode, string[]>>({ work:[], vision:[], circle:[], community:[] });
   const current = scenarios[mode];
@@ -215,7 +217,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {toolsOpen && <aside aria-label="Contextual tools" className={`${screen==='tools'?'flex':'hidden'} w-full shrink-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[225px] xl:w-[250px]`}>
         <div className="flex items-center justify-between border-b border-cream-100 p-4"><strong>Tools</strong><button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button></div>
         <div className="max-h-[65vh] overflow-auto p-3">{tools.map(t=><button key={t.name} onClick={()=>setActiveTool(t.name)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-xs ${activeTool===t.name?'bg-forest-50 font-semibold':'hover:bg-cream-100'}`}><t.icon size={17}/>{t.name}</button>)}</div>
-        {activeTool==='Quick Support'?<div className="m-3 rounded-xl bg-cream-100 p-4"><QuickSupportPanel/></div>:<div className="m-3 rounded-xl bg-cream-100 p-4 text-sm"><strong>{tool.name}</strong><p className="mt-2 text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Phase 6 preview: no external action or private data sharing is performed here.</p></div>}
+        {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
+          ? <div className="m-3 rounded-xl bg-cream-100 p-3"><UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn}/></div>
+          : activeTool==='Quick Support'?<div className="m-3 rounded-xl bg-cream-100 p-4"><QuickSupportPanel/></div>:<div className="m-3 rounded-xl bg-cream-100 p-4 text-sm"><strong>{tool.name}</strong><p className="mt-2 text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Phase 6 preview: no external action or private data sharing is performed here.</p></div>}
       </aside>}
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'?'flex':'hidden'} min-h-[72vh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex`}>
@@ -229,6 +233,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         <div className="p-5">
         {mockSignedIn
           ? <MockWorkspacePanel key={mode} area={mode}/>
+          : signedIn && workspaceGateways && mode==='community'
+          ? <InlineCommunityHub gateways={workspaceGateways} session={session}
+              onOpenFull={()=>{ window.location.hash='#/community'; }}/>
           : signedIn && workspaceGateways && mode!=='work'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
