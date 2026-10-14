@@ -44,13 +44,13 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: 
       <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>
       {formation.money.length > 0 && <section aria-label="Money follows the Agreement" className="rounded-xl border border-cream-200 bg-cream-50 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
-        <p className="mt-2 text-sm leading-6 text-sand-700">The agreed amount is not yet a payment instruction. First clarify who pays, which payee is entitled, and what must happen before money moves.</p>
+        <p className="mt-2 text-sm leading-6 text-sand-700">The amount shown in this draft is not a payment instruction. The accepted Agreement establishes the parties and conditions; SecurePay Money must separately verify the payment destination.</p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
-          <span className="rounded-lg bg-white px-2 py-2">Payer to establish</span>
+          <span className="rounded-lg bg-white px-2 py-2">Agreement payer</span>
           <ArrowRight size={14} aria-hidden="true"/>
-          <span className="rounded-lg bg-white px-2 py-2">Conditions to agree</span>
+          <span className="rounded-lg bg-white px-2 py-2">Agreed conditions</span>
           <ArrowRight size={14} aria-hidden="true"/>
-          <span className="rounded-lg bg-white px-2 py-2">Payee to verify</span>
+          <span className="rounded-lg bg-white px-2 py-2">Payee verified in Money</span>
         </div>
         <p className="mt-3 text-xs text-sand-600">The person receiving the item is not automatically the payee. After Agreement acceptance, SecurePay Money must confirm the entitled payee, verified payment destination and supported rail. Money cannot be initiated from this preview.</p>
       </section>}
