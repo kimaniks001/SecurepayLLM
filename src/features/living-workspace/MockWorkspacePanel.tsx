@@ -1,3 +1,5 @@
+import { LivingVisionPanel } from './LivingVisionPanel';
+import { LivingCirclePanel } from './LivingCirclePanel';
 import { useState } from 'react';
 import { ArrowRight, CircleCheck, FileText, Lightbulb, Users, HeartHandshake, ShieldAlert } from 'lucide-react';
 
@@ -65,6 +67,14 @@ export function MockWorkspacePanel({area}:{area:Mode}) {
       <p className="mt-2 text-sm leading-6">{active.detail}</p>
       <div className="mt-3 space-y-2">{active.facts.map(f=><p key={f} className="text-xs text-sand-700">{f}</p>)}</div>
       <p className="mt-3 flex items-start gap-2 rounded-lg bg-white p-3 text-xs"><CircleCheck size={16} className="shrink-0"/> Next to explore: {active.next}</p>
+      {area==='vision'&&<div className="mt-4 rounded-xl bg-white p-3" data-mock-vision-tools>
+        <p className="mb-3 text-xs font-semibold text-amber-900">DEMO TOOLS — local exploration, never saved</p>
+        <LivingVisionPanel/>
+      </div>}
+      {area==='circle'&&<div className="mt-4 rounded-xl bg-white p-3" data-mock-circle-tools>
+        <p className="mb-3 text-xs font-semibold text-amber-900">DEMO CIRCLE — pretend members and proposals only</p>
+        <LivingCirclePanel/>
+      </div>}
       <p className="mt-2 text-xs text-sand-600">Actions are intentionally illustrative. Sign in with a real KS Number to see or change actual records.</p>
     </div>}
     <p className="text-xs text-sand-600">Sample state lasts only while this preview is open. Refreshing resets the mock sign-in; no sample data is stored or sent to SecurePay.</p>
