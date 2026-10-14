@@ -5,18 +5,27 @@
  */
 const UPSTREAM = 'https://securepay.ke';
 const MAX_REQUEST_BYTES = 16 * 1024;
-const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024; // vision asset responses; bounded
 
 function allowed(method, pathname, params) {
   const keys = [...params.keys()];
   const noQuery = keys.length === 0;
+  const dream = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}$/;
+  const board = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/board$/;
+  const asset = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/assets\/[A-Za-z0-9_-]{8,128}$/;
+  const assets = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/assets$/;
+  if (method==='PATCH') return noQuery && dream.test(pathname);
+  if (method==='PUT') return noQuery && board.test(pathname);
+  if (method==='DELETE') return noQuery && asset.test(pathname);
   if (method === 'POST') {
     if (!noQuery) return false;
+    if (assets.test(pathname)) return true;
     if (['/api/v1/auth/login', '/api/v1/auth/complete', '/api/v1/auth/refresh',
       '/api/v1/auth/mfa/resend'].includes(pathname)) return true;
     return /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(pathname);
   }
   if (method !== 'GET') return false;
+  if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname))) return true;
   if (pathname === '/api/v1/vision-dreams' ||
       pathname === '/api/v1/community/membership/me') return noQuery;
   // Explicit, read-only ID lookups. Every source endpoint performs its own
@@ -62,7 +71,7 @@ export default async function handler(req, res) {
   if (req.headers.origin && req.headers.origin !== 'https://' + host) return reject(res,403,'Invalid origin');
   if (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') return reject(res,403,'Cross-site request refused');
   const method = req.method || 'GET';
-  if (!['GET','POST'].includes(method)) return reject(res,405,'Method not allowed');
+  if (!['GET','POST','PATCH','PUT','DELETE'].includes(method)) return reject(res,405,'Method not allowed');
   const supplied = req.query?.path;
   if (typeof supplied !== 'string' || !supplied.startsWith('/api/')) return reject(res,400,'Invalid API path');
   let upstream;
@@ -83,8 +92,8 @@ export default async function handler(req, res) {
     headers.Authorization = bearer;
   }
   let body;
-  if (method === 'POST') {
-    const resume = /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(upstream.pathname);
+  if (['POST','PATCH','PUT'].includes(method)) {
+    const resume = method==='POST' && /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(upstream.pathname);
     if (resume) {
       if (req.body !== undefined && req.body !== '') return reject(res,400,'Resume does not accept a body');
     } else {
@@ -92,7 +101,11 @@ export default async function handler(req, res) {
         return reject(res,415,'JSON request required');
       }
       body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
-      if (Buffer.byteLength(body,'utf8') > MAX_REQUEST_BYTES) return reject(res,413,'Request too large');
+      const bytes = Buffer.byteLength(body,'utf8');
+      // Never generalise these limits to the whole API: board 512 KB, image up to 2.8 MB.
+      const limit = upstream.pathname.endsWith('/board') ? 600*1024
+         : upstream.pathname.endsWith('/assets') ? 2_800_000 : MAX_REQUEST_BYTES;
+      if (bytes > limit) return reject(res,413,'Request too large');
       headers['Content-Type'] = 'application/json';
     }
   }
