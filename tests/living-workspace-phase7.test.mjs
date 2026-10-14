@@ -134,21 +134,19 @@ test('Phase 7: Agreement lives only on the right, never duplicated beneath KS001
  assert.match(shell,/LiveWorkResultPanel/);
 });
 
-test('Phase 7: reviewable price-only trade still has practical and money questions',()=>{
- const readiness=source('src/features/living-workspace/practicalReadiness.ts');
+test('Phase 7: chat and My Work expose one backend truth, not a local five-question checklist',()=>{
  const result=source('src/features/living-workspace/LiveWorkResultPanel.tsx');
- assert.match(readiness,/formation\.question/);
- assert.match(readiness,/Who is providing what is being agreed, and who should receive payment/);
- assert.match(readiness,/Who is responsible for paying/);
- assert.match(readiness,/How will this be delivered, handed over or completed/);
- assert.match(readiness,/What must happen before the payee becomes entitled to the money/);
- assert.match(readiness,/do not initiate payment/);
- assert.match(result,/Draft formed · strengthen before review/);
- assert.match(result,/Payer to establish/);
- assert.match(result,/Conditions to agree/);
- assert.match(result,/Payee to verify/);
+ assert.doesNotMatch(result,/practicalQuestions|prepareQuestionForKs001|questionIndex|Other detail/);
+ assert.doesNotMatch(result,/onDiscuss/);
+ assert.match(result,/formation\.question\.text/);
+ assert.match(result,/Draft review available · not qualified/);
+ assert.match(result,/Draft review is not Fair Trade qualification/);
+ assert.match(result,/Money readiness/);
+ assert.match(result,/Agreement payer/);
+ assert.match(result,/Agreed conditions/);
+ assert.match(result,/Payee verified in Money/);
  assert.match(result,/The person receiving the item is not automatically the payee/);
- assert.match(result,/onDiscuss\(prepareQuestionForKs001/);
- assert.match(shell,/liveController\.send\(question\)/);
  assert.doesNotMatch(result,/ready for money/i);
+ assert.equal(result.split('formation.question.text').length-1,1);
+ assert.doesNotMatch(shell,/liveController\.send\(question\)/);
 });
