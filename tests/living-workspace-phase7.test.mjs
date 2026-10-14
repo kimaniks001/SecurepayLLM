@@ -59,3 +59,35 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
  assert.match(shell,/setLiveStarted\(true\)/);
  assert.match(app,/gateway=\{agentGateway\}/);
 });
+
+test('Phase 7: preview relay never becomes a generic cross-origin API gateway', async()=>{
+ const handler=(await import('../api/preview-agent.js')).default;
+ const invoke=async ({method='GET',path='/api/agent/conversations/example123/context',origin='https://securepay-demo.vercel.app',host='securepay-demo.vercel.app',headers={}}={})=>{
+   const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=body;}};
+   await handler({method,query:{path},headers:{host,origin,...headers},body:undefined},res);
+   return res;
+ };
+ assert.equal((await invoke({origin:'https://attacker.example'})).statusCode,403);
+ assert.equal((await invoke({path:'/api/money'})).statusCode,403);
+ assert.equal((await invoke({method:'DELETE'})).statusCode,405);
+ assert.equal((await invoke({host:'securepay.ke',origin:'https://securepay.ke'})).statusCode,403);
+ assert.equal((await invoke({path:'https://other.example/api/agent/conversations'})).statusCode,403);
+ let observed=null;
+ const previous=globalThis.fetch;
+ try {
+   globalThis.fetch=async (url,init)=>{ observed={url:String(url),init}; return new Response('{"conversationId":"example123"}',{status:200,headers:{'content-type':'application/json'}}); };
+   const result=await invoke({method:'POST',path:'/api/agent/conversations',headers:{cookie:'vercel-sso-cookie',authorization:'Bearer sample', 'x-securepay-conversation-token':'scoped-token'}});
+   assert.equal(result.statusCode,200);
+   assert.equal(observed.url,'https://securepay.ke/api/agent/conversations');
+   assert.equal(observed.init.headers.Authorization,'Bearer sample');
+   assert.equal(observed.init.headers['X-SecurePay-Conversation-Token'],'scoped-token');
+   assert.ok(!Object.keys(observed.init.headers).some(k=>k.toLowerCase()==='cookie'));
+   assert.ok(!Object.keys(observed.init.headers).some(k=>k.toLowerCase()==='origin'));
+ } finally {globalThis.fetch=previous;}
+});
+test('Phase 7: preview browser uses same-origin relay rather than production CORS',()=>{
+ const gateway=source('src/features/living-workspace/previewAgentGateway.ts');
+ assert.match(gateway,/api\/preview-agent\?path=/);
+ assert.match(gateway,/credentials: 'same-origin'/);
+ assert.match(app,/gateway=\{previewAgentGateway\}/);
+});
