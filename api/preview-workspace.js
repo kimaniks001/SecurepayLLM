@@ -67,12 +67,17 @@ export default async function handler(req, res) {
   }
   let body;
   if (method === 'POST') {
-    if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type']||''))) {
-      return reject(res,415,'JSON request required');
+    const resume = /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(upstream.pathname);
+    if (resume) {
+      if (req.body !== undefined && req.body !== '') return reject(res,400,'Resume does not accept a body');
+    } else {
+      if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type']||''))) {
+        return reject(res,415,'JSON request required');
+      }
+      body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
+      if (Buffer.byteLength(body,'utf8') > MAX_REQUEST_BYTES) return reject(res,413,'Request too large');
+      headers['Content-Type'] = 'application/json';
     }
-    body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
-    if (Buffer.byteLength(body,'utf8') > MAX_REQUEST_BYTES) return reject(res,413,'Request too large');
-    headers['Content-Type'] = 'application/json';
   }
   try {
     const result = await fetch(upstream, {method,headers,body,redirect:'manual',signal:AbortSignal.timeout(45000)});
