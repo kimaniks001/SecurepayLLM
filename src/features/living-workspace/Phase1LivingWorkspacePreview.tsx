@@ -12,8 +12,9 @@ const tools = [
   { name: 'Stores', icon: Store, description: 'Find products, suppliers and services.' },
   { name: 'Money', icon: Wallet, description: 'See Agreement funding readiness and authorised next actions.' },
   { name: 'Financial Institutions', icon: Landmark, description: 'Find bank, finance and insurance options.' },
-  { name: 'Short Stays', icon: BedDouble, description: 'Explore accommodation providers, subject to confirmed availability.' },
-  { name: 'My Ride', icon: Truck, description: 'Explore transport assistance; quotes and dispatch require a provider.' },
+  { name: 'Quick Support', icon: BedDouble, description: 'Short Stays, My Ride and Quick Documents: invoices, receipts and quotations. Provider verification and document review are required.' },
+  { name: 'Milestones', icon: Truck, description: 'Plan stages, evidence, completion and approval requirements.' },
+  { name: 'Vision tools', icon: Lightbulb, description: 'Sketch, organise ideas, explore alternatives and develop a dream.' },
   { name: 'Community & Circles', icon: Users, description: 'Find people, groups, projects and shared work.' },
   { name: 'More tools', icon: Wrench, description: 'Additional SecurePay capabilities will appear here.' },
 ];
