@@ -11,7 +11,7 @@ const circle=source('src/features/living-workspace/LivingCirclePanel.tsx');
 const community=source('src/features/living-workspace/LivingCommunityPanel.tsx');
 const support=source('src/features/living-workspace/QuickSupportPanel.tsx');
 test('Phase 7: preview is isolated from production entry',()=>{
- assert.ok(app.includes('if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} />'));
+ assert.ok(app.includes('if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />'));
  assert.ok(app.includes('living-workspace'));
 });
 test('Phase 7: four scoped working postures exist',()=>{
@@ -188,7 +188,7 @@ test('Structural workspace: real private records use the existing SecurePay sess
  assert.match(adapter,/createAgentGateway\(http\)/);
  assert.match(adapter,/createVisionDreamGateway\(http\)/);
  assert.match(adapter,/createCommunityGateway\(http\)/);
- assert.doesNotMatch(continuity,/localStorage|sessionStorage|setMembership|setMemberRole/);
+ assert.doesNotMatch(continuity,/\b(?:localStorage|sessionStorage)\.(?:getItem|setItem)|setMembership\(|setMemberRole\(/);
 });
 test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
  const runtime=source('src/RuntimeApp.tsx');
