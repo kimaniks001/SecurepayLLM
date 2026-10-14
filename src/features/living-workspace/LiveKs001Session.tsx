@@ -1,6 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
-import type { AgentGateway } from '../../api/securepay/agent';
-import { createAgentController, deviceTimeZone } from '../agent/controller';
+import type { AgentController } from '../agent/controller';
 
 /**
  * Phase 7 opt-in backend smoke experience. Uses the SAME authenticated/anonymous
@@ -11,15 +10,14 @@ import { createAgentController, deviceTimeZone } from '../agent/controller';
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ gateway }: { gateway: AgentGateway }) {
-  const [controller] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
+export function LiveKs001Session({ controller }: { controller: AgentController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   const canSend = !state.busy && !state.pending && !!draft.trim();
   return <section aria-label="Live KS001 backend conversation" className="flex min-h-[65vh] flex-1 flex-col">
     <div className="border-b border-cream-100 bg-cream-100 p-4">
       <strong className="text-sm">Live KS001 · My Work</strong>
-      <p className="mt-1 text-xs text-sand-700">Real conversation gateway. This experimental bridge does not yet implement the full source and Agreement review journeys.</p>
+      <p className="mt-1 text-xs text-sand-700">Real conversation gateway. The living Agreement on the right now follows this same SecurePay conversation. Formal review, evidence upload and acceptance remain in the existing journey.</p>
     </div>
     <div className="flex-1 space-y-3 overflow-auto p-4" aria-live="polite">
       {state.turns.length===0 && <p className="text-sm text-sand-700">Describe what you want to agree. Real replies will appear here; they are not scripted preview messages.</p>}
