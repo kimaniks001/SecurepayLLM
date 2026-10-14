@@ -1,0 +1,40 @@
+name: Living Workspace Phase 7 Certification
+on:
+  push:
+    branches:
+      - design/living-workspace-vision-circle-20261014
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'src/RuntimeApp.tsx'
+      - 'tests/living-workspace-phase7.test.mjs'
+      - 'package.json'
+      - '.github/workflows/living-workspace-phase7.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: living-workspace-phase7-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  phase7:
+    name: Phase 7 static gates and frontend regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Living Workspace boundary tests
+        run: npm run test:living-workspace
+      - name: Existing regression tests
+        run: npm run test:final-convergence
+      - name: Production build
+        run: npm run build
