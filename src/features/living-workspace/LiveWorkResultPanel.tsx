@@ -52,13 +52,13 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
         <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
         <p className="mt-2 text-sm leading-6 text-sand-700">The agreed amount is not yet a payment instruction. First clarify who pays, which payee is entitled, and what must happen before money moves.</p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
-          <span className="rounded-lg bg-white px-2 py-2">Payer</span>
+          <span className="rounded-lg bg-white px-2 py-2">Payer to establish</span>
           <ArrowRight size={14} aria-hidden="true"/>
-          <span className="rounded-lg bg-white px-2 py-2">Agreement conditions</span>
+          <span className="rounded-lg bg-white px-2 py-2">Conditions to agree</span>
           <ArrowRight size={14} aria-hidden="true"/>
-          <span className="rounded-lg bg-white px-2 py-2">Verified payee</span>
+          <span className="rounded-lg bg-white px-2 py-2">Payee to verify</span>
         </div>
-        <p className="mt-3 text-xs text-sand-600">The person receiving the item is not automatically the person receiving money. SecurePay Money must separately verify the payment destination and authorise funding or release under the Agreement. No payment can be initiated here.</p>
+        <p className="mt-3 text-xs text-sand-600">The person receiving the item is not automatically the payee. After Agreement acceptance, SecurePay Money must confirm the entitled payee, verified payment destination and supported rail. Money cannot be initiated from this preview.</p>
       </section>}
       {currentQuestion && <section aria-label="Strengthen before review" className="rounded-xl border border-cream-200 p-4">
         <div className="flex items-center justify-between gap-2">
