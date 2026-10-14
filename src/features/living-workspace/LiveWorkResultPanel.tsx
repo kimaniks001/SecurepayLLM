@@ -1,6 +1,8 @@
+import { useState } from 'react';
+import { practicalQuestions, prepareQuestionForKs001 } from './practicalReadiness';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
-import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, HelpCircle } from 'lucide-react';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   if (terms.length===0) return null;
@@ -16,13 +18,17 @@ function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   </section>;
 }
 
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onDiscuss }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
+  onDiscuss: (question: string) => void;
 }) {
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const preparation = practicalQuestions(formation);
+  const currentQuestion = preparation.length ? preparation[questionIndex % preparation.length] : null;
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
@@ -41,7 +47,32 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: 
       <p className="mt-2 text-xs">The previous version is not confirmed current. Try refreshing; chat messages and Agreement terms are not fabricated.</p>
     </div>}
     {formation && <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.stage==='UNDERSTOOD'?'Ready to review':formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>
+      <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.stage==='UNDERSTOOD'?'Draft formed · strengthen before review':formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>
+      {formation.money.length > 0 && <section aria-label="Money follows the Agreement" className="rounded-xl border border-cream-200 bg-cream-50 p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
+        <p className="mt-2 text-sm leading-6 text-sand-700">The agreed amount is not yet a payment instruction. First clarify who pays, which payee is entitled, and what must happen before money moves.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium">
+          <span className="rounded-lg bg-white px-2 py-2">Payer</span>
+          <ArrowRight size={14} aria-hidden="true"/>
+          <span className="rounded-lg bg-white px-2 py-2">Agreement conditions</span>
+          <ArrowRight size={14} aria-hidden="true"/>
+          <span className="rounded-lg bg-white px-2 py-2">Verified payee</span>
+        </div>
+        <p className="mt-3 text-xs text-sand-600">The person receiving the item is not automatically the person receiving money. SecurePay Money must separately verify the payment destination and authorise funding or release under the Agreement. No payment can be initiated here.</p>
+      </section>}
+      {currentQuestion && <section aria-label="Strengthen before review" className="rounded-xl border border-cream-200 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sand-600"><HelpCircle size={16}/> Make this trade work in real life</p>
+          {preparation.length > 1 && <span className="shrink-0 text-xs text-sand-600">{questionIndex % preparation.length + 1} of {preparation.length}</span>}
+        </div>
+        <p className="mt-2 text-sm font-semibold leading-6">{currentQuestion.question}</p>
+        <p className="mt-2 text-xs leading-5 text-sand-700">{currentQuestion.reason}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" disabled={busy} onClick={()=>onDiscuss(prepareQuestionForKs001(currentQuestion.question))} className="min-h-11 rounded-lg bg-forest-800 px-3 text-sm text-white disabled:opacity-50">Work through this with KS001</button>
+          {preparation.length > 1 && <button type="button" onClick={()=>setQuestionIndex(i=>i+1)} className="min-h-11 rounded-lg bg-cream-100 px-3 text-sm">Other detail</button>}
+        </div>
+        <p className="mt-3 text-xs text-sand-600">These are preparation questions, not invented Agreement terms or extra payment requirements. Review availability comes from the backend; financial readiness is separate.</p>
+      </section>}
       {state?.changes.length ? <div role="status" className="rounded-xl border border-cream-200 bg-cream-50 p-3"><p className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={16}/> Updated with your conversation</p>{state.changes.map(t=><p key={t} className="mt-1 text-xs">{t}</p>)}</div>:null}
       {hasContent ? <>
         <Details title="What" terms={formation.what}/>
@@ -57,7 +88,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh }: 
       {formation.openPoints.length>0 && <section className="rounded-xl bg-cream-100 p-4"><p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Still to settle</p>{formation.openPoints.slice(0,5).map(p=><p key={p.id} className="mt-2 text-sm">{p.text}</p>)}</section>}
       {formation.question && <div className="rounded-xl border border-cream-200 p-4"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sand-600"><ArrowRight size={16}/> Next question from SecurePay</p><p className="mt-2 text-sm font-medium">{formation.question.text}</p><p className="mt-1 text-xs text-sand-600">Answer KS001 on the left; this panel will update from the same conversation.</p></div>}
       {formation.readingSources.length>0 && <p className="text-xs text-sand-600">SecurePay is still reading: {formation.readingSources.join(', ')}</p>}
-      {formation.reviewable && <p className="rounded-xl border border-cream-200 p-3 text-xs">The backend indicates a reviewable draft. Formal review and acceptance remain in the existing SecurePay Agreement journey, not this preview.</p>}
+      {formation.reviewable && <p className="rounded-xl border border-cream-200 p-3 text-xs">SecurePay has enough to offer draft review, but practical delivery and payment arrangements may still need work. Use KS001 to strengthen them before confirming. Formal review and acceptance remain in the existing SecurePay journey.</p>}
     </div>}
     <div className="flex items-start gap-2 text-xs text-sand-600"><ShieldCheck size={16} className="shrink-0"/> Chat and My Work read the same conversation. Only the SecurePay backend can establish, review or authorise an Agreement.</div>
   </section>;
