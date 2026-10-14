@@ -317,3 +317,31 @@ test('Structural S2: only bounded, authenticated ID detail GETs can pass preview
    assert.equal(lastPath,'https://securepay.ke/api/v1/vision-dreams/12345678');
  }finally{globalThis.fetch=original;}
 });
+
+test('Authentication mock: demo is visibly simulated and never grants a SecurePay session',()=>{
+ const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
+ assert.match(shell,/const \[mockSignedIn,setMockSignedIn\] = useState\(false\)/);
+ assert.match(shell,/setMockSignedIn\(true\)/);
+ assert.match(shell,/setMockSignedIn\(false\)/);
+ assert.match(shell,/Try mock sign-in/);
+ assert.match(shell,/Exit demo/);
+ assert.match(shell,/DEMO ACCOUNT · NO REAL ACCESS/);
+ assert.match(shell,/mockSignedIn\s*\? <MockWorkspacePanel key=\{mode\}/);
+ assert.match(shell,/!mockSignedIn && mode==='work'/);
+ assert.match(shell,/!mockSignedIn && !signedIn && mode!=='work'/);
+ assert.match(shell,/!mockSignedIn && !signedIn && <>/);
+ assert.match(shell,/!mockSignedIn && <button/);
+ assert.doesNotMatch(demo,/createSessionStore|setTokens\(|refreshToken|accessToken|fetch\(|axios|localStorage|sessionStorage|setMembership|setRole/);
+ assert.match(demo,/simulated signed-in experience/);
+ assert.match(demo,/sample records/);
+ assert.match(demo,/no real KS001 response/i);
+ for(const section of ['work','vision','circle','community'])assert.ok(demo.includes(section),section);
+});
+test('Authentication mock: only real sign-in can set real SessionStore tokens',()=>{
+ const sessions=source('src/api/securepay/session.ts');
+ const realLogin=source('src/features/public/SignInExperience.tsx');
+ assert.match(realLogin,/createIdentityController\(auth, session\)/);
+ assert.match(sessions,/setTokens: \(tokens: SessionTokens\)/);
+ assert.doesNotMatch(shell,/session\.setTokens\(|session\.clear\(|getAccessToken\(\)/);
+ assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/gateways|session|identity\.set/);
+});
