@@ -432,3 +432,64 @@ test('Structural S3: unavailable Dream board revision cannot silently be overwri
  assert.match(board,/Do not save over an unknown version/);
  assert.match(board,/expectedRevision: revision/);
 });
+
+test('Structural S4: real Community exposes only ACTIVE-member, Circle-free records',()=>{
+ const hub=source('src/features/living-workspace/InlineCommunityHub.tsx');
+ const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
+ assert.match(app,/signedIn && workspaceGateways && mode==='community'/);
+ assert.match(app,/<InlineCommunityHub/);
+ assert.match(hub,/gateways\.community\.membership\.me\(\)/);
+ assert.match(hub,/membership\.data\?\.status==='ACTIVE'/);
+ assert.match(hub,/if\(!active \|\| page==='learning'\)return/);
+ assert.match(hub,/rows\.filter\(row=>row\.circleId===null\)/);
+ assert.match(hub,/gateways\.community\.projects\.list\(20,0\)/);
+ assert.match(hub,/gateways\.community\.serviceOpportunities\.list\(20,0\)/);
+ assert.match(hub,/gateways\.community\.events\.list\(20,0\)/);
+ assert.match(hub,/No participation recorded/);
+ assert.match(demo,/data-mock-community-tools/);
+ assert.match(demo,/<LivingCommunityPanel\/>/);
+ assert.doesNotMatch(demo,/gateways\.community\.|fetch\(/);
+});
+test('Structural S4: Photos-first universal preview never sends photos or notes to KS001',()=>{
+ const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ const tools=source('src/features/living-workspace/UniversalSourceTray.tsx');
+ assert.match(app,/useState\('Photos'\)/);
+ assert.ok(app.indexOf("{ name: 'Photos'")<app.indexOf("{ name: 'Documents'"));
+ assert.match(app,/<UniversalSourceTray tool=\{activeTool\} area=\{mode\} isDemo=\{mockSignedIn\}/);
+ assert.match(tools,/data-universal-source-tray/);
+ assert.match(tools,/reader\.readAsDataURL\(file\)/);
+ assert.match(tools,/No upload · Unverified/);
+ assert.match(tools,/const MAX_BYTES=2_000_000/);
+ assert.match(tools,/seq\.current\+\+/);
+ assert.doesNotMatch(tools,/fetch\(|axios|gateway\.|session\.setTokens|localStorage|sessionStorage/);
+});
+test('Structural S4: member Community discovery relay is bounded and separately membership-gated',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const request=async(path,token=false)=>{
+  const response={statusCode:200,setHeader(){},end(body){this.body=body;}};
+  await handler({method:'GET',query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',...(token?{authorization:'Bearer abcdefghijklmnop'}:{})}},response);
+  return response.statusCode;
+ };
+ const route='/api/v1/community/projects?limit=20&offset=0';
+ assert.equal(await request(route),401);
+ assert.equal(await request('/api/v1/community/projects?limit=99&offset=0',true),403);
+ assert.equal(await request('/api/v1/community/events?limit=20&offset=0&circleId=private',true),403);
+ assert.equal(await request('/api/v1/community/apprenticeship-projects?limit=20&offset=0',true),403);
+ const before=globalThis.fetch;
+ try{
+  let calls=[];
+  globalThis.fetch=async(url)=>{calls.push(String(url));return new Response(JSON.stringify({status:'INVITED'}),{status:200});};
+  assert.equal(await request(route,true),403);
+  assert.equal(calls.length,1);
+  assert.match(calls[0],/membership\/me$/);
+  calls=[];
+  globalThis.fetch=async(url)=>{
+    calls.push(String(url));
+    return new Response(String(url).endsWith('/membership/me')?JSON.stringify({status:'ACTIVE'}):'[]',{status:200});
+  };
+  assert.equal(await request(route,true),200);
+  assert.equal(calls.length,2);
+  assert.equal(calls[1],'https://securepay.ke'+route);
+ }finally{globalThis.fetch=before;}
+});
