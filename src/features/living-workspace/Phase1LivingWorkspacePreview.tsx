@@ -1,3 +1,4 @@
+import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
@@ -60,6 +61,30 @@ export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGatew
     void formationController.load(liveConversationId);
   }, [liveStarted, formationController, liveConversationId, liveContextVersion, lastLiveTurnId, liveBusy, livePending]);
 
+  const [examination, setExamination] = useState<{ status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null }>({status:'idle',data:null});
+  const liveFormationVersion = formationState?.data?.conversationId === liveConversationId ? formationState.data.version : null;
+  useEffect(() => {
+    if (!liveStarted || !gateway || !liveConversationId || liveFormationVersion === null || liveBusy || livePending) {
+      setExamination({status:'idle',data:null});
+      return;
+    }
+    let cancelled = false;
+    setExamination({status:'loading',data:null});
+    let zone: string | undefined;
+    try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch { /* optional */ }
+    void gateway.readFairTradeExamination(liveConversationId,zone).then(reading => {
+      if (cancelled) return;
+      // No display unless this is exactly the conversation and Trade Context version being viewed.
+      if (reading.conversationId !== liveConversationId || reading.tradeContextVersion !== liveFormationVersion
+          || reading.status !== 'PARTIAL_ADVISORY') {
+        setExamination({status:'unavailable',data:null});
+      } else {
+        setExamination({status:'ready',data:reading});
+      }
+    }).catch(() => { if (!cancelled) setExamination({status:'unavailable',data:null}); });
+    return () => { cancelled = true; };
+  }, [gateway, liveStarted, liveConversationId, liveFormationVersion, liveBusy, livePending]);
+
   const [screen, setScreen] = useState<Screen>('chat');
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeTool, setActiveTool] = useState('People & Invitations');
@@ -106,6 +131,7 @@ export function Phase1LivingWorkspacePreview({ gateway }: { gateway?: AgentGatew
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="p-5">{mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
+          examination={examination}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
         />:mode==='work'?<LivingAgreementPanel/>:mode==='vision'?<LivingVisionPanel/>:mode==='circle'?<LivingCirclePanel/>:mode==='community'?<LivingCommunityPanel/>:<><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div></>}
         <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
