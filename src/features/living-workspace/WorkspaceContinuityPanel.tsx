@@ -3,6 +3,8 @@ import { Bookmark, FolderOpen, Globe2, Layers3, LockKeyhole, RefreshCw, Users } 
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
 import type { SavedBuildDto } from '../../api/securepay/agent/dto';
+import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import { storeAgreementEntry, storeDreamEntry, storeCircleEntry } from '../experience/entryIntent';
 import type { VisionDreamDto } from '../../api/securepay/visiondreams/dto';
 import type { CircleResponse, CommunityObjectResponse, MembershipResponse } from '../../api/securepay/community/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
@@ -31,6 +33,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const signedIn=identity.status==='signed-in';
  const [saved,setSaved]=useState<LoadState<SavedBuildDto>>(empty);
+ const [agreements,setAgreements]=useState<LoadState<CurrentUserAgreementSummaryResponse>>(empty);
  const [dreams,setDreams]=useState<LoadState<VisionDreamDto>>(empty);
  const [circles,setCircles]=useState<LoadState<CircleResponse>>(empty);
  const [feed,setFeed]=useState<LoadState<CommunityObjectResponse>>(empty);
@@ -42,7 +45,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
  const reload=useCallback(()=>setRevision(n=>n+1),[]);
  useEffect(()=>{
    // Session is the one auth boundary. Never retain another identity's records.
-   setSaved(empty());setDreams(empty());setCircles(empty());setFeed(empty());
+   setSaved(empty());setAgreements(empty());setDreams(empty());setCircles(empty());setFeed(empty());
    setMember({status:'idle',data:null});setActionError(null);
    if(!signedIn||!gateways)return;
    let stopped=false;
@@ -56,7 +59,10 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      if(stopped||session.getSnapshot().status!=='signed-in')return;
      // Load only the currently requested domain. This keeps Circle/member data
      // off unrelated screens and avoids expensive background access checks.
-     if(area==='work') apply(setSaved,gateways.agent.listSavedBuilds(20,0));
+     if(area==='work') {
+       apply(setSaved,gateways.agent.listSavedBuilds(20,0));
+       apply(setAgreements,gateways.agreements.currentUserAgreements(0,20).then(page=>page.items));
+     }
      if(area==='vision') apply(setDreams,gateways.dreams.mine());
      if(area==='circle') apply(setCircles,gateways.community.circles.mine(20,0));
      if(area==='community') {
@@ -80,6 +86,18 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      await onResume(savedRecord.conversationId);
    }catch(error){setActionError(errorLabel(error));}
    finally{setBusy(null);}
+ };
+ const openRealAgreement=(id:string)=>{
+   storeAgreementEntry(id);
+   window.location.hash='#/';
+ };
+ const openRealDream=(id:string)=>{
+   storeDreamEntry(id);
+   window.location.hash='#/vision';
+ };
+ const openRealCircle=(id:string)=>{
+   storeCircleEntry(id);
+   window.location.hash='#/community';
  };
  const route=(name:'vision'|'community')=>{
    // Existing first-party journeys retain their own handlers and server permissions.
@@ -107,6 +125,19 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <button type="button" disabled={busy!==null} onClick={()=>void resume(b)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs disabled:opacity-50">{busy===b.savedBuildId?'Opening…':'Continue the same conversation'}</button>
      </article>)}
    </div>}
+   {area==='work' && <div className="mt-5 space-y-2" data-real-agreements>
+     <p className="flex items-center gap-2 text-sm font-semibold"><FolderOpen size={17}/> Your Agreements</p>
+     <p className="text-xs text-sand-700">Established Agreement records are separate from saved KS001 drafts. SecurePay determines each Agreement's status, participant access and next action.</p>
+     {agreements.status==='loading' && <p role="status" className="text-xs">Loading your Agreements…</p>}
+     {agreements.status==='error' && <p role="alert" className="text-xs">{agreements.error}</p>}
+     {agreements.status==='ready' && agreements.items.length===0 && <p className="text-xs text-sand-700">No Agreements returned for this identity.</p>}
+     {agreements.status==='ready' && agreements.items.map(a=><article key={a.agreementId} className="rounded-xl border border-cream-200 p-3">
+       <p className="text-sm font-semibold">{a.title}</p>
+       <p className="mt-1 text-xs text-sand-700">{a.publicReference} · {a.status}</p>
+       <p className="mt-1 text-xs text-sand-600">Updated {formatDate(a.updatedAt)}</p>
+       <button type="button" onClick={()=>openRealAgreement(a.agreementId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Agreement</button>
+     </article>)}
+   </div>}
    {area==='vision' && <div className="space-y-2">
      <p className="flex items-center gap-2 text-sm font-semibold"><Layers3 size={17}/> My saved Dreams</p>
      {dreams.status==='loading' && <p role="status" className="text-xs">Loading your Dreams…</p>}
@@ -115,6 +146,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      {dreams.status==='ready' && dreams.items.map(d=><article key={d.dreamId} className="rounded-xl border border-cream-200 p-3">
        <p className="text-sm font-semibold">{d.title}</p><p className="mt-1 text-xs text-sand-700">Version {d.version} · Updated {formatDate(d.updatedAt)}</p>
        <p className="mt-1 text-xs text-sand-700">{d.locked?'Locked · read under existing Vision permissions':'Saved in your private Vision'}</p>
+       <button type="button" onClick={()=>openRealDream(d.dreamId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Dream</button>
      </article>)}
      <button type="button" onClick={()=>route('vision')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open the real Vision Board</button>
    </div>}
@@ -128,6 +160,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <p className="mt-1 text-xs text-sand-700">{circle.purpose}</p>
        <p className="mt-1 text-xs text-sand-700">{circle.status} · {circle.visibility} · {circle.memberCount} members</p>
        <p className="mt-2 text-xs text-sand-600">Proposals and decisions stay in the authorised Circle journey.</p>
+       <button type="button" onClick={()=>openRealCircle(circle.id)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Circle</button>
      </article>)}
      <button type="button" onClick={()=>route('community')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open real Circles and governance</button>
    </div>}
