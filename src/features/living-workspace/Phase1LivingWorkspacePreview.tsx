@@ -1,3 +1,4 @@
+import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
 import { useState } from 'react';
 import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
@@ -47,7 +48,7 @@ export function Phase1LivingWorkspacePreview() {
   return <main className="min-h-screen bg-cream-50 text-forest-800">
     <header className="border-b border-cream-200 bg-white/90 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
-        <div><strong className="text-xl tracking-tight">SecurePay</strong><p className="text-xs text-sand-600">Living workspace · Phase 1 preview</p></div>
+        <div><strong className="text-xl tracking-tight">SecurePay</strong><p className="text-xs text-sand-600">Living workspace · Phase 3 visual preview</p></div>
         <nav aria-label="Workspace experience" className="flex max-w-full rounded-xl bg-cream-100 p-1">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
             <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>{setMode(id);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);}} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
@@ -67,7 +68,7 @@ export function Phase1LivingWorkspacePreview() {
         <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
-        <div className="p-5"><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div>
+        <div className="p-5">{mode==='work'?<LivingAgreementPanel/>:<><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div></>}
         <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
         <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver</strong><p className="mt-2 text-xs text-sand-600">Opportunities require a Plug, verification and informed consent. Suggestions do not change Agreements.</p></div></div>
       </aside>
