@@ -274,3 +274,46 @@ test('Structural S2: preview Agreement list is person-scoped and not a generic I
    assert.equal(target,'https://securepay.ke/api/v1/me/agreements?page=0&size=20');
  }finally{globalThis.fetch=prior;}
 });
+
+test('Structural S2: explicit inspection reads exact server IDs and never assumes authority',()=>{
+ const panel=source('src/features/living-workspace/SelectedWorkspaceRecord.tsx');
+ const continuity=source('src/features/living-workspace/WorkspaceContinuityPanel.tsx');
+ assert.match(panel,/ensureFreshSession\(session,gateways\.auth\)/);
+ assert.match(panel,/gateways\.agreements\.detail\(id\)/);
+ assert.match(panel,/result\.overview\.agreementId!==id/);
+ assert.match(panel,/gateways\.dreams\.get\(id\)/);
+ assert.match(panel,/dream\.dreamId!==id/);
+ assert.match(panel,/gateways\.community\.circles\.get\(id\)/);
+ assert.match(panel,/circle\.id!==id/);
+ assert.match(panel,/read.only summary/i);
+ assert.match(continuity,/SelectedWorkspaceRecord/);
+ assert.match(continuity,/Inspect record/);
+ assert.doesNotMatch(panel,/localStorage|sessionStorage|setRole|joinCircle\(/);
+});
+test('Structural S2: only bounded, authenticated ID detail GETs can pass preview relay',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async(method,path,authorization)=>{
+  const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
+  await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',...(authorization?{authorization}:{})}},res);
+  return res.statusCode;
+ };
+ const auth='Bearer abcdefghijklmnop';
+ for(const p of [
+  '/api/v1/vision-dreams/12345678',
+  '/api/v1/community/circles/12345678',
+  '/api/v1/agreements/12345678/detail',
+ ]){
+  assert.equal(await call('GET',p),401);
+  assert.equal(await call('POST',p,auth),403);
+  assert.equal(await call('GET',p+'?admin=true',auth),403);
+ }
+ for(const p of ['/api/v1/vision-dreams/12345678/assets','/api/v1/community/circles/12345678/objects','/api/v1/agreements/12345678/release'])
+  assert.equal(await call('GET',p,auth),403);
+ const original=globalThis.fetch;
+ try{
+   let lastPath='';
+   globalThis.fetch=async url=>{lastPath=String(url);return new Response('{}',{status:200});};
+   assert.equal(await call('GET','/api/v1/vision-dreams/12345678',auth),200);
+   assert.equal(lastPath,'https://securepay.ke/api/v1/vision-dreams/12345678');
+ }finally{globalThis.fetch=original;}
+});
