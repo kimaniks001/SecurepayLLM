@@ -225,3 +225,52 @@ test('Structural workspace: preview relay rejects untrusted origins, other peopl
    assert.equal(observed.opts.body,undefined);
  }finally{globalThis.fetch=oldFetch;}
 });
+
+test('Structural S2: Dream, Circle and Agreement IDs enter only canonical experiences',()=>{
+ const bridge=source('src/features/experience/entryIntent.ts');
+ const work=source('src/features/living-workspace/WorkspaceContinuityPanel.tsx');
+ const router=source('src/features/agent/AgentExperience.tsx');
+ const dream=source('src/features/visionboard/dreams/controller.ts');
+ const dreamScreen=source('src/features/visionboard/dreams/VisionDreamExperience.tsx');
+ const community=source('src/features/community/CommunityExperience.tsx');
+ assert.match(work,/gateways\.agreements\.currentUserAgreements\(0,20\)/);
+ assert.match(work,/storeAgreementEntry\(id\)/);
+ assert.match(work,/storeDreamEntry\(id\)/);
+ assert.match(work,/storeCircleEntry\(id\)/);
+ assert.match(bridge,/pendingDreamId = clean/);
+ assert.match(bridge,/pendingCircleId = clean/);
+ assert.match(bridge,/consumeDreamEntry\(\)/);
+ assert.match(bridge,/consumeCircleEntry\(\)/);
+ assert.match(router,/consumeDreamEntry\(\)/);
+ assert.match(router,/consumeCircleEntry\(\)/);
+ assert.match(router,/initialDreamId=\{externalDreamId\}/);
+ assert.match(router,/initialCircleId=\{externalCircleId\}/);
+ assert.match(dream,/async openOwnedById\(dreamId: string\)/);
+ assert.match(dream,/dreams\.get\(dreamId\)/);
+ assert.match(dream,/dream\.dreamId !== dreamId/);
+ assert.match(dreamScreen,/controller\.openOwnedById\(id\)/);
+ assert.match(community,/controller\.openCircle\(circleId\)/);
+ assert.doesNotMatch(bridge,/localStorage|sessionStorage|document\.cookie/);
+});
+test('Structural S2: preview Agreement list is person-scoped and not a generic ID reader',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async(method,path,auth=null)=>{
+   const res={statusCode:200,setHeader(){},end(v){this.body=v;}};
+   await handler({method,query:{path},headers:{host:'securepay-ci.vercel.app',origin:'https://securepay-ci.vercel.app',...(auth?{authorization:auth}:{})}},res);
+   return res;
+ };
+ const auth='Bearer abcdefghijklmnop';
+ assert.equal((await call('GET','/api/v1/me/agreements?page=0&size=20')).statusCode,401);
+ assert.equal((await call('POST','/api/v1/me/agreements?page=0&size=20',auth)).statusCode,403);
+ assert.equal((await call('GET','/api/v1/me/agreements?page=0&size=999',auth)).statusCode,403);
+ assert.equal((await call('GET','/api/v1/me/agreements?page=0&size=20&ownerId=other',auth)).statusCode,403);
+ assert.equal((await call('GET','/api/v1/me/agreements?page=0&page=1&size=20',auth)).statusCode,403);
+ assert.equal((await call('GET','/api/v1/agreements/123/detail',auth)).statusCode,403);
+ const prior=globalThis.fetch;
+ try{
+   let target='';
+   globalThis.fetch=async url=>{target=String(url);return new Response(JSON.stringify({items:[],page:0,size:20,totalElements:0}),{status:200});};
+   assert.equal((await call('GET','/api/v1/me/agreements?page=0&size=20',auth)).statusCode,200);
+   assert.equal(target,'https://securepay.ke/api/v1/me/agreements?page=0&size=20');
+ }finally{globalThis.fetch=prior;}
+});
