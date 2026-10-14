@@ -85,6 +85,7 @@ export function DreamBuilder({
   const fileRef = useRef<HTMLInputElement>(null);
   const drawRef = useRef<{ id: string; before: BoardDoc; points: Array<[number, number]> } | null>(null);
   const savedBoardSignature = useRef<string | null>(null);
+  const serverRevisionKnown = useRef(false);
   const currentDirty = savedBoardSignature.current !== null &&
     (encode(doc) !== savedBoardSignature.current || title !== dream.title ||
       saveState === 'saving' || saveState === 'error');
@@ -106,6 +107,7 @@ export function DreamBuilder({
     void gateway.board(dream.dreamId).then(board => {
       if (!live) return;
       const authoritative = board.revision > 0 ? decode(board.documentJson) : legacyInitial;
+      serverRevisionKnown.current = true;
       savedBoardSignature.current = encode(authoritative);
       setDoc(authoritative);
       setRevision(board.revision);
@@ -116,10 +118,11 @@ export function DreamBuilder({
     }).catch(() => {
       if (!live) return;
       // Never claim a failed board load is an authoritative blank revision.
-      savedBoardSignature.current = null;
+      serverRevisionKnown.current = false;
+      savedBoardSignature.current = encode(legacyInitial);
       setDoc(legacyInitial);
       setRevision(0);
-      setSaveState('idle');
+      setSaveState('error');
       setLocalError('Visual board storage is not reachable yet. Your existing Dream is still available; do not rely on this board as saved until SecurePay confirms it.');
     });
     return () => { live = false; };
@@ -241,6 +244,11 @@ export function DreamBuilder({
   };
 
   const save = async () => {
+    if(!serverRevisionKnown.current) {
+      setSaveState('error');
+      setLocalError('This board did not load its current revision. Do not save over an unknown version; reopen the Dream when SecurePay is available.');
+      return;
+    }
     const payload = encode(doc);
     if (bytes(payload) > MAX_BOARD_BYTES) {
       setLocalError('This Dream has grown beyond the current 512 KB board limit. Nothing has been discarded. Remove some board detail before saving.');
