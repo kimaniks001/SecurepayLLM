@@ -23,7 +23,9 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
     const endpoint = '/api/preview-agent?path=' + encodeURIComponent(url.pathname + url.search);
     // The browser speaks only to its own Vercel origin. The serverless relay
     // validates the request before making a server-to-server HTTPS call.
-    // Vercel preview protection may require its own same-origin session cookie.\n    // This cookie is consumed by Vercel; the relay NEVER forwards cookies upstream.\n    return fetch(endpoint, { ...init, credentials: 'same-origin' });
+    // Vercel preview protection may require its own same-origin session cookie.
+    // This cookie is consumed by Vercel; the relay NEVER forwards cookies upstream.
+    return fetch(endpoint, { ...init, credentials: 'same-origin' });
   };
   return createAgentGateway(createHttpClient(baseUrl, getAccessToken, previewFetch));
 }
