@@ -54,18 +54,22 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
    void (async()=>{
      try{await ensureFreshSession(session,gateways.auth);}catch{return;}
      if(stopped||session.getSnapshot().status!=='signed-in')return;
-     apply(setSaved,gateways.agent.listSavedBuilds(20,0));
-     apply(setDreams,gateways.dreams.mine());
-     apply(setCircles,gateways.community.circles.mine(20,0));
-     setMember({status:'loading',data:null});
-     void gateways.community.membership.me().then(m=>{
-       if(stopped)return;
-       setMember({status:'ready',data:m});
-       if(m.status==='ACTIVE') apply(setFeed,gateways.community.feed(15,0));
-     }).catch(()=>{if(!stopped)setMember({status:'error',data:null});});
+     // Load only the currently requested domain. This keeps Circle/member data
+     // off unrelated screens and avoids expensive background access checks.
+     if(area==='work') apply(setSaved,gateways.agent.listSavedBuilds(20,0));
+     if(area==='vision') apply(setDreams,gateways.dreams.mine());
+     if(area==='circle') apply(setCircles,gateways.community.circles.mine(20,0));
+     if(area==='community') {
+       setMember({status:'loading',data:null});
+       void gateways.community.membership.me().then(m=>{
+         if(stopped)return;
+         setMember({status:'ready',data:m});
+         if(m.status==='ACTIVE') apply(setFeed,gateways.community.feed(15,0));
+       }).catch(()=>{if(!stopped)setMember({status:'error',data:null});});
+     }
    })();
    return ()=>{stopped=true;};
- },[signedIn,gateways,session,revision]);
+ },[signedIn,gateways,session,area,revision]);
  const resume=async(item:SavedBuildDto)=>{
    if(!gateways||!signedIn||busy)return;
    setBusy(item.savedBuildId);setActionError(null);
