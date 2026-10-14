@@ -14,36 +14,36 @@ function allowed(method, pathname, params) {
   const board = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/board$/;
   const asset = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/assets\/[A-Za-z0-9_-]{8,128}$/;
   const assets = /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}\/assets$/;
-  const circleBase = '^/api/v1/community/circles/[A-Za-z0-9_-]{8,128}';
-  const circleMember = new RegExp(circleBase+'/membership
-  if (method==='PATCH') return noQuery && dream.test(pathname);
-  if (method==='PUT') return noQuery && board.test(pathname);
-  if (method==='DELETE') return noQuery && asset.test(pathname);
+  const base = String.raw`^/api/v1/community/circles/[A-Za-z0-9_-]{8,128}`;
+  const circleMember = new RegExp(base + '/membership$');
+  const circleObjects = new RegExp(base + '/objects$');
+  const circleCoordination = new RegExp(base + '/coordination-prompts$');
+  const circleCoordinationMine = new RegExp(base + '/coordination-prompts/mine$');
+  const circleRespond = new RegExp(base + '/coordination-prompts/[A-Za-z0-9_-]{8,128}/responses$');
+
+  if (method === 'PATCH') return noQuery && dream.test(pathname);
+  if (method === 'PUT') return noQuery && board.test(pathname);
+  if (method === 'DELETE') return noQuery && asset.test(pathname);
   if (method === 'POST') {
     if (!noQuery) return false;
-    if (assets.test(pathname) || circleObjects.test(pathname) || circleCoordination.test(pathname) || circleRespond.test(pathname)) return true;
+    if (assets.test(pathname) || circleObjects.test(pathname)
+        || circleCoordination.test(pathname) || circleRespond.test(pathname)) return true;
     if (['/api/v1/auth/login', '/api/v1/auth/complete', '/api/v1/auth/refresh',
       '/api/v1/auth/mfa/resend'].includes(pathname)) return true;
     return /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(pathname);
   }
   if (method !== 'GET') return false;
-  if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname) || circleMember.test(pathname) || circleCoordinationMine.test(pathname))) return true;
-  if (pathname === '/api/v1/vision-dreams' ||
-      pathname === '/api/v1/community/membership/me') return noQuery;
-  // Explicit, read-only ID lookups. Every source endpoint performs its own
-  // owner/member/participant checks. No posts, assets, payments or mutations.
-  if (noQuery && (
-       /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}$/.test(pathname) ||
-       /^\/api\/v1\/community\/circles\/[A-Za-z0-9_-]{8,128}$/.test(pathname) ||
-       /^\/api\/v1\/agreements\/[A-Za-z0-9_-]{8,128}\/detail$/.test(pathname)
-     )) return true;
-  // Authorised person-only Agreement summaries, never unrestricted Agreement IDs.
+  if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname)
+      || circleMember.test(pathname) || circleCoordinationMine.test(pathname))) return true;
+  if (noQuery && (pathname === '/api/v1/vision-dreams'
+      || pathname === '/api/v1/community/membership/me')) return true;
+  if (noQuery && (dream.test(pathname)
+      || /^\/api\/v1\/community\/circles\/[A-Za-z0-9_-]{8,128}$/.test(pathname)
+      || /^\/api\/v1\/agreements\/[A-Za-z0-9_-]{8,128}\/detail$/.test(pathname))) return true;
   if (pathname === '/api/v1/me/agreements') {
-    if (keys.some(k => !['page','size'].includes(k))) return false;
-    if (keys.length !== new Set(keys).size) return false;
+    if (keys.some(k => !['page','size'].includes(k)) || keys.length !== new Set(keys).size) return false;
     for (const [key,value] of params) {
-      if (!/^\d{1,4}$/.test(value)) return false;
-      if (Number(value) > (key === 'size' ? 20 : 1000)) return false;
+      if (!/^\d{1,4}$/.test(value) || Number(value) > (key === 'size' ? 20 : 1000)) return false;
     }
     return true;
   }
@@ -51,11 +51,9 @@ function allowed(method, pathname, params) {
     || pathname === '/api/v1/community/circles/mine'
     || pathname === '/api/v1/community/objects'
     || circleObjects.test(pathname);
-  if (!paged || keys.some(k => !['limit','offset'].includes(k))) return false;
-  if (keys.length !== new Set(keys).size) return false;
+  if (!paged || keys.some(k => !['limit','offset'].includes(k)) || keys.length !== new Set(keys).size) return false;
   for (const [key,value] of params) {
-    if (!/^\d{1,4}$/.test(value)) return false;
-    if (Number(value) > (key === 'limit' ? 50 : 1000)) return false;
+    if (!/^\d{1,4}$/.test(value) || Number(value) > (key === 'limit' ? 50 : 1000)) return false;
   }
   return true;
 }
