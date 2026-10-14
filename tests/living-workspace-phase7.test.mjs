@@ -150,3 +150,20 @@ test('Phase 7: chat and My Work expose one backend truth, not a local five-quest
  assert.equal(result.split('formation.question.text').length-1,1);
  assert.doesNotMatch(shell,/liveController\.send\(question\)/);
 });
+
+test('Phase 7: Fair Trade examination is read only through canonical scoped access and cannot outrun Agreement version',()=>{
+ const gateway=source('src/api/securepay/agent/index.ts');
+ const result=source('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ const relay=source('api/preview-agent.js');
+ assert.match(gateway,/readFairTradeExamination:/);
+ assert.match(gateway,/fair-trade-examination/);
+ assert.match(gateway,/auth: 'optional'/);
+ assert.match(shell,/gateway\.readFairTradeExamination\(liveConversationId,zone\)/);
+ assert.match(shell,/reading\.conversationId !== liveConversationId/);
+ assert.match(shell,/reading\.tradeContextVersion !== liveFormationVersion/);
+ assert.match(result,/examination\.data\.tradeContextVersion === formation\.version/);
+ assert.match(result,/Partial examination · not qualified/);
+ assert.match(result,/formation\.question && fairTrade\.advisoryQuestion/);
+ assert.match(relay,/fair-trade-examination/);
+ assert.doesNotMatch(result,/Fair Trade Approved|Certified by SecurePay/);
+});
