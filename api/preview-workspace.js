@@ -19,6 +19,13 @@ function allowed(method, pathname, params) {
   if (method !== 'GET') return false;
   if (pathname === '/api/v1/vision-dreams' ||
       pathname === '/api/v1/community/membership/me') return noQuery;
+  // Explicit, read-only ID lookups. Every source endpoint performs its own
+  // owner/member/participant checks. No posts, assets, payments or mutations.
+  if (noQuery && (
+       /^\/api\/v1\/vision-dreams\/[A-Za-z0-9_-]{8,128}$/.test(pathname) ||
+       /^\/api\/v1\/community\/circles\/[A-Za-z0-9_-]{8,128}$/.test(pathname) ||
+       /^\/api\/v1\/agreements\/[A-Za-z0-9_-]{8,128}\/detail$/.test(pathname)
+     )) return true;
   // Authorised person-only Agreement summaries, never unrestricted Agreement IDs.
   if (pathname === '/api/v1/me/agreements') {
     if (keys.some(k => !['page','size'].includes(k))) return false;
