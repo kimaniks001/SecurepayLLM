@@ -24,12 +24,14 @@ function errorLabel(error:unknown):string{
  * No private data is cached in localStorage, no membership or ownership inferred,
  * no client-side Circle access grants, no demo cards passed off as real.
  */
-export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResume}:{
+export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResume,onEditDream,onOpenCircleBoard}:{
  area:WorkspaceArea;
  gateways?:PreviewWorkspaceGateways;
  session:SessionStore;
  onSignIn:()=>void;
  onResume:(conversationId:string)=>Promise<void>;
+ onEditDream?:(dreamId:string)=>void;
+ onOpenCircleBoard?:(circleId:string)=>void;
 }){
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const signedIn=identity.status==='signed-in';
@@ -150,6 +152,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <p className="text-sm font-semibold">{d.title}</p><p className="mt-1 text-xs text-sand-700">Version {d.version} · Updated {formatDate(d.updatedAt)}</p>
        <p className="mt-1 text-xs text-sand-700">{d.locked?'Locked · read under existing Vision permissions':'Saved in your private Vision'}</p>
        <button type="button" onClick={()=>setSelected({area:'vision',id:d.dreamId})} className="mt-2 mr-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Inspect record</button>
+       {onEditDream && <button type="button" onClick={()=>onEditDream(d.dreamId)} className="mt-2 mr-2 min-h-11 rounded-lg bg-forest-800 px-3 text-xs text-white">Edit here in Vision</button>}
        <button type="button" onClick={()=>openRealDream(d.dreamId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Dream</button>
      </article>)}
      <button type="button" onClick={()=>route('vision')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open the real Vision Board</button>
@@ -165,6 +168,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <p className="mt-1 text-xs text-sand-700">{circle.status} · {circle.visibility} · {circle.memberCount} members</p>
        <p className="mt-2 text-xs text-sand-600">Proposals and decisions stay in the authorised Circle journey.</p>
        <button type="button" onClick={()=>setSelected({area:'circle',id:circle.id})} className="mt-2 mr-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Inspect record</button>
+       {onOpenCircleBoard && <button type="button" onClick={()=>onOpenCircleBoard(circle.id)} className="mt-2 mr-2 min-h-11 rounded-lg bg-forest-800 px-3 text-xs text-white">Open Circle Board here</button>}
        <button type="button" onClick={()=>openRealCircle(circle.id)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Circle</button>
      </article>)}
      <button type="button" onClick={()=>route('community')} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open real Circles and governance</button>
