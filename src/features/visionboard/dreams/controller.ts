@@ -181,6 +181,27 @@ export function createVisionDreamController(
       if (state.pending?.conversationId) return;
       update({ pending: null, error: null, phase: 'ready' });
     },
+    /** S2: open by exact ID from an explicit private-work selection.
+     * This is not an ownership grant. Server `get` is required, and its
+     * returned ID must match; nothing is displayed from a filename or
+     * an unverified list row. The existing revision-aware editor is reused.
+     */
+    async openOwnedById(dreamId: string): Promise<boolean> {
+      if (!dreamId || state.pending || ['loading','saving','reconciling','editing'].includes(state.phase)) return false;
+      update({phase:'loading',error:null,selected:null});
+      try {
+        const dream=await dreams.get(dreamId);
+        if (!dream || dream.dreamId !== dreamId) throw new Error('SecurePay did not return the requested Dream');
+        // Getting the selected dream first protects a private ID against
+        // accidentally revealing another record while the list is loading.
+        update({phase:'ready',selected:dream,
+          dreams:[dream,...state.dreams.filter(d=>d.dreamId!==dreamId)],error:null});
+        return true;
+      } catch(error) {
+        update({phase:'error',selected:null,error:dreamNoteErrorText(error)});
+        return false;
+      }
+    },
     select(dreamId: string) {
       // Selecting another note cannot hide an unresolved temporary conversation/save.
       if (state.pending || state.phase === 'saving' || state.phase === 'reconciling'
