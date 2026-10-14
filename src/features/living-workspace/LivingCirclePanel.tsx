@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, MessageSquareText, Vote, ShieldCheck, FileText, Plus, CheckCircle2, Clock3 } from 'lucide-react';
+import { Users, MessageSquareText, Vote, ShieldCheck, FileText, Plus, Clock3 } from 'lucide-react';
 
 type View = 'vision'|'proposals'|'discussion'|'members';
 type Proposal = { id:number; title:string; author:string; description:string; votes:string[]; status:'proposed'|'recorded' };
