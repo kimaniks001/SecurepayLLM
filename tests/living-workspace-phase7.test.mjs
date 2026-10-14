@@ -53,7 +53,8 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
  assert.match(shell,/createAgentController\(gateway/);
  assert.match(live,/controller\.send\(next\)/);
  assert.match(live,/controller\.retry\(\)/);
- assert.match(live,/state\.context\.data\.entities/);
+ assert.doesNotMatch(live,/state\\.context\\.data\\.entities/);
+ assert.doesNotMatch(live,/What SecurePay currently understands/);
  assert.ok(!live.includes('Dream Companion'));
  assert.match(shell,/liveStarted && gateway/);
  assert.match(shell,/setLiveStarted\(true\)/);
@@ -121,4 +122,14 @@ test('Phase 7: preview relay permits only the canonical Agreement Formation read
  assert.equal(await invoke('GET','/api/agent/conversations/example123/agreement-formation?admin=true'),400);
  assert.equal(await invoke('GET','/api/agent/conversations/example123/agreement-formation?timeZone=bad%0Avalue'),400);
  assert.equal(await invoke('GET','/api/agent/conversations/example123/context?timeZone=Africa%2FNairobi'),400);
+});
+
+test('Phase 7: Agreement lives only on the right, never duplicated beneath KS001 messages',()=>{
+ const chat=source('src/features/living-workspace/LiveKs001Session.tsx');
+ const result=source('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ assert.doesNotMatch(chat,/<details/);
+ assert.doesNotMatch(chat,/Live Agreement|Agreement Formation|What SecurePay currently understands/);
+ assert.match(chat,/state\.turns\.map/);
+ assert.match(result,/data-live-formation/);
+ assert.match(shell,/LiveWorkResultPanel/);
 });
