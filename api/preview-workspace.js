@@ -47,13 +47,17 @@ function allowed(method, pathname, params) {
     }
     return true;
   }
+  const communityPublicList = [
+    '/api/v1/community/projects', '/api/v1/community/events',
+    '/api/v1/community/service-opportunities',
+  ].includes(pathname);
   const paged = pathname === '/api/agent/saved-builds'
     || pathname === '/api/v1/community/circles/mine'
     || pathname === '/api/v1/community/objects'
-    || circleObjects.test(pathname);
+    || circleObjects.test(pathname) || communityPublicList;
   if (!paged || keys.some(k => !['limit','offset'].includes(k)) || keys.length !== new Set(keys).size) return false;
   for (const [key,value] of params) {
-    if (!/^\d{1,4}$/.test(value) || Number(value) > (key === 'limit' ? 50 : 1000)) return false;
+    if (!/^\d{1,4}$/.test(value) || Number(value) > (key === 'limit' ? (communityPublicList ? 20 : 50) : 1000)) return false;
   }
   return true;
 }
@@ -119,6 +123,20 @@ export default async function handler(req, res) {
     }
   }
   try {
+    // Defence in depth: the LIVE/Community discovery lists are available only
+    // after a separate authoritative membership check, never from demo state.
+    const isMemberList = method==='GET' && [
+      '/api/v1/community/projects','/api/v1/community/events',
+      '/api/v1/community/service-opportunities',
+    ].includes(upstream.pathname);
+    if(isMemberList) {
+      const membership = await fetch(UPSTREAM+'/api/v1/community/membership/me', {
+        method:'GET',headers,redirect:'manual',signal:AbortSignal.timeout(12000),
+      });
+      if(!membership.ok) return reject(res,membership.status===401?401:403,'Community membership could not be verified');
+      const payload = await membership.json();
+      if(payload?.status!=='ACTIVE') return reject(res,403,'ACTIVE Trust Project membership required');
+    }
     const result = await fetch(upstream, {method,headers,body,redirect:'manual',signal:AbortSignal.timeout(45000)});
     if (result.status >= 300 && result.status < 400) return reject(res,502,'Unexpected upstream redirect');
     const response = await result.text();
