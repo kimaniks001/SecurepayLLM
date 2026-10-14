@@ -1,3 +1,4 @@
+import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { useState } from 'react';
@@ -70,6 +71,10 @@ export function MockWorkspacePanel({area}:{area:Mode}) {
       {area==='vision'&&<div className="mt-4 rounded-xl bg-white p-3" data-mock-vision-tools>
         <p className="mb-3 text-xs font-semibold text-amber-900">DEMO TOOLS — local exploration, never saved</p>
         <LivingVisionPanel/>
+      </div>}
+      {area==='community'&&<div className="mt-4 rounded-xl bg-white p-3" data-mock-community-tools>
+        <p className="mb-3 text-xs font-semibold text-amber-900">DEMO COMMUNITY — projects, sessions and interest are examples only</p>
+        <LivingCommunityPanel/>
       </div>}
       {area==='circle'&&<div className="mt-4 rounded-xl bg-white p-3" data-mock-circle-tools>
         <p className="mb-3 text-xs font-semibold text-amber-900">DEMO CIRCLE — pretend members and proposals only</p>
