@@ -19,6 +19,16 @@ function allowed(method, pathname, params) {
   if (method !== 'GET') return false;
   if (pathname === '/api/v1/vision-dreams' ||
       pathname === '/api/v1/community/membership/me') return noQuery;
+  // Authorised person-only Agreement summaries, never unrestricted Agreement IDs.
+  if (pathname === '/api/v1/me/agreements') {
+    if (keys.some(k => !['page','size'].includes(k))) return false;
+    if (keys.length !== new Set(keys).size) return false;
+    for (const [key,value] of params) {
+      if (!/^\d{1,4}$/.test(value)) return false;
+      if (Number(value) > (key === 'size' ? 20 : 1000)) return false;
+    }
+    return true;
+  }
   const paged = pathname === '/api/agent/saved-builds'
     || pathname === '/api/v1/community/circles/mine'
     || pathname === '/api/v1/community/objects';
