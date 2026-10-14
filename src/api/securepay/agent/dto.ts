@@ -311,3 +311,16 @@ export interface AgreementFormationDto {
   /** Entry Perfection Phase 9 -- sources still being read: Review shows what is known so far; set-up waits for them. */
   readingSources?: string[];
 }
+
+/** Read-only, server-authorised partial Fair Trade examination for ONE Trade Context version.
+ * This is not a paid-for verdict, accepted Agreement, certification or Money authority. */
+export interface FairTradeExaminationDto {
+  conversationId: string;
+  tradeContextVersion: number;
+  principleSetVersion: string;
+  status: 'PARTIAL_ADVISORY';
+  fullyExamined: boolean;
+  hasMaterialConcern: boolean;
+  advisoryQuestion: string | null;
+  findings: { principleNumber: number; principleTitle: string; state: string; explanation: string; evidenceReferences: string[] }[];
+}
