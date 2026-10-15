@@ -45,6 +45,7 @@ import { createAttemptStore, isUncertainFinancialError, UNCERTAIN_MONEY, UNRESOL
 import { moneyText } from './amount';
 import { readSettlementScope, submitDestination, type ScopeRead } from './settlementDestination';
 import { requiredActionWords } from '../support/display';
+import { peekMoneyRailPreference, clearMoneyRailPreference } from './handoff';
 
 type Load<T> =
   | { state: 'loading' }
@@ -215,6 +216,7 @@ function QuoteReview({
         <div><strong className="text-forest-900">SecurePay charge:</strong> {humanBearer(quote.feeBearer)} bears this charge.</div>
         <div><strong className="text-forest-900">Rail charge:</strong> {humanBearer(quote.railChargeBearer)} bears this charge.</div>
         <div><strong className="text-forest-900">Payer role:</strong> {humanBearer(quote.payerRole)}.</div>
+        <div className="mt-2"><strong className="text-forest-900">Financial institution:</strong> This Agreement-bound quote does not independently identify the institution legally handling this rail. Confirm the provider identity, role and applicable terms before authorising the provider payment step. Other eligible rails remain available for reconsideration.</div>
       </div>
 
       <div className="mt-4 text-xs leading-5 text-sand-500">
@@ -327,6 +329,8 @@ export function MoneyPaymentSettlementJourney({
   const [intents, setIntents] = useState<Load<AgreementPaymentIntentSummaryResponse[]>>({ state: 'loading' });
   const [paymentEvidence, setPaymentEvidence] = useState<PaymentEvidence | null>(null);
   const [quoteSelection, setQuoteSelection] = useState<QuoteSelection | null>(null);
+  const [chosenRailCode,setChosenRailCode]=useState<string|null>(null);
+  const [showAlternativeRails,setShowAlternativeRails]=useState(false);
   const [quoteBusy, setQuoteBusy] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteStale, setQuoteStale] = useState(false);
@@ -359,6 +363,8 @@ export function MoneyPaymentSettlementJourney({
 
   const fundingOptions = snapshot?.fundingOptions ?? [];
   const currentVersionId = snapshot?.currentVersionId ?? null;
+  const chosenRail=fundingOptions.find(option=>option.railCode===chosenRailCode)||null;
+  const visibleFundingOptions=chosenRail&&!showAlternativeRails?[chosenRail]:fundingOptions;
   const scopeCurrency = currency?.toUpperCase() ?? null;
 
   const loadIntents = async () => {
@@ -421,6 +427,10 @@ export function MoneyPaymentSettlementJourney({
   };
 
   useEffect(() => {
+    const preferred=peekMoneyRailPreference();
+    setChosenRailCode(preferred?.agreementId===agreementId?preferred.railCode:null);
+    clearMoneyRailPreference();
+    setShowAlternativeRails(false);
     setQuoteSelection(null);
     setQuoteError(null);
     setQuoteStale(false);
@@ -694,11 +704,23 @@ export function MoneyPaymentSettlementJourney({
             </div>
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-3" aria-label="Choose financial institution and rail">
+            <div className="rounded-2xl border border-forest-200 bg-forest-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-forest-700">Your financial choice</p>
+              <h3 className="mt-1 font-display text-xl text-forest-900">Who will handle this transaction?</h3>
+              <p className="mt-2 text-sm leading-6 text-sand-700">SecurePay shows only backend-returned funding rails for this Agreement. Choose a route, request its current price, and reconsider other options before making a payment.</p>
+              <p className="mt-2 text-xs text-sand-700"><strong>Institutional responsibility:</strong> Not yet verified by the funding-route record. A rail name is not a legal institution, financing commitment, guarantee or insurance policy. Confirm the actual provider and terms during the authorised provider process.</p>
+            </div>
+            {chosenRail&&fundingOptions.length>1&&<button type="button"
+              onClick={()=>setShowAlternativeRails(value=>!value)}
+              className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800">
+              {showAlternativeRails?'Return to selected rail':'Compare '+(fundingOptions.length-1)+' other eligible '+(fundingOptions.length===2?'route':'routes')}
+            </button>}
+            {chosenRailCode&&!chosenRail&&<StatusNotice tone="warning">The previously chosen rail is not in the latest eligible funding options. Choose a current option before proceeding.</StatusNotice>}
             {fundingOptions.length === 0 ? (
               <p className="rounded-xl bg-cream-50 p-4 text-sm text-sand-600">No funding route is currently available for this Agreement.</p>
-            ) : fundingOptions.map(rail => (
-              <div key={rail.railCode} className="rounded-2xl border border-cream-200 bg-cream-50/70 p-4">
+            ) : visibleFundingOptions.map(rail => (
+              <div key={rail.railCode} className={"rounded-2xl border p-4 "+(rail.railCode===chosenRailCode?"border-forest-400 bg-forest-50":"border-cream-200 bg-cream-50/70")}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -711,18 +733,19 @@ export function MoneyPaymentSettlementJourney({
                       {rail.maximumAmountMinor != null ? ` · maximum ${moneyText(rail.maximumAmountMinor, rail.currency)}` : ''}
                     </div>
                   </div>
-                  {rail.quoteAvailable ? (
-                    <Button
-                      variant="secondary"
-                      className="min-h-11"
-                      disabled={quoteBusy !== null || !snapshot?.feeQuoteRequestsPermitted}
-                      onClick={() => void prepareQuote(rail)}
-                    >
-                      {quoteBusy === rail.railCode ? 'Preparing price…' : 'Review funding'}
+                  {rail.railCode!==chosenRailCode ? (
+                    <Button variant="secondary" className="min-h-11"
+                      disabled={createdIntent!==null || quoteBusy!==null}
+                      onClick={()=>{setChosenRailCode(rail.railCode);setShowAlternativeRails(false);setQuoteSelection(null);setQuoteError(null);}}>
+                      Choose this route
                     </Button>
-                  ) : (
-                    <div className="text-xs text-sand-500">No quote step for this rail.</div>
-                  )}
+                  ) : rail.quoteAvailable ? (
+                    <Button variant="secondary" className="min-h-11"
+                      disabled={quoteBusy!==null || !snapshot?.feeQuoteRequestsPermitted || createdIntent!==null}
+                      onClick={()=>void prepareQuote(rail)}>
+                      {quoteBusy===rail.railCode?'Preparing verified quote…':'See confirmed cost & terms'}
+                    </Button>
+                  ) : <div className="text-xs text-sand-500">No provider quote available for this route.</div>}
                 </div>
                 {!rail.quoteAvailable && rail.railCode === 'MPESA_STK' && (
                   <p className="mt-2 text-xs leading-5 text-sand-600">
