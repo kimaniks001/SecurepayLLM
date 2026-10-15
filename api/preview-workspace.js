@@ -32,6 +32,15 @@ function allowed(method, pathname, params) {
       '/api/v1/auth/mfa/resend'].includes(pathname)) return true;
     return /^\/api\/agent\/saved-builds\/[A-Za-z0-9_-]{8,128}\/resume$/.test(pathname);
   }
+  if (method === 'GET' && pathname === '/api/v1/stores/search') {
+    if (keys.some(key => !['kind','category','location','limit'].includes(key)) ||
+        new Set(keys).size !== keys.length) return false;
+    if (!['PRODUCT','SERVICE','CAPACITY'].includes(params.get('kind'))) return false;
+    if (params.has('limit') && !/^(?:[1-9]|10)$/.test(params.get('limit'))) return false;
+    return ['category','location'].every(key => !params.has(key) || params.get(key).length <= 120);
+  }
+  if (method === 'GET' && noQuery &&
+      /^\/api\/v1\/stores\/[A-Za-z0-9_-]{3,60}$/.test(pathname)) return true;
   if (method !== 'GET') return false;
   if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname)
       || circleMember.test(pathname) || circleCoordinationMine.test(pathname))) return true;
