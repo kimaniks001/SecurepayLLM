@@ -166,9 +166,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
+  const [storeServiceQuery, setStoreServiceQuery] = useState('');
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: string, request = '') {
     if (name === 'Quick Assist') setQuickAssistSeed(request);
+    if (name === 'Stores') setStoreServiceQuery('');
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
   }
@@ -315,6 +317,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
+                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -349,6 +352,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     }}/>
                 : activeTool==='Quick Support'||activeTool==='Quick Assist'?<QuickSupportPanel
                     collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
+                    onFindStoreOffers={service=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setActiveTool('Stores');setToolSelected(true);}}
                     onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
