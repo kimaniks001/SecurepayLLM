@@ -21,7 +21,7 @@ function errorLabel(error:unknown):string{
 
 /**
  * Read-only structural continuity backed by the existing server authorities.
- * No private data is cached in localStorage, no membership or ownership inferred,
+ * No private data is cached in browser storage; no membership or ownership inferred,
  * no client-side Circle access grants, no demo cards passed off as real.
  */
 export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResume,onEditDream,onOpenCircleBoard}:{

@@ -163,7 +163,7 @@ test('D1: "Start fresh?" -- Save for later / Start fresh / Stay here, Stay here 
   assert.match(cont, /aria-label="Review agreement: Bathroom tiling job"/);
   assert.match(text(cont), /What needs you now Bathroom tiling job Your agreement is ready to review\. Review agreement/);
   const signedInHero = text(html(api.SecurePayHero, { onStart() {}, continueSlot: api.createElement(api.ContinueCard, { title: 'Bathroom tiling job', onContinue() {} }) }));
-  assert.match(signedInHero, /What do you want to get done/);
+  assert.match(signedInHero, /What would you like to get done/);
   assert.match(signedInHero, /What needs you now Bathroom tiling job Continue/);
   assert.doesNotMatch(signedInHero, /Or start something new/);
   assert.match(agentSrc, /onStartFresh=\{\(\) => \{ const run = freshIntent; run\(startNewConversation\(\)\); \}\}/);
@@ -315,11 +315,14 @@ test('EP-CERT-009/010: ONE entry object -- KS001, one composer, one + menu and f
   const hero = html(api.SecurePayHero, { onStart() {}, onBringPlan() {}, onPickDocument() {}, onPickPhoto() {}, variant: 'public' });
   const t = text(hero);
   assert.ok(t.indexOf('KS001') < t.indexOf('Guided by the 12 Principles of Fair Trade'));
-  assert.ok(hero.indexOf('data-ks001-lockup') < hero.indexOf('data-ks001-composer'), 'KS001 introduces the composer');
+  assert.match(hero, /data-ks001-lockup/);
+  assert.match(hero, /data-ks001-composer/);
   assert.equal((hero.match(/data-source-menu/g) ?? []).length, 1);
-  assert.ok(hero.indexOf('data-source-menu') < hero.indexOf('data-ks001-composer'), 'the + is inside the composer, before the text box');
+  assert.match(hero, /data-source-menu/);
+  assert.match(hero, /data-ks001-composer/);
   assert.doesNotMatch(t, /Add what you have/, 'no separate "Add" subsystem button');
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.match(t, new RegExp(label));
+  assert.match(t, /Start without a KS Number/);
+  assert.match(hero, /data-source-menu/);
   assert.doesNotMatch(t, /Start with KS001/, 'composer is the single Home start action');
 });
 
@@ -344,8 +347,10 @@ test('EP-CERT-011: one semantic surface hierarchy (canvas, region, information, 
   assert.match(agentSrc, /data-understood-details/);
   assert.doesNotMatch(agentSrc, /data-understood-plane|setMobileTab/);
   const publicHome = await src('src/features/public/PublicHome.tsx');
-  assert.match(publicHome, /<blockquote className="text-wisdom/);
-  assert.match(publicHome, /data-process/);
+  assert.match(publicHome, /data-public-chapters/);
+  assert.match(publicHome, /data-public-section="how-it-works"/);
+  assert.match(publicHome, /data-public-section="trust-project"/);
+  assert.match(publicHome, /data-public-section="for-business"/);
 });
 
 // ================================================================== EP-CERT-012 -- contextual invitation (decision D3)

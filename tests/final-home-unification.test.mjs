@@ -6,12 +6,13 @@ const home = await readFile('src/components/SignedOutHome.tsx', 'utf8');
 const publicHome = await readFile('src/features/public/PublicHome.tsx', 'utf8');
 const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
 const sourceMenu = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf8');
+const signedIn = await readFile('src/components/SignedInHome.tsx', 'utf8');
 
 test('signed-in and public Home share one KS001 entry component while using the right human framing', () => {
   assert.match(agent, /<SignedOutHome/);
   assert.match(publicHome, /<SecurePayHero/);
-  assert.match(home, /What do you want to get done/);
-  assert.match(home, /What do you want to make/);
+  assert.match(home, /What would you like to/);
+  assert.match(signedIn, /What do you want to make/);
   assert.match(home, /publicMode/);
   assert.doesNotMatch(home, /Start with KS001/, 'composer is the single Home start action');
 });
@@ -33,9 +34,10 @@ test('the plus menu exposes only wired source types', () => {
 
 test('quick starts remain public explanation, not signed-in operating choices', () => {
   for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) {
-    assert.match(home, new RegExp("label: '" + label + "'"));
+    assert.match(signedIn, new RegExp("label: '" + label + "'"));
   }
-  assert.match(home, /publicMode && <section aria-label="Quick starts"/);
+  assert.match(signedIn, /onClick=\{\(\) => onStart\(prompt\)\}/);
+  assert.doesNotMatch(home, /<section aria-label="Quick starts"/, 'public entry remains a single straightforward KS001 doorway');
   assert.match(home, /!publicMode && continueSlot/);
 });
 

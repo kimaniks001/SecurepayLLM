@@ -93,8 +93,10 @@ test('Phase 2 shell removes permanent module navigation and cognitive-mode tabs 
   ]);
   assert.match(nav, /data-human-shell-nav/);
   assert.doesNotMatch(nav, /mobileNavItems|const navItems/);
-  assert.match(home, /What do you want to get done/);
-  assert.match(home, /publicMode && <section aria-label="Quick starts"/);
+  assert.match(home, /What would you like to/);
+  assert.match(home, /<ConversationInput/);
+  assert.match(home, /<SourceMenu/);
+  assert.doesNotMatch(home, /publicMode && <section aria-label="Quick starts"/, 'the public entry remains one simple KS001 composer');
   assert.doesNotMatch(agent, /setMobileTab|data-understood-plane|Refresh what SecurePay understands/);
   assert.match(agent, /data-understood-details/);
   assert.match(agent, /resolveWorkspaceHumanNext/);

@@ -201,9 +201,9 @@ test('I4. NavBar\'s top-left brand pairs the canonical SecurePay icon with the S
 
 test('J. The Home hero uses the final shared KS001 possibility question and keeps Fair Trade/value-first entry', async () => {
   const contents = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(contents, /What do you want to make/);
-  assert.match(contents, /sp-real-word">real/);
-  assert.match(contents, /Ask anything, or start something new\. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action\./);
+  assert.match(contents, /What would you like to/);
+  assert.match(contents, /<ConversationInput/);
+  assert.match(contents, /Tell me in your own words/);
   assert.match(contents, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
   assert.match(contents, /FairTradeAffordance/);
 });
@@ -337,8 +337,8 @@ test('R1. Signed-in and signed-out Home now share the Masterpiece KS001 possibil
   assert.match(signedIn, /sp-real-word">real/);
   assert.match(signedIn, /FairTradeAffordance/);
   const signedOut = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(signedOut, /What do you want to make/);
-  assert.match(signedOut, /sp-real-word">real/);
+  assert.match(signedOut, /What would you like to/);
+  assert.match(signedOut, /sp-real-word/);
   assert.match(signedOut, /FairTradeAffordance/);
   assert.match(signedOut, /Start without a KS Number/);
 });
