@@ -56,6 +56,24 @@ export function PublicHome(props: PublicHomeProps) {
         {props.bringPlanPanel && <div className="relative mx-auto mt-4 w-full max-w-3xl">{props.bringPlanPanel}</div>}
         {props.declaredPanel && <div className="relative mx-auto mt-4 w-full max-w-3xl">{props.declaredPanel}</div>}
       </section>
+      {/* Optional explanation BELOW the one clear KS001 start. These are the real
+          targets of the existing desktop/mobile public navigation. */}
+      <div className="relative mx-auto grid max-w-5xl gap-3 px-5 pb-8 sm:px-9 md:grid-cols-3" data-public-chapters>
+        <section data-public-section="how-it-works" aria-labelledby="public-how-heading" className="rounded-2xl border border-forest-900/10 bg-white/85 p-5">
+          <h2 id="public-how-heading" tabIndex={-1} className="font-display text-xl text-forest-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">How SecurePay works</h2>
+          <p className="mt-2 text-sm leading-6 text-sand-700">Tell KS001 what you need, review the Agreement as it takes shape, then choose the next action. Money only follows authorised Agreement terms.</p>
+          <button type="button" onClick={props.onBrowseStores} className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-cream-50 px-3 text-sm font-semibold text-forest-800">Browse Stores</button>
+        </section>
+        <section data-public-section="trust-project" aria-labelledby="public-trust-heading" className="rounded-2xl border border-forest-900/10 bg-white/85 p-5">
+          <h2 id="public-trust-heading" tabIndex={-1} className="font-display text-xl text-forest-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">The Trust Project</h2>
+          <p className="mt-2 text-sm leading-6 text-sand-700">People, shared technologies and knowledge for fair trade. Membership is a deliberate choice; signing in alone never joins the community.</p>
+          <button type="button" onClick={props.onJoin} className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-cream-50 px-3 text-sm font-semibold text-forest-800">Explore joining</button>
+        </section>
+        <section data-public-section="for-business" aria-labelledby="public-business-heading" className="rounded-2xl border border-forest-900/10 bg-white/85 p-5">
+          <h2 id="public-business-heading" tabIndex={-1} className="font-display text-xl text-forest-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">For Business</h2>
+          <p className="mt-2 text-sm leading-6 text-sand-700">An authorised person acts for the business. Begin with a real need or Agreement; business identity setup and permissions remain separate.</p>
+        </section>
+      </div>
       <footer className="relative mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 border-t border-[#183a32]/10 px-6 py-6 text-[0.78rem] text-sand-600 sm:px-9">
         <span>SecurePay · Money should follow the agreement.</span>
         <div className="flex flex-wrap gap-5">
