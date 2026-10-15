@@ -117,3 +117,16 @@ export function consumeKs001ConversationReturn(): string | null {
   pendingKs001ConversationReturn = null;
   return id;
 }
+
+/**
+ * A promise resolving from resumeConversation is NOT proof of authorisation:
+ * history/context errors are converted into an error snapshot by the canonical
+ * controller. The UI must see a fresh, non-null, matching server context.
+ */
+export function authorisedResumedConversation(
+  expectedId: string,
+  state: { conversationId: string | null; context: {status: string; data: unknown} },
+): boolean {
+  return !!expectedId && state.conversationId === expectedId
+      && state.context.status === 'ready' && state.context.data !== null && state.context.data !== undefined;
+}
