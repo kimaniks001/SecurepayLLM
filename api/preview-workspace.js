@@ -26,7 +26,7 @@ function allowed(method, pathname, params) {
   if (method === 'DELETE') return noQuery && asset.test(pathname);
   if (method === 'POST') {
     if (!noQuery) return false;
-    if (assets.test(pathname) || circleObjects.test(pathname)
+    if (pathname === '/api/v1/vision-dreams' || assets.test(pathname) || circleObjects.test(pathname)
         || circleCoordination.test(pathname) || circleRespond.test(pathname)) return true;
     if (['/api/v1/auth/login', '/api/v1/auth/complete', '/api/v1/auth/refresh',
       '/api/v1/auth/mfa/resend'].includes(pathname)) return true;
