@@ -668,7 +668,7 @@ test('Compact Money: Agreement actions lead into canonical review and separate p
  const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
  const handoff=source('src/features/money/handoff.ts');
  const canonical=source('src/features/money/MoneyPaymentSettlementJourney.tsx');
- for(const token of ['humanAgreementStatus','selectedAgreement.nextActions',
+ for(const token of ['humanAgreementStatus','selectedAgreement?.nextActions',
  'My Agreements','onReviewAgreement','onOpenAgreementMoney'])
   assert.ok(tool.includes(token),token);
  assert.match(shell,/onOpenAgreementMoney=\{\(agreement,railCode\)=>/);
