@@ -55,7 +55,7 @@ export function recommendWorkspaceTool(mode: Ks001WorkspaceMode, text: string): 
     {pattern: /photo|picture|image|camera/,tool:'Photos'},
     {pattern: /quot(?:e|ation)|invoice|receipt|pdf|document|upload|file/,tool:'Documents'},
     {pattern: /supplier|store|material|equipment|product/,tool:'Stores'},
-    {pattern: /bank|insurance|finance|loan|saving/,tool:'Financial Institutions'},
+    {pattern: /bank|insurance|finance|loan|saving/,tool:'Money'},
     {pattern: /pay|fund|settle|release|money/,tool:'Money'},
     {pattern: /ride|transport|vehicle|taxi|stay|hotel|accommodation|sleep tonight/,tool:'Quick Support'},
     {pattern: /milestone|stage|deliverable|handover/,tool:'Milestones'},
