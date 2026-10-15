@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, type StoreBuyingLine } from './StoreBuyingPlan';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
@@ -59,13 +59,16 @@ export function StoreDemoExperience(){
  const [buyingDraft,setBuyingDraft]=useState({...emptyStoreBuyingPlan});
  const [buyingActive,setBuyingActive]=useState(false);
  const [practiceReady,setPracticeReady]=useState(false);
+ const [planLimit,setPlanLimit]=useState(false);
 
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
  const openSample=(store:DemoStore,offer:DemoOffer)=>{setSelected({store,offer});setAnswer('');};
  const addToPlan=(store:DemoStore,offer:DemoOffer)=>{
+  if(buyingLines.length>=MAX_STORE_PLAN_LINES&&!buyingLines.some(line=>line.key==='sample:'+store.id+':'+offer.id)){setPlanLimit(true);return;}
+  setPlanLimit(false);
   setBuyingLines(current=>addStoreBuyingLine(current,{
-    key:'sample:'+store.id+':'+offer.id,storeName:store.name,storeKsNumber:null,
+    key:'sample:'+store.id+':'+offer.id,storeName:store.name,storeKsNumber:null,originPlace:store.place,
     offerId:offer.id,title:offer.name,kind:offer.kind,priceLabel:offer.price,currency:'KES',
   }));
   setBuyingActive(true);setPracticeReady(false);setSelected(null);
@@ -78,6 +81,7 @@ export function StoreDemoExperience(){
   <div role="group" aria-label="Sample Store viewpoint" className="grid grid-cols-3 gap-1 rounded-xl bg-cream-100 p-1">
    {([{id:'buyer',label:'Buyer'},{id:'seller',label:'Seller'},{id:'together',label:'Together'}] as const).map(item=><button type="button" key={item.id} onClick={()=>swapView(item.id)} className={view===item.id?'min-h-10 rounded-lg bg-white px-2 text-xs font-semibold shadow-sm':'min-h-10 rounded-lg px-2 text-xs'}>{item.label}</button>)}
   </div>
+  {planLimit&&view==='buyer'&&<p role="alert" className="rounded-lg bg-amber-50 p-2 text-xs">This preview supports up to {MAX_STORE_PLAN_LINES} distinct offers in one KS001 handoff. Review your plan before adding more.</p>}
   {view==='buyer'&&<div className={buyingLines.length&&buyingActive?'grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.95fr)]':'space-y-3'}>
    <div className="min-w-0 space-y-3">
    {selected&&<div className="space-y-3 rounded-xl border border-forest-200 bg-white p-3" aria-label="Sample KS001 handoff">
