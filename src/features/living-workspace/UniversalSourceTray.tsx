@@ -25,7 +25,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
  * canonical source menu and authenticated document/photo services are a
  * separate future integration, never replaced by a simulated attachment.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;onEnsureConversation?:()=>Promise<string>;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -99,12 +99,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   }
 
   async function uploadToKs001(){
-    if(!gateway || !conversationId || isDemo || !pendingFile.current || uploadState==='uploading')return;
+    if(!gateway || isDemo || !pendingFile.current || uploadState==='uploading')return;
     setUploadState('uploading');setUploadMessage('SecurePay is receiving the photo…');
     try{
-      let source=await gateway.uploadSource(conversationId,'PHOTO',pendingFile.current,
+      const targetConversationId=conversationId ?? await onEnsureConversation?.();
+      if(!targetConversationId)throw new Error('No KS001 conversation');
+      let source=await gateway.uploadSource(targetConversationId,'PHOTO',pendingFile.current,
         [caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · ')||undefined);
-      if(!source.sourceArtifactId || source.conversationId!==conversationId)
+      if(!source.sourceArtifactId || source.conversationId!==targetConversationId)
         throw new Error('Unrecognised source receipt');
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
@@ -113,7 +115,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
-            const latest=await gateway.getSource(conversationId,source.sourceArtifactId);
+            const latest=await gateway.getSource(targetConversationId,source.sourceArtifactId);
             if(latest.sourceArtifactId!==source.sourceArtifactId || latest.conversationId!==conversationId)break;
             source=latest;setServerSource(source);
             if(!['RECEIVED','PROCESSING'].includes(source.extractionStatus))break;
@@ -206,8 +208,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
     {tool!=='Places'&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
     {tool==='Photos'&&pending&&!isDemo&&<div className="space-y-2">
-      {gateway&&conversationId?<button type="button" disabled={uploadState==='uploading'||uploadState==='confirmed'} onClick={()=>void uploadToKs001()} className="min-h-11 w-full rounded-xl border border-forest-800 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-40">Send photo to KS001</button>
-        :<p className="rounded-lg bg-cream-100 p-3 text-xs">Start a live KS001 conversation in My Work before sending the photo for understanding. Local preview remains available now.</p>}
+      {gateway&&(conversationId||onEnsureConversation)?<button type="button" disabled={uploadState==='uploading'||uploadState==='confirmed'} onClick={()=>void uploadToKs001()} className="min-h-11 w-full rounded-xl border border-forest-800 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-40">Send photo to KS001</button>
+        :<p className="rounded-lg bg-cream-100 p-3 text-xs">KS001 is unavailable for this workspace. You can still prepare a local preview.</p>}
       {uploadMessage&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-xs">{uploadMessage}</p>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
         <p className="text-sm font-semibold">SecurePay source · {serverSource.extractionStatus}</p>
