@@ -543,3 +543,30 @@ test('Living Store: preview relay allows bounded public browsing but no unauthor
   assert.equal((await call('GET','/api/v1/store/me/offers?owner=another','yes')).statusCode,403);
  }finally{globalThis.fetch=old;}
 });
+
+test('Living Store: every public product, service and capacity offer has a source-verified Take to KS001 action',async()=>{
+ const ui=source('src/features/living-workspace/StoresTool.tsx');
+ const handler=(await import('../api/preview-workspace.js')).default;
+ assert.match(ui,/gateways\.stores\.offer\(ownerKs,offerId\)/);
+ assert.match(ui,/record\.canonicalKsNumber!==ownerKs\|\|record\.offer\.id!==offerId/);
+ assert.match(ui,/Do not order, reserve, contact the seller, commit Agreement terms or move money/);
+ assert.match(ui,/await onContinue\(information\)/);
+ assert.equal((ui.match(/Take to KS001/g)||[]).length,2);
+ assert.match(ui,/result\.canonicalKsNumber,result\.offer\.id/);
+ assert.match(ui,/currentOffer\.canonicalKsNumber,offer\.id/);
+ const response=async(method,path)=>{
+  const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
+  await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app'}},res);
+  return res;
+ };
+ const orig=globalThis.fetch;let path='';
+ try{
+  globalThis.fetch=async (url)=>{path=String(url);return new Response('{}',{status:200});};
+  const valid='/api/v1/stores/KS123/offers/offer12345678';
+  assert.equal((await response('GET',valid)).statusCode,200);
+  assert.equal(path,'https://securepay.ke'+valid);
+  assert.equal((await response('GET',valid+'?includePrivate=true')).statusCode,403);
+  assert.equal((await response('POST',valid)).statusCode,403);
+  assert.equal((await response('GET','/api/v1/stores/KS123/offers/private')).statusCode,403);
+ }finally{globalThis.fetch=orig;}
+});
