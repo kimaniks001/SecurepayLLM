@@ -18,9 +18,9 @@ test('Phase 7: four scoped working postures exist',()=>{
  for(const name of ['Agreement Maker','Dream Companion','Circle Facilitator','Community Guide']) assert.ok(personas.includes(name),name);
  for(const mode of ['work','vision','circle','community']) assert.ok(shell.includes(`'${mode}'`),mode);
 });
-test('Phase 7: tools are contextual, Quick Support is universal',()=>{
+test('Phase 7: tools are contextual, Quick Assist is universal',()=>{
  assert.match(shell,/toolsOpen &&/);
- assert.match(shell,/activeTool==='Quick Support'/);
+ assert.match(shell,/activeTool==='Quick Assist'/);
  for(const service of ['Short Stays','My Ride','Quick Documents']) assert.ok(support.includes(service));
 });
 test('Phase 7: Agreement review does not imply accepted terms or authority',()=>{
@@ -454,7 +454,7 @@ test('Structural S4: real Community exposes only ACTIVE-member, Circle-free reco
 test('Structural S5: photo intake stays local in demo and sends through the canonical API on explicit action',()=>{
  const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
  const intake=source('src/features/living-workspace/UniversalSourceTray.tsx');
- assert.ok(app.includes("useState('Photos')"));
+ assert.match(app,/useState(?:<[^>]+>)?\('Photos'\)/);
  assert.ok(app.indexOf("{ name: 'Photos'")<app.indexOf("{ name: 'Documents'"));
  assert.ok(app.includes('onEnsureConversation='));
  assert.ok(intake.includes('data-universal-source-tray'));

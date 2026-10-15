@@ -26,23 +26,21 @@ import { LivingVisionPanel } from './LivingVisionPanel';
 import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
-import { ArrowLeft, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
+import { ArrowLeft, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
+// The launch tray contains functioning entries only. Vision/Circle/Community are
+// workspace areas, while milestones live within Agreements.
 const tools = [
-  { name: 'Photos', icon: Camera, description: 'Begin with a photo, preview and caption; it remains local until authorised upload.' },
-  { name: 'Documents', icon: FileText, description: 'Select a document, preview its name and caption without claiming it has been interpreted.' },
-  { name: 'Places', icon: MapPin, description: 'Prepare an address or place as unverified context.' },
-  { name: 'People & Invitations', icon: UserRoundPlus, description: 'Find people, invite participants and clarify roles and permissions.' },
-  { name: 'Stores', icon: Store, description: 'Find products, suppliers and services.' },
-  { name: 'Money', icon: Wallet, description: 'One place for Agreement Money, payment readiness, banking, savings, financing and insurance options.' },
-  { name: 'Quick Assist', icon: BedDouble, description: 'Your Short Stays, My Ride and optional tools — add them only when useful.' },
-  { name: 'Milestones', icon: Truck, description: 'Plan stages, evidence, completion and approval requirements.' },
-  { name: 'Vision tools', icon: Lightbulb, description: 'Sketch, organise ideas, explore alternatives and develop a dream.' },
-  { name: 'Community & Circles', icon: Users, description: 'Find people, groups, projects and shared work.' },
-  { name: 'More tools', icon: Wrench, description: 'Additional SecurePay capabilities will appear here.' },
-];
+  { name: 'Photos', icon: Camera, description: 'Show a photo', group: 'add' },
+  { name: 'Documents', icon: FileText, description: 'Add a document', group: 'add' },
+  { name: 'Places', icon: MapPin, description: 'Use a place', group: 'add' },
+  { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
+  { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
+  { name: 'People & Invitations', icon: UserRoundPlus, description: 'Bring people in', group: 'do' },
+  { name: 'Money', icon: Wallet, description: 'Review Agreement money', group: 'do' },
+] as const;
 const scenarios: Record<Mode, { label: string; title: string; status: string; opening: string; facts: string[]; help: string[] }> = {
   work: { label: 'My Work · Agreement', title: 'Chair delivery', status: 'Draft', opening: 'I can help make a clear chair delivery agreement. Where should the chairs be delivered?', facts: ['200 chairs · proposed scope', 'Delivery location needed', 'Supplier and price to establish'], help: ['Stores and delivery providers', 'Plugs for coordination', 'Potential Community Saver, subject to Plug verification'] },
   vision: { label: 'Vision · Explore', title: 'My workshop idea', status: 'Exploring', opening: 'What would you most like your workshop to make possible?', facts: ['Explore purpose and layout', 'Collect inspiration and suppliers', 'No Agreement required'], help: ['Masters and skills', 'Stores and possible equipment', 'Community knowledge'] },
@@ -157,22 +155,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [screen, setScreen] = useState<Screen>('chat');
   const [toolsOpen, setToolsOpen] = useState(false);
   const previousScreen = useRef<Screen>('chat');
-  const [activeTool, setActiveTool] = useState('Photos');
+  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
   const [toolSelected, setToolSelected] = useState(false);
   const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
   const [messages, setMessages] = useState<Record<Mode, string[]>>({ work:[], vision:[], circle:[], community:[] });
   const current = scenarios[mode];
   const persona = KS001_WORKSPACE_PERSONAS[mode];
-  const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
+  const [suggestedTool, setSuggestedTool] = useState<(typeof tools)[number]['name'] | null>(null);
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
-  function openTool(name: string, request = '') {
+  function openTool(name: (typeof tools)[number]['name'], request = '') {
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') setStoreServiceQuery('');
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
+  }
+  function openToolPicker() {
+    if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
+    setToolSelected(false);
+    setToolsOpen(true);
   }
   function closeTool() { setToolsOpen(false); setToolSelected(false); setScreen(previousScreen.current); }
   useEffect(()=>{
@@ -189,7 +192,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setMessages(previous => ({ ...previous, [mode]: [...previous[mode], value] }));
     setDrafts(previous => ({ ...previous, [mode]: '' }));
     const suggestion = recommendWorkspaceTool(mode, value);
-    setSuggestedTool(suggestion);
+    // Avoid suggesting unfinished or duplicate tool entry points.
+    setSuggestedTool(tools.find(item=>item.name===suggestion)?.name??null);
     if (suggestion === 'Quick Assist') setQuickAssistSeed(value);
   }
   const continueSavedConversation = async(conversationId:string)=>{
@@ -240,12 +244,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden">
       {toolsOpen && <>
-        <button type="button" aria-label="Close photo workspace overlay" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10" />
+        <button type="button" aria-label="Close tools overlay" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10" />
         <aside role="dialog" aria-modal="true" aria-label={toolSelected?activeTool+' tool':'Choose a tool'} className={'fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(88dvh,900px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl ring-1 ring-forest-900/10 '+(toolSelected&&activeTool==='Stores'?'sm:w-[min(96vw,1060px)]':'sm:w-[min(94vw,560px)]')}>
         <div className="flex items-center justify-between gap-2 border-b border-cream-100 p-4">
           {toolSelected
             ? <button type="button" onClick={()=>setToolSelected(false)} aria-label="Back to tools" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold hover:bg-cream-100"><ArrowLeft size={18}/> Back to tools</button>
-            : <strong>Tools</strong>}
+            : <strong className="text-base">Add or use a tool</strong>}
           <button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button>
         </div>
         {toolSelected
@@ -350,7 +354,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
                     }}/>
-                : activeTool==='Quick Support'||activeTool==='Quick Assist'?<QuickSupportPanel
+                : activeTool==='Quick Assist'?<QuickSupportPanel
                     collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
                     onFindStoreOffers={service=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setActiveTool('Stores');setToolSelected(true);}}
                     onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
@@ -362,16 +366,35 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       if(liveController.getSnapshot().error || liveController.getSnapshot().pending)throw new Error('KS001 has not confirmed the request. Please retry safely in the conversation.');
                       closeTool();
                     }:undefined}/>
-                : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
+                : <p role="alert" className="text-sm text-sand-600">This tool is unavailable. Return to your tools.</p>}
             </div>
-          : <nav aria-label="Choose a tool" className="max-h-[65dvh] overflow-auto p-3">
-              {tools.map(t=><button key={t.name} onClick={()=>{setActiveTool(t.name);setToolSelected(true);}} className="flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-sm hover:bg-cream-100"><t.icon size={18}/>{t.name}</button>)}
+          : <nav aria-label="Choose a tool" className="max-h-[65dvh] space-y-5 overflow-y-auto p-4 sm:p-5">
+              <p className="text-sm text-sand-600">Choose one thing. KS001 stays right here.</p>
+              <section aria-label="Add something">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {tools.filter(t=>t.group==='add').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
+                    className="flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white px-2 py-3 text-center hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+                    <t.icon size={23} aria-hidden="true"/><span className="text-xs font-semibold">{t.name}</span>
+                  </button>)}
+                </div>
+              </section>
+              <section aria-label="Get something done">
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Get something done</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {tools.filter(t=>t.group==='do').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
+                    className="flex min-h-24 min-w-0 items-start gap-2 rounded-xl border border-cream-200 bg-white p-3 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+                    <t.icon size={20} className="mt-0.5 shrink-0" aria-hidden="true"/>
+                    <span className="min-w-0"><span className="block text-sm font-semibold">{t.name}</span><span className="mt-1 block text-xs text-sand-600">{t.description}</span></span>
+                  </button>)}
+                </div>
+              </section>
             </nav>}
         </aside>
       </>}
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="text-lg">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button onClick={()=>openTool(activeTool)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm"><Plus size={18}/> Add / Tools</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="text-lg">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!(mode==='work' && liveWork && gateway) && <><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"><p className="max-w-[560px] text-sm leading-7">{mockSignedIn ? 'This is a sample conversation, not a real KS001 response. '+persona.opening : persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool,suggestedTool==='Quick Assist'?quickAssistSeed:'')} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
         <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
@@ -414,7 +437,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </>}</div>
       </aside>
     </div>}
-    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Wrench]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openTool(activeTool):setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     <p className="px-5 pb-4 text-center text-xs text-sand-600">{mockSignedIn?'DEMO ACCOUNT: no authentication, real records, payments, invitations or membership. ':'Visual shell: the preview does not authorise financial or Agreement actions. '}No money, invitation, approval or booking authority is granted by this page.</p>
   </main>;
 }

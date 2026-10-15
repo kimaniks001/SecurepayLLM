@@ -1,0 +1,43 @@
+name: Launch Tool Tray Validation
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'tests/living-workspace-phase7.test.mjs'
+      - 'tests/quick-assist-first-use.test.mjs'
+      - 'tests/launch-tools-cleanup.test.mjs'
+      - 'package.json'
+      - '.github/workflows/launch-tool-tray-validation.yml'
+  push:
+    branches:
+      - feature/launch-tools-cleanup-20261015
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-tool-tray-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  targeted:
+    name: Focused tools, workspace, TypeScript and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Launch tool and Quick Assist contracts
+        run: node --test tests/launch-tools-cleanup.test.mjs tests/quick-assist-first-use.test.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint errors
+        run: npm run lint -- --quiet
+      - name: Production build
+        run: npm run build
