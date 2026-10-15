@@ -25,7 +25,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
  * canonical source menu and authenticated document/photo services are a
  * separate future integration, never replaced by a simulated attachment.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -43,6 +43,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
   const [uploadState,setUploadState]=useState<'idle'|'uploading'|'confirmed'|'unknown'|'error'>('idle');
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
+  const [taskBusy,setTaskBusy]=useState(false);
   const seq=useRef(0);
   useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);seq.current++;},[area,tool,isDemo]);
 
@@ -215,6 +216,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
         {serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
         <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
+        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" disabled={taskBusy} onClick={async()=>{
+          setTaskBusy(true);
+          try{await onContinueTask(serverSource,selectedTask);}
+          catch{setUploadMessage('Could not continue this quick task just now. Your uploaded source remains in SecurePay.');}
+          finally{setTaskBusy(false);}
+        }} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+          {taskBusy?'Opening KS001…':'Continue '+(PHOTO_TASKS.find(t=>t.id===selectedTask)?.label??'with KS001')}
+        </button>}
       </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
