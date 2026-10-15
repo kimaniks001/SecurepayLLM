@@ -110,6 +110,34 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
   catch{setError('The request was not confirmed. Check KS001 Chat before retrying.');}
   finally{setBusy(false);}
  }
+ // A selected Store offer remains a cited proposal, never an Agreement fact or purchase.
+ // Refresh the exact published offer before passing its source identity to KS001.
+ const [takingOffer,setTakingOffer]=useState<string|null>(null);
+ async function takeOfferToKs001(ownerKs:string,offerId:string){
+  if(!gateways||busy||takingOffer)return;
+  setTakingOffer(offerId);setError('');setNotice('');
+  try{
+   const record=await gateways.stores.offer(ownerKs,offerId);
+   if(record.canonicalKsNumber!==ownerKs||record.offer.id!==offerId)throw new Error('Offer reference changed');
+   const offer=record.offer;
+   const information=[
+    'I selected this real SecurePay Store '+offer.kind.toLowerCase()+' to work on with KS001.',
+    'Source Store KS Number: '+record.canonicalKsNumber+'.',
+    'Source Offer ID: '+offer.id+'.',
+    'Store: '+record.displayName.slice(0,100)+'.',
+    'Offer: '+offer.title.slice(0,160)+'.',
+    'Listed price: '+price(offer.priceMinor,offer.currency)+'.',
+    'Reported availability: '+titleCase(offer.availabilityState)+'.',
+    offer.description?'Description: '+offer.description.slice(0,180)+'.':'',
+    record.profile.locationLabel?'Store location label: '+record.profile.locationLabel.slice(0,100)+'.':'',
+    'Keep the source reference with this work. Ask whether I want to compare it, request a quotation or propose it in my draft Agreement.',
+    'Do not order, reserve, contact the seller, commit Agreement terms or move money without further authorised action.',
+   ].filter(Boolean).join('\n');
+   await onContinue(information);
+  }catch{
+   setError('Could not take this offer to KS001. Check the listing and your conversation, then try again.');
+  }finally{setTakingOffer(null);}
+ }
  async function inspectOffer(item:PublicSearchResultView,action:'discuss'|'quote'){
   await askKs001(['I am considering a real SecurePay Store offer.',
     'Store KS Number: '+item.canonicalKsNumber+'. Offer ID: '+item.offer.id+'.',
@@ -164,6 +192,10 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
           <p className="line-clamp-2 font-semibold">{result.offer.title}</p>
           <p className="text-xs text-sand-600">{result.displayName}</p>
           <p className="text-xs font-semibold">{price(result.offer.priceMinor,result.offer.currency)}</p>
+          <button type="button" onClick={()=>void takeOfferToKs001(result.canonicalKsNumber,result.offer.id)} disabled={!!takingOffer||busy}
+            aria-label={'Take '+result.offer.title+' to KS001'} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
+            {takingOffer===result.offer.id?'Opening KS001…':'Take to KS001'}
+          </button>
           <button onClick={()=>void openStore(result.canonicalKsNumber)} className="min-h-9 w-full rounded-lg bg-cream-100 px-2 text-xs">View Store</button>
           <button onClick={()=>void inspectOffer(result,'quote')} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs">Ask for quote</button>
         </article>)}</div>
@@ -180,6 +212,10 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        <div className="grid grid-cols-2 gap-2">{currentOffer.offers.map(offer=><article key={offer.id} className="space-y-2 rounded-xl border border-cream-200 p-2">
          <OfferPhoto refs={offer.mediaRefs} title={offer.title}/>
          <p className="font-semibold">{offer.title}</p><p className="text-xs">{price(offer.priceMinor,offer.currency)}</p>
+         <button type="button" onClick={()=>void takeOfferToKs001(currentOffer.canonicalKsNumber,offer.id)} disabled={!!takingOffer||busy}
+           aria-label={'Take '+offer.title+' to KS001'} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
+           {takingOffer===offer.id?'Opening KS001…':'Take to KS001'}
+         </button>
          <button onClick={()=>void askKs001('Help me explore offer '+offer.id+' from SecurePay Store '+currentOffer.canonicalKsNumber+'. Discuss its suitability and propose an Agreement only after I review it. Do not reserve or buy anything.')} className="min-h-10 w-full rounded-lg bg-cream-100 text-xs">Discuss with KS001</button>
        </article>)}</div>
      </div>}
