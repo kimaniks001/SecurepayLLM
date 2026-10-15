@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
+import { compactAgreementFacts, livingFactStatus, humanNextQuestion } from './livingLanguage';
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet } from 'lucide-react';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
@@ -24,28 +25,6 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-function humanQuestion(text:string):string {
-  const clean=text.replace(/^.{0,130}\\.(?:pdf|docx|xlsx|csv|txt)\\s+(?:doesn't say|does not say|says|shows)\\s*:?\\s*/i,'')
-    .replace(/^the schedule does not state /i,'')
-    .replace(/^(?:the|this) (?:document|spreadsheet|schedule) (?:does not|doesn't) (?:state|say)\\s*:?[ ]*/i,'')
-    .trim();
-  return clean || text;
-}
-type GlanceRow={label:string;value:string;uncertain:boolean};
-function glanceRows(formation: NonNullable<FormationState['data']>):GlanceRow[]{
-  const row=(label:string,terms:FormationTerm[]):GlanceRow|null=>{
-    const entries=terms.filter(t=>t.value.trim());
-    if(!entries.length)return null;
-    return {label,value:entries.slice(0,2).map(t=>t.value).join(' · '),uncertain:entries.some(t=>t.needsChecking||t.basis==='INFERRED')};
-  };
-  const people=formation.who.length?{
-    label:'People',value:formation.who.slice(0,2).map(p=>p.name+(p.role?' · '+p.role:'')).join(', '),
-    uncertain:formation.who.some(p=>!p.linked),
-  }:null;
-  return [row('Work',formation.what),people,row('Money',formation.money),row('When',formation.when)]
-    .filter((entry):entry is GlanceRow=>entry!==null);
-}
-
 export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, examination }: {
   state: FormationState | null;
   conversationId: string | null;
@@ -88,19 +67,19 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
         <table className="w-full table-fixed text-left text-sm">
           <caption className="sr-only">Short draft Agreement summary. Check means a fact needs clarification, not that the Agreement is accepted.</caption>
           <tbody>
-            {glanceRows(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
+            {compactAgreementFacts(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
               <th scope="row" className="w-[22%] py-2 pr-2 align-top text-xs font-medium text-sand-600">{item.label}</th>
               <td className="break-words py-2 align-top">
-                <span>{item.value}</span>
-                <span className={item.uncertain?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>
-                  {item.uncertain?'Check':'Noted'}
+                <span title={item.reason||undefined}>{item.value}</span>
+                <span className={item.state!=='noted'?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>
+                  {livingFactStatus(item)}
                 </span>
               </td>
             </tr>)}
-            {!glanceRows(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
+            {!compactAgreementFacts(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
           </tbody>
         </table>
-        {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanQuestion(formation.question.text)}</p>}
+        {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanNextQuestion(formation.question.text)}</p>}
         {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft ready to review.</p>}
       </section>
       <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Less':'More'}</button>
