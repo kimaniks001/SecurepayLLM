@@ -17,6 +17,14 @@ const PHOTO_TASKS=[
   {id:'find',label:'Find similar items',hint:'Explore products and suppliers'},
   {id:'vision',label:'Add to Vision',hint:'Use this photo as project inspiration'},
 ] as const;
+function suggestPhotoActions(source:AgentSourceArtifactDto):Array<{id:string;label:string}>{
+  const summary=(source.summary+' '+source.documentType).toLowerCase();
+  if(/receipt|payment slip|till/.test(summary))return [{id:'receipt',label:'Process receipt'},{id:'contract',label:'Use in Agreement'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
+  if(/invoice|bill/.test(summary))return [{id:'invoice',label:'Review invoice'},{id:'contract',label:'Prepare Agreement'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
+  if(/delivery|damag|package|inspection/.test(summary))return [{id:'delivery',label:'Record delivery'},{id:'contract',label:'Use as evidence'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
+  if(/quotation|quote|estimate/.test(summary))return [{id:'contract',label:'Prepare Quick Contract'},{id:'invoice',label:'Extract prices'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
+  return [{id:'contract',label:'Prepare Agreement'},{id:'ask',label:'Ask KS001'},{id:'qr',label:'Read QR'},{id:'correct',label:'Not this'}];
+}
 const MAX_BYTES=2_000_000;
 const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
 const nextId=(()=>{let id=1;return()=>id++;})();
@@ -45,9 +53,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
-  const [reviewed,setReviewed]=useState(false);
+
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setReviewed(false);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
@@ -64,6 +72,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       if(seq.current!==sequence)return;
       pendingFile.current=file;
       setPending({filename:file.name,mime:file.type||null,size:file.size,thumbnail});
+      if(photo && gateway && !isDemo) void uploadToKs001(file);
     };
     if(!photo){prepare(null);return;}
     const reader=new FileReader();
@@ -100,14 +109,13 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     }catch{setQrState('Unable to read this QR code. No link was opened and nothing was uploaded.');}
   }
 
-  async function uploadToKs001(){
-    if(!gateway || isDemo || !pendingFile.current || uploadState==='uploading')return;
+  async function uploadToKs001(file:File|null=pendingFile.current){
+    if(!gateway || isDemo || !file || uploadState==='uploading')return;
     setUploadState('uploading');setUploadMessage('SecurePay is receiving the photo…');
     try{
       const targetConversationId=conversationId ?? await onEnsureConversation?.();
       if(!targetConversationId)throw new Error('No KS001 conversation');
-      let source=await gateway.uploadSource(targetConversationId,'PHOTO',pendingFile.current,
-        [caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · ')||undefined);
+      let source=await gateway.uploadSource(targetConversationId,'PHOTO',file);
       if(!source.sourceArtifactId || source.conversationId!==targetConversationId)
         throw new Error('Unrecognised source receipt');
       setServerSource(source);
@@ -118,7 +126,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
             const latest=await gateway.getSource(targetConversationId,source.sourceArtifactId);
-            if(latest.sourceArtifactId!==source.sourceArtifactId || latest.conversationId!==conversationId)break;
+            if(latest.sourceArtifactId!==source.sourceArtifactId || latest.conversationId!==targetConversationId)break;
             source=latest;setServerSource(source);
             if(!['RECEIVED','PROCESSING'].includes(source.extractionStatus))break;
           }catch{break;}
@@ -178,46 +186,29 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
       </div>
-      <p className="text-xs text-sand-600">JPEG or PNG, up to 2 MB for a local preview. Saving to SecurePay is not connected here yet.</p>
+      <p className="text-xs text-sand-600">JPEG or PNG · up to 2 MB. Selecting a photo sends it to KS001 for understanding in real mode.</p>
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-3">
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mb-3 max-h-64 w-full rounded-lg object-contain"/>}
         <p className="break-all text-sm font-semibold">{pending.filename}</p>
-        <p className="mt-1 text-xs text-sand-600">Ready for your review · Not uploaded</p>
+        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Reading photo…':serverSource?'Received by SecurePay':'Preparing photo…'}</p>
         <button type="button" onClick={()=>{setPending(null);pendingFile.current=null;setQrValue(null);setQrState(null);setSelectedTask('');setUploadState('idle');}} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Choose another picture</button>
       </div>}
     </>}
-    <label className="block text-xs">Caption or purpose (optional)
-      <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3"
-        placeholder="Why is this relevant to your work?" value={caption} onChange={event=>setCaption(event.target.value)}/></label>
-    {tool==='Photos'&&pending&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-100 p-3">
-      <p className="text-sm font-semibold">Is this photo for evidence?</p>
-      <p className="text-xs text-sand-700">For deliveries, inspections or disputes, we recommend turning on camera location before taking your picture. It can help establish where a photo was taken. You can continue without it.</p>
-      <p className="text-xs text-sand-700">Already took the photo? Its GPS information may be present, but this preview does not read or verify it. Your current browser location cannot prove where an earlier photo was taken.</p>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={()=>setLocationChoice('enabled')} className="min-h-11 rounded-lg border border-cream-200 bg-white px-3 text-xs font-semibold">I'll enable camera location</button>
-        <button type="button" onClick={()=>setLocationChoice('skipped')} className="min-h-11 rounded-lg border border-cream-200 bg-white px-3 text-xs">Continue without location</button>
-      </div>
-      {locationChoice!=='unset'&&<p role="status" className="text-xs font-semibold">{locationChoice==='enabled'?'Reminder noted. Enable location in your device camera settings before taking a new photo; SecurePay has not accessed your location.':'Location skipped. You can still use this photo; its evidence strength may be limited.'}</p>}
-    </div>}
-    {tool==='Photos'&&pending&&<fieldset className="space-y-2 rounded-xl border border-cream-200 p-3">
-      <legend className="px-1 text-sm font-semibold">What do you want to do with this picture?</legend>
-      <p className="text-xs text-sand-600">Choose a quick task. This records your intention only; no image analysis has run.</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{PHOTO_TASKS.map(task=><label key={task.id} className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${selectedTask===task.id?'border-forest-800 bg-forest-50':'border-cream-200'}`}>
-        <input type="radio" name="photo-quick-task" value={task.id} checked={selectedTask===task.id} onChange={()=>setSelectedTask(task.id)} className="mt-1"/>
-        <span><span className="block font-semibold">{task.label}</span><span className="block text-xs text-sand-600">{task.hint}</span></span>
-      </label>)}</div>
-    </fieldset>}
-    {tool==='Photos'&&pending&&selectedTask==='qr'&&<div className="space-y-2 rounded-xl bg-cream-100 p-3">
-      <button type="button" onClick={()=>void inspectQr()} className="min-h-11 rounded-lg bg-white px-4 text-sm font-semibold">Read QR on this device</button>
-      {qrState&&<p role="status" className="text-xs">{qrState}</p>}
-      {qrValue&&<div className="break-all rounded-lg bg-white p-3 text-sm"><strong>Code contains:</strong><p className="mt-2 whitespace-pre-wrap">{qrValue}</p><p className="mt-2 text-xs text-sand-600">Unverified content. Links and payments are never opened automatically.</p></div>}
-    </div>}
-
+    {tool!=='Photos'&&<label className="block text-xs">Caption or purpose (optional)
+      <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3" value={caption} onChange={event=>setCaption(event.target.value)}/>
+    </label>}
+    {tool==='Photos'&&pending&&uploadState==='confirmed'&&<label className="block text-xs text-sand-600">
+      Add a note (optional)
+      <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
+    </label>}
     {tool!=='Places'&&(isDemo||!gateway)&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
     {tool==='Photos'&&pending&&!isDemo&&<div className="space-y-2">
-      {gateway&&(conversationId||onEnsureConversation)?<button type="button" disabled={uploadState==='uploading'||uploadState==='confirmed'} onClick={()=>void uploadToKs001()} className="min-h-11 w-full rounded-xl border border-forest-800 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-40">Send photo to KS001</button>
-        :<p className="rounded-lg bg-cream-100 p-3 text-xs">KS001 is unavailable for this workspace. You can still prepare a local preview.</p>}
+      {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your photo…</p>}
+      {(uploadState==='error'||uploadState==='unknown')&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try again</button>}
       {uploadMessage&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-xs">{uploadMessage}</p>}
+      {serverSource&&<button type="button" onClick={()=>void inspectQr()} className="min-h-10 rounded-full border border-cream-200 px-3 text-xs">Check for QR code</button>}
+      {qrState&&<p role="status" className="text-xs">{qrState}</p>}
+      {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
         <p className="text-sm font-semibold">SecurePay source · {serverSource.extractionStatus}</p>
         <p className="text-xs text-sand-600">Reference: {serverSource.sourceArtifactId}</p>
@@ -236,15 +227,18 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
         <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
-        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<label className="flex min-h-11 items-center gap-2 rounded-lg bg-cream-100 p-3 text-sm"><input type="checkbox" checked={reviewed} onChange={event=>setReviewed(event.target.checked)}/> I have reviewed what SecurePay could read and what still needs checking. This is not Agreement acceptance.</label>}
-        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" disabled={taskBusy||!reviewed} onClick={async()=>{
-          setTaskBusy(true);
-          try{await onContinueTask(serverSource,selectedTask);}
-          catch{setUploadMessage('Could not continue this quick task just now. Your uploaded source remains in SecurePay.');}
-          finally{setTaskBusy(false);}
-        }} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
-          {taskBusy?'Opening KS001…':'Continue '+(PHOTO_TASKS.find(t=>t.id===selectedTask)?.label??'with KS001')}
-        </button>}
+        {onContinueTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<>
+          <p className="text-sm font-semibold">What would you like to do?</p>
+          <div className="flex flex-wrap gap-2" aria-label="Suggested answers">
+            {suggestPhotoActions(serverSource).map(task=><button key={task.id} type="button" disabled={taskBusy}
+              onClick={async()=>{setTaskBusy(true);try{await onContinueTask(serverSource,task.id);}catch{setUploadMessage('KS001 could not continue just now. Your source is retained.');}finally{setTaskBusy(false);}}}
+              className="min-h-11 rounded-full border border-forest-300 bg-white px-4 py-2 text-sm font-medium text-forest-800 hover:bg-forest-50 disabled:opacity-50">
+              {task.label}
+            </button>)}
+          </div>
+          {/(deliver|damage|inspect|disput|evidence)/i.test(serverSource.summary||'')&&<p className="text-xs text-sand-600">Using this as evidence? Camera location can help for future photos. Sharing location is optional; GPS alone is not proof.</p>}
+          <p className="text-xs text-sand-600">KS001’s reading may contain errors. You will review material terms before any Agreement, invitation or Money action.</p>
+        </>}
       </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
