@@ -61,20 +61,28 @@ export default async function handler(req, res) {
   }
   let body;
   if (method === 'POST' && path.endsWith('/sources/upload')) {
-    const contentType = String(req.headers['content-type'] || '');
-    if (!/^multipart\/form-data;\s*boundary=[A-Za-z0-9'()+_,.\/:=?-]{1,200}$/i.test(contentType)) return reject(res, 415, 'Multipart photo upload required');
-    if (Number(req.headers['content-length'] || 0) > MAX_PHOTO_BYTES) return reject(res, 413, 'Photo upload too large');
-    const chunks = []; let bytes = 0;
-    try {
-      for await (const chunk of req) {
-        bytes += chunk.length;
-        if (bytes > MAX_PHOTO_BYTES) return reject(res, 413, 'Photo upload too large');
-        chunks.push(chunk);
-      }
-    } catch { return reject(res, 400, 'Could not read photo upload'); }
-    if (!bytes) return reject(res, 400, 'Empty upload');
-    body = Buffer.concat(chunks);
-    headers['Content-Type'] = contentType;
+    if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || '')))
+      return reject(res, 415, 'Photo payload required');
+    const input = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!input || input.sourceKind !== 'PHOTO'
+        || !['image/jpeg','image/png'].includes(input.mediaType)
+        || typeof input.filename !== 'string' || input.filename.length > 180
+        || /[\\/\x00-\x1f]/.test(input.filename)
+        || typeof input.dataBase64 !== 'string' || input.dataBase64.length > MAX_PHOTO_BYTES * 1.4
+        || !/^[A-Za-z0-9+/]+={0,2}$/.test(input.dataBase64)
+        || typeof input.label !== 'string' || input.label.length > 500)
+      return reject(res, 400, 'Invalid photo payload');
+    const bytes = Buffer.from(input.dataBase64,'base64');
+    if (!bytes.length || bytes.length > 2_000_000) return reject(res, 413, 'Photo too large');
+    const validJpeg = bytes[0]===0xff && bytes[1]===0xd8 && bytes[2]===0xff;
+    const validPng = bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+    if ((input.mediaType==='image/jpeg'&&!validJpeg)||(input.mediaType==='image/png'&&!validPng))
+      return reject(res, 415, 'Photo format mismatch');
+    const form = new FormData();
+    form.append('sourceKind','PHOTO');
+    if (input.label) form.append('label',input.label);
+    form.append('file',new Blob([bytes],{type:input.mediaType}),input.filename);
+    body = form;
   } else if (method === 'POST' && path !== '/api/agent/conversations') {
     if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || ''))) return reject(res, 415, 'JSON required');
     body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
