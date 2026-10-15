@@ -45,7 +45,9 @@ function PartnerList({partners}:{partners:Read<RegulatedPartnerResponse[]>}){
  </section>;
 }
 export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001}:{gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenMoney:()=>void;onOpenAgreementMoney:(agreement:CurrentUserAgreementSummaryResponse,railCode?:string)=>void;onReviewAgreement:(agreementId:string)=>void;onAskKs001:(text:string)=>Promise<void>}){
- const [sample,setSample]=useState(true);
+ const [sample,setSample]=useState(!signedIn);
+ // Personal Money is the first experience for an authenticated KS holder; sample is opt-in.
+ useEffect(()=>{if(signedIn)setSample(false);},[signedIn]);
  const [door,setDoor]=useState<MoneyDoor>('my');
  const [selectedSample,setSelectedSample]=useState<string>('bathroom');
  const [agreements,setAgreements]=useState<Read<CurrentUserAgreementSummaryResponse[]>>(ready([]));
