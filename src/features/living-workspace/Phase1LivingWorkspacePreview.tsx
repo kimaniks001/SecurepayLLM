@@ -226,7 +226,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
               {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn}/>
+                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId}/>
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
             </div>
