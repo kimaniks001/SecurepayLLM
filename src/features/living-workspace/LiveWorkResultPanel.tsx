@@ -25,17 +25,22 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, examination }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, examination }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
+  onCorrectFact: (label:string, previous:string, replacement:string)=>Promise<void>;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
   const [expanded,setExpanded]=useState(false);
   const [customTitle,setCustomTitle]=useState('');
   const [editingTitle,setEditingTitle]=useState(false);
-  useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);},[conversationId]);
+  const [editingFact,setEditingFact]=useState<string|null>(null);
+  const [factDraft,setFactDraft]=useState('');
+  const [factSending,setFactSending]=useState(false);
+  const [factError,setFactError]=useState<string|null>(null);
+  useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);setEditingFact(null);setFactDraft('');setFactError(null);},[conversationId]);
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
@@ -70,10 +75,26 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
             {compactAgreementFacts(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
               <th scope="row" className="w-[22%] py-2 pr-2 align-top text-xs font-medium text-sand-600">{item.label}</th>
               <td className="break-words py-2 align-top">
-                <span title={item.reason||undefined}>{item.value}</span>
-                <span className={item.state!=='noted'?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>
-                  {livingFactStatus(item)}
-                </span>
+                {editingFact===item.label?<form className="space-y-2" onSubmit={async e=>{
+                  e.preventDefault();const replacement=factDraft.trim();
+                  if(!replacement||factSending||busy||replacement===item.value)return;
+                  setFactSending(true);setFactError(null);
+                  try {await onCorrectFact(item.label,item.value,replacement);setEditingFact(null);setFactDraft('');}
+                  catch {setFactError('Could not confirm this correction. Check the conversation before retrying.');}
+                  finally {setFactSending(false);}
+                }}>
+                  <textarea aria-label={'Correct '+item.label} rows={2} maxLength={600} value={factDraft} onChange={e=>setFactDraft(e.target.value)}
+                    className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>
+                  <div className="flex gap-2"><button type="submit" disabled={factSending||busy||!factDraft.trim()||factDraft.trim()===item.value} className="rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Sending…':'Send correction'}</button>
+                    <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)} className="rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button></div>
+                  {factError&&<p role="alert" className="text-xs text-amber-900">{factError}</p>}
+                </form>:<div className="flex items-start justify-between gap-1">
+                  <div><span title={item.reason||undefined}>{item.value}</span>
+                    <span className={item.state!=='noted'?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>{livingFactStatus(item)}</span>
+                  </div>
+                  <button type="button" disabled={busy||factSending} aria-label={'Correct '+item.label} onClick={()=>{setEditingFact(item.label);setFactDraft(item.value);setFactError(null);}}
+                    className="shrink-0 rounded-lg border border-cream-200 px-2 py-1 text-xs disabled:opacity-40">Edit</button>
+                </div>}
               </td>
             </tr>)}
             {!compactAgreementFacts(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
