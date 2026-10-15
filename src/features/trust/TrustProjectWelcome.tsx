@@ -21,7 +21,7 @@ export function TrustProjectWelcome({
   const goToProjects = () => document.getElementById('trust-purposeful-projects')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
-    <main id="main" data-trust-project-door className="min-h-dvh bg-[#f7f2e8] text-forest-900">
+    <main id="main" data-trust-project-door className="sp-brand-trust min-h-dvh bg-[#f7f2e8] text-forest-900">
       <header className="sticky top-0 z-30 border-b border-forest-900/10 bg-[#fbf7ef]/90 backdrop-blur">
         <nav aria-label="Trust Project" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
