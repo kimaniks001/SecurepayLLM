@@ -31,11 +31,19 @@ function humanQuestion(text:string):string {
     .trim();
   return clean || text;
 }
-function paymentHighlights(summary:string|null|undefined):string[] {
-  if(!summary)return [];
-  const tail=summary.includes(':')?summary.slice(summary.indexOf(':')+1):summary;
-  const hits=[...tail.matchAll(/KES\\s*[\\d,]+[^,.]{0,85}/gi)].map(m=>m[0].trim().replace(/[.;:]$/,''));
-  return hits.slice(0,4);
+type GlanceRow={label:string;value:string;uncertain:boolean};
+function glanceRows(formation: NonNullable<FormationState['data']>):GlanceRow[]{
+  const row=(label:string,terms:FormationTerm[]):GlanceRow|null=>{
+    const entries=terms.filter(t=>t.value.trim());
+    if(!entries.length)return null;
+    return {label,value:entries.slice(0,2).map(t=>t.value).join(' · '),uncertain:entries.some(t=>t.needsChecking||t.basis==='INFERRED')};
+  };
+  const people=formation.who.length?{
+    label:'People',value:formation.who.slice(0,2).map(p=>p.name+(p.role?' · '+p.role:'')).join(', '),
+    uncertain:formation.who.some(p=>!p.linked),
+  }:null;
+  return [row('Work',formation.what),people,row('Money',formation.money),row('When',formation.when)]
+    .filter((entry):entry is GlanceRow=>entry!==null);
 }
 
 export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, examination }: {
@@ -51,7 +59,6 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
   useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);},[conversationId]);
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
-  const highlights=paymentHighlights(formation?.summary);
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
@@ -77,15 +84,24 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
     </div>}
     {formation && <div className="space-y-3">
       {expanded&&<div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>}
-      <section className="rounded-xl bg-cream-50 p-3" aria-label="Agreement at a glance">
-        {formation.what.length>0&&<p className="text-sm">{formation.what.slice(0,2).map(t=>t.value).filter(Boolean).join(' · ')}</p>}
-        {highlights.length>0&&<div className="mt-2 space-y-1" aria-label="Amounts mentioned in the draft">
-          {highlights.slice(0,2).map((value,index)=><p key={index} className="text-sm">{value}</p>)}
-        </div>}
-        {!formation.what.length&&!highlights.length&&<p className="mt-1 text-sm">KS001 is helping put your Agreement together.</p>}
-        {formation.question&&<div className="mt-3 border-t border-cream-200 pt-3"><p className="text-xs text-sand-600">Next to clarify</p>
-          <p className="mt-1 text-sm font-semibold">{humanQuestion(formation.question.text)}</p></div>}
-        {!formation.question&&formation.reviewable&&<p className="mt-2 text-sm">Your draft is ready to review.</p>}
+      <section className="rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Agreement summary">
+        <table className="w-full table-fixed text-left text-sm">
+          <caption className="sr-only">Short draft Agreement summary. Check means a fact needs clarification, not that the Agreement is accepted.</caption>
+          <tbody>
+            {glanceRows(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
+              <th scope="row" className="w-[22%] py-2 pr-2 align-top text-xs font-medium text-sand-600">{item.label}</th>
+              <td className="break-words py-2 align-top">
+                <span>{item.value}</span>
+                <span className={item.uncertain?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>
+                  {item.uncertain?'Check':'Noted'}
+                </span>
+              </td>
+            </tr>)}
+            {!glanceRows(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
+          </tbody>
+        </table>
+        {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanQuestion(formation.question.text)}</p>}
+        {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft ready to review.</p>}
       </section>
       <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Less':'More'}</button>
       {expanded&&<p className="text-sm text-sand-700">{formation.summary}</p>}
