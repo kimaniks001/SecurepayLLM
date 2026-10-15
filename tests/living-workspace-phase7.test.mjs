@@ -570,3 +570,18 @@ test('Living Store: every public product, service and capacity offer has a sourc
   assert.equal((await response('GET','/api/v1/stores/KS123/offers/private')).statusCode,403);
  }finally{globalThis.fetch=orig;}
 });
+
+
+test('Living Store sample catalogue is visibly fictional, photograph-led, and never writes real Store or Agreement records',()=>{
+ const live=source('src/features/living-workspace/StoresTool.tsx');
+ const demo=source('src/features/living-workspace/StoreDemoExperience.tsx');
+ assert.match(live,/const \[showSamples,setShowSamples\]=useState\(true\)/);
+ assert.match(live,/showSamples\?<StoreDemoExperience\/>/);
+ assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='seller'\)return/);
+ assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='community'\)return/);
+ assert.match(demo,/SAMPLE · NOT A REAL STORE/);
+ for(const name of ['Jenga Interiors','Mavuno Building Supplies','Kijiji Woodworks','Karibu Delivery Crew'])assert.ok(demo.includes(name));
+ for(const term of ['Take to KS001','Completed work','Seller','Buyer','Together','Prepare quote','Calendar & balance','Community Saver','KS001 · Practice conversation'])assert.ok(demo.includes(term),term);
+ assert.match(demo,/No Community Saver or payout is created by this example/);
+ assert.doesNotMatch(demo,/gateway\.|gateways\.|fetch\(|onContinue\(|localStorage|sessionStorage|createAgreement|createOffer/);
+});
