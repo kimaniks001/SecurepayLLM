@@ -14,7 +14,7 @@ import { createAgentController, deviceTimeZone, type AgentState } from '../agent
 import { createFormationController, type FormationState } from '../formation/controller';
 import { LiveKs001Session } from './LiveKs001Session';
 import type { AgentGateway } from '../../api/securepay/agent';
-import { QuickSupportPanel } from './QuickSupportPanel';
+import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -37,7 +37,7 @@ const tools = [
   { name: 'People & Invitations', icon: UserRoundPlus, description: 'Find people, invite participants and clarify roles and permissions.' },
   { name: 'Stores', icon: Store, description: 'Find products, suppliers and services.' },
   { name: 'Money', icon: Wallet, description: 'One place for Agreement Money, payment readiness, banking, savings, financing and insurance options.' },
-  { name: 'Quick Support', icon: BedDouble, description: 'Universal practical services: Short Stays, My Ride and Quick Documents.' },
+  { name: 'Quick Assist', icon: BedDouble, description: 'Your Short Stays, My Ride and optional tools — add them only when useful.' },
   { name: 'Milestones', icon: Truck, description: 'Plan stages, evidence, completion and approval requirements.' },
   { name: 'Vision tools', icon: Lightbulb, description: 'Sketch, organise ideas, explore alternatives and develop a dream.' },
   { name: 'Community & Circles', icon: Users, description: 'Find people, groups, projects and shared work.' },
@@ -164,8 +164,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const current = scenarios[mode];
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
+  const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
+  const [quickAssistSeed, setQuickAssistSeed] = useState('');
+  const [storeServiceQuery, setStoreServiceQuery] = useState('');
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
-  function openTool(name: string) {
+  function openTool(name: string, request = '') {
+    if (name === 'Quick Assist') setQuickAssistSeed(request);
+    if (name === 'Stores') setStoreServiceQuery('');
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
   }
@@ -183,7 +188,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     if (!value) return;
     setMessages(previous => ({ ...previous, [mode]: [...previous[mode], value] }));
     setDrafts(previous => ({ ...previous, [mode]: '' }));
-    setSuggestedTool(recommendWorkspaceTool(mode, value));
+    const suggestion = recommendWorkspaceTool(mode, value);
+    setSuggestedTool(suggestion);
+    if (suggestion === 'Quick Assist') setQuickAssistSeed(value);
   }
   const continueSavedConversation = async(conversationId:string)=>{
     if(!liveController)throw new Error('KS001 conversation service is not available');
@@ -310,6 +317,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
+                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -342,7 +350,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
                     }}/>
-                : activeTool==='Quick Support'?<QuickSupportPanel/>
+                : activeTool==='Quick Support'||activeTool==='Quick Assist'?<QuickSupportPanel
+                    collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
+                    onFindStoreOffers={service=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setActiveTool('Stores');setToolSelected(true);}}
+                    onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
+                      if(!liveController)throw new Error('KS001 is unavailable');
+                      const snapshot=liveController.getSnapshot();
+                      if(snapshot.busy || snapshot.pending)throw new Error('Finish your current KS001 message first');
+                      setLiveStarted(true);setLiveWork(true);
+                      await liveController.send(message);
+                      if(liveController.getSnapshot().error || liveController.getSnapshot().pending)throw new Error('KS001 has not confirmed the request. Please retry safely in the conversation.');
+                      closeTool();
+                    }:undefined}/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
             </div>
           : <nav aria-label="Choose a tool" className="max-h-[65dvh] overflow-auto p-3">
@@ -354,7 +373,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="text-lg">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button onClick={()=>openTool(activeTool)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm"><Plus size={18}/> Add / Tools</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!(mode==='work' && liveWork && gateway) && <><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"><p className="max-w-[560px] text-sm leading-7">{mockSignedIn ? 'This is a sample conversation, not a real KS001 response. '+persona.opening : persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool)} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
+        {!(mode==='work' && liveWork && gateway) && <><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"><p className="max-w-[560px] text-sm leading-7">{mockSignedIn ? 'This is a sample conversation, not a real KS001 response. '+persona.opening : persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool,suggestedTool==='Quick Assist'?quickAssistSeed:'')} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
         <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
 </>}
       </section>
