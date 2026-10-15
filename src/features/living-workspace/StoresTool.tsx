@@ -6,7 +6,7 @@ import type { CurrentUserActionResponse } from '../../api/securepay/agreements/d
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -147,13 +147,16 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  }
  async function addOfferToPlan(ownerKs:string,offerId:string){
   if(!gateways||addingToPlan||busy)return;
+  if(planLines.length>=MAX_STORE_PLAN_LINES&&!planLines.some(line=>line.key==='real:'+ownerKs+':'+offerId)){
+    setError('This preview supports up to '+MAX_STORE_PLAN_LINES+' distinct items per buying plan. Review your plan before adding more.');return;
+  }
   setAddingToPlan(offerId);setError('');setNotice('');
   try{
     const record=await gateways.stores.offer(ownerKs,offerId);
     if(record.canonicalKsNumber!==ownerKs||record.offer.id!==offerId)throw new Error('Offer source mismatch');
     setPlanLines(current=>addStoreBuyingLine(current,{
       key:'real:'+ownerKs+':'+offerId,
-      storeName:record.displayName,storeKsNumber:ownerKs,offerId,
+      storeName:record.displayName,storeKsNumber:ownerKs,originPlace:record.profile.locationLabel,offerId,
       title:record.offer.title,kind:record.offer.kind as StoreBuyingLine['kind'],
       priceLabel:price(record.offer.priceMinor,record.offer.currency),currency:record.offer.currency,
     }));
