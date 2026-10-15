@@ -26,10 +26,17 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
     // Vercel preview protection may require its own same-origin session cookie.
     // This cookie is consumed by Vercel; the relay NEVER forwards cookies upstream.
     if (url.pathname.endsWith('/sources/upload')) {
-      if (!(init?.body instanceof FormData)) throw new Error('Photo upload requires a file');
+      if (!(init?.body instanceof FormData)) throw new Error('Source upload requires a file');
       const file = init.body.get('file');
-      if (!(file instanceof File) || !['image/jpeg','image/png'].includes(file.type) || file.size > 2_000_000 || file.size === 0)
-        throw new Error('Select a JPEG or PNG under 2 MB');
+      const sourceKind=init.body.get('sourceKind');
+      const documentTypes=['application/pdf','text/plain','text/csv',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+      const validType=file instanceof File && (sourceKind==='PHOTO'
+        ? ['image/jpeg','image/png'].includes(file.type)
+        : sourceKind==='DOCUMENT' && documentTypes.includes(file.type));
+      if (!validType || !(file instanceof File) || file.size>2_000_000 || file.size===0)
+        throw new Error('Select a supported file under 2 MB');
       const bytes = new Uint8Array(await file.arrayBuffer());
       // Convert only this bounded photo into an explicit payload; no generic upload proxy.
       let binary = '';
@@ -38,7 +45,7 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
       const headers = new Headers(init?.headers);
       headers.set('Content-Type','application/json');
       return fetch(endpoint, {...init,headers,body:JSON.stringify({
-        sourceKind:'PHOTO',filename:file.name,mediaType:file.type,label:String(init.body.get('label')||'').slice(0,500),
+        sourceKind,filename:file.name,mediaType:file.type,label:String(init.body.get('label')||'').slice(0,500),
         dataBase64:btoa(binary),
       }),credentials:'same-origin'});
     }
