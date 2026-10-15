@@ -166,6 +166,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
+  // A source added while editing a fact must retain the originating conversation.
+  // This hint changes only the explicit KS001 request, never Agreement authority.
+  const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
     if (name === 'Quick Assist') setQuickAssistSeed(request);
@@ -174,15 +177,23 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
   }
   function openToolPicker() {
+    setSupportingFact(null);
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setToolSelected(false);
     setToolsOpen(true);
   }
-  function closeTool() { setToolsOpen(false); setToolSelected(false); setScreen(previousScreen.current); }
+  function openFactSourcePicker(label: string) {
+    if (!liveConversationId || !label.trim()) return;
+    setSupportingFact({label,conversationId:liveConversationId});
+    if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
+    setToolSelected(false);
+    setToolsOpen(true);
+  }
+  function closeTool() { setSupportingFact(null);setToolsOpen(false); setToolSelected(false); setScreen(previousScreen.current); }
   useEffect(()=>{
     if(!toolsOpen)return;
     const onEscape=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();setToolsOpen(false);setToolSelected(false);setScreen(previousScreen.current);}
+      if(event.key==='Escape'){event.preventDefault();setSupportingFact(null);setToolsOpen(false);setToolSelected(false);setScreen(previousScreen.current);}
     };
     window.addEventListener('keydown',onEscape);
     return ()=>window.removeEventListener('keydown',onEscape);
@@ -291,6 +302,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     review:'Review the document terms, obligations, dates and risks. Distinguish proposed from agreed facts.',
                     summary:'Give a short practical summary of this document and suggest the one most useful next step.',
                   };
+                  const supportingLabel=supportingFact?.conversationId===liveConversationId ? supportingFact.label : null;
                   closeTool();
                   setLiveStarted(true);
                   const placeInstructions:Record<string,string>={
@@ -298,7 +310,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     delivery:'Help me specify the delivery destination and entrance for this place. Do not claim it has been verified.',
                     ask:'Help me understand this place or Plus Code, identify what is missing, and ask one useful question.',
                   };
-                  await liveController.send('For source '+source.sourceArtifactId+': '+(source.sourceKind==='PLACE'?(placeInstructions[task]??placeInstructions.ask):(instructions[task]??'Help me understand this source.')));
+                  const taskInstruction=source.sourceKind==='PLACE'
+                    ? (placeInstructions[task]??placeInstructions.ask)
+                    : (instructions[task]??'Help me understand this source.');
+                  const factInstruction=supportingLabel
+                    ? 'I supplied this source while editing the '+supportingLabel+' detail in my draft Agreement. Please assess it as possible supporting material for that detail. Only propose changes supported by the source, ask for confirmation where necessary, and show an updated draft. Do not silently change accepted terms, verify a party merely from a photo, or treat this upload as Agreement approval. '
+                    : '';
+                  await liveController.send('For source '+source.sourceArtifactId+': '+factInstruction+taskInstruction);
                 }}/>
                 : activeTool==='People & Invitations'?<PeopleInvitationsTool
                     onCheckKs={gateway?async ksNumber=>{
@@ -368,9 +386,28 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }:undefined}/>
                 : <p role="alert" className="text-sm text-sand-600">This tool is unavailable. Return to your tools.</p>}
+              {supportingFact?.conversationId===liveConversationId&&
+                <p role="status" className="mt-3 rounded-lg bg-cream-100 p-3 text-xs leading-5">
+                  Supporting <strong>{supportingFact.label}</strong> in this draft. Choose and review a source. It is not automatically accepted into the Agreement.
+                </p>}
             </div>
           : <nav aria-label="Choose a tool" className="max-h-[65dvh] space-y-5 overflow-y-auto p-4 sm:p-5">
-              <p className="text-sm text-sand-600">Choose one thing. KS001 stays right here.</p>
+              {supportingFact?.conversationId===liveConversationId ? <>
+                <h4 className="sp-type-display text-base">Add to {supportingFact.label}</h4>
+                <p className="text-xs leading-5 text-sand-600">Add a photo, document, place, or a KS Number for KS001 to review. Nothing changes the Agreement automatically.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['Photos','Documents','Places',...(supportingFact.label==='People'?['People & Invitations']:[])] as Array<(typeof tools)[number]['name']>)
+                    .map(name=>{
+                      const item=tools.find(tool=>tool.name===name)!;
+                      const label=name==='People & Invitations'?'KS Number':name==='Photos'?'Photo':name==='Documents'?'Document':'Place';
+                      return <button key={name} type="button" onClick={()=>openTool(item.name)}
+                        className="flex min-h-16 items-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-left text-sm font-semibold hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+                        <item.icon size={19} aria-hidden="true"/>{label}
+                      </button>;
+                    })}
+                </div>
+              </> : <>
+                <p className="text-sm text-sand-600">Choose one thing. KS001 stays right here.</p>
               <section aria-label="Add something">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
                 <div className="grid grid-cols-3 gap-2">
@@ -390,6 +427,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   </button>)}
                 </div>
               </section>
+              </>}
             </nav>}
         </aside>
       </>}
@@ -415,6 +453,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
+          onAddToFact={openFactSourcePicker}
           onCorrectFact={async (label,previous,replacement)=>{
             if(!liveController||!liveConversationId||liveBusy||livePending)throw new Error('KS001 is not ready');
             // A proposed correction, not a local mutation of backend-owned Agreement facts.
