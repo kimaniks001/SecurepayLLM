@@ -244,7 +244,15 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mb-3 max-h-64 w-full rounded-lg object-contain"/>}
         <p className="break-all text-sm font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Reading photo…':serverSource?'Received by SecurePay':'Preparing photo…'}</p>
-        <button type="button" onClick={()=>{setPending(null);pendingFile.current=null;setQrValue(null);setQrState(null);setSelectedTask('');setUploadState('idle');}} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Choose another picture</button>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {tool==='Photos'&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
+            if(!pending)return;
+            setItems(current=>[...current,{id:nextId(),kind:'Photos',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
+            setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
+            upload.current?.click();
+          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">+ Add photo</button>}
+          <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">Choose another photo</button>
+        </div>
       </div>}
     </>}
     {tool!=='Photos'&&<label className="block text-xs">Caption or purpose (optional)
@@ -313,7 +321,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}
     {items.length>0&&<div aria-label="Locally staged sources" className="space-y-2">
-      <p className="text-xs font-semibold">Local previews · Not uploaded ({items.length})</p>
+      <p className="text-xs font-semibold">Earlier photos and local previews ({items.length})</p>
       {items.map(item=><article key={item.id} className="rounded-xl border border-cream-200 bg-white p-3">
         {item.thumbnail && <img src={item.thumbnail} alt={'Local preview of '+item.filename}
           className="mb-2 max-h-36 w-full rounded-lg object-contain" />}
@@ -321,7 +329,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" aria-label={'Remove '+item.filename} onClick={()=>{setItems(current=>current.filter(s=>s.id!==item.id));setConfirmation(null);}}
             className="min-h-11 min-w-11 rounded-lg bg-cream-100 p-2"><Trash2 size={16}/></button></div>
         {item.label&&<p className="mt-1 text-xs text-sand-700">{item.label}</p>}
-        <p className="mt-1 text-xs text-sand-600">Selected locally · No upload · Unverified</p>
+        <p className="mt-1 text-xs text-sand-600">{item.kind==='Photos'&&item.label.startsWith('SecurePay source:')?'Received as a separate KS001 source · Not Agreement evidence':'Selected locally · Unverified'}</p>
       </article>)}
       <button type="button" onClick={()=>{seq.current++;setItems([]);setPending(null);setConfirmation(null);}} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Clear local previews</button>
     </div>}
