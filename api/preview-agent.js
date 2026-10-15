@@ -14,6 +14,7 @@ const conversationPath = /^\/api\/agent\/conversations\/([A-Za-z0-9_-]{8,128})\/
 
 function permitted(method, path) {
   if (path === '/api/agent/conversations') return method === 'POST';
+  if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/place$/.test(path)) return method === 'POST';
   if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/upload$/.test(path)) return method === 'POST';
   if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/[A-Za-z0-9_-]{8,128}$/.test(path)) return method === 'GET';
   if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/[A-Za-z0-9_-]{8,128}\/retry$/.test(path)) return method === 'POST';
