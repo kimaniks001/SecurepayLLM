@@ -497,3 +497,49 @@ test('Structural S4: member Community discovery relay is bounded and separately 
   assert.equal(calls[1],'https://securepay.ke'+route);
  }finally{globalThis.fetch=before;}
 });
+
+
+test('Living Store: buyer sees real public offers, seller stays private, community stays membership-gated',()=>{
+ const ui=source('src/features/living-workspace/StoresTool.tsx');
+ const gateways=source('src/features/living-workspace/previewWorkspaceGateways.ts');
+ const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ const relay=source('api/preview-workspace.js');
+ for(const term of ['gateways.stores.search','gateways.stores.store','gateways.stores.myProfile','gateways.stores.myOffers',
+  'gateways.stores.createOffer','published:false','gateways.agreements.currentUserActions','gateways.community.membership.me()',
+  'gateways.community.projects.list','gateways.community.serviceOpportunities.list']) assert.ok(ui.includes(term),term);
+ assert.match(ui,/m.status!=='ACTIVE'/);
+ assert.match(ui,/A Plug must/);
+ assert.match(ui,/url.origin==='https:\/\/securepay.ke'/);
+ assert.match(gateways,/stores: createStoreGateway\(http\)/);
+ assert.match(shell,/gateways=\{workspaceGateways\} signedIn=\{signedIn&&!mockSignedIn\}/);
+ assert.match(relay,/publicStoreRead/);
+});
+test('Living Store: preview relay allows bounded public browsing but no unauthorised seller access',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async(method,path,token,body)=>{
+  const res={statusCode:200,setHeader(){},end(content){this.body=content;}};
+  await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
+    ...(token?{authorization:'Bearer abcdefghijklmnop'}:{}),
+    ...(body?{'content-type':'application/json'}:{})},body},res);
+  return res;
+ };
+ const old=globalThis.fetch;let forwarded;
+ try{
+  globalThis.fetch=async (url,options)=>{
+   forwarded={url:String(url),options};
+   return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  assert.equal((await call('GET','/api/v1/stores/search?kind=PRODUCT&limit=10')).statusCode,200);
+  assert.equal(forwarded.url,'https://securepay.ke/api/v1/stores/search?kind=PRODUCT&limit=10');
+  assert.equal(forwarded.options.headers.Authorization,undefined);
+  assert.equal((await call('GET','/api/v1/stores/KS123')).statusCode,200);
+  assert.equal((await call('GET','/api/v1/stores/search?kind=PRODUCT&limit=500')).statusCode,403);
+  assert.equal((await call('GET','/api/v1/stores/search?kind=PRODUCT&admin=true')).statusCode,403);
+  assert.equal((await call('GET','/api/v1/store/me/offers')).statusCode,401);
+  assert.equal((await call('POST','/api/v1/store/me/offers',null,{title:'Test'})).statusCode,401);
+  assert.equal((await call('POST','/api/v1/store/me/offers','yes',{title:'Draft offer',kind:'SERVICE',published:false})).statusCode,200);
+  assert.equal(forwarded.options.headers.Authorization,'Bearer abcdefghijklmnop');
+  assert.equal((await call('POST','/api/v1/stores/KS123')).statusCode,403);
+  assert.equal((await call('GET','/api/v1/store/me/offers?owner=another','yes')).statusCode,403);
+ }finally{globalThis.fetch=old;}
+});
