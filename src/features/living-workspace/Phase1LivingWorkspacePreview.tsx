@@ -17,13 +17,14 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
+import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
 import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
-import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
+import { ArrowLeft, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -33,8 +34,7 @@ const tools = [
   { name: 'Places', icon: MapPin, description: 'Prepare an address or place as unverified context.' },
   { name: 'People & Invitations', icon: UserRoundPlus, description: 'Find people, invite participants and clarify roles and permissions.' },
   { name: 'Stores', icon: Store, description: 'Find products, suppliers and services.' },
-  { name: 'Money', icon: Wallet, description: 'See Agreement funding readiness and authorised next actions.' },
-  { name: 'Financial Institutions', icon: Landmark, description: 'Find bank, finance and insurance options.' },
+  { name: 'Money', icon: Wallet, description: 'One place for Agreement Money, payment readiness, banking, savings, financing and insurance options.' },
   { name: 'Quick Support', icon: BedDouble, description: 'Universal practical services: Short Stays, My Ride and Quick Documents.' },
   { name: 'Milestones', icon: Truck, description: 'Plan stages, evidence, completion and approval requirements.' },
   { name: 'Vision tools', icon: Lightbulb, description: 'Sketch, organise ideas, explore alternatives and develop a dream.' },
@@ -232,7 +232,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden">
       {toolsOpen && <>
         <button type="button" aria-label="Close photo workspace overlay" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10" />
-        <aside role="dialog" aria-modal="true" aria-label={toolSelected?activeTool+' tool':'Choose a tool'} className={'fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(88dvh,900px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl ring-1 ring-forest-900/10 '+(toolSelected&&activeTool==='Stores'?'sm:w-[min(96vw,1060px)]':'sm:w-[min(94vw,560px)]')}>
+        <aside role="dialog" aria-modal="true" aria-label={toolSelected?activeTool+' tool':'Choose a tool'} className={'fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(88dvh,900px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl ring-1 ring-forest-900/10 '+(toolSelected&&(activeTool==='Stores'||activeTool==='Money')?'sm:w-[min(96vw,1060px)]':'sm:w-[min(94vw,560px)]')}>
         <div className="flex items-center justify-between gap-2 border-b border-cream-100 p-4">
           {toolSelected
             ? <button type="button" onClick={()=>setToolSelected(false)} aria-label="Back to tools" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold hover:bg-cream-100"><ArrowLeft size={18}/> Back to tools</button>
@@ -313,6 +313,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
                       : []}
                     onContinue={async message=>{
+                      if(!liveController)throw new Error('KS001 is unavailable');
+                      setLiveStarted(true);setLiveWork(true);
+                      await liveController.send(message);
+                      if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
+                      closeTool();
+                    }}/>
+                : activeTool==='Money'?<UnifiedMoneyTool
+                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
+                    onOpenMoney={()=>{closeTool();window.location.hash='#/money';}}
+                    onAskKs001={async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       setLiveStarted(true);setLiveWork(true);
                       await liveController.send(message);
