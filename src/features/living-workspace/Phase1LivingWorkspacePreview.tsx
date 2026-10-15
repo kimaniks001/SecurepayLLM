@@ -18,6 +18,8 @@ import { QuickSupportPanel } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
+import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
+import { storeAgreementEntry } from '../experience/entryIntent';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -322,6 +324,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 : activeTool==='Money'?<UnifiedMoneyTool
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
                     onOpenMoney={()=>{closeTool();window.location.hash='#/money';}}
+                    onOpenAgreementMoney={(agreement,railCode)=>{
+                      if(railCode)setMoneyRailPreference({agreementId:agreement.agreementId,railCode});
+                      closeTool();
+                      openMoneyFor({agreementId:agreement.agreementId,title:agreement.title,
+                        versionLabel:null,currentVersionId:agreement.currentAgreementVersionId});
+                    }}
+                    onReviewAgreement={agreementId=>{
+                      storeAgreementEntry(agreementId);
+                      closeTool();
+                      window.location.hash='';
+                    }}
                     onAskKs001={async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       setLiveStarted(true);setLiveWork(true);
