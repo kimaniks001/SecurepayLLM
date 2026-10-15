@@ -309,6 +309,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             if(!liveController||!liveConversationId||liveBusy||livePending)throw new Error('KS001 is not ready');
             // A proposed correction, not a local mutation of backend-owned Agreement facts.
             await liveController.send('Please correct the '+label+' in this draft Agreement. Previously shown: "'+previous+'". My correction is: "'+replacement+'". Check whether this changes other terms and show me the updated draft. Do not treat any accepted Agreement as silently amended.');
+            if(liveController.getSnapshot().pending||liveController.getSnapshot().error)throw new Error('Correction outcome not yet confirmed');
             if(formationController)await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
