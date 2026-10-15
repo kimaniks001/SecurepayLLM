@@ -40,10 +40,10 @@ function OfferPhoto({refs,title}:{refs:string[];title:string}){
 }
 function Status({text}:{text:string}){return <p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">{text}</p>;}
 
-export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void}){
+export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string}){
  const [area,setArea]=useState<Area>('buyer');
- const [kind,setKind]=useState<OfferKind>('PRODUCT');
- const [query,setQuery]=useState('');
+ const [kind,setKind]=useState<OfferKind>(initialServiceQuery ? 'SERVICE' : 'PRODUCT');
+ const [query,setQuery]=useState(initialServiceQuery || '');
  const [location,setLocation]=useState('');
  const [search,setSearch]=useState<ReadState<PublicSearchResultView[]>>(initial([]));
  const [selectedStore,setSelectedStore]=useState<ReadState<PublicStoreView|null>>(initial(null));
@@ -63,7 +63,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
- const [showSamples,setShowSamples]=useState(true);
+ const [showSamples,setShowSamples]=useState(!initialServiceQuery);
  const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
  const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
  const [planOpen,setPlanOpen]=useState(false);
@@ -230,6 +230,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        <label className="block text-xs">Where? (optional)
         <input value={location} onChange={e=>setLocation(e.target.value)} maxLength={120} placeholder="Place or service area" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
        </label>
+       {initialServiceQuery && <p className="text-xs text-sand-600">From Quick Assist: search published Store service offers. The listing is not a booking or an accepted Quick Contract.</p>}
        <button onClick={()=>void findOffers()} disabled={!gateways||search.status==='loading'} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white disabled:opacity-50"><Search size={16}/> {search.status==='loading'?'Looking…':'Find real offers'}</button>
        {agreementNeeds.length>0&&<div className="flex flex-wrap gap-2" aria-label="From your Agreement">{agreementNeeds.slice(0,3).map((need,i)=><button key={i} onClick={()=>{setQuery(need.slice(0,120));}} className="rounded-full border border-cream-200 px-3 py-2 text-xs">{need.slice(0,48)}</button>)}</div>}
        {search.status==='error'&&<Status text={search.error||errorText}/>}
