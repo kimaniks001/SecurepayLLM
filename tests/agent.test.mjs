@@ -510,11 +510,13 @@ export const markup = renderToStaticMarkup(React.createElement(SecurePayHero, { 
   assert.doesNotMatch(current, /M6 27c0-5\.5 4\.5-10 10-10s10 4\.5 10 10/);
   assert.match(current, /<img[^>]*src="data:image\/png/);
   const visible = current.replace(/data:[^"]+/g, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-  assert.ok(visible.includes('What do you want to make real today?'));
-  assert.ok(visible.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
+  assert.ok(visible.includes('What would you like to get done?'));
+  assert.ok(visible.includes('Tell me in your own words. We can work out the details together.'));
   assert.ok(visible.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
   assert.ok(visible.includes('Guided by the 12 Principles of Fair Trade'));
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(visible.includes(label), label);
+  assert.match(current, /data-ks001-lockup/);
+  assert.match(current, /data-source-menu/);
+  assert.ok(!visible.includes('DEMO ACCOUNT'), 'the real public Home never pretends to be a simulated signed-in account');
   assert.ok(!visible.includes('Fair trader score') && !/\d+\/12/.test(visible), 'must never grade the person with a fair trade score');
 });
 
