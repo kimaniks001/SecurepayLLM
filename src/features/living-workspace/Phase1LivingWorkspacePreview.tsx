@@ -127,8 +127,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     }
     let active=true;
     setLiveStarted(true);setLiveWork(true);
-    void liveController.resumeConversation(conversationId).catch(()=>{
-      if(active)setReturnError('SecurePay could not reopen this conversation as your current identity. Open it from Saved Work; no Agreement was changed.');
+    void liveController.resumeConversation(conversationId).then(()=>{
+      // resumeConversation deliberately catches history/read errors for ordinary
+      // presentation. A resolved promise is NOT proof that server access passed.
+      const current=liveController.getSnapshot();
+      if(current.conversationId!==conversationId || current.context.status!=='ready' || !current.context.data)
+        throw new Error('Conversation context not authorised or available');
+    }).catch(()=>{
+      if(active){
+        setLiveStarted(false);
+        setLiveWork(false);
+        setReturnError('SecurePay could not reopen this conversation as your current identity. Open it from Saved Work; no Agreement was changed.');
+      }
     });
     return()=>{active=false;};
   },[liveController,signedIn]);
