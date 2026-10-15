@@ -3,6 +3,8 @@ import { Camera, FileText, ShieldCheck, Trash2 } from 'lucide-react';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgentSourceArtifactDto } from '../../api/securepay/agent/dto';
 import jsQR from 'jsqr';
+import type { VisionDreamGateway } from '../../api/securepay/visiondreams';
+import type { VisionDreamDto } from '../../api/securepay/visiondreams/dto';
 import { isOutcomeUnknown, sourceIngestionErrorText } from '../sources/controller';
 
 type Intake='Photos'|'Documents'|'Places';
@@ -23,7 +25,8 @@ function suggestPhotoActions(source:AgentSourceArtifactDto):Array<{id:string;lab
   if(/invoice|bill/.test(summary))return [{id:'invoice',label:'Review invoice'},{id:'contract',label:'Prepare Agreement'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
   if(/delivery|damag|package|inspection/.test(summary))return [{id:'delivery',label:'Record delivery'},{id:'contract',label:'Use as evidence'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
   if(/quotation|quote|estimate/.test(summary))return [{id:'contract',label:'Prepare Quick Contract'},{id:'invoice',label:'Extract prices'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
-  return [{id:'contract',label:'Prepare Agreement'},{id:'ask',label:'Ask KS001'},{id:'qr',label:'Read QR'},{id:'correct',label:'Not this'}];
+  if(/product|design|idea|inspiration|furniture|building|room|equipment/.test(summary))return [{id:'vision',label:'Add to Vision'},{id:'find',label:'Find similar'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
+  return [{id:'vision',label:'Add to Vision'},{id:'contract',label:'Prepare Agreement'},{id:'ask',label:'Ask KS001'},{id:'correct',label:'Not this'}];
 }
 const MAX_BYTES=2_000_000;
 const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
@@ -32,7 +35,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
 /** Photo selection explicitly sends to canonical KS001 in real mode; demo stays local.
  * A processed source is not evidence accepted by an Agreement or Money authority.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;onEnsureConversation?:()=>Promise<string>;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -51,13 +54,18 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
+  const [visionChooser,setVisionChooser]=useState(false);
+  const [visions,setVisions]=useState<VisionDreamDto[]>([]);
+  const [visionPhase,setVisionPhase]=useState<'idle'|'loading'|'saving'|'saved'|'error'>('idle');
+  const [visionMessage,setVisionMessage]=useState('');
+  const [newVisionTitle,setNewVisionTitle]=useState('');
 
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -147,6 +155,53 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     }
   }
 
+  async function openVisionChooser(){
+    if(!dreamsGateway||!ensureSignedIn||!pendingFile.current){setVisionMessage('Sign in to save a photo to your Vision.');setVisionPhase('error');return;}
+    setVisionChooser(true);setVisionPhase('loading');setVisionMessage('');
+    try{
+      await ensureSignedIn();
+      const list=await dreamsGateway.mine();
+      setVisions(list.filter(dream=>!dream.superseded));
+      setVisionPhase('idle');
+    }catch{
+      setVisionPhase('error');setVisionMessage('Could not load your Visions. Check your sign-in and try again.');
+    }
+  }
+
+  async function saveToVision(dreamId:string){
+    if(!dreamsGateway||!pendingFile.current||!ensureSignedIn)return;
+    setVisionPhase('saving');setVisionMessage('Adding photo to your Vision…');
+    try{
+      await ensureSignedIn();
+      const owned=await dreamsGateway.get(dreamId);
+      if(owned.dreamId!==dreamId||owned.superseded)throw new Error('Vision unavailable');
+      const file=pendingFile.current;
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      let binary='';
+      for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      const result=await dreamsGateway.uploadAsset(dreamId,{fileName:file.name,mimeType:file.type,base64Content:btoa(binary),idempotencyKey:crypto.randomUUID()});
+      if(result.dreamId!==dreamId||!result.assetId)throw new Error('Save not confirmed');
+      setVisionPhase('saved');setVisionMessage('Photo saved to '+owned.title+'. Open your Vision to place it on your board.');
+    }catch{
+      setVisionPhase('error');setVisionMessage('SecurePay could not confirm the photo was saved. Check your Vision before retrying.');
+    }
+  }
+
+  async function createVisionAndSave(){
+    if(!gateway||!dreamsGateway||!ensureSignedIn||!newVisionTitle.trim())return;
+    setVisionPhase('saving');setVisionMessage('Creating your Vision…');
+    try{
+      await ensureSignedIn();
+      // A Dream claims its own newly created conversation; never claim or modify the photo's Agreement conversation.
+      const created=await gateway.createConversation();
+      if(!created.conversationId)throw new Error('Conversation unavailable');
+      const dream=await dreamsGateway.create({conversationId:created.conversationId,title:newVisionTitle.trim(),initialThought:'A new Vision inspired by an uploaded photo.'});
+      await saveToVision(dream.dreamId);
+    }catch{
+      setVisionPhase('error');setVisionMessage('Could not confirm the new Vision. Check your Visions before trying again.');
+    }
+  }
+
   function saveLocalPreview(){
     if(!pending)return;
     setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',
@@ -228,12 +283,27 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <p className="text-sm font-semibold">What would you like to do?</p>
           <div className="flex flex-wrap gap-2" aria-label="Suggested answers">
             {suggestPhotoActions(serverSource).map(task=><button key={task.id} type="button" disabled={taskBusy}
-              onClick={async()=>{if(task.id==='qr'){await inspectQr();return;}setTaskBusy(true);try{await onContinueTask(serverSource,task.id);}catch{setUploadMessage('KS001 could not continue just now. Your source is retained.');}finally{setTaskBusy(false);}}}
+              onClick={async()=>{if(task.id==='vision'){await openVisionChooser();return;}if(task.id==='qr'){await inspectQr();return;}setTaskBusy(true);try{await onContinueTask(serverSource,task.id);}catch{setUploadMessage('KS001 could not continue just now. Your source is retained.');}finally{setTaskBusy(false);}}}
               className="min-h-11 rounded-full border border-forest-300 bg-white px-4 py-2 text-sm font-medium text-forest-800 hover:bg-forest-50 disabled:opacity-50">
               {task.label}
             </button>)}
           </div>
           {/(deliver|damage|inspect|disput|evidence)/i.test(serverSource.summary||'')&&<p className="text-xs text-sand-600">Using this as evidence? Camera location can help for future photos. Sharing location is optional; GPS alone is not proof.</p>}
+          {visionChooser&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Choose a Vision">
+            <p className="text-sm font-semibold">Add this photo to a Vision</p>
+            {visionPhase==='loading'&&<p role="status" className="text-xs">Finding your Visions…</p>}
+            {visionPhase!=='loading'&&visionPhase!=='saved'&&<div className="space-y-2">
+              {visions.map(dream=><button key={dream.dreamId} type="button" disabled={visionPhase==='saving'} onClick={()=>void saveToVision(dream.dreamId)}
+                className="min-h-11 w-full rounded-lg border border-cream-200 bg-white px-3 text-left text-sm disabled:opacity-50">{dream.title}</button>)}
+              {visions.length===0&&<p className="text-xs text-sand-600">No existing Visions found. Start a new one below.</p>}
+              <label className="block text-xs">New Vision name
+                <input className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 bg-white px-3" value={newVisionTitle} maxLength={120} onChange={e=>setNewVisionTitle(e.target.value)} placeholder="e.g. My new workshop"/>
+              </label>
+              <button type="button" disabled={visionPhase==='saving'||!newVisionTitle.trim()} onClick={()=>void createVisionAndSave()}
+                className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-50">Create new Vision</button>
+            </div>}
+            {visionMessage&&<p role="status" className="text-xs">{visionMessage}</p>}
+          </div>}
           <p className="text-xs text-sand-600">KS001’s reading may contain errors. You will review material terms before any Agreement, invitation or Money action.</p>
         </>}
       </section>}
