@@ -575,7 +575,7 @@ test('Living Store: every public product, service and capacity offer has a sourc
 test('Living Store sample catalogue is visibly fictional, photograph-led, and never writes real Store or Agreement records',()=>{
  const live=source('src/features/living-workspace/StoresTool.tsx');
  const demo=source('src/features/living-workspace/StoreDemoExperience.tsx');
- assert.match(live,/const \[showSamples,setShowSamples\]=useState\(true\)/);
+ assert.match(live,/const \[showSamples,setShowSamples\]=useState\(!initialServiceQuery\)/);
  assert.match(live,/showSamples\?<StoreDemoExperience\/>/);
  assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='seller'\)return/);
  assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='community'\)return/);
