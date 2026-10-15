@@ -267,10 +267,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     qr:'Help me interpret the QR code I reviewed. Do not open links, accept an Agreement or initiate payment automatically.',
                     ask:'Please help me understand this photo and suggest the one most useful next step.',
                     correct:'That interpretation is not right. Please help me correct what the photo shows before doing anything else.',
+                    decisions:'Extract decisions, responsibilities and deadlines from this document, identifying what requires confirmation.',
+                    review:'Review the document terms, obligations, dates and risks. Distinguish proposed from agreed facts.',
+                    summary:'Give a short practical summary of this document and suggest the one most useful next step.',
                   };
                   closeTool();
                   setLiveStarted(true);
-                  await liveController.send('For photo source '+source.sourceArtifactId+': '+(instructions[task]??'Help me understand this source.'));
+                  await liveController.send('For source '+source.sourceArtifactId+': '+(instructions[task]??'Help me understand this source.'));
                 }}/>
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
