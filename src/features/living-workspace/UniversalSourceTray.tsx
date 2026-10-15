@@ -353,8 +353,6 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
-    {tool==='Places'&&false&&<button type="button" disabled={!label.trim()} onClick={addPlace}
-      className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}
     {items.length>0&&<div aria-label="Locally staged sources" className="space-y-2">
       <p className="text-xs font-semibold">Earlier photos and local previews ({items.length})</p>
