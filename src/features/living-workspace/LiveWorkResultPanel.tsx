@@ -18,6 +18,26 @@ function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   </section>;
 }
 
+/** A small, faithful display projection, not a new Agreement fact source. */
+function humanTitle(summary:string|null|undefined):string {
+  if(!summary)return 'Your Agreement';
+  const leading=summary.split(':')[0].trim();
+  return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
+}
+function humanQuestion(text:string):string {
+  const clean=text.replace(/^.{0,130}\\.(?:pdf|docx|xlsx|csv|txt)\\s+(?:doesn't say|does not say|says|shows)\\s*:?\\s*/i,'')
+    .replace(/^the schedule does not state /i,'')
+    .replace(/^(?:the|this) (?:document|spreadsheet|schedule) (?:does not|doesn't) (?:state|say)\\s*:?[ ]*/i,'')
+    .trim();
+  return clean || text;
+}
+function paymentHighlights(summary:string|null|undefined):string[] {
+  if(!summary)return [];
+  const tail=summary.includes(':')?summary.slice(summary.indexOf(':')+1):summary;
+  const hits=[...tail.matchAll(/KES\\s*[\\d,]+[^,.]{0,85}/gi)].map(m=>m[0].trim().replace(/[.;:]$/,''));
+  return hits.slice(0,4);
+}
+
 export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, examination }: {
   state: FormationState | null;
   conversationId: string | null;
@@ -28,13 +48,14 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
   const [expanded,setExpanded]=useState(false);
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
+  const highlights=paymentHighlights(formation?.summary);
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
   return <section aria-label="Live forming Agreement" data-live-formation className="space-y-4">
     <div className="flex items-start justify-between gap-3">
       <div><p className="text-xs uppercase tracking-wider text-sand-600">My Work · Live Agreement</p>
-        <h2 className="mt-2 font-display text-xl">{formation?.summary || 'Your Agreement is taking shape'}</h2></div>
+        <h2 className="mt-2 font-display text-xl">{humanTitle(formation?.summary)}</h2></div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
     <p className="text-xs text-sand-600">Working draft · Not yet accepted</p>
@@ -46,14 +67,20 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
       <p className="mt-2 text-xs">The previous version is not confirmed current. Try refreshing; chat messages and Agreement terms are not fabricated.</p>
     </div>}
     {formation && <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>
+      <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span>{expanded&&<span className="text-sand-600">SecurePay version {formation.version}</span>}</div>
       <section className="rounded-xl bg-cream-50 p-3" aria-label="Agreement at a glance">
-        <p className="text-xs font-semibold text-sand-600">What we know</p>
-        <p className="mt-1 text-sm">{formation.what.slice(0,2).map(t=>t.value).filter(Boolean).join(' · ') || formation.summary || 'We’re shaping your Agreement.'}</p>
-        {formation.question&&<p className="mt-2 text-sm font-medium">{formation.question.text}</p>}
+        <p className="text-xs font-semibold text-sand-600">At a glance</p>
+        {formation.what.length>0&&<p className="mt-1 text-sm">{formation.what.slice(0,2).map(t=>t.value).filter(Boolean).join(' · ')}</p>}
+        {highlights.length>0&&<div className="mt-2 space-y-1" aria-label="Amounts mentioned in the draft">
+          {highlights.map((value,index)=><p key={index} className="text-sm">{value}</p>)}
+        </div>}
+        {!formation.what.length&&!highlights.length&&<p className="mt-1 text-sm">KS001 is helping put your Agreement together.</p>}
+        {formation.question&&<div className="mt-3 border-t border-cream-200 pt-3"><p className="text-xs text-sand-600">Next to clarify</p>
+          <p className="mt-1 text-sm font-semibold">{humanQuestion(formation.question.text)}</p></div>}
         {!formation.question&&formation.reviewable&&<p className="mt-2 text-sm">Your draft is ready to review.</p>}
       </section>
       <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Hide details':'See Agreement details'}</button>
+      {expanded&&<p className="text-sm text-sand-700">{formation.summary}</p>}
       {expanded&&<section aria-label="Fair Trade examination" className="rounded-xl border border-cream-200 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Guided by the 12 Principles of Fair Trade</p>
         {fairTrade ? <>
