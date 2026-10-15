@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/features/living-workspace/**'
       - 'tests/phase1-*'
+      - 'tests/convergence-living-handoff.test.mjs'
+      - 'src/features/experience/entryIntent.ts'
+      - 'src/features/agent/AgentExperience.tsx'
       - '.github/workflows/phase1-one-connected-securepay.yml'
       - 'package.json'
   push:
@@ -32,7 +35,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Integration boundary contracts (not live E2E)
-        run: node --test tests/phase1-connected-securepay.test.mjs tests/agreement-edit-context-add.test.mjs tests/quick-assist-first-use.test.mjs tests/launch-tools-cleanup.test.mjs tests/securepay-brand-typography.test.mjs
+        run: node --test tests/convergence-living-handoff.test.mjs tests/phase1-connected-securepay.test.mjs tests/agreement-edit-context-add.test.mjs tests/quick-assist-first-use.test.mjs tests/launch-tools-cleanup.test.mjs tests/securepay-brand-typography.test.mjs
       - name: TypeScript
         run: npm run typecheck
       - name: ESLint

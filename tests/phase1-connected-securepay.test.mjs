@@ -84,7 +84,8 @@ test('Phase1: leaving Money can resume original KS001 work without exposing IDs 
   assert.match(entry,/consumeWorkspaceMoneyReturn\(\)/);
   assert.match(entry,/workspaceMoneyReturn=\{conversationId:conversationId\?\.trim\(\) \|\| null\}/);
   assert.match(shell,/storeWorkspaceMoneyReturn\(liveConversationId\)/);
-  assert.match(shell,/liveController\.resumeConversation\(hint\.conversationId\)/);
+  assert.match(shell,/const conversationId=moneyHint \? moneyHint\.conversationId : fromKs001/);
+  assert.match(shell,/liveController\.resumeConversation\(conversationId\)/);
   assert.match(router,/if\(hasWorkspaceMoneyReturn\(\)\)/);
   assert.match(router,/window\.location\.hash='#\/preview\/living-workspace\/work'/);
   assert.match(router,/clearWorkspaceMoneyReturn\(\)/);

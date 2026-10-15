@@ -5,13 +5,16 @@ import { humanNextQuestion } from './livingLanguage';
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
  */
-function lastQuestion(text: string): { before: string; question: string } | null {
+export function lastQuestion(text: string): { before: string; question: string } | null {
   const clean=text.trimEnd();
-  const match=/(?:^|[.!?]\\s+|\\n+)([^\\n!?]*\\?)\\s*$/.exec(clean);
-  if(!match)return null;
-  const question=match[1].trim();
-  const start=clean.lastIndexOf(question);
-  return start<0?null:{before:clean.slice(0,start),question};
+  if(!clean.endsWith('?'))return null;
+  // Prefer the LAST explicit sentence or line boundary: a greedy start-of-string
+  // alternative would incorrectly bold the entire KS001 reply.
+  const breaks=/[.!?:]\s+|\n+/g;
+  let start=0;
+  for(const match of clean.matchAll(breaks))start=(match.index??0)+match[0].length;
+  const question=clean.slice(start).trim();
+  return question.endsWith('?')?{before:clean.slice(0,start),question}:null;
 }
 function Ks001Reply({ text }: { text: string }) {
   const result=lastQuestion(text);
