@@ -63,6 +63,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
   const [detailsOpen,setDetailsOpen]=useState(false);
+  const [placeBusy,setPlaceBusy]=useState(false);
   const [visionChooser,setVisionChooser]=useState(false);
   const [visions,setVisions]=useState<VisionDreamDto[]>([]);
   const [visionPhase,setVisionPhase]=useState<'idle'|'loading'|'saving'|'saved'|'error'>('idle');
@@ -220,12 +221,24 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     setPending(null);setCaption('');setSelectedTask('');setQrValue(null);setQrState(null);setError(null);
   }
 
-  function addPlace(){
+  async function addPlace(){
     const value=label.trim();
-    if(!value)return;
-    setItems(current=>[...current,{id:nextId(),kind:'Places',filename:value,label:caption.trim(),
-      mime:null,size:null,thumbnail:null}]);
-    setLabel('');setCaption('');setError(null);setConfirmation('Place added to this preview. Not saved to SecurePay.');
+    if(!value||placeBusy)return;
+    if(isDemo||!gateway){
+      setItems(current=>[...current,{id:nextId(),kind:'Places',filename:value,label:caption.trim(),mime:null,size:null,thumbnail:null}]);
+      setLabel('');setCaption('');setError(null);setConfirmation('Place added to this demonstration only.');return;
+    }
+    setPlaceBusy(true);setError(null);setConfirmation(null);setServerSource(null);
+    try{
+      const id=conversationId??await onEnsureConversation?.();
+      if(!id)throw new Error('No KS001 conversation');
+      const created=await gateway.createPlaceSource(id,{text:[value,caption.trim()].filter(Boolean).join(' — ')});
+      if(!created.sourceArtifactId||created.conversationId!==id)throw new Error('Place source not confirmed');
+      setServerSource(created);setLabel('');setCaption('');
+      setConfirmation('Place received by SecurePay. Its accuracy is not independently verified.');
+    }catch(e){
+      setError(isOutcomeUnknown(e)?'SecurePay could not confirm whether it saved this place. Check the conversation before retrying.':'Could not add this place to KS001. Nothing has been confirmed.');
+    }finally{setPlaceBusy(false);}
   }
   if(!supported)return null;
   return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'||tool==='Documents'?'space-y-2':'space-y-3'}>
@@ -233,9 +246,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     <h3 className="font-semibold text-sm">Add a place</h3>
     <p className="text-xs text-sand-700">Add once. KS001 reads it and suggests what to do.</p></>}
     {tool==='Places'?<>
-      <label className="block text-xs">Place or address
+      <label className="block text-xs">Place, address or Plus Code
         <input maxLength={240} className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white p-3" value={label}
-          onChange={event=>setLabel(event.target.value)} placeholder="e.g. Delivery location, Nairobi"/></label>
+          onChange={event=>setLabel(event.target.value)} placeholder="e.g. Nairobi address or 6GCR+..."/></label>
     </>:<>
       <input ref={upload} type="file" className="hidden"
         accept={tool==='Photos'?'image/jpeg,image/png':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
@@ -265,9 +278,20 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         </div>
       </div>}
     </>}
-    {tool!=='Photos'&&tool!=='Documents'&&<label className="block text-xs">Caption or purpose (optional)
+    {tool==='Places'&&<p className="text-xs text-sand-600">Add a specific entrance, delivery point or Plus Code. No automatic GPS collection.</p>}
+    {tool!=='Photos'&&tool!=='Documents'&&<label className="block text-xs">Why this place? (optional)
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3" value={caption} onChange={event=>setCaption(event.target.value)}/>
     </label>}
+    {tool==='Places'&&<button type="button" disabled={!label.trim()||placeBusy} onClick={()=>void addPlace()}
+      className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{placeBusy?'Adding…':'Add place to KS001'}</button>}
+    {tool==='Places'&&serverSource&&<section aria-label="Place source receipt" className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
+      <p className="text-sm font-semibold">Place added</p>
+      <p className="text-sm">{serverSource.summary||'KS001 received this place. Exact position and access are not verified.'}</p>
+      <p className="text-xs text-sand-600">A supplied address or Plus Code is a clue, not proof of location or ownership.</p>
+      {onContinueTask&&<div className="flex flex-wrap gap-2">{[{id:'location',label:'Use in Agreement'},{id:'delivery',label:'Delivery point'},{id:'ask',label:'Ask KS001'}].map(action=><button key={action.id} type="button" disabled={taskBusy} onClick={async()=>{
+        setTaskBusy(true);try{await onContinueTask(serverSource,action.id);}catch{setError('Could not continue. The place remains in KS001.');}finally{setTaskBusy(false);}
+      }} className="min-h-10 rounded-full border border-cream-200 bg-white px-3 text-xs">{action.label}</button>)}</div>}
+    </section>}
     {(tool==='Photos'||tool==='Documents')&&pending&&detailsOpen&&uploadState==='confirmed'&&<label className="block text-xs text-sand-600">
       Add a note (optional)
       <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
@@ -329,7 +353,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
-    {tool==='Places'&&<button type="button" disabled={!label.trim()} onClick={addPlace}
+    {tool==='Places'&&false&&<button type="button" disabled={!label.trim()} onClick={addPlace}
       className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}
     {items.length>0&&<div aria-label="Locally staged sources" className="space-y-2">
