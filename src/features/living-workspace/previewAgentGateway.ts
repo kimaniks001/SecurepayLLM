@@ -15,7 +15,7 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
   if (new URL(baseUrl).origin !== APPROVED_UPSTREAM) {
     throw new Error('Preview relay requires the approved SecurePay API origin');
   }
-  const previewFetch: typeof fetch = (input, init) => {
+  const previewFetch: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== APPROVED_UPSTREAM || !/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {
       return Promise.reject(new Error('Only KS001 conversation calls can use the preview relay'));
@@ -25,6 +25,23 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
     // validates the request before making a server-to-server HTTPS call.
     // Vercel preview protection may require its own same-origin session cookie.
     // This cookie is consumed by Vercel; the relay NEVER forwards cookies upstream.
+    if (url.pathname.endsWith('/sources/upload')) {
+      if (!(init?.body instanceof FormData)) throw new Error('Photo upload requires a file');
+      const file = init.body.get('file');
+      if (!(file instanceof File) || !['image/jpeg','image/png'].includes(file.type) || file.size > 2_000_000 || file.size === 0)
+        throw new Error('Select a JPEG or PNG under 2 MB');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      // Convert only this bounded photo into an explicit payload; no generic upload proxy.
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += 8192)
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+      const headers = new Headers(init?.headers);
+      headers.set('Content-Type','application/json');
+      return fetch(endpoint, {...init,headers,body:JSON.stringify({
+        sourceKind:'PHOTO',filename:file.name,mediaType:file.type,label:String(init.body.get('label')||'').slice(0,500),
+        dataBase64:btoa(binary),
+      }),credentials:'same-origin'});
+    }
     return fetch(endpoint, { ...init, credentials: 'same-origin' });
   };
   return createAgentGateway(createHttpClient(baseUrl, getAccessToken, previewFetch));
