@@ -15,6 +15,7 @@ import { createFormationController, type FormationState } from '../formation/con
 import { LiveKs001Session } from './LiveKs001Session';
 import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel } from './QuickSupportPanel';
+import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -284,6 +285,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   };
                   await liveController.send('For source '+source.sourceArtifactId+': '+(source.sourceKind==='PLACE'?(placeInstructions[task]??placeInstructions.ask):(instructions[task]??'Help me understand this source.')));
                 }}/>
+                : activeTool==='People & Invitations'?<PeopleInvitationsTool
+                    agreementPeople={formationState?.data?.conversationId===liveConversationId?formationState.data.who.map(p=>p.name):[]}
+                    onPrepare={async text=>{
+                      if(!liveController)throw new Error('KS001 unavailable');
+                      setLiveStarted(true);setLiveWork(true);
+                      await liveController.send(text);
+                      if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
+                      closeTool();
+                    }}/>
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
             </div>
