@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, BedDouble, CarFront, Check, FileText, LifeBuoy, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, BedDouble, CarFront, Check, FileText, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 
 export type QuickAssistId = 'stays' | 'ride' | 'documents';
 
@@ -87,13 +87,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
   };
 
   return <section className="space-y-3" aria-label="Quick Assist">
-    <div className="flex items-start gap-2">
-      <LifeBuoy size={19} aria-hidden="true" />
-      <div>
-        <h3 className="text-base font-semibold">Quick Assist</h3>
-        <p className="text-xs text-sand-600">A little help, right when you need it.</p>
-      </div>
-    </div>
+    <p className="text-sm text-sand-600">A little help, right when you need it.</p>
     {selected === null && !catalogue && <div className="space-y-2">
       <p className="text-xs font-medium text-sand-600">Your tools · this workspace session</p>
       {services.filter(service => collection.includes(service.id)).map(({ id, title, description: details, Icon }) =>
@@ -109,7 +103,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
       <button type="button" onClick={() => setCatalogue(true)} className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-dashed border-cream-300 p-3 text-sm font-semibold">
         <Plus size={20} aria-hidden="true" /> Add a tool
       </button>
-      <p className="text-xs text-sand-600">Adding a tool changes only this collection, not its permissions. No location, Agreements, bookings or money are shared.</p>
+      <p className="text-xs text-sand-600">Your collection is not a permission grant. No location, Agreements, bookings or money are shared.</p>
     </div>}
     {selected === null && catalogue && <div className="space-y-2">
       <button type="button" onClick={back} className="flex min-h-11 items-center gap-2 text-xs"><ArrowLeft size={16}/> Your tools</button>
@@ -160,6 +154,6 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
       </>}
       {selected !== 'documents' && <p className="text-xs text-sand-600">Any actual provider must identify itself, show its verified terms, price and cancellation or delivery conditions, and ask for your approval before commitment.</p>}
     </div>}
-    <p className="flex items-start gap-2 border-t border-cream-100 pt-3 text-xs text-sand-600"><ShieldCheck size={15} className="shrink-0"/> Quick Support cannot search live provider availability, dispatch transport, reserve accommodation or make payment until verified connections exist. Adding, removing or using a tool never silently creates an Agreement, charges you or shares private workspace information.</p>
+    <p className="flex items-start gap-2 border-t border-cream-100 pt-3 text-xs text-sand-600"><ShieldCheck size={15} className="shrink-0"/> Quick Assist cannot search live provider availability, dispatch transport, reserve accommodation or make payment until verified connections exist. Adding, removing or using a tool never silently creates an Agreement, charges you or shares private workspace information.</p>
   </section>;
 }
