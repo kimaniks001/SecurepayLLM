@@ -8,7 +8,7 @@ export function LivingCommunityPanel(){
   {title:'The workshop skills exchange',category:'Community conversation',description:'Members exchange lessons about practical building and mentorship.'},
   {title:'How we documented our shared work',category:'Work story',description:'A short example of evidence, learning and contributions.'}
  ];
- return <div className="space-y-4" data-community-preview>
+ return <div className="sp-brand-community space-y-4" data-community-preview>
   <div><p className="text-xs uppercase tracking-wider text-sand-600">The Trust Project</p><h2 className="mt-2 font-display text-xl">People make progress together</h2><p className="mt-2 text-sm text-sand-700">Belong, learn, help and build. This community is more than a shopfront.</p></div>
   <div className="flex flex-wrap gap-1" role="tablist" aria-label="Community spaces">{([['live','LIVE'],['projects','Projects'],['learning','Learning'],['connections','Connections']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={view===id} onClick={()=>setView(id)} className={`min-h-11 rounded-lg px-3 text-xs ${id===view?'bg-forest-800 text-white':'bg-cream-100'}`}>{label}</button>)}</div>
   {view==='live'&&<div className="space-y-3"><div className="flex gap-2 text-sm font-semibold"><Users size={17}/> Member life & stories</div>{entries.map(e=><div key={e.title} className="rounded-xl border border-cream-200 p-3"><p className="text-xs text-sand-600">{e.category} · Illustration</p><p className="mt-2 font-semibold text-sm">{e.title}</p><p className="mt-2 text-sm text-sand-700">{e.description}</p></div>)}</div>}
