@@ -17,6 +17,9 @@ try {
   await page.getByRole('navigation',{name:'Workspace experience'}).waitFor();
   const nav=page.getByRole('navigation',{name:'Workspace experience'});
   await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
+  // On mobile, the real Agreement is behind the explicit "Your Work" tab,
+  // not the initially visible Chat panel. Capture the real component.
+  if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
   if(phase==='after'){
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
     await page.locator('.sp-brand-conversation').waitFor();
@@ -24,6 +27,8 @@ try {
     assert.ok(await page.getByRole('heading',{name:'Chair delivery'}).count(),'dynamic title must be readable by assistive technology');
   }
   await page.screenshot({path:`${output}/${device}-work-agreement.png`,fullPage:true});
+  if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
+  await page.screenshot({path:`${output}/${device}-ks001.png`,fullPage:true});
   const openPicker=async()=>{await page.getByRole('button',{name:'Add or use a tool'}).click(); await page.getByRole('dialog',{name:'Choose a tool'}).waitFor();};
   for(const [choice,filename] of [['Money','money'],['Stores','stores'],['Quick Assist','quick-assist']]){
     await openPicker();
@@ -34,6 +39,7 @@ try {
   for(const [mode,label] of [['vision','Vision'],['circle','Circle'],['community','Community']]){
     await nav.getByRole('button',{name:label,exact:true}).click();
     if(phase==='after') await page.locator(`.sp-brand-shell[data-sp-area="${mode}"]`).waitFor();
+    if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
     await page.screenshot({path:`${output}/${device}-${mode}.png`,fullPage:true});
   }
   await page.goto(site+'/#/',{waitUntil:'domcontentloaded',timeout:40_000});
