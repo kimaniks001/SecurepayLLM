@@ -80,5 +80,5 @@ test('visual changes do not claim an Agreement is accepted or make demo real',()
  assert.match(demo,/ready = false/);
  assert.match(live,/Working draft · Not yet accepted/);
  assert.match(shell,/DEMO ACCOUNT · NO REAL ACCESS/);
- assert.match(shell,/No payment movement/);
+ assert.match(shell,/Visual shell: the preview does not authorise financial/);
 });
