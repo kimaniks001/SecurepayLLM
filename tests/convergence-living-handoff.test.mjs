@@ -43,13 +43,30 @@ test('Entering and leaving resumes exact server conversation with a fresh contro
  assert.match(preview,/const fromKs001=consumeLivingWorkspaceEntry\(\)/);
  assert.match(preview,/const conversationId=moneyHint \? moneyHint\.conversationId : fromKs001/);
  assert.match(preview,/if\(!signedIn \|\| !liveController\)/);
- assert.match(preview,/liveController\.resumeConversation\(conversationId\)\.catch/);
+ assert.match(preview,/liveController\.resumeConversation\(conversationId\)\.then/);
  assert.match(preview,/storeKs001ConversationReturn\(snapshot\.conversationId\)/);
  assert.match(agent,/const \[externalReturnConversationId\] = useState\(\(\) => consumeKs001ConversationReturn\(\)\)/);
  assert.match(agent,/if \(!signedIn\) \{/);
  assert.match(agent,/controller\.resumeConversation\(externalReturnConversationId\)/);
  assert.match(agent,/Use Saved Work; nothing was changed/);
  assert.match(preview,/No Agreement was changed/);
+ assert.match(preview,/authorisedResumedConversation\(conversationId,current\)/);
+ assert.match(agent,/authorisedResumedConversation\(externalReturnConversationId,current\)/);
+});
+test('a resolved read promise is NOT access when the server context was refused',async()=>{
+ const e=await entryModule(),can=e.authorisedResumedConversation;
+ const valid={conversationId:'same-id',context:{status:'ready',data:{version:0,entities:[]}}};
+ assert.equal(can('same-id',valid),true,'empty authorised Trade Context is valid');
+ for(const denied of [
+   {conversationId:'same-id',context:{status:'error',data:null}},
+   {conversationId:'same-id',context:{status:'loading',data:{version:2}}},
+   {conversationId:'same-id',context:{status:'ready',data:null}},
+   {conversationId:'wrong-id',context:{status:'ready',data:{version:2}}},
+   {conversationId:null,context:{status:'ready',data:{version:2}}}
+ ]) assert.equal(can('same-id',denied),false,'do not accept failed, stale, null or wrong-ID context');
+ assert.match(agent,/\.catch\(\(\) => \{ if \(active\)/);
+ assert.match(preview,/setLiveStarted\(false\)/);
+ assert.match(preview,/setLiveWork\(false\)/);
 });
 test('A handoff is a hint, never a persistent identifier or backend mutation',()=>{
  for(const s of [entry,agent,preview]) assert.doesNotMatch(s,/encodeURIComponent\(externalReturnConversationId\)|localStorage\.setItem\(['"]workspace/);
