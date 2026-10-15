@@ -917,3 +917,38 @@
     .sp-initial-letter { font-size: 1.14em; }
   }
 }
+
+/* The Trust Project keeps its own welcoming door; only the signature family
+   resemblance is shared. No Trust Project identity or membership logic changes. */
+@layer components {
+  .sp-brand-trust {
+    font-family: 'Afacad Flux', 'Inter', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .sp-brand-trust .font-display {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    letter-spacing: -.035em;
+    line-height: 1.14;
+    text-wrap: balance;
+  }
+  .sp-brand-trust :is(button, a, input, textarea, select):focus-visible {
+    outline: 3px solid #2d5c43;
+    outline-offset: 3px;
+  }
+
+  .sp-brand-money-home {
+    background: radial-gradient(ellipse at 95% 4%, rgba(139,184,155,.09), transparent 58%),
+      #faf7f0;
+  }
+  .sp-brand-money-home h1 {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -.03em;
+  }
+  .sp-brand-money-home :is(button, input, textarea, select) {
+    font-family: inherit;
+  }
+}
