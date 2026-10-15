@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -199,6 +199,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [externalCircleId,setExternalCircleId] = useState(() => consumeCircleEntry());
   const [externalAgreementId] = useState(() => consumeAgreementEntry());
   const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
+  const [externalReturnConversationId] = useState(() => consumeKs001ConversationReturn());
+  const returnAttempted = useRef(false);
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
   const [handoffController, setHandoffController] = useState(() => createHandoffController(gateway));
   // Entry Perfection Phase 6 -- the server-owned emerging agreement (Review), and whether the person has opened it.
@@ -315,6 +317,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [signedIn, signInRoute.active, signInRoute.signingUp]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
+  useEffect(() => {
+    if (!externalReturnConversationId || returnAttempted.current) return;
+    // A tab-local hint is never authority. A different or signed-out identity
+    // must use Saved Work instead of being handed another person's details.
+    returnAttempted.current = true;
+    if (!signedIn) {
+      setNotice('Sign in and open your conversation from Saved Work.');
+      return;
+    }
+    let active = true;
+    void controller.resumeConversation(externalReturnConversationId)
+      .then(() => { if (active) { setHome(false); setNotice(null); } })
+      .catch(() => { if (active) {
+        setHome(true);
+        setNotice('This conversation could not be reopened for the current identity. Use Saved Work; nothing was changed.');
+      } });
+    return () => { active = false; };
+  }, [externalReturnConversationId, signedIn, controller]);
   // Public Experience Convergence Phase 2 -- once the public Home is showing, finish a pending chapter/composer focus.
   useEffect(() => {
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
@@ -1451,6 +1471,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <p className="mt-1 text-[0.82rem] text-sand-600">Nothing SecurePay can verify needs your attention right now.</p>
         </section>
       : null;
+  const openCurrentLivingWorkspace = () => {
+    if (!signedIn || !state.conversationId || state.busy || state.pending
+        || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking') return;
+    // A composed-but-unsent message belongs to this editor, not the server:
+    // never imply it was transferred with the conversation ID.
+    if (!window.confirm('Open this conversation in Living Workspace? Send or copy any unfinished message first.')) return;
+    storeLivingWorkspaceEntry(state.conversationId);
+    window.location.hash = '#/preview/living-workspace/work';
+  };
   const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
   return <div className="h-dvh flex flex-col bg-cream-100">
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
@@ -1573,6 +1602,13 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           </button>}
           <NewWorkButton onClick={startNewFromConversation} />
         </div>
+        {signedIn && state.conversationId && <div className="flex shrink-0 justify-end border-b border-cream-200/60 bg-cream-50/80 px-3 py-1 md:px-6" data-convergence-work-entry>
+          <button type="button" onClick={openCurrentLivingWorkspace}
+            disabled={state.busy || !!state.pending || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
+            className="min-h-11 rounded-xl px-3 text-[0.79rem] font-semibold text-forest-800 underline decoration-forest-200 underline-offset-4 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700 disabled:opacity-40">
+            View this Agreement alongside KS001 →
+          </button>
+        </div>}
         {detailsOpen && hasInspectableDetails && <section
           aria-label="What SecurePay understands"
           data-understood-details
