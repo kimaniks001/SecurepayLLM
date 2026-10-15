@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
+import type { AgentGateway } from '../../api/securepay/agent';
 
 type Intake='Photos'|'Documents'|'Places';
 type LocalSource={id:number;kind:Intake;filename:string;label:string;mime:string|null;size:number|null;thumbnail:string|null};
@@ -22,7 +23,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
  * canonical source menu and authenticated document/photo services are a
  * separate future integration, never replaced by a simulated attachment.
  */
-export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;isDemo:boolean}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -36,12 +37,15 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
   const [locationChoice,setLocationChoice]=useState<'unset'|'enabled'|'skipped'>('unset');
   const upload=useRef<HTMLInputElement|null>(null);
   const camera=useRef<HTMLInputElement|null>(null);
+  const pendingFile=useRef<File|null>(null);
+  const [uploadState,setUploadState]=useState<'idle'|'uploading'|'confirmed'|'unknown'|'error'>('idle');
+  const [uploadMessage,setUploadMessage]=useState('');
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setLocationChoice('unset');
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -52,6 +56,7 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     const sequence=seq.current;
     const prepare=(thumbnail:string|null)=>{
       if(seq.current!==sequence)return;
+      pendingFile.current=file;
       setPending({filename:file.name,mime:file.type||null,size:file.size,thumbnail});
     };
     if(!photo){prepare(null);return;}
@@ -75,6 +80,21 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
       setQrValue(results[0].rawValue.slice(0,2048));
       setQrState('QR decoded on this device. Review its contents before taking action.');
     }catch{setQrState('Unable to read this QR code. No link was opened and nothing was uploaded.');}
+  }
+
+  async function uploadToKs001(){
+    if(!gateway || !conversationId || isDemo || !pendingFile.current || uploadState==='uploading')return;
+    setUploadState('uploading');setUploadMessage('SecurePay is receiving the photo…');
+    try{
+      const result=await gateway.uploadSource(conversationId,'PHOTO',pendingFile.current,
+        [caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · ')||undefined);
+      if(!result.sourceArtifactId)throw new Error('No source reference returned');
+      setUploadState('confirmed');
+      setUploadMessage('SecurePay received the photo (source '+result.sourceArtifactId+'). Processing status: '+result.extractionStatus+'. Review the KS001 source record before relying on extracted facts.');
+    }catch{
+      setUploadState('unknown');
+      setUploadMessage('SecurePay could not confirm this upload. It may still be processing. Check this conversation’s sources before retrying to avoid duplicates.');
+    }
   }
 
   function saveLocalPreview(){
@@ -119,7 +139,7 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mb-3 max-h-64 w-full rounded-lg object-contain"/>}
         <p className="break-all text-sm font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">Ready for your review · Not uploaded</p>
-        <button type="button" onClick={()=>{setPending(null);setQrValue(null);setQrState(null);setSelectedTask('');}} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Choose another picture</button>
+        <button type="button" onClick={()=>{setPending(null);pendingFile.current=null;setQrValue(null);setQrState(null);setSelectedTask('');setUploadState('idle');}} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Choose another picture</button>
       </div>}
     </>}
     <label className="block text-xs">Caption or purpose (optional)
@@ -150,6 +170,11 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     </div>}
 
     {tool!=='Places'&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
+    {tool==='Photos'&&pending&&!isDemo&&<div className="space-y-2">
+      {gateway&&conversationId?<button type="button" disabled={uploadState==='uploading'||uploadState==='confirmed'} onClick={()=>void uploadToKs001()} className="min-h-11 w-full rounded-xl border border-forest-800 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-40">Send photo to KS001</button>
+        :<p className="rounded-lg bg-cream-100 p-3 text-xs">Start a live KS001 conversation in My Work before sending the photo for understanding. Local preview remains available now.</p>}
+      {uploadMessage&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-xs">{uploadMessage}</p>}
+    </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
     {tool==='Places'&&<button type="button" disabled={!label.trim()} onClick={addPlace}
       className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
