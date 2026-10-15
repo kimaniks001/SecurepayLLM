@@ -226,7 +226,22 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
               {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId}/>
+                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} onContinueTask={async(source,task)=>{
+                  if(!liveController || !liveConversationId || source.conversationId!==liveConversationId)throw new Error('Open the matching KS001 conversation first');
+                  const instructions:Record<string,string>={
+                    contract:'Help me draft a Quick Contract using this photo. Extract only supported terms, clearly identify what must be confirmed, and show the Agreement review before any invitation or Money action.',
+                    receipt:'Help me process this receipt. Extract the merchant, date, amounts and items where visible. Mark uncertain facts and do not claim payment was verified.',
+                    invoice:'Help me review this invoice. Extract parties, items, totals, due date and payment terms where available. Do not treat it as an approved obligation.',
+                    delivery:'Help me document delivery from this photo. Identify visible evidence and any missing delivery facts; do not mark delivery complete without proper review.',
+                    location:'Help me assess any location clues available from this photo. Do not infer precise coordinates without reliable provenance or my consent.',
+                    find:'Help me describe the items in this photo and determine useful Store or supplier search criteria. Do not invent available suppliers.',
+                    vision:'Help me use this photo as inspiration for my Vision, without claiming it is saved to a Vision Board yet.',
+                    qr:'Help me interpret the QR code I reviewed. Do not open links, accept an Agreement or initiate payment automatically.',
+                  };
+                  closeTool();
+                  setLiveStarted(true);
+                  await liveController.send('For photo source '+source.sourceArtifactId+': '+(instructions[task]??'Help me understand this source.'));
+                }}/>
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
             </div>
