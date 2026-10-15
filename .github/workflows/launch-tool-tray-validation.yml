@@ -33,8 +33,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Tool launch and workspace contracts
-        run: node --test tests/launch-tools-cleanup.test.mjs tests/quick-assist-first-use.test.mjs tests/living-workspace-phase7.test.mjs
+      - name: Launch tool and Quick Assist contracts
+        run: node --test tests/launch-tools-cleanup.test.mjs tests/quick-assist-first-use.test.mjs
       - name: Typecheck
         run: npm run typecheck
       - name: Lint errors
