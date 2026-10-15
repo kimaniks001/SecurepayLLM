@@ -138,13 +138,6 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
    setError('Could not take this offer to KS001. Check the listing and your conversation, then try again.');
   }finally{setTakingOffer(null);}
  }
- async function inspectOffer(item:PublicSearchResultView,action:'discuss'|'quote'){
-  await askKs001(['I am considering a real SecurePay Store offer.',
-    'Store KS Number: '+item.canonicalKsNumber+'. Offer ID: '+item.offer.id+'.',
-    'Offer: '+item.offer.title+'. Price as listed: '+price(item.offer.priceMinor,item.offer.currency)+'.',
-    action==='quote'?'Help me request a quotation and clarify scope, availability and delivery.':'Help me compare this offer with my needs and decide whether to start a draft Agreement.',
-    'Do not claim stock is reserved, a quotation is issued, a seller is contacted or terms agreed.'].join('\n'));
- }
  async function saveDraftOffer(){
   if(!gateways||!signedIn||offerBusy||!offerTitle.trim()||offerTitle.length>120)return;
   const amount=offerPrice.trim()?Number(offerPrice):null;
@@ -197,7 +190,6 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
             {takingOffer===result.offer.id?'Opening KS001…':'Take to KS001'}
           </button>
           <button onClick={()=>void openStore(result.canonicalKsNumber)} className="min-h-9 w-full rounded-lg bg-cream-100 px-2 text-xs">View Store</button>
-          <button onClick={()=>void inspectOffer(result,'quote')} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs">Ask for quote</button>
         </article>)}</div>
        </div>}
      </>}
@@ -216,7 +208,6 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
            aria-label={'Take '+offer.title+' to KS001'} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
            {takingOffer===offer.id?'Opening KS001…':'Take to KS001'}
          </button>
-         <button onClick={()=>void askKs001('Help me explore offer '+offer.id+' from SecurePay Store '+currentOffer.canonicalKsNumber+'. Discuss its suitability and propose an Agreement only after I review it. Do not reserve or buy anything.')} className="min-h-10 w-full rounded-lg bg-cream-100 text-xs">Discuss with KS001</button>
        </article>)}</div>
      </div>}
    </>}
