@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import type { AgentController } from '../agent/controller';
+import { humanNextQuestion } from './livingLanguage';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
@@ -51,7 +52,7 @@ export function LiveKs001Session({ controller, nextQuestion }: { controller: Age
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
     </div>
-    {state.turns.length>0&&!state.busy&&!state.pending&&nextQuestion&&!lastQuestion([...state.turns].reverse().find(turn=>turn.sender!=='user')?.response.message.text ?? '')&&<div className="px-4 pb-2"><p className="text-xs text-sand-600">Next to clarify</p><p className="text-sm font-semibold">{nextQuestion}</p></div>}
+    {state.turns.length>0&&!state.busy&&!state.pending&&nextQuestion&&!lastQuestion([...state.turns].reverse().find(turn=>turn.sender!=='user')?.response.message.text ?? '')&&<div className="px-4 pb-2"><p className="text-xs text-sand-600">Next to clarify</p><p className="text-sm font-semibold">{humanNextQuestion(nextQuestion)}</p></div>}
     {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
