@@ -4,6 +4,7 @@ import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { OfferKind, PublicSearchResultView, PublicStoreView, StoreOfferResponse, StoreProfileResponse } from '../../api/securepay/store/dto';
 import type { CurrentUserActionResponse } from '../../api/securepay/agreements/dto';
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
+import { storeAgreementEntry } from '../experience/entryIntent';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -225,8 +226,12 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
            {inbox.status==='loading'&&<p className="text-xs">Loading…</p>}
            {inbox.status==='error'&&<p className="text-xs">{inbox.error}</p>}
            {inbox.status==='ready'&&inbox.data.length===0&&<p className="text-xs">No actions needing attention.</p>}
-           {inbox.data.map((item,index)=><button key={item.agreementId+'-'+index} onClick={()=>void askKs001('Help me review my real Agreement action '+item.actionCode+' for Agreement '+item.agreementReference+'. Please explain what I can do next; do not execute approval automatically.')} className="block w-full rounded-lg border border-cream-200 bg-white p-3 text-left text-xs">
-             <strong>{item.agreementTitle}</strong><span className="mt-1 block text-sand-600">{item.reason}</span></button>)}
+           {inbox.data.map((item,index)=><div key={item.agreementId+'-'+index} className="rounded-lg border border-cream-200 bg-white p-3 text-xs">
+             <strong>{item.agreementTitle}</strong><span className="mt-1 block text-sand-600">{item.reason}</span>
+             <div className="mt-2 flex flex-wrap gap-2">
+               <button onClick={()=>{storeAgreementEntry(item.agreementId);window.location.hash='#/';}} className="min-h-10 rounded-full bg-forest-800 px-3 text-white">Open Agreement</button>
+               <button onClick={()=>void askKs001('Help me review my real Agreement action '+item.actionCode+' for Agreement '+item.agreementReference+'. Explain my options, do not execute any approval.')} className="min-h-10 rounded-full border border-cream-200 px-3">Ask KS001</button>
+             </div></div>)}
          </div>}
          {(['quote','contract','saver','calendar'] as SellerAction[]).includes(sellerAction||'offers')&&sellerAction&&<div className="space-y-2 rounded-xl bg-cream-50 p-3">
            <p className="font-semibold">{actions.find(a=>a.id===sellerAction)?.label}</p>
