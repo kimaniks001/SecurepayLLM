@@ -44,8 +44,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
+  const [reviewed,setReviewed]=useState(false);
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setReviewed(false);seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
@@ -229,7 +230,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
         <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
-        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" disabled={taskBusy} onClick={async()=>{
+        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<label className="flex min-h-11 items-center gap-2 rounded-lg bg-cream-100 p-3 text-sm"><input type="checkbox" checked={reviewed} onChange={event=>setReviewed(event.target.checked)}/> I have reviewed what SecurePay could read and what still needs checking. This is not Agreement acceptance.</label>}
+        {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" disabled={taskBusy||!reviewed} onClick={async()=>{
           setTaskBusy(true);
           try{await onContinueTask(serverSource,selectedTask);}
           catch{setUploadMessage('Could not continue this quick task just now. Your uploaded source remains in SecurePay.');}
