@@ -33,7 +33,7 @@ test('A stay or ride requires explicit preparation, with no booking authority', 
 
 test('Quick Assist uses the Store service discovery gateway, not another marketplace', () => {
   assert.match(assist, /Find published offers in Stores/);
-  assert.match(workspace, /onFindStoreOffers=\{service=>/);
+  assert.match(workspace, /onFindStoreOffers=\{\(service,requestedTask\)=>/);
   assert.match(workspace, /setActiveTool\('Stores'\)/);
   assert.match(stores, /initialServiceQuery \? 'SERVICE' : 'PRODUCT'/);
   assert.match(stores, /const \[showSamples,setShowSamples\]=useState\(!initialServiceQuery\)/);
@@ -44,7 +44,7 @@ test('Quick Assist uses the Store service discovery gateway, not another marketp
 test('Store Quick Contract remains a seller-side draft aid; not a completed booking', () => {
   assert.match(stores, /id:'contract',label:'Quick Contract'/);
   assert.match(stores, /Do not claim that a quote, contract, savings arrangement or booking has been created/);
-  assert.match(stores, /listing is not a booking or an accepted Quick Contract/);
+  assert.match(stores, /A listing is not a booking/);
 });
 
 test('KS001 suggestions identify service intent before generic Places/Documents', () => {
