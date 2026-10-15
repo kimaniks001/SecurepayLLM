@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
+import { Camera, FileText, ShieldCheck, Trash2 } from 'lucide-react';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgentSourceArtifactDto } from '../../api/securepay/agent/dto';
 import jsQR from 'jsqr';
