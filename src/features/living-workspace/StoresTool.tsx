@@ -78,7 +78,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  }
  useEffect(()=>{
   setSeller(initial(null));setInbox(initial([]));setCommunity(initial(null));setMembership(null);
-  if(!gateways||!signedIn||area!=='seller')return;
+  if(showSamples||!gateways||!signedIn||area!=='seller')return;
   let cancelled=false;
   setSeller({status:'loading',data:null,error:null});
   setInbox({status:'loading',data:[],error:null});
@@ -89,10 +89,10 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
     .then(result=>{if(!cancelled)setInbox({status:'ready',data:result.items,error:null});})
     .catch(()=>{if(!cancelled)setInbox({status:'error',data:[],error:errorText});});
   return()=>{cancelled=true;};
- },[gateways,signedIn,area,revision]);
+ },[gateways,signedIn,area,revision,showSamples]);
 
  useEffect(()=>{
-  if(!gateways||!signedIn||area!=='community')return;
+  if(showSamples||!gateways||!signedIn||area!=='community')return;
   let cancelled=false;
   setCommunity({status:'loading',data:null,error:null});
   void gateways.community.membership.me().then(async m=>{
@@ -103,7 +103,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
     if(!cancelled)setCommunity({status:'ready',data:{projects,opportunities},error:null});
   }).catch(()=>{if(!cancelled)setCommunity({status:'error',data:null,error:errorText});});
   return()=>{cancelled=true;};
- },[gateways,signedIn,area]);
+ },[gateways,signedIn,area,showSamples]);
 
  async function askKs001(message:string){
   if(busy)return;
