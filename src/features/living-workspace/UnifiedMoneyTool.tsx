@@ -124,12 +124,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
       <div className="rounded-xl border border-cream-200 bg-white p-3"><p className="text-xs text-sand-600">What needs attention</p><p className="mt-1 font-display text-xl">2 examples</p><p className="mt-1 text-xs text-sand-600">Review before acting</p></div>
      </div>
      <div className="space-y-2"><h3 className="font-display text-lg">Money attached to real life</h3>
-      {demoAgreements.map(agreement=><button type="button" key={agreement.key} onClick={()=>{setSelectedSample(agreement.key);setSampleQuestion('');}} aria-pressed={agreement.key===selectedSample}
-       className={agreement.key===selectedSample?'w-full rounded-xl border border-forest-300 bg-cream-50 p-3 text-left':'w-full rounded-xl border border-cream-200 bg-white p-3 text-left'}>
-       <div className="flex items-center justify-between gap-2"><strong className="text-sm">{agreement.title}</strong><ChevronRight size={16}/></div>
-       <p className="mt-1 text-xs text-sand-600">{agreement.purpose}</p>
-       <p className="mt-2 font-semibold">{agreement.proposed} <span className="text-xs font-normal text-sand-600">· {agreement.funded}</span></p>
-      </button>)}
+      {demoAgreements.map(agreement=><SampleMoneyAgreementCard key={agreement.key} title={agreement.title} purpose={agreement.purpose} amount={agreement.proposed} status={agreement.funded} next={agreement.next} active={selectedSample===agreement.key} onReview={()=>{setSelectedSample(agreement.key);setSampleQuestion('');}}/>)}
      </div>
      <article className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4" aria-label="Sample Agreement Money detail">
       <p className="text-xs font-semibold text-sand-600">YOUR NEXT FINANCIAL STEP · SAMPLE</p>
@@ -144,6 +139,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
        className={sampleQuestion===question?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>{question}</button>)}</div>
       {sampleQuestion&&<p role="status" className="rounded-lg bg-cream-50 p-3 text-xs">{sampleQuestion==='What can move now?'?'No authority has been established in this sample. Real Money must verify Agreement readiness, funding, release rights and the payment provider.':sampleQuestion==='How are charges calculated?'?'Actual SecurePay fees, provider rail charges, taxes and the total payable must be quoted transparently before payment. Example amounts are not quotes.':'A supplier must accept their own terms, quantities, delivery and conditions. One buyer project never silently commits other people.'}</p>}
      </article>
+     <MoneyRailCeremony key={selectedSample} sample agreementTitle={selectedDemo.title} options={[]} onProceed={()=>{}}/>
    </div>:!signedIn?<div className="rounded-xl bg-cream-50 p-4"><p className="font-semibold">Your private Money requires sign-in</p><p className="mt-1 text-xs text-sand-600">The sample is available without access. The canonical Money page handles authentication and authorised financial actions.</p>
     <button type="button" onClick={onOpenMoney} className="mt-3 min-h-11 rounded-xl bg-forest-800 px-4 text-xs font-semibold text-white">Open Money securely <ArrowRight size={14} className="ml-1 inline"/></button></div>:<div className="space-y-4">
      <div className="rounded-xl border border-cream-200 bg-cream-50 p-3"><div className="flex items-center gap-2"><ShieldCheck size={17}/><strong>Only confirmed financial records count.</strong></div>
@@ -152,15 +148,14 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
       {agreements.state==='loading'&&<p role="status" className="text-xs text-sand-600">Reading your Agreements…</p>}
       {agreements.state==='error'&&<p role="alert" className="text-xs">Could not read your Agreements. No amounts are being guessed.</p>}
       {agreements.state==='ready'&&agreements.value.length===0&&<p className="rounded-lg bg-cream-50 p-3 text-xs">No Agreements were returned for this page. Money will appear when a financial commitment exists.</p>}
-      {agreements.state==='ready'&&agreements.value.map(item=><button type="button" key={item.agreementId} onClick={()=>setSelected(item.agreementId)} aria-pressed={selected===item.agreementId}
-       className={selected===item.agreementId?'w-full rounded-xl border border-forest-300 bg-cream-50 p-3 text-left':'w-full rounded-xl border border-cream-200 bg-white p-3 text-left'}>
-       <div className="flex items-center justify-between gap-2"><strong>{item.title}</strong><ChevronRight size={16}/></div>
-       <p className="mt-1 line-clamp-2 text-xs text-sand-600">{item.purpose||item.publicReference}</p>
-       <p className="mt-2 text-xs font-medium">{item.proposedAmountMinor==null?'Proposed amount not shown':moneyText(minorFromString(item.proposedAmountMinor),item.currency)} <span className="font-normal text-sand-600">· Proposed, not funded · {item.status.replace(/_/g,' ')}</span></p>
-       {item.attentionRequired&&<p className="mt-1 flex items-center gap-1 text-xs"><CircleAlert size={14}/> Needs your attention</p>}
-      </button>)}
+      {agreements.state==='ready'&&visibleAgreements.map(item=><MoneyAgreementCard key={item.agreementId} agreement={item} active={selected===item.agreementId}
+        onReview={()=>setSelected(item.agreementId)} onOpenAgreement={()=>onReviewAgreement(item.agreementId)}
+        onOpenMoney={()=>onOpenAgreementMoney(item)}/>)}
       {agreements.state==='ready'&&agreements.value.length===12&&<p className="text-xs text-sand-600">Showing 12 Agreements. Open Money for the complete paginated list.</p>}
      </section>
+     {realAgreement&&<AgreementNextSummary agreement={realAgreement}
+       onOpenAgreement={()=>onReviewAgreement(realAgreement.agreementId)}
+       onOpenMoney={()=>onOpenAgreementMoney(realAgreement)}/>}
      {realAgreement&&<section aria-label="Verified Agreement Money" className="space-y-3 rounded-2xl border border-forest-200 bg-white p-3">
       <div><p className="text-xs font-semibold text-sand-600">AGREEMENT MONEY · BACKEND RECORD</p><h3 className="mt-1 font-display text-lg">{realAgreement.title}</h3></div>
       {snapshot.state==='loading'&&<p role="status" className="text-xs">Checking funding and release authority…</p>}
@@ -184,6 +179,8 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
        <p className="rounded-lg bg-cream-50 p-3 text-xs">{selectedSnapshot.movement.state==='READY'
         ? 'The backend preflight is ready for its evaluated scope. This does not itself give you authority to initiate a payment.'
         : 'Money cannot be assumed movable. Review Agreement conditions and the canonical Money controls.'}</p>
+       <MoneyRailCeremony key={realAgreement.agreementId} sample={false} agreementTitle={realAgreement.title}
+         options={selectedSnapshot.fundingOptions} onProceed={railCode=>onOpenAgreementMoney(realAgreement,railCode)}/>
        <button type="button" disabled={busy} onClick={()=>void ask('Help me understand the financial status of Agreement '+realAgreement.publicReference+'. Verify it from the authorised Money records before advising. Do not claim payment authority, provider availability or settlement from the preview.')}
         className="min-h-10 rounded-full border border-cream-200 px-3 text-xs">Ask KS001 about this Agreement</button>
       </div>}
@@ -192,21 +189,10 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
      {error&&<p role="alert" className="text-xs text-amber-800">{error}</p>}
     </div>)}
    {door!=='my'&&!sample&&signedIn&&<PartnerList partners={partners}/>}
-   <section aria-label="Financial institutions and services" className="space-y-3 border-t border-cream-200 pt-4">
-    <h3 className="font-display text-lg">Financial help, in the same place</h3>
-    <p className="text-xs text-sand-600">A person starts with what they need, not an institution's product catalogue. Availability, requirements, rates, risks and eligibility must be verified before any application.</p>
-    <div className="grid grid-cols-2 gap-2">
-     {financePaths.map(path=><div key={path.title} className="space-y-2 rounded-xl border border-cream-200 bg-white p-3">
-       <path.icon size={20} className="text-forest-700"/>
-       <p className="text-sm font-semibold">{path.title}</p>
-       <p className="text-xs leading-5 text-sand-600">{path.description}</p>
-       {sample?<p className="text-[11px] text-sand-600">Explore in real Money when available.</p>:
-       <button type="button" disabled={busy} onClick={()=>void ask(path.question)}
-        className="min-h-9 rounded-full border border-cream-200 px-2 text-xs">Ask KS001 <ChevronRight size={13} className="inline"/></button>}
-      </div>)}
-    </div>
-    {!sample&&error&&<p role="alert" className="text-xs text-amber-800">{error}</p>}
-   </section>
+   {door==='my'&&<section className="rounded-xl border border-cream-200 bg-white p-3">
+    <strong>Financial possibilities for your plans</strong>
+    <p className="mt-1 text-xs text-sand-600">Borrow, Invest and Protect remain one tap away. Financial institutions come forward when relevant to a KS holder's Agreement or dream—not as a sales catalogue.</p>
+   </section>}
    <div className="rounded-xl bg-cream-50 p-3">
     <div className="flex items-center gap-2"><CheckCircle2 size={17} className="text-forest-700"/><strong>Money should follow the agreement.</strong></div>
     <p className="mt-1 text-xs text-sand-600">The complete authorised Money experience remains in one canonical place. No payment, account connection, financing application, insurance purchase or settlement is made from this workspace preview.</p>
