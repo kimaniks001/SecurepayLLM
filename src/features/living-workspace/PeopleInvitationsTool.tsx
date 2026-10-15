@@ -10,6 +10,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [sent,setSent]=useState(false);
+  const [detailsOpen,setDetailsOpen]=useState(false);
   const [ks,setKs]=useState('');
   const [identity,setIdentity]=useState<KsIdentitySelectionResult|null>(null);
   const [ksBusy,setKsBusy]=useState(false);
@@ -91,6 +92,9 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
         className={canShare?'inline-block rounded-full bg-forest-800 px-4 py-3 text-xs font-semibold text-white':'pointer-events-none inline-block rounded-full bg-cream-100 px-4 py-3 text-xs text-sand-600'}>Open WhatsApp draft ↗</a>
       <p className="text-xs text-sand-600">Opens your own WhatsApp share screen. No SecurePay invitation token is issued and nothing is sent automatically.</p>
     </div>}
+    <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)}
+      className="min-h-10 rounded-full border border-cream-200 bg-white px-4 text-xs font-semibold">{detailsOpen?'Less details':'More details'}</button>
+    {detailsOpen&&<div className="space-y-3 rounded-xl border border-cream-200 p-3">
     <label className="block text-xs">People or organisations to invite
       <textarea value={people} onChange={e=>{setPeople(e.target.value);setSent(false);}} rows={2} maxLength={800}
         placeholder="Names, KS Numbers or organisations — one per line" className="mt-1 w-full rounded-xl border border-cream-200 bg-white p-3 text-sm"/>
@@ -102,6 +106,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
       <input value={note} onChange={e=>setNote(e.target.value)} maxLength={300} placeholder="e.g. Please review the scope before agreeing" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
     </label>
     <button type="button" disabled={!canPrepare} onClick={()=>void prepare()} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{busy?'Preparing…':'Prepare with KS001'}</button>
+    </div>}
     {sent&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Request submitted to KS001 Chat. No invitations have been sent.</p>}
     {error&&<p role="alert" className="text-xs text-amber-900">{error}</p>}
     <p className="text-xs text-sand-600">Preparing is not sending. Invitations need the correct authority, recipient review and explicit action. No membership or Agreement acceptance is created here.</p>
