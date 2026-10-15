@@ -343,7 +343,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       {gateway&&!serverSource&&uploadState==='idle'&&
         <p className="text-xs text-sand-600">Only after you press Send will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
       {uploadState==='error'&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
-      {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>
+      {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>}
       {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
