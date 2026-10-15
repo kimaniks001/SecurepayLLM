@@ -68,8 +68,8 @@ test('KS001 question emphasis detects a genuine last question without rewriting 
  const last=m.exports.lastQuestion;
  assert.deepEqual(last('I can help. Where should the chairs be delivered?'),
    {before:'I can help. ',question:'Where should the chairs be delivered?'});
- assert.deepEqual(last('Terms found.\\nWhat must we confirm?'),
-   {before:'Terms found.\\n',question:'What must we confirm?'});
+ assert.deepEqual(last('Terms found.\nWhat must we confirm?'),
+   {before:'Terms found.\n',question:'What must we confirm?'});
  assert.deepEqual(last('When would you like delivery?'),{before:'',question:'When would you like delivery?'});
  assert.equal(last('We have a draft. No question yet.'),null);
  assert.equal(last('We have a draft? Here is my recommendation.'),null);
