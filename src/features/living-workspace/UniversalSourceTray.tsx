@@ -55,7 +55,7 @@ const MAX_BYTES=2_000_000;
 const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
 const nextId=(()=>{let id=1;return()=>id++;})();
 
-/** Photo selection explicitly sends to canonical KS001 in real mode; demo stays local.
+/** User-approved photo/document transmission uses canonical KS001; selection stays local.
  * A processed source is not evidence accepted by an Agreement or Money authority.
  */
 export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn,agreementPlaces=[]}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
@@ -106,7 +106,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       if(seq.current!==sequence)return;
       pendingFile.current=file;
       setPending({filename:file.name,mime:file.type||null,size:file.size,thumbnail});
-      if(gateway && !isDemo && tool!=='Places') void uploadToKs001(file);
+      // Selection and preview stay local. Network upload requires an explicit,
+      // separately labelled human action after reviewing this material.
     };
     if(!photo){prepare(null);return;}
     const reader=new FileReader();
@@ -144,7 +145,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   }
 
   async function uploadToKs001(file:File|null=pendingFile.current){
-    if(!gateway || isDemo || !file || uploadState==='uploading')return;
+    if(!gateway || isDemo || !file || uploadState==='uploading' || uploadState==='unknown' || uploadState==='confirmed')return;
     setUploadState('uploading');setUploadMessage('KS001 is reading your '+(tool==='Photos'?'photo':'document')+'…');
     try{
       const targetConversationId=conversationId ?? await onEnsureConversation?.();
@@ -301,7 +302,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-24 w-full rounded-lg object-contain"/>}
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
-        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Reading photo…':serverSource?'Received by SecurePay':'Preparing photo…'}</p>
+        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           {(tool==='Photos'||tool==='Documents')&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
             if(!pending)return;
@@ -334,7 +335,15 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     {tool!=='Places'&&(isDemo||!gateway)&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
     {(tool==='Photos'||tool==='Documents')&&pending&&!isDemo&&<div className="space-y-2">
       {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your {tool==='Photos'?'photo':'document'}…</p>}
-      {(uploadState==='error'||uploadState==='unknown')&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try again</button>}
+      {gateway&&!serverSource&&uploadState==='idle'&&
+        <button type="button" disabled={!pendingFile.current} onClick={()=>void uploadToKs001()}
+          className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">
+          Send {tool==='Photos'?'photo':'document'} to KS001
+        </button>}
+      {gateway&&!serverSource&&uploadState==='idle'&&
+        <p className="text-xs text-sand-600">Only after you press Send will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
+      {uploadState==='error'&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
+      {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>
       {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
