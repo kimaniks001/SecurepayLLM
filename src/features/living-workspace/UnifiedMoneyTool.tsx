@@ -22,7 +22,7 @@ const sortByAttention=(items:CurrentUserAgreementSummaryResponse[])=>[...items].
  Number(b.attentionRequired||b.nextActions.length>0)-Number(a.attentionRequired||a.nextActions.length>0));
 function BriefAmount({agreement}:{agreement:CurrentUserAgreementSummaryResponse}){
  const minor=minorFromString(agreement.proposedAmountMinor);
- return <span className="whitespace-nowrap text-sm font-semibold">{minor===null?'Amount not shown':moneyText(minor,agreement.currency)}</span>;
+ return <span data-money-figure className="whitespace-nowrap text-sm font-semibold">{minor===null?'Amount not shown':moneyText(minor,agreement.currency)}</span>;
 }
 
 /** Small companion tool, not a second Money page. Financial authority stays with canonical Money. */
@@ -73,7 +73,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
      setError('KS001 could not confirm the conversation. Check your work before retrying.');
    }finally{setBusy(false);}
  }
- return <section aria-label="Money tool" className="space-y-3 p-1 text-sm" data-testid="compact-money-tool">
+ return <section aria-label="Money tool" className="sp-brand-money space-y-3 p-1 text-sm" data-testid="compact-money-tool">
   <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
    {doors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
      aria-pressed={door===item.id}
