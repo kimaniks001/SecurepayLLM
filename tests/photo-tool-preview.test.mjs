@@ -43,13 +43,15 @@ test('photo relay forwards only canonical source photo multipart with token',asy
   }finally{globalThis.fetch=previous;}
 });
 
-test('photo UI only enables server upload with active conversation',()=>{
+test('photo UI uses explicit authorised upload and can start the same KS001 conversation photo-first',()=>{
   const ui=source('src/features/living-workspace/UniversalSourceTray.tsx');
   const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
   const relay=source('src/features/living-workspace/previewAgentGateway.ts');
-  assert.match(ui,/gateway\.uploadSource\(conversationId,'PHOTO'/);
+  assert.match(ui,/gateway\.uploadSource\(targetConversationId,'PHOTO'/);
   assert.match(ui,/isDemo/);
   assert.match(ui,/not yet/);
   assert.match(shell,/conversationId=\{liveConversationId\}/);
+  assert.match(shell,/onEnsureConversation=/);
+  assert.match(ui,/gateway\.uploadSource\(targetConversationId,'PHOTO'/);
   assert.match(relay,/dataBase64/);
 });
