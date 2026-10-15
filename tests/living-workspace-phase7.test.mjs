@@ -459,7 +459,8 @@ test('Structural S5: photo intake stays local in demo and sends through the cano
  assert.ok(app.includes('onEnsureConversation='));
  assert.ok(intake.includes('data-universal-source-tray'));
  assert.ok(intake.includes('reader.readAsDataURL(file)'));
- assert.ok(intake.includes('No upload · Unverified'));
+ assert.ok(intake.includes('Selected locally · Unverified'));
+ assert.ok(intake.includes('Earlier photos and local previews'));
  assert.ok(intake.includes('const MAX_BYTES=2_000_000'));
  assert.ok(intake.includes('seq.current++'));
  assert.ok(intake.includes("gateway.uploadSource(targetConversationId,'PHOTO'"));
