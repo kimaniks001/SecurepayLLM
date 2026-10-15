@@ -60,7 +60,7 @@ export function PublicHome(props: PublicHomeProps) {
         <span>SecurePay · Money should follow the agreement.</span>
         <div className="flex flex-wrap gap-5">
           <button type="button" className="underline underline-offset-4 hover:text-forest-900 focus-visible:outline-2 focus-visible:outline-offset-4" onClick={props.onHelp}>Need help?</button>
-          <button type="button" className="underline underline-offset-4 hover:text-forest-900 focus-visible:outline-2 focus-visible:outline-offset-4" onClick={props.onJoin}>Trust Project</button>
+          <button type="button" className="underline underline-offset-4 hover:text-forest-900 focus-visible:outline-2 focus-visible:outline-offset-4" onClick={props.onJoin}>Join the Trust Project</button>
         </div>
       </footer>
     </main>
