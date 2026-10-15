@@ -47,7 +47,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
   return <section aria-label="Live forming Agreement" data-live-formation className="space-y-4">
-    <div className="flex items-start justify-between gap-3">
+    <div className="sticky top-0 z-20 flex items-start justify-between gap-3 bg-white pb-2">
       <div className="min-w-0 flex-1"><p className="text-xs text-sand-600">My Work · Draft</p>
         {editingTitle?<form className="mt-2 flex gap-2" onSubmit={e=>{e.preventDefault();setEditingTitle(false);}}>
           <input autoFocus aria-label="Agreement display title" maxLength={80} value={customTitle} onChange={e=>setCustomTitle(e.target.value)} placeholder={humanTitle(formation?.summary)} className="min-w-0 flex-1 rounded-lg border border-cream-200 px-2 py-2 text-sm"/>
@@ -68,7 +68,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
     </div>}
     {formation && <div className="space-y-3">
       {expanded&&<div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>}
-      <section className="rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Agreement summary">
+      <section className="sticky top-[76px] z-10 rounded-xl border border-cream-200 bg-cream-50 p-3 shadow-sm" aria-label="Agreement summary">
         <table className="w-full table-fixed text-left text-sm">
           <caption className="sr-only">Short draft Agreement summary. Check means a fact needs clarification, not that the Agreement is accepted.</caption>
           <tbody>
