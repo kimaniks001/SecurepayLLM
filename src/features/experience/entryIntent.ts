@@ -84,3 +84,36 @@ export function consumeWorkspaceMoneyReturn():{conversationId:string|null}|null 
   const hint=workspaceMoneyReturn;workspaceMoneyReturn=null;return hint;
 }
 export function clearWorkspaceMoneyReturn():void { workspaceMoneyReturn=null; }
+
+/**
+ * Deliberate, reversible bridge between the existing KS001 work screen and
+ * the opt-in Living Workspace. An ID-only hint is held for a single immediate
+ * navigation in this tab: no local/session storage, query string, token, user
+ * data, participant or Agreement authority is transferred.
+ *
+ * The receiver MUST read the server as the current signed-in identity. A
+ * consumed hint cannot confer access or create/accept an Agreement.
+ */
+let pendingLivingWorkspaceConversation: string | null = null;
+let pendingKs001ConversationReturn: string | null = null;
+
+export function storeLivingWorkspaceEntry(conversationId: string): void {
+  const id = conversationId.trim();
+  if (!id) throw new Error('An existing KS001 conversation is required');
+  pendingLivingWorkspaceConversation = id;
+}
+export function consumeLivingWorkspaceEntry(): string | null {
+  const id = pendingLivingWorkspaceConversation;
+  pendingLivingWorkspaceConversation = null;
+  return id;
+}
+export function storeKs001ConversationReturn(conversationId: string): void {
+  const id = conversationId.trim();
+  if (!id) throw new Error('An existing KS001 conversation is required');
+  pendingKs001ConversationReturn = id;
+}
+export function consumeKs001ConversationReturn(): string | null {
+  const id = pendingKs001ConversationReturn;
+  pendingKs001ConversationReturn = null;
+  return id;
+}
