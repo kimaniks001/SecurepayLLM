@@ -16,6 +16,7 @@ import { LiveKs001Session } from './LiveKs001Session';
 import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
+import { StoresTool } from './StoresTool';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -303,6 +304,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       if(!liveController)throw new Error('KS001 unavailable');
                       setLiveStarted(true);setLiveWork(true);
                       await liveController.send(text);
+                      if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
+                      closeTool();
+                    }}/>
+                : activeTool==='Stores'?<StoresTool
+                    agreementNeeds={formationState?.data?.conversationId===liveConversationId
+                      ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
+                      : []}
+                    onContinue={async message=>{
+                      if(!liveController)throw new Error('KS001 is unavailable');
+                      setLiveStarted(true);setLiveWork(true);
+                      await liveController.send(message);
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
                     }}/>
