@@ -4,13 +4,27 @@ import type { AgentController } from '../agent/controller';
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
  */
+function lastQuestion(text: string): { before: string; question: string } | null {
+  const clean=text.trimEnd();
+  const match=/(?:^|[.!?]\\s+|\\n+)([^\\n!?]*\\?)\\s*$/.exec(clean);
+  if(!match)return null;
+  const question=match[1].trim();
+  const start=clean.lastIndexOf(question);
+  return start<0?null:{before:clean.slice(0,start),question};
+}
 function Ks001Reply({ text }: { text: string }) {
-  const match = /(?:^|[.!?]\\s+|\\n+)([^\\n!?]*\\?)(?:\\s*)$/.exec(text.trim());
-  if (!match || !match[1].trim()) return <>{text}</>;
-  const question = match[1].trim();
-  const offset = text.lastIndexOf(question);
-  if (offset < 0) return <>{text}</>;
-  return <><span>{text.slice(0,offset)}</span><strong className="font-semibold text-forest-900">{text.slice(offset)}</strong></>;
+  const result=lastQuestion(text);
+  if(!result)return <>{text}</>;
+  return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
+}
+function replyPills(question:string):string[] {
+  const lower=question.toLowerCase();
+  if(/where|location|address|deliver to/.test(lower))return ['Share an address','Choose a place','Not sure yet'];
+  if(/when|date|deadline|time/.test(lower))return ['Choose a date','To be agreed','Not sure yet'];
+  if(/who|which person|responsible|supplier|buyer|seller/.test(lower))return ['Add a person','Not decided yet'];
+  if(/how much|price|amount|cost|budget|payment/.test(lower))return ['Enter an amount','To be agreed'];
+  if(/confirm|is that correct|does this look right|agree/.test(lower))return ['Yes, that is correct','I need to correct something'];
+  return ['I can answer','Help me decide','Not sure yet'];
 }
 
 /**
@@ -37,10 +51,17 @@ export function LiveKs001Session({ controller }: { controller: AgentController }
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
     </div>
-    {state.turns.length>0&&!state.busy&&!state.pending&&<div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Quick replies">
-      {["What’s next?","Show my draft","What needs checking?"].map(answer=><button key={answer} type="button" onClick={()=>void controller.send(answer)}
-        className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{answer}</button>)}
-    </div>}
+    {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
+      const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
+      if(!last)return null;
+      const question=lastQuestion(last.response.message.text);
+      const pills=question?replyPills(question.question):["What’s next?","Show my draft"];
+      return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
+        {pills.map(answer=><button key={answer} type="button"
+          onClick={()=>{if(/^(Share an address|Choose a place|Choose a date|Add a person|Enter an amount|I can answer)$/.test(answer)){setDraft('');document.getElementById('live-work-ks001-input')?.focus();return;}void controller.send(answer);}}
+          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{answer}</button>)}
+      </div>;
+    })()}
     <form className="flex gap-2 border-t border-cream-200 p-3" onSubmit={e=>{e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending)return;setDraft('');void controller.send(next);}}>
       <label htmlFor="live-work-ks001-input" className="sr-only">Message live KS001</label>
       <input id="live-work-ks001-input" value={draft} onChange={e=>setDraft(e.target.value)} disabled={state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you need to agree…"/>
