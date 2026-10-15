@@ -95,7 +95,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
   setCommunity({status:'loading',data:null,error:null});
   void gateways.community.membership.me().then(async m=>{
     if(cancelled)return;
-    setMembership(m.status);
+    setMembership(m.status??null);
     if(m.status!=='ACTIVE'){setCommunity({status:'ready',data:null,error:null});return;}
     const [projects,opportunities]=await Promise.all([gateways.community.projects.list(6,0),gateways.community.serviceOpportunities.list(6,0)]);
     if(!cancelled)setCommunity({status:'ready',data:{projects,opportunities},error:null});
