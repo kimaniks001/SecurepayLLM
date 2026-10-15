@@ -8,6 +8,7 @@ type QuickAssistProps = {
   onCollectionChange: (next: QuickAssistId[]) => void;
   initialRequest?: string;
   onContinue?: (request: string) => Promise<void>;
+  onFindStoreOffers?: (kind: 'stays' | 'ride') => void;
 };
 
 const services = [
@@ -31,7 +32,7 @@ function requestForKs001(service: 'stays' | 'ride', description: string, journey
 }
 
 /** A first-party, local-first capability. A tool being visible or added does not grant it any authority. */
-export function QuickSupportPanel({ collection, onCollectionChange, initialRequest = '', onContinue }: QuickAssistProps) {
+export function QuickSupportPanel({ collection, onCollectionChange, initialRequest = '', onContinue, onFindStoreOffers }: QuickAssistProps) {
   const [selected, setSelected] = useState<QuickAssistId | null>(() => suggestedQuickAssist(initialRequest));
   const [catalogue, setCatalogue] = useState(false);
   const [request, setRequest] = useState(initialRequest);
@@ -151,7 +152,11 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
           {busy ? 'Asking KS001…' : onContinue ? 'Continue with KS001' : 'Prepare this request'}
         </button>
         {prepared && !onContinue && <div role="status" className="rounded-xl bg-cream-100 p-3 text-sm"><strong>Request ready</strong><p className="mt-1 whitespace-pre-wrap">{request.trim()}</p><p className="mt-2 text-xs text-sand-600">Prepared locally only. No booking or provider search was made.</p></div>}
-        <p className="text-xs text-sand-600">{onContinue ? 'Only this request is sent by Quick Assist when you choose Continue. ' : 'You can prepare a request without signing in. '}Live provider search is not connected here yet; availability, prices and terms must come from the provider. No booking or payment is made.</p>
+        {onFindStoreOffers && <button type="button" onClick={() => onFindStoreOffers(selected === 'stays' ? 'stays' : 'ride')}
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border border-cream-200 bg-white px-4 text-sm font-semibold">
+          Find published offers in Stores
+        </button>}
+        <p className="text-xs text-sand-600">{onContinue ? 'Only this request is sent to KS001 when you choose Continue. ' : 'You can prepare a request without signing in. '}Store listings are discovery, not confirmed provider bookings. Live booking/dispatch integrations are not connected here yet; actual availability, prices and terms must be confirmed by the provider. No booking or payment is made.</p>
       </>}
       {selected !== 'documents' && <p className="text-xs text-sand-600">Any actual provider must identify itself, show its verified terms, price and cancellation or delivery conditions, and ask for your approval before commitment.</p>}
     </div>}
