@@ -287,7 +287,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 }}/>
                 : activeTool==='People & Invitations'?<PeopleInvitationsTool
                     onCheckKs={gateway?async ksNumber=>{
-                      const id=liveConversationId??await ensureLiveConversation();
+                      if(!liveController)throw new Error('KS001 is unavailable');
+                      let id=liveController.getSnapshot().conversationId;
+                      if(!id){
+                        const created=await gateway.createConversation();
+                        if(!created.conversationId)throw new Error('No KS001 conversation');
+                        await liveController.resumeConversation(created.conversationId);
+                        setLiveStarted(true);setLiveWork(true);
+                        id=created.conversationId;
+                      }
                       return gateway.selectKsIdentity(id,{ksNumber});
                     }:undefined}
                     agreementPeople={formationState?.data?.conversationId===liveConversationId?formationState.data.who.map(p=>p.name):[]}
