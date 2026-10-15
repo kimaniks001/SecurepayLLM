@@ -451,18 +451,21 @@ test('Structural S4: real Community exposes only ACTIVE-member, Circle-free reco
  assert.match(demo,/<LivingCommunityPanel\/>/);
  assert.doesNotMatch(demo,/gateways\.community\.|fetch\(/);
 });
-test('Structural S4: Photos-first universal preview never sends photos or notes to KS001',()=>{
+test('Structural S5: Photos-first intake preserves local demo and requires explicit authorised KS001 upload',()=>{
  const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
- const tools=source('src/features/living-workspace/UniversalSourceTray.tsx');
- assert.match(app,/useState\('Photos'\)/);
+ const intake=source('src/features/living-workspace/UniversalSourceTray.tsx');
+ assert.match(app,/useState\\('Photos'\\)/);
  assert.ok(app.indexOf("{ name: 'Photos'")<app.indexOf("{ name: 'Documents'"));
- assert.match(app,/<UniversalSourceTray tool=\{activeTool\} area=\{mode\} isDemo=\{mockSignedIn\}/);
- assert.match(tools,/data-universal-source-tray/);
- assert.match(tools,/reader\.readAsDataURL\(file\)/);
- assert.match(tools,/No upload · Unverified/);
- assert.match(tools,/const MAX_BYTES=2_000_000/);
- assert.match(tools,/seq\.current\+\+/);
- assert.doesNotMatch(tools,/fetch\(|axios|gateway\.|session\.setTokens|localStorage|sessionStorage/);
+ assert.match(app,/onEnsureConversation=/);
+ assert.match(intake,/data-universal-source-tray/);
+ assert.match(intake,/reader\\.readAsDataURL\\(file\\)/);
+ assert.match(intake,/No upload · Unverified/);
+ assert.match(intake,/const MAX_BYTES=2_000_000/);
+ assert.match(intake,/seq\\.current\\+\\+/);
+ assert.match(intake,/gateway\\.uploadSource\\(targetConversationId,'PHOTO'/);
+ assert.match(intake,/isDemo/);
+ assert.match(intake,/onContinueTask/);
+ assert.doesNotMatch(intake,/session\\.setTokens|localStorage|sessionStorage/);
 });
 test('Structural S4: member Community discovery relay is bounded and separately membership-gated',async()=>{
  const handler=(await import('../api/preview-workspace.js')).default;
