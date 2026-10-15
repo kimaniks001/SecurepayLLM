@@ -585,3 +585,28 @@ test('Living Store sample catalogue is visibly fictional, photograph-led, and ne
  assert.match(demo,/No Community Saver or payout is created by this example/);
  assert.doesNotMatch(demo,/gateway\.|gateways\.|fetch\(|onContinue\(|localStorage|sessionStorage|createAgreement|createOffer/);
 });
+
+
+test('Stores buyer: summary-side editing keeps many shops in one proposal without claiming seller acceptance',()=>{
+ const board=source('src/features/living-workspace/StoreBuyingPlan.tsx');
+ const live=source('src/features/living-workspace/StoresTool.tsx');
+ const demo=source('src/features/living-workspace/StoreDemoExperience.tsx');
+ const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ for(const term of ['storeName','storeKsNumber','offerId','quantity','specification','desiredDate','coordination',
+  'combined','community','addStoreBuyingLine','storeBuyingPrompt','seller','Plug','separate','MY BUYING PLAN · NOT AN ORDER'])assert.ok(board.includes(term),term);
+ assert.match(board,/independently accepted supplier obligations/);
+ assert.match(board,/Money must follow accepted Agreements/);
+ assert.match(board,/addStoreBuyingLine\(previous:StoreBuyingLine\[\]/);
+ assert.match(board,/onLines\(lines\.map/);
+ assert.match(board,/one clear overall commitment/);
+ assert.match(live,/gateways\.stores\.offer\(ownerKs,offerId\)/);
+ assert.match(live,/Promise\.all\(planLines\.map/);
+ assert.match(live,/result\.offer\.title!==line\.title/);
+ assert.match(live,/storeBuyingPrompt\(planLines,planDraft\)/);
+ assert.match(live,/Add to buying plan/);
+ assert.match(live,/Take to KS001/);
+ assert.match(demo,/addStoreBuyingLine\(current/);
+ assert.match(demo,/sample lines=\{buyingLines\}/);
+ assert.match(demo,/setBuyingActive\(true\)/);
+ assert.match(shell,/activeTool==='Stores'\?'sm:w-\[min\(96vw,1060px\)\]'/);
+});
