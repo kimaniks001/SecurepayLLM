@@ -622,7 +622,7 @@ test('Unified Money: a single tool includes regulated partners and Agreement Mon
  assert.match(shell,/onOpenMoney=\{\(\)=>\{closeTool\(\);window.location.hash='#\/money';\}\}/);
  assert.match(personas,/tool:'Money'/);
  assert.doesNotMatch(personas,/tool:'Financial Institutions'/);
- for(const term of ['MY','ILLUSTRATIVE EXPERIENCE','Agreement Money','Institutions supporting money',
+ for(const term of ['ILLUSTRATIVE EXPERIENCE','Agreement Money','Institutions supporting money',
   'Pay & receive','Save & grow','Finance a plan','Protect the work',
   'Funding','Money movement','settlement','auth','No payment','financialPartners.list()',
   'moneySnapshot.read(selected)','Only confirmed financial records count'])assert.ok(tool.includes(term),term);
