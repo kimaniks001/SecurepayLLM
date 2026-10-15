@@ -226,7 +226,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
               {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} onContinueTask={async(source,task)=>{
+                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} onEnsureConversation={async()=>{
+                  if(!gateway || !liveController)throw new Error('KS001 is unavailable');
+                  const existing=liveController.getSnapshot().conversationId;
+                  if(existing)return existing;
+                  const created=await gateway.createConversation();
+                  if(!created.conversationId)throw new Error('Could not create KS001 conversation');
+                  await liveController.resumeConversation(created.conversationId);
+                  setLiveStarted(true);setLiveWork(true);
+                  return created.conversationId;
+                }} onContinueTask={async(source,task)=>{
                   if(!liveController || !liveConversationId || source.conversationId!==liveConversationId)throw new Error('Open the matching KS001 conversation first');
                   const instructions:Record<string,string>={
                     contract:'Help me draft a Quick Contract using this photo. Extract only supported terms, clearly identify what must be confirmed, and show the Agreement review before any invitation or Money action.',
