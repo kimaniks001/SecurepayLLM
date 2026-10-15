@@ -8,7 +8,7 @@ type QuickAssistProps = {
   onCollectionChange: (next: QuickAssistId[]) => void;
   initialRequest?: string;
   onContinue?: (request: string) => Promise<void>;
-  onFindStoreOffers?: (kind: 'stays' | 'ride') => void;
+  onFindStoreOffers?: (kind: 'stays' | 'ride', requestedTask: string) => void;
 };
 
 const services = [
@@ -146,7 +146,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
           {busy ? 'Asking KS001…' : onContinue ? 'Continue with KS001' : 'Prepare this request'}
         </button>
         {prepared && !onContinue && <div role="status" className="rounded-xl bg-cream-100 p-3 text-sm"><strong>Request ready</strong><p className="mt-1 whitespace-pre-wrap">{request.trim()}</p><p className="mt-2 text-xs text-sand-600">Prepared locally only. No booking or provider search was made.</p></div>}
-        {onFindStoreOffers && <button type="button" onClick={() => onFindStoreOffers(selected === 'stays' ? 'stays' : 'ride')}
+        {onFindStoreOffers && <button type="button" onClick={() => onFindStoreOffers(selected === 'stays' ? 'stays' : 'ride', request.trim())}
           className="flex min-h-11 w-full items-center justify-center rounded-xl border border-cream-200 bg-white px-4 text-sm font-semibold">
           Find published offers in Stores
         </button>}
