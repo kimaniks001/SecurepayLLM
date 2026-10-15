@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Banknote, CheckCircle2, ChevronRight, CircleAlert, FileText, Handshake, Landmark, PiggyBank, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FileText, Handshake, RefreshCw, ShieldCheck, Wallet, HandCoins, TrendingUp } from 'lucide-react';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
 import type { RegulatedPartnerResponse } from '../../api/securepay/financial-partners';
-import { moneyText, minorFromString } from '../money/amount';
+import { moneyText } from '../money/amount';
+import { MoneyRailCeremony } from './MoneyRailCeremony';
+import { AgreementNextSummary, MoneyAgreementCard, SampleMoneyAgreementCard } from './MoneyAgreementCards';
 
 type Read<T>={state:'idle'|'loading'|'ready'|'error';value:T;message:string};
 const ready=<T,>(value:T):Read<T>=>({state:'idle',value,message:''});
@@ -13,12 +15,13 @@ const demoAgreements=[
  {key:'table',title:'Handmade furniture order',purpose:'A finished table, inspected before delivery',proposed:'KES 18,000',funded:'Sample funding confirmed',next:'Inspect the finished work and check the agreed release conditions',kind:'Furniture'},
  {key:'chama',title:'Our monthly chama',purpose:'Eight friends · agreed contributions',proposed:'KES 2,000 per person',funded:'Not shown',next:'Confirm governance and invitations before collecting contributions',kind:'Group'},
 ] as const;
-const financePaths=[
- {title:'Pay & receive',icon:Banknote,description:'M-PESA, bank rails and PesaLink when the transaction and provider actually support them.',question:'Explain which regulated payment rails are supported for my Agreement and the total cost before I authorise anything.'},
- {title:'Save & grow',icon:PiggyBank,description:'Explore savings, SACCO and managed-fund options through authorised institutions. No account or return is promised.',question:'Help me consider savings and investment options and their costs, access restrictions and risks. Do not imply availability or returns.'},
- {title:'Finance a plan',icon:Landmark,description:'Explore bank or SACCO financing against a real purpose, requirements, terms and risks.',question:'Help me understand possible financing needs, repayment obligations and eligibility checks. Do not claim I am approved.'},
- {title:'Protect the work',icon:ShieldCheck,description:'Consider suitable insurance for goods, delivery and projects where a verified provider offers it.',question:'Help me identify insurance questions for this trade. Do not imply coverage exists or claim a quote.'},
-];
+type MoneyDoor='my'|'borrow'|'invest'|'protect';
+const moneyDoors=[
+ {id:'my',title:'My Money',icon:Wallet,description:'Understand what is promised, funded and due.',question:''},
+ {id:'borrow',title:'Borrow',icon:HandCoins,description:'Consider responsible financing for an Agreement or dream. Understand repayments, conditions and risk.',question:'Explore possible financing for my current Agreement or dream. Explain verified requirements, total costs, repayment and risks. Never imply loan approval.'},
+ {id:'invest',title:'Invest',icon:TrendingUp,description:'Save or invest toward your next milestone, understanding access, fees and risk.',question:'Explore regulated savings and investment possibilities for this dream, including liquidity, fees and risk. Do not guarantee returns.'},
+ {id:'protect',title:'Protect',icon:ShieldCheck,description:'Explore relevant insurance for goods, delivery, projects or people.',question:'Explore insurance relevant to this Agreement, explaining licensed providers, premium, cover, exclusions, start of cover, claims and eligibility. Never claim active cover without proof.'},
+] as const;
 const demoTruth='ILLUSTRATIVE EXPERIENCE · No live accounts, payments, rates or financial offers';
 function PlainAmount({minor,currency}:{minor:number|null|undefined;currency:string|null|undefined}){
  return <span>{minor==null?'Amount unavailable':currency?moneyText(minor,currency):'Currency not confirmed'}</span>;
@@ -41,8 +44,9 @@ function PartnerList({partners}:{partners:Read<RegulatedPartnerResponse[]>}){
   {partners.state==='ready'&&partners.value.length>20&&<p className="text-xs text-sand-600">Showing the first 20 partner records. Open Money for the canonical financial experience.</p>}
  </section>;
 }
-export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onAskKs001}:{gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenMoney:()=>void;onAskKs001:(text:string)=>Promise<void>}){
+export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001}:{gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenMoney:()=>void;onOpenAgreementMoney:(agreement:CurrentUserAgreementSummaryResponse,railCode?:string)=>void;onReviewAgreement:(agreementId:string)=>void;onAskKs001:(text:string)=>Promise<void>}){
  const [sample,setSample]=useState(true);
+ const [door,setDoor]=useState<MoneyDoor>('my');
  const [selectedSample,setSelectedSample]=useState<string>('bathroom');
  const [agreements,setAgreements]=useState<Read<CurrentUserAgreementSummaryResponse[]>>(ready([]));
  const [partners,setPartners]=useState<Read<RegulatedPartnerResponse[]>>(ready([]));
@@ -60,7 +64,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onAskKs001
   setAgreements({state:'loading',value:[],message:''});
   setPartners({state:'loading',value:[],message:''});
   void gateways.agreements.currentUserAgreements(0,12).then(result=>{
-   if(!cancelled)setAgreements({state:'ready',value:result.items,message:''});
+   if(!cancelled){setAgreements({state:'ready',value:result.items,message:''});setSelected(current=>result.items.some(a=>a.agreementId===current)?current:result.items[0]?.agreementId??null);}
   }).catch(()=>{if(!cancelled)setAgreements({state:'error',value:[],message:'Could not read your Agreements'});});
   void gateways.financialPartners.list().then(result=>{
    if(!cancelled)setPartners({state:'ready',value:result,message:''});
@@ -82,12 +86,30 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onAskKs001
   finally{setBusy(false);}
  }
  const selectedSnapshot=snapshot.state==='ready'?snapshot.value:null;
+ const currentDoor=moneyDoors.find(d=>d.id===door)||moneyDoors[0];
+ const visibleAgreements=[...agreements.value].sort((a,b)=>Number(b.attentionRequired||b.nextActions.length>0)-Number(a.attentionRequired||a.nextActions.length>0));
  return <section aria-label="Money and financial institutions in one tool" className="space-y-4 text-sm">
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><p className="text-xs text-sand-600">SecurePay Money</p><h2 className="font-display text-2xl text-forest-900">Money follows the agreement.</h2></div>
     {!sample&&signedIn&&<button type="button" onClick={()=>setRevision(v=>v+1)} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-cream-200 px-3 text-xs"><RefreshCw size={14}/> Refresh</button>}
    </div>
    <p className="max-w-2xl leading-6 text-sand-700">See the work, the money behind it, the next decision, and the institutions that might help you move forward. One experience, without mistaking a promise for a payment.</p>
+   <nav aria-label="Money: My Money, Borrow, Invest and Protect" className="grid grid-cols-4 gap-1.5 rounded-2xl bg-cream-50 p-1.5">
+    {moneyDoors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)} aria-current={door===item.id?'page':undefined}
+      className={'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 transition-colors '+(door===item.id?'bg-forest-800 text-white shadow-soft':'bg-white text-forest-900')}>
+      <item.icon size={19}/><span className="text-xs font-semibold">{item.title}</span></button>)}
+   </nav>
+   {door!=='my'&&<section aria-label={currentDoor.title+' possibilities'} className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4">
+    <div className="flex items-center gap-2"><currentDoor.icon size={22} className="text-forest-700"/><h3 className="font-display text-xl">{currentDoor.title} for your purpose</h3></div>
+    <p className="text-sm leading-6 text-sand-700">{currentDoor.description}</p>
+    <p className="rounded-xl bg-cream-50 p-3 text-xs leading-5 text-sand-700">{sample?'Imagine how this could help with '+selectedDemo.title+'. No financial product has been verified in the sample.':realAgreement?'Explore a genuine financial possibility for '+realAgreement.title+'. Financial institutions and terms must be verified before applying.':'Select an Agreement in My Money so financial possibilities can follow your purpose.'}</p>
+    {door==='protect'&&<div className="rounded-xl border border-cream-200 p-3"><strong>Protect this Agreement</strong><p className="mt-1 text-xs text-sand-600">Discover an appropriate insurer's coverage, premium, exclusions and exact start of cover. Adding protection requires actual insurer consent and policy confirmation; a request is not cover.</p></div>}
+    {door==='borrow'&&<div className="rounded-xl border border-cream-200 p-3"><strong>Borrow only what you need</strong><p className="mt-1 text-xs text-sand-600">Consider phased purchasing, available funds and total repayments before borrowing. Loans require underwriting and consent.</p></div>}
+    {door==='invest'&&<div className="rounded-xl border border-cream-200 p-3"><strong>Build toward the next milestone</strong><p className="mt-1 text-xs text-sand-600">A dream determines the horizon; evaluate risk, liquidity, fees and regulated custody first. No returns are guaranteed.</p></div>}
+    {!sample&&signedIn&&<button type="button" disabled={busy} onClick={()=>void ask(currentDoor.question+(realAgreement?' Context: Agreement '+realAgreement.publicReference+'.':'')+' Do not share private Agreement information with an institution without explicit consent.')}
+      className="min-h-11 w-full rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">Explore with KS001 <ArrowRight size={16} className="ml-1 inline"/></button>}
+    {sample&&<p className="text-xs text-sand-600">Explore the Agreement story in My Money. Real provider terms and enquiries require a signed-in experience.</p>}
+   </section>}
    <div className="flex items-center justify-between gap-2 rounded-xl border border-cream-200 bg-white p-2">
     <span className="px-1 text-xs font-medium text-sand-600">Explore Money</span>
     <div className="flex gap-1">
@@ -95,7 +117,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onAskKs001
      <button type="button" aria-pressed={!sample} onClick={()=>{setSample(false);setError('');}} className={!sample?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>My Money</button>
     </div>
    </div>
-   {sample?<div className="space-y-4">
+   {door==='my'&&(sample?<div className="space-y-4">
      <p className="rounded-lg bg-cream-50 p-3 text-xs text-sand-600">{demoTruth}</p>
      <div className="grid grid-cols-2 gap-2">
       <div className="rounded-xl border border-cream-200 bg-white p-3"><p className="text-xs text-sand-600">Your commitments</p><p className="mt-1 font-display text-xl">3 examples</p><p className="mt-1 text-xs text-sand-600">Not an account balance</p></div>
@@ -168,7 +190,8 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onAskKs001
      </section>}
      <PartnerList partners={partners}/>
      {error&&<p role="alert" className="text-xs text-amber-800">{error}</p>}
-    </div>}
+    </div>)}
+   {door!=='my'&&!sample&&signedIn&&<PartnerList partners={partners}/>}
    <section aria-label="Financial institutions and services" className="space-y-3 border-t border-cream-200 pt-4">
     <h3 className="font-display text-lg">Financial help, in the same place</h3>
     <p className="text-xs text-sand-600">A person starts with what they need, not an institution's product catalogue. Availability, requirements, rates, risks and eligibility must be verified before any application.</p>
