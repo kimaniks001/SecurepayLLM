@@ -608,28 +608,33 @@ test('Stores buyer: summary-side editing keeps many shops in one proposal withou
  assert.match(demo,/addStoreBuyingLine\(current/);
  assert.match(demo,/sample lines=\{buyingLines\}/);
  assert.match(demo,/setBuyingActive\(true\)/);
- assert.match(shell,/activeTool==='Stores'\|\|activeTool==='Money'/);
+ assert.match(shell,/toolSelected&&activeTool==='Stores'/);
 });
 
-test('Unified Money: a single tool includes regulated partners and Agreement Money, never mock financial authority',()=>{
+test('Compact Money: one small tool, four human choices, Agreement-first and no financial claims',()=>{
  const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
  const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
- const gateways=source('src/features/living-workspace/previewWorkspaceGateways.ts');
  const personas=source('src/features/living-workspace/personas.ts');
  assert.match(shell,/name: 'Money', icon: Wallet/);
  assert.doesNotMatch(shell,/name: 'Financial Institutions'/);
  assert.match(shell,/activeTool==='Money'\?<UnifiedMoneyTool/);
- assert.match(shell,/onOpenMoney=\{\(\)=>\{closeTool\(\);window.location.hash='#\/money';\}\}/);
+ assert.match(shell,/toolSelected&&activeTool==='Stores'/);
+ assert.doesNotMatch(shell,/activeTool==='Stores'\|\|activeTool==='Money'/);
  assert.match(personas,/tool:'Money'/);
- assert.doesNotMatch(personas,/tool:'Financial Institutions'/);
- for(const term of ['ILLUSTRATIVE EXPERIENCE','Agreement Money','Institutions supporting money',
-  'My Money','Borrow','Invest','Protect',
-  'Funding','Money movement','settlement','auth','No payment','financialPartners.list()',
-  'moneySnapshot.read(selected)','Only confirmed financial records count'])assert.ok(tool.includes(term),term);
+ for(const token of ['My Money','Borrow','Invest','Protect','My Agreements','Next:',
+   'Review Agreement','Pay this Agreement','See all Money & financial details','Try sample',
+   'No actual Agreement or payment','Proposed','Explore with KS001']){
+  assert.ok(tool.includes(token),token);
+ }
+ assert.match(tool,/const shown=showMore\?agreements.items:agreements.items.slice\(0,3\)/);
+ assert.match(tool,/gateways\.agreements\.currentUserAgreements\(0,12\)/);
+ assert.match(tool,/useState\(!signedIn\)/);
  assert.match(tool,/if\(sample\|\|!signedIn\|\|!gateways\)return/);
- assert.match(tool,/sample\|\|!signedIn\|\|!gateways\|\|!selected/);
- assert.match(gateways,/financialPartners: createFinancialPartnerGateway\(http\)/);
- assert.match(gateways,/moneySnapshot: createMoneySnapshotGateway\(http\)/);
+ assert.match(tool,/onReviewAgreement\(selectedAgreement\.agreementId\)/);
+ assert.match(tool,/onOpenAgreementMoney\(selectedAgreement\)/);
+ assert.doesNotMatch(tool,/gateways\.financialPartners\.list\(|gateways\.moneySnapshot\.read\(|<MoneyRailCeremony|<PartnerList/);
+ assert.doesNotMatch(tool,/createVersionBoundQuote|paymentIntentGateway\.initiate/);
+ assert.ok(tool.length<15000,'Tool must remain genuinely compact');
 });
 test('Unified Money: preview financial reads require authentication; writes, extra queries and unrelated institutions are rejected',async()=>{
  const handler=(await import('../api/preview-workspace.js')).default;
@@ -658,50 +663,36 @@ test('Unified Money: preview financial reads require authentication; writes, ext
  }finally{globalThis.fetch=previous;}
 });
 
-test('Money human journey: Agreement status, review, rail choice and financial authority stay clear',()=>{
+test('Compact Money: Agreement actions lead into canonical review and separate provider ceremony',()=>{
  const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
- const cards=source('src/features/living-workspace/MoneyAgreementCards.tsx');
  const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
- const ceremony=source('src/features/living-workspace/MoneyRailCeremony.tsx');
  const handoff=source('src/features/money/handoff.ts');
  const canonical=source('src/features/money/MoneyPaymentSettlementJourney.tsx');
- for(const token of ['AgreementNextSummary','MoneyAgreementCard','SampleMoneyAgreementCard','MoneyRailCeremony',
-   "door==='my'","door==='protect'","door==='invest'","door==='borrow'",
-   'onOpenAgreementMoney(realAgreement,railCode)','options={selectedSnapshot.fundingOptions}'])
+ for(const token of ['humanAgreementStatus','selectedAgreement.nextActions',
+ 'My Agreements','onReviewAgreement','onOpenAgreementMoney'])
   assert.ok(tool.includes(token),token);
- for(const token of ['Needs you','Completed','Taking shape','In progress','Proposed · Not a payment confirmation',
-   'Read Agreement','Pay this Agreement','View Money & next step','Review Agreement','nextActions'])
-  assert.ok(cards.includes(token),token);
  assert.match(shell,/onOpenAgreementMoney=\{\(agreement,railCode\)=>/);
  assert.match(shell,/openMoneyFor\(\{agreementId:agreement.agreementId/);
  assert.match(shell,/storeAgreementEntry\(agreementId\)/);
- assert.match(shell,/setMoneyRailPreference\(\{agreementId:agreement.agreementId,railCode\}\)/);
  assert.match(handoff,/export function peekMoneyRailPreference/);
- assert.match(handoff,/let preferredRail:MoneyRailPreference\|null=null/);
  assert.match(canonical,/peekMoneyRailPreference\(\)/);
  assert.match(canonical,/createVersionBoundQuote\(agreementId, rail.railCode, currentVersionId\)/);
  for(const token of ['Who will handle this transaction?','Compare ',
-   'Institutional responsibility:', 'Not yet verified', 'See confirmed cost & terms'])
+  'Institutional responsibility:', 'Not yet verified', 'See confirmed cost & terms'])
   assert.ok(canonical.includes(token),token);
- for(const token of ['Who will handle this payment?','Not yet confirmed',
-   'Compare ','Review verified terms in Money','Quote required',
-   'No payment occurs in this preview.'])
-  assert.ok(ceremony.includes(token),token);
+ assert.doesNotMatch(tool,/Who will handle this transaction\?|MoneyRailCeremony|quoteSelection/);
 });
-
-test('Money safety: a signed-in KS holder starts with actual Agreements and unresolved provider attempts keep routes locked',()=>{
+test('Money safety: real Agreements first, unresolved payment attempts cannot restart rail choice',()=>{
  const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
  const payment=source('src/features/money/MoneyPaymentSettlementJourney.tsx');
- const handoff=source('src/features/money/handoff.ts');
  assert.match(tool,/useState\(!signedIn\)/);
  assert.match(tool,/setSample\(false\)/);
- assert.match(tool,/setSelected\(current=>result.items.some/);
- assert.match(tool,/visibleAgreements\.map\(item=><MoneyAgreementCard/);
+ assert.match(tool,/setSelected\(previous=>items.some/);
+ assert.match(tool,/shown\.map\(item=>/);
+ assert.match(tool,/Proposed/);
  assert.match(payment,/routeSwitchLocked = createdIntent !== null \|\| intents.state !== 'ready'/);
  assert.match(payment,/IN_FLIGHT\.includes\(intent.status\)/);
  assert.match(payment,/disabled=\{routeSwitchLocked \|\| quoteBusy!==null\}/);
  assert.match(payment,/disabled=\{quoteBusy!==null \|\| !snapshot\?\.feeQuoteRequestsPermitted \|\| routeSwitchLocked\}/);
- assert.match(handoff,/export function setMoneyRailPreference/);
- assert.match(handoff,/export function clearMoneyRailPreference/);
  assert.doesNotMatch(tool,/createVersionBoundQuote|paymentIntentGateway\.initiate/);
 });
