@@ -308,6 +308,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
+                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
                       : []}
