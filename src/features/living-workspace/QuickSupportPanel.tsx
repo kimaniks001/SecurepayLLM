@@ -54,7 +54,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
     onCollectionChange(collection.filter(value => value !== id));
     setSelected(null);
   };
-  const useOnce = (id: QuickAssistId) => {
+  const openOnce = (id: QuickAssistId) => {
     setCatalogue(false);
     setSelected(id);
   };
@@ -92,7 +92,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
       <p className="text-xs font-medium text-sand-600">Your tools · this workspace session</p>
       {services.filter(service => collection.includes(service.id)).map(({ id, title, description: details, Icon }) =>
         <div key={id} className="flex items-center gap-1 rounded-xl border border-cream-200 bg-white">
-          <button type="button" className="flex min-h-14 min-w-0 flex-1 items-center gap-3 p-3 text-left" onClick={() => useOnce(id)}>
+          <button type="button" className="flex min-h-14 min-w-0 flex-1 items-center gap-3 p-3 text-left" onClick={() => openOnce(id)}>
             <Icon size={20} aria-hidden="true" />
             <span className="min-w-0"><span className="block text-sm font-semibold">{title}</span><span className="block text-xs text-sand-600">{details}</span></span>
           </button>
@@ -112,7 +112,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
         <div key={id} className="rounded-xl border border-cream-200 p-3">
           <div className="flex items-start gap-3"><Icon size={20}/><div><strong className="text-sm">{title}</strong><p className="text-xs text-sand-600">{details}</p></div></div>
           <div className="mt-2 flex gap-2">
-            <button type="button" className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs font-semibold" onClick={() => useOnce(id)}>Use once</button>
+            <button type="button" className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs font-semibold" onClick={() => openOnce(id)}>Use once</button>
             <button type="button" className="min-h-11 rounded-lg bg-forest-800 px-3 text-xs font-semibold text-white" onClick={() => add(id)}>Add to my tools</button>
           </div>
         </div>)}
