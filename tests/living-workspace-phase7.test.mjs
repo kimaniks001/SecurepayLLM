@@ -688,3 +688,20 @@ test('Money human journey: Agreement status, review, rail choice and financial a
    'No payment occurs in this preview.'])
   assert.ok(ceremony.includes(token),token);
 });
+
+test('Money safety: a signed-in KS holder starts with actual Agreements and unresolved provider attempts keep routes locked',()=>{
+ const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
+ const payment=source('src/features/money/MoneyPaymentSettlementJourney.tsx');
+ const handoff=source('src/features/money/handoff.ts');
+ assert.match(tool,/useState\(!signedIn\)/);
+ assert.match(tool,/setSample\(false\)/);
+ assert.match(tool,/setSelected\(current=>result.items.some/);
+ assert.match(tool,/visibleAgreements\.map\(item=><MoneyAgreementCard/);
+ assert.match(payment,/routeSwitchLocked = createdIntent !== null \|\| intents.state !== 'ready'/);
+ assert.match(payment,/IN_FLIGHT\.includes\(intent.status\)/);
+ assert.match(payment,/disabled=\{routeSwitchLocked \|\| quoteBusy!==null\}/);
+ assert.match(payment,/disabled=\{quoteBusy!==null \|\| !snapshot\?\.feeQuoteRequestsPermitted \|\| routeSwitchLocked\}/);
+ assert.match(handoff,/export function setMoneyRailPreference/);
+ assert.match(handoff,/export function clearMoneyRailPreference/);
+ assert.doesNotMatch(tool,/createVersionBoundQuote|paymentIntentGateway\.initiate/);
+});
