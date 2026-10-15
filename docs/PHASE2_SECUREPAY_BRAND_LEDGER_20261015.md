@@ -29,7 +29,7 @@ A custom typeface is a separate future design/rights task, not a claim here.
 - Public/signed-in Home: same brand voice and existing logo.
 - Living Workspace: same navigation, Conversation and Result surfaces; each area gets measured differences.
 - Real Living Work Agreement and demo Living Agreement: manuscript-inspired first-letter title without imposing decorative typography on printed contracts.
-- Money: tabular digits and stable forest accent; no fee/rail logic changed.
+- Money: tabular digits and stable forest accent in both the compact Money tool and existing Money Home route; no fee/rail logic changed.
 - Quick Assist: compact sage accent; no booking/discovery logic changed.
 - Vision/Circle/Community: modest Ember/Sage/Sand family resemblance, no claims that sample projects are real.
 - **Store demo/gallery and StoresTool exact blob SHA unchanged** from Phase 1. Their approved layouts/content have not been modified. These screens still inherit parent-area typography and must receive visual owner review.
@@ -37,7 +37,7 @@ A custom typeface is a separate future design/rights task, not a claim here.
 ### Scope, gaps and acceptance
 The implementation is a first actual design-system pass, not evidence that every existing route uses it:
 - Canonical full Agreement/Money journeys outside the new Living Workspace retain legacy component rules where appropriate; further visual convergence after user comparison remains.
-- Trust Project dedicated invitation entry is not independently restyled in this pass; two-door routing is not modified.
+- Trust Project invitation entry now inherits the related type family through a separate `sp-brand-trust` scope, while preserving its distinct visuals and unchanged two-door routing.
 - No users have been recruited for older-trader readability or Swahili testing.
 - 200% text scaling, print comparisons, long legal titles and dark/high contrast must be browser/human tested before approval.
 - Phase 1's unresolved 29 inherited UI regressions and backend/API dependency are not fixed by a style pass.
