@@ -228,8 +228,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     setLabel('');setCaption('');setError(null);setConfirmation('Place added to this preview. Not saved to SecurePay.');
   }
   if(!supported)return null;
-  return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'?'space-y-2':'space-y-3'}>
-    {tool!=='Photos'&&<><p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
+  return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'||tool==='Documents'?'space-y-2':'space-y-3'}>
+    {tool==='Places'&&<><p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
     <h3 className="font-semibold text-sm">Add a {tool==='Documents'?'document':'place'}</h3>
     <p className="text-xs text-sand-700">Add once. KS001 reads it and suggests what to do.</p></>}
     {tool==='Places'?<>
@@ -240,7 +240,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       <input ref={upload} type="file" className="hidden"
         accept={tool==='Photos'?'image/jpeg,image/png':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
         onChange={event=>{receive(event.target.files?.[0]);event.target.value='';}}/>
-      {(!pending||tool!=='Photos')&&<div className="grid grid-cols-2 gap-2">
+      {!pending&&<div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={()=>upload.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm">
           {tool==='Photos'?<Camera size={18}/>:<FileText size={18}/>} Choose from device
         </button>
@@ -249,19 +249,19 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
       </div>}
-      {tool!=='Photos'&&<p className="text-xs text-sand-600">Supported documents up to 2 MB.</p>}
-      {pending&&<div aria-label="Photo or document ready to add" className={tool==='Photos'?"rounded-xl border border-cream-200 bg-white p-2":"rounded-xl border border-cream-200 bg-white p-3"}>
+      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, Word, Excel, text or CSV · up to 2 MB</p>}
+      {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-24 w-full rounded-lg object-contain"/>}
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Reading photo…':serverSource?'Received by SecurePay':'Preparing photo…'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          {tool==='Photos'&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
+          {(tool==='Photos'||tool==='Documents')&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
             if(!pending)return;
-            setItems(current=>[...current,{id:nextId(),kind:'Photos',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
+            setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
             setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
             upload.current?.click();
-          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">+ Add photo</button>}
-          <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">Choose another photo</button>
+          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">+ Add {tool==='Photos'?'photo':'document'}</button>}
+          <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
       </div>}
     </>}
@@ -274,14 +274,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     </label>}
     {tool!=='Places'&&(isDemo||!gateway)&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
     {(tool==='Photos'||tool==='Documents')&&pending&&!isDemo&&<div className="space-y-2">
-      {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your photo…</p>}
+      {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your {tool==='Photos'?'photo':'document'}…</p>}
       {(uploadState==='error'||uploadState==='unknown')&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try again</button>}
       {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
       {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
-        <p className="text-sm font-semibold">{['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Here’s what I found':serverSource.extractionStatus==='FAILED'?'Could not read this photo':'Still reading your photo'}</p>
+        <p className="text-sm font-semibold">{['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Here’s what I found':serverSource.extractionStatus==='FAILED'?'Could not read this file':'Still reading your file'}</p>
         {serverSource.summary&&<p className="text-sm">{detailsOpen?serverSource.summary:serverSource.summary.slice(0,135)+(serverSource.summary.length>135?"…":"")}</p>}
         {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
