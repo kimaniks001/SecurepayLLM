@@ -623,7 +623,7 @@ test('Unified Money: a single tool includes regulated partners and Agreement Mon
  assert.match(personas,/tool:'Money'/);
  assert.doesNotMatch(personas,/tool:'Financial Institutions'/);
  for(const term of ['ILLUSTRATIVE EXPERIENCE','Agreement Money','Institutions supporting money',
-  'Pay & receive','Save & grow','Finance a plan','Protect the work',
+  'My Money','Borrow','Invest','Protect',
   'Funding','Money movement','settlement','auth','No payment','financialPartners.list()',
   'moneySnapshot.read(selected)','Only confirmed financial records count'])assert.ok(tool.includes(term),term);
  assert.match(tool,/if\(sample\|\|!signedIn\|\|!gateways\)return/);
@@ -656,4 +656,35 @@ test('Unified Money: preview financial reads require authentication; writes, ext
   assert.deepEqual(requests.map(request=>request.url),['https://securepay.ke'+partner,'https://securepay.ke'+snapshot]);
   assert.equal(requests[0].headers.Authorization,'Bearer abcdefghijklmnop');
  }finally{globalThis.fetch=previous;}
+});
+
+test('Money human journey: Agreement status, review, rail choice and financial authority stay clear',()=>{
+ const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
+ const cards=source('src/features/living-workspace/MoneyAgreementCards.tsx');
+ const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ const ceremony=source('src/features/living-workspace/MoneyRailCeremony.tsx');
+ const handoff=source('src/features/money/handoff.ts');
+ const canonical=source('src/features/money/MoneyPaymentSettlementJourney.tsx');
+ for(const token of ['AgreementNextSummary','MoneyAgreementCard','SampleMoneyAgreementCard','MoneyRailCeremony',
+   "door==='my'","door==='protect'","door==='invest'","door==='borrow'",
+   'onOpenAgreementMoney(realAgreement,railCode)','options={selectedSnapshot.fundingOptions}'])
+  assert.ok(tool.includes(token),token);
+ for(const token of ['Needs you','Completed','Taking shape','In progress','Proposed · Not a payment confirmation',
+   'Read Agreement','Pay this Agreement','View Money & next step','Review Agreement','nextActions'])
+  assert.ok(cards.includes(token),token);
+ assert.match(shell,/onOpenAgreementMoney=\{\(agreement,railCode\)=>/);
+ assert.match(shell,/openMoneyFor\(\{agreementId:agreement.agreementId/);
+ assert.match(shell,/storeAgreementEntry\(agreementId\)/);
+ assert.match(shell,/setMoneyRailPreference\(\{agreementId:agreement.agreementId,railCode\}\)/);
+ assert.match(handoff,/export function peekMoneyRailPreference/);
+ assert.match(handoff,/let preferredRail:MoneyRailPreference\|null=null/);
+ assert.match(canonical,/peekMoneyRailPreference\(\)/);
+ assert.match(canonical,/createVersionBoundQuote\(agreementId, rail.railCode, currentVersionId\)/);
+ for(const token of ['Who will handle this transaction?','Compare ',
+   'Institutional responsibility:', 'Not yet verified', 'See confirmed cost & terms'])
+  assert.ok(canonical.includes(token),token);
+ for(const token of ['Who will handle this payment?','Not yet confirmed',
+   'Compare ','Review verified terms in Money','Quote required',
+   'No payment occurs in this preview.'])
+  assert.ok(ceremony.includes(token),token);
 });
