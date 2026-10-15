@@ -19,7 +19,7 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn } from '../experience/entryIntent';
+import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -131,7 +131,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       // resumeConversation deliberately catches history/read errors for ordinary
       // presentation. A resolved promise is NOT proof that server access passed.
       const current=liveController.getSnapshot();
-      if(current.conversationId!==conversationId || current.context.status!=='ready' || !current.context.data)
+      if(!authorisedResumedConversation(conversationId,current))
         throw new Error('Conversation context not authorised or available');
     }).catch(()=>{
       if(active){
