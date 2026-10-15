@@ -104,6 +104,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
           </div>}
 
           {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-600">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
+          {publicMode && <p className="mt-3 max-w-xl text-[0.8rem] leading-5 text-sand-700">Start without a KS Number. Nothing becomes an agreement until you review and confirm it.</p>}
         </div>
       </section>
 
