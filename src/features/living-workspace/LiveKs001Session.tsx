@@ -36,7 +36,7 @@ function replyPills(question:string):string[] {
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller }: { controller: AgentController }) {
+export function LiveKs001Session({ controller, nextQuestion }: { controller: AgentController; nextQuestion?: string | null }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   const canSend = !state.busy && !state.pending && !!draft.trim();
@@ -51,11 +51,12 @@ export function LiveKs001Session({ controller }: { controller: AgentController }
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
     </div>
+    {state.turns.length>0&&!state.busy&&!state.pending&&nextQuestion&&!lastQuestion([...state.turns].reverse().find(turn=>turn.sender!=='user')?.response.message.text ?? '')&&<div className="px-4 pb-2"><p className="text-xs text-sand-600">Next to clarify</p><p className="text-sm font-semibold">{nextQuestion}</p></div>}
     {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
-      const pills=question?replyPills(question.question):["What’s next?","Show my draft"];
+      const pills=replyPills(question?.question ?? nextQuestion ?? '');
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
         {pills.map(answer=><button key={answer} type="button"
           onClick={()=>{if(/^(I'll type the place|I'll enter the date|I'll name the person|I'll enter an amount|I'll answer)$/.test(answer)){setDraft('');document.getElementById('live-work-ks001-input')?.focus();return;}void controller.send(answer);}}
