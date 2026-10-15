@@ -32,13 +32,14 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
   const [selectedTask,setSelectedTask]=useState<string>('');
   const [qrValue,setQrValue]=useState<string|null>(null);
   const [qrState,setQrState]=useState<string|null>(null);
+  const [locationChoice,setLocationChoice]=useState<'unset'|'enabled'|'skipped'>('unset');
   const upload=useRef<HTMLInputElement|null>(null);
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setQrValue(null);setQrState(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');
     const photo=tool==='Photos';
     const allowed=photo ? file.type.startsWith('image/') : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -78,7 +79,7 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',
       filename:pending.filename,label:[caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · '),mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
     setConfirmation((tool==='Photos'?'Photo':'Document')+' added to this preview. Not uploaded or saved to SecurePay.');
-    setPending(null);setCaption('');setSelectedTask('');setQrValue(null);setQrState(null);setError(null);
+    setPending(null);setCaption('');setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');setError(null);
   }
 
   function addPlace(){
@@ -114,6 +115,16 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     <label className="block text-xs">Caption or purpose (optional)
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3"
         placeholder="Why is this relevant to your work?" value={caption} onChange={event=>setCaption(event.target.value)}/></label>
+    {tool==='Photos'&&pending&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-100 p-3">
+      <p className="text-sm font-semibold">Is this photo for evidence?</p>
+      <p className="text-xs text-sand-700">For deliveries, inspections or disputes, we recommend turning on camera location before taking your picture. It can help establish where a photo was taken. You can continue without it.</p>
+      <p className="text-xs text-sand-700">Already took the photo? Its GPS information may be present, but this preview does not read or verify it. Your current browser location cannot prove where an earlier photo was taken.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={()=>setLocationChoice('enabled')} className="min-h-11 rounded-lg border border-cream-200 bg-white px-3 text-xs font-semibold">I'll enable camera location</button>
+        <button type="button" onClick={()=>setLocationChoice('skipped')} className="min-h-11 rounded-lg border border-cream-200 bg-white px-3 text-xs">Continue without location</button>
+      </div>
+      {locationChoice!=='unset'&&<p role="status" className="text-xs font-semibold">{locationChoice==='enabled'?'Reminder noted. Enable location in your device camera settings before taking a new photo; SecurePay has not accessed your location.':'Location skipped. You can still use this photo; its evidence strength may be limited.'}</p>}
+    </div>}
     {tool==='Photos'&&pending&&<fieldset className="space-y-2 rounded-xl border border-cream-200 p-3">
       <legend className="px-1 text-sm font-semibold">What do you want to do with this picture?</legend>
       <p className="text-xs text-sand-600">Choose a quick task. This records your intention only; no image analysis has run.</p>
