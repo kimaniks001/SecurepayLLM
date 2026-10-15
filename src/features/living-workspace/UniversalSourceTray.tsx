@@ -114,11 +114,6 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     <label className="block text-xs">Caption or purpose (optional)
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3"
         placeholder="Why is this relevant to your work?" value={caption} onChange={event=>setCaption(event.target.value)}/></label>
-    {tool==='Photos'&&pending&&selectedTask==='qr'&&<div className="space-y-2 rounded-xl bg-cream-100 p-3">
-      <button type="button" onClick={()=>void inspectQr()} className="min-h-11 rounded-lg bg-white px-4 text-sm font-semibold">Read QR on this device</button>
-      {qrState&&<p role="status" className="text-xs">{qrState}</p>}
-      {qrValue&&<div className="break-all rounded-lg bg-white p-3 text-sm"><strong>Code contains:</strong><p className="mt-2 whitespace-pre-wrap">{qrValue}</p><p className="mt-2 text-xs text-sand-600">Unverified content. Links and payments are never opened automatically.</p></div>}
-    </div>}
     {tool==='Photos'&&pending&&<fieldset className="space-y-2 rounded-xl border border-cream-200 p-3">
       <legend className="px-1 text-sm font-semibold">What do you want to do with this picture?</legend>
       <p className="text-xs text-sand-600">Choose a quick task. This records your intention only; no image analysis has run.</p>
@@ -127,8 +122,14 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
         <span><span className="block font-semibold">{task.label}</span><span className="block text-xs text-sand-600">{task.hint}</span></span>
       </label>)}</div>
     </fieldset>}
+    {tool==='Photos'&&pending&&selectedTask==='qr'&&<div className="space-y-2 rounded-xl bg-cream-100 p-3">
+      <button type="button" onClick={()=>void inspectQr()} className="min-h-11 rounded-lg bg-white px-4 text-sm font-semibold">Read QR on this device</button>
+      {qrState&&<p role="status" className="text-xs">{qrState}</p>}
+      {qrValue&&<div className="break-all rounded-lg bg-white p-3 text-sm"><strong>Code contains:</strong><p className="mt-2 whitespace-pre-wrap">{qrValue}</p><p className="mt-2 text-xs text-sand-600">Unverified content. Links and payments are never opened automatically.</p></div>}
+    </div>}
 
-    {tool!=='Places'&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}    {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
+    {tool!=='Places'&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
+    {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
     {tool==='Places'&&<button type="button" disabled={!label.trim()} onClick={addPlace}
       className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}
