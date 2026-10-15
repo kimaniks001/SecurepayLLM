@@ -5,6 +5,8 @@ import { createVisionDreamGateway } from '../../api/securepay/visiondreams';
 import { createCommunityGateway } from '../../api/securepay/community';
 import { createAgreementGateway } from '../../api/securepay/agreements';
 import { createStoreGateway } from '../../api/securepay/store';
+import { createFinancialPartnerGateway } from '../../api/securepay/financial-partners';
+import { createMoneySnapshotGateway } from '../../api/securepay/money-snapshot';
 
 /**
  * One preview-only transport for existing SecurePay authorities.
@@ -31,6 +33,8 @@ export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: 
     community: createCommunityGateway(http),
     agreements: createAgreementGateway(http),
     stores: createStoreGateway(http),
+    financialPartners: createFinancialPartnerGateway(http),
+    moneySnapshot: createMoneySnapshotGateway(http),
   };
 }
 export type PreviewWorkspaceGateways = ReturnType<typeof createPreviewWorkspaceGateways>;
