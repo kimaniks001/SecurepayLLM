@@ -9,6 +9,7 @@ const entry=src('src/features/experience/entryIntent.ts');
 const agent=src('src/features/agent/AgentExperience.tsx');
 const preview=src('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 const runtime=src('src/RuntimeApp.tsx');
+const ks001=src('src/features/living-workspace/LiveKs001Session.tsx');
 
 async function entryModule() {
   const code=await build({stdin:{contents:"export * from './src/features/experience/entryIntent';",resolveDir:process.cwd()},
@@ -55,4 +56,23 @@ test('A handoff is a hint, never a persistent identifier or backend mutation',()
  assert.doesNotMatch(entry,/window\.location\.hash|fetch\(/);
  assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
  assert.match(preview,/if\(!mayLeaveDream\(\)\)return false/);
+});
+
+test('KS001 question emphasis detects a genuine last question without rewriting it',async()=>{
+ const {outputFiles}=await build({
+   stdin:{contents:"export {lastQuestion} from './src/features/living-workspace/LiveKs001Session';",resolveDir:process.cwd()},
+   bundle:true,write:false,format:'cjs',platform:'node',jsx:'automatic',
+ });
+ const m={exports:{}};
+ new Function('require','module','exports',outputFiles[0].text)(createRequire(import.meta.url),m,m.exports);
+ const last=m.exports.lastQuestion;
+ assert.deepEqual(last('I can help. Where should the chairs be delivered?'),
+   {before:'I can help. ',question:'Where should the chairs be delivered?'});
+ assert.deepEqual(last('Terms found.\\nWhat must we confirm?'),
+   {before:'Terms found.\\n',question:'What must we confirm?'});
+ assert.deepEqual(last('When would you like delivery?'),{before:'',question:'When would you like delivery?'});
+ assert.equal(last('We have a draft. No question yet.'),null);
+ assert.equal(last('We have a draft? Here is my recommendation.'),null);
+ assert.match(ks001,/const result=lastQuestion\(text\)/);
+ assert.match(ks001,/<strong className="font-semibold text-forest-900">\{result.question\}<\/strong>/);
 });
