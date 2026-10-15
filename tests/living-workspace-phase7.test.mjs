@@ -608,5 +608,52 @@ test('Stores buyer: summary-side editing keeps many shops in one proposal withou
  assert.match(demo,/addStoreBuyingLine\(current/);
  assert.match(demo,/sample lines=\{buyingLines\}/);
  assert.match(demo,/setBuyingActive\(true\)/);
- assert.match(shell,/activeTool==='Stores'\?'sm:w-\[min\(96vw,1060px\)\]'/);
+ assert.match(shell,/activeTool==='Stores'\|\|activeTool==='Money'/);
+});
+
+test('Unified Money: a single tool includes regulated partners and Agreement Money, never mock financial authority',()=>{
+ const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ const tool=source('src/features/living-workspace/UnifiedMoneyTool.tsx');
+ const gateways=source('src/features/living-workspace/previewWorkspaceGateways.ts');
+ const personas=source('src/features/living-workspace/personas.ts');
+ assert.match(shell,/name: 'Money', icon: Wallet/);
+ assert.doesNotMatch(shell,/name: 'Financial Institutions'/);
+ assert.match(shell,/activeTool==='Money'\?<UnifiedMoneyTool/);
+ assert.match(shell,/onOpenMoney=\{\(\)=>\{closeTool\(\);window.location.hash='#\/money';\}\}/);
+ assert.match(personas,/tool:'Money'/);
+ assert.doesNotMatch(personas,/tool:'Financial Institutions'/);
+ for(const term of ['MY','ILLUSTRATIVE EXPERIENCE','Agreement Money','Institutions supporting money',
+  'Pay & receive','Save & grow','Finance a plan','Protect the work',
+  'Funding','Money movement','settlement','auth','No payment','financialPartners.list()',
+  'moneySnapshot.read(selected)','Only confirmed financial records count'])assert.ok(tool.includes(term),term);
+ assert.match(tool,/if\(sample\|\|!signedIn\|\|!gateways\)return/);
+ assert.match(tool,/sample\|\|!signedIn\|\|!gateways\|\|!selected/);
+ assert.match(gateways,/financialPartners: createFinancialPartnerGateway\(http\)/);
+ assert.match(gateways,/moneySnapshot: createMoneySnapshotGateway\(http\)/);
+});
+test('Unified Money: preview financial reads require authentication; writes, extra queries and unrelated institutions are rejected',async()=>{
+ const handler=(await import('../api/preview-workspace.js')).default;
+ const call=async(method,path,token=false)=>{
+  const res={statusCode:200,setHeader(){},end(content){this.body=content;}};
+  await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
+    ...(token?{authorization:'Bearer abcdefghijklmnop'}:{})}},res);
+  return res;
+ };
+ const partner='/api/v1/regulated-accounts/partners';
+ const snapshot='/api/v1/agreements/agreement1234567890/money-snapshot';
+ const previous=globalThis.fetch;
+ try{
+  let requests=[];
+  globalThis.fetch=async(url,init)=>{requests.push({url:String(url),headers:init.headers});return new Response('{}',{status:200});};
+  assert.equal((await call('GET',partner)).statusCode,401);
+  assert.equal((await call('GET',snapshot)).statusCode,401);
+  assert.equal((await call('POST',partner,true)).statusCode,403);
+  assert.equal((await call('GET',partner+'?admin=true',true)).statusCode,403);
+  assert.equal((await call('GET',snapshot+'?version=old',true)).statusCode,403);
+  assert.equal((await call('GET','/api/v1/financial-services/institutions',true)).statusCode,403);
+  assert.equal((await call('GET',partner,true)).statusCode,200);
+  assert.equal((await call('GET',snapshot,true)).statusCode,200);
+  assert.deepEqual(requests.map(request=>request.url),['https://securepay.ke'+partner,'https://securepay.ke'+snapshot]);
+  assert.equal(requests[0].headers.Authorization,'Bearer abcdefghijklmnop');
+ }finally{globalThis.fetch=previous;}
 });
