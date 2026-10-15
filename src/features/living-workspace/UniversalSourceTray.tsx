@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 import type { AgentGateway } from '../../api/securepay/agent';
+import jsQR from 'jsqr';
 
 type Intake='Photos'|'Documents'|'Places';
 type LocalSource={id:number;kind:Intake;filename:string;label:string;mime:string|null;size:number|null;thumbnail:string|null};
@@ -72,12 +73,24 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
     try {
       type QRDetector={detect:(image:HTMLImageElement)=>Promise<Array<{rawValue:string}>>};
       const native=window as Window & {BarcodeDetector?:new (options:{formats:string[]})=>QRDetector};
-      if(!native.BarcodeDetector){setQrState('This browser cannot read QR codes here yet. Try a compatible browser; nothing was uploaded.');return;}
-      const image=new Image();image.src=pending.thumbnail;
-      await image.decode();
-      const results=await new native.BarcodeDetector({formats:['qr_code']}).detect(image);
-      if(!results.length){setQrState('No readable QR code was found. Try a sharper picture.');return;}
-      setQrValue(results[0].rawValue.slice(0,2048));
+      const picture=new Image();picture.src=pending.thumbnail;await picture.decode();
+      let decoded:string|null=null;
+      if(native.BarcodeDetector){
+        try{decoded=(await new native.BarcodeDetector({formats:['qr_code']}).detect(picture))[0]?.rawValue ?? null;}catch{ /* Try the locally bundled decoder. */ }
+      }
+      if(!decoded){
+        const canvas=document.createElement('canvas');
+        canvas.width=picture.naturalWidth;canvas.height=picture.naturalHeight;
+        if(canvas.width*canvas.height > 12_000_000){setQrState('This image is too large to scan safely. Try a smaller photo.');return;}
+        const context=canvas.getContext('2d',{willReadFrequently:true});
+        if(context){
+          context.drawImage(picture,0,0);
+          const pixels=context.getImageData(0,0,canvas.width,canvas.height);
+          decoded=jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'})?.data ?? null;
+        }
+      }
+      if(!decoded){setQrState('No readable QR code was found. Try a sharper picture.');return;}
+      setQrValue(decoded.slice(0,2048));
       setQrState('QR decoded on this device. Review its contents before taking action.');
     }catch{setQrState('Unable to read this QR code. No link was opened and nothing was uploaded.');}
   }
