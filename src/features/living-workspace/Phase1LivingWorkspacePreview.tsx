@@ -7,6 +7,7 @@ import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
+import { ensureFreshSession } from '../../api/securepay/session';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
@@ -240,7 +241,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
               {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} onEnsureConversation={async()=>{
+                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                  if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
+                  await ensureFreshSession(session,workspaceGateways.auth);
+                  if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
+                }} onEnsureConversation={async()=>{
                   if(!gateway || !liveController)throw new Error('KS001 is unavailable');
                   const existing=liveController.getSnapshot().conversationId;
                   if(existing)return existing;
