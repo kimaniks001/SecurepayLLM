@@ -143,7 +143,7 @@ test('Member, Plug and Master are equal capacities in canonical content, not inf
   assert.deepEqual(api.CAPACITIES.map(c=>c.name),['Member','Plug','Master']);
   const source=await readFile('src/components/TrustProjectSection.tsx','utf8');
   assert.match(source,/They are not ranks/);
-  assert.match(source,/never releases money/);
+  assert.match(api.CAPACITIES.find(c=>c.name==='Master').boundary,/never releases money/);
   assert.match(source,/A Store is not an endorsement/);
   assert.match(api.CAPACITIES[0].detail,/People and businesses belong/);
   assert.match(api.CAPACITIES[1].detail,/A person/);
