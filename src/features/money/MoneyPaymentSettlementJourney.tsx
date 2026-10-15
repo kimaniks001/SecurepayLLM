@@ -651,6 +651,7 @@ export function MoneyPaymentSettlementJourney({
   const currentSettlementStatus = currentSettlementRead?.state === 'ready' ? currentSettlementRead.value : null;
 
   const latestIntent = intents.state === 'ready' ? intents.value[0] ?? null : null;
+  const routeSwitchLocked = createdIntent !== null || intents.state !== 'ready' || intents.value.some(intent => IN_FLIGHT.includes(intent.status));
   const guide = useMemo(() => {
     const settlement = settlementStage(currentSettlementStatus);
     if (currentSettlementStatus?.settledAt) {
@@ -711,6 +712,7 @@ export function MoneyPaymentSettlementJourney({
               <p className="mt-2 text-sm leading-6 text-sand-700">SecurePay shows only backend-returned funding rails for this Agreement. Choose a route, request its current price, and reconsider other options before making a payment.</p>
               <p className="mt-2 text-xs text-sand-700"><strong>Institutional responsibility:</strong> Not yet verified by the funding-route record. A rail name is not a legal institution, financing commitment, guarantee or insurance policy. Confirm the actual provider and terms during the authorised provider process.</p>
             </div>
+            {routeSwitchLocked&&<p className="rounded-lg border border-cream-200 bg-white p-3 text-xs text-sand-700">{intents.state!=='ready'?'Checking existing payment attempts before allowing another selection.':'A payment attempt may already exist or be in progress. Inspect its confirmed status before choosing another rail; SecurePay will not invite a duplicate payment.'}</p>}
             {chosenRail&&fundingOptions.length>1&&<button type="button"
               onClick={()=>setShowAlternativeRails(value=>!value)}
               className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800">
@@ -735,13 +737,13 @@ export function MoneyPaymentSettlementJourney({
                   </div>
                   {rail.railCode!==chosenRailCode ? (
                     <Button variant="secondary" className="min-h-11"
-                      disabled={createdIntent!==null || quoteBusy!==null}
+                      disabled={routeSwitchLocked || quoteBusy!==null}
                       onClick={()=>{setChosenRailCode(rail.railCode);setShowAlternativeRails(false);setQuoteSelection(null);setQuoteError(null);}}>
                       Choose this route
                     </Button>
                   ) : rail.quoteAvailable ? (
                     <Button variant="secondary" className="min-h-11"
-                      disabled={quoteBusy!==null || !snapshot?.feeQuoteRequestsPermitted || createdIntent!==null}
+                      disabled={quoteBusy!==null || !snapshot?.feeQuoteRequestsPermitted || routeSwitchLocked}
                       onClick={()=>void prepareQuote(rail)}>
                       {quoteBusy===rail.railCode?'Preparing verified quote…':'See confirmed cost & terms'}
                     </Button>
