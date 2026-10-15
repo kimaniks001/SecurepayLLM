@@ -86,7 +86,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
     }
   };
 
-  return <section className="space-y-3" aria-label="Quick Assist">
+  return <section className="sp-brand-quick-assist space-y-3" aria-label="Quick Assist">
     <p className="text-sm text-sand-600">A little help, right when you need it.</p>
     {selected === null && !catalogue && <div className="space-y-2">
       <p className="text-xs font-medium text-sand-600">Your tools · this workspace session</p>
