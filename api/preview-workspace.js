@@ -26,6 +26,7 @@ function allowed(method, pathname, params) {
   if (method === 'DELETE') return noQuery && asset.test(pathname);
   if (method === 'POST') {
     if (!noQuery) return false;
+    if (pathname === '/api/v1/store/me/offers') return true;
     if (pathname === '/api/v1/vision-dreams' || assets.test(pathname) || circleObjects.test(pathname)
         || circleCoordination.test(pathname) || circleRespond.test(pathname)) return true;
     if (['/api/v1/auth/login', '/api/v1/auth/complete', '/api/v1/auth/refresh',
@@ -41,6 +42,8 @@ function allowed(method, pathname, params) {
   }
   if (method === 'GET' && noQuery &&
       /^\/api\/v1\/stores\/[A-Za-z0-9_-]{3,60}$/.test(pathname)) return true;
+  if (method === 'GET' && noQuery &&
+      ['/api/v1/store/me/profile','/api/v1/store/me/offers'].includes(pathname)) return true;
   if (method !== 'GET') return false;
   if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname)
       || circleMember.test(pathname) || circleCoordinationMine.test(pathname))) return true;
@@ -96,9 +99,12 @@ export default async function handler(req, res) {
     }
   } catch { return reject(res,400,'Invalid API path'); }
 
+  const publicStoreRead = method === 'GET' &&
+     (upstream.pathname === '/api/v1/stores/search' ||
+      /^\/api\/v1\/stores\/[A-Za-z0-9_-]{3,60}$/.test(upstream.pathname));
   const isAuth = upstream.pathname.startsWith('/api/v1/auth/');
   const headers = { Accept:'application/json' };
-  if (!isAuth) {
+  if (!isAuth && !publicStoreRead) {
     const bearer = req.headers.authorization;
     if (typeof bearer !== 'string' || !/^Bearer [^\s]{10,8000}$/.test(bearer)) {
       return reject(res,401,'Sign in is required');
