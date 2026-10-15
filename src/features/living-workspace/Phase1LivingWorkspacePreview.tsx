@@ -19,7 +19,7 @@ import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
 import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import { ArrowLeft, Camera, FileText, HeartHandshake, Landmark, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, Wrench, Users, Truck, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
@@ -151,6 +151,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 
   const [screen, setScreen] = useState<Screen>('chat');
   const [toolsOpen, setToolsOpen] = useState(false);
+  const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState('Photos');
   const [toolSelected, setToolSelected] = useState(false);
   const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
@@ -159,8 +160,19 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
-  function openTool(name: string) { setActiveTool(name); setToolSelected(true); setToolsOpen(true); setScreen('tools'); }
-  function closeTool() { setToolsOpen(false); setToolSelected(false); setScreen('chat'); }
+  function openTool(name: string) {
+    if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
+    setActiveTool(name); setToolSelected(true); setToolsOpen(true);
+  }
+  function closeTool() { setToolsOpen(false); setToolSelected(false); setScreen(previousScreen.current); }
+  useEffect(()=>{
+    if(!toolsOpen)return;
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();setToolsOpen(false);setToolSelected(false);setScreen(previousScreen.current);}
+    };
+    window.addEventListener('keydown',onEscape);
+    return ()=>window.removeEventListener('keydown',onEscape);
+  },[toolsOpen]);
   function send() {
     const value = drafts[mode].trim();
     if (!value) return;
