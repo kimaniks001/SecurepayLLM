@@ -15,6 +15,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
   const [identity,setIdentity]=useState<KsIdentitySelectionResult|null>(null);
   const [ksBusy,setKsBusy]=useState(false);
   const [governance,setGovernance]=useState(false);
+  const [governanceDuties,setGovernanceDuties]=useState('');
   const [noKs,setNoKs]=useState(false);
   const [inviteName,setInviteName]=useState('');
   const [shareNote,setShareNote]=useState('');
@@ -31,7 +32,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
     finally{setKsBusy(false);}
   }
   const names=people.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).slice(0,20);
-  const canPrepare=!!people.trim()&&!busy;
+  const canPrepare=!!people.trim()&&!busy&&(!governance||!!role.trim()&&!!governanceDuties.trim());
   async function prepare(){
     if(!canPrepare)return;
     setBusy(true);setError('');setSent(false);
@@ -39,7 +40,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
       'Proposed invitees: '+names.join('; ')+'.',
       role.trim()?'Proposed role or contribution: '+role.trim()+'.':'',
       identity?.status==='RESOLVED'?'Lookup-only KS identity: '+(identity.canonicalKsNumber||ks)+', '+(identity.displayName||'name not provided')+'.':'',
-      governance?'Proposed governance responsibilities require the person to explicitly accept them before assuming the role.':'',
+      governance?'Proposed governance role: '+role.trim()+'. Responsibilities and decision authority: '+governanceDuties.trim()+'. Explicit acceptance required before assuming this role.':'',
       note.trim()?'Context: '+note.trim()+'.':'',
       purpose==='agreement'?'Check who must agree, the draft readiness, and the specific invitation permissions. Do not imply acceptance.':
       purpose==='circle'?'Circle membership is distinct from Trust Project membership. Respect Circle visibility and steward permission.':
@@ -76,9 +77,22 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
       </div>}
       {!onCheckKs&&<p className="text-xs text-sand-600">Start a live KS001 conversation to check identity status.</p>}
     </div>
-    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={governance} onChange={e=>setGovernance(e.target.checked)}/>
+    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={governance} onChange={e=>{setGovernance(e.target.checked);if(e.target.checked)setDetailsOpen(true);}}/>
       This invitation proposes a governance or decision-making role requiring explicit acceptance
     </label>
+    {governance&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Governance role details">
+      <p className="text-xs font-semibold">Governance role · acceptance required</p>
+      <label className="block text-xs">Proposed position
+        <input value={role} onChange={e=>setRole(e.target.value)} maxLength={120} placeholder="e.g. Treasurer, Circle steward"
+          className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 bg-white px-3 text-sm"/>
+      </label>
+      <label className="block text-xs">Responsibilities and decision authority
+        <textarea value={governanceDuties} onChange={e=>setGovernanceDuties(e.target.value)} maxLength={500} rows={2}
+          placeholder="What decisions can this person make, and what must they be accountable for?"
+          className="mt-1 w-full rounded-lg border border-cream-200 bg-white p-3 text-sm"/>
+      </label>
+      <p className="text-xs text-sand-600">The recipient must review and explicitly accept these responsibilities. This does not assign the role yet.</p>
+    </div>}
     <button type="button" className="text-xs font-semibold underline" onClick={()=>setNoKs(v=>!v)}>{noKs?'Hide':'Person has no KS Number? Invite via WhatsApp'}</button>
     {noKs&&<div className="space-y-2 rounded-xl border border-cream-200 p-3">
       <label className="block text-xs">Their name
@@ -99,14 +113,14 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
       <textarea value={people} onChange={e=>{setPeople(e.target.value);setSent(false);}} rows={2} maxLength={800}
         placeholder="Names, KS Numbers or organisations — one per line" className="mt-1 w-full rounded-xl border border-cream-200 bg-white p-3 text-sm"/>
     </label>
-    <label className="block text-xs">Their role (optional)
+    {!governance&&<label className="block text-xs">Their role (optional)
       <input value={role} onChange={e=>setRole(e.target.value)} maxLength={120} placeholder="e.g. contractor, contributor, organiser" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
-    </label>
+    </label>}
     <label className="block text-xs">What should they know? (optional)
       <input value={note} onChange={e=>setNote(e.target.value)} maxLength={300} placeholder="e.g. Please review the scope before agreeing" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
     </label>
-    <button type="button" disabled={!canPrepare} onClick={()=>void prepare()} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{busy?'Preparing…':'Prepare with KS001'}</button>
     </div>}
+    <button type="button" disabled={!canPrepare} onClick={()=>void prepare()} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{busy?'Preparing…':'Prepare with KS001'}</button>
     {sent&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Request submitted to KS001 Chat. No invitations have been sent.</p>}
     {error&&<p role="alert" className="text-xs text-amber-900">{error}</p>}
     <p className="text-xs text-sand-600">Preparing is not sending. Invitations need the correct authority, recipient review and explicit action. No membership or Agreement acceptance is created here.</p>
