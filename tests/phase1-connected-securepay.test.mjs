@@ -13,6 +13,7 @@ const work=src('src/features/living-workspace/WorkspaceContinuityPanel.tsx');
 const community=src('src/features/living-workspace/InlineCommunityHub.tsx');
 const money=src('src/features/living-workspace/UnifiedMoneyTool.tsx');
 const router=src('src/RuntimeApp.tsx');
+const entry=src('src/features/experience/entryIntent.ts');
 
 // These are source and interface CONTRACT tests, NOT real end-to-end browser certification.
 test('Phase1: selecting a photo or document is local until explicit Send',()=>{
@@ -76,4 +77,16 @@ test('Phase1: preview is explicitly isolated, not secretly promoted as a product
   assert.match(router,/hostname\.endsWith\('\.vercel\.app'\)/);
   assert.match(router,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
   assert.match(shell,/No money, invitation, approval or booking authority is granted/);
+});
+
+test('Phase1: leaving Money can resume original KS001 work without exposing IDs in URLs',()=>{
+  assert.match(entry,/storeWorkspaceMoneyReturn\(conversationId:string\|null\)/);
+  assert.match(entry,/consumeWorkspaceMoneyReturn\(\)/);
+  assert.match(entry,/workspaceMoneyReturn=\{conversationId:conversationId\?\.trim\(\) \|\| null\}/);
+  assert.match(shell,/storeWorkspaceMoneyReturn\(liveConversationId\)/);
+  assert.match(shell,/liveController\.resumeConversation\(hint\.conversationId\)/);
+  assert.match(router,/if\(hasWorkspaceMoneyReturn\(\)\)/);
+  assert.match(router,/window\.location\.hash='#\/preview\/living-workspace\/work'/);
+  assert.match(router,/clearWorkspaceMoneyReturn\(\)/);
+  assert.doesNotMatch(entry,/localStorage|sessionStorage|encodeURIComponent\(conversationId\)/);
 });
