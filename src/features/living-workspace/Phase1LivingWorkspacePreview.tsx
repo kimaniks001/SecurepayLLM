@@ -166,13 +166,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
+  const [storeQuickAssistNeed, setStoreQuickAssistNeed] = useState('');
   // A source added while editing a fact must retain the originating conversation.
   // This hint changes only the explicit KS001 request, never Agreement authority.
   const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
     if (name === 'Quick Assist') setQuickAssistSeed(request);
-    if (name === 'Stores') setStoreServiceQuery('');
+    if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
   }
@@ -340,7 +341,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
-                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined}
+                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -375,7 +376,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     }}/>
                 : activeTool==='Quick Assist'?<QuickSupportPanel
                     collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
-                    onFindStoreOffers={service=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setActiveTool('Stores');setToolSelected(true);}}
+                    onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
                     onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
