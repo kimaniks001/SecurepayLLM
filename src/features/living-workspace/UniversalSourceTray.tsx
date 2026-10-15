@@ -217,6 +217,17 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {serverSource.summary&&<p className="whitespace-pre-wrap text-sm">{serverSource.summary}</p>}
         {serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
+        {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
+          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing photo source…');
+          try{
+            const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
+            if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
+            setServerSource(retry);setUploadState('confirmed');
+            setUploadMessage(retry.extractionStatus==='FAILED'?'The photo is still unreadable. Try a clearer picture.':'SecurePay retried the same source. Review its updated processing status.');
+          }catch{
+            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
+          }
+        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
         <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
         {onContinueTask&&selectedTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" disabled={taskBusy} onClick={async()=>{
           setTaskBusy(true);
