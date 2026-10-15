@@ -43,6 +43,24 @@ test('photo relay forwards only canonical source photo multipart with token',asy
   }finally{globalThis.fetch=previous;}
 });
 
+test('document relay accepts bounded PDF source and rejects mismatched PDF bytes',async()=>{
+  const previous=globalThis.fetch;
+  let observed;
+  globalThis.fetch=async(url,init)=>{
+    observed={url:String(url),init};
+    return new Response(JSON.stringify({sourceArtifactId:'document-source',extractionStatus:'RECEIVED'}),{status:201,headers:{'Content-Type':'application/json'}});
+  };
+  try{
+    const pdf=Buffer.from('%PDF-1.7\\n1 0 obj\\n<<>>\\nendobj\\n');
+    const valid=await call({sourceKind:'DOCUMENT',filename:'minutes.pdf',mediaType:'application/pdf',label:'',dataBase64:pdf.toString('base64')});
+    assert.equal(valid.statusCode,201);
+    assert.equal(observed.init.body.get('sourceKind'),'DOCUMENT');
+    assert.equal(observed.init.body.get('file').type,'application/pdf');
+    const invalid=await call({sourceKind:'DOCUMENT',filename:'fake.pdf',mediaType:'application/pdf',label:'',dataBase64:Buffer.from('not pdf').toString('base64')});
+    assert.equal(invalid.statusCode,415);
+  }finally{globalThis.fetch=previous;}
+});
+
 test('photo UI uses explicit authorised upload and can start the same KS001 conversation photo-first',()=>{
   const ui=source('src/features/living-workspace/UniversalSourceTray.tsx');
   const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
