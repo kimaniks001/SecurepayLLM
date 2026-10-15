@@ -149,3 +149,4 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
   </div>}
   <p className="text-[11px] text-sand-500">Payment rails, provider terms, quotes and authorisation appear when you open the actual Agreement in Money. Nothing is paid or approved here.</p>
  </section>;
+}
