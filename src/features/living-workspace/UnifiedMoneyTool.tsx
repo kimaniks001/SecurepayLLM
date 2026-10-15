@@ -39,7 +39,6 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
  const [sampleIndex,setSampleIndex]=useState(0);
  const [agreements,setAgreements]=useState<AgreementsState>({state:'idle',items:[]});
  const [selected,setSelected]=useState<string|null>(null);
- const [showMore,setShowMore]=useState(false);
  const [revision,setRevision]=useState(0);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
@@ -59,7 +58,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
  const selectedAgreement=agreements.items.find(a=>a.agreementId===selected)??null;
  const sampleAgreement=samples[sampleIndex];
  const currentDoor=doors.find(item=>item.id===door)??doors[0];
- const shown=showMore?agreements.items:agreements.items.slice(0,3);
+ const shown=agreements.items.slice(0,3);
  const next=selectedAgreement?.nextActions[0]?.reason
    || (selectedAgreement?.attentionRequired?'Review this Agreement to see what requires your attention.':'No current action was returned for you.');
  const fundingAction=selectedAgreement?.nextActions.some(a=>a.actionCode==='FUND_AGREEMENT')??false;
@@ -86,7 +85,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
     <div className="flex items-center justify-between gap-2">
       <h2 className="font-display text-lg text-forest-900">My Agreements</h2>
       <div className="flex items-center gap-2">
-       {signedIn&&<button type="button" onClick={()=>{setSample(value=>!value);setSelected(null);setShowMore(false);}}
+       {signedIn&&<button type="button" onClick={()=>{setSample(value=>!value);setSelected(null);}}
          className="rounded-full border border-cream-200 px-2.5 py-1.5 text-xs">{sample?'My Money':'Try sample'}</button>}
        {!sample&&signedIn&&<button type="button" onClick={()=>setRevision(value=>value+1)}
          className="rounded-full p-2" aria-label="Refresh Agreements"><RefreshCw size={16}/></button>}
@@ -121,9 +120,6 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
          <span className="shrink-0 text-right"><BriefAmount agreement={item}/><span className="block text-[10px] text-sand-600">Proposed</span></span>
         </button>;
       })}
-      {agreements.items.length>3&&<button type="button" className="min-h-9 text-xs font-semibold text-forest-700" onClick={()=>setShowMore(v=>!v)}>
-       {showMore?'Show less':'Show more Agreements'}
-      </button>}
       {selectedAgreement&&<div className="rounded-xl bg-cream-50 p-3" aria-label="Next step for this Agreement">
        <p className="text-xs font-semibold text-forest-900">Next: {next}</p>
        <div className="mt-3 flex flex-wrap gap-2">
