@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Afacad+Flux:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -707,5 +707,43 @@
   .sp-agreement-paper ul {
     break-inside: avoid;
     box-shadow: none !important;
+  }
+}
+
+/* Launch typography study. Scoped to the draft Living Workspace only.
+ * Does not change production Home, canonical logos or approved print typography.
+ *
+ * The everyday voice is human and legible; occasional headings are expressive.
+ * Semantic status remains text + icon, never font or colour alone.
+ */
+@layer components {
+  .sp-type-signature {
+    font-family: 'Afacad Flux', 'Inter', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sp-type-signature :is(button, input, textarea, select) {
+    font-family: inherit;
+  }
+
+  .sp-type-signature :is(.font-display, .sp-type-display) {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+  }
+
+  .sp-type-signature .sp-type-statement {
+    font-family: 'Afacad Flux', 'Inter', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.009em;
+    line-height: 1.55;
+  }
+
+  /* Canonical printed Agreements keep their own sober, predictable lettering. */
+  .sp-type-signature [data-agreement-print] {
+    font-family: 'Inter', system-ui, sans-serif;
   }
 }
