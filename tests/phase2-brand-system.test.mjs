@@ -15,6 +15,8 @@ const quick=read('src/features/living-workspace/QuickSupportPanel.tsx');
 const visions=read('src/features/living-workspace/LivingVisionPanel.tsx');
 const circles=read('src/features/living-workspace/LivingCirclePanel.tsx');
 const community=read('src/features/living-workspace/LivingCommunityPanel.tsx');
+const trust=read('src/features/trust/TrustProjectWelcome.tsx');
+const moneyHome=read('src/components/MoneyHome.tsx');
 
 test('signature typography and palette share one scoped semantic design language',()=>{
  assert.match(css,/family=Afacad\+Flux/);
@@ -81,4 +83,12 @@ test('visual changes do not claim an Agreement is accepted or make demo real',()
  assert.match(live,/Working draft · Not yet accepted/);
  assert.match(shell,/DEMO ACCOUNT · NO REAL ACCESS/);
  assert.match(shell,/Visual shell: the preview does not authorise financial/);
+});
+
+test('legacy Money and the two-door Trust Project share typography without changing routing',()=>{
+ assert.match(moneyHome,/sp-brand-home sp-brand-money-home/);
+ assert.match(trust,/data-trust-project-door className="sp-brand-trust/);
+ assert.match(trust,/onGoSecurePay/);
+ assert.match(css,/\.sp-brand-trust \{/);
+ assert.match(css,/\.sp-brand-money-home \{/);
 });
