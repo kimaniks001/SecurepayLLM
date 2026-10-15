@@ -54,6 +54,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
+  const [detailsOpen,setDetailsOpen]=useState(false);
   const [visionChooser,setVisionChooser]=useState(false);
   const [visions,setVisions]=useState<VisionDreamDto[]>([]);
   const [visionPhase,setVisionPhase]=useState<'idle'|'loading'|'saving'|'saved'|'error'>('idle');
@@ -61,11 +62,11 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [newVisionTitle,setNewVisionTitle]=useState('');
 
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -218,10 +219,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     setLabel('');setCaption('');setError(null);setConfirmation('Place added to this preview. Not saved to SecurePay.');
   }
   if(!supported)return null;
-  return <section aria-label={tool+' source intake'} data-universal-source-tray className="space-y-3">
-    <p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
-    <h3 className="font-semibold text-sm">Add a {tool==='Photos'?'photo':tool==='Documents'?'document':'place'}</h3>
-    <p className="text-xs text-sand-700">{tool==='Photos'?'Add a photo. KS001 will read it and suggest what you can do next.': 'Add what you have. SecurePay will help you make sense of it.'}</p>
+  return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'?'space-y-2':'space-y-3'}>
+    {tool!=='Photos'&&<><p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
+    <h3 className="font-semibold text-sm">Add a {tool==='Documents'?'document':'place'}</h3>
+    <p className="text-xs text-sand-700">Add what you have. SecurePay will help you make sense of it.</p></>}
     {tool==='Places'?<>
       <label className="block text-xs">Place or address
         <input maxLength={240} className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white p-3" value={label}
@@ -230,7 +231,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       <input ref={upload} type="file" className="hidden"
         accept={tool==='Photos'?'image/jpeg,image/png':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
         onChange={event=>{receive(event.target.files?.[0]);event.target.value='';}}/>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {(!pending||tool!=='Photos')&&<div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={()=>upload.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm">
           {tool==='Photos'?<Camera size={18}/>:<FileText size={18}/>} Choose from device
         </button>
@@ -238,13 +239,13 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <input ref={camera} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={event=>{receive(event.target.files?.[0]);event.target.value='';}}/>
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
-      </div>
-      <p className="text-xs text-sand-600">JPEG or PNG · up to 2 MB. Selecting a photo sends it to KS001 for understanding in real mode.</p>
-      {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-3">
-        {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mb-3 max-h-64 w-full rounded-lg object-contain"/>}
-        <p className="break-all text-sm font-semibold">{pending.filename}</p>
+      </div>}
+      {tool!=='Photos'&&<p className="text-xs text-sand-600">Supported documents up to 2 MB.</p>}
+      {pending&&<div aria-label="Photo or document ready to add" className={tool==='Photos'?"rounded-xl border border-cream-200 bg-white p-2":"rounded-xl border border-cream-200 bg-white p-3"}>
+        {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-24 w-full rounded-lg object-contain"/>}
+        <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Reading photo…':serverSource?'Received by SecurePay':'Preparing photo…'}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-1 flex flex-wrap gap-2">
           {tool==='Photos'&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
             if(!pending)return;
             setItems(current=>[...current,{id:nextId(),kind:'Photos',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
@@ -258,7 +259,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     {tool!=='Photos'&&<label className="block text-xs">Caption or purpose (optional)
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3" value={caption} onChange={event=>setCaption(event.target.value)}/>
     </label>}
-    {tool==='Photos'&&pending&&uploadState==='confirmed'&&<label className="block text-xs text-sand-600">
+    {tool==='Photos'&&pending&&detailsOpen&&uploadState==='confirmed'&&<label className="block text-xs text-sand-600">
       Add a note (optional)
       <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
     </label>}
@@ -266,15 +267,15 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     {tool==='Photos'&&pending&&!isDemo&&<div className="space-y-2">
       {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your photo…</p>}
       {(uploadState==='error'||uploadState==='unknown')&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try again</button>}
-      {uploadMessage&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-xs">{uploadMessage}</p>}
-      {serverSource&&<button type="button" onClick={()=>void inspectQr()} className="min-h-10 rounded-full border border-cream-200 px-3 text-xs">Read a QR code in this photo</button>}
+      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
+
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
       {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
         <p className="text-sm font-semibold">{['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Here’s what I found':serverSource.extractionStatus==='FAILED'?'Could not read this photo':'Still reading your photo'}</p>
-        {serverSource.summary&&<p className="whitespace-pre-wrap text-sm">{serverSource.summary}</p>}
-        {serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
-        {serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
+        {serverSource.summary&&<p className="text-sm">{detailsOpen?serverSource.summary:serverSource.summary.slice(0,135)+(serverSource.summary.length>135?"…":"")}</p>}
+        {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
+        {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
           setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing photo source…');
           try{
@@ -286,9 +287,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
-        <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
+
         {onContinueTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<>
-          <p className="text-sm font-semibold">What would you like to do?</p>
+          <p className="text-sm font-semibold">What next?</p>
           <div className="flex flex-wrap gap-2" aria-label="Suggested answers">
             {suggestPhotoActions(serverSource).map(task=><button key={task.id} type="button" disabled={taskBusy}
               onClick={async()=>{if(task.id==='vision'){await openVisionChooser();return;}if(task.id==='qr'){await inspectQr();return;}setTaskBusy(true);try{await onContinueTask(serverSource,task.id);}catch{setUploadMessage('KS001 could not continue just now. Your source is retained.');}finally{setTaskBusy(false);}}}
@@ -296,7 +297,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
               {task.label}
             </button>)}
           </div>
-          {/(deliver|damage|inspect|disput|evidence)/i.test(serverSource.summary||'')&&<p className="text-xs text-sand-600">Using this as evidence? Camera location can help for future photos. Sharing location is optional; GPS alone is not proof.</p>}
+          {detailsOpen&&/(deliver|damage|inspect|disput|evidence)/i.test(serverSource.summary||'')&&<p className="text-xs text-sand-600">Using this as evidence? Camera location can help for future photos. Sharing location is optional; GPS alone is not proof.</p>}
           {visionChooser&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Choose a Vision">
             <p className="text-sm font-semibold">Add this photo to a Vision</p>
             {visionPhase==='loading'&&<p role="status" className="text-xs">Finding your Visions…</p>}
@@ -312,8 +313,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             </div>}
             {visionMessage&&<p role="status" className="text-xs">{visionMessage}</p>}
           </div>}
-          <p className="text-xs text-sand-600">KS001’s reading may contain errors. You will review material terms before any Agreement, invitation or Money action.</p>
+
         </>}
+        <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)} className="min-h-9 text-xs font-semibold text-forest-800 underline">{detailsOpen?"Less details":"More details"}</button>
+        {detailsOpen&&<p className="text-xs text-sand-600">Source: {serverSource.sourceArtifactId}. Check uncertain facts before relying on them. This does not accept an Agreement, verify payment, or authorise Money.</p>}
       </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
@@ -333,8 +336,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       </article>)}
       <button type="button" onClick={()=>{seq.current++;setItems([]);setPending(null);setConfirmation(null);}} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Clear local previews</button>
     </div>}
-    <p className="flex gap-2 text-xs text-sand-600"><ShieldCheck size={15} className="shrink-0"/>
+    {tool!=='Photos'&&<p className="flex gap-2 text-xs text-sand-600"><ShieldCheck size={15} className="shrink-0"/>
       {isDemo?'Demo mode never sends these sources anywhere.':'Real sign-in does not automatically authorise sharing. These staged materials are not yet transmitted to SecurePay.'}
-    </p>
+    </p>}
   </section>;
 }
