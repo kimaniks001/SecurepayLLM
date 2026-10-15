@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Banknote, CheckCircle2, ChevronRight, CircleAlert, Clock3, FileText, Handshake, Landmark, PiggyBank, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowRight, Banknote, CheckCircle2, ChevronRight, CircleAlert, FileText, Handshake, Landmark, PiggyBank, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
