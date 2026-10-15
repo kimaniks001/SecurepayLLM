@@ -11,7 +11,7 @@ test('SecurePay typography uses two characterful fonts only in the draft Living 
  assert.match(css,/family=Afacad\+Flux/);
  assert.match(css,/family=Bricolage\+Grotesque/);
  assert.match(css,/\.sp-type-signature \{/);
- assert.match(workspace,/className="sp-type-signature min-h-screen/);
+ assert.match(workspace,/className="sp-type-signature(?: sp-brand-shell)? min-h-screen/);
  assert.match(workspace,/data-typography-study="Afacad-Flux-and-Bricolage"/);
  assert.doesNotMatch(css,/body\s*\{\s*font-family: 'Afacad Flux'/);
 });
