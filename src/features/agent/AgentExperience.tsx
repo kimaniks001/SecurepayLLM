@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -332,8 +332,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         // A presentation-only history/context read may fail internally without
         // rejecting the promise. The server-owned context must genuinely load.
         const current=controller.getSnapshot();
-        if(current.conversationId!==externalReturnConversationId
-            || current.context.status!=='ready' || !current.context.data)
+        if(!authorisedResumedConversation(externalReturnConversationId,current))
           throw new Error('Conversation not authorised for this identity');
         if(active) { setHome(false); setNotice(null); }
       })
