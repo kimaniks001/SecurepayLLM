@@ -5,9 +5,9 @@ import { humanNextQuestion } from './livingLanguage';
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
  */
-function lastQuestion(text: string): { before: string; question: string } | null {
+export function lastQuestion(text: string): { before: string; question: string } | null {
   const clean=text.trimEnd();
-  const match=/(?:^|[.!?]\\s+|\\n+)([^\\n!?]*\\?)\\s*$/.exec(clean);
+  const match=/(?:^|[.!?]\s+|\n+)([^\n!?]*\?)\s*$/.exec(clean);
   if(!match)return null;
   const question=match[1].trim();
   const start=clean.lastIndexOf(question);
