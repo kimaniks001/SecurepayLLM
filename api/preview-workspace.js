@@ -49,6 +49,10 @@ function allowed(method, pathname, params) {
   if (method !== 'GET') return false;
   if (noQuery && (board.test(pathname) || assets.test(pathname) || asset.test(pathname)
       || circleMember.test(pathname) || circleCoordinationMine.test(pathname))) return true;
+  // These Money paths are read-only and require the caller's signed-in bearer.
+  // The server still decides Agreement visibility, financial truth and partner status.
+  if (noQuery && (pathname === '/api/v1/regulated-accounts/partners' ||
+      /^\/api\/v1\/agreements\/[A-Za-z0-9_-]{8,128}\/money-snapshot$/.test(pathname))) return true;
   if (noQuery && (pathname === '/api/v1/vision-dreams'
       || pathname === '/api/v1/community/membership/me')) return true;
   if (noQuery && (dream.test(pathname)
