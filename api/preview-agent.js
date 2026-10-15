@@ -63,7 +63,9 @@ export default async function handler(req, res) {
   if (method === 'POST' && path.endsWith('/sources/upload')) {
     if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || '')))
       return reject(res, 415, 'Photo payload required');
-    const input = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    let input;
+    try { input = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
+    catch { return reject(res, 400, 'Invalid photo payload'); }
     if (!input || input.sourceKind !== 'PHOTO'
         || !['image/jpeg','image/png'].includes(input.mediaType)
         || typeof input.filename !== 'string' || input.filename.length > 180
