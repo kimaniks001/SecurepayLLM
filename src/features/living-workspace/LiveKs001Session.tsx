@@ -19,12 +19,12 @@ function Ks001Reply({ text }: { text: string }) {
 }
 function replyPills(question:string):string[] {
   const lower=question.toLowerCase();
-  if(/where|location|address|deliver to/.test(lower))return ['Share an address','Choose a place','Not sure yet'];
-  if(/when|date|deadline|time/.test(lower))return ['Choose a date','To be agreed','Not sure yet'];
-  if(/who|which person|responsible|supplier|buyer|seller/.test(lower))return ['Add a person','Not decided yet'];
-  if(/how much|price|amount|cost|budget|payment/.test(lower))return ['Enter an amount','To be agreed'];
+  if(/where|location|address|deliver to/.test(lower))return ["I'll type the place",'Not sure yet'];
+  if(/when|date|deadline|time/.test(lower))return ["I'll enter the date",'To be agreed','Not sure yet'];
+  if(/who|which person|responsible|supplier|buyer|seller/.test(lower))return ["I'll name the person",'Not decided yet'];
+  if(/how much|price|amount|cost|budget|payment/.test(lower))return ["I'll enter an amount",'To be agreed'];
   if(/confirm|is that correct|does this look right|agree/.test(lower))return ['Yes, that is correct','I need to correct something'];
-  return ['I can answer','Help me decide','Not sure yet'];
+  return ["I'll answer",'Help me decide','Not sure yet'];
 }
 
 /**
@@ -58,7 +58,7 @@ export function LiveKs001Session({ controller }: { controller: AgentController }
       const pills=question?replyPills(question.question):["What’s next?","Show my draft"];
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
         {pills.map(answer=><button key={answer} type="button"
-          onClick={()=>{if(/^(Share an address|Choose a place|Choose a date|Add a person|Enter an amount|I can answer)$/.test(answer)){setDraft('');document.getElementById('live-work-ks001-input')?.focus();return;}void controller.send(answer);}}
+          onClick={()=>{if(/^(I'll type the place|I'll enter the date|I'll name the person|I'll enter an amount|I'll answer)$/.test(answer)){setDraft('');document.getElementById('live-work-ks001-input')?.focus();return;}void controller.send(answer);}}
           className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{answer}</button>)}
       </div>;
     })()}
