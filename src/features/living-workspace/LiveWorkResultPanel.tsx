@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
-import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, HelpCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet } from 'lucide-react';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   if (terms.length===0) return null;
