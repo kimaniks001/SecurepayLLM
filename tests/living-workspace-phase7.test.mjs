@@ -332,7 +332,7 @@ test('Authentication mock: demo is visibly simulated and never grants a SecurePa
  assert.match(shell,/mockSignedIn\s*\? <MockWorkspacePanel key=\{mode\}/);
  assert.match(shell,/!mockSignedIn && mode==='work'/);
  assert.match(shell,/!mockSignedIn && !signedIn && mode!=='work'/);
- assert.match(shell,/!mockSignedIn && !signedIn && <>/);
+ assert.match(shell,/!mockSignedIn && !signedIn && !liveWork && <>/);
  assert.match(shell,/!mockSignedIn && <button/);
  assert.doesNotMatch(demo,/createSessionStore|setTokens\(|refreshToken|accessToken|fetch\(|axios|localStorage|sessionStorage|setMembership|setRole/);
  assert.match(demo,/simulated signed-in experience/);
