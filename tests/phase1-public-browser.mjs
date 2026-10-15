@@ -13,7 +13,7 @@ try{
   page.on('pageerror',err=>problems.push(err.message));
   await page.goto(base,{waitUntil:'domcontentloaded',timeout:30_000});
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'My Work'}).waitFor();
-  await page.getByRole('heading',{name:'KS001'}).waitFor();
+  await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
   await page.screenshot({path:`${out}/${name}-work.png`,fullPage:true});
   await page.getByRole('button',{name:'Add or use a tool'}).click();
   const picker=page.getByRole('dialog',{name:'Choose a tool'});
