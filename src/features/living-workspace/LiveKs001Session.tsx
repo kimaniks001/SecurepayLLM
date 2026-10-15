@@ -1,6 +1,18 @@
 import { useState, useSyncExternalStore } from 'react';
 import type { AgentController } from '../agent/controller';
 
+/** Present the final explicit question prominently, without changing server wording.
+ * Replies without a clear question stay exactly as written.
+ */
+function Ks001Reply({ text }: { text: string }) {
+  const match = /(?:^|[.!?]\\s+|\\n+)([^\\n!?]*\\?)(?:\\s*)$/.exec(text.trim());
+  if (!match || !match[1].trim()) return <>{text}</>;
+  const question = match[1].trim();
+  const offset = text.lastIndexOf(question);
+  if (offset < 0) return <>{text}</>;
+  return <><span>{text.slice(0,offset)}</span><strong className="font-semibold text-forest-900">{text.slice(offset)}</strong></>;
+}
+
 /**
  * Phase 7 opt-in backend smoke experience. Uses the SAME authenticated/anonymous
  * conversation gateway and controller as AgentExperience: server conversation IDs,
@@ -19,7 +31,7 @@ export function LiveKs001Session({ controller }: { controller: AgentController }
       {state.turns.length===0 && <p className="text-sm text-sand-700">Describe what you want to agree. Real replies will appear here; they are not scripted preview messages.</p>}
       {state.turns.map(turn=><div key={turn.id} className={`max-w-[95%] rounded-xl p-3 text-sm whitespace-pre-wrap ${turn.sender==='user'?'ml-auto bg-cream-100':'border border-cream-200 bg-white'}`}>
         <p className="mb-1 text-xs font-semibold text-sand-600">{turn.sender==='user'?'You':'KS001'}</p>
-        {turn.sender==='user'?turn.text:turn.response.message.text}
+        {turn.sender==='user'?turn.text:<Ks001Reply text={turn.response.message.text}/>}
       </div>)}
       {state.busy && <p role="status" className="text-sm text-sand-700">KS001 is working on your message…</p>}
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
