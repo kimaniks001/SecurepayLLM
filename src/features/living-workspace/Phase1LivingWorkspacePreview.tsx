@@ -19,7 +19,7 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn } from '../experience/entryIntent';
+import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn } from '../experience/entryIntent';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -116,17 +116,22 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [liveController] = useState(() => gateway ? createAgentController(gateway, undefined, { timeZone: deviceTimeZone }) : null);
   const [returnError,setReturnError] = useState<string|null>(null);
   useEffect(()=>{
-    const hint=consumeWorkspaceMoneyReturn();
-    if(!hint)return;
-    if(!liveController){setReturnError('Your previous conversation is not accessible here. Sign in and open it from Saved Work.');return;}
-    if(!hint.conversationId)return;
+    const moneyHint=consumeWorkspaceMoneyReturn();
+    const fromKs001=consumeLivingWorkspaceEntry();
+    if(!moneyHint && !fromKs001)return;
+    const conversationId=moneyHint ? moneyHint.conversationId : fromKs001;
+    if(!conversationId)return;
+    if(!signedIn || !liveController){
+      setReturnError('Sign in and open your conversation from Saved Work. No Agreement was changed.');
+      return;
+    }
     let active=true;
     setLiveStarted(true);setLiveWork(true);
-    void liveController.resumeConversation(hint.conversationId).catch(()=>{
-      if(active)setReturnError('SecurePay could not reopen your previous conversation. Open it from Saved Work; no new Agreement was created.');
+    void liveController.resumeConversation(conversationId).catch(()=>{
+      if(active)setReturnError('SecurePay could not reopen this conversation as your current identity. Open it from Saved Work; no Agreement was changed.');
     });
     return()=>{active=false;};
-  },[liveController]);
+  },[liveController,signedIn]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
@@ -222,6 +227,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setSuggestedTool(tools.find(item=>item.name===suggestion)?.name??null);
     if (suggestion === 'Quick Assist') setQuickAssistSeed(value);
   }
+  const returnToKs001=()=>{
+    if(!mayLeaveDream())return false;
+    // Only a signed-in, settled, server-owned conversation may be resumed.
+    // The canonical KS001 controller independently re-reads and authorises it.
+    const snapshot=liveController?.getSnapshot();
+    if(signedIn && liveWork && snapshot?.conversationId && !snapshot.busy && !snapshot.pending)
+      storeKs001ConversationReturn(snapshot.conversationId);
+    return true;
+  };
   const continueSavedConversation = async(conversationId:string)=>{
     if(!liveController)throw new Error('KS001 conversation service is not available');
     if(liveController.getSnapshot().busy || liveController.getSnapshot().pending) {
@@ -254,7 +268,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             <button type="button" onClick={enterDemo} className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm text-white">Try mock sign-in</button>
             {workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)} className="min-h-11 rounded-xl border border-cream-200 px-3 text-sm">Real KS sign-in</button>}
           </> : <span className="rounded-full bg-cream-100 px-3 py-2 text-xs">Signed in with SecurePay</span>}
-          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!mayLeaveDream())event.preventDefault();}}><ArrowLeft size={15}/> Exit preview</a>
+          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> Back to SecurePay</a>
         </div>
       </div>
     </header>
