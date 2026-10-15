@@ -44,3 +44,16 @@ export function resolveHandoffContext(handoff: MoneyHandoff, fresh: { title: str
   const changed = !!handoff.currentVersionId && !!fresh.currentAgreementVersionId;
   return { context: fresh.title, notice: changed ? HANDOFF_CHANGED_NOTICE : null };
 }
+
+/** UI preference for the rail someone examined before opening canonical Money.
+ * Never payment authority. The receiving payment surface MUST match this against
+ * current backend funding options, then obtain a fresh Agreement-version-bound quote.
+ * The selection remains in memory only; no rail or Agreement ID enters the URL. */
+export interface MoneyRailPreference { agreementId:string;railCode:string }
+let preferredRail:MoneyRailPreference|null=null;
+export function setMoneyRailPreference(value:MoneyRailPreference):void {
+ if(!value.agreementId.trim()||!value.railCode.trim())throw new Error('A valid Agreement and rail are required');
+ preferredRail={agreementId:value.agreementId,railCode:value.railCode};
+}
+export function peekMoneyRailPreference():MoneyRailPreference|null {return preferredRail;}
+export function clearMoneyRailPreference():void {preferredRail=null;}
