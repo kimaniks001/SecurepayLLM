@@ -215,7 +215,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] gap-3 px-3 py-3 sm:px-5 sm:py-5">
-      {toolsOpen && <aside aria-label="Contextual tools" className={`${screen==='tools'?'flex':'hidden'} w-full min-w-0 shrink-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex ${toolSelected?'md:w-full':'md:w-[225px] xl:w-[250px]'}`}>
+      {toolsOpen && <>
+        <button type="button" aria-label="Close photo workspace overlay" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/35 backdrop-blur-[2px]" />
+        <aside role="dialog" aria-modal="true" aria-label={toolSelected?activeTool+' tool':'Choose a tool'} className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(94vw,560px)] sm:max-h-[min(82dvh,740px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
         <div className="flex items-center justify-between gap-2 border-b border-cream-100 p-4">
           {toolSelected
             ? <button type="button" onClick={()=>setToolSelected(false)} aria-label="Back to tools" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold hover:bg-cream-100"><ArrowLeft size={18}/> Back to tools</button>
@@ -254,19 +256,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
             </div>
-          : <nav aria-label="Choose a tool" className="max-h-[75vh] overflow-auto p-3">
+          : <nav aria-label="Choose a tool" className="max-h-[65dvh] overflow-auto p-3">
               {tools.map(t=><button key={t.name} onClick={()=>{setActiveTool(t.name);setToolSelected(true);}} className="flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-sm hover:bg-cream-100"><t.icon size={18}/>{t.name}</button>)}
             </nav>}
-      </aside>}
+        </aside>
+      </>}
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
-      <section aria-label="KS001 conversation" className={`${screen==='chat'?'flex':'hidden'} min-h-[72vh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white ${toolsOpen&&toolSelected?'md:hidden':'md:flex'}`}>
+      <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} min-h-[72vh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="text-lg">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button onClick={()=>openTool(activeTool)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm"><Plus size={18}/> Add / Tools</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!}/></div>}
         {!(mode==='work' && liveWork && gateway) && <><div className="flex-1 space-y-4 p-5"><p className="max-w-[560px] text-sm leading-7">{mockSignedIn ? 'This is a sample conversation, not a real KS001 response. '+persona.opening : persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool)} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
         <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
 </>}
       </section>
-      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white ${toolsOpen&&toolSelected?'md:hidden':'md:flex'} md:w-[35%] lg:max-w-[460px]`}>
+      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} w-full min-w-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="p-5">
         {mockSignedIn
           ? <MockWorkspacePanel key={mode} area={mode}/>
