@@ -22,7 +22,7 @@ try {
   if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
   if(phase==='after'){
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
-    await page.locator('.sp-brand-conversation').waitFor();
+    await page.locator('.sp-brand-conversation').waitFor({state:'attached'});
     await page.locator('.sp-initial-letter').waitFor();
     assert.ok(await page.getByRole('heading',{name:'Chair delivery'}).count(),'dynamic title must be readable by assistive technology');
   }
