@@ -38,7 +38,7 @@ test('Supporting material is only suggested to KS001, not silently accepted as a
 });
 test('The base source and identity pathways are reused, not replaced by new backdoors',()=>{
   assert.match(workspace,/activeTool==='People & Invitations'\?<PeopleInvitationsTool/);
-  assert.match(workspace,/activeTool==='Photos'\|\|activeTool==='Documents'\|\|activeTool==='Places'/);
+  assert.match(workspace,/<UniversalSourceTray agreementPlaces=/);
   assert.match(workspace,/onContinueTask=\{async\(source,task\)=>/);
   assert.doesNotMatch(panel,/selectKsIdentity|uploadSource|window\.location/);
 });
