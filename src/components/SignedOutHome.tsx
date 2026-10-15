@@ -47,7 +47,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
   const publicMode = variant === 'public';
 
   return (
-    <div className={publicMode ? 'w-full max-w-5xl' : 'w-full max-w-3xl'}>
+    <div className={publicMode ? 'sp-brand-public w-full max-w-5xl' : 'sp-brand-public w-full max-w-3xl'}>
       <section className={publicMode ? 'sp-lift-in px-2 py-9 md:px-12 md:py-16' : 'sp-lift-in px-1 py-4 md:px-2 md:py-8'}>
         <div className="relative z-10">
           <div className="flex items-center gap-3" data-ks001-lockup>
