@@ -8,6 +8,21 @@ import type { VisionDreamDto } from '../../api/securepay/visiondreams/dto';
 import { isOutcomeUnknown, sourceIngestionErrorText } from '../sources/controller';
 
 type Intake='Photos'|'Documents'|'Places';
+function mapSelection(value:string):string|null{
+  const raw=value.trim();
+  const coords=/^(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/.exec(raw);
+  if(coords){const lat=Number(coords[1]),lng=Number(coords[2]);return Math.abs(lat)<=90&&Math.abs(lng)<=180?`${lat}, ${lng}`:null;}
+  try{
+    const url=new URL(raw);
+    if(url.protocol!=='https:'||!/(^|\.)(google\.com|google\.co\.[a-z.]+|openstreetmap\.org)$/.test(url.hostname))return null;
+    const text=decodeURIComponent(url.href);
+    const matched=/@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/.exec(text)||
+      /(?:[?&#]|%23)(?:map=\d+\/|query=|q=)(-?\d{1,2}(?:\.\d+)?)[,%2C\/]+(-?\d{1,3}(?:\.\d+)?)/i.exec(text);
+    if(!matched)return null;
+    const lat=Number(matched[1]),lng=Number(matched[2]);
+    return Math.abs(lat)<=90&&Math.abs(lng)<=180?`${lat}, ${lng}`:null;
+  }catch{return null;}
+}
 type LocalSource={id:number;kind:Intake;filename:string;label:string;mime:string|null;size:number|null;thumbnail:string|null};
 const PHOTO_TASKS=[
   {id:'contract',label:'Quick Contract',hint:'Extract parties, work and terms to review'},
@@ -43,7 +58,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
 /** Photo selection explicitly sends to canonical KS001 in real mode; demo stays local.
  * A processed source is not evidence accepted by an Agreement or Money authority.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn,agreementPlaces=[]}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -64,6 +79,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [taskBusy,setTaskBusy]=useState(false);
   const [detailsOpen,setDetailsOpen]=useState(false);
   const [placeBusy,setPlaceBusy]=useState(false);
+  const [placeMethod,setPlaceMethod]=useState<'type'|'map'|'agreement'>('type');
+  const [mapText,setMapText]=useState('');
   const [visionChooser,setVisionChooser]=useState(false);
   const [visions,setVisions]=useState<VisionDreamDto[]>([]);
   const [visionPhase,setVisionPhase]=useState<'idle'|'loading'|'saving'|'saved'|'error'>('idle');
@@ -246,6 +263,24 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     <h3 className="font-semibold text-sm">Add a place</h3>
     <p className="text-xs text-sand-700">Add once. KS001 reads it and suggests what to do.</p></>}
     {tool==='Places'?<>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Choose location source">
+        {([{key:'type',title:'Type place'},{key:'map',title:'From map'},{key:'agreement',title:'From Agreement'}] as const).map(method=><button key={method.key} type="button" onClick={()=>{setPlaceMethod(method.key);setError(null);}}
+          className={placeMethod===method.key?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>{method.title}</button>)}
+      </div>
+      {placeMethod==='map'&&<div className="space-y-2 rounded-xl bg-cream-50 p-3">
+        <p className="text-xs">Open a map, choose your point and copy its Share link or coordinates.</p>
+        <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer" className="inline-block rounded-full border border-cream-200 bg-white px-3 py-2 text-xs font-semibold">Open map ↗</a>
+        <label className="block text-xs">Paste a map link or latitude, longitude
+          <input value={mapText} onChange={event=>{setMapText(event.target.value);const found=mapSelection(event.target.value);if(found)setLabel(found);}} placeholder="-1.286389, 36.817223 or map Share link"
+            className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3"/>
+        </label>
+        {mapText&&(!mapSelection(mapText)?<p className="text-xs text-amber-900">This link has no readable point. Paste decimal coordinates or a Google Maps / OpenStreetMap point link.</p>:<p className="text-xs">Point selected for review: {mapSelection(mapText)}</p>)}
+      </div>}
+      {placeMethod==='agreement'&&<div className="space-y-2 rounded-xl bg-cream-50 p-3">
+        <p className="text-xs">Choose a place already mentioned in this draft. It is not independently verified.</p>
+        {agreementPlaces.length?agreementPlaces.map((place,index)=><button type="button" key={index} onClick={()=>setLabel(place)} className="block w-full rounded-lg border border-cream-200 bg-white px-3 py-2 text-left text-sm">{place}</button>)
+          :<p className="text-xs text-sand-600">No explicit location is recorded in this Agreement yet. You can type one instead.</p>}
+      </div>}
       <label className="block text-xs">Place, address or Plus Code
         <input maxLength={240} className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white p-3" value={label}
           onChange={event=>setLabel(event.target.value)} placeholder="e.g. Nairobi address or 6GCR+..."/></label>
