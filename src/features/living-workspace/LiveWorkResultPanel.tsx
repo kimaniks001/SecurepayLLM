@@ -70,7 +70,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
           </div>}
           {fairTrade.findings.length===0 && <p className="mt-2 text-xs text-sand-700">No assessed concerns to display yet. This is not a completed qualification.</p>}
         </> : <p className="mt-2 text-xs text-sand-700">{examination.status==='loading'?'Checking the current Agreement version…':'Formal Fair Trade examination is not yet available for this preview. Draft review is not qualification.'}</p>}
-      </section>
+      </section>}
       {expanded && formation.money.length > 0 && <section aria-label="Money follows the Agreement" className="rounded-xl border border-cream-200 bg-cream-50 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
         <p className="mt-2 text-sm leading-6 text-sand-700">The amount shown in this draft is not a payment instruction. The accepted Agreement establishes the parties and conditions; SecurePay Money must separately verify the payment destination.</p>
