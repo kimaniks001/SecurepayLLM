@@ -83,11 +83,6 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
         </div>
         <p className="mt-3 text-xs text-sand-600">The person receiving the item is not automatically the payee. After Agreement acceptance, SecurePay Money must confirm the entitled payee, verified payment destination and supported rail. Money cannot be initiated from this preview.</p>
       </section>}
-      {expanded && formation.question && <section aria-label="Server-owned next question" className="rounded-xl border border-cream-200 p-4">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sand-600"><HelpCircle size={16}/> What SecurePay still needs</p>
-        <p className="mt-2 text-sm font-semibold leading-6">{formation.question.text}</p>
-        <p className="mt-2 text-xs text-sand-700">KS001 is following this same server-owned question. Answer in the chat; the Agreement will update here. This question has not been invented by the workspace.</p>
-      </section>}
       {expanded && formation.reviewable && !formation.question && <section aria-label="Draft review availability" className="rounded-xl border border-cream-200 p-4">
         <p className="text-sm font-semibold">A draft is available to review</p>
         <p className="mt-2 text-xs leading-5 text-sand-700">Draft review is not Fair Trade qualification, the other party’s acceptance, or readiness to move money. SecurePay will examine applicable practical and fairness concerns through its authorised backend before claiming a qualified Agreement.</p>
