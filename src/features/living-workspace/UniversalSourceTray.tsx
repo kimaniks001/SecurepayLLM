@@ -3,6 +3,14 @@ import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 
 type Intake='Photos'|'Documents'|'Places';
 type LocalSource={id:number;kind:Intake;filename:string;label:string;mime:string|null;size:number|null;thumbnail:string|null};
+const PHOTO_TASKS=[
+  {id:'receipt',label:'Process receipt',hint:'Extract items and payment information'},
+  {id:'invoice',label:'Process invoice',hint:'Review supplier, amounts and terms'},
+  {id:'delivery',label:'Record delivery',hint:'Document arrival, damage or missing items'},
+  {id:'location',label:'Identify location',hint:'Review available location clues'},
+  {id:'find',label:'Find similar items',hint:'Explore products and suppliers'},
+  {id:'vision',label:'Add to Vision',hint:'Use this photo as project inspiration'},
+] as const;
 const MAX_BYTES=2_000_000;
 const nextId=(()=>{let id=1;return()=>id++;})();
 
@@ -19,13 +27,14 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
   const [error,setError]=useState<string|null>(null);
   const [pending,setPending]=useState<{filename:string;mime:string|null;size:number;thumbnail:string|null}|null>(null);
   const [confirmation,setConfirmation]=useState<string|null>(null);
+  const [selectedTask,setSelectedTask]=useState<string>('');
   const upload=useRef<HTMLInputElement|null>(null);
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');
     const photo=tool==='Photos';
     const allowed=photo ? file.type.startsWith('image/') : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -47,9 +56,9 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
   function saveLocalPreview(){
     if(!pending)return;
     setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',
-      filename:pending.filename,label:caption.trim(),mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
+      filename:pending.filename,label:[caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · '),mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
     setConfirmation((tool==='Photos'?'Photo':'Document')+' added to this preview. Not uploaded or saved to SecurePay.');
-    setPending(null);setCaption('');setError(null);
+    setPending(null);setCaption('');setSelectedTask('');setError(null);
   }
 
   function addPlace(){
@@ -86,6 +95,14 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3"
         placeholder="Why is this relevant to your work?" value={caption} onChange={event=>setCaption(event.target.value)}/></label>
     {tool!=='Places'&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
+    {tool==='Photos'&&pending&&<fieldset className="space-y-2 rounded-xl border border-cream-200 p-3">
+      <legend className="px-1 text-sm font-semibold">What do you want to do with this picture?</legend>
+      <p className="text-xs text-sand-600">Choose a quick task. This records your intention only; no image analysis has run.</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{PHOTO_TASKS.map(task=><label key={task.id} className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${selectedTask===task.id?'border-forest-800 bg-forest-50':'border-cream-200'}`}>
+        <input type="radio" name="photo-quick-task" value={task.id} checked={selectedTask===task.id} onChange={()=>setSelectedTask(task.id)} className="mt-1"/>
+        <span><span className="block font-semibold">{task.label}</span><span className="block text-xs text-sand-600">{task.hint}</span></span>
+      </label>)}</div>
+    </fieldset>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
     {tool==='Places'&&<button type="button" disabled={!label.trim()} onClick={addPlace}
       className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-40">Add place to local preview</button>}
