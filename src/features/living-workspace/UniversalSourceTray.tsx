@@ -14,6 +14,7 @@ const PHOTO_TASKS=[
   {id:'vision',label:'Add to Vision',hint:'Use this photo as project inspiration'},
 ] as const;
 const MAX_BYTES=2_000_000;
+const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
 const nextId=(()=>{let id=1;return()=>id++;})();
 
 /** Local-only intake preview. A file selected here has NOT been sent to KS001,
@@ -34,6 +35,7 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
   const [qrState,setQrState]=useState<string|null>(null);
   const [locationChoice,setLocationChoice]=useState<'unset'|'enabled'|'skipped'>('unset');
   const upload=useRef<HTMLInputElement|null>(null);
+  const camera=useRef<HTMLInputElement|null>(null);
   const seq=useRef(0);
   useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');seq.current++;},[area,tool,isDemo]);
 
@@ -41,10 +43,11 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
     if(!file)return;
     setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');
     const photo=tool==='Photos';
-    const allowed=photo ? file.type.startsWith('image/') : (
+    const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
       file.name.toLowerCase().endsWith('.docx')||file.name.toLowerCase().endsWith('.xlsx'));
-    if(!allowed){setError('Choose a supported '+(photo?'image':'document')+' format. No file has been uploaded.');return;}
+    if(!allowed){setError(photo?'Choose a JPEG or PNG photo. Other formats cannot yet be safely read by KS001. Nothing was uploaded.':'Choose a supported document format. Nothing was uploaded.');return;}
+    if(file.size===0){setError('This file is empty. Choose another picture.');return;}
     if(file.size>MAX_BYTES){setError('Local preview supports files up to 2 MB. The original file has not been uploaded or altered.');return;}
     const sequence=seq.current;
     const prepare=(thumbnail:string|null)=>{
@@ -100,16 +103,23 @@ export function UniversalSourceTray({tool,area,isDemo}:{tool:string;area:string;
           onChange={event=>setLabel(event.target.value)} placeholder="e.g. Delivery location, Nairobi"/></label>
     </>:<>
       <input ref={upload} type="file" className="hidden"
-        accept={tool==='Photos'?'image/jpeg,image/png,image/webp,image/heic':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
+        accept={tool==='Photos'?'image/jpeg,image/png':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
         onChange={event=>{receive(event.target.files?.[0]);event.target.value='';}}/>
-      <button type="button" onClick={()=>upload.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm">
-        {tool==='Photos'?<Camera size={18}/>:<FileText size={18}/>} Select from this device
-      </button>
-      <p className="text-xs text-sand-600">Up to 2 MB for local preview. No file is uploaded to SecurePay.</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button type="button" onClick={()=>upload.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm">
+          {tool==='Photos'?<Camera size={18}/>:<FileText size={18}/>} Choose from device
+        </button>
+        {tool==='Photos'&&<>
+          <input ref={camera} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={event=>{receive(event.target.files?.[0]);event.target.value='';}}/>
+          <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
+        </>}
+      </div>
+      <p className="text-xs text-sand-600">JPEG or PNG, up to 2 MB for a local preview. Saving to SecurePay is not connected here yet.</p>
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-3">
         {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mb-3 max-h-64 w-full rounded-lg object-contain"/>}
         <p className="break-all text-sm font-semibold">{pending.filename}</p>
-        <p className="mt-1 text-xs text-sand-600">Ready to add to this preview · Not yet added</p>
+        <p className="mt-1 text-xs text-sand-600">Ready for your review · Not uploaded</p>
+        <button type="button" onClick={()=>{setPending(null);setQrValue(null);setQrState(null);setSelectedTask('');}} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Choose another picture</button>
       </div>}
     </>}
     <label className="block text-xs">Caption or purpose (optional)
