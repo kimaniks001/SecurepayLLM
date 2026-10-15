@@ -16,7 +16,7 @@ export function LivingVisionPanel() {
  const [picked,setPicked]=useState<string[]>([]);
  function saveIdea(id:number){setIdeas(items=>items.map(i=>i.id===id?{...i,saved:!i.saved}:i));}
  function addNote(){const value=note.trim();if(!value)return;setCards(items=>[...items,value]);setNote('');}
- return <div className="space-y-4" data-living-vision-preview>
+ return <div className="sp-brand-vision space-y-4" data-living-vision-preview>
   <div className="flex items-start justify-between gap-2"><div><p className="text-xs uppercase tracking-wider text-sand-600">My Living Vision</p><h2 className="mt-2 font-display text-xl">My workshop dream</h2></div><span className="rounded-full bg-cream-100 px-3 py-1 text-xs">Exploring</span></div>
   <p className="text-sm leading-6 text-sand-700">Make space for ideas. Nothing here becomes an Agreement unless you choose to bring it into My Work.</p>
   <div role="tablist" aria-label="Vision sections" className="flex flex-wrap gap-1">
