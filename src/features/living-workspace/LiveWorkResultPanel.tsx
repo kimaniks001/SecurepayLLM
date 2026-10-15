@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
@@ -46,6 +46,9 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
   const [expanded,setExpanded]=useState(false);
+  const [customTitle,setCustomTitle]=useState('');
+  const [editingTitle,setEditingTitle]=useState(false);
+  useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);},[conversationId]);
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
   const highlights=paymentHighlights(formation?.summary);
@@ -54,11 +57,17 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
     formation.conditions.length>0 || formation.notIncluded.length>0);
   return <section aria-label="Live forming Agreement" data-live-formation className="space-y-4">
     <div className="flex items-start justify-between gap-3">
-      <div><p className="text-xs uppercase tracking-wider text-sand-600">My Work · Live Agreement</p>
-        <h2 className="mt-2 font-display text-xl">{humanTitle(formation?.summary)}</h2></div>
+      <div className="min-w-0 flex-1"><p className="text-xs text-sand-600">My Work · Draft</p>
+        {editingTitle?<form className="mt-2 flex gap-2" onSubmit={e=>{e.preventDefault();setEditingTitle(false);}}>
+          <input autoFocus aria-label="Agreement display title" maxLength={80} value={customTitle} onChange={e=>setCustomTitle(e.target.value)} placeholder={humanTitle(formation?.summary)} className="min-w-0 flex-1 rounded-lg border border-cream-200 px-2 py-2 text-sm"/>
+          <button type="submit" className="rounded-full bg-forest-800 px-3 text-sm text-white">Done</button>
+        </form>:<div className="mt-1 flex items-start gap-2"><h2 className="min-w-0 font-display text-xl">{customTitle.trim()||humanTitle(formation?.summary)}</h2>
+          <button type="button" onClick={()=>setEditingTitle(true)} className="shrink-0 rounded-full border border-cream-200 px-2 py-1 text-xs">Edit</button></div>}
+        {customTitle&&<p className="text-xs text-sand-600">Display title for this preview only · not saved to the Agreement</p>}
+      </div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
-    <p className="text-xs text-sand-600">Working draft · Not yet accepted</p>
+    {expanded&&<p className="text-xs text-sand-600">Working draft · Not yet accepted</p>}
     {!conversationId && <div className="rounded-xl bg-cream-100 p-4 text-sm">Tell KS001 what you want to do. The Agreement will start appearing here as SecurePay understands it.</div>}
     {conversationId && busy && <p role="status" className="text-xs text-sand-600">KS001 is updating its understanding…</p>}
     {conversationId && state?.status==='loading' && <p role="status" className="text-xs text-sand-600">Reading the current Agreement from SecurePay…</p>}
@@ -67,19 +76,18 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, ex
       <p className="mt-2 text-xs">The previous version is not confirmed current. Try refreshing; chat messages and Agreement terms are not fabricated.</p>
     </div>}
     {formation && <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span>{expanded&&<span className="text-sand-600">SecurePay version {formation.version}</span>}</div>
+      {expanded&&<div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>}
       <section className="rounded-xl bg-cream-50 p-3" aria-label="Agreement at a glance">
-        <p className="text-xs font-semibold text-sand-600">At a glance</p>
-        {formation.what.length>0&&<p className="mt-1 text-sm">{formation.what.slice(0,2).map(t=>t.value).filter(Boolean).join(' · ')}</p>}
+        {formation.what.length>0&&<p className="text-sm">{formation.what.slice(0,2).map(t=>t.value).filter(Boolean).join(' · ')}</p>}
         {highlights.length>0&&<div className="mt-2 space-y-1" aria-label="Amounts mentioned in the draft">
-          {highlights.map((value,index)=><p key={index} className="text-sm">{value}</p>)}
+          {highlights.slice(0,2).map((value,index)=><p key={index} className="text-sm">{value}</p>)}
         </div>}
         {!formation.what.length&&!highlights.length&&<p className="mt-1 text-sm">KS001 is helping put your Agreement together.</p>}
         {formation.question&&<div className="mt-3 border-t border-cream-200 pt-3"><p className="text-xs text-sand-600">Next to clarify</p>
           <p className="mt-1 text-sm font-semibold">{humanQuestion(formation.question.text)}</p></div>}
         {!formation.question&&formation.reviewable&&<p className="mt-2 text-sm">Your draft is ready to review.</p>}
       </section>
-      <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Hide details':'See Agreement details'}</button>
+      <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Less':'More'}</button>
       {expanded&&<p className="text-sm text-sand-700">{formation.summary}</p>}
       {expanded&&<section aria-label="Fair Trade examination" className="rounded-xl border border-cream-200 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Guided by the 12 Principles of Fair Trade</p>
