@@ -307,7 +307,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           examination={examination}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
         />:mode==='work'?(signedIn?<div className="rounded-xl bg-cream-100 p-4"><p className="font-semibold text-sm">Your Agreement appears here</p><p className="mt-2 text-xs text-sand-700">Continue a saved conversation below, or select Try real KS001 on the left. SecurePay will show only the Agreement from that conversation.</p></div>:<LivingAgreementPanel/>):mode==='vision'?<LivingVisionPanel/>:mode==='circle'?<LivingCirclePanel/>:mode==='community'?<LivingCommunityPanel/>:<><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div></>}
-        {!mockSignedIn && mode==='work' && <div className="mt-4">
+        {!mockSignedIn && mode==='work' && !liveWork && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
@@ -315,7 +315,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!mockSignedIn && !signedIn && <>
+        {!mockSignedIn && !signedIn && !liveWork && <>
           <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps · Examples only</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
           <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver · Example</strong><p className="mt-2 text-xs text-sand-600">A real Community Saver requires a Plug, verification and informed consent. These suggestions do not change Agreements.</p></div>
         </>}</div>
