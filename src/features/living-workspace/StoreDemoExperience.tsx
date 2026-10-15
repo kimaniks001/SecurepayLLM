@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, type StoreBuyingLine } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
@@ -54,9 +55,22 @@ export function StoreDemoExperience(){
  const [draftPrice,setDraftPrice]=useState('');
  const [drafts,setDrafts]=useState<{name:string;price:string}[]>([]);
  const [saver,setSaver]=useState(false);
+ const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>([]);
+ const [buyingDraft,setBuyingDraft]=useState({...emptyStoreBuyingPlan});
+ const [buyingActive,setBuyingActive]=useState(false);
+ const [practiceReady,setPracticeReady]=useState(false);
+
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
  const openSample=(store:DemoStore,offer:DemoOffer)=>{setSelected({store,offer});setAnswer('');};
+ const addToPlan=(store:DemoStore,offer:DemoOffer)=>{
+  setBuyingLines(current=>addStoreBuyingLine(current,{
+    key:'sample:'+store.id+':'+offer.id,storeName:store.name,storeKsNumber:null,
+    offerId:offer.id,title:offer.name,kind:offer.kind,priceLabel:offer.price,currency:'KES',
+  }));
+  setBuyingActive(true);setPracticeReady(false);setSelected(null);
+ };
+
  const swapView=(next:View)=>{setView(next);setSelected(null);setSelectedStore(null);};
  return <section aria-label="Sample Store experience" className="space-y-3 text-sm">
   <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-base">{sectionLabels[view]}</strong><SampleBadge/></div>
@@ -64,7 +78,8 @@ export function StoreDemoExperience(){
   <div role="group" aria-label="Sample Store viewpoint" className="grid grid-cols-3 gap-1 rounded-xl bg-cream-100 p-1">
    {([{id:'buyer',label:'Buyer'},{id:'seller',label:'Seller'},{id:'together',label:'Together'}] as const).map(item=><button type="button" key={item.id} onClick={()=>swapView(item.id)} className={view===item.id?'min-h-10 rounded-lg bg-white px-2 text-xs font-semibold shadow-sm':'min-h-10 rounded-lg px-2 text-xs'}>{item.label}</button>)}
   </div>
-  {view==='buyer'&&<>
+  {view==='buyer'&&<div className={buyingLines.length&&buyingActive?'grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.95fr)]':'space-y-3'}>
+   <div className="min-w-0 space-y-3">
    {selected&&<div className="space-y-3 rounded-xl border border-forest-200 bg-white p-3" aria-label="Sample KS001 handoff">
      <button type="button" onClick={()=>setSelected(null)} className="inline-flex min-h-9 items-center gap-1 text-xs"><ArrowLeft size={14}/> Back to sample Store</button>
      <div className="flex items-center justify-between gap-2"><strong>KS001 · Practice conversation</strong><SampleBadge/></div>
@@ -91,7 +106,8 @@ export function StoreDemoExperience(){
       <div className="grid grid-cols-2 gap-2">{selectedStore.offers.map(offer=><div key={offer.id} className="space-y-1 rounded-xl border border-cream-200 p-2">
        <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
        <p className="font-semibold">{offer.name}</p><p className="text-xs">{offer.price}</p>
-       <button type="button" onClick={()=>openSample(selectedStore,offer)} className="min-h-10 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Take to KS001</button>
+       <button type="button" onClick={()=>addToPlan(selectedStore,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
+       <button type="button" onClick={()=>openSample(selectedStore,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
       </div>)}</div>
       <p className="font-semibold">Completed work · sample gallery</p>
       <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} className="aspect-square rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
@@ -108,11 +124,20 @@ export function StoreDemoExperience(){
      <div className="grid grid-cols-2 gap-2">{matched.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-2 rounded-xl border border-cream-200 bg-white p-2">
       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
       <div><p className="font-semibold">{offer.name}</p><p className="text-xs text-sand-600">{store.name}</p><p className="mt-1 text-xs font-semibold">{offer.price}</p></div>
-      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Take to KS001</button>
+      <button type="button" onClick={()=>addToPlan(store,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
+      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
      </article>)}</div>
     </>}
    </>}
-  </>}
+   </div>
+   {buyingLines.length>0&&buyingActive&&<StoreBuyingPlan
+     sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
+     onBack={()=>{setBuyingActive(false);setSelected(null);}}
+     onPrepare={()=>setPracticeReady(true)}/>}
+   {buyingLines.length>0&&!buyingActive&&<button type="button" onClick={()=>setBuyingActive(true)}
+     className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-3 text-xs font-semibold">Review buying plan · {buyingLines.length} items</button>}
+   {practiceReady&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Your sample buying plan is ready for practice. No real sellers have been contacted.</p>}
+  </div>}
   {view==='seller'&&<div className="space-y-3">
    <div className="overflow-hidden rounded-xl border border-cream-200 bg-white">
     <Photo src={sampleSeller.cover} title="Sample Store gallery" className="aspect-[16/7]"/>
