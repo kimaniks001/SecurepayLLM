@@ -6,6 +6,7 @@ import type { CurrentUserActionResponse } from '../../api/securepay/agreements/d
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -63,6 +64,10 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
  const [showSamples,setShowSamples]=useState(true);
+ const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
+ const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
+ const [planOpen,setPlanOpen]=useState(false);
+ const [addingToPlan,setAddingToPlan]=useState<string|null>(null);
 
  async function findOffers(){
   if(!gateways)return;
@@ -140,6 +145,40 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
    setError('Could not take this offer to KS001. Check the listing and your conversation, then try again.');
   }finally{setTakingOffer(null);}
  }
+ async function addOfferToPlan(ownerKs:string,offerId:string){
+  if(!gateways||addingToPlan||busy)return;
+  setAddingToPlan(offerId);setError('');setNotice('');
+  try{
+    const record=await gateways.stores.offer(ownerKs,offerId);
+    if(record.canonicalKsNumber!==ownerKs||record.offer.id!==offerId)throw new Error('Offer source mismatch');
+    setPlanLines(current=>addStoreBuyingLine(current,{
+      key:'real:'+ownerKs+':'+offerId,
+      storeName:record.displayName,storeKsNumber:ownerKs,offerId,
+      title:record.offer.title,kind:record.offer.kind as StoreBuyingLine['kind'],
+      priceLabel:price(record.offer.priceMinor,record.offer.currency),currency:record.offer.currency,
+    }));
+    setPlanOpen(true);
+  }catch{setError('Could not verify this offer. Nothing was added to your buying plan.');}
+  finally{setAddingToPlan(null);}
+ }
+ async function prepareBuyingPlan(){
+  if(!gateways||!planLines.length||busy)return;
+  setError('');
+  try{
+    // A draft is not inventory reservation: every source must remain current at handoff.
+    const checked=await Promise.all(planLines.map(async line=>{
+      if(!line.storeKsNumber)throw new Error('Unverified Store');
+      const result=await gateways.stores.offer(line.storeKsNumber,line.offerId);
+      if(result.canonicalKsNumber!==line.storeKsNumber||
+         result.offer.id!==line.offerId||result.offer.title!==line.title||
+         price(result.offer.priceMinor,result.offer.currency)!==line.priceLabel)
+        throw new Error('Changed Store offer');
+      return result;
+    }));
+    if(checked.length!==planLines.length)throw new Error('Incomplete source verification');
+    await askKs001(storeBuyingPrompt(planLines,planDraft));
+  }catch{setError('A Store offer may have changed or could not be verified. Review the listings before continuing. No Agreement was created.');}
+ }
  async function saveDraftOffer(){
   if(!gateways||!signedIn||offerBusy||!offerTitle.trim()||offerTitle.length>120)return;
   const amount=offerPrice.trim()?Number(offerPrice):null;
@@ -177,7 +216,8 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
     {([{id:'buyer',label:'Buy'},{id:'seller',label:'Sell'},{id:'community',label:'Together'}] as const).map(tab=><button key={tab.id} type="button" onClick={()=>{setArea(tab.id);setError('');setNotice('');}}
       className={area===tab.id?'min-h-10 rounded-lg bg-white px-2 text-xs font-semibold shadow-sm':'min-h-10 rounded-lg px-2 text-xs text-sand-600'}>{tab.label}</button>)}
    </div>
-   {area==='buyer'&&<>
+   {area==='buyer'&&<div className={planLines.length&&planOpen?'grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.95fr)]':'space-y-3'}>
+    <div className="min-w-0 space-y-3">
      {!currentOffer&&<>
        <div className="flex flex-wrap gap-2">{(['PRODUCT','SERVICE','CAPACITY'] as OfferKind[]).map(value=><button key={value} onClick={()=>setKind(value)}
          className={kind===value?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 bg-white px-3 py-2 text-xs'}>{value==='CAPACITY'?'Capacity':titleCase(value)}</button>)}</div>
@@ -197,6 +237,10 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
           <p className="line-clamp-2 font-semibold">{result.offer.title}</p>
           <p className="text-xs text-sand-600">{result.displayName}</p>
           <p className="text-xs font-semibold">{price(result.offer.priceMinor,result.offer.currency)}</p>
+          <button type="button" onClick={()=>void addOfferToPlan(result.canonicalKsNumber,result.offer.id)} disabled={!!addingToPlan||busy}
+            className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
+            {addingToPlan===result.offer.id?'Adding…':'Add to buying plan'}
+          </button>
           <button type="button" onClick={()=>void takeOfferToKs001(result.canonicalKsNumber,result.offer.id)} disabled={!!takingOffer||busy}
             aria-label={'Take '+result.offer.title+' to KS001'} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
             {takingOffer===result.offer.id?'Opening KS001…':'Take to KS001'}
@@ -216,13 +260,25 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        <div className="grid grid-cols-2 gap-2">{currentOffer.offers.map(offer=><article key={offer.id} className="space-y-2 rounded-xl border border-cream-200 p-2">
          <OfferPhoto refs={offer.mediaRefs} title={offer.title}/>
          <p className="font-semibold">{offer.title}</p><p className="text-xs">{price(offer.priceMinor,offer.currency)}</p>
+         <button type="button" onClick={()=>void addOfferToPlan(currentOffer.canonicalKsNumber,offer.id)} disabled={!!addingToPlan||busy}
+           className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
+           {addingToPlan===offer.id?'Adding…':'Add to buying plan'}
+         </button>
          <button type="button" onClick={()=>void takeOfferToKs001(currentOffer.canonicalKsNumber,offer.id)} disabled={!!takingOffer||busy}
            aria-label={'Take '+offer.title+' to KS001'} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">
            {takingOffer===offer.id?'Opening KS001…':'Take to KS001'}
          </button>
        </article>)}</div>
      </div>}
-   </>}
+    </div>
+    {planLines.length>0&&planOpen&&<StoreBuyingPlan
+      lines={planLines} draft={planDraft} onLines={setPlanLines} onDraft={setPlanDraft}
+      onBack={()=>setPlanOpen(false)} onPrepare={()=>void prepareBuyingPlan()} busy={busy||!!addingToPlan}/>}
+    {planLines.length>0&&!planOpen&&<button type="button" onClick={()=>setPlanOpen(true)}
+      className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-4 text-xs font-semibold">
+      Edit buying plan · {planLines.length} items from {new Set(planLines.map(line=>line.storeKsNumber)).size} Stores
+    </button>}
+   </div>}
    {area==='seller'&&<>
      {!signedIn?<Status text="Sign in to see and manage the Store connected to your SecurePay identity. No Store is created just by opening this tool."/>:
       <>
