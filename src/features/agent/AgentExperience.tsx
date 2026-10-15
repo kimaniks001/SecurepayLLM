@@ -328,7 +328,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     }
     let active = true;
     void controller.resumeConversation(externalReturnConversationId)
-      .then(() => { if (active) { setHome(false); setNotice(null); } })
+      .then(() => {
+        // A presentation-only history/context read may fail internally without
+        // rejecting the promise. The server-owned context must genuinely load.
+        const current=controller.getSnapshot();
+        if(current.conversationId!==externalReturnConversationId
+            || current.context.status!=='ready' || !current.context.data)
+          throw new Error('Conversation not authorised for this identity');
+        if(active) { setHome(false); setNotice(null); }
+      })
       .catch(() => { if (active) {
         setHome(true);
         setNotice('This conversation could not be reopened for the current identity. Use Saved Work; nothing was changed.');
