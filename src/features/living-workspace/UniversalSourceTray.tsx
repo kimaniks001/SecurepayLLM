@@ -17,7 +17,7 @@ function mapSelection(value:string):string|null{
     if(url.protocol!=='https:'||!/(^|\.)(google\.com|google\.co\.[a-z.]+|openstreetmap\.org)$/.test(url.hostname))return null;
     const text=decodeURIComponent(url.href);
     const matched=/@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/.exec(text)||
-      /(?:[?&#]|%23)(?:map=\d+\/|query=|q=)(-?\d{1,2}(?:\.\d+)?)[,%2C\/]+(-?\d{1,3}(?:\.\d+)?)/i.exec(text);
+      /(?:[?&#]|%23)(?:map=\d+\/|query=|q=)(-?\d{1,2}(?:\.\d+)?)[,%2C/]+(-?\d{1,3}(?:\.\d+)?)/i.exec(text);
     if(!matched)return null;
     const lat=Number(matched[1]),lng=Number(matched[2]);
     return Math.abs(lat)<=90&&Math.abs(lng)<=180?`${lat}, ${lng}`:null;
