@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, ChevronRight, FilePlus2, GalleryHorizontalEnd, Handshake, HeartHandshake, ImagePlus, LayoutGrid, ListChecks, MapPin, RefreshCw, Search, Store, Users } from 'lucide-react';
+import { ArrowLeft, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, ChevronRight, FilePlus2, GalleryHorizontalEnd, Handshake, HeartHandshake, ImagePlus, ListChecks, MapPin, RefreshCw, Search, Store, Users } from 'lucide-react';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { OfferKind, PublicSearchResultView, PublicStoreView, StoreOfferResponse, StoreProfileResponse } from '../../api/securepay/store/dto';
 import type { CurrentUserActionResponse } from '../../api/securepay/agreements/dto';
@@ -49,7 +49,6 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [community,setCommunity]=useState<ReadState<{projects:CommunityProjectDto[];opportunities:CommunityServiceOpportunityDto[]}|null>>(initial(null));
  const [membership,setMembership]=useState<string|null>(null);
  const [sellerAction,setSellerAction]=useState<SellerAction|null>(null);
- const [selectedNeed,setSelectedNeed]=useState('');
  const [note,setNote]=useState('');
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
@@ -110,7 +109,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
   catch{setError('The request was not confirmed. Check KS001 Chat before retrying.');}
   finally{setBusy(false);}
  }
- async function useOffer(item:PublicSearchResultView,action:'discuss'|'quote'){
+ async function inspectOffer(item:PublicSearchResultView,action:'discuss'|'quote'){
   await askKs001(['I am considering a real SecurePay Store offer.',
     'Store KS Number: '+item.canonicalKsNumber+'. Offer ID: '+item.offer.id+'.',
     'Offer: '+item.offer.title+'. Price as listed: '+price(item.offer.priceMinor,item.offer.currency)+'.',
@@ -155,7 +154,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
         <input value={location} onChange={e=>setLocation(e.target.value)} maxLength={120} placeholder="Place or service area" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
        </label>
        <button onClick={()=>void findOffers()} disabled={!gateways||search.status==='loading'} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white disabled:opacity-50"><Search size={16}/> {search.status==='loading'?'Looking…':'Find real offers'}</button>
-       {agreementNeeds.length>0&&<div className="flex flex-wrap gap-2" aria-label="From your Agreement">{agreementNeeds.slice(0,3).map((need,i)=><button key={i} onClick={()=>{setQuery(need.slice(0,120));setSelectedNeed(need);}} className="rounded-full border border-cream-200 px-3 py-2 text-xs">{need.slice(0,48)}</button>)}</div>}
+       {agreementNeeds.length>0&&<div className="flex flex-wrap gap-2" aria-label="From your Agreement">{agreementNeeds.slice(0,3).map((need,i)=><button key={i} onClick={()=>{setQuery(need.slice(0,120));}} className="rounded-full border border-cream-200 px-3 py-2 text-xs">{need.slice(0,48)}</button>)}</div>}
        {search.status==='error'&&<Status text={search.error||errorText}/>}
        {search.status==='ready'&&<div className="space-y-2" aria-label="Real Store offers">
         <p className="text-xs text-sand-600">{search.data.length?'Published offers':'No matching published offers found'}</p>
@@ -165,7 +164,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
           <p className="text-xs text-sand-600">{result.displayName}</p>
           <p className="text-xs font-semibold">{price(result.offer.priceMinor,result.offer.currency)}</p>
           <button onClick={()=>void openStore(result.canonicalKsNumber)} className="min-h-9 w-full rounded-lg bg-cream-100 px-2 text-xs">View Store</button>
-          <button onClick={()=>void useOffer(result,'quote')} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs">Ask for quote</button>
+          <button onClick={()=>void inspectOffer(result,'quote')} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs">Ask for quote</button>
         </article>)}</div>
        </div>}
      </>}
