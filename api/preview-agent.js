@@ -9,10 +9,13 @@
  */
 const UPSTREAM = 'https://securepay.ke';
 const MAX_JSON_BYTES = 64 * 1024;
+const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // Bounded multipart envelope (file UI limit 2MB).
 const conversationPath = /^\/api\/agent\/conversations\/([A-Za-z0-9_-]{8,128})\/(turns|context|history|agreement-formation|fair-trade-examination)$/;
 
 function permitted(method, path) {
   if (path === '/api/agent/conversations') return method === 'POST';
+  if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/upload$/.test(path)) return method === 'POST';
+  if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/[A-Za-z0-9_-]{8,128}$/.test(path)) return method === 'GET';
   const match = conversationPath.exec(path);
   if (!match) return false;
   return match[2] === 'turns' ? method === 'POST' : method === 'GET';
@@ -57,7 +60,22 @@ export default async function handler(req, res) {
     if (typeof value === 'string' && value.length <= 8192) headers[upstream] = value;
   }
   let body;
-  if (method === 'POST' && path !== '/api/agent/conversations') {
+  if (method === 'POST' && path.endsWith('/sources/upload')) {
+    const contentType = String(req.headers['content-type'] || '');
+    if (!/^multipart\/form-data;\s*boundary=[A-Za-z0-9'()+_,.\/:=?-]{1,200}$/i.test(contentType)) return reject(res, 415, 'Multipart photo upload required');
+    if (Number(req.headers['content-length'] || 0) > MAX_PHOTO_BYTES) return reject(res, 413, 'Photo upload too large');
+    const chunks = []; let bytes = 0;
+    try {
+      for await (const chunk of req) {
+        bytes += chunk.length;
+        if (bytes > MAX_PHOTO_BYTES) return reject(res, 413, 'Photo upload too large');
+        chunks.push(chunk);
+      }
+    } catch { return reject(res, 400, 'Could not read photo upload'); }
+    if (!bytes) return reject(res, 400, 'Empty upload');
+    body = Buffer.concat(chunks);
+    headers['Content-Type'] = contentType;
+  } else if (method === 'POST' && path !== '/api/agent/conversations') {
     if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || ''))) return reject(res, 415, 'JSON required');
     body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
     if (Buffer.byteLength(body, 'utf8') > MAX_JSON_BYTES) return reject(res, 413, 'Request too large');
