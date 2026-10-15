@@ -58,13 +58,15 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function DreamBuilder({
-  dream, gateway, onBack, onSaveTitle, onExploreKs001,
+  dream, gateway, onBack, onSaveTitle, onExploreKs001, onUnsavedChange,
 }: {
   dream: VisionDreamDto;
   gateway: VisionDreamGateway;
   onBack: () => void;
   onSaveTitle: (title: string, content: string, expectedVersion: number) => Promise<boolean>;
   onExploreKs001?: (draftText: string) => void;
+  /** Workspace navigation guard only; the server revision still owns save truth. */
+  onUnsavedChange?: (unsaved: boolean) => void;
 }) {
   const legacyInitial = useMemo(() => decode(dream.content), [dream.dreamId]);
   const [title, setTitle] = useState(dream.title);
@@ -82,6 +84,22 @@ export function DreamBuilder({
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const drawRef = useRef<{ id: string; before: BoardDoc; points: Array<[number, number]> } | null>(null);
+  const savedBoardSignature = useRef<string | null>(null);
+  const serverRevisionKnown = useRef(false);
+  const currentDirty = savedBoardSignature.current !== null &&
+    (encode(doc) !== savedBoardSignature.current || title !== dream.title ||
+      saveState === 'saving' || saveState === 'error');
+  useEffect(() => {
+    onUnsavedChange?.(currentDirty);
+    return () => onUnsavedChange?.(false);
+  }, [currentDirty, onUnsavedChange]);
+  useEffect(() => {
+    if (!currentDirty) return;
+    const warn=(event: BeforeUnloadEvent)=>{ event.preventDefault(); event.returnValue=''; };
+    window.addEventListener('beforeunload',warn);
+    return ()=>window.removeEventListener('beforeunload',warn);
+  },[currentDirty]);
+
 
   useEffect(() => {
     let live = true;
@@ -89,6 +107,8 @@ export function DreamBuilder({
     void gateway.board(dream.dreamId).then(board => {
       if (!live) return;
       const authoritative = board.revision > 0 ? decode(board.documentJson) : legacyInitial;
+      serverRevisionKnown.current = true;
+      savedBoardSignature.current = encode(authoritative);
       setDoc(authoritative);
       setRevision(board.revision);
       setHistory([]);
@@ -97,9 +117,12 @@ export function DreamBuilder({
       setLocalError(null);
     }).catch(() => {
       if (!live) return;
+      // Never claim a failed board load is an authoritative blank revision.
+      serverRevisionKnown.current = false;
+      savedBoardSignature.current = encode(legacyInitial);
       setDoc(legacyInitial);
       setRevision(0);
-      setSaveState('idle');
+      setSaveState('error');
       setLocalError('Visual board storage is not reachable yet. Your existing Dream is still available; do not rely on this board as saved until SecurePay confirms it.');
     });
     return () => { live = false; };
@@ -221,6 +244,11 @@ export function DreamBuilder({
   };
 
   const save = async () => {
+    if(!serverRevisionKnown.current) {
+      setSaveState('error');
+      setLocalError('This board did not load its current revision. Do not save over an unknown version; reopen the Dream when SecurePay is available.');
+      return;
+    }
     const payload = encode(doc);
     if (bytes(payload) > MAX_BOARD_BYTES) {
       setLocalError('This Dream has grown beyond the current 512 KB board limit. Nothing has been discarded. Remove some board detail before saving.');
@@ -234,6 +262,7 @@ export function DreamBuilder({
         schemaVersion: 1, documentJson: payload, expectedRevision: revision, idempotencyKey: uid(),
       });
       setRevision(saved.revision);
+      savedBoardSignature.current = encode(doc);
       const titleOk = title === dream.title || await onSaveTitle(title, dream.content ?? '', dream.version);
       setSaveState(titleOk ? 'saved' : 'error');
       if (!titleOk) setLocalError('The board saved, but the Dream title did not. Refresh before editing the title again.');

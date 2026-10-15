@@ -987,7 +987,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle, initialCircleId, onEntryHandled }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -1008,6 +1008,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
   onJoinTrustProject: () => void;
   onInvokeKs001InCircle: (circleId: string) => void;
+  initialCircleId?: string | null;
+  onEntryHandled?: () => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
   // Number, or a quick share link (no membership row, no referral, no capacity).
@@ -1020,8 +1022,18 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [reportDetails, setReportDetails] = useState('');
   const [moderationBusy, setModerationBusy] = useState(false);
 
+  const initialEntryId=useRef(initialCircleId??null);
   useEffect(() => {
-    void controller.enter();
+    const circleId=initialEntryId.current;
+    initialEntryId.current=null;
+    void controller.enter().then(() => {
+      if(circleId) {
+        onEntryHandled?.();
+        // Canonical backend get + membership verification; no preview grant.
+        return controller.openCircle(circleId);
+      }
+    });
+    // One-shot structural S2 navigation, never extra Circle authority.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

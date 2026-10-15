@@ -1,0 +1,43 @@
+name: Living Workspace Phase 7 Validation
+
+on:
+  push:
+    branches:
+      - design/living-workspace-vision-circle-20261014
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'src/features/formation/**'
+      - 'src/api/securepay/agent/**'
+      - 'src/RuntimeApp.tsx'
+      - 'api/preview-agent.js'
+      - 'api/preview-workspace.js'
+      - 'src/features/visionboard/dreams/DreamBuilder.tsx'
+      - 'src/features/community/CircleBoard.tsx'
+      - 'tests/living-workspace-phase7.test.mjs'
+      - 'tests/photo-tool-preview.test.mjs'
+      - '.github/workflows/living-workspace-phase7-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Targeted live workspace tests
+        run: npm run test:living-workspace
+      - name: Photo and QR source upload regression
+        run: node --test tests/photo-tool-preview.test.mjs
+      - name: TypeScript correctness
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build

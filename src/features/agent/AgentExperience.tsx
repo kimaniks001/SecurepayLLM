@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -195,6 +195,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   publicShell: PublicShellBridge;
 }) {
   const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalDreamId,setExternalDreamId] = useState(() => consumeDreamEntry());
+  const [externalCircleId,setExternalCircleId] = useState(() => consumeCircleEntry());
   const [externalAgreementId] = useState(() => consumeAgreementEntry());
   const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
   const [controller, setController] = useState(() => createAgentController(gateway, undefined, { timeZone: deviceTimeZone }));
@@ -996,6 +998,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   if (community) {
     return (
       <CommunityExperience
+        initialCircleId={externalCircleId} onEntryHandled={()=>setExternalCircleId(null)}
         gateway={storeGateway}
         communityGateway={communityGateway}
         discoveryGateway={discoveryGateway}
@@ -1067,6 +1070,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   if (visionBoard && sessionState.status === 'signed-in') {
     return (
       <VisionDreamHome
+        initialDreamId={externalDreamId} onEntryHandled={()=>setExternalDreamId(null)}
         controller={visionDreamController}
         gateway={visionDreamGateway}
         handoffError={dreamHandoffError}

@@ -1,3 +1,6 @@
+import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
+import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
+import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -25,6 +28,19 @@ import type { AppView } from './types';
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
+// The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
+let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
+if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+  try { previewAgentGateway = createPreviewAgentGateway(api.baseUrl, session.getAccessToken); }
+  catch { /* An unsupported API origin never falls back to a cross-origin unsafe fetch. */ }
+}
+// Structural workspace: existing SecurePay auth, saved builds, Dreams, Circles and Community
+// are reached through a narrow preview relay. No second identity store or permanent API proxy.
+let previewWorkspaceGateways: ReturnType<typeof createPreviewWorkspaceGateways> | undefined;
+if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+  try { previewWorkspaceGateways = createPreviewWorkspaceGateways(api.baseUrl, session.getAccessToken); }
+  catch { /* Fail closed if the approved upstream cannot be resolved. */ }
+}
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
@@ -303,6 +319,12 @@ function useMoneySessionRoute(): string | null {
 }
 
 export default function RuntimeApp() {
+  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+  useEffect(() => {
+    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+    window.addEventListener('hashchange', syncPreview);
+    return () => window.removeEventListener('hashchange', syncPreview);
+  }, []);
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
   const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
@@ -321,6 +343,7 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
+  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }

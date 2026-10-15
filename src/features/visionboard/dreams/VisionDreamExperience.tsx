@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowRight, Lightbulb, RefreshCw } from 'lucide-react';
 import { Surface, SurfaceBody } from '../../../components/dna/Surface';
 import { Button } from '../../../components/dna/Button';
@@ -7,16 +7,28 @@ import { dreamContinuation, MAX_KS001_DRAFT, type VisionDreamController } from '
 import { DreamBuilder } from './DreamBuilder';
 import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 
-export function VisionDreamExperience({ controller, gateway, onContinue }: {
+export function VisionDreamExperience({ controller, gateway, onContinue, initialDreamId, onEntryHandled }: {
   controller: VisionDreamController;
   gateway: VisionDreamGateway;
   onContinue?: (continuation: ReturnType<typeof dreamContinuation>) => void;
+  initialDreamId?: string | null;
+  onEntryHandled?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [thought, setThought] = useState('');
   const [confirmAbandon, setConfirmAbandon] = useState(false);
 
-  useEffect(() => { void controller.load(); }, [controller]);
+  const entryId = useRef(initialDreamId ?? null);
+  useEffect(() => {
+    const id=entryId.current;
+    entryId.current=null;
+    if (id) {
+      onEntryHandled?.();
+      void controller.openOwnedById(id);
+    } else void controller.load();
+    // One initial ID-only handoff; the owner-scoped controller validates it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controller]);
 
   if (state.selected) {
     return <DreamBuilder

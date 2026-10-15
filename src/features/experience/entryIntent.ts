@@ -39,3 +39,35 @@ export function consumeAgreementEntry(): string | null {
   pendingAgreementId = null;
   return value;
 }
+
+/**
+ * Structural S2: an ID-only, one-shot bridge into the EXISTING authorised
+ * Dream and named-Circle screens. No private title/content/token is stored,
+ * no URL exposes the ID, and the receiving service independently rechecks
+ * ownership / membership. Never infer authority from an entry hint.
+ */
+let pendingDreamId: string | null = null;
+let pendingCircleId: string | null = null;
+
+export function storeDreamEntry(dreamId: string): void {
+  const clean = dreamId.trim();
+  if (!clean) throw new Error('A Dream ID is required');
+  pendingDreamId = clean;
+  pendingView = 'vision-board';
+}
+export function consumeDreamEntry(): string | null {
+  const id = pendingDreamId;
+  pendingDreamId = null;
+  return id;
+}
+export function storeCircleEntry(circleId: string): void {
+  const clean = circleId.trim();
+  if (!clean) throw new Error('A Circle ID is required');
+  pendingCircleId = clean;
+  pendingView = 'community';
+}
+export function consumeCircleEntry(): string | null {
+  const id = pendingCircleId;
+  pendingCircleId = null;
+  return id;
+}
