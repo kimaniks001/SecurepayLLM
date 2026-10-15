@@ -16,6 +16,7 @@ function permitted(method, path) {
   if (path === '/api/agent/conversations') return method === 'POST';
   if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/upload$/.test(path)) return method === 'POST';
   if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/[A-Za-z0-9_-]{8,128}$/.test(path)) return method === 'GET';
+  if (/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/sources\/[A-Za-z0-9_-]{8,128}\/retry$/.test(path)) return method === 'POST';
   const match = conversationPath.exec(path);
   if (!match) return false;
   return match[2] === 'turns' ? method === 'POST' : method === 'GET';
@@ -85,6 +86,8 @@ export default async function handler(req, res) {
     if (input.label) form.append('label',input.label);
     form.append('file',new Blob([bytes],{type:input.mediaType}),input.filename);
     body = form;
+  } else if (method === 'POST' && path.endsWith('/retry')) {
+    if(req.body !== undefined && req.body !== '' && req.body !== null) return reject(res,400,'Retry does not accept a body');
   } else if (method === 'POST' && path !== '/api/agent/conversations') {
     if (!/^application\/json(?:\s*;|$)/i.test(String(req.headers['content-type'] || ''))) return reject(res, 415, 'JSON required');
     body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
