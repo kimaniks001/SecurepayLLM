@@ -454,7 +454,7 @@ test('Structural S4: real Community exposes only ACTIVE-member, Circle-free reco
 test('Structural S5: photo intake stays local in demo and sends through the canonical API on explicit action',()=>{
  const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
  const intake=source('src/features/living-workspace/UniversalSourceTray.tsx');
- assert.ok(app.includes("useState('Photos')"));
+ assert.match(app,/useState(?:<[^>]+>)?\('Photos'\)/);
  assert.ok(app.indexOf("{ name: 'Photos'")<app.indexOf("{ name: 'Documents'"));
  assert.ok(app.includes('onEnsureConversation='));
  assert.ok(intake.includes('data-universal-source-tray'));
