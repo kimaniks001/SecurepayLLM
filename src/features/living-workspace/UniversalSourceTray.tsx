@@ -230,7 +230,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   if(!supported)return null;
   return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'||tool==='Documents'?'space-y-2':'space-y-3'}>
     {tool==='Places'&&<><p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
-    <h3 className="font-semibold text-sm">Add a {tool==='Documents'?'document':'place'}</h3>
+    <h3 className="font-semibold text-sm">Add a place</h3>
     <p className="text-xs text-sand-700">Add once. KS001 reads it and suggests what to do.</p></>}
     {tool==='Places'?<>
       <label className="block text-xs">Place or address
