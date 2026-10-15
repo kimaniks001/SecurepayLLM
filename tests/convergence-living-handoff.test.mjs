@@ -1,0 +1,58 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+
+const src = path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const entry=src('src/features/experience/entryIntent.ts');
+const agent=src('src/features/agent/AgentExperience.tsx');
+const preview=src('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const runtime=src('src/RuntimeApp.tsx');
+
+async function entryModule() {
+  const code=await build({stdin:{contents:"export * from './src/features/experience/entryIntent';",resolveDir:process.cwd()},
+    bundle:true,write:false,format:'cjs',platform:'node'});
+  const m={exports:{}};
+  new Function('require','module','exports',code.outputFiles[0].text)(createRequire(import.meta.url),m,m.exports);
+  return m.exports;
+}
+
+test('one-shot handoffs preserve exact opaque conversation ID and consume at most once',async()=>{
+ const e=await entryModule();
+ assert.throws(()=>e.storeLivingWorkspaceEntry('  '),/conversation is required/);
+ assert.throws(()=>e.storeKs001ConversationReturn('  '),/conversation is required/);
+ e.storeLivingWorkspaceEntry(' conv-a ');
+ assert.equal(e.consumeLivingWorkspaceEntry(),'conv-a');
+ assert.equal(e.consumeLivingWorkspaceEntry(),null);
+ e.storeKs001ConversationReturn(' conv-b ');
+ assert.equal(e.consumeKs001ConversationReturn(),'conv-b');
+ assert.equal(e.consumeKs001ConversationReturn(),null);
+ assert.equal(e.consumeWorkspaceMoneyReturn(),null);
+});
+test('KS001 offers a deliberate handoff only for a settled signed-in server conversation',()=>{
+ assert.match(agent,/signedIn && state\.conversationId && <div[^>]*data-convergence-work-entry/);
+ assert.match(agent,/if \(!signedIn \|\| !state\.conversationId \|\| state\.busy \|\| state\.pending/);
+ assert.match(agent,/sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'checking'/);
+ assert.match(agent,/Send or copy any unfinished message first/);
+ assert.match(agent,/storeLivingWorkspaceEntry\(state\.conversationId\)/);
+ assert.match(agent,/window\.location\.hash = '#\/preview\/living-workspace\/work'/);
+});
+test('Entering and leaving resumes exact server conversation with a fresh controller; rejection is not success',()=>{
+ assert.match(preview,/const fromKs001=consumeLivingWorkspaceEntry\(\)/);
+ assert.match(preview,/const conversationId=moneyHint \? moneyHint\.conversationId : fromKs001/);
+ assert.match(preview,/if\(!signedIn \|\| !liveController\)/);
+ assert.match(preview,/liveController\.resumeConversation\(conversationId\)\.catch/);
+ assert.match(preview,/storeKs001ConversationReturn\(snapshot\.conversationId\)/);
+ assert.match(agent,/const \[externalReturnConversationId\] = useState\(\(\) => consumeKs001ConversationReturn\(\)\)/);
+ assert.match(agent,/if \(!signedIn\) \{/);
+ assert.match(agent,/controller\.resumeConversation\(externalReturnConversationId\)/);
+ assert.match(agent,/Use Saved Work; nothing was changed/);
+ assert.match(preview,/No Agreement was changed/);
+});
+test('A handoff is a hint, never a persistent identifier or backend mutation',()=>{
+ for(const s of [entry,agent,preview]) assert.doesNotMatch(s,/encodeURIComponent\(externalReturnConversationId\)|localStorage\.setItem\(['"]workspace/);
+ assert.doesNotMatch(entry,/window\.location\.hash|fetch\(/);
+ assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
+ assert.match(preview,/if\(!mayLeaveDream\(\)\)return false/);
+});
