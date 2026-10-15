@@ -9,6 +9,7 @@ export type StoreBuyingLine={
  key:string;
  storeName:string;
  storeKsNumber:string|null;
+ originPlace:string|null;
  offerId:string;
  title:string;
  kind:'PRODUCT'|'SERVICE'|'CAPACITY';
@@ -24,16 +25,19 @@ export type StoreBuyingPlanDraft={
  coordination:'separate'|'combined'|'community';
  notes:string;
 };
+export const MAX_STORE_PLAN_LINES=20;
 export const emptyStoreBuyingPlan:StoreBuyingPlanDraft={
  title:'My buying plan',place:'',desiredDate:'',coordination:'separate',notes:'',
 };
 export function addStoreBuyingLine(previous:StoreBuyingLine[],item:Omit<StoreBuyingLine,'quantity'|'specification'>):StoreBuyingLine[]{
  const existing=previous.find(line=>line.key===item.key);
  if(existing)return previous.map(line=>line.key===item.key?{...line,quantity:Math.min(999,line.quantity+1)}:line);
+ if(previous.length>=MAX_STORE_PLAN_LINES)return previous;
  return [...previous,{...item,quantity:1,specification:''}];
 }
 /** Keep the buyer's proposal distinct from Store truth and every seller's acceptance. */
 export function storeBuyingPrompt(lines:StoreBuyingLine[],draft:StoreBuyingPlanDraft,example=false):string{
+ if(lines.length>MAX_STORE_PLAN_LINES)throw new Error('Buying plan exceeds the supported preview size');
  const stores=new Set(lines.map(line=>line.storeKsNumber||line.storeName));
  return [
   'Help me shape ONE coordinated buying plan for '+stores.size+' different Store(s), not an executed purchase.',
@@ -42,10 +46,11 @@ export function storeBuyingPrompt(lines:StoreBuyingLine[],draft:StoreBuyingPlanD
   'Proposed delivery or service location: '+(draft.place.trim().slice(0,160)||'Needs confirming')+'.',
   'Proposed date: '+(draft.desiredDate||'Needs confirming')+'.',
   'Coordination preference: '+draft.coordination+'.',
-  ...lines.slice(0,20).map((line,index)=>[
+  ...lines.map((line,index)=>[
    'Proposed line '+(index+1)+': '+line.title.slice(0,140)+
    ' | Store: '+line.storeName.slice(0,90)+
    ' | Store KS: '+(line.storeKsNumber||'SAMPLE/UNVERIFIED')+
+   ' | Store origin: '+(line.originPlace?.slice(0,90)||'Unverified')+
    ' | Offer ID: '+line.offerId.slice(0,90)+
    ' | Kind: '+line.kind+
    ' | Quantity proposed: '+line.quantity+
@@ -95,7 +100,7 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
       <div className="flex items-start justify-between gap-2">
        <div className="min-w-0">
         <p className="text-sm font-semibold">{line.title}</p>
-        <p className="mt-1 text-xs text-sand-600">{line.storeName} · {line.kind==='CAPACITY'?'Capacity':line.kind==='SERVICE'?'Service':'Product'}</p>
+        <p className="mt-1 text-xs text-sand-600">{line.storeName}{line.originPlace?' · '+line.originPlace:''} · {line.kind==='CAPACITY'?'Capacity':line.kind==='SERVICE'?'Service':'Product'}</p>
         <p className="mt-1 text-xs font-semibold">{line.priceLabel} <span className="font-normal text-sand-600">· indicative, not quoted</span></p>
        </div>
        <button type="button" aria-label={'Remove '+line.title} onClick={()=>onLines(lines.filter(item=>item.key!==line.key))} className="rounded-lg border border-cream-200 p-2"><Trash2 size={15}/></button>
@@ -134,7 +139,7 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
     {editing==='notes'&&<textarea autoFocus rows={2} maxLength={450} aria-label="Other buying plan requirements" value={draft.notes} onChange={e=>patch('notes',e.target.value)} className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>}
    </div>
    <div className="border-t border-cream-200 pt-3">
-    <p className="mb-2 text-xs text-sand-600">One proposed plan · {shops} independent Store{shops===1?'':'s'} must confirm their part. Prices, logistics and savings are not yet agreed.</p>
+    <p className="mb-2 text-xs text-sand-600">One proposed plan · {shops} independent Store{shops===1?'':'s'} must confirm their part. Prices, logistics and savings are not yet agreed. This preview supports up to {MAX_STORE_PLAN_LINES} distinct offers per KS001 handoff.</p>
     <button type="button" disabled={!lines.length||busy} onClick={()=>{if(sample)setPractice(true);onPrepare();}}
      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white disabled:opacity-50">
      {busy?'Working…':sample?'Practice with KS001':'Prepare one plan with KS001'} <ChevronRight size={16}/>
