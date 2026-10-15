@@ -5,6 +5,7 @@ import type { OfferKind, PublicSearchResultView, PublicStoreView, StoreOfferResp
 import type { CurrentUserActionResponse } from '../../api/securepay/agreements/dto';
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import { storeAgreementEntry } from '../experience/entryIntent';
+import { StoreDemoExperience } from './StoreDemoExperience';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -61,6 +62,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
+ const [showSamples,setShowSamples]=useState(true);
 
  async function findOffers(){
   if(!gateways)return;
@@ -157,6 +159,16 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const currentOffer=selectedStore.data;
  const communityReady=area==='community';
  return <section aria-label="Store marketplace and workspace" className="space-y-3 text-sm">
+   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cream-200 bg-white p-2" role="group" aria-label="Choose sample or real Stores">
+     <span className="px-1 text-xs font-medium text-sand-600">Explore Stores</span>
+     <div className="flex gap-1">
+       <button type="button" onClick={()=>setShowSamples(true)} aria-pressed={showSamples}
+         className={showSamples?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>Sample Stores</button>
+       <button type="button" onClick={()=>setShowSamples(false)} aria-pressed={!showSamples}
+         className={!showSamples?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>Real Stores</button>
+     </div>
+   </div>
+   {showSamples?<StoreDemoExperience/>:<>
    <div className="flex items-center justify-between gap-2">
      <div><p className="text-xs text-sand-600">SecurePay Stores</p><p className="text-lg font-semibold">{area==='buyer'?'Discover good work':area==='seller'?'My Store':'Together'}</p></div>
      {area==='seller'&&signedIn&&<button onClick={()=>setRevision(v=>v+1)} aria-label="Refresh my Store" className="rounded-full border border-cream-200 p-2"><RefreshCw size={16}/></button>}
