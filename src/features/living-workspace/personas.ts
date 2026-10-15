@@ -50,6 +50,9 @@ export const KS001_WORKSPACE_PERSONAS: Record<Ks001WorkspaceMode, WorkspacePerso
 export function recommendWorkspaceTool(mode: Ks001WorkspaceMode, text: string): string | null {
   const value = text.toLowerCase();
   const rules: { pattern: RegExp; tool: string }[] = [
+    // Specific practical needs beat generic location or document words.
+    {pattern: /hotel|accommodat|short stay|guesthouse|airbnb|overnight|sleep|book a room|need a room/i,tool:'Quick Assist'},
+    {pattern: /ride|rider|taxi|courier|parcel|transport|deliver|delivery|pickup|drop.off|journey/i,tool:'Quick Assist'},
     {pattern: /invite|participant|member|signator|contractor|collaborat|reviewer|who will|with whom/,tool:'People & Invitations'},
     {pattern: /address|site|location|where|place|pickup|drop.off/,tool:'Places'},
     {pattern: /photo|picture|image|camera/,tool:'Photos'},
