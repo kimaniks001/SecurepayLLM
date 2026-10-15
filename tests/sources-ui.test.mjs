@@ -128,8 +128,8 @@ test('SourceMenu: one quiet "+" control, collapsed by default, with the real pic
 // ---------------------------------------------------------------- SignedOutHome (Section 36/37/39)
 test('SignedOutHome app wrapper carries the Phase 2 task-first headline and supporting text', () => {
   const out = text(html(api.SignedOutHome, { onStart() {} }));
-  assert.match(out, /What do you want to get done\?/);
-  assert.match(out, /Tell KS001 normally/);
+  assert.match(out, /What would you like to get done\?/);
+  assert.match(out, /Start wherever you are/);
   assert.match(out, /Here with you/);
   assert.doesNotMatch(out, /Prepare Agreement|Find People/);
 });
