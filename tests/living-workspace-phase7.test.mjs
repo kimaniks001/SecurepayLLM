@@ -626,7 +626,8 @@ test('Compact Money: one small tool, four human choices, Agreement-first and no 
    'No actual Agreement or payment','Proposed','Explore with KS001']){
   assert.ok(tool.includes(token),token);
  }
- assert.match(tool,/const shown=showMore\?agreements.items:agreements.items.slice\(0,3\)/);
+ assert.match(tool,/const shown=agreements.items.slice\(0,3\)/);
+ assert.doesNotMatch(tool,/setShowMore|Show more Agreements/);
  assert.match(tool,/gateways\.agreements\.currentUserAgreements\(0,12\)/);
  assert.match(tool,/useState\(!signedIn\)/);
  assert.match(tool,/if\(sample\|\|!signedIn\|\|!gateways\)return/);
