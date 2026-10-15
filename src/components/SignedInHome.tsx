@@ -85,7 +85,7 @@ export function SignedInHome({
   ];
 
   return (
-    <div className="sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
+    <div className="sp-brand-home sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
       <div className="mx-auto w-full max-w-6xl px-4 py-4 md:px-8 md:py-8">
         <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
           <div className="relative z-10 max-w-3xl">

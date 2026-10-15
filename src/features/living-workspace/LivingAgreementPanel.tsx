@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SignatureAgreementTitle } from '../brand/SignatureAgreementTitle';
 import { FileText, MapPin, Camera, Users, CheckCircle2, AlertCircle, ListChecks, ShieldCheck, Clock3, Printer } from 'lucide-react';
 
 export type LivingAgreementStage = 'building' | 'review' | 'invited' | 'accepted';
@@ -23,7 +24,7 @@ export function LivingAgreementPanel() {
  const missing = ['Supplier identity and authority','Delivery location','Agreed price and payment terms'];
  const ready = false; // Preview deliberately cannot claim a legally accepted or fundable agreement.
  return <div className="space-y-4" data-living-agreement-preview>
-   <div className="flex items-start justify-between gap-2"><div><p className="text-xs uppercase tracking-wider text-sand-600">Living Agreement</p><h2 className="mt-2 font-display text-xl">Chair delivery</h2></div><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{stage==='building'?'Building':stage==='review'?'Review preview':stage==='invited'?'Invitation preview':'Acceptance preview'}</span></div>
+   <div className="flex items-start justify-between gap-2"><div><p className="text-xs uppercase tracking-wider text-sand-600">Living Agreement</p><h2 className="mt-2 font-display text-xl"><SignatureAgreementTitle title="Chair delivery"/></h2></div><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{stage==='building'?'Building':stage==='review'?'Review preview':stage==='invited'?'Invitation preview':'Acceptance preview'}</span></div>
    <p className="text-xs text-sand-600">A working illustration. Suggested details are not automatically agreed terms.</p>
    <div className="flex flex-wrap gap-1" role="tablist" aria-label="Agreement details">
     {(['facts','sources','milestones','review'] as const).map(id=><button key={id} role="tab" aria-selected={activeSection===id} onClick={()=>setActiveSection(id)} className={`min-h-10 rounded-lg px-3 text-xs ${activeSection===id?'bg-forest-800 text-white':'bg-cream-100'}`}>{id==='facts'?'Summary':id==='sources'?'Sources':id==='milestones'?'Milestones':'Review'}</button>)}

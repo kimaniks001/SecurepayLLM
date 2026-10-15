@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { SignatureAgreementTitle } from '../brand/SignatureAgreementTitle';
 import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
@@ -48,12 +49,12 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
   return <section aria-label="Live forming Agreement" data-live-formation className="space-y-4">
-    <div className="sticky top-0 z-20 flex items-start justify-between gap-3 bg-white pb-2">
-      <div className="min-w-0 flex-1"><p className="text-xs text-sand-600">My Work · Draft</p>
+    <div className="sp-brand-work sticky top-0 z-20 flex items-start justify-between gap-3 bg-white pb-2">
+      <div className="min-w-0 flex-1"><p className="sp-brand-kicker">My Work · Draft</p>
         {editingTitle?<form className="mt-2 flex gap-2" onSubmit={e=>{e.preventDefault();setEditingTitle(false);}}>
           <input autoFocus aria-label="Agreement display title" maxLength={80} value={customTitle} onChange={e=>setCustomTitle(e.target.value)} placeholder={humanTitle(formation?.summary)} className="min-w-0 flex-1 rounded-lg border border-cream-200 px-2 py-2 text-sm"/>
           <button type="submit" className="rounded-full bg-forest-800 px-3 text-sm text-white">Done</button>
-        </form>:<div className="mt-1 flex items-start gap-2"><h2 className="min-w-0 font-display text-xl">{customTitle.trim()||humanTitle(formation?.summary)}</h2>
+        </form>:<div className="mt-1 flex items-start gap-2"><h2 className="min-w-0 font-display text-xl"><SignatureAgreementTitle title={customTitle.trim()||humanTitle(formation?.summary)}/></h2>
           <button type="button" onClick={()=>setEditingTitle(true)} className="shrink-0 rounded-full border border-cream-200 px-2 py-1 text-xs">Edit</button></div>}
         {customTitle&&<p className="text-xs text-sand-600">Display title for this preview only · not saved to the Agreement</p>}
       </div>

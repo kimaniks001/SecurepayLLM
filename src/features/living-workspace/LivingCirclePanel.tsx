@@ -17,7 +17,7 @@ export function LivingCirclePanel(){
  function addProposal(){const text=idea.trim();if(!text)return;setItems(xs=>[...xs,{id:Date.now(),title:text,description:'Idea for group discussion; not an approved decision.',author:'You',votes:[],status:'proposed'}]);setIdea('');setView('proposals');}
  function addMessage(){const text=draft.trim();if(!text)return;setDiscussion(xs=>[...xs,{author:'You',message:text}]);setDraft('');}
  function support(id:number){setItems(xs=>xs.map(x=>x.id!==id?x:{...x,votes:x.votes.includes('You')?x.votes.filter(v=>v!=='You'):[...x.votes,'You']}));}
- return <div className="space-y-4" data-circle-preview>
+ return <div className="sp-brand-circle space-y-4" data-circle-preview>
  <div className="flex items-start justify-between gap-2"><div><p className="text-xs uppercase tracking-wider text-sand-600">Circle · Living Vision</p><h2 className="mt-2 font-display text-xl">Our workshop vision</h2></div><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">Discussing</span></div>
  <p className="text-sm leading-6 text-sand-700">Many voices, one shared space. A suggestion or a show of support is not the Circle's formal decision.</p>
  <div role="tablist" aria-label="Circle sections" className="flex flex-wrap gap-1">{([['vision','Shared Vision'],['proposals','Proposals'],['discussion','Discussion'],['members','People']] as const).map(([id,label])=><button key={id} role="tab" aria-selected={view===id} onClick={()=>setView(id)} className={`min-h-11 rounded-lg px-3 text-xs ${view===id?'bg-forest-800 text-white':'bg-cream-100'}`}>{label}</button>)}</div>

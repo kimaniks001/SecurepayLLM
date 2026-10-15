@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Afacad+Flux:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Afacad+Flux:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&family=Uncial+Antiqua&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -745,5 +745,210 @@
   /* Canonical printed Agreements keep their own sober, predictable lettering. */
   .sp-type-signature [data-agreement-print] {
     font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+
+/* SecurePay Signature / Phase 2
+ * Tokens and scoped styling only. No redefinition of canonical logo artwork,
+ * authority/status state, print layouts, or approved Store gallery components.
+ * Phase 1 is not certified: these visual styles do not convey such a claim.
+ */
+@layer components {
+  .sp-brand-shell,
+  .sp-brand-home,
+  .sp-brand-public {
+    --sp-identity-ink: #244936;
+    --sp-identity-deep: #162d21;
+    --sp-identity-sage: #8bb89b;
+    --sp-identity-paper: #faf7f0;
+    --sp-identity-ember: #ef9537;
+    --sp-identity-rule: rgba(99, 88, 69, 0.16);
+    --sp-area-tint: rgba(93, 148, 117, 0.12);
+    --sp-brand-focus: #2d5c43;
+    color: var(--sp-identity-ink);
+    font-family: 'Afacad Flux', 'Inter', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A signature heading voice, not a chat-app font pasted onto every element. */
+  .sp-brand-shell :is(.font-display, .sp-type-display, .sp-brand-heading),
+  .sp-brand-home :is(.font-display, .sp-display, .sp-brand-heading),
+  .sp-brand-public :is(.font-display, .sp-display, .sp-brand-heading) {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    letter-spacing: -0.037em;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+
+  .sp-brand-home .sp-real-word,
+  .sp-brand-public .sp-real-word {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-style: normal;
+    font-weight: 500;
+  }
+
+  .sp-brand-shell :is(button, input, textarea, select),
+  .sp-brand-home :is(button, input, textarea, select),
+  .sp-brand-public :is(button, input, textarea, select) {
+    font-family: inherit;
+  }
+
+  .sp-brand-shell :is(button, a, input, textarea, select):focus-visible,
+  .sp-brand-home :is(button, a, input, textarea, select):focus-visible,
+  .sp-brand-public :is(button, a, input, textarea, select):focus-visible {
+    outline: 3px solid var(--sp-brand-focus);
+    outline-offset: 3px;
+  }
+
+  .sp-brand-shell {
+    min-width: 0;
+    background: radial-gradient(ellipse 65% 40% at 94% 3%, var(--sp-area-tint), transparent 80%),
+      radial-gradient(ellipse 60% 38% at 3% 95%, rgba(239, 149, 55, 0.045), transparent 75%),
+      var(--sp-identity-paper);
+  }
+
+  .sp-brand-shell[data-sp-area="vision"] { --sp-area-tint: rgba(239, 149, 55, 0.13); }
+  .sp-brand-shell[data-sp-area="circle"] { --sp-area-tint: rgba(139, 184, 155, 0.21); }
+  .sp-brand-shell[data-sp-area="community"] { --sp-area-tint: rgba(205, 191, 153, 0.19); }
+
+  .sp-brand-header {
+    border-bottom: 1px solid var(--sp-identity-rule);
+    background: rgba(253, 252, 248, 0.92);
+    box-shadow: 0 2px 16px -12px rgba(22,45,33,.2);
+  }
+  .sp-brand-nav {
+    border: 1px solid rgba(36,73,54,.09);
+    background: rgba(245,240,228,.8);
+    box-shadow: inset 0 1px 2px rgba(36,73,54,.03);
+  }
+  .sp-brand-nav [aria-current="page"] {
+    background: white;
+    box-shadow: 0 2px 9px rgba(36,73,54,.09);
+  }
+
+  .sp-brand-conversation,
+  .sp-brand-result {
+    min-width: 0;
+    border: 1px solid rgba(36,73,54,.12);
+    border-radius: 20px;
+    background: rgba(255,255,255,.93);
+    box-shadow: 0 8px 26px -23px rgba(22,45,33,.3);
+  }
+
+  .sp-brand-result { background: #fffefa; }
+
+  .sp-brand-kicker {
+    color: #635845;
+    font-size: .73rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  .sp-brand-work {
+    padding: .8rem;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #fdfcf8, rgba(245,240,228,.7));
+    border: 1px solid var(--sp-identity-rule);
+  }
+  .sp-brand-money,
+  .sp-brand-quick-assist,
+  .sp-brand-vision,
+  .sp-brand-circle,
+  .sp-brand-community {
+    border-radius: 18px;
+    border: 1px solid rgba(36,73,54,.10);
+    padding: clamp(.65rem,2vw,1rem);
+    background: rgba(253,252,248,.7);
+  }
+  .sp-brand-money { border-top: 3px solid #244936; }
+  .sp-brand-vision { border-top: 3px solid #ef9537; }
+  .sp-brand-circle { border-top: 3px solid #8bb89b; }
+  .sp-brand-community { border-top: 3px solid #cdbf99; }
+  .sp-brand-quick-assist { border-top: 3px solid #5d9475; }
+
+  .sp-brand-shell .sp-brand-money [data-money-figure],
+  .sp-brand-shell .sp-brand-figure {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-weight: 700;
+    letter-spacing: -.015em;
+  }
+
+  /* Accessible manuscript-inspired initial for significant Agreement titles only.
+     When the dynamic title has no letter prefix, the component renders plain text. */
+  .sp-initial-title {
+    display: inline;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+    line-height: 1.35;
+  }
+  .sp-initial-letter {
+    display: inline-block;
+    color: #244936;
+    font-family: 'Uncial Antiqua', 'Georgia', serif;
+    font-size: 1.25em;
+    font-weight: 400;
+    line-height: .95;
+    margin-right: .015em;
+    vertical-align: -.045em;
+    font-synthesis: none;
+  }
+
+  /* The work panel already has its own established print layout. Do not apply
+     decorative typography when printing a canonical Agreement. */
+  @media print {
+    .sp-brand-shell [data-agreement-print],
+    .sp-brand-home [data-agreement-print] {
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .sp-initial-letter { font-family: Georgia, serif; font-size: 1em; vertical-align: baseline; }
+  }
+
+  @media (max-width: 420px) {
+    .sp-brand-header { padding-inline: .65rem; }
+    .sp-brand-conversation, .sp-brand-result { border-radius: 14px; }
+    .sp-brand-nav { max-width: 100%; overflow-x: auto; }
+    .sp-brand-home .sp-display, .sp-brand-public .sp-display { overflow-wrap: anywhere; }
+    .sp-initial-letter { font-size: 1.14em; }
+  }
+}
+
+/* The Trust Project keeps its own welcoming door; only the signature family
+   resemblance is shared. No Trust Project identity or membership logic changes. */
+@layer components {
+  .sp-brand-trust {
+    font-family: 'Afacad Flux', 'Inter', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .sp-brand-trust .font-display {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    letter-spacing: -.035em;
+    line-height: 1.14;
+    text-wrap: balance;
+  }
+  .sp-brand-trust :is(button, a, input, textarea, select):focus-visible {
+    outline: 3px solid #2d5c43;
+    outline-offset: 3px;
+  }
+
+  .sp-brand-money-home {
+    background: radial-gradient(ellipse at 95% 4%, rgba(139,184,155,.09), transparent 58%),
+      #faf7f0;
+  }
+  .sp-brand-money-home h1 {
+    font-family: 'Bricolage Grotesque', 'Afacad Flux', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -.03em;
+  }
+  .sp-brand-money-home :is(button, input, textarea, select) {
+    font-family: inherit;
   }
 }
