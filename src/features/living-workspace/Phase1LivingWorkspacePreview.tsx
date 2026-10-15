@@ -273,7 +273,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   };
                   closeTool();
                   setLiveStarted(true);
-                  await liveController.send('For source '+source.sourceArtifactId+': '+(instructions[task]??'Help me understand this source.'));
+                  const placeInstructions:Record<string,string>={
+                    location:'Use this supplied place as an unverified location clue for my current Agreement. Ask me to confirm its purpose and precise entrance before relying on it.',
+                    delivery:'Help me specify the delivery destination and entrance for this place. Do not claim it has been verified.',
+                    ask:'Help me understand this place or Plus Code, identify what is missing, and ask one useful question.',
+                  };
+                  await liveController.send('For source '+source.sourceArtifactId+': '+(source.sourceKind==='PLACE'?(placeInstructions[task]??placeInstructions.ask):(instructions[task]??'Help me understand this source.')));
                 }}/>
                 : activeTool==='Quick Support'?<QuickSupportPanel/>
                 : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
