@@ -260,6 +260,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     find:'Help me describe the items in this photo and determine useful Store or supplier search criteria. Do not invent available suppliers.',
                     vision:'Help me use this photo as inspiration for my Vision, without claiming it is saved to a Vision Board yet.',
                     qr:'Help me interpret the QR code I reviewed. Do not open links, accept an Agreement or initiate payment automatically.',
+                    ask:'Please help me understand this photo and suggest the one most useful next step.',
+                    correct:'That interpretation is not right. Please help me correct what the photo shows before doing anything else.',
                   };
                   closeTool();
                   setLiveStarted(true);
