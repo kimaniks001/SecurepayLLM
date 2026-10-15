@@ -6,6 +6,7 @@ on:
       - 'src/features/living-workspace/**'
       - 'src/index.css'
       - 'tests/securepay-brand-typography.test.mjs'
+      - 'tests/agreement-edit-context-add.test.mjs'
       - 'tests/living-workspace-phase7.test.mjs'
       - 'tests/quick-assist-first-use.test.mjs'
       - 'tests/launch-tools-cleanup.test.mjs'
@@ -36,7 +37,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Launch tool and Quick Assist contracts
-        run: node --test tests/launch-tools-cleanup.test.mjs tests/quick-assist-first-use.test.mjs tests/securepay-brand-typography.test.mjs
+        run: node --test tests/launch-tools-cleanup.test.mjs tests/quick-assist-first-use.test.mjs tests/securepay-brand-typography.test.mjs tests/agreement-edit-context-add.test.mjs
       - name: Typecheck
         run: npm run typecheck
       - name: Lint errors

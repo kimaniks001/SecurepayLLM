@@ -3,7 +3,7 @@ import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
 import { compactAgreementFacts, livingFactStatus, humanNextQuestion } from './livingLanguage';
-import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, Plus } from 'lucide-react';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   if (terms.length===0) return null;
@@ -25,12 +25,13 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, examination }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, examination }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
   onCorrectFact: (label:string, previous:string, replacement:string)=>Promise<void>;
+  onAddToFact: (label:string)=>void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
   const [expanded,setExpanded]=useState(false);
@@ -85,8 +86,15 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
                 }}>
                   <textarea aria-label={'Correct '+item.label} rows={2} maxLength={600} value={factDraft} onChange={e=>setFactDraft(e.target.value)}
                     className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>
-                  <div className="flex gap-2"><button type="submit" disabled={factSending||busy||!factDraft.trim()||factDraft.trim()===item.value} className="rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Sending…':'Send correction'}</button>
-                    <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)} className="rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button></div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" disabled={factSending||busy} onClick={()=>onAddToFact(item.label)}
+                      aria-label={'Add photo, document, place or KS Number to '+item.label}
+                      className="inline-flex min-h-11 items-center gap-1 rounded-full border border-cream-200 bg-white px-3 text-xs font-semibold disabled:opacity-40">
+                      <Plus size={15} aria-hidden="true"/> Add
+                    </button>
+                    <button type="submit" disabled={factSending||busy||!factDraft.trim()||factDraft.trim()===item.value} className="min-h-11 rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Sending…':'Send correction'}</button>
+                    <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)} className="min-h-11 rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button></div>
+                  <p className="text-xs leading-5 text-sand-600">Use Add to support this detail with a source. Your written correction stays here until you send it.</p>
                   {factError&&<p role="alert" className="text-xs text-amber-900">{factError}</p>}
                 </form>:<div className="flex items-start justify-between gap-1">
                   <div><span title={item.reason||undefined}>{item.value}</span>
