@@ -286,6 +286,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   await liveController.send('For source '+source.sourceArtifactId+': '+(source.sourceKind==='PLACE'?(placeInstructions[task]??placeInstructions.ask):(instructions[task]??'Help me understand this source.')));
                 }}/>
                 : activeTool==='People & Invitations'?<PeopleInvitationsTool
+                    onCheckKs={gateway?async ksNumber=>{
+                      const id=liveConversationId??await ensureLiveConversation();
+                      return gateway.selectKsIdentity(id,{ksNumber});
+                    }:undefined}
                     agreementPeople={formationState?.data?.conversationId===liveConversationId?formationState.data.who.map(p=>p.name):[]}
                     onPrepare={async text=>{
                       if(!liveController)throw new Error('KS001 unavailable');
