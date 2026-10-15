@@ -241,7 +241,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
               {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                ? <UniversalSourceTray agreementPlaces={formationState?.data?.conversationId===liveConversationId
+                  ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
+                      .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
+                      .map(term=>term.value).slice(0,6)
+                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
                   if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
                   await ensureFreshSession(session,workspaceGateways.auth);
                   if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
