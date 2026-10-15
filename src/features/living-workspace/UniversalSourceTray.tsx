@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 import type { AgentGateway } from '../../api/securepay/agent';
+import type { AgentSourceArtifactDto } from '../../api/securepay/agent/dto';
 import jsQR from 'jsqr';
 
 type Intake='Photos'|'Documents'|'Places';
@@ -41,8 +42,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
   const pendingFile=useRef<File|null>(null);
   const [uploadState,setUploadState]=useState<'idle'|'uploading'|'confirmed'|'unknown'|'error'>('idle');
   const [uploadMessage,setUploadMessage]=useState('');
+  const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);setLocationChoice('unset');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
@@ -99,11 +101,30 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
     if(!gateway || !conversationId || isDemo || !pendingFile.current || uploadState==='uploading')return;
     setUploadState('uploading');setUploadMessage('SecurePay is receiving the photo…');
     try{
-      const result=await gateway.uploadSource(conversationId,'PHOTO',pendingFile.current,
+      let source=await gateway.uploadSource(conversationId,'PHOTO',pendingFile.current,
         [caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · ')||undefined);
-      if(!result.sourceArtifactId)throw new Error('No source reference returned');
+      if(!source.sourceArtifactId || source.conversationId!==conversationId)
+        throw new Error('Unrecognised source receipt');
+      setServerSource(source);
+      // Authoritative results only. The backend may still be processing when the upload responds.
+      if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
+        setUploadMessage('SecurePay received the photo and is reading it…');
+        for(let attempt=0;attempt<3;attempt++){
+          await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
+          try{
+            const latest=await gateway.getSource(conversationId,source.sourceArtifactId);
+            if(latest.sourceArtifactId!==source.sourceArtifactId || latest.conversationId!==conversationId)break;
+            source=latest;setServerSource(source);
+            if(!['RECEIVED','PROCESSING'].includes(source.extractionStatus))break;
+          }catch{break;}
+        }
+      }
       setUploadState('confirmed');
-      setUploadMessage('SecurePay received the photo (source '+result.sourceArtifactId+'). Processing status: '+result.extractionStatus+'. Review the KS001 source record before relying on extracted facts.');
+      if(source.extractionStatus==='READY'||source.extractionStatus==='PARTIAL')
+        setUploadMessage('Photo processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
+      else if(source.extractionStatus==='FAILED')
+        setUploadMessage('SecurePay received the photo but could not process it. Keep the original and try a clearer image.');
+      else setUploadMessage('Photo received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review its source status.');
     }catch{
       setUploadState('unknown');
       setUploadMessage('SecurePay could not confirm this upload. It may still be processing. Check this conversation’s sources before retrying to avoid duplicates.');
@@ -187,6 +208,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId}:{t
       {gateway&&conversationId?<button type="button" disabled={uploadState==='uploading'||uploadState==='confirmed'} onClick={()=>void uploadToKs001()} className="min-h-11 w-full rounded-xl border border-forest-800 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-40">Send photo to KS001</button>
         :<p className="rounded-lg bg-cream-100 p-3 text-xs">Start a live KS001 conversation in My Work before sending the photo for understanding. Local preview remains available now.</p>}
       {uploadMessage&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-xs">{uploadMessage}</p>}
+      {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
+        <p className="text-sm font-semibold">SecurePay source · {serverSource.extractionStatus}</p>
+        <p className="text-xs text-sand-600">Reference: {serverSource.sourceArtifactId}</p>
+        {serverSource.summary&&<p className="whitespace-pre-wrap text-sm">{serverSource.summary}</p>}
+        {serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
+        {serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
+        <p className="text-xs text-sand-600">A source is not an accepted Agreement, verified receipt or authority to move money.</p>
+      </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
     {tool==='Places'&&<button type="button" disabled={!label.trim()} onClick={addPlace}
