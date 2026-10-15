@@ -3,6 +3,7 @@ import { Camera, FileText, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgentSourceArtifactDto } from '../../api/securepay/agent/dto';
 import jsQR from 'jsqr';
+import { isOutcomeUnknown, sourceIngestionErrorText } from '../sources/controller';
 
 type Intake='Photos'|'Documents'|'Places';
 type LocalSource={id:number;kind:Intake;filename:string;label:string;mime:string|null;size:number|null;thumbnail:string|null};
@@ -129,9 +130,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       else if(source.extractionStatus==='FAILED')
         setUploadMessage('SecurePay received the photo but could not process it. Keep the original and try a clearer image.');
       else setUploadMessage('Photo received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review its source status.');
-    }catch{
-      setUploadState('unknown');
-      setUploadMessage('SecurePay could not confirm this upload. It may still be processing. Check this conversation’s sources before retrying to avoid duplicates.');
+    }catch(error){
+      if(isOutcomeUnknown(error)){
+        setUploadState('unknown');
+        setUploadMessage('SecurePay could not confirm this upload. It may still be processing. Check this conversation’s sources before retrying to avoid duplicates.');
+      }else{
+        setUploadState('error');
+        setUploadMessage(sourceIngestionErrorText(error));
+      }
     }
   }
 
