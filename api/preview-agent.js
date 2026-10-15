@@ -67,8 +67,8 @@ export default async function handler(req, res) {
     let input;
     try { input = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
     catch { return reject(res, 400, 'Invalid photo payload'); }
-    if (!input || input.sourceKind !== 'PHOTO'
-        || !['image/jpeg','image/png'].includes(input.mediaType)
+    if (!input || !['PHOTO','DOCUMENT'].includes(input.sourceKind)
+        || !(input.sourceKind==='PHOTO' ? ['image/jpeg','image/png'] : ['application/pdf','text/plain','text/csv','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']).includes(input.mediaType)
         || typeof input.filename !== 'string' || input.filename.length > 180
         || /[\\/\x00-\x1f]/.test(input.filename)
         || typeof input.dataBase64 !== 'string' || input.dataBase64.length > MAX_PHOTO_BYTES * 1.4
@@ -79,10 +79,13 @@ export default async function handler(req, res) {
     if (!bytes.length || bytes.length > 2_000_000) return reject(res, 413, 'Photo too large');
     const validJpeg = bytes[0]===0xff && bytes[1]===0xd8 && bytes[2]===0xff;
     const validPng = bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
-    if ((input.mediaType==='image/jpeg'&&!validJpeg)||(input.mediaType==='image/png'&&!validPng))
+    const validPdf=bytes.subarray(0,5).toString('ascii')==='%PDF-';
+    const validZip=bytes.subarray(0,2).toString('ascii')==='PK';
+    const validDocument=input.sourceKind==='DOCUMENT' && (input.mediaType==='application/pdf'?validPdf : input.mediaType==='text/plain'||input.mediaType==='text/csv'?true:validZip);
+    if (!(input.sourceKind==='PHOTO'?(input.mediaType==='image/jpeg'?validJpeg:validPng):validDocument))
       return reject(res, 415, 'Photo format mismatch');
     const form = new FormData();
-    form.append('sourceKind','PHOTO');
+    form.append('sourceKind',input.sourceKind);
     if (input.label) form.append('label',input.label);
     form.append('file',new Blob([bytes],{type:input.mediaType}),input.filename);
     body = form;
