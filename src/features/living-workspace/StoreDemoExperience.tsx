@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, Camera, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
  * Preview-only sample Stores. Illustrative names, images, offers, prices and people.
