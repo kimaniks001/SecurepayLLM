@@ -22,8 +22,9 @@ export { meansNoAgreementChange } from './src/features/formation/AgreementReview
 
 test('Phase 6 contract 01 — cold start has one obvious natural-language entry', async () => {
   const home = await read('src/components/SignedOutHome.tsx');
-  assert.match(home, /What do you want to get done\?/);
-  assert.match(home, /Tell KS001 normally/);
+  assert.match(home, /What would you like to/);
+  assert.match(home, /Tell me in your own words/);
+  assert.match(home, /Start without a KS Number/);
   assert.match(home, /Tell KS001 what you want to get done/);
   assert.doesNotMatch(home, /Start with KS001/);
 });
