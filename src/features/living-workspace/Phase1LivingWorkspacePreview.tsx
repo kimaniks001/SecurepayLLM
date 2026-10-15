@@ -19,7 +19,7 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry } from '../experience/entryIntent';
+import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn } from '../experience/entryIntent';
 import { LivingCommunityPanel } from './LivingCommunityPanel';
 import { LivingCirclePanel } from './LivingCirclePanel';
 import { LivingVisionPanel } from './LivingVisionPanel';
@@ -114,6 +114,19 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // One authoritative conversation is shared by the chat and the Living Result.
   // Never create a second conversation for My Work, and never derive terms from chat text.
   const [liveController] = useState(() => gateway ? createAgentController(gateway, undefined, { timeZone: deviceTimeZone }) : null);
+  const [returnError,setReturnError] = useState<string|null>(null);
+  useEffect(()=>{
+    const hint=consumeWorkspaceMoneyReturn();
+    if(!hint)return;
+    if(!liveController){setReturnError('Your previous conversation is not accessible here. Sign in and open it from Saved Work.');return;}
+    if(!hint.conversationId)return;
+    let active=true;
+    setLiveStarted(true);setLiveWork(true);
+    void liveController.resumeConversation(hint.conversationId).catch(()=>{
+      if(active)setReturnError('SecurePay could not reopen your previous conversation. Open it from Saved Work; no new Agreement was created.');
+    });
+    return()=>{active=false;};
+  },[liveController]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
@@ -166,13 +179,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
+  const [storeQuickAssistNeed, setStoreQuickAssistNeed] = useState('');
   // A source added while editing a fact must retain the originating conversation.
   // This hint changes only the explicit KS001 request, never Agreement authority.
   const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
     if (name === 'Quick Assist') setQuickAssistSeed(request);
-    if (name === 'Stores') setStoreServiceQuery('');
+    if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
   }
@@ -340,7 +354,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
-                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined}
+                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -354,9 +368,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     }}/>
                 : activeTool==='Money'?<UnifiedMoneyTool
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
-                    onOpenMoney={()=>{closeTool();window.location.hash='#/money';}}
+                    onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
                     onOpenAgreementMoney={(agreement,railCode)=>{
                       if(railCode)setMoneyRailPreference({agreementId:agreement.agreementId,railCode});
+                      storeWorkspaceMoneyReturn(liveConversationId);
                       closeTool();
                       openMoneyFor({agreementId:agreement.agreementId,title:agreement.title,
                         versionLabel:null,currentVersionId:agreement.currentAgreementVersionId});
@@ -375,7 +390,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     }}/>
                 : activeTool==='Quick Assist'?<QuickSupportPanel
                     collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
-                    onFindStoreOffers={service=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setActiveTool('Stores');setToolSelected(true);}}
+                    onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
                     onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
@@ -432,6 +447,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </aside>
       </>}
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
+      {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}

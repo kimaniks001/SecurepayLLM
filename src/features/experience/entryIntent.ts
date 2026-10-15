@@ -71,3 +71,16 @@ export function consumeCircleEntry(): string | null {
   pendingCircleId = null;
   return id;
 }
+
+/** One-shot tab-memory-only return from SecurePay Money to the Living Workspace.
+ * Only the server conversation ID is kept, never in URL or persistent storage.
+ * Re-entry must re-authorise with the real KS001 controller. */
+let workspaceMoneyReturn: {conversationId:string|null} | null = null;
+export function storeWorkspaceMoneyReturn(conversationId:string|null):void {
+  workspaceMoneyReturn={conversationId:conversationId?.trim() || null};
+}
+export function hasWorkspaceMoneyReturn():boolean { return workspaceMoneyReturn!==null; }
+export function consumeWorkspaceMoneyReturn():{conversationId:string|null}|null {
+  const hint=workspaceMoneyReturn;workspaceMoneyReturn=null;return hint;
+}
+export function clearWorkspaceMoneyReturn():void { workspaceMoneyReturn=null; }

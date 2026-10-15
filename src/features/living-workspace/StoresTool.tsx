@@ -40,7 +40,7 @@ function OfferPhoto({refs,title}:{refs:string[];title:string}){
 }
 function Status({text}:{text:string}){return <p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">{text}</p>;}
 
-export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string}){
+export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery,initialQuickAssistNeed}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string;initialQuickAssistNeed?:string}){
  const [area,setArea]=useState<Area>('buyer');
  const [kind,setKind]=useState<OfferKind>(initialServiceQuery ? 'SERVICE' : 'PRODUCT');
  const [query,setQuery]=useState(initialServiceQuery || '');
@@ -129,6 +129,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
    const offer=record.offer;
    const information=[
     'I selected this real SecurePay Store '+offer.kind.toLowerCase()+' to work on with KS001.',
+    initialQuickAssistNeed?'My original Quick Assist request (supplied by me and shared with KS001 only after choosing this offer): '+initialQuickAssistNeed.slice(0,800)+'.':'',
     'Source Store KS Number: '+record.canonicalKsNumber+'.',
     'Source Offer ID: '+offer.id+'.',
     'Store: '+record.displayName.slice(0,100)+'.',
@@ -230,7 +231,11 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        <label className="block text-xs">Where? (optional)
         <input value={location} onChange={e=>setLocation(e.target.value)} maxLength={120} placeholder="Place or service area" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
        </label>
-       {initialServiceQuery && <p className="text-xs text-sand-600">From Quick Assist: search published Store service offers. The listing is not a booking or an accepted Quick Contract.</p>}
+       {initialServiceQuery && <div className="rounded-xl bg-cream-50 p-3 text-xs text-sand-700">
+          <p className="font-semibold">Continuing from Quick Assist</p>
+          {initialQuickAssistNeed&&<p className="mt-1 whitespace-pre-wrap">Your request: {initialQuickAssistNeed}</p>}
+          <p className="mt-1">Only service category/location filters go to Store search. Your full request is not given to any seller; it is included only if you explicitly bring a selected offer to KS001. A listing is not a booking.</p>
+        </div>}
        <button onClick={()=>void findOffers()} disabled={!gateways||search.status==='loading'} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white disabled:opacity-50"><Search size={16}/> {search.status==='loading'?'Looking…':'Find real offers'}</button>
        {agreementNeeds.length>0&&<div className="flex flex-wrap gap-2" aria-label="From your Agreement">{agreementNeeds.slice(0,3).map((need,i)=><button key={i} onClick={()=>{setQuery(need.slice(0,120));}} className="rounded-full border border-cream-200 px-3 py-2 text-xs">{need.slice(0,48)}</button>)}</div>}
        {search.status==='error'&&<Status text={search.error||errorText}/>}
