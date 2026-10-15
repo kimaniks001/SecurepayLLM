@@ -304,5 +304,6 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
    {notice&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-xs">{notice}</p>}
    {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{error}</p>}
    <p className="text-xs text-sand-600">{area==='buyer'?'Only real SecurePay listings are shown. Looking is not buying or agreeing.':area==='seller'?'Your private decisions and drafts are never shown on the public Store.':'Community access follows membership, consent and privacy. A Saver requires a Plug.'}</p>
+ </>}
  </section>;
 }
