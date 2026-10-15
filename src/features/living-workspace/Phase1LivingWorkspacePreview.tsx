@@ -152,14 +152,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [screen, setScreen] = useState<Screen>('chat');
   const [toolsOpen, setToolsOpen] = useState(false);
   const [activeTool, setActiveTool] = useState('Photos');
+  const [toolSelected, setToolSelected] = useState(false);
   const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
   const [messages, setMessages] = useState<Record<Mode, string[]>>({ work:[], vision:[], circle:[], community:[] });
   const current = scenarios[mode];
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [suggestedTool, setSuggestedTool] = useState<string | null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
-  function openTool(name: string) { setActiveTool(name); setToolsOpen(true); setScreen('tools'); }
-  function closeTool() { setToolsOpen(false); setScreen('chat'); }
+  function openTool(name: string) { setActiveTool(name); setToolSelected(true); setToolsOpen(true); setScreen('tools'); }
+  function closeTool() { setToolsOpen(false); setToolSelected(false); setScreen('chat'); }
   function send() {
     const value = drafts[mode].trim();
     if (!value) return;
@@ -214,12 +215,24 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] gap-3 px-3 py-3 sm:px-5 sm:py-5">
-      {toolsOpen && <aside aria-label="Contextual tools" className={`${screen==='tools'?'flex':'hidden'} w-full shrink-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex md:w-[225px] xl:w-[250px]`}>
-        <div className="flex items-center justify-between border-b border-cream-100 p-4"><strong>Tools</strong><button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button></div>
-        <div className="max-h-[65vh] overflow-auto p-3">{tools.map(t=><button key={t.name} onClick={()=>setActiveTool(t.name)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-xs ${activeTool===t.name?'bg-forest-50 font-semibold':'hover:bg-cream-100'}`}><t.icon size={17}/>{t.name}</button>)}</div>
-        {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
-          ? <div className="m-3 rounded-xl bg-cream-100 p-3"><UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn}/></div>
-          : activeTool==='Quick Support'?<div className="m-3 rounded-xl bg-cream-100 p-4"><QuickSupportPanel/></div>:<div className="m-3 rounded-xl bg-cream-100 p-4 text-sm"><strong>{tool.name}</strong><p className="mt-2 text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Phase 6 preview: no external action or private data sharing is performed here.</p></div>}
+      {toolsOpen && <aside aria-label="Contextual tools" className={`${screen==='tools'?'flex':'hidden'} w-full min-w-0 shrink-0 flex-col rounded-2xl border border-cream-200 bg-white md:flex ${toolSelected?'md:w-[420px] xl:w-[500px]':'md:w-[225px] xl:w-[250px]'}`}>
+        <div className="flex items-center justify-between gap-2 border-b border-cream-100 p-4">
+          {toolSelected
+            ? <button type="button" onClick={()=>setToolSelected(false)} aria-label="Back to tools" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold hover:bg-cream-100"><ArrowLeft size={18}/> Back to tools</button>
+            : <strong>Tools</strong>}
+          <button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button>
+        </div>
+        {toolSelected
+          ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
+              <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
+              {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
+                ? <UniversalSourceTray tool={activeTool} area={mode} isDemo={mockSignedIn}/>
+                : activeTool==='Quick Support'?<QuickSupportPanel/>
+                : <div className="rounded-xl bg-cream-100 p-4 text-sm"><p className="text-sand-700">{tool.description}</p><p className="mt-3 text-xs text-sand-600">Preview only: no external action or private data sharing is performed here.</p></div>}
+            </div>
+          : <nav aria-label="Choose a tool" className="max-h-[75vh] overflow-auto p-3">
+              {tools.map(t=><button key={t.name} onClick={()=>{setActiveTool(t.name);setToolSelected(true);}} className="flex min-h-11 w-full items-center gap-2 rounded-xl p-3 text-left text-sm hover:bg-cream-100"><t.icon size={18}/>{t.name}</button>)}
+            </nav>}
       </aside>}
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'?'flex':'hidden'} min-h-[72vh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex`}>
