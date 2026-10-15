@@ -251,12 +251,11 @@ test('PublicNav: Sign in is secondary and Join is primary, on desktop and mobile
 
 test('the public Home Join chapter is live, truthful and offers no Business or Organization Join', () => {
   const home = text(html(api.PublicHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop, onFocusComposer: noop, onBrowseStores: noop, onSignIn: noop, onRecover: noop, onHelp: noop, onSection: noop, onJoin: noop }));
-  assert.match(home, /Join The Trust Project/);
-  assert.match(home, /People and businesses can belong\. One KS Number for SecurePay and The Trust Project\./);
-  assert.match(home, /You never have to invite, teach or sell\./);
-  assert.match(home, /Joining doesn’t turn on payments, fees, bank accounts or subscriptions\./);
-  assert.match(home, /I already have a KS Number/);
-  assert.match(home, /What do you want to make real today\?/);
+  assert.match(home, /Join the Trust Project/);
+  assert.match(home, /Membership is a deliberate choice/);
+  assert.match(home, /signing in alone never joins the community/);
+  assert.match(home, /Start without a KS Number/);
+  assert.match(home, /What would you like to get done\?/);
   assert.doesNotMatch(home, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)|coming soon|opens soon/i);
 });
 
