@@ -67,7 +67,7 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
         <button type="button" onClick={()=>void checkKs()} disabled={!onCheckKs||ksBusy||!ks.trim()} className="rounded-full border border-cream-200 bg-white px-3 text-xs disabled:opacity-40">{ksBusy?'Checking…':'Check status'}</button>
       </div>
       {identity&&<div role="status" className="text-xs">
-        <p className="font-semibold">{identity.status==='RESOLVED'?'KS identity found':identity.status==='NOT_PARTICIPANT_ELIGIBLE'?'Not eligible as an Agreement participant':identity.status==='NOT_FOUND'?'KS Number not found':'Status: '+identity.status.replaceAll('_',' ').toLowerCase()}</p>
+        <p className="font-semibold">{identity.status==='RESOLVED'?'KS identity found':identity.status==='NOT_PARTICIPANT_ELIGIBLE'?'Not eligible as an Agreement participant':identity.status==='NOT_FOUND'?'KS Number not found':'Status: '+identity.status.replace(/_/g,' ').toLowerCase()}</p>
         {identity.status==='RESOLVED'&&<p>{identity.displayName||'Name not provided'} · {identity.canonicalKsNumber||ks} · Lookup only</p>}
         <p>Checking does not add this person or confirm their acceptance.</p>
         {identity.status==='RESOLVED'&&<button type="button" onClick={()=>setPeople(current=>[current,identity.displayName||identity.canonicalKsNumber||ks].filter(Boolean).join('\n'))}
