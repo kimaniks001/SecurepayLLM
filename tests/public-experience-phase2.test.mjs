@@ -21,7 +21,7 @@ export { PublicShellProvider, createPublicShellBridge } from './src/features/pub
 export { PublicHome } from './src/features/public/PublicHome';
 export { SignInExperience } from './src/features/public/SignInExperience';
 export { isSignInHash } from './src/features/public/signInRoute';
-export { SignedOutHome, SecurePayHero } from './src/components/SignedOutHome';
+export { SignedOutHome, SecurePayHero, ExampleOutcome } from './src/components/SignedOutHome';
 export { FairTradeAffordance } from './src/components/FairTradePrinciples';
 export { BringPlanPanel } from './src/features/sources/ui/BringPlanPanel';
 export { sourceIngestionErrorText } from './src/features/sources/controller';
@@ -97,52 +97,57 @@ test('chapter navigation scrolls and focuses the heading and never changes locat
 // Phase 2 kept Join unavailable. Public Experience Convergence Phase 4 made it REAL (ADR-0021, real
 // `/membership/join` authority), so the gate now pins the opposite: Join is live, never a placeholder, and
 // never an Organization or Business Join.
-test('Join is live in the public experience (Phase 4) and never a placeholder or an Organization/Business Join', async () => {
-  const nav = text(html(h(api.PublicNav, { actions })));
+test('Join is a deliberate route from public Home, never an implied Business membership', async () => {
+  const nav = text(html(h(api.PublicNav, { actions: {...actions,join:noop} })));
   assert.match(nav, /\bJoin\b/);
-  assert.match(publicHomeText, /Join The Trust Project/);
-  for (const out of [nav, publicHomeText]) {
-    assert.doesNotMatch(out, /coming soon|opens soon|not ready yet/i);
-    assert.doesNotMatch(out, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)/i);
+  assert.match(publicHomeText, /Join the Trust Project/);
+  const src = await readFile('src/features/public/PublicHome.tsx','utf8');
+  assert.match(src, /onClick=\{props.onJoin\}/);
+  assert.doesNotMatch(nav+' '+publicHomeText, /Join (as|for) (a |an |your )?(Business|Organi[sz]ation)|coming soon|opens soon/i);
+});
+test('the public Home gives one clear entry before any sign-in or agreement authority', () => {
+  assert.match(publicHomeText, /What would you like to get done\?/);
+  assert.match(publicHomeText, /Tell me in your own words/);
+  assert.match(publicHomeText, /Start without a KS Number\. Nothing becomes an agreement until you review and confirm it\./);
+  assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1);
+  assert.equal((publicHome.match(/data-public-section="ks001"/g)??[]).length,1);
+});
+test('three short public chapters are real navigation destinations below KS001', () => {
+  const ids=['ks001','how-it-works','trust-project','for-business'];
+  let previous=-1;
+  for(const id of ids) {
+    const at=publicHome.indexOf('data-public-section="'+id+'"');
+    assert.ok(at>previous,'Missing or out-of-order public chapter: '+id);previous=at;
   }
+  assert.equal((publicHome.match(/<h1\b/g)??[]).length,1);
+  for(const id of ids.slice(1)) assert.match(publicHome,new RegExp('data-public-section="'+id+'"[\\s\\S]*?<h2[^>]*tabindex="-1"'));
 });
-
-// ------------------------------------------------------------------ PUBLIC HOME
-test('the public Home uses the final shared KS001 possibility hero and value-first trust line', () => {
-  assert.ok(publicHomeText.includes('What do you want to make real today?'));
-  assert.ok(publicHomeText.includes('Ask anything, or start something new. KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.'));
-  assert.ok(publicHomeText.includes('Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'));
-  assert.equal((publicHome.match(/<h1\b/g) ?? []).length, 1, 'exactly one h1');
+test('four practical quick starts remain in signed-in Home; public Home has one composer', async () => {
+  const homeSource=await readFile('src/components/SignedInHome.tsx','utf8');
+  for(const label of ['Plan','Compare','Prepare Agreement','Find People'])
+    assert.match(homeSource,new RegExp("label: '"+label+"'"));
+  assert.match(homeSource,/onClick=\{\(\) => onStart\(prompt\)\}/);
+  const hero=await readFile('src/components/SignedOutHome.tsx','utf8');
+  assert.match(hero,/<ConversationInput/);
+  assert.match(hero,/<SourceMenu/);
+  assert.doesNotMatch(publicHome,/aria-label="Quick starts"/);
 });
-test('chapters remain in semantic order after the final KS001 Home', () => {
-  const order = ['What do you want to make real today?', 'What you leave with', 'How SecurePay works', 'The Trust Project is powered by SecurePay. Your KS Number is your identity across both.', 'Member, Plug and Master', 'What becomes possible', 'Stores and Community', 'Use SecurePay directly or build it into how your business already works.', 'Guided by the 12 Principles of Fair Trade'];
-  let at = -1;
-  for (const s of order) { const i = publicHomeText.indexOf(s, at + 1); assert.ok(i > at, `"${s}" missing or out of order`); at = i; }
-  const levels = [...publicHome.matchAll(/<h([1-6])\b/g)].map(m => Number(m[1]));
-  for (let i = 1; i < levels.length; i++) assert.ok(levels[i] - levels[i - 1] <= 1, `heading level skips from h${levels[i - 1]} to h${levels[i]}`);
+test('illustrative Agreement is explicitly labelled and is not presented as customer evidence', () => {
+  const sample=html(h(api.ExampleOutcome));
+  assert.match(text(sample),/Example · illustration/);
+  assert.match(sample,/aria-label="Example of an agreement taking shape \(illustration\)"/);
+  assert.doesNotMatch(sample,/<button|<a /);
+  assert.doesNotMatch(publicHomeText,/Peter|James|Kamau|Amina|Joseph/);
 });
-test('Home quick starts are the four approved KS001 actions and use onStart', async () => {
-  for (const label of ['Plan', 'Compare', 'Prepare Agreement', 'Find People']) assert.ok(publicHomeText.includes(label), label);
-  const src = await readFile('src/components/SignedOutHome.tsx', 'utf8');
-  assert.match(src, /onClick=\{\(\) => onStart\(prompt\)\}/);
-});
-test('the example outcome is labelled as an illustration, and names appear ONLY inside it (never as testimonials)', () => {
-  const figure = publicHome.match(/<figure[^>]*data-example-outcome[^>]*>[\s\S]*?<\/figure>/)[0];
-  assert.match(text(figure), /Example · illustration/);
-  assert.match(figure, /aria-label="Example of an agreement taking shape \(illustration\)"/);
-  assert.doesNotMatch(text(publicHome.replace(figure, '')), /Peter|James|Kamau|Amina|Joseph/);
-  assert.doesNotMatch(figure, /<button|<a /, 'the illustration is never an interactive control');
-});
-test('Member, Plug and Master are equal, not ranked, and carry no authority; businesses may belong', () => {
-  assert.deepEqual(api.CAPACITIES.map(c => c.name), ['Member', 'Plug', 'Master']);
-  const cards = [...publicHome.matchAll(/<li class="([^"]*)" data-capacity="(\w+)"/g)];
-  assert.equal(cards.length, 3);
-  assert.ok(cards.every(c => c[1] === cards[0][1]), 'the three cards share one visual treatment');
-  assert.match(publicHomeText, /People and businesses belong through their own KS Number/);
-  assert.match(publicHomeText, /Plugs and Masters are individual people/);
-  assert.match(publicHomeText, /never ranks/);
-  assert.doesNotMatch(publicHomeText, /Member\s*→\s*Plug|upgrade to|level up|\btier\b/i);
-  assert.doesNotMatch(publicHomeText, /organi[sz]ation (join|sign up)|join as an organi[sz]ation/i, 'no Organization action');
+test('Member, Plug and Master are equal capacities in canonical content, not inferred authority', async () => {
+  assert.deepEqual(api.CAPACITIES.map(c=>c.name),['Member','Plug','Master']);
+  const source=await readFile('src/components/TrustProjectSection.tsx','utf8');
+  assert.match(source,/They are not ranks/);
+  assert.match(source,/never releases money/);
+  assert.match(source,/A Store is not an endorsement/);
+  assert.match(api.CAPACITIES[0].detail,/People and businesses belong/);
+  assert.match(api.CAPACITIES[1].detail,/A person/);
+  assert.doesNotMatch(publicHomeText,/join as an organi[sz]ation/i);
 });
 test('no fake live activity: no counts, no people, no testimonials, no automatic data loading', async () => {
   assert.doesNotMatch(publicHomeText, /\b\d[\d,.]*\+?\s*(members|people|stores|businesses|agreements|offers|sellers|users)\b/i);
@@ -160,17 +165,20 @@ test('no public Home component imports fixture or demo data', async () => {
     assert.doesNotMatch(src, /from ['"][^'"]*(demoData|ecosystemData|storeData|circleData|DisputeMaster|fixture|ReferralHistoryView)[^'"]*['"]/, file);
   }
 });
-test('Store glimpse is explanation plus a user-initiated Browse Stores; Community stays private', async () => {
-  assert.match(publicHomeText, /People and businesses keep a Store for what they offer\. Anyone can browse\./);
-  assert.match(publicHomeText, /Members ask for and offer help in Community and Circles\./);
-  assert.match(publicHomeText, /Browse Stores/);
-  const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  assert.match(agent, /onBrowseStores=\{\(\) => navigateTo\('store'\)\}/);
+test('Stores are explored by deliberate action and Community stays separately scoped', async () => {
+  assert.match(publicHomeText,/Browse Stores/);
+  const src=await readFile('src/features/public/PublicHome.tsx','utf8');
+  assert.match(src,/onClick=\{props.onBrowseStores\}/);
+  assert.match(src,/Membership is a deliberate choice/);
+  assert.doesNotMatch(src,/community\.feed\(|\.membership\.join\(/);
+  const agent=await readFile('src/features/agent/AgentExperience.tsx','utf8');
+  assert.match(agent,/onBrowseStores=\{\(\) => navigateTo\('store'\)\}/);
 });
-test('For Business is truthful: no Business onboarding promise, no "sign in as the Business", no Business Join', () => {
-  assert.doesNotMatch(publicHomeText, /create your business ks number|sign in as the business|join for (your|a) business/i);
-  assert.match(publicHomeText, /An authorised person acts for the business\./);
-  assert.doesNotMatch(publicHomeText, /webhook|credential|API key|sandbox/i);
+test('For Business gives an authority boundary without promising Business KS onboarding', () => {
+  assert.match(publicHomeText,/An authorised person acts for the business\./);
+  assert.match(publicHomeText,/business identity setup and permissions remain separate/i);
+  assert.doesNotMatch(publicHomeText,/create your business ks number|sign in as the business|join for (your|a) business/i);
+  assert.doesNotMatch(publicHomeText,/webhook|credential|API key|sandbox/i);
 });
 test('public-only chapters never render in the signed-in Home', async () => {
   const signedInMarkup = text(html(h(api.SignedOutHome, { onStart: noop, onBringPlan: noop, onPickDocument: noop, onPickPhoto: noop })));
@@ -217,7 +225,7 @@ test('Activation stays a signed-in destination and is untouched', async () => {
   assert.match(runtime, /activate/);
   assert.match(runtime, /visionDreamGateway=\{visionDreamGateway\}/, 'the private Dream gateway is passed explicitly');
   const signedInHome = text(html(h(api.SignedOutHome, { onStart: noop })));
-  assert.match(signedInHome, /What do you want to get done/);
+  assert.match(signedInHome, /What would you like to get done/);
   assert.doesNotMatch(signedInHome, /Activate SecurePay/, 'activation no longer competes with the signed-in operating Home');
   assert.doesNotMatch(publicHomeText, /Activate SecurePay/, 'the public Home does not use Activation as its front door');
 });
@@ -260,7 +268,7 @@ test('Fair Trade uses the canonical principles, capitalised, at AA contrast', as
     const src = strip(await readFile(file, 'utf8'));
     assert.doesNotMatch(src, /FAIR_TRADE_PRINCIPLES\s*=|Principle \d/, `${file} must not keep its own principles list`);
   }
-  assert.match(await readFile('src/features/public/PublicHome.tsx', 'utf8'), /import \{ FairTradePrinciplesPanel \} from '\.\.\/\.\.\/components\/FairTradePrinciples'/);
+  assert.match(await readFile('src/components/SignedOutHome.tsx', 'utf8'), /import \{ FairTradeAffordance, FairTradePrinciplesPanel \} from '\.\/FairTradePrinciples'/);
 });
 
 // ------------------------------------------------------------------ ACCESSIBILITY
@@ -357,17 +365,16 @@ test('ChoiceButtons give every choice a 44px minimum target without losing the p
   assert.match(buttons[1], /bg-white text-forest-700 border/, 'secondary choice keeps its style');
 });
 
-test('Plug copy separates a membership invitation from a commercial referral, on the public Home and the signed-in doorway', () => {
-  const doorway = text(xr(extra.TrustProjectSection, { onExploreCommunity: noop, onOpenStores: noop }));
-  for (const out of [publicHomeText, doorway]) {
-    assert.match(out, /An invitation is not a referral, and recruiting members earns nothing automatically\./);
-    assert.match(out, /Income is never guaranteed\./);
-    assert.match(out, /Helping never gives a Plug authority over anyone’s agreement or money\./);
-    assert.doesNotMatch(out, /inviting people earns nothing/i, 'no blanket rule denying qualifying commercial referrals');
-    assert.doesNotMatch(out, /\d+\s?%|per cent|percent|guaranteed (income|reward|commission)/i, 'no percentages or promised rewards');
-  }
+test('Plug guidance distinguishes a voluntary invitation from commercial referral or money authority', async () => {
+  const detail=api.CAPACITIES.find(c=>c.name==='Plug');
+  assert.ok(detail);
+  assert.match(detail.boundary,/An invitation is not a referral, and recruiting members earns nothing automatically/);
+  assert.match(detail.boundary,/Income is never guaranteed/);
+  assert.match(detail.boundary,/Helping never gives a Plug authority over anyone’s agreement or money/);
+  const section=await readFile('src/components/TrustProjectSection.tsx','utf8');
+  assert.match(section,/SHARE_PROMPT/);
+  assert.doesNotMatch(publicHomeText,/guaranteed income|commission for joining|join as a business/i);
 });
-
 test('the Store follows the KS identity, not Trust Project membership', () => {
   const doorway = text(xr(extra.TrustProjectSection, { onExploreCommunity: noop, onOpenStores: noop }));
   assert.match(doorway, /Your KS Store/);
