@@ -1509,7 +1509,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-display text-xl text-forest-900">Date & Time</h2><button type="button" onClick={()=>setDateTimeOpen(false)} className="min-h-11 rounded-xl border border-cream-200 px-4 text-sm">Close</button></div>
         <DateTimeTool onPrepare={proposeTiming} onClose={()=>setDateTimeOpen(false)}/>
       </section>
-    </div>
+    </div>}
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
