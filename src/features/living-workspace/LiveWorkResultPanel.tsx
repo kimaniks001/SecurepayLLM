@@ -88,7 +88,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
                   {!useFreeText && kindForDetail(item.label)!=='text'
                     ? <MiniContextInput key={item.label+'-'+editingVersion}
                         kind={kindForDetail(item.label)} label={item.label}
-                        initialValue={item.value}
+                        initialValue={factDraft} onDraftChange={setFactDraft}
                         onSubmit={async replacement=>{
                           if(factSending||busy||editingVersion!==formation.version)throw new Error('Version changed');
                           setFactSending(true);setFactError(null);
