@@ -32,19 +32,20 @@ test('one welcoming KS001 entry object is shared by guests and members',()=>{
   assert.ok(sourceMenu.includes('max-h-[min(65dvh,28rem)] overflow-y-auto'), 'Add list must scroll on a phone');
 });
 
-test('visitor and member entry use real KS001 without visiting a demo or separate Home',()=>{
-  assert.match(publicEntry,/data-workspace-at-rest/);
-  assert.ok(publicEntry.includes('relative z-20 mx-auto flex'), 'Visitor Add must sit above public chapters');
-  assert.ok(hero.includes('sp-life-canvas relative z-20'), 'Member Add must sit above attention cards');
-  assert.match(publicEntry,/onAddDateTime=\{props\.onAddDateTime\}/);
+test('real SecurePay entry is one conversation work plane, never Home versus chat',()=>{
+  const idle=read('src/features/agent/WorkspaceAtRest.tsx');
   assert.match(app,/data-unified-workspace/);
-  assert.match(app,/data-workspace-state=\{showHome \? 'rest' : 'working'\}/);
-  assert.match(app,/<PublicHome[\s\S]*?onStart=\{startFromHome\}/);
-  assert.match(app,/<SignedOutHome[\s\S]*?onStart=\{startFromHome\}/);
+  assert.match(app,/data-workspace-state=\{workspaceEmpty \? 'rest' : 'working'\}/);
+  assert.match(app,/workspaceEmpty && <WorkspaceAtRest/);
   assert.match(app,/<ConversationSurface/);
+  assert.match(app,/onSend=\{text => workspaceEmpty \? startFromHome\(text\) : submitInput\(text\)\}/);
   assert.match(app,/<AgreementShaping /);
-  assert.doesNotMatch(app,/View this Agreement alongside KS001/);
-  assert.doesNotMatch(app,/openCurrentLivingWorkspace/);
+  assert.match(app,/status=\{<div className="space-y-3">/);
+  assert.doesNotMatch(app,/<PublicHome|<SignedOutHome/);
+  assert.doesNotMatch(app,/View this Agreement alongside KS001|openCurrentLivingWorkspace/);
+  assert.match(idle,/data-workspace-sheet/);
+  assert.match(idle,/data-workspace-identity=\{signedIn \? 'member' : 'visitor'\}/);
+  assert.doesNotMatch(idle,/<ConversationInput|<Composer|<textarea/);
   assert.match(app,/onAddDateTime=\{\(\) => setDateTimeOpen\(true\)\}/);
   assert.match(runtime,/previewAgentGateway \?\? api\.agent/);
   assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
