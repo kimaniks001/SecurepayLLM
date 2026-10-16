@@ -1495,7 +1495,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (result.busy || result.pending || result.error)
       throw new Error('SecurePay has not confirmed this turn. Check KS001 before trying again; do not send a duplicate.');
   };
-  return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={showHome ? 'rest' : 'working'}>
+  return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={workspaceEmpty ? 'rest' : 'working'}>
     {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
       <section role="dialog" aria-modal="true" aria-label="Date & Time" className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-cream-200 bg-white p-5 shadow-2xl sm:rounded-3xl" data-phase3-canonical-date-picker>
@@ -1631,7 +1631,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </details>
                 </div> : undefined}
               />}
-              {!signedIn && workspaceEmpty && <details open={publicInfoOpen}
+              {!signedIn && (workspaceEmpty || publicInfoOpen) && <details open={publicInfoOpen}
                 onToggle={event => setPublicInfoOpen(event.currentTarget.open)}
                 className="mx-auto max-w-6xl rounded-xl border border-forest-100 bg-white/70 px-4" data-public-workspace-info>
                 <summary className="flex min-h-11 cursor-pointer items-center text-[0.83rem] text-forest-700">
@@ -1815,7 +1815,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         </div>}
       </div>
       </div>
-    </>
     <DiscoveryHost controller={discovery} panelSlot={panelSlot} contextDetails={contextDetails}
       onBackToConversation={() => { discovery.close(); setDetailsOpen(false); setComposerFocusKey(key => key + 1); }}
       onAddPerson={() => { discovery.close(); const add = workbenchModel.adds.find(a => a.key === 'who'); if (add) instruments.open(add.spec); }} />
