@@ -65,3 +65,17 @@ test('answer-pill and mini-input replies sound like the person, not orchestratio
  assert.match(chat,/mini\.kind==='time' \? 'The local time is '/);
  assert.match(chat,/void controller\.send\('The date is '/);
 });
+
+test('server-selected general subject question offers describing work or goods and existing photo tool',()=>{
+ const source=ts.transpileModule(actions,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exported={};runInNewContext(source,{exports:exported});
+ const choices=exported.answerActions('What exactly is being provided or done?');
+ assert.ok(choices.some(a=>a.type==='focus'&&a.label==='Describe the work or goods'));
+ assert.ok(choices.some(a=>a.type==='tool'&&a.tool==='Photos'));
+});
+test('early draft inspection is not falsely displayed as sufficient understanding',()=>{
+ const panel=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ assert.doesNotMatch(panel,/Ready for your review|Draft ready to review/);
+ assert.match(panel,/Available to inspect · Understanding not yet confirmed/);
+ assert.match(panel,/Draft available to inspect · Material understanding not yet confirmed/);
+});
