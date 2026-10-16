@@ -82,7 +82,9 @@ test('workspace + Add provides eight tools, including Edit context and backend h
 test('canonical Home/KS001 + is one source menu and the picker is actually wired',()=>{
   assert.match(sourceMenu,/key: 'date-time', label: 'Date & Time'/);
   assert.match(signedHome,/onAddDateTime=\{onAddDateTime\}/);
-  assert.match(ks,/onAddDateTime=\{\(\) => setDateTimeOpen\(true\)\}/);
+  assert.match(ks,/onDateTime=\{\(\) => setDateTimeOpen\(true\)\}/);
+  assert.match(ks,/<WorkspaceToolTray/);
+  assert.doesNotMatch(ks,/<SourceMenu/);
   assert.match(ks,/data-phase3-canonical-date-picker/);
   assert.match(ks,/await target.controller.send\(proposal\)/);
   assert.match(ks,/result\.pending \|\| result\.error/);
