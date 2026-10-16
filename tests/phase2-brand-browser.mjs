@@ -23,7 +23,13 @@ try {
   if(phase==='after'){
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
     await page.locator('.sp-brand-conversation').waitFor({state:'attached'});
-    await page.locator('[data-live-formation]').waitFor();
+    await page.locator('aside[aria-label="Living result"]').waitFor();
+    if(await page.locator('[data-live-formation]').count()){
+      await page.locator('[data-live-formation]').waitFor();
+    }else {
+      // No live upstream during local static screenshots: show honest empty state.
+      await page.getByText('Your Agreement will appear here when KS001 has confirmed the conversation.').waitFor();
+    }
     await page.getByRole('region',{name:'Live forming Agreement'}).waitFor();
     assert.equal(await page.getByRole('button',{name:'Try mock sign-in'}).count(),0);
     assert.equal(await page.getByRole('button',{name:/Try real KS001/}).count(),0);
