@@ -107,7 +107,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
    // Existing first-party journeys retain their own handlers and server permissions.
    window.location.hash=name==='vision'?'#/vision':'#/community';
  };
- if(!gateways)return <p className="rounded-xl bg-cream-100 p-4 text-sm" role="status">Live SecurePay workspace services are not configured for this preview. No personal work is loaded.</p>;
+ if(!gateways)return <p className="rounded-xl bg-cream-100 p-4 text-sm" role="status">Your saved work is not available here yet. Nothing has been loaded or changed.</p>;
  if(!signedIn)return <section aria-label="Your saved work" className="space-y-3 rounded-xl border border-cream-200 p-4">
    <p className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole size={17}/> Your work belongs to you</p>
    <p className="text-xs leading-5 text-sand-700">You can explore without signing in. Sign in with your KS Number to read your own saved Agreement builds, Dreams and Circles. Signing in does not join the Trust Project.</p>
