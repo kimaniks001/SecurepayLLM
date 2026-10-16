@@ -23,8 +23,8 @@ try {
   if(phase==='after'){
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
     await page.locator('.sp-brand-conversation').waitFor({state:'attached'});
-    await page.locator('.sp-initial-letter').waitFor();
-    await page.getByRole('region',{name:'Live forming Agreement'}).waitFor();
+    await page.getByRole('region',{name:'Living result'}).waitFor();
+    await page.getByText('Your Agreement will appear here when KS001 has confirmed the conversation.').waitFor();
     assert.equal(await page.getByRole('button',{name:'Try mock sign-in'}).count(),0);
     assert.equal(await page.getByRole('button',{name:/Try real KS001/}).count(),0);
     assert.equal(await page.getByRole('heading',{name:'Chair delivery'}).count(),0,
