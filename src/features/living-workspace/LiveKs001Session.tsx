@@ -61,8 +61,12 @@ export function LiveKs001Session({ controller, nextQuestion, nextChoices = [], o
     {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
-      const question=lastQuestion(last.response.message.text)?.question ?? nextQuestion ?? '';
-      const actions=questionActions(question,nextChoices).filter(a=>a.kind!=='shelf'||Boolean(onOpenTool));
+      const spokenQuestion=lastQuestion(last.response.message.text)?.question;
+      const question=spokenQuestion ?? nextQuestion ?? '';
+      // A server choice only belongs to its own planned question; do not attach
+      // price choices to a different, newer question the model actually asked.
+      const matchesPlan=!spokenQuestion || spokenQuestion.trim().toLowerCase()===nextQuestion?.trim().toLowerCase();
+      const actions=questionActions(question,matchesPlan?nextChoices:[]).filter(a=>a.kind!=='shelf'||Boolean(onOpenTool));
       if(!actions.length)return null;
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
         {actions.map(a=><button key={a.id} type="button"
