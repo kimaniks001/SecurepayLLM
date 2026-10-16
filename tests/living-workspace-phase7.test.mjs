@@ -611,7 +611,8 @@ test('Compact Money: one small tool, four human choices, Agreement-first and no 
  assert.match(shell,/name: 'Money', icon: Wallet/);
  assert.doesNotMatch(shell,/name: 'Financial Institutions'/);
  assert.match(shell,/activeTool==='Money'\?<UnifiedMoneyTool/);
- assert.match(shell,/toolSelected&&activeTool==='Stores'/);
+  assert.match(shell,/data-tool-shelf/);
+  assert.match(shell,/activeTool==='Stores'/);
  assert.doesNotMatch(shell,/activeTool==='Stores'\|\|activeTool==='Money'/);
  assert.match(personas,/tool:'Money'/);
  for(const token of ['My Money','Borrow','Invest','Protect','My Agreements','Next:',
