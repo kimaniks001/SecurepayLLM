@@ -343,11 +343,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
                       .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
                       .map(term=>term.value).slice(0,6)
-                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={gateway} conversationId={liveConversationId} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={mode==='work'?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
                   if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
                   await ensureFreshSession(session,workspaceGateways.auth);
                   if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
                 }} onEnsureConversation={async()=>{
+                  if(mode!=='work')throw new Error('Use My Work to add Agreement sources. Other spaces do not share its conversation.');
                   if(!gateway || !liveController)throw new Error('KS001 is unavailable');
                   const existing=liveController.getSnapshot().conversationId;
                   if(existing)return existing;
@@ -417,6 +418,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
                       : []}
                     onContinue={async message=>{
+                      if(mode!=='work')throw new Error('Open My Work to discuss Agreement terms with KS001.');
                       if(!liveController)throw new Error('KS001 is unavailable');
                       setLiveStarted(true);setLiveWork(true);
                       await liveController.send(message);
