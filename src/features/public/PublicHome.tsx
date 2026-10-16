@@ -14,6 +14,7 @@ export interface PublicHomeProps {
   onPickPhoto: (file: File) => void;
   onAddLink?: () => void;
   onAddPlace?: () => void;
+  onAddDateTime?: () => void;
   /** The "Bring your plan" panel, rendered right under the intake when open. */
   bringPlanPanel?: ReactNode;
   /** Phase 3 -- the Link / Place form, rendered in the same place when open. */
@@ -37,10 +38,10 @@ export interface PublicHomeProps {
  */
 export function PublicHome(props: PublicHomeProps) {
   return (
-    <main id="main" className="relative min-h-[calc(100dvh-5rem)] overflow-hidden bg-[#f5f3ec] text-forest-900" data-public-home data-human-ui-foundation>
+    <main id="main" className="sp-life-canvas relative min-h-[calc(100dvh-5rem)] overflow-hidden bg-cream-50 bg-ks001-surface text-forest-900" data-public-home data-human-ui-foundation data-workspace-at-rest>
       <div aria-hidden="true" className="pointer-events-none absolute -top-64 -right-60 h-[44rem] w-[44rem] rounded-full bg-[#d9e4d8]/45 blur-[100px]" />
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 -left-44 h-[28rem] w-[28rem] rounded-full bg-[#eddcc3]/45 blur-[100px]" />
-      <section aria-label="Start with KS001" data-public-section="ks001" className="relative mx-auto flex min-h-[70dvh] max-w-5xl flex-col justify-center px-5 pb-12 pt-12 sm:px-9 md:pb-20">
+      <section aria-label="Start with KS001" data-public-section="ks001" className="relative mx-auto flex min-h-[calc(100dvh-8rem)] max-w-5xl flex-col justify-center px-3 pb-8 pt-8 sm:px-7 md:pb-10">
         <SecurePayHero
           variant="public"
           continueSlot={props.continueSlot}
@@ -52,11 +53,12 @@ export function PublicHome(props: PublicHomeProps) {
           onPickPhoto={props.onPickPhoto}
           onAddLink={props.onAddLink}
           onAddPlace={props.onAddPlace}
+          onAddDateTime={props.onAddDateTime}
         />
         {props.bringPlanPanel && <div className="relative mx-auto mt-4 w-full max-w-3xl">{props.bringPlanPanel}</div>}
         {props.declaredPanel && <div className="relative mx-auto mt-4 w-full max-w-3xl">{props.declaredPanel}</div>}
       </section>
-      {/* Optional explanation BELOW the one clear KS001 start. These are the real
+      {/* Quiet reference chapters remain below the workspace for public navigation and accessibility. These are the real
           targets of the existing desktop/mobile public navigation. */}
       <div className="relative mx-auto grid max-w-5xl gap-3 px-5 pb-8 sm:px-9 md:grid-cols-3" data-public-chapters>
         <section data-public-section="how-it-works" aria-labelledby="public-how-heading" className="rounded-2xl border border-forest-900/10 bg-white/85 p-5">
