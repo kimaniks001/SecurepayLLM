@@ -26,6 +26,7 @@ test('one welcoming KS001 entry object is shared by guests and members',()=>{
   assert.match(hero,/Only reviewed, confirmed terms can become an agreement/);
   assert.match(hero,/aria-label="Continue your work"/);
   assert.match(hero,/onAddDateTime=\{onAddDateTime\}/);
+  assert.match(hero,/placement="above"/,'On the at-rest workspace, + tools must open above the composer');
   assert.match(hero,/data-workspace-at-rest/);
   assert.match(hero,/relative z-20 isolate overflow-visible/,'Welcome artwork must not clip the + menu');
   assert.ok(sourceMenu.includes('max-h-[min(65dvh,28rem)] overflow-y-auto'), 'Add list must scroll on a phone');
