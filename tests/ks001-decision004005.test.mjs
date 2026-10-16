@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import ts from 'typescript';
 const read=(p)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const actions=read('src/features/living-workspace/answerActions.ts');
 const chat=read('src/features/living-workspace/LiveKs001Session.tsx');
@@ -36,4 +38,20 @@ test('photo and place pills use existing workspace tool and same canonical conve
  assert.match(shell,/<UniversalSourceTray/);
  assert.match(shell,/onCorrectFact=\{async \(label,previous,replacement,expectedVersion\)=>/);
  assert.doesNotMatch(chat,/acceptAgreement\(|sendMoney\(|confirmPayment\(/);
+});
+
+test('semantic examples exercise the real allowlist without executing invented tool names',()=>{
+ const source=ts.transpileModule(actions,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exported={};runInNewContext(source,{exports:exported});
+ const resolve=exported.answerActions;
+ const goods=resolve('What goods are being delivered?');
+ assert.ok(goods.some(a=>a.type==='tool'&&a.tool==='Photos'));
+ const dates=resolve('When should the goods arrive?');
+ assert.ok(dates.some(a=>a.type==='mini'&&a.kind==='date'));
+ assert.ok(dates.some(a=>a.type==='local-day'&&a.days===1));
+ assert.ok(resolve('At what time should collection happen?').some(a=>a.type==='mini'&&a.kind==='time'));
+ assert.ok(resolve('Who is responsible for the work?').some(a=>a.type==='mini'&&a.kind==='person'));
+ assert.ok(resolve('Where should the delivery arrive?').some(a=>a.type==='tool'&&a.tool==='Places'));
+ assert.ok(resolve('How much should the supplier be paid?').some(a=>a.type==='mini'&&a.kind==='money'));
+ assert.equal(resolve('Please explain your situation.').length,0);
 });
