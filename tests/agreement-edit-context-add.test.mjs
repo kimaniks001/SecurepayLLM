@@ -9,11 +9,14 @@ const tray=source('src/features/living-workspace/UniversalSourceTray.tsx');
 
 test('Editing a draft fact has an obvious + Add that does not replace written correction',()=>{
   assert.match(panel,/onAddToFact: \(label:string\)=>void/);
-  assert.match(panel,/editingFact===item\.label\?<form/);
+  assert.match(panel,/editingFact===item\.label \? <div/);
+  assert.match(panel,/<MiniContextInput/);
+  assert.match(panel,/kindForDetail\(item\.label\)/);
   assert.match(panel,/onClick=\{\(\)=>onAddToFact\(item\.label\)\}/);
   assert.match(panel,/Add a photo, document, place, date or KS Number to /);
   assert.match(panel,/Send correction/);
-  assert.match(panel,/Your unsent correction stays here/);
+  assert.match(panel,/Your draft remains here/);
+  assert.match(panel,/editingVersion !== formation\.version/);
 });
 test('Contextual Add offers photo, document, place and Date & Time; KS Number only for People',()=>{
   assert.match(workspace,/openFactSourcePicker\(label: string\)/);
