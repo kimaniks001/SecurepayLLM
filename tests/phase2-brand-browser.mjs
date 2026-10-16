@@ -24,7 +24,11 @@ try {
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
     await page.locator('.sp-brand-conversation').waitFor({state:'attached'});
     await page.locator('.sp-initial-letter').waitFor();
-    assert.ok(await page.getByRole('heading',{name:'Chair delivery'}).count(),'dynamic title must be readable by assistive technology');
+    await page.getByRole('region',{name:'Live forming Agreement'}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'Try mock sign-in'}).count(),0);
+    assert.equal(await page.getByRole('button',{name:/Try real KS001/}).count(),0);
+    assert.equal(await page.getByRole('heading',{name:'Chair delivery'}).count(),0,
+      'real work may not be illustrated as someone else\'s Agreement');
   }
   await page.screenshot({path:`${output}/${device}-work-agreement.png`,fullPage:true});
   if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
