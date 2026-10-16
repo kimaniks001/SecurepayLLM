@@ -1795,7 +1795,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               agreementPeople={formationState.data?.who.map(person => person.name) ?? []}
             />}
             status={workspaceEmpty ? workspaceDetails : undefined}
-            workPane={!workspaceEmpty ? workspaceDetails : undefined}>>
+            workPane={!workspaceEmpty ? workspaceDetails : undefined}>
             {[
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
