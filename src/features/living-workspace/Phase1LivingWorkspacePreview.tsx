@@ -3,7 +3,6 @@ import { UniversalSourceTray } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
 import { InlineCircleBoard } from './InlineCircleBoard';
-import { MockWorkspacePanel } from './MockWorkspacePanel';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
@@ -21,14 +20,10 @@ import { StoresTool } from './StoresTool';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
 import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
-import { LivingCommunityPanel } from './LivingCommunityPanel';
-import { LivingCirclePanel } from './LivingCirclePanel';
-import { LivingVisionPanel } from './LivingVisionPanel';
-import { LivingAgreementPanel } from './LivingAgreementPanel';
-import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
+import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -44,11 +39,11 @@ const tools = [
   { name: 'People & Invitations', icon: UserRoundPlus, description: 'Bring people in', group: 'do' },
   { name: 'Money', icon: Wallet, description: 'Review Agreement money', group: 'do' },
 ] as const;
-const scenarios: Record<Mode, { label: string; title: string; status: string; opening: string; facts: string[]; help: string[] }> = {
-  work: { label: 'My Work · Agreement', title: 'Chair delivery', status: 'Draft', opening: 'I can help make a clear chair delivery agreement. Where should the chairs be delivered?', facts: ['200 chairs · proposed scope', 'Delivery location needed', 'Supplier and price to establish'], help: ['Stores and delivery providers', 'Plugs for coordination', 'Potential Community Saver, subject to Plug verification'] },
-  vision: { label: 'Vision · Explore', title: 'My workshop idea', status: 'Exploring', opening: 'What would you most like your workshop to make possible?', facts: ['Explore purpose and layout', 'Collect inspiration and suppliers', 'No Agreement required'], help: ['Masters and skills', 'Stores and possible equipment', 'Community knowledge'] },
-  circle: { label: 'Circle · Together', title: 'Our workshop vision', status: 'Discussing', opening: 'What might the group build together? Each proposal stays a proposal until the Circle decides.', facts: ['Collect members’ ideas', 'Explore places and supplies', 'Group decisions require authority'], help: ['Mentors and apprenticeships', 'Relevant Stores', 'Community projects'] },
-  community: { label: 'Community · Trust Project', title: 'Good things happen together', status: 'LIVE', opening: 'Would you like to learn, contribute your skills or find a Circle?', facts: ['Conversations and belonging', 'Projects and events', 'Verified work and impact'], help: ['Discover Circles', 'Take part in a project', 'Learn from a Master'] },
+const areaLabels: Record<Mode,string> = {
+  work: 'My Work · Agreement',
+  vision: 'Vision',
+  circle: 'Circle',
+  community: 'Community',
 };
 const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
@@ -102,7 +97,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const chooseMode=(next:Mode)=>{
     if(next!==mode && !mayLeaveDream())return;
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
-    setMode(next);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);
+    setMode(next);setScreen('chat');setToolsOpen(false);
     window.location.hash='#/preview/living-workspace/'+next;
   };
   // Start in the real KS001 Work conversation when a verified gateway is available.
@@ -184,11 +179,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
   const [toolSelected, setToolSelected] = useState(false);
-  const [drafts, setDrafts] = useState<Record<Mode, string>>({ work:'', vision:'', circle:'', community:'' });
-  const [messages, setMessages] = useState<Record<Mode, string[]>>({ work:[], vision:[], circle:[], community:[] });
-  const current = scenarios[mode];
   const persona = KS001_WORKSPACE_PERSONAS[mode];
-  const [suggestedTool, setSuggestedTool] = useState<(typeof tools)[number]['name'] | null>(null);
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
@@ -225,17 +216,6 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     window.addEventListener('keydown',onEscape);
     return ()=>window.removeEventListener('keydown',onEscape);
   },[toolsOpen]);
-  function send() {
-    const value = drafts[mode].trim();
-    if (!value || mode !== 'work' || Boolean(gateway)) return;
-    // This path intentionally cannot masquerade as a KS001 backend reply.
-    setMessages(previous => ({ ...previous, [mode]: [...previous[mode], value] }));
-    setDrafts(previous => ({ ...previous, [mode]: '' }));
-    const suggestion = recommendWorkspaceTool(mode, value);
-    // Avoid suggesting unfinished or duplicate tool entry points.
-    setSuggestedTool(tools.find(item=>item.name===suggestion)?.name??null);
-    if (suggestion === 'Quick Assist') setQuickAssistSeed(value);
-  }
   const returnToKs001=()=>{
     if(!mayLeaveDream())return false;
     // Only a signed-in, settled, server-owned conversation may be resumed.
@@ -484,7 +464,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <p className="sp-type-statement max-w-[560px] text-base leading-7">{persona.opening}</p>
