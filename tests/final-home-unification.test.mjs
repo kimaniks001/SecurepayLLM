@@ -9,7 +9,8 @@ const sourceMenu = await readFile('src/features/sources/ui/SourceMenu.tsx', 'utf
 const signedIn = await readFile('src/components/SignedInHome.tsx', 'utf8');
 
 test('signed-in and public Home share one KS001 entry component while using the right human framing', () => {
-  assert.match(agent, /<SignedOutHome/);
+  assert.match(agent, /workspaceEmpty && <WorkspaceAtRest/);
+  assert.doesNotMatch(agent, /<SignedOutHome|<PublicHome/, 'the real entry has no separate Home');
   assert.match(publicHome, /<SecurePayHero/);
   assert.match(home, /What would you like to/);
   assert.match(signedIn, /What do you want to make/);
