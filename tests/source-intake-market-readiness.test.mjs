@@ -13,8 +13,8 @@ test('canonical Home has one composer and one source menu, with no duplicate Sta
 });
 
 test('signed-in and signed-out Home both receive the same visible source lifecycle slot', () => {
-  const occurrences = agent.match(/sourceStatusSlot=\{sourceStatusSlot\}/g) ?? [];
-  assert.equal(occurrences.length, 2);
+  assert.match(agent,/\{sourceStatusSlot\}/,'upload status stays in the real workspace');
+  assert.doesNotMatch(agent, /sourceStatusSlot=\{sourceStatusSlot\}/,'no duplicated Home');
   assert.match(publicHome, /sourceStatusSlot=\{props\.sourceStatusSlot\}/);
 });
 
