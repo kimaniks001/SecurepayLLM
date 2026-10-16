@@ -1,4 +1,4 @@
-import { CalendarCheck2, Camera, CircleDot, FileText, HeartHandshake, MapPin, Sparkles, type LucideIcon } from 'lucide-react';
+import { CalendarCheck2, Camera, FileText, MapPin, Sparkles, type LucideIcon } from 'lucide-react';
 import type { Ks001WorkspaceMode } from './personas';
 type WelcomeExample = { label:string; help:string; icon:LucideIcon; prompt:string; tool:'Photos'|'Documents'|'Places'|null };
 const examples:Record<Ks001WorkspaceMode,WelcomeExample[]> = {
