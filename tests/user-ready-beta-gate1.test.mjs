@@ -73,7 +73,7 @@ test('EP-CERT-001: the one input door routes long text to the pasted-source path
   assert.match(agentSrc, /const submitInput = \(text: string, set: WorkSet = currentSet\(\)\): SendResult => \{\s*if \(routeInput\(text\) === 'source'\) \{\s*return set\.sourceController\.addPastedText\(text\)/);
   assert.match(agentSrc, /if \(!outcome\.ok && !outcome\.source\) \{ setBringPlanDraft\(\{ text, label: '' \}\); setIntakeError\(outcome\.error\); setBringPlanOpen\(true\); \}/);
   assert.match(agentSrc, /return outcome\.ok \|\| !!outcome\.source;/, 'a stored (card-carried) source clears the composer; nothing else does');
-  assert.match(agentSrc, /onSend=\{text => submitInput\(text\)\}/, 'the conversation composer uses the one door');
+  assert.match(agentSrc, /onSend=\{text => workspaceEmpty \? startFromHome\(text\) : submitInput\(text\)\}/, 'the SAME composer routes first and subsequent turns');
 });
 
 test('EP-CERT-001: a 10,000-character paste reaches the pasted-source endpoint whole (no truncation anywhere in between)', async () => {
