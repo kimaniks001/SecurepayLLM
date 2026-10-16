@@ -1973,3 +1973,19 @@ The previous detailed Money, FX, settlement-destination and partner surfaces rem
 
 - Agreement obligation → fulfilment need: REAL_API_WIRED from the exact current Agreement obligation for the responsible participant. The UI withholds this from monetary obligations, other participants' responsibilities, and completed/cancelled work.
 - Shared fulfilment / Community Saver remains NOT WIRED. SecurePayAPI can propose/open pooling without a verified Plug gate; Trust Project doctrine requires a Plug for every Community Saver, so the UI intentionally does not expose proposeFromNeed/openWindow until that governance contract exists.
+
+
+## Phase 3 of the October 2026 Production Convergence Programme (PR #141)
+
+The 16 October 2026 frontend simplification work is **draft/stacked**, not a claim that the earlier September audit states are obsolete. This entry is additive, and its domain authority still comes from SecurePayAPI.
+
+| Experience | Classification | Evidence / constraint |
+| --- | --- | --- |
+| Canonical + Date & Time menu / in-workspace picker | FRONTEND_COMPOSITION_ONLY | Visible on signed-in Home and KS001, and as the eighth Living Workspace tool. Native local date and time, date range, weekly/monthly recurrence and event-triggered proposed timing. No API calendar scheduler is fabricated. |
+| KS001 timing interpretation | REAL_API_WIRED | An explicit user action submits **proposal text** through the existing Agent conversation controller; existing pending-turn idempotency and Trade Context review remain authoritative. A selected date is not an adopted contractual term. |
+| Structured timing proposals, recurrence, milestones, condition verification | BACKEND_PR_PENDING | No new server-owned versioned timing-proposal endpoint was verified. Needed: Agreement/version binding; recurrence edge semantics; role consent; trigger evidence; server rescheduling/amendments; no Money eligibility from UI. |
+| Short Stays / My Ride provider dates | FRONTEND_COMPOSITION_ONLY | Selected dates are requests or proposals. Actual provider booking confirmation cannot be simulated or assumed. |
+| Home, Agreement and Money labels | FRONTEND_COMPOSITION_ONLY | One obvious Home start, Agreement shows unaccepted draft state, Money presents backend status and relevant next action without a misleading Pay label. Payment authority and provider selection remain on canonical Money. |
+| Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
+
+Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
