@@ -465,20 +465,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
           <p className="sp-type-statement max-w-[560px] text-base leading-7">{persona.opening}</p>
-          <div className="max-w-xl rounded-2xl border border-forest-100 bg-[#f8faf6] p-4">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-forest-700">{persona.label} · Guidance</p>
-            <p className="mt-2 text-sm leading-6 text-forest-900">{persona.objective}</p>
-            <p className="mt-2 text-xs leading-5 text-sand-700">{persona.dataBoundary}</p>
-          </div>
           {mode==='work' && !gateway
-            ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">KS001 is temporarily unavailable here. Your words will not be sent or mistaken for an Agreement. Please return when the connection is ready.</p>
-            : <div className="rounded-2xl border border-forest-100 bg-white p-4">
-                <p className="text-sm font-semibold text-forest-900">Explore here. Work with KS001 when you need to.</p>
-                <p className="mt-2 text-xs leading-5 text-sand-700">This area shows guidance and your authorised records. Personalised KS001 replies for {mode==='vision'?'Vision':mode==='circle'?'Circles':'Community'} require a permission-checked connection; we won't invent them.</p>
+            ? <p role="status" className="mt-5 max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6">KS001 is temporarily unavailable. Nothing will be sent until the connection returns.</p>
+            : <div className="mt-6 max-w-lg">
+                <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
                 {gateway && <button type="button" onClick={()=>chooseMode('work')}
-                  className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-[#ecf3ea] px-4 text-sm font-semibold text-forest-800">Talk to KS001 in My Work</button>}
+                  className="mt-4 min-h-11 rounded-xl border border-forest-200 bg-[#f0f5ee] px-4 text-sm font-semibold text-forest-800 hover:bg-[#e4efe1]">Ask KS001 in My Work</button>}
               </div>}
         </div>}
       </section>
@@ -512,11 +506,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
               <p className="text-xs leading-5 text-sand-600">{persona.dataBoundary}</p>
             </div>}
-        {mode==='work' && !liveConversationId && <div className="mt-4">
+        {mode==='work' && !liveConversationId && workspaceGateways && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!signedIn && mode!=='work' && <div className="mt-4">
+        {!signedIn && mode!=='work' && workspaceGateways && <div className="mt-4">
           <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
