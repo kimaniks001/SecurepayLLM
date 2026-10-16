@@ -67,15 +67,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [mode, setMode] = useState<Mode>(initialMode);
   const [signInOpen,setSignInOpen]=useState(false);
   // Pure client-side illustration, intentionally separate from the real SessionStore.
-  const [mockSignedIn,setMockSignedIn]=useState(false);
-  const enterDemo=()=>{
-    if (signedIn) return;
-    setLiveWork(false);
-    setLiveStarted(false);
-    setSignInOpen(false);
-    setMockSignedIn(true);
-  };
-  const exitDemo=()=>{ setMockSignedIn(false); setScreen('chat'); };
+  // Retired mock sign-in is deliberately inaccessible in this production candidate.
+  // The historical screenshot preview remains preserved at its original commit.
+  const mockSignedIn = false;
   const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
   const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
   const [workingCircleId,setWorkingCircleId]=useState<string|null>(null);
@@ -111,8 +105,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setMode(next);setScreen('chat');setToolsOpen(false);setSuggestedTool(null);
     window.location.hash='#/preview/living-workspace/'+next;
   };
-  const [liveWork,setLiveWork] = useState(false);
-  const [liveStarted,setLiveStarted] = useState(false);
+  // Start in the real KS001 Work conversation when a verified gateway is available.
+  // No mock conversation is presented as a successful human turn.
+  const [liveWork,setLiveWork] = useState(Boolean(gateway));
+  const [liveStarted,setLiveStarted] = useState(Boolean(gateway));
   // One authoritative conversation is shared by the chat and the Living Result.
   // Never create a second conversation for My Work, and never derive terms from chat text.
   const [liveController] = useState(() => gateway ? createAgentController(gateway, undefined, { timeZone: deviceTimeZone }) : null);
@@ -231,7 +227,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   },[toolsOpen]);
   function send() {
     const value = drafts[mode].trim();
-    if (!value) return;
+    if (!value || mode !== 'work' || Boolean(gateway)) return;
+    // This path intentionally cannot masquerade as a KS001 backend reply.
     setMessages(previous => ({ ...previous, [mode]: [...previous[mode], value] }));
     setDrafts(previous => ({ ...previous, [mode]: '' }));
     const suggestion = recommendWorkspaceTool(mode, value);
@@ -264,23 +261,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
     />;
   }
-  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-cream-50 text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage">
-    <header className="sp-brand-header border-b border-cream-200 bg-white/90 px-4 py-3 sm:px-7">
+  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
+    <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><img src={securepayWordmark} alt="SecurePay" className="h-9 w-auto max-w-[164px] object-contain" /><p className="text-xs text-sand-600">Living Workspace · preview</p></div>
+        <div className="flex items-center gap-3"><img src={securepayWordmark} alt="SecurePay" className="h-9 w-auto max-w-[164px] object-contain" /><p className="text-xs text-sand-600">KS001 · Your space to make progress</p></div>
         <nav aria-label="Workspace experience" className="sp-brand-nav flex max-w-full rounded-xl bg-cream-100 p-1">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
             <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
-          {mockSignedIn ? <>
-            <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950">DEMO ACCOUNT · NO REAL ACCESS</span>
-            <button type="button" onClick={exitDemo} className="min-h-11 rounded-xl border border-cream-200 px-3 text-sm">Exit demo</button>
-          </> : !signedIn ? <>
-            <button type="button" onClick={enterDemo} className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm text-white">Try mock sign-in</button>
-            {workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)} className="min-h-11 rounded-xl border border-cream-200 px-3 text-sm">Real KS sign-in</button>}
-          </> : <span className="rounded-full bg-cream-100 px-3 py-2 text-xs">Signed in with SecurePay</span>}
-          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> Back to SecurePay</a>
+          {!signedIn && workspaceGateways
+            ? <button type="button" onClick={()=>setSignInOpen(true)}
+                className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-800 hover:bg-cream-50">Sign in</button>
+            : signedIn ? <span className="rounded-full bg-[#eaf2e9] px-3 py-2 text-xs font-medium text-forest-800">Your SecurePay workspace</span> : null}
+          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> SecurePay</a>
         </div>
       </div>
     </header>
@@ -490,17 +484,28 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {mode==='work' && gateway && <div className="sr-only" aria-live="polite">{liveWork?'Live KS001 Work mode active':'Preview Work mode active'}</div>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && gateway && !mockSignedIn && <button type="button" onClick={()=>{setLiveStarted(true);setLiveWork(value=>!value);}} className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">{liveWork?'Return to demonstration':'Try real KS001 (Work only)'}</button>}<button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{current.label} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!(mode==='work' && liveWork && gateway) && <><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"><p className="sp-type-statement max-w-[560px] text-base leading-7">{mockSignedIn ? 'This is a sample conversation, not a real KS001 response. '+persona.opening : persona.opening}</p>{messages[mode].map((m,i)=><p key={i} className="ml-auto max-w-[80%] rounded-2xl bg-cream-100 p-4 text-sm">{m}</p>)}{suggestedTool && <div className="max-w-[560px] rounded-xl border border-cream-200 bg-cream-50 p-4"><p className="text-xs font-semibold text-forest-800">Suggested tool · {suggestedTool}</p><p className="mt-2 text-xs text-sand-700">{persona.questionPolicy}</p><button onClick={()=>openTool(suggestedTool,suggestedTool==='Quick Assist'?quickAssistSeed:'')} className="mt-3 min-h-11 rounded-lg bg-white px-4 text-sm text-forest-800 shadow-sm">Open {suggestedTool}</button></div>}{messages[mode].length>0&&<p role="status" className="text-sm text-sand-600">Preview message only. Persona-specific live model replies are not yet connected.</p>}</div>
-        <form className="flex gap-2 border-t border-cream-100 p-3" onSubmit={e=>{e.preventDefault();send();}}><input aria-label="Message KS001" className="min-w-0 flex-1 rounded-xl border border-cream-200 bg-cream-50 px-3 py-3 text-sm" value={drafts[mode]} onChange={e=>setDrafts(previous=>({...previous,[mode]:e.target.value}))} placeholder="Talk to KS001…"/><button aria-label="Send" className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">Send</button></form>
-</>}
+        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+          <p className="sp-type-statement max-w-[560px] text-base leading-7">{persona.opening}</p>
+          <div className="max-w-xl rounded-2xl border border-forest-100 bg-[#f8faf6] p-4">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-forest-700">{persona.label} · Guidance</p>
+            <p className="mt-2 text-sm leading-6 text-forest-900">{persona.objective}</p>
+            <p className="mt-2 text-xs leading-5 text-sand-700">{persona.dataBoundary}</p>
+          </div>
+          {mode==='work' && !gateway
+            ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">KS001 is temporarily unavailable here. Your words will not be sent or mistaken for an Agreement. Please return when the connection is ready.</p>
+            : <div className="rounded-2xl border border-forest-100 bg-white p-4">
+                <p className="text-sm font-semibold text-forest-900">Explore here. Work with KS001 when you need to.</p>
+                <p className="mt-2 text-xs leading-5 text-sand-700">This area shows guidance and your authorised records. Personalised KS001 replies for {mode==='vision'?'Vision':mode==='circle'?'Circles':'Community'} require a permission-checked connection; we won't invent them.</p>
+                {gateway && <button type="button" onClick={()=>chooseMode('work')}
+                  className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-[#ecf3ea] px-4 text-sm font-semibold text-forest-800">Talk to KS001 in My Work</button>}
+              </div>}
+        </div>}
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {mockSignedIn
-          ? <MockWorkspacePanel key={mode} area={mode}/>
-          : signedIn && workspaceGateways && mode==='community'
+        {signedIn && workspaceGateways && mode==='community'
           ? <InlineCommunityHub gateways={workspaceGateways} session={session}
               onOpenFull={()=>{ window.location.hash='#/community'; }}/>
           : signedIn && workspaceGateways && mode!=='work'
@@ -519,22 +524,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             if(formationController)await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work'?(signedIn?<div className="rounded-xl bg-cream-100 p-4"><p className="font-semibold text-sm">Your Agreement appears here</p><p className="mt-2 text-xs text-sand-700">Continue a saved conversation below, or select Try real KS001 on the left. SecurePay will show only the Agreement from that conversation.</p></div>:<LivingAgreementPanel/>):mode==='vision'?<LivingVisionPanel/>:mode==='circle'?<LivingCirclePanel/>:mode==='community'?<LivingCommunityPanel/>:<><p className="text-xs uppercase tracking-wider text-sand-600">Living result · {persona.label}</p><div className="mt-3 flex items-center justify-between gap-2"><h2 className="font-display text-xl">{current.title}</h2><span className="rounded-full bg-cream-100 px-2 py-1 text-xs">{current.status}</span></div><div className="mt-5 space-y-3">{current.facts.map(f=><p key={f} className="border-b border-cream-100 pb-3 text-sm">{f}</p>)}</div></>}
-        {!mockSignedIn && mode==='work' && !liveWork && <div className="mt-4">
+        />:mode==='work'
+          ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
+              Your Agreement will appear here when KS001 has confirmed the conversation.
+            </div>
+          : <div className="space-y-3 rounded-xl border border-forest-100 bg-[#f9faf7] p-4">
+              <h2 className="font-display text-xl text-forest-900">{persona.label}</h2>
+              <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
+              <p className="text-xs leading-5 text-sand-600">{persona.dataBoundary}</p>
+            </div>}
+        {mode==='work' && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!mockSignedIn && !signedIn && mode!=='work' && <div className="mt-4">
+        {!signedIn && mode!=='work' && <div className="mt-4">
           <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!mockSignedIn && !signedIn && !liveWork && <>
-          <div className="mt-8 rounded-xl bg-cream-100 p-4"><div className="flex items-center gap-2 font-semibold"><HeartHandshake size={17}/> SecurePay Helps · Examples only</div>{current.help.map(h=><p key={h} className="mt-3 text-sm text-sand-700">{h}</p>)}</div>
-          <div className="mt-4 rounded-xl border border-cream-200 p-4"><strong className="text-sm">Community Saver · Example</strong><p className="mt-2 text-xs text-sand-600">A real Community Saver requires a Plug, verification and informed consent. These suggestions do not change Agreements.</p></div>
-        </>}</div>
+</div>
       </aside>
     </div>}
     {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
-    <p className="px-5 pb-4 text-center text-xs text-sand-600">{mockSignedIn?'DEMO ACCOUNT: no authentication, real records, payments, invitations or membership. ':'Visual shell: the preview does not authorise financial or Agreement actions. '}No money, invitation, approval or booking authority is granted by this page.</p>
+    <p className="px-5 pb-4 text-center text-xs text-sand-600">KS001 helps you explore. Agreements require review and acceptance; bookings, invitations and money require their own authorisation.</p>
   </main>;
 }
