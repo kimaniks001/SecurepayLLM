@@ -41,7 +41,7 @@ test('Phase 7: Circle-only content cannot leak to LIVE',()=>{
  assert.match(community,/Circle-only content must never appear in LIVE/);
 });
 test('Phase 7: payment and booking claims are explicitly limited',()=>{
- assert.match(shell,/No money, invitation, approval or booking authority is granted/);
+ assert.match(shell,/bookings, invitations and money require their own authorisation/);
  assert.match(support,/cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
 });
 test('Phase 7: Quick Documents distinguish requests, offers and receipts',()=>{
