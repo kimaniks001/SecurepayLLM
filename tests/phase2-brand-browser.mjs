@@ -30,7 +30,7 @@ try {
       // No live upstream during local static screenshots: show honest empty state.
       await page.getByText('Your Agreement will appear here when KS001 has confirmed the conversation.').waitFor();
     }
-    await page.getByRole('region',{name:'Live forming Agreement'}).waitFor();
+    // A real live Agreement only exists after KS001 has returned server-owned formation.\n    // A new visitor sees the truthful right-hand empty work area instead.\n    assert.ok(await page.locator('aside[aria-label="Living result"]').isVisible());
     assert.equal(await page.getByRole('button',{name:'Try mock sign-in'}).count(),0);
     assert.equal(await page.getByRole('button',{name:/Try real KS001/}).count(),0);
     assert.equal(await page.getByRole('heading',{name:'Chair delivery'}).count(),0,
