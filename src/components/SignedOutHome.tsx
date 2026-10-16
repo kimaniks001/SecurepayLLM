@@ -18,6 +18,7 @@ interface SignedOutHomeProps {
   /** Public Experience Convergence Phase 3 (Slice 3B) -- declared-text sources (never fetched / located). */
   onAddLink?: () => void;
   onAddPlace?: () => void;
+  onAddDateTime?: () => void;
   /** User-Ready Beta Gate 1 (EP-CERT-013) -- CONTINUE earlier work: shown separately, above START NEW. */
   continueSlot?: ReactNode;
   /** Visible lifecycle for a source picked from Home: selected → reading → success/failure. */
@@ -41,9 +42,9 @@ interface SecurePayHeroProps extends SignedOutHomeProps {
  * KS001 = the voice, the 12 Principles = the compass (one lockup directly above the composer, never a footer line), the
  * agreement = the output (see ExampleOutcome). The person gives SecurePay what they have; they never choose a subsystem.
  */
-export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, continueSlot, sourceStatusSlot, variant = 'app' }: SecurePayHeroProps) {
+export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, onPickPhoto, onAddLink, onAddPlace, onAddDateTime, continueSlot, sourceStatusSlot, variant = 'app' }: SecurePayHeroProps) {
   const [fairTradeOpen, setFairTradeOpen] = useState(false);
-  const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace);
+  const hasIntake = !!(onBringPlan || onPickDocument || onPickPhoto || onAddLink || onAddPlace || onAddDateTime);
   const publicMode = variant === 'public';
 
   return (
@@ -90,6 +91,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
                   onPickPhoto={onPickPhoto}
                   onAddLink={onAddLink}
                   onAddPlace={onAddPlace}
+                  onAddDateTime={onAddDateTime}
                 />
               ) : undefined}
             />
@@ -103,7 +105,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
           </div>}
 
-          {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-600">Use + to bring a plan, document, spreadsheet, photo, camera, link or place.</p>}
+          {hasIntake && <p className="mt-2 text-[0.76rem] text-sand-600">Use + to bring a plan, document, photo, link, place or date.</p>}
           {publicMode && <p className="mt-3 max-w-xl text-[0.8rem] leading-5 text-sand-700">Start without a KS Number. Nothing becomes an agreement until you review and confirm it.</p>}
         </div>
       </section>
