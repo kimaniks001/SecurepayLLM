@@ -56,7 +56,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
           <button type="submit" className="rounded-full bg-forest-800 px-3 text-sm text-white">Done</button>
         </form>:<div className="mt-1 flex items-start gap-2"><h2 className="min-w-0 font-display text-xl"><SignatureAgreementTitle title={customTitle.trim()||humanTitle(formation?.summary)}/></h2>
           <button type="button" onClick={()=>setEditingTitle(true)} className="shrink-0 rounded-full border border-cream-200 px-2 py-1 text-xs">Edit</button></div>}
-        {customTitle&&<p className="text-xs text-sand-600">Display title for this preview only · not saved to the Agreement</p>}
+        {customTitle&&<p className="text-xs text-sand-600">Display title for this view only · not saved to the Agreement</p>}
       </div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
