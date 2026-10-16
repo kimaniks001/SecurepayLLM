@@ -204,7 +204,8 @@ test('SourceMenu offers every Phase 3 kind once, with Voice note only behind an 
   assert.match(menu, /if \(actions\.onPickVoiceNote\) items\.push/);
   const app = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
   assert.doesNotMatch(app, /onPickVoiceNote/, 'nothing wires Voice note: no approved transcription provider exists');
-  assert.equal((app.match(/<SourceMenu\b/g) ?? []).length, 1, 'the conversation composer uses the shared menu');
+  assert.equal((app.match(/<WorkspaceToolTray\b/g) ?? []).length, 1, 'the real KS001 composer uses one rich eight-tool tray');
+  assert.doesNotMatch(app, /<SourceMenu\b/, 'the old menu must not replace the richer workspace tools');
   const hero = await readFile('src/components/SignedOutHome.tsx', 'utf8');
   assert.equal((hero.match(/<SourceMenu\b/g) ?? []).length, 1, 'both Homes use the shared menu through SecurePayHero');
 });
