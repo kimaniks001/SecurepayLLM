@@ -41,7 +41,7 @@ export function PublicHome(props: PublicHomeProps) {
     <main id="main" className="sp-life-canvas relative min-h-[calc(100dvh-5rem)] overflow-hidden bg-cream-50 bg-ks001-surface text-forest-900" data-public-home data-human-ui-foundation data-workspace-at-rest>
       <div aria-hidden="true" className="pointer-events-none absolute -top-64 -right-60 h-[44rem] w-[44rem] rounded-full bg-[#d9e4d8]/45 blur-[100px]" />
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 -left-44 h-[28rem] w-[28rem] rounded-full bg-[#eddcc3]/45 blur-[100px]" />
-      <section aria-label="Start with KS001" data-public-section="ks001" className="relative mx-auto flex min-h-[calc(100dvh-8rem)] max-w-5xl flex-col justify-center px-3 pb-8 pt-8 sm:px-7 md:pb-10">
+      <section aria-label="Start with KS001" data-public-section="ks001" className="relative z-20 mx-auto flex min-h-[calc(100dvh-8rem)] max-w-5xl flex-col justify-center px-3 pb-8 pt-8 sm:px-7 md:pb-10">
         <SecurePayHero
           variant="public"
           continueSlot={props.continueSlot}
