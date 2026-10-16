@@ -28,9 +28,15 @@ try{
       assert.ok(await page.getByText('Start without a KS Number.',{exact:false}).count());
       await page.getByRole('button',{name:'Add what you have'}).click();
       const menu=page.getByRole('menu',{name:'Add a source'});
-      await menu.getByRole('menuitem',{name:/Date & Time/}).waitFor();
+      const dateItem=menu.getByRole('menuitem',{name:/Date & Time/});
+      await dateItem.waitFor();
       await page.screenshot({path:`${out}/${device}-add-menu.png`,fullPage:true});
-      await menu.getByRole('menuitem',{name:/Date & Time/}).click();
+      await menu.evaluate(node=>{node.scrollTop=node.scrollHeight;});
+      const menuBox=await menu.boundingBox(), itemBox=await dateItem.boundingBox();
+      assert.ok(menuBox && itemBox && itemBox.y >= menuBox.y-2 && itemBox.y+itemBox.height <= menuBox.y+menuBox.height+2,
+        'Date & Time must remain visible and reachable inside the Add menu');
+      await page.screenshot({path:`${out}/${device}-add-date-visible.png`,fullPage:true});
+      await dateItem.click();
       await page.getByRole('dialog',{name:'Date & Time'}).waitFor();
       await page.screenshot({path:`${out}/${device}-date-time.png`,fullPage:true});
       await page.getByRole('button',{name:'Close',exact:true}).click();
