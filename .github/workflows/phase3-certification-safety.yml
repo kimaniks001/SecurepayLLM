@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'tests/certification/staging-guard.mjs'
+      - 'tests/phase3-vercel-readonly-browser.mjs'
       - 'tests/phase3-certification-guard.test.mjs'
       - 'docs/PHASE3_AUTHENTICATED_HUMAN_CERTIFICATION_20261016.md'
       - '.github/workflows/phase3-certification-safety.yml'
@@ -33,3 +34,32 @@ jobs:
           echo 'Safety gate PASS does NOT mean authenticated E2E passed.'
           echo 'No network connection was made to production or staging.'
           echo 'Human staging environment/roles/permissions and six journeys are still required.'
+
+  vercel-readonly:
+    name: Real Vercel browser smoke with API/write guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PHASE3_VERCEL_URL: https://securepay-qxteh6kjv-james-8078.vercel.app/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Chromium
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test deployed Vercel preview with all API/mutations blocked
+        run: node tests/phase3-vercel-readonly-browser.mjs
+      - name: Preserve Vercel UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-real-vercel-readonly-browser
+          path: artifacts/phase3-vercel/*
+          if-no-files-found: ignore
