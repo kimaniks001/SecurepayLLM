@@ -77,7 +77,8 @@ test('workspace + Add provides eight tools, including Edit context and backend h
   assert.match(workspace,/onPrepare=\{mode==='work'/);
   assert.match(workspace,/await liveController.send\(message\)/);
   assert.match(workspace,/result\.pending|outcome\.pending/);
-  assert.match(agreement,/Your unsent correction stays here/);
+  assert.match(agreement,/Your draft remains here/);
+  assert.match(agreement,/<MiniContextInput/);
 });
 test('canonical Home/KS001 + is one source menu and the picker is actually wired',()=>{
   assert.match(sourceMenu,/key: 'date-time', label: 'Date & Time'/);
