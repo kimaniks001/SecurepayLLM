@@ -60,7 +60,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
       </div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
-    {expanded&&<p className="text-xs text-sand-600">Working draft · Not yet accepted</p>}
+    {formation&&<p role="status" className="text-xs font-medium text-sand-700">Working draft · Not yet accepted · {formation.question ? 'One detail to clarify' : formation.reviewable ? 'Ready for your review' : 'Still taking shape'}</p>}
     {!conversationId && <div className="rounded-xl bg-cream-100 p-4 text-sm">Tell KS001 what you want to do. The Agreement will start appearing here as SecurePay understands it.</div>}
     {conversationId && busy && <p role="status" className="text-xs text-sand-600">KS001 is updating its understanding…</p>}
     {conversationId && state?.status==='loading' && <p role="status" className="text-xs text-sand-600">Reading the current Agreement from SecurePay…</p>}
@@ -89,13 +89,13 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
                     className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" disabled={factSending||busy} onClick={()=>onAddToFact(item.label)}
-                      aria-label={'Add photo, document, place or KS Number to '+item.label}
+                      aria-label={'Add a photo, document, place, date or KS Number to '+item.label}
                       className="inline-flex min-h-11 items-center gap-1 rounded-full border border-cream-200 bg-white px-3 text-xs font-semibold disabled:opacity-40">
                       <Plus size={15} aria-hidden="true"/> Add
                     </button>
                     <button type="submit" disabled={factSending||busy||!factDraft.trim()||factDraft.trim()===item.value} className="min-h-11 rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Sending…':'Send correction'}</button>
                     <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)} className="min-h-11 rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button></div>
-                  <p className="text-xs leading-5 text-sand-600">Use Add to support this detail with a source. Your written correction stays here until you send it.</p>
+                  <p className="text-xs leading-5 text-sand-600">Edit corrects this fact. Add brings evidence, dates or people. Your unsent correction stays here.</p>
                   {factError&&<p role="alert" className="text-xs text-amber-900">{factError}</p>}
                 </form>:<div className="flex items-start justify-between gap-1">
                   <div><span title={item.reason||undefined}>{item.value}</span>
