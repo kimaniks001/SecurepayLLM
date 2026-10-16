@@ -172,7 +172,7 @@ test('Stores are explored by deliberate action and Community stays separately sc
   assert.match(src,/Membership is a deliberate choice/);
   assert.doesNotMatch(src,/community\.feed\(|\.membership\.join\(/);
   const agent=await readFile('src/features/agent/AgentExperience.tsx','utf8');
-  assert.match(agent,/onBrowseStores=\{\(\) => navigateTo\('store'\)\}/);
+  assert.match(agent,/onOpenStores=\{\(\) => navigateTo\('store'\)\}/);
 });
 test('For Business gives an authority boundary without promising Business KS onboarding', () => {
   assert.match(publicHomeText,/An authorised person acts for the business\./);
@@ -186,10 +186,10 @@ test('public-only chapters never render in the signed-in Home', async () => {
     assert.doesNotMatch(signedInMarkup, new RegExp(chapter), `${chapter} leaked into the signed-in Home`);
   }
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const signedInBranch = agent.slice(agent.indexOf('{signedIn ? <>'), agent.indexOf('</> : ('));
-  assert.ok(signedInBranch.length > 0);
-  assert.doesNotMatch(signedInBranch, /<PublicHome/);
-  assert.ok(agent.indexOf('<PublicHome') > agent.indexOf('</> : ('), 'PublicHome renders only in the signed-out branch');
+  assert.match(agent,/workspaceEmpty && <WorkspaceAtRest/);
+  assert.doesNotMatch(agent, /<PublicHome|<SignedOutHome/, 'normal entry has no separate Home');
+  assert.match(agent,/!signedIn && \(workspaceEmpty \|\| publicInfoOpen\)/);
+  assert.match(agent,/data-public-workspace-info/);
   assert.match(agent, /<PublicShellProvider value=\{sessionState\.status === 'signed-in' \? null : bridge\}>/);
 });
 
