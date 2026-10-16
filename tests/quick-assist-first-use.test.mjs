@@ -52,11 +52,13 @@ test('KS001 suggestions identify service intent before generic Places/Documents'
   const places = personas.indexOf("tool:'Places'");
   const documents = personas.indexOf("tool:'Documents'");
   assert.ok(support >= 0 && support < places && support < documents);
-  assert.match(workspace, /openTool\(suggestedTool,suggestedTool==='Quick Assist'\?quickAssistSeed:''\)/);
+  assert.match(workspace, /openToolPicker/);
+  assert.match(workspace, /activeTool==='Quick Assist'\?<QuickSupportPanel/);
+  assert.doesNotMatch(workspace, /setMessages\(/, 'No locally invented KS001 turns');
 });
 
 test('Preview isolation remains; Store baseline does not acquire any payment or booking action', () => {
-  assert.match(workspace, /No money, invitation, approval or booking authority is granted/);
+  assert.match(workspace, /bookings, invitations and money require their own authorisation/);
   assert.match(assist, /cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
   assert.ok(!assist.includes('fetch('));
   assert.ok(!assist.includes('localStorage'));
