@@ -31,7 +31,9 @@ test('real KS001 Work is the default, with server-owned terms and safe failure',
   assert.doesNotMatch(workspace,/Try mock sign-in|Try real KS001 \(Work only\)|Return to demonstration|DEMO ACCOUNT/);
   assert.doesNotMatch(workspace,/Chair delivery|200 chairs for delivery/);
   assert.doesNotMatch(workspace,/setMessages\(/);
-  assert.match(workspace,/we won't invent them/);
+  assert.match(workspace,/Ask KS001 in My Work/);
+  assert.match(workspace,/Nothing will be sent until the connection returns/);
+  assert.doesNotMatch(workspace,/setMessages\\(/);
   assert.match(live,/controller\.retry\(\)/);
   assert.match(live,/controller\.send\(next\)/);
   assert.match(agreement,/Display title for this view only · not saved to the Agreement/);
