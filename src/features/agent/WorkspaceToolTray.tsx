@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft, BedDouble, CalendarDays, Camera, FileText, MapPin,
   Plus, Store, UserRoundPlus, Wallet, X, Image as ImageIcon, FileSpreadsheet,
@@ -79,7 +80,7 @@ export function WorkspaceToolTray({disabled=false,onPhoto,onDocument,onPlan,onPl
     <input ref={inputCamera} className="hidden" type="file" accept={imgAccept} capture="environment" aria-label="Take a photo" onChange={handle('photo')}/>
     <input ref={inputDocument} className="hidden" type="file" accept={docsAccept} aria-label="Upload document" onChange={handle('document')}/>
     <input ref={inputSpreadsheet} className="hidden" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" aria-label="Upload spreadsheet" onChange={handle('document')}/>
-    {open && <>
+    {open && createPortal(<>
       <button type="button" className="fixed inset-0 z-[79] cursor-default bg-forest-950/30 backdrop-blur-[2px]" aria-label="Close tools overlay" onClick={dismiss}/>
       <div ref={dialog} role="dialog" aria-modal="true" aria-label={selected?selected+' tool':'Choose a tool'}
         data-workspace-tool-dialog
@@ -121,6 +122,6 @@ export function WorkspaceToolTray({disabled=false,onPhoto,onDocument,onPlan,onPl
           : <p role="status" className="text-sm text-sand-700">Choose another tool to continue.</p>}
         </div>
       </div>
-    </>}
+    </>, document.body)}
   </div>;
 }
