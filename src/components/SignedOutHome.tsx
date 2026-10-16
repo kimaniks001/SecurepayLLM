@@ -48,7 +48,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
   const publicMode = variant === 'public';
 
   return (
-    <div className="sp-brand-public sp-type-signature w-full max-w-4xl" data-unified-workspace-entry data-workspace-identity={publicMode ? 'visitor' : 'member'}>
+    <div className="sp-brand-public w-full sp-type-signature max-w-4xl" data-unified-workspace-entry data-workspace-identity={publicMode ? 'visitor' : 'member'}>
       <section className="sp-lift-in relative isolate overflow-hidden rounded-[2rem] px-3 pb-8 pt-8 sm:px-7 md:px-12 md:pb-12 md:pt-12">
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#d9e4d8]/60 blur-3xl md:h-96 md:w-96" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-32 h-72 w-72 rounded-full bg-[#eddcc3]/50 blur-3xl md:h-96 md:w-96" />
@@ -75,7 +75,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             What would you like to <span className="sp-real-word">get done?</span>
           </h1>
           <p className="mt-4 max-w-xl text-[0.98rem] leading-7 text-sand-700 md:text-[1.07rem]">
-            Tell KS001 in your own words. We can work out the details together.
+            Tell me in your own words. We can work out the details together.
           </p>
 
           <div className="mt-6 w-full max-w-3xl" data-workspace-composer>
@@ -107,7 +107,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
           </div>
           <p className="mt-5 max-w-2xl text-[0.78rem] leading-5 text-sand-600">
             {publicMode
-              ? 'No KS Number needed to begin. Nothing becomes an agreement until you review and confirm it.'
+              ? 'Start without a KS Number. Nothing becomes an agreement until you review and confirm it.'
               : 'You stay in control. Only reviewed, confirmed terms can become an agreement.'}
           </p>
         </div>
