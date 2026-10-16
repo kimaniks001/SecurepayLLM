@@ -81,8 +81,8 @@ test('visual changes do not claim an Agreement is accepted or make demo real',()
  assert.match(demo,/A working illustration/);
  assert.match(demo,/ready = false/);
  assert.match(live,/Working draft · Not yet accepted/);
- assert.match(shell,/DEMO ACCOUNT · NO REAL ACCESS/);
- assert.match(shell,/Visual shell: the preview does not authorise financial/);
+ assert.doesNotMatch(shell,/Try mock sign-in|DEMO ACCOUNT · NO REAL ACCESS/);
+ assert.match(shell,/Agreements require review and acceptance; bookings, invitations and money require their own authorisation/);
 });
 
 test('legacy Money and the two-door Trust Project share typography without changing routing',()=>{
