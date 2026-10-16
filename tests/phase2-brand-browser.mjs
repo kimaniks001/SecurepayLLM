@@ -23,7 +23,7 @@ try {
   if(phase==='after'){
     await page.locator('.sp-brand-shell[data-sp-area="work"]').waitFor();
     await page.locator('.sp-brand-conversation').waitFor({state:'attached'});
-    await page.locator('.sp-initial-letter').waitFor();
+    await page.locator('[data-live-formation]').waitFor();
     await page.getByRole('region',{name:'Live forming Agreement'}).waitFor();
     assert.equal(await page.getByRole('button',{name:'Try mock sign-in'}).count(),0);
     assert.equal(await page.getByRole('button',{name:/Try real KS001/}).count(),0);
@@ -33,7 +33,15 @@ try {
   await page.screenshot({path:`${output}/${device}-work-agreement.png`,fullPage:true});
   if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
   await page.screenshot({path:`${output}/${device}-ks001.png`,fullPage:true});
-  const openPicker=async()=>{await page.getByRole('button',{name:'Add or use a tool'}).click(); await page.getByRole('dialog',{name:'Choose a tool'}).waitFor();};
+  const openPicker=async()=>{
+    await page.getByRole('button',{name:phase==='before'?'Add or use a tool':'Expand tool shelf'}).click();
+    await page.getByRole('dialog',{name:'Choose a tool'}).waitFor();
+    if(phase==='after' && width>=1280){
+      const shelf=await page.locator('[data-tool-shelf]').boundingBox();
+      const chat=await page.getByRole('region',{name:'KS001 conversation'}).boundingBox();
+      assert.ok(shelf && chat && shelf.x+shelf.width<=chat.x+1,'Desktop shelf may not cover conversation');
+    }
+  };
   for(const [choice,filename] of [['Money','money'],['Stores','stores'],['Quick Assist','quick-assist']]){
     await openPicker();
     await page.getByRole('dialog',{name:'Choose a tool'}).getByRole('button',{name:new RegExp(choice)}).click();
