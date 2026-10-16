@@ -3,6 +3,7 @@ import type { AgentController } from '../agent/controller';
 import { humanNextQuestion } from './livingLanguage';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
+import { questionActions, localCalendarDate } from './answerActions';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
@@ -23,16 +24,6 @@ function Ks001Reply({ text }: { text: string }) {
   if(!result)return <>{text}</>;
   return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
 }
-function replyPills(question:string):string[] {
-  const lower=question.toLowerCase();
-  if(/where|location|address|deliver to/.test(lower))return ["I'll type the place",'Not sure yet'];
-  if(/when|date|deadline|time/.test(lower))return ["I'll enter the date",'To be agreed','Not sure yet'];
-  if(/who|which person|responsible|supplier|buyer|seller/.test(lower))return ["I'll name the person",'Not decided yet'];
-  if(/how much|price|amount|cost|budget|payment/.test(lower))return ["I'll enter an amount",'To be agreed'];
-  if(/confirm|is that correct|does this look right|agree/.test(lower))return ['Yes, that is correct','I need to correct something'];
-  return ["I'll answer",'Help me decide','Not sure yet'];
-}
-
 /**
  * Phase 7 opt-in backend smoke experience. Uses the SAME authenticated/anonymous
  * conversation gateway and controller as AgentExperience: server conversation IDs,
@@ -42,7 +33,7 @@ function replyPills(question:string):string[] {
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening }: { controller: AgentController; nextQuestion?: string | null; opening?: string }) {
+export function LiveKs001Session({ controller, nextQuestion, nextChoices = [], opening, onOpenTool }: { controller: AgentController; nextQuestion?: string | null; nextChoices?: readonly string[]; opening?: string; onOpenTool?:(tool:'Photos'|'Places'|'People & Invitations')=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
@@ -70,22 +61,28 @@ export function LiveKs001Session({ controller, nextQuestion, opening }: { contro
     {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
-      const question=lastQuestion(last.response.message.text);
-      const pills=replyPills(question?.question ?? nextQuestion ?? '');
+      const spokenQuestion=lastQuestion(last.response.message.text)?.question;
+      const question=spokenQuestion ?? nextQuestion ?? '';
+      // A server choice only belongs to its own planned question; do not attach
+      // price choices to a different, newer question the model actually asked.
+      const matchesPlan=!spokenQuestion || spokenQuestion.trim().toLowerCase()===nextQuestion?.trim().toLowerCase();
+      const actions=questionActions(question,matchesPlan?nextChoices:[]).filter(a=>a.kind!=='shelf'||Boolean(onOpenTool));
+      if(!actions.length)return null;
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
-        {pills.map(answer=><button key={answer} type="button"
+        {actions.map(a=><button key={a.id} type="button"
           onClick={()=>{
-            const kind:MiniKind|null=answer==="I'll enter the date"?'date':answer==="I'll enter an amount"?'money':
-              answer==="I'll name the person"?'person':answer==="I'll type the place"?'place':null;
-            if(kind){setMini({kind,question:question?.question??nextQuestion??''});return;}
-            if(answer==="I'll answer"){document.getElementById('live-work-ks001-input')?.focus();return;}
-            void controller.send(answer);
+            if(a.kind==='compose'){document.getElementById('live-work-ks001-input')?.focus();return;}
+            if(a.kind==='mini'){setMini({kind:a.input,question});return;}
+            if(a.kind==='shelf'){onOpenTool?.(a.tool);return;}
+            const calendarDay=(a.id==='today'||a.id==='tomorrow')?localCalendarDate(a.id):null;
+            const value=calendarDay ? a.answer+' ('+calendarDay+', local calendar date; time not specified)' : a.answer;
+            void controller.send(value);
           }}
-          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{answer}</button>)}
+          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700">{a.label}</button>)}
       </div>;
     })()}
     {mini && <div className="shrink-0 border-t border-cream-200 bg-[#f9faf7] px-4 py-3" data-ks001-mini-answer>
-      <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
+      <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'Which day?':mini.kind==='time'?'What time?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
           if(state.busy||state.pending)throw new Error('Previous turn not finished');
