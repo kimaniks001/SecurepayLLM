@@ -41,6 +41,7 @@ try{
       await page.getByRole('button',{name:/Paste a plan/}).waitFor();
       await page.getByRole('button',{name:'All tools'}).click();
       await page.getByRole('dialog',{name:'Choose a tool'}).getByRole('button',{name:/Quick Assist/}).click();
+      await page.getByRole('dialog',{name:'Quick Assist tool'}).getByRole('button',{name:'Add a tool'}).click();
       await page.getByRole('dialog',{name:'Quick Assist tool'}).getByText('Short Stays',{exact:false}).waitFor();
       await page.getByRole('button',{name:'All tools'}).click();
       const dateItem=page.getByRole('dialog',{name:'Choose a tool'}).getByRole('button',{name:/Date & Time/});
