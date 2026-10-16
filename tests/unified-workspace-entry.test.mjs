@@ -33,6 +33,8 @@ test('one welcoming KS001 entry object is shared by guests and members',()=>{
 
 test('visitor and member entry use real KS001 without visiting a demo or separate Home',()=>{
   assert.match(publicEntry,/data-workspace-at-rest/);
+  assert.ok(publicEntry.includes('relative z-20 mx-auto flex'), 'Visitor Add must sit above public chapters');
+  assert.ok(hero.includes('sp-life-canvas relative z-20'), 'Member Add must sit above attention cards');
   assert.match(publicEntry,/onAddDateTime=\{props\.onAddDateTime\}/);
   assert.match(app,/data-unified-workspace/);
   assert.match(app,/data-workspace-state=\{showHome \? 'rest' : 'working'\}/);
