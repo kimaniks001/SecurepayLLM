@@ -127,7 +127,7 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
       {open && (
         <div
           ref={menuRef} id={menuId} role="menu" aria-label="Add a source" onKeyDown={onMenuKeyDown}
-          className={`absolute ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-cream-200 bg-white shadow-lifted overflow-hidden animate-fade-in-up z-30 text-left`}
+          className={`absolute ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-cream-200 bg-white shadow-lifted max-h-[min(65dvh,28rem)] overflow-y-auto overscroll-contain animate-fade-in-up z-30 text-left`}
         >
           {items.map((item, i) => (
             <button
