@@ -25,7 +25,7 @@ try{
       await page.locator('[data-unified-workspace-entry][data-workspace-identity="visitor"]').waitFor({timeout:15000});
       await page.getByRole('heading',{name:'What would you like to get done?'}).waitFor();
       assert.equal(await page.locator('[data-workspace-composer] textarea').count(),1);
-      assert.ok(await page.getByText('No KS Number needed to begin.',{exact:false}).count());
+      assert.ok(await page.getByText('Start without a KS Number.',{exact:false}).count());
       await page.getByRole('button',{name:'Add what you have'}).click();
       const menu=page.getByRole('menu',{name:'Add a source'});
       await menu.getByRole('menuitem',{name:/Date & Time/}).waitFor();
