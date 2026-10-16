@@ -46,7 +46,8 @@ test('Every launch tool opens an actual bounded tool surface, not the old descri
 });
 
 test('KS001 suggestions do not send holders into nonexistent tools', () => {
-  assert.match(shell, /tools\.find\(item=>item\.name===suggestion\)\?\.name\?\?null/);
+  assert.match(shell, /const tools = \[/);
+  assert.doesNotMatch(shell, /setMessages\(/, 'No fabricated KS001 turn');
   for (const name of ['Vision tools','Community & Circles','Milestones','Quick Support']) {
     assert.ok(!personas.includes("tool:'"+name+"'"), 'retired recommendation: ' + name);
   }
@@ -59,5 +60,5 @@ test('Launch cleanup preserves existing provider, Agreement and money boundaries
   assert.match(shell, /activeTool==='Quick Assist'\?<QuickSupportPanel/);
   assert.match(store, /id:'contract',label:'Quick Contract'/);
   assert.match(quick, /No booking or payment is made/);
-  assert.match(shell, /No money, invitation, approval or booking authority is granted/);
+  assert.match(shell, /bookings, invitations and money require their own authorisation/);
 });
