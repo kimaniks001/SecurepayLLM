@@ -25,7 +25,7 @@ test('calendar and local clock choices remain distinct and do not invent time',(
  assert.match(actions,/label:'Choose time',kind:'time'/);
  assert.match(mini,/kind==='time'\?'time'/);
  assert.match(mini,/Choose a valid local time/);
- assert.match(chat,/No exact time has been chosen/);
+ assert.match(chat,/I have not specified a time/);
  assert.match(chat,/getFullYear\(\)/);
 });
 test('photo and place pills use existing workspace tool and same canonical conversation',()=>{
@@ -34,7 +34,8 @@ test('photo and place pills use existing workspace tool and same canonical conve
  assert.match(chat,/if\(onOpenTool\)onOpenTool\(action\.tool\)/);
  assert.match(shell,/onOpenTool=\{name=>openTool\(name\)\}/);
  assert.match(chat,/controller\.send\(action\.value\)/);
- assert.match(chat,/controller\.send\('For your question/);
+ assert.doesNotMatch(chat,/For your question/);
+ assert.match(chat,/await controller\.send\(answer\)/);
  assert.match(shell,/<UniversalSourceTray/);
  assert.match(shell,/onCorrectFact=\{async \(label,previous,replacement,expectedVersion\)=>/);
  assert.doesNotMatch(chat,/acceptAgreement\(|sendMoney\(|confirmPayment\(/);
@@ -54,4 +55,13 @@ test('semantic examples exercise the real allowlist without executing invented t
  assert.ok(resolve('Where should the delivery arrive?').some(a=>a.type==='tool'&&a.tool==='Places'));
  assert.ok(resolve('How much should the supplier be paid?').some(a=>a.type==='mini'&&a.kind==='money'));
  assert.equal(resolve('Please explain your situation.').length,0);
+});
+
+test('answer-pill and mini-input replies sound like the person, not orchestration instructions',()=>{
+ assert.doesNotMatch(chat,/Please incorporate it into my current draft/);
+ assert.doesNotMatch(chat,/This is not an accepted term/);
+ assert.match(chat,/mini\.kind==='money' \? value\+'\.'/);
+ assert.match(chat,/mini\.kind==='date' \? 'The date is '/);
+ assert.match(chat,/mini\.kind==='time' \? 'The local time is '/);
+ assert.match(chat,/void controller\.send\('The date is '/);
 });
