@@ -6,7 +6,7 @@
 - Entering/returning uses the authoritative KS001 server conversation ID and calls `resumeConversation` under the current session. The receiver must accept or deny access. It does not transfer money, Agreement approvals, memberships or unsubmitted draft text.
 - A fresh frontend compilation, source contract or public-preview browser smoke cannot establish authenticated access, genuine invitation consent, banking rails or Money execution.
 - Real end-to-end scenarios below remain **NOT CERTIFIED**, regardless of green frontend regression checks.
-- Backend SecurePayAPI PR #321 is still a draft/unmerged at `87f894551e6f0ec01f63f90fa7c74ad9646ef243`, and previous CI runs report failures. Their detailed job logs were not available during this inspection, so the cause is **not established**. Do not assume a runner issue or a product defect without evidence.
+- Backend SecurePayAPI PR #321 remains draft/unmerged, with corrective stacked draft PRs #323 (review-ready advisory test doctrine) and #324 (read-only Fair Trade examination privacy/404 scope). At combined API head `714b566131f49a05270e1257b3fb2671207d2a73`, Repository Validation, Phase 33, Phase 34, Phase 35, Doctrine and Final Convergence have **all passed**. Those are automated engineering results, not authenticated human or production certification. The former failed jobs did execute and exposed specific tests, now corrected in the draft stack.
 
 ### Live authentication prerequisites
 1. A non-production environment with its own approved test KS identities, including a signed-in buyer, seller, organiser, invited participant, non-member and Plug; one deliberately unauthorised identity.
@@ -39,9 +39,13 @@
 **F Community project**: discover project inside member scope, apply participation permissions, involve a Plug/Master appropriately; no Circle leakage into LIVE.
 
 ### Completion conditions
-- Backend PR #321 workflows execute and have trustworthy pass/fail logs; version-bound Fair Trade and Agreement/Money authorities behave correctly in the chosen test environment.
+- Backend PR #321/#323/#324 automated workflows are green at the combined head; still prove version-bound Fair Trade, Agreement and Money permissions in an **isolated authenticated staging environment**, not against the production-pinned Vercel preview relays.
 - All six authenticated scenarios have reproducible server and browser evidence, no unhandled permissions and no false acceptance/payment language.
 - Mobile 320/390, desktop, 200% zoom, keyboard focus, Swahili, older-user readability, slow connection/unknown outcome and printed Agreement inspected.
 - Phase 1 #136, Phase 2 #137, cleanup #138 and handoff #139 remain draft until the separate product-owner release approval.
 
 **Do not report SecurePay production-ready merely because all frontend unit tests are green.**
+
+## Phase 3 update — 16 October 2026
+
+An isolated staging backend/frontend and test KS identities were **not verified** in this checkpoint. The current Vercel preview relays hardcode `securepay.ke` as their production upstream. See `docs/PHASE3_AUTHENTICATED_HUMAN_CERTIFICATION_20261016.md` and `tests/certification/staging-guard.mjs` for the zero-network, no-money safety gate and detailed six-journey procedure. **Every real human scenario remains NOT RUN**. Frontend PR #140 is a draft preparation change, not a release or a certified test result.
