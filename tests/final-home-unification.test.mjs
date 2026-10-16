@@ -38,7 +38,10 @@ test('quick starts remain public explanation, not signed-in operating choices', 
   }
   assert.match(signedIn, /onClick=\{\(\) => onStart\(prompt\)\}/);
   assert.doesNotMatch(home, /<section aria-label="Quick starts"/, 'public entry remains a single straightforward KS001 doorway');
-  assert.match(home, /!publicMode && continueSlot/);
+  assert.match(home, /data-return-to-work/);
+  assert.ok(home.indexOf('data-return-to-work') < home.indexOf('<ConversationInput'),
+    'resume genuine work before asking a signed-in member to begin something else');
+  assert.match(home, /data-workspace-identity=\{publicMode \? 'visitor' : 'member'\}/);
 });
 
 test('public users can still start before signing in', () => {
