@@ -40,7 +40,8 @@ test('real SecurePay entry is one conversation work plane, never Home versus cha
   assert.match(app,/<ConversationSurface/);
   assert.match(app,/onSend=\{text => workspaceEmpty \? startFromHome\(text\) : submitInput\(text\)\}/);
   assert.match(app,/<AgreementShaping /);
-  assert.match(app,/status=\{<div className="space-y-3">/);
+  assert.match(app,/status=\{workspaceEmpty \? workspaceDetails : undefined\}/);
+  assert.match(app,/workPane=\{!workspaceEmpty \? workspaceDetails : undefined\}/);
   assert.doesNotMatch(app,/<PublicHome|<SignedOutHome/);
   assert.doesNotMatch(app,/View this Agreement alongside KS001|openCurrentLivingWorkspace/);
   assert.match(idle,/data-workspace-sheet/);
