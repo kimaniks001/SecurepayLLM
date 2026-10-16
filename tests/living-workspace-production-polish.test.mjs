@@ -33,7 +33,6 @@ test('real KS001 Work is the default, with server-owned terms and safe failure',
   assert.doesNotMatch(workspace,/setMessages\(/);
   assert.match(workspace,/Ask KS001 in My Work/);
   assert.match(workspace,/Nothing will be sent until the connection returns/);
-  assert.doesNotMatch(workspace,/setMessages\\(/);
   assert.match(live,/controller\.retry\(\)/);
   assert.match(live,/controller\.send\(next\)/);
   assert.match(agreement,/Display title for this view only · not saved to the Agreement/);
