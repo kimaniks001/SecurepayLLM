@@ -1576,7 +1576,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   </div>
                 </div>}
               </div>}
-              {state.turns.some(turn => turn.sender === 'user') && (
+              {!formationState.data && state.turns.some(turn => turn.sender === 'user') && (
                 <section aria-label="Your request and progress" data-living-workspace className="relative overflow-hidden rounded-[1.6rem] border border-forest-200/70 bg-white/95 px-5 py-5 shadow-soft md:px-7">
                   <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-forest-100/40 blur-2xl" />
                   <div className="relative flex items-center justify-between gap-3">
