@@ -57,7 +57,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
             <img src={securepayMark} alt="SecurePay" className="h-9 w-9 md:h-10 md:w-10" />
             <div>
               <div className="sp-kicker">KS001</div>
-              <div className="mt-0.5 text-xs text-sand-600">Here to help you make things happen</div>
+              <div className="mt-0.5 text-xs text-sand-600">{publicMode ? 'Start here · your ideas are welcome' : 'Here with you · your work can continue'}</div>
             </div>
           </div>
 
