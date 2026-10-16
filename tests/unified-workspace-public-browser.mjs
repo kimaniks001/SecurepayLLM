@@ -28,18 +28,22 @@ try{
       assert.equal(await page.locator('[data-workspace-state="rest"] [role="log"]').count(),1);
       assert.equal(await page.locator('[data-workspace-sheet]').count(),1);
       assert.ok(await page.getByText('Start without a KS Number.',{exact:false}).count());
-      await page.getByRole('button',{name:'Add what you have'}).click();
-      const menu=page.getByRole('menu',{name:'Add a source'});
-      const dateItem=menu.getByRole('menuitem',{name:/Date & Time/});
-      await dateItem.waitFor();
-      await page.screenshot({path:`${out}/${device}-add-menu.png`,fullPage:true});
-      await menu.evaluate(node=>{node.scrollTop=node.scrollHeight;});
-      const menuBox=await menu.boundingBox(), itemBox=await dateItem.boundingBox();
-      assert.ok(menuBox && itemBox && itemBox.y >= menuBox.y-2 && itemBox.y+itemBox.height <= menuBox.y+menuBox.height+2,
-        'Date & Time must remain visible and reachable inside the Add menu');
-      assert.ok(itemBox.y >= 0 && itemBox.y+itemBox.height <= height,
-        'Date & Time must be on screen without scrolling the workspace itself');
-      await page.screenshot({path:`${out}/${device}-add-date-visible.png`,fullPage:true});
+      await page.getByRole('button',{name:'Add or use a tool'}).click();
+      const picker=page.getByRole('dialog',{name:'Choose a tool'});
+      await picker.waitFor();
+      for(const name of ['Photos','Documents','Places','Date & Time','Quick Assist','Stores','People & Invitations','Money']){
+        assert.ok(await picker.getByRole('button',{name:new RegExp(name.replace('&','&'))}).count(),`Missing ${name} in rich workspace tray`);
+      }
+      await page.screenshot({path:`${out}/${device}-rich-eight-tools.png`,fullPage:true});
+      await picker.getByRole('button',{name:/Documents/}).click();
+      await page.getByRole('dialog',{name:'Documents tool'}).getByRole('button',{name:/Choose document/}).waitFor();
+      await page.getByRole('button',{name:/Choose spreadsheet/}).waitFor();
+      await page.getByRole('button',{name:/Paste a plan/}).waitFor();
+      await page.getByRole('button',{name:'All tools'}).click();
+      await page.getByRole('dialog',{name:'Choose a tool'}).getByRole('button',{name:/Quick Assist/}).click();
+      await page.getByRole('dialog',{name:'Quick Assist tool'}).getByText('Short Stays',{exact:false}).waitFor();
+      await page.getByRole('button',{name:'All tools'}).click();
+      const dateItem=page.getByRole('dialog',{name:'Choose a tool'}).getByRole('button',{name:/Date & Time/});
       await dateItem.click();
       await page.getByRole('dialog',{name:'Date & Time'}).waitFor();
       await page.screenshot({path:`${out}/${device}-date-time.png`,fullPage:true});
