@@ -21,6 +21,7 @@ import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
 import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
+import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
@@ -508,21 +509,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
-          <p className="sp-type-statement max-w-[560px] text-base leading-7">{persona.opening}</p>
-          <div className="max-w-xl rounded-2xl border border-forest-100 bg-[#f8faf6] p-4">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-forest-700">{persona.label} · Guidance</p>
-            <p className="mt-2 text-sm leading-6 text-forest-900">{persona.objective}</p>
-            <p className="mt-2 text-xs leading-5 text-sand-700">{persona.dataBoundary}</p>
-          </div>
-          {mode==='work' && !gateway
-            ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">KS001 is temporarily unavailable here. Your words will not be sent or mistaken for an Agreement. Please return when the connection is ready.</p>
-            : <div className="rounded-2xl border border-forest-100 bg-white p-4">
-                <p className="text-sm font-semibold text-forest-900">Explore here. Work with KS001 when you need to.</p>
-                <p className="mt-2 text-xs leading-5 text-sand-700">This area shows guidance and your authorised records. Personalised KS001 replies for {mode==='vision'?'Vision':mode==='circle'?'Circles':'Community'} require a permission-checked connection; we won't invent them.</p>
-                {gateway && <button type="button" onClick={()=>chooseMode('work')}
-                  className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-[#ecf3ea] px-4 text-sm font-semibold text-forest-800">Talk to KS001 in My Work</button>}
-              </div>}
+        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+          <WorkspaceWelcome area={mode} onExample={example=>{
+            if(example.tool)openTool(example.tool);
+          }}/>
+          {mode==='work' && !gateway && <p role="status" className="mx-auto mt-3 max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">KS001 is temporarily unavailable. No Agreement will be created or changed.</p>}
+          {mode!=='work' && gateway && <div className="mx-auto mt-5 max-w-lg text-center">
+            <p className="text-xs leading-5 text-sand-600">The tools are available here. Personalised KS001 conversation in this space needs an authorised connection.</p>
+            <button type="button" onClick={()=>chooseMode('work')} className="mt-3 min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm text-forest-800">Ask KS001 about an Agreement in My Work</button>
+          </div>}
         </div>}
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
