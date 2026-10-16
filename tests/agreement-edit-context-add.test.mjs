@@ -11,16 +11,17 @@ test('Editing a draft fact has an obvious + Add that does not replace written co
   assert.match(panel,/onAddToFact: \(label:string\)=>void/);
   assert.match(panel,/editingFact===item\.label\?<form/);
   assert.match(panel,/onClick=\{\(\)=>onAddToFact\(item\.label\)\}/);
-  assert.match(panel,/Add photo, document, place or KS Number to /);
+  assert.match(panel,/Add a photo, document, place, date or KS Number to /);
   assert.match(panel,/Send correction/);
-  assert.match(panel,/Your written correction stays here until you send it/);
+  assert.match(panel,/Your unsent correction stays here/);
 });
-test('Contextual Add offers photo, document and place; KS Number only for People',()=>{
+test('Contextual Add offers photo, document, place and Date & Time; KS Number only for People',()=>{
   assert.match(workspace,/openFactSourcePicker\(label: string\)/);
   assert.match(workspace,/onAddToFact=\{openFactSourcePicker\}/);
-  assert.match(workspace,/\['Photos','Documents','Places',\.\.\.\(supportingFact\.label==='People'\?\['People & Invitations'\]:\[\]\)\]/);
+  assert.match(workspace,/\['Photos','Documents','Places','Date & Time',\.\.\.\(supportingFact\.label==='People'\?\['People & Invitations'\]:\[\]\)\]/);
   assert.match(workspace,/name==='People & Invitations'\?'KS Number'/);
   assert.match(workspace,/Nothing changes the Agreement automatically/);
+  assert.match(workspace,/activeTool==='Date & Time'/);
 });
 test('A new supporting source stays scoped to the originating conversation',()=>{
   assert.match(workspace,/setSupportingFact\(\{label,conversationId:liveConversationId\}\)/);
