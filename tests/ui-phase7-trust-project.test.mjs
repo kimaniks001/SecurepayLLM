@@ -23,9 +23,10 @@ const full = render();
 // ------------------------------------------------------------ placement: KS001 first, no separate surface
 test('the section renders AFTER the untouched KS001 Home, inside the same Home branch', async () => {
   const src = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  const home = src.indexOf('<SignedOutHome'), section = src.indexOf('<TrustProjectSection');
-  assert.ok(home > 0 && section > home, 'TrustProjectSection must come after SignedOutHome');
-  assert.ok(src.lastIndexOf('showHome ?', section) > 0 && src.indexOf('</div> : <>', home) > section, 'it must live in the Home branch only');
+  const work = src.indexOf('workspaceEmpty && <WorkspaceAtRest'), section = src.indexOf('<TrustProjectSection');
+  assert.ok(work > 0 && section > work, 'Trust Project stays behind a small disclosure in the work surface');
+  assert.match(src,/additionalWork=\{signedIn \?/);
+  assert.doesNotMatch(src,/<SignedOutHome|<PublicHome/);
   const hero = await readFile('src/components/SignedOutHome.tsx', 'utf8');
   assert.match(hero, /What would you like to/);
   assert.doesNotMatch(hero, /Trust Project/, 'the KS001 hero itself is not changed or pushed down by Trust Project copy');
@@ -129,7 +130,8 @@ test('the Home reads membership from the existing self-scoped record and the KS 
   assert.match(src, /circleGateway\.me\(\)\.then\(profile => \{ if \(!cancelled\) setOwnKsNumber\(profile\.canonicalKsNumber\)/);
   // Phase 4B: the same sign-out branch also resets the Business area (Businesses + acting capacity).
   assert.match(src, /if \(sessionState\.status !== 'signed-in'\) \{ setOwnKsNumber\(null\); businessController\.reset\(\); return; \}/);
-  assert.match(src, /membership=\{sessionState\.status === 'signed-in' && trustMembershipStatus !== undefined/);
+  assert.match(src, /membership=\{trustMembershipStatus !== undefined/);
+  assert.match(src, /additionalWork=\{signedIn \?/);
   assert.doesNotMatch(await readFile('src/components/trustProject.ts', 'utf8'), /membershipNumber|memberNumber|TP-/);
 });
 test('signed-in people get a smaller doorway with the full explanation one tap away', () => {
