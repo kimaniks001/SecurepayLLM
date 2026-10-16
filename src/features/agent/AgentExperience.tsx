@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
 import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
-import { SignedOutHome } from '../../components/SignedOutHome';
+import { WorkspaceAtRest } from './WorkspaceAtRest';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { NavBar } from '../../components/NavBar';
-import { PublicHome } from '../public/PublicHome';
 import { SignInExperience } from '../public/SignInExperience';
 import { useSignInRoute } from '../public/signInRoute';
 import { JoinExperience } from '../join/JoinExperience';
@@ -318,6 +317,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [signedIn, signInRoute.active, signInRoute.signingUp]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
+  const [publicInfoOpen, setPublicInfoOpen] = useState(false);
   const [dateTimeOpen, setDateTimeOpen] = useState(false);
   useEffect(() => {
     if (!externalReturnConversationId || returnAttempted.current) return;
@@ -348,7 +348,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   useEffect(() => {
     if (pendingSection && focusPublicSection(pendingSection)) setPendingSection(null);
     if (pendingComposerFocus && focusKs001Composer()) setPendingComposerFocus(false);
-  }, [pendingSection, pendingComposerFocus, home]);
+  }, [pendingSection, pendingComposerFocus, home, publicInfoOpen]);
   // Human Experience Phase 2 — Home is the one KS001 Home. The Agreement workspace mounts only
   // when the person deliberately enters Agreement work (or a deep link points to one).
   const [workspace, setWorkspace] = useState(externalEntryView === 'agreements' || (externalEntryView === 'agreement-detail' && !!externalAgreementId));
@@ -883,7 +883,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     home: () => { leaveSignIn(); joinRoute.close(); navigateTo('signed-in'); },
     signIn: () => signInRoute.open(null),
     join: () => { leaveSignIn(); joinRoute.open(); },
-    section: id => { leaveSignIn(); navigateTo('signed-in'); setPendingSection(id); },
+    section: id => { leaveSignIn(); navigateTo('signed-in'); setPublicInfoOpen(true); setPendingSection(id); },
     skipToKs001: () => { if (focusKs001Composer()) return; leaveSignIn(); navigateTo('signed-in'); setPendingComposerFocus(true); },
   });
 
@@ -1297,6 +1297,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // controller.ts) — state.conversationId alone must also route to the conversation view, or the
   // person would land back on the generic Home prompt with no visible sign their offer was used.
   const showHome = canonicalHomeVisible;
+  // An EMPTY real conversation has no separate Home screen. Its welcome is a state of the
+  // same conversation/work area, with the same real composer, + tools and backend controller.
+  const workspaceEmpty = state.turns.length === 0 && !state.conversationId;
   // The "Bring your plan" panel, opened from either Home's intake.
   // Closes ONLY when SecurePay really read it (READY/PARTIAL, reconciled). FAILED/refused/unknown keep the panel, the text
   // and the reason on screen so the person can try again or change it. From Home it is a NEW intention (EP-CERT-013).
@@ -1492,7 +1495,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (result.busy || result.pending || result.error)
       throw new Error('SecurePay has not confirmed this turn. Check KS001 before trying again; do not send a duplicate.');
   };
-  const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
   return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={showHome ? 'rest' : 'working'}>
     {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
@@ -1501,83 +1503,10 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         <DateTimeTool onPrepare={proposeTiming} onClose={()=>setDateTimeOpen(false)}/>
       </section>
     </div>}
-    <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
+    <NavBar view={workspaceEmpty ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
-    {showHome ? <div className="flex-1 overflow-auto" aria-label="SecurePay workspace">
-      {signedIn ? <>
-        <SignedOutHome
-          continueSlot={continueSlot}
-          sourceStatusSlot={sourceStatusSlot}
-          disabled={homeDisabled}
-          onStart={startFromHome}
-          onBringPlan={openBringPlan}
-          onPickDocument={pickDocument}
-          onPickPhoto={pickPhoto}
-          onAddLink={() => openDeclared('link')}
-          onAddPlace={() => openDeclared('place')}
-           onAddDateTime={() => setDateTimeOpen(true)}
-        />
-        {homeAttention.phase === 'ready' && (
-          <div className="mx-auto w-full max-w-3xl px-4 md:px-6">
-            <AgreementAttentionSummary
-              needsYou={homeAttention.attentionItems}
-              waiting={homeAttention.waitingItems}
-              upcoming={homeAttention.upcomingEvents}
-              dominantWorkId={homeHumanNext?.workKind === 'agreement' ? homeHumanNext.workId : null}
-              onOpenAgreement={openAgreementAttention}
-            />
-          </div>
-        )}
-        {bringPlanPanel && <div className="px-4 md:px-6 pb-6">{bringPlanPanel}</div>}
-        {declaredPanel && <div className="px-4 md:px-6 pb-6 max-w-xl mx-auto">{declaredPanel}</div>}
-        <div className="mx-auto w-full max-w-3xl px-4 pb-10 md:px-6">
-          <details className="border-t border-cream-200 pt-4">
-            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
-              Other work
-            </summary>
-            <div className="pb-3">
-              <ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} />
-            </div>
-          </details>
-          <details className="border-t border-cream-200">
-            <summary className="min-h-11 cursor-pointer list-none py-3 text-[0.82rem] font-medium text-sand-600">
-              Explore more
-            </summary>
-            <TrustProjectSection
-              compact
-              membership={sessionState.status === 'signed-in' && trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
-              onExploreCommunity={() => navigateTo('community')}
-              onOpenStores={() => navigateTo('store')}
-              onJoin={() => joinRoute.open()}
-            />
-          </details>
-        </div>
-      </> : (
-        // At-rest workspace: visitors use the SAME real controller and composer as members.
-        // Informational chapters stay below the workspace, never replacing the working surface.
-        <PublicHome
-          continueSlot={continueSlot}
-          sourceStatusSlot={sourceStatusSlot}
-          disabled={homeDisabled}
-          onStart={startFromHome}
-          onBringPlan={openBringPlan}
-          onPickDocument={pickDocument}
-          onPickPhoto={pickPhoto}
-          onAddLink={() => openDeclared('link')}
-          onAddPlace={() => openDeclared('place')}
-          onAddDateTime={() => setDateTimeOpen(true)}
-          bringPlanPanel={bringPlanPanel}
-          declaredPanel={declaredPanel}
-          onFocusComposer={() => { focusKs001Composer(); }}
-          onBrowseStores={() => navigateTo('store')}
-          onSignIn={() => signInRoute.open(null)}
-          onRecover={() => navigateTo('recovery')}
-          onHelp={() => navigateTo('support')}
-          onSection={id => { focusPublicSection(id); }}
-          onJoin={() => joinRoute.open()}
-        />
-      )}
-    </div> : <>
+    {/* No Home-versus-conversation route. The actual KS001 workspace stays mounted as
+        a single surface at rest and while working. */}
       {/* Human Experience Phase 2 — one work plane. The artifact/conversation stays primary;
           structured understanding is available as quiet detail instead of a second mode. */}
       <div className="md:hidden sticky top-0 z-10 bg-cream-50/95 border-b border-cream-200/60 backdrop-blur-md">
@@ -1585,7 +1514,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
           <button type="button" onClick={() => setCompassOpen(true)} aria-label="KS001, guided by the 12 Principles of Fair Trade"
             className="min-h-11 min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded-lg">
-            <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : currentTitle}</span></span>
+            <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : workspaceEmpty ? 'Ready for your first thought' : currentTitle}</span></span>
             <span className="block text-[0.65rem] text-sand-500">Your work stays in front.</span>
           </button>
           {hasInspectableDetails && <button
@@ -1597,7 +1526,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             Details
             {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
           </button>}
-          <NewWorkButton onClick={startNewFromConversation} compact />
+          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} compact />}
         </div>
       </div>
       <div className="flex-1 overflow-hidden">
@@ -1610,7 +1539,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-500 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
               <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
             </div>
-            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
+            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{workspaceEmpty ? 'Your workspace is ready' : currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
           </div>
           {hasInspectableDetails && <button
             type="button"
@@ -1621,7 +1550,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             Details
             {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
           </button>}
-          <NewWorkButton onClick={startNewFromConversation} />
+          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} />}
         </div>
         {/* Work stays alongside KS001. No detour into a separate demonstration Workspace. */}
         {detailsOpen && hasInspectableDetails && <section
@@ -1662,19 +1591,71 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <ConversationSurface
             tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
             thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
-            disabled={state.busy || !!state.pending} onSend={text => submitInput(text)} composerFocusKey={composerFocusKey}
-            draftKey={state.conversationId ?? 'new'}
+            disabled={state.busy || !!state.pending} onSend={text => workspaceEmpty ? startFromHome(text) : submitInput(text)} composerFocusKey={composerFocusKey}
+            draftKey={workspaceEmpty ? 'home' : state.conversationId ?? 'new'}
+            placeholder={workspaceEmpty ? 'Tell KS001 what you would like to do…' : 'Tell KS001 what comes next…'}
             leading={<SourceMenu
               placement="above"
               disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
               onBringPlan={openBringPlan}
-              onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
-              onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+              onPickDocument={file => { if (workspaceEmpty) pickDocument(file); else void sourceController.addUpload('DOCUMENT', file); }}
+              onPickPhoto={file => { if (workspaceEmpty) pickPhoto(file); else void sourceController.addUpload('PHOTO', file); }}
               onAddLink={() => openDeclared('link')}
               onAddPlace={() => openDeclared('place')}
                onAddDateTime={() => setDateTimeOpen(true)}
             />}
             status={<div className="space-y-3">
+              {workspaceEmpty && <WorkspaceAtRest
+                signedIn={signedIn}
+                continueSlot={continueSlot}
+                attentionSlot={signedIn && homeAttention.phase === 'ready' ? <AgreementAttentionSummary
+                  needsYou={homeAttention.attentionItems}
+                  waiting={homeAttention.waitingItems}
+                  upcoming={homeAttention.upcomingEvents}
+                  dominantWorkId={homeHumanNext?.workKind === 'agreement' ? homeHumanNext.workId : null}
+                  onOpenAgreement={openAgreementAttention}
+                /> : undefined}
+                additionalWork={signedIn ? <div className="space-y-3">
+                  <details className="rounded-xl border border-forest-100 bg-white/80 px-4">
+                    <summary className="flex min-h-11 cursor-pointer items-center text-sm text-forest-700">Your saved work</summary>
+                    <ContinueBuildingList savedBuild={savedBuildController} onResume={resumeSaved} />
+                  </details>
+                  <details className="rounded-xl border border-forest-100 bg-white/80 px-4">
+                    <summary className="flex min-h-11 cursor-pointer items-center text-sm text-forest-700">Stores &amp; community</summary>
+                    <TrustProjectSection compact
+                      membership={trustMembershipStatus !== undefined ? { status: trustMembershipStatus, canonicalKsNumber: ownKsNumber } : null}
+                      onExploreCommunity={() => navigateTo('community')}
+                      onOpenStores={() => navigateTo('store')}
+                      onJoin={() => joinRoute.open()}
+                    />
+                  </details>
+                </div> : undefined}
+              />}
+              {!signedIn && workspaceEmpty && <details open={publicInfoOpen}
+                onToggle={event => setPublicInfoOpen(event.currentTarget.open)}
+                className="mx-auto max-w-6xl rounded-xl border border-forest-100 bg-white/70 px-4" data-public-workspace-info>
+                <summary className="flex min-h-11 cursor-pointer items-center text-[0.83rem] text-forest-700">
+                  Discover more about SecurePay
+                </summary>
+                <div className="grid gap-4 pb-4 md:grid-cols-3">
+                  <section data-public-section="how-it-works">
+                    <h2 tabIndex={-1} className="font-display text-lg text-forest-900">How SecurePay works</h2>
+                    <p className="mt-2 text-sm leading-6 text-sand-700">Talk to KS001, examine what takes shape, and review the terms before anything becomes an Agreement.</p>
+                  </section>
+                  <section data-public-section="trust-project">
+                    <h2 tabIndex={-1} className="font-display text-lg text-forest-900">The Trust Project</h2>
+                    <p className="mt-2 text-sm leading-6 text-sand-700">People, knowledge and shared technologies for fair trade. Membership is a choice.</p>
+                    <button type="button" onClick={() => joinRoute.open()} className="mt-2 min-h-11 text-sm font-semibold text-forest-700 underline">Explore joining</button>
+                  </section>
+                  <section data-public-section="for-business">
+                    <h2 tabIndex={-1} className="font-display text-lg text-forest-900">For Business</h2>
+                    <p className="mt-2 text-sm leading-6 text-sand-700">An authorised representative helps their business plan, agree and trade.</p>
+                  </section>
+                </div>
+              </details>}
+              {sourceStatusSlot}
+              {workspaceEmpty && bringPlanPanel}
+              {workspaceEmpty && declaredPanel}
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
               {continuityChoice && <div className="space-y-2">
                 <ContinuityChoice busy={continuityBusy || dreamClaimOpen || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling' || !!visionDreamState.pending}
@@ -1774,7 +1755,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   {savedBuildState.phase === 'saved' ? 'Saved for later' : 'Save for later'}
                 </button>
               </details>}
-              {bringPlanOpen && (
+              {!workspaceEmpty && bringPlanOpen && (
                 <BringPlanPanel
                   busy={sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
                   error={intakeError}
@@ -1784,7 +1765,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   onSubmit={(text, label) => submitPlan(text, label, currentSet())}
                 />
               )}
-              {declaredPanel}
+              {!workspaceEmpty && declaredPanel}
               {/* KS001 Upgrade Phase 3 (Section 41) -- calm, first-class source cards; never a giant
                   extraction-debug screen. BUILD itself remains the primary structured view. */}
               <SourcesList
@@ -1834,7 +1815,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         </div>}
       </div>
       </div>
-    </>}
+    </>
     <DiscoveryHost controller={discovery} panelSlot={panelSlot} contextDetails={contextDetails}
       onBackToConversation={() => { discovery.close(); setDetailsOpen(false); setComposerFocusKey(key => key + 1); }}
       onAddPerson={() => { discovery.close(); const add = workbenchModel.adds.find(a => a.key === 'who'); if (add) instruments.open(add.spec); }} />
