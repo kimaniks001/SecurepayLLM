@@ -8,8 +8,8 @@ const APPROVED_UPSTREAM = 'https://securepay.ke';
  * conversation access secret, client-turn idempotency and Trade Context
  * reconciliation remain owned by SecurePay's canonical agent gateway.
  *
- * Only the few conversation endpoints used by the Work smoke test can travel
- * through the same-origin relay; no blanket rewrite of other SecurePay APIs.
+ * Only the conversation endpoints use the same-origin preview relay.
+ * Other endpoints retain their original browser transport; no blanket proxy rewrite.
  */
 export function createPreviewAgentGateway(baseUrl: string, getAccessToken: AccessTokenProvider) {
   if (new URL(baseUrl).origin !== APPROVED_UPSTREAM) {
@@ -17,8 +17,14 @@ export function createPreviewAgentGateway(baseUrl: string, getAccessToken: Acces
   }
   const previewFetch: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
-    if (url.origin !== APPROVED_UPSTREAM || !/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {
-      return Promise.reject(new Error('Only KS001 conversation calls can use the preview relay'));
+    // Only conversations use Vercel's narrow same-origin transport. All other
+    // SecurePay capabilities retain their existing gateway and browser security:
+    // don't silently block Agreement, Store, auth or Money endpoints.
+    if (url.origin !== APPROVED_UPSTREAM) {
+      return Promise.reject(new Error('Unexpected SecurePay API origin'));
+    }
+    if (!/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {
+      return fetch(input, init);
     }
     const endpoint = '/api/preview-agent?path=' + encodeURIComponent(url.pathname + url.search);
     // The browser speaks only to its own Vercel origin. The serverless relay
