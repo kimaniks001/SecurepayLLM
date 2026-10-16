@@ -145,7 +145,7 @@ export function ExampleOutcome({ className = '' }: { className?: string }) {
  */
 export function SignedOutHome(props: SignedOutHomeProps) {
   return (
-    <div className="sp-life-canvas flex-1 flex flex-col items-center justify-center bg-cream-50 bg-ks001-surface px-3 pb-8 pt-6 sm:px-6 md:pb-10 md:pt-9" data-workspace-at-rest>
+    <div className="sp-life-canvas relative z-20 flex-1 flex flex-col items-center justify-center bg-cream-50 bg-ks001-surface px-3 pb-8 pt-6 sm:px-6 md:pb-10 md:pt-9" data-workspace-at-rest>
       <SecurePayHero {...props} variant="app" />
     </div>
   );
