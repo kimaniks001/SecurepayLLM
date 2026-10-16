@@ -70,7 +70,7 @@ import { createIdentityController } from '../identity/controller';
 import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
 import { createSourceController, type SourceController } from '../sources/controller';
-import { SourceMenu } from '../sources/ui/SourceMenu';
+import { WorkspaceToolTray } from './WorkspaceToolTray';
 import { DateTimeTool } from '../living-workspace/DateTimeTool';
 import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/DeclaredSourcePanel';
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
@@ -1495,116 +1495,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (result.busy || result.pending || result.error)
       throw new Error('SecurePay has not confirmed this turn. Check KS001 before trying again; do not send a duplicate.');
   };
-  return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={workspaceEmpty ? 'rest' : 'working'}>
-    {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
-      <section role="dialog" aria-modal="true" aria-label="Date & Time" className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-cream-200 bg-white p-5 shadow-2xl sm:rounded-3xl" data-phase3-canonical-date-picker>
-        <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-display text-xl text-forest-900">Date & Time</h2><button type="button" onClick={()=>setDateTimeOpen(false)} className="min-h-11 rounded-xl border border-cream-200 px-4 text-sm">Close</button></div>
-        <DateTimeTool onPrepare={proposeTiming} onClose={()=>setDateTimeOpen(false)}/>
-      </section>
-    </div>}
-    <NavBar view={workspaceEmpty ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
-    {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
-    {/* No Home-versus-conversation route. The actual KS001 workspace stays mounted as
-        a single surface at rest and while working. */}
-      {/* Human Experience Phase 2 — one work plane. The artifact/conversation stays primary;
-          structured understanding is available as quiet detail instead of a second mode. */}
-      <div className="md:hidden sticky top-0 z-10 bg-cream-50/95 border-b border-cream-200/60 backdrop-blur-md">
-        <div className="flex items-center gap-2 px-3 py-1.5">
-          <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
-          <button type="button" onClick={() => setCompassOpen(true)} aria-label="KS001, guided by the 12 Principles of Fair Trade"
-            className="min-h-11 min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded-lg">
-            <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : workspaceEmpty ? 'Ready for your first thought' : currentTitle}</span></span>
-            <span className="block text-[0.65rem] text-sand-500">Your work stays in front.</span>
-          </button>
-          {hasInspectableDetails && <button
-            type="button"
-            onClick={openUnderstood}
-            aria-expanded={detailsOpen}
-            className="relative inline-flex min-h-11 items-center rounded-full px-2.5 text-[0.76rem] font-medium text-sand-600 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
-          >
-            Details
-            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
-          </button>}
-          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} compact />}
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden">
-      <div className="flex h-full flex-col min-w-0 bg-cream-50 bg-ks001-surface sp-life-canvas">
-        <div className="hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-cream-200/60">
-          <img src={securepayMark} alt="" className={`w-7 h-7 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-sm text-forest-800">KS001</span>
-              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-500 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
-              <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
-            </div>
-            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{workspaceEmpty ? 'Your workspace is ready' : currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
-          </div>
-          {hasInspectableDetails && <button
-            type="button"
-            onClick={openUnderstood}
-            aria-expanded={detailsOpen}
-            className="relative inline-flex min-h-11 items-center rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-white/70 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
-          >
-            Details
-            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
-          </button>}
-          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} />}
-        </div>
-        {/* Work stays alongside KS001. No detour into a separate demonstration Workspace. */}
-        {detailsOpen && hasInspectableDetails && <section
-          aria-label="What SecurePay understands"
-          data-understood-details
-          className="max-h-[52%] shrink-0 overflow-y-auto border-b border-cream-200/70 bg-white/88 px-4 py-4 md:px-6"
-        >
-          <div className="mx-auto max-w-3xl">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-500">Details</p>
-                <h2 className="mt-0.5 font-display text-lg text-forest-900">What SecurePay understands</h2>
-              </div>
-              <button type="button" onClick={() => setDetailsOpen(false)}
-                className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-cream-50 hover:text-forest-700">
-                Close
-              </button>
-            </div>
-            <div ref={setPanelSlot} />
-            {understoodContent}
-          </div>
-        </section>}
-        {reviewOpen && formationState.data?.reviewable && state.conversationId ? <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 md:px-6">
-          <AgreementReview formation={formationState.data} changes={formationState.changes} busy={state.busy || !!state.pending}
-            checking={formationState.checking} error={formationState.error}
-            onBack={() => { setReviewOpen(false); setComposerFocusKey(key => key + 1); }}
-            onCheck={pointId => { if (state.conversationId) void formationController.check(state.conversationId, pointId); }}
-            onCorrect={text => submitCorrection(controller, text)}
-            onRetryCorrection={() => retryPending(controller)}
-            onResolve={(point, side) => resolveConflict(point, side)}
-            onOpenPoint={point => setMicroReview(point.id)}
-            onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
-            onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
-            settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
-            onUnlink={partyKey => { if (state.conversationId) void formationController.unlink(state.conversationId, partyKey); }}
-            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
-        </div> : <div className="flex-1 overflow-hidden">
-          <ConversationSurface
-            tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
-            thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
-            disabled={state.busy || !!state.pending} onSend={text => workspaceEmpty ? startFromHome(text) : submitInput(text)} composerFocusKey={composerFocusKey}
-            draftKey={workspaceEmpty ? 'home' : state.conversationId ?? 'new'}
-            placeholder={workspaceEmpty ? 'Tell KS001 what you would like to do…' : 'Tell KS001 what comes next…'}
-            leading={<SourceMenu
-              placement="above"
-              disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-              onBringPlan={openBringPlan}
-              onPickDocument={file => { if (workspaceEmpty) pickDocument(file); else void sourceController.addUpload('DOCUMENT', file); }}
-              onPickPhoto={file => { if (workspaceEmpty) pickPhoto(file); else void sourceController.addUpload('PHOTO', file); }}
-              onAddLink={() => openDeclared('link')}
-              onAddPlace={() => openDeclared('place')}
-               onAddDateTime={() => setDateTimeOpen(true)}
-            />}
-            status={<div className="space-y-3">
+  // Server-owned Agreement shaping and its next action live in a separate work region.
+  // No copy of this information should be inserted into KS001's message transcript.
+  const workspaceDetails = (<div className="space-y-3">
               {workspaceEmpty && <WorkspaceAtRest
                 signedIn={signedIn}
                 continueSlot={continueSlot}
@@ -1789,7 +1682,120 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               </div>}
               {savedBuildState.phase === 'error' && <p role="alert" className="mt-1 text-[0.8rem] text-ember-700">{savedBuildState.error}</p>}
               <SavedBuildPanel savedBuild={savedBuildController} identity={identityController} />
-            </div>}>
+            </div>);
+  return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={workspaceEmpty ? 'rest' : 'working'}>
+    {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
+      <section role="dialog" aria-modal="true" aria-label="Date & Time" className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-cream-200 bg-white p-5 shadow-2xl sm:rounded-3xl" data-phase3-canonical-date-picker>
+        <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-display text-xl text-forest-900">Date & Time</h2><button type="button" onClick={()=>setDateTimeOpen(false)} className="min-h-11 rounded-xl border border-cream-200 px-4 text-sm">Close</button></div>
+        <DateTimeTool onPrepare={proposeTiming} onClose={()=>setDateTimeOpen(false)}/>
+      </section>
+    </div>}
+    <NavBar view={workspaceEmpty ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
+    {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
+    {/* No Home-versus-conversation route. The actual KS001 workspace stays mounted as
+        a single surface at rest and while working. */}
+      {/* Human Experience Phase 2 — one work plane. The artifact/conversation stays primary;
+          structured understanding is available as quiet detail instead of a second mode. */}
+      <div className="md:hidden sticky top-0 z-10 bg-cream-50/95 border-b border-cream-200/60 backdrop-blur-md">
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          <img src={securepayMark} alt="" className={`w-5 h-5 shrink-0 ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <button type="button" onClick={() => setCompassOpen(true)} aria-label="KS001, guided by the 12 Principles of Fair Trade"
+            className="min-h-11 min-w-0 flex-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded-lg">
+            <span className="block truncate text-[0.8rem] text-forest-800"><span className="font-display">KS001</span> <span className="text-sand-500">· {state.busy ? 'thinking' : workspaceEmpty ? 'Ready for your first thought' : currentTitle}</span></span>
+            <span className="block text-[0.65rem] text-sand-500">Your work stays in front.</span>
+          </button>
+          {hasInspectableDetails && <button
+            type="button"
+            onClick={openUnderstood}
+            aria-expanded={detailsOpen}
+            className="relative inline-flex min-h-11 items-center rounded-full px-2.5 text-[0.76rem] font-medium text-sand-600 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+          >
+            Details
+            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
+          </button>}
+          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} compact />}
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden">
+      <div className="flex h-full flex-col min-w-0 bg-cream-50 bg-ks001-surface sp-life-canvas">
+        <div className="hidden md:flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-cream-200/60">
+          <img src={securepayMark} alt="" className={`w-7 h-7 shrink-0 transition-opacity ${state.busy ? 'animate-pulse-soft' : ''}`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-sm text-forest-800">KS001</span>
+              <button type="button" onClick={() => setCompassOpen(true)} className="text-[0.72rem] text-sand-500 underline decoration-sand-300 underline-offset-2 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 rounded">Guided by the 12 Principles of Fair Trade</button>
+              <span className="text-[0.7rem] text-sand-500" aria-live="polite">{state.busy ? '· thinking' : ''}</span>
+            </div>
+            <p className="truncate text-[0.78rem] text-forest-700" data-conversation-title>{workspaceEmpty ? 'Your workspace is ready' : currentTitle}{unsavedWork && meaningfulWork ? <span className="text-sand-500"> · not saved yet</span> : null}</p>
+          </div>
+          {hasInspectableDetails && <button
+            type="button"
+            onClick={openUnderstood}
+            aria-expanded={detailsOpen}
+            className="relative inline-flex min-h-11 items-center rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-white/70 hover:text-forest-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300"
+          >
+            Details
+            {hasUnseenUnderstood && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-ember-500" aria-label="New details" />}
+          </button>}
+          {!workspaceEmpty && <NewWorkButton onClick={startNewFromConversation} />}
+        </div>
+        {/* Work stays alongside KS001. No detour into a separate demonstration Workspace. */}
+        {detailsOpen && hasInspectableDetails && <section
+          aria-label="What SecurePay understands"
+          data-understood-details
+          className="max-h-[52%] shrink-0 overflow-y-auto border-b border-cream-200/70 bg-white/88 px-4 py-4 md:px-6"
+        >
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-500">Details</p>
+                <h2 className="mt-0.5 font-display text-lg text-forest-900">What SecurePay understands</h2>
+              </div>
+              <button type="button" onClick={() => setDetailsOpen(false)}
+                className="min-h-11 rounded-full px-3 text-[0.8rem] font-medium text-sand-600 hover:bg-cream-50 hover:text-forest-700">
+                Close
+              </button>
+            </div>
+            <div ref={setPanelSlot} />
+            {understoodContent}
+          </div>
+        </section>}
+        {reviewOpen && formationState.data?.reviewable && state.conversationId ? <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 md:px-6">
+          <AgreementReview formation={formationState.data} changes={formationState.changes} busy={state.busy || !!state.pending}
+            checking={formationState.checking} error={formationState.error}
+            onBack={() => { setReviewOpen(false); setComposerFocusKey(key => key + 1); }}
+            onCheck={pointId => { if (state.conversationId) void formationController.check(state.conversationId, pointId); }}
+            onCorrect={text => submitCorrection(controller, text)}
+            onRetryCorrection={() => retryPending(controller)}
+            onResolve={(point, side) => resolveConflict(point, side)}
+            onOpenPoint={point => setMicroReview(point.id)}
+            onSetUp={version => { if (state.conversationId) void handoffController.start(state.conversationId, version); }}
+            onAcknowledgeChanges={() => formationController.acknowledgeChanges()}
+            settingUpAs={signedIn ? { signedIn: true, actingFor: actingForBusiness?.displayName ?? actingForOrganization?.displayName ?? null } : undefined}
+            onUnlink={partyKey => { if (state.conversationId) void formationController.unlink(state.conversationId, partyKey); }}
+            setUp={handoffState.phase !== 'idle' ? <HandoffPanel handoff={handoffController} identity={identityController} onDone={noop} onOpenAgreement={agreementId => { setWorkspaceAgreementId(agreementId); setWorkspaceEntry('hub'); setWorkspace(true); }} agreementGateway={agreementGateway} /> : null} />
+        </div> : <div className="flex-1 overflow-hidden">
+          <ConversationSurface
+            tail={state.turns.length > 0 ? { id: state.turns[state.turns.length - 1].id, sender: state.turns[state.turns.length - 1].sender } : null}
+            thinking={state.busy && state.turns[state.turns.length - 1]?.sender === 'user'}
+            disabled={state.busy || !!state.pending} onSend={text => workspaceEmpty ? startFromHome(text) : submitInput(text)} composerFocusKey={composerFocusKey}
+            draftKey={workspaceEmpty ? 'home' : state.conversationId ?? 'new'}
+            placeholder={workspaceEmpty ? 'Tell KS001 what you would like to do…' : 'Tell KS001 what comes next…'}
+            leading={<WorkspaceToolTray
+              disabled={state.busy || !!state.pending || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
+              onPlan={openBringPlan}
+              onPhoto={file => { if (workspaceEmpty) pickPhoto(file); else void sourceController.addUpload('PHOTO', file); }}
+              onDocument={file => { if (workspaceEmpty) pickDocument(file); else void sourceController.addUpload('DOCUMENT', file); }}
+              onPlace={() => openDeclared('place')}
+              onDateTime={() => setDateTimeOpen(true)}
+              onStores={() => navigateTo('store')}
+              onMoney={() => navigateTo('money')}
+              onPrepare={proposeTiming}
+              agreementPeople={formationState.data?.who.map(person => person.name) ?? []}
+            />}
+            status={workspaceEmpty ? workspaceDetails : undefined}
+            workPane={!workspaceEmpty ? workspaceDetails : undefined}>>
             {[
               ...state.turns.map(turn => <div key={turn.id} data-turn-id={turn.id} className="space-y-3">
                 {turn.sender === 'user' ? <MessageBubble text={turn.text} sender="user" /> : <>
