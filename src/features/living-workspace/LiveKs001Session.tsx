@@ -80,7 +80,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
             if(action.type==='local-day'){
               const date=new Date(); date.setDate(date.getDate()+action.days);
               const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
-              void controller.send('For your question "'+currentQuestion+'", I propose the local calendar date '+iso+'. No exact time has been chosen.');
+              void controller.send('The date is '+iso+'. I have not specified a time.');
               return;
             }
             void controller.send(action.value);
@@ -93,7 +93,8 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
           if(state.busy||state.pending)throw new Error('Previous turn not finished');
-          await controller.send('For your question "'+mini.question+'", I propose: '+value+'. Please incorporate it into my current draft after checking for contradictions. This is not an accepted term.');
+          const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
+          await controller.send(answer);
           const latest=controller.getSnapshot();
           if(latest.error||latest.pending)throw new Error('Awaiting confirmation');
           setMini(null);
