@@ -361,29 +361,16 @@ test('Save for later consults the server-owned sufficiency.canSave, never only l
 // convention the two tests above use), since AgentExperience's own useState wiring isn't otherwise unit-
 // tested in this repo; the underlying "one conversation, real source ingestion" behaviour this depends on
 // is separately proven in tests/sources.test.mjs's own addPastedText coverage.
-test('"Bring your plan" opens BringPlanPanel directly on signed-out Home -- never gated behind a conversation that does not exist yet', async () => {
+test('"Bring your plan" appears within the SAME real workspace before any conversation exists', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  // Public Experience Convergence Phase 3 -- openBringPlan also closes the Link/Place form (one at a time).
-  const onBringPlanIdx = agent.indexOf('onBringPlan={openBringPlan}');
-  assert.ok(onBringPlanIdx > 0, 'expected onBringPlan to open the panel directly, never behind setHome(false) alone');
-  // User-Ready Beta Gate 1 -- opening it also clears any error left by ANOTHER source (EP-CERT-014).
   assert.match(agent, /const openBringPlan = \(\) => \{ setDeclaredOpen\(null\); setIntakeError\(null\); setBringPlanOpen\(true\); \};/);
-  // The Home branch (the JSX returned before the `showHome ? ... : <conversation>` else) must itself
-  // render BringPlanPanel gated on bringPlanOpen -- not only the conversation branch below it.
-  const showHomeElseIdx = agent.indexOf('</div> : <>');
-  assert.ok(showHomeElseIdx > onBringPlanIdx, 'expected the Home branch to end after onBringPlan');
-  const homeBranch = agent.slice(onBringPlanIdx, showHomeElseIdx);
-  // Public Experience Convergence Phase 2 -- the panel is built once (gated on bringPlanOpen) and rendered on
-  // BOTH Homes: the signed-in Home directly, and the public Home through its bringPlanPanel slot.
-  const panelDecl = agent.slice(agent.indexOf('const bringPlanPanel = bringPlanOpen ?'), showHomeElseIdx);
-  assert.match(panelDecl, /^const bringPlanPanel = bringPlanOpen \? \(\s*<BringPlanPanel/, 'expected BringPlanPanel to be gated on bringPlanOpen');
-  assert.match(homeBranch, /\{bringPlanPanel && <div[\s\S]*\{bringPlanPanel\}/, 'expected the signed-in Home to render the panel');
-  assert.match(homeBranch, /<PublicHome[\s\S]*bringPlanPanel=\{bringPlanPanel\}/, 'expected the public Home to render the panel');
-  // Submitting it must go through sourceController.addPastedText -- the SAME real ingestion path that
-  // creates the ONE real conversation (via ensureConversationId), never a fabricated human chat turn.
-  // User-Ready Beta Gate 1 -- from Home it is a NEW intention (requestFresh), read through the same submitPlan.
-  assert.match(panelDecl, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
+  assert.match(agent, /const bringPlanPanel = bringPlanOpen \? \(/);
+  assert.match(agent, /\{workspaceEmpty && bringPlanPanel\}/, 'the empty real workspace must show the panel');
+  assert.match(agent, /\{!workspaceEmpty && bringPlanOpen && \(/, 'active work keeps the same intake available');
+  assert.match(agent, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
   assert.match(agent, /const submitPlan = [\s\S]{0,300}set\.sourceController\.addPastedText/);
+  assert.match(agent, /onBringPlan=\{openBringPlan\}/);
+  assert.doesNotMatch(agent, /<PublicHome|<SignedOutHome/, 'no separate Home is required before the source can be added');
 });
 
 // ---------------------------------------------------------------- WORKBENCH ENTRY POINTS
