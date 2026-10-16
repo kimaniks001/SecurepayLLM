@@ -538,12 +538,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
-          onCorrectFact={async (label,previous,replacement)=>{
-            if(!liveController||!liveConversationId||liveBusy||livePending)throw new Error('KS001 is not ready');
-            // A proposed correction, not a local mutation of backend-owned Agreement facts.
-            await liveController.send('Please correct the '+label+' in this draft Agreement. Previously shown: "'+previous+'". My correction is: "'+replacement+'". Check whether this changes other terms and show me the updated draft. Do not treat any accepted Agreement as silently amended.');
-            if(liveController.getSnapshot().pending||liveController.getSnapshot().error)throw new Error('Correction outcome not yet confirmed');
-            if(formationController)await formationController.load(liveConversationId);
+          onCorrectFact={async (label,previous,replacement,expectedVersion)=>{
+            if(!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');
+            // Re-read authoritative context immediately before proposing. A changed version is a
+            // material conflict, NOT permission to overwrite someone else's latest correction.
+            await formationController.load(liveConversationId);
+            const latest=formationController.getSnapshot();
+            if(latest.status!=='ready'||latest.data?.conversationId!==liveConversationId||latest.data.version!==expectedVersion)
+              throw new Error('The Agreement changed. Review the latest version before correcting it.');
+            await liveController.send('In draft Agreement version '+expectedVersion+', please review my proposed correction to '+label+'. It was shown as: "'+previous+'". I propose: "'+replacement+'". Check conflicts and ask for confirmation where needed. Do not amend accepted terms silently.');
+            if(liveController.getSnapshot().pending||liveController.getSnapshot().error)
+              throw new Error('Correction outcome not yet confirmed');
+            await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
         />:mode==='work'
