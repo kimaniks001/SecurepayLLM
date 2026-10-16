@@ -15,7 +15,13 @@ try{
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'My Work'}).waitFor();
   await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
   await page.screenshot({path:`${out}/${name}-work.png`,fullPage:true});
-  await page.getByRole('button',{name:'Add or use a tool'}).click();
+  await page.getByRole('button',{name:'Expand tool shelf'}).click();
+  assert.ok(await page.locator('[data-tool-shelf]').count());
+  if(width>=1280){
+    const chat=await page.getByRole('region',{name:'KS001 conversation'}).boundingBox();
+    const shelf=await page.locator('[data-tool-shelf]').boundingBox();
+    assert.ok(chat && shelf && shelf.x+shelf.width <= chat.x+1,'Expanded shelf must not overlay KS001');
+  }
   const picker=page.getByRole('dialog',{name:'Choose a tool'});
   await picker.waitFor();
   for(const label of ['Photos','Documents','Places','Quick Assist','Stores','People & Invitations','Money'])
@@ -33,7 +39,7 @@ try{
   assert.equal(problems.length,0,`Browser exceptions: ${problems.join('; ')}`);
   await page.close();
  }
- console.log('Phase 1 public preview browser smoke PASS (navigation, tools, demo separation; not live transaction E2E)');
+ console.log('Phase 1 public preview browser smoke PASS (navigation, real shelf and contexts; not live transaction E2E)');
 }finally{
  await browser.close();
 }
