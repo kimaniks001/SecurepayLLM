@@ -1,0 +1,74 @@
+name: Unified Workspace — Visitor & Member Entry
+
+on:
+  pull_request:
+    paths:
+      - 'src/RuntimeApp.tsx'
+      - 'src/features/agent/AgentExperience.tsx'
+      - 'src/components/SignedOutHome.tsx'
+      - 'src/features/public/PublicHome.tsx'
+      - 'src/features/living-workspace/previewAgentGateway.ts'
+      - 'tests/unified-workspace-*'
+      - '.github/workflows/unified-workspace-entry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Real entry boundaries, TypeScript, lint, production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/unified-workspace-entry.test.mjs tests/convergence-phase3-simplicity-date-time.test.mjs tests/phase1-connected-securepay.test.mjs
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+
+  visitor-browser:
+    name: Read-only public Workspace in Chromium (320, 390, 1440)
+    runs-on: ubuntu-latest
+    needs: contracts
+    timeout-minutes: 25
+    env:
+      VITE_SECUREPAY_API_BASE_URL: https://securepay.ke
+      VITE_SECUREPAY_MODE: real
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app and Chromium
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build and serve the actual app entry
+        run: |
+          npm run build
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/unified-workspace-vite.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          node tests/unified-workspace-public-browser.mjs
+      - name: Preserve actual browser captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-workspace-real-browser
+          path: artifacts/unified-workspace/*
+          if-no-files-found: ignore
