@@ -23,7 +23,8 @@ test('Launch Add tray has eight working tools and Photos first', () => {
 test('Tool picker opens from Add and mobile Tools rather than reopening the last selected tool', () => {
   assert.match(shell, /function openToolPicker\(\)/);
   assert.match(shell, /onClick=\{openToolPicker\}/);
-  assert.match(shell, /aria-label="Add or use a tool"/);
+  assert.match(shell, /aria-label="Workspace tool rail"/);
+  assert.match(shell, /aria-label=\{toolsOpen\?'Collapse tool shelf':'Expand tool shelf'\}/);
   assert.match(shell, /id==='tools'\?openToolPicker\(\):setScreen\(id\)/);
   assert.match(shell, /aria-label="Choose a tool"/);
 });
@@ -31,9 +32,11 @@ test('Tool picker opens from Add and mobile Tools rather than reopening the last
 test('Tools are arranged by work rather than in a long undifferentiated list', () => {
   assert.match(shell, /aria-label="Add something"/);
   assert.match(shell, /aria-label="Get something done"/);
-  assert.match(shell, /tools\.filter\(t=>t\.group==='add'\)/);
-  assert.match(shell, /tools\.filter\(t=>t\.group==='do'\)/);
-  assert.match(shell, /grid grid-cols-3 gap-2/);
+  assert.match(shell, /contextTools\.filter\(t=>t\.group==='add'\)/);
+  assert.match(shell, /contextTools\.filter\(t=>t\.group==='do'\)/);
+  assert.match(shell, /data-tool-shelf/);
+  assert.match(shell, /xl:static/);
+  assert.match(shell, /xl:w-\[290px\]/);
   assert.match(shell, /grid grid-cols-2 gap-2/);
 });
 
@@ -46,7 +49,8 @@ test('Every launch tool opens an actual bounded tool surface, not the old descri
 });
 
 test('KS001 suggestions do not send holders into nonexistent tools', () => {
-  assert.match(shell, /tools\.find\(item=>item\.name===suggestion\)\?\.name\?\?null/);
+  assert.match(shell, /const tools = \[/);
+  assert.doesNotMatch(shell, /setMessages\(/, 'No fabricated KS001 turn');
   for (const name of ['Vision tools','Community & Circles','Milestones','Quick Support']) {
     assert.ok(!personas.includes("tool:'"+name+"'"), 'retired recommendation: ' + name);
   }
@@ -59,5 +63,5 @@ test('Launch cleanup preserves existing provider, Agreement and money boundaries
   assert.match(shell, /activeTool==='Quick Assist'\?<QuickSupportPanel/);
   assert.match(store, /id:'contract',label:'Quick Contract'/);
   assert.match(quick, /No booking or payment is made/);
-  assert.match(shell, /No money, invitation, approval or booking authority is granted/);
+  assert.match(shell, /bookings, invitations and money require their own authorisation/);
 });

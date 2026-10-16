@@ -26,7 +26,7 @@ test('The approved SecurePay logo is reused, never replaced with typographic imi
 });
 test('Human heading and intro have a considered type hierarchy',()=>{
  assert.match(workspace,/sp-type-display text-xl">KS001/);
- assert.match(workspace,/sp-type-statement max-w-\[560px\] text-base/);
+ assert.match(source('src/features/living-workspace/WorkspaceWelcome.tsx'),/sp-type-display max-w-lg/);
  assert.match(css,/font-family: 'Bricolage Grotesque'/);
  assert.match(css,/font-family: 'Afacad Flux'/);
 });
