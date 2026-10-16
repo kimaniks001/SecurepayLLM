@@ -34,6 +34,7 @@ test('real composer uses rich tools rather than legacy SourceMenu picker',()=>{
   for(const label of ['Photos','Documents','Places','Date & Time','Quick Assist','Stores','People & Invitations','Money']) {
     assert.ok(tray.includes("name:'"+label+"'"),'Missing rich tool '+label);
   }
+  assert.match(tray,/createPortal\(<>/,'tools overlay must escape the composer backdrop and mobile sticky header');
   assert.match(tray,/<QuickSupportPanel/);
   assert.match(tray,/<PeopleInvitationsTool/);
   assert.match(tray,/onPrepare:\(request:string\)=>Promise<void>/);
