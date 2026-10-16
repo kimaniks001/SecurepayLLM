@@ -22,11 +22,13 @@ export interface ConversationTail { id: string; sender: 'user' | 'agent' }
  * never pulls them back, and a quiet "New reply" control appears instead. Driven entirely by
  * layout effects, refs and a ResizeObserver -- no timeouts.
  */
-export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder, draftKey, leading }: {
+export function ConversationSurface({ tail, thinking, children, status, disabled, onSend, composerFocusKey, placeholder, draftKey, leading, workPane }: {
   /** The last transcript entry -- the only thing that decides whether to follow. */
   tail: ConversationTail | null;
   thinking: boolean;
   children: ReactNode;
+  /** Live, server-owned draft/next actions. Kept OUTSIDE the message timeline. */
+  workPane?: ReactNode;
   /** Errors / actions that live at the end of the transcript. */
   status?: ReactNode;
   disabled: boolean;
@@ -42,6 +44,7 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const [follow, dispatch] = useReducer(followReducer, initialFollow);
+  const [mobilePane, setMobilePane] = useState<'chat'|'work'>('chat');
   const followingRef = useRef(follow.following);
   followingRef.current = follow.following;
   // A long reply is pinned to its first line; content growth must not then drag it to the bottom.
@@ -95,25 +98,56 @@ export function ConversationSurface({ tail, thinking, children, status, disabled
   };
   const jump = () => { pinnedToReplyStart.current = false; dispatch({ type: 'jump' }); scrollToBottom(true); };
 
-  return <div className="sp-life-canvas flex h-full flex-col">
-    {/* The pill is anchored to the scroll region (not the composer, whose height varies on phones). */}
-    <div className="relative flex-1 min-h-0">
-    <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto scrollbar-thin px-4 py-6 md:px-10 md:py-9 overscroll-contain" data-following={follow.following}>
-      <div ref={content} className="mx-auto w-full max-w-4xl space-y-6">
-        <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with KS001" className="space-y-4">
-          {children}
-          {thinking && <div role="status" aria-label="KS001 is thinking"><AgentTyping /></div>}
-        </div>
-        {status}
-      </div>
-    </div>
-    {follow.unread && <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-4">
-      <button onClick={jump} className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-forest-700 text-cream-50 shadow-lifted px-3.5 py-1.5 text-[0.8rem] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 animate-fade-in-up">
-        New reply <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
+  return <div className="sp-life-canvas flex h-full min-h-0 flex-col" data-workspace-layout={workPane ? 'split' : 'single'}>
+    {workPane && <nav aria-label="Workspace panels" className="flex shrink-0 items-center gap-2 border-b border-forest-100 bg-cream-50 px-4 py-2 md:hidden">
+      <button type="button" aria-pressed={mobilePane==='chat'} onClick={()=>setMobilePane('chat')}
+        className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold ${mobilePane==='chat'?'bg-forest-800 text-white':'bg-white text-forest-700'}`}>
+        KS001 conversation
       </button>
-    </div>}
+      <button type="button" aria-pressed={mobilePane==='work'} onClick={()=>setMobilePane('work')}
+        className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold ${mobilePane==='work'?'bg-forest-800 text-white':'bg-white text-forest-700'}`}>
+        My Work
+      </button>
+    </nav>}
+    <div className={workPane
+      ? 'grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,0.41fr)_minmax(0,0.59fr)]'
+      : 'flex min-h-0 flex-1 flex-col'}>
+      <section aria-label="KS001 conversation" data-workspace-chat
+        className={`${workPane && mobilePane==='work'?'hidden md:flex':'flex'} relative min-h-0 min-w-0 flex-col md:border-r md:border-forest-100`}>
+        <div className="relative min-h-0 flex-1">
+          <div ref={scroller} onScroll={onScroll}
+            className="h-full overflow-y-auto overscroll-contain px-4 py-5 scrollbar-thin md:px-6 md:py-6"
+            data-following={follow.following}>
+            <div ref={content} className="mx-auto w-full max-w-4xl space-y-6">
+              <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with KS001" className="space-y-4">
+                {children}
+                {thinking && <div role="status" aria-label="KS001 is thinking"><AgentTyping /></div>}
+              </div>
+              {status}
+            </div>
+          </div>
+          {follow.unread && <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-4">
+            <button type="button" onClick={jump}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-forest-700 px-3.5 py-1.5 text-[0.8rem] font-medium text-cream-50 shadow-lifted focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-300">
+              New reply <ArrowDown className="h-3.5 w-3.5" aria-hidden="true"/>
+            </button>
+          </div>}
+        </div>
+      </section>
+      {workPane && <aside aria-label="My Work — live Agreement" data-workspace-result
+        className={`${mobilePane==='work'?'flex':'hidden md:flex'} min-h-0 min-w-0 flex-col overflow-hidden bg-[#fffefa]/95`}>
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-forest-100 bg-white/90 px-4 py-3 md:px-6">
+          <div><p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-forest-700">Living workspace</p>
+            <h2 className="font-display text-lg text-forest-900">My Work</h2></div>
+          <p className="text-[0.7rem] text-sand-600">Review before agreeing</p>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 scrollbar-thin md:px-6" data-workspace-result-scroll>
+          <div className="mx-auto w-full max-w-3xl">{workPane}</div>
+        </div>
+      </aside>}
     </div>
-    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey} placeholder={placeholder} draftKey={draftKey} leading={leading} />
+    <Composer disabled={disabled} onSend={onSend} focusKey={composerFocusKey}
+      placeholder={placeholder} draftKey={draftKey} leading={leading}/>
   </div>;
 }
 
