@@ -64,7 +64,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
           <p className="mt-7 text-[0.85rem] font-medium leading-6 text-forest-700" data-workspace-welcome>
             {publicMode
               ? 'Welcome. You can start with a question, an idea, or something you need to do.'
-              : 'Welcome back. Your work and your next step belong here.'}
+              : 'Welcome back. Your work and your next step belong here. Start wherever you are.'}
           </p>
 
           {continueSlot && <section className="mt-5 max-w-2xl" aria-label="Continue your work" data-return-to-work>
