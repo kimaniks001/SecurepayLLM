@@ -31,13 +31,17 @@ test('one-shot handoffs preserve exact opaque conversation ID and consume at mos
  assert.equal(e.consumeKs001ConversationReturn(),null);
  assert.equal(e.consumeWorkspaceMoneyReturn(),null);
 });
-test('KS001 offers a deliberate handoff only for a settled signed-in server conversation',()=>{
- assert.match(agent,/signedIn && state\.conversationId && <div[^>]*data-convergence-work-entry/);
- assert.match(agent,/if \(!signedIn \|\| !state\.conversationId \|\| state\.busy \|\| state\.pending/);
- assert.match(agent,/sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'checking'/);
- assert.match(agent,/Send or copy any unfinished message first/);
- assert.match(agent,/storeLivingWorkspaceEntry\(state\.conversationId\)/);
- assert.match(agent,/window\.location\.hash = '#\/preview\/living-workspace\/work'/);
+test('normal KS001 stays with real Agreement shaping; legacy preview handoff is not a forced UI detour',()=>{
+ assert.match(agent,/data-unified-workspace/);
+ assert.match(agent,/<ConversationSurface/);
+ assert.match(agent,/<AgreementShaping /);
+ assert.doesNotMatch(agent,/View this Agreement alongside KS001/);
+ assert.doesNotMatch(agent,/openCurrentLivingWorkspace/);
+ assert.doesNotMatch(agent,/storeLivingWorkspaceEntry\(state\.conversationId\)/);
+ assert.doesNotMatch(agent,/window\.location\.hash = '#\/preview\/living-workspace\/work'/);
+ // A legacy opt-in preview can still resume a server-owned conversation,
+ // but the normal guest/member entry does not navigate there.
+ assert.match(preview,/consumeLivingWorkspaceEntry\(\)/);
 });
 test('Entering and leaving resumes exact server conversation with a fresh controller; rejection is not success',()=>{
  assert.match(preview,/const fromKs001=consumeLivingWorkspaceEntry\(\)/);
