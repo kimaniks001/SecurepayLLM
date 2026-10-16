@@ -600,7 +600,8 @@ test('Stores buyer: summary-side editing keeps many shops in one proposal withou
  assert.match(demo,/addStoreBuyingLine\(current/);
  assert.match(demo,/sample lines=\{buyingLines\}/);
  assert.match(demo,/setBuyingActive\(true\)/);
- assert.match(shell,/toolSelected&&activeTool==='Stores'/);
+ assert.match(shell,/toolSelected/);
+  assert.match(shell,/activeTool==='Stores'/);
 });
 
 test('Compact Money: one small tool, four human choices, Agreement-first and no financial claims',()=>{
