@@ -369,7 +369,7 @@ test('"Bring your plan" appears within the SAME real workspace before any conver
   assert.match(agent, /\{!workspaceEmpty && bringPlanOpen && \(/, 'active work keeps the same intake available');
   assert.match(agent, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
   assert.match(agent, /const submitPlan = [\s\S]{0,300}set\.sourceController\.addPastedText/);
-  assert.match(agent, /onBringPlan=\{openBringPlan\}/);
+  assert.match(agent, /onPlan=\{openBringPlan\}/);
   assert.doesNotMatch(agent, /<PublicHome|<SignedOutHome/, 'no separate Home is required before the source can be added');
 });
 
