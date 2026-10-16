@@ -50,7 +50,7 @@ test('Chat, Summary and Tools use one canonical conversation, with no accepted-t
  assert.doesNotMatch(shell,/setFormationState|acceptAgreement\(/);
 });
 test('area welcomes live inside the existing conversation and yield to real work',()=>{
- assert.match(live,/state\.turns\.length===0 && <WorkspaceWelcome area="work"/);
+ assert.match(live,/state\.turns\.length===0 && !state\.conversationId && !draft\.trim\(\) && <WorkspaceWelcome area="work"/);
  assert.match(shell,/<WorkspaceWelcome area=\{mode\}/);
  for(const key of ['work','vision','circle','community'])assert.ok(welcome.includes(key+':{title:'),key);
  assert.match(welcome,/data-workspace-welcome=\{area\}/);
