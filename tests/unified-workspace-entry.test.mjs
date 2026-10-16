@@ -28,7 +28,7 @@ test('one welcoming KS001 entry object is shared by guests and members',()=>{
   assert.match(hero,/onAddDateTime=\{onAddDateTime\}/);
   assert.match(hero,/data-workspace-at-rest/);
   assert.match(hero,/relative z-20 isolate overflow-visible/,'Welcome artwork must not clip the + menu');
-  assert.match(sourceMenu,/max-h-\\[min\\(65dvh,28rem\\)\\] overflow-y-auto/,'Add list must scroll on a phone');
+  assert.ok(sourceMenu.includes('max-h-[min(65dvh,28rem)] overflow-y-auto'), 'Add list must scroll on a phone');
 });
 
 test('visitor and member entry use real KS001 without visiting a demo or separate Home',()=>{
