@@ -42,7 +42,8 @@ test('only bounded server alternatives can be shown; model tool names cannot exe
   assert.ok(actions.every(x=>x.kind!=='shelf'));
 });
 test('real KS001 sends all answers on one controller and preserves free-text typing',()=>{
-  assert.match(live,/questionActions\(question,nextChoices\)/);
+  assert.match(live,/questionActions\(question,matchesPlan\?nextChoices:\[\]\)/);
+  assert.match(live,/spokenQuestion\.trim\(\)\.toLowerCase\(\)===nextQuestion\?\.trim\(\)\.toLowerCase\(\)/);
   assert.match(live,/controller\.send\(value\)/);
   assert.match(live,/controller\.send\(next\)/);
   assert.match(live,/setMini\(\{kind:a\.input,question\}\)/);
