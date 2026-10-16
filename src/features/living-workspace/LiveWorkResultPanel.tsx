@@ -5,6 +5,7 @@ import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
 import { compactAgreementFacts, livingFactStatus, humanNextQuestion } from './livingLanguage';
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, Plus } from 'lucide-react';
+import { MiniContextInput, kindForDetail } from './MiniContextInput';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   if (terms.length===0) return null;
@@ -31,7 +32,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
-  onCorrectFact: (label:string, previous:string, replacement:string)=>Promise<void>;
+  onCorrectFact: (label:string, previous:string, replacement:string, expectedVersion:number)=>Promise<void>;
   onAddToFact: (label:string)=>void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
@@ -42,6 +43,8 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   const [factDraft,setFactDraft]=useState('');
   const [factSending,setFactSending]=useState(false);
   const [factError,setFactError]=useState<string|null>(null);
+  const [editingVersion,setEditingVersion]=useState<number|null>(null);
+  const [useFreeText,setUseFreeText]=useState(false);
   useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);setEditingFact(null);setFactDraft('');setFactError(null);},[conversationId]);
   const formation = state?.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
@@ -77,31 +80,56 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
             {compactAgreementFacts(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
               <th scope="row" className="w-[22%] py-2 pr-2 align-top text-xs font-medium text-sand-600">{item.label}</th>
               <td className="break-words py-2 align-top">
-                {editingFact===item.label?<form className="space-y-2" onSubmit={async e=>{
-                  e.preventDefault();const replacement=factDraft.trim();
-                  if(!replacement||factSending||busy||replacement===item.value)return;
-                  setFactSending(true);setFactError(null);
-                  try {await onCorrectFact(item.label,item.value,replacement);setEditingFact(null);setFactDraft('');}
-                  catch {setFactError('Could not confirm this correction. Check the conversation before retrying.');}
-                  finally {setFactSending(false);}
-                }}>
-                  <textarea aria-label={'Correct '+item.label} rows={2} maxLength={600} value={factDraft} onChange={e=>setFactDraft(e.target.value)}
-                    className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" disabled={factSending||busy} onClick={()=>onAddToFact(item.label)}
-                      aria-label={'Add a photo, document, place, date or KS Number to '+item.label}
-                      className="inline-flex min-h-11 items-center gap-1 rounded-full border border-cream-200 bg-white px-3 text-xs font-semibold disabled:opacity-40">
-                      <Plus size={15} aria-hidden="true"/> Add
-                    </button>
-                    <button type="submit" disabled={factSending||busy||!factDraft.trim()||factDraft.trim()===item.value} className="min-h-11 rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Sending…':'Send correction'}</button>
-                    <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)} className="min-h-11 rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button></div>
-                  <p className="text-xs leading-5 text-sand-600">Edit corrects this fact. Add brings evidence, dates or people. Your unsent correction stays here.</p>
+                {editingFact===item.label ? <div className="space-y-2">
+                  {editingVersion !== formation.version ? <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5">
+                    This Agreement changed while you were editing. Your draft remains here; refresh and compare the latest information before sending.
+                    <button type="button" onClick={onRefresh} className="ml-2 underline">Refresh</button>
+                  </div> : null}
+                  {!useFreeText && kindForDetail(item.label)!=='text'
+                    ? <MiniContextInput key={item.label+'-'+editingVersion}
+                        kind={kindForDetail(item.label)} label={item.label}
+                        initialValue={item.value}
+                        onSubmit={async replacement=>{
+                          if(factSending||busy||editingVersion!==formation.version)throw new Error('Version changed');
+                          setFactSending(true);setFactError(null);
+                          try {
+                            await onCorrectFact(item.label,item.value,replacement,editingVersion);
+                            setEditingFact(null);setEditingVersion(null);setFactDraft('');
+                          } catch {setFactError('KS001 has not confirmed that change. Check the conversation.');throw new Error('Unconfirmed');}
+                          finally {setFactSending(false);}
+                        }} onCancel={()=>{setEditingFact(null);setEditingVersion(null);}}/>
+                    : <form className="space-y-2" onSubmit={async e=>{
+                      e.preventDefault();const replacement=factDraft.trim();
+                      if(!replacement||factSending||busy||editingVersion!==formation.version||replacement===item.value)return;
+                      setFactSending(true);setFactError(null);
+                      try {await onCorrectFact(item.label,item.value,replacement,editingVersion);setEditingFact(null);setEditingVersion(null);setFactDraft('');}
+                      catch {setFactError('Could not confirm this correction. Check the conversation before retrying.');}
+                      finally {setFactSending(false);}
+                    }}>
+                      <textarea aria-label={'Correct '+item.label} rows={2} maxLength={600} value={factDraft}
+                        onChange={e=>setFactDraft(e.target.value)} className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button type="submit" disabled={factSending||busy||editingVersion!==formation.version||!factDraft.trim()||factDraft.trim()===item.value}
+                          className="min-h-11 rounded-full bg-forest-800 px-3 py-2 text-xs text-white disabled:opacity-50">{factSending?'Checking…':'Send correction'}</button>
+                        <button type="button" disabled={factSending} onClick={()=>setEditingFact(null)}
+                          className="min-h-11 rounded-full border border-cream-200 px-3 py-2 text-xs">Cancel</button>
+                      </div>
+                    </form>}
+                  {kindForDetail(item.label)!=='text'&&<button type="button" onClick={()=>setUseFreeText(v=>!v)}
+                    className="min-h-11 text-xs font-semibold text-forest-800 underline">{useFreeText?'Use a small field':'Describe a more detailed correction'}</button>}
+                  <button type="button" disabled={factSending||busy} onClick={()=>onAddToFact(item.label)}
+                    aria-label={'Add a photo, document, place, date or KS Number to '+item.label}
+                    className="inline-flex min-h-11 items-center gap-1 rounded-full border border-cream-200 bg-white px-3 text-xs font-semibold disabled:opacity-40">
+                    <Plus size={15} aria-hidden="true"/> Add supporting material
+                  </button>
+                  <p className="text-xs leading-5 text-sand-600">KS001 must review this proposal. Accepted terms cannot be silently changed.</p>
                   {factError&&<p role="alert" className="text-xs text-amber-900">{factError}</p>}
-                </form>:<div className="flex items-start justify-between gap-1">
+                </div> : <div className="flex items-start justify-between gap-1">
                   <div><span title={item.reason||undefined}>{item.value}</span>
                     <span className={item.state!=='noted'?'ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900':'ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs text-sand-600'}>{livingFactStatus(item)}</span>
                   </div>
-                  <button type="button" disabled={busy||factSending} aria-label={'Correct '+item.label} onClick={()=>{setEditingFact(item.label);setFactDraft(item.value);setFactError(null);}}
+                  <button type="button" disabled={busy||factSending} aria-label={'Correct '+item.label}
+                    onClick={()=>{setEditingFact(item.label);setEditingVersion(formation.version);setUseFreeText(false);setFactDraft(item.value);setFactError(null);}}
                     className="shrink-0 rounded-lg border border-cream-200 px-2 py-1 text-xs disabled:opacity-40">Edit</button>
                 </div>}
               </td>
