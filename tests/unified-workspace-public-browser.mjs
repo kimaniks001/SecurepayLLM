@@ -35,6 +35,8 @@ try{
       const menuBox=await menu.boundingBox(), itemBox=await dateItem.boundingBox();
       assert.ok(menuBox && itemBox && itemBox.y >= menuBox.y-2 && itemBox.y+itemBox.height <= menuBox.y+menuBox.height+2,
         'Date & Time must remain visible and reachable inside the Add menu');
+      assert.ok(itemBox.y >= 0 && itemBox.y+itemBox.height <= height,
+        'Date & Time must be on screen without scrolling the workspace itself');
       await page.screenshot({path:`${out}/${device}-add-date-visible.png`,fullPage:true});
       await dateItem.click();
       await page.getByRole('dialog',{name:'Date & Time'}).waitFor();
