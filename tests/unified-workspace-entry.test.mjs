@@ -47,7 +47,7 @@ test('real SecurePay entry is one conversation work plane, never Home versus cha
   assert.match(idle,/data-workspace-sheet/);
   assert.match(idle,/data-workspace-identity=\{signedIn \? 'member' : 'visitor'\}/);
   assert.doesNotMatch(idle,/<ConversationInput|<Composer|<textarea/);
-  assert.match(app,/onAddDateTime=\{\(\) => setDateTimeOpen\(true\)\}/);
+  assert.match(app,/onDateTime=\{\(\) => setDateTimeOpen\(true\)\}/);
   assert.match(runtime,/previewAgentGateway \?\? api\.agent/);
   assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
   assert.match(runtime,/return api && agentGateway[\s\S]*?<AgentExperience/);
