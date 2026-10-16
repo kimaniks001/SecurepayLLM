@@ -87,7 +87,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
               leading={hasIntake ? (
                 <SourceMenu
                   variant="composer"
-                  placement="below"
+                  placement="above"
                   disabled={disabled}
                   onBringPlan={onBringPlan}
                   onPickDocument={onPickDocument}
