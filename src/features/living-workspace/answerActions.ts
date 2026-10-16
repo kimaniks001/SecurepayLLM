@@ -35,12 +35,12 @@ export function questionActions(question:string, serverChoices:readonly string[]
     return [mini('time','Choose time','time'),action('later','Not decided','Not decided yet'),compose()];
   if(/when|which date|what date|delivery date|deadline|by what day|day should/i.test(q))
     return [action('today','Today','today'),action('tomorrow','Tomorrow','tomorrow'),mini('date','Choose date','date'),action('later','Not decided','Not decided yet')];
+  if(/full price or (a )?deposit|which total/i.test(q))
+    return [action('total','Full price','Full price'),action('deposit','Deposit','Deposit'),compose()];
   if(/how much|price|amount|cost|budget|charge|fee|deposit|payment/i.test(q))
     return [mini('amount','Enter amount','money'),action('later','To be agreed','To be agreed'),compose('I’ll explain')];
   if(/how.*(confirm|verify|accept|check|acknowledge)|evidence|proof|inspection/i.test(q))
     return [shelf('evidence','Add photo','Photos'),compose('Explain how to verify')];
-  if(/full price or (a )?deposit|which total/i.test(q))
-    return [action('total','Full price','Full price'),action('deposit','Deposit','Deposit'),compose()];
   return [compose()];
 }
 
