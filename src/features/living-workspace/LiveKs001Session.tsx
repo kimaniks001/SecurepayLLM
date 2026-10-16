@@ -34,7 +34,7 @@ function Ks001Reply({ text }: { text: string }) {
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening }: { controller: AgentController; nextQuestion?: string | null; opening?: string }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
@@ -70,8 +70,20 @@ export function LiveKs001Session({ controller, nextQuestion, opening }: { contro
         {actions.map(action=><button key={action.label} type="button"
           onClick={()=>{
             if(action.type==='mini'){setMini({kind:action.kind,question:currentQuestion});return;}
+            if(action.type==='tool'){
+              if(onOpenTool)onOpenTool(action.tool);
+              else document.getElementById('live-work-ks001-input')?.focus();
+              return;
+            }
             if(action.type==='focus'){document.getElementById('live-work-ks001-input')?.focus();return;}
-            if(!state.busy&&!state.pending)void controller.send(action.value);
+            if(state.busy||state.pending)return;
+            if(action.type==='local-day'){
+              const date=new Date(); date.setDate(date.getDate()+action.days);
+              const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+              void controller.send('For your question "'+currentQuestion+'", I propose the local calendar date '+iso+'. No exact time has been chosen.');
+              return;
+            }
+            void controller.send(action.value);
           }}
           className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{action.label}</button>)}
       </div>;
