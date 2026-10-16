@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -1480,15 +1480,6 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           <p className="mt-1 text-[0.82rem] text-sand-600">Nothing SecurePay can verify needs your attention right now.</p>
         </section>
       : null;
-  const openCurrentLivingWorkspace = () => {
-    if (!signedIn || !state.conversationId || state.busy || state.pending
-        || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking') return;
-    // A composed-but-unsent message belongs to this editor, not the server:
-    // never imply it was transferred with the conversation ID.
-    if (!window.confirm('Open this conversation in Living Workspace? Send or copy any unfinished message first.')) return;
-    storeLivingWorkspaceEntry(state.conversationId);
-    window.location.hash = '#/preview/living-workspace/work';
-  };
   const proposeTiming = async (proposal: string) => {
     if (state.busy || state.pending) throw new Error('Finish the current KS001 message first.');
     let target: WorkSet = currentSet();
@@ -1502,7 +1493,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       throw new Error('SecurePay has not confirmed this turn. Check KS001 before trying again; do not send a duplicate.');
   };
   const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
-  return <div className="h-dvh flex flex-col bg-cream-100">
+  return <div className="sp-type-signature h-dvh flex flex-col bg-cream-50 bg-ks001-surface text-forest-900" data-unified-workspace data-workspace-state={showHome ? 'rest' : 'working'}>
     {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
       <section role="dialog" aria-modal="true" aria-label="Date & Time" className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-cream-200 bg-white p-5 shadow-2xl sm:rounded-3xl" data-phase3-canonical-date-picker>
@@ -1512,7 +1503,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     </div>}
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
-    {showHome ? <div className="flex-1 overflow-auto">
+    {showHome ? <div className="flex-1 overflow-auto" aria-label="SecurePay workspace">
       {signedIn ? <>
         <SignedOutHome
           continueSlot={continueSlot}
@@ -1562,8 +1553,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           </details>
         </div>
       </> : (
-        // Public Experience Convergence Phase 2 -- the signed-out public Home: its own composition that
-        // reuses the same KS001 centre. Public-only chapters never render in the signed-in Home above.
+        // At-rest workspace: visitors use the SAME real controller and composer as members.
+        // Informational chapters stay below the workspace, never replacing the working surface.
         <PublicHome
           continueSlot={continueSlot}
           sourceStatusSlot={sourceStatusSlot}
@@ -1574,6 +1565,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onPickPhoto={pickPhoto}
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
+          onAddDateTime={() => setDateTimeOpen(true)}
           bringPlanPanel={bringPlanPanel}
           declaredPanel={declaredPanel}
           onFocusComposer={() => { focusKs001Composer(); }}
@@ -1631,13 +1623,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           </button>}
           <NewWorkButton onClick={startNewFromConversation} />
         </div>
-        {signedIn && state.conversationId && <div className="flex shrink-0 justify-end border-b border-cream-200/60 bg-cream-50/80 px-3 py-1 md:px-6" data-convergence-work-entry>
-          <button type="button" onClick={openCurrentLivingWorkspace}
-            disabled={state.busy || !!state.pending || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
-            className="min-h-11 rounded-xl px-3 text-[0.79rem] font-semibold text-forest-800 underline decoration-forest-200 underline-offset-4 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700 disabled:opacity-40">
-            View this Agreement alongside KS001 →
-          </button>
-        </div>}
+        {/* Work stays alongside KS001. No detour into a separate demonstration Workspace. */}
         {detailsOpen && hasInspectableDetails && <section
           aria-label="What SecurePay understands"
           data-understood-details
