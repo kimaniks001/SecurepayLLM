@@ -98,7 +98,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const chooseMode=(next:Mode)=>{
     if(next!==mode && !mayLeaveDream())return;
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
-    setMode(next);setScreen('chat');setToolsOpen(false);
+    setMode(next);setScreen('chat');setToolSelected(false);setToolsOpen(shelfPinned);
     window.location.hash='#/preview/living-workspace/'+next;
   };
   // Start in the real KS001 Work conversation when a verified gateway is available.
