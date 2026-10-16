@@ -9,9 +9,9 @@ export function kindForDetail(label: string): MiniKind {
   if(/where|place|location|address|site|destination|entrance/i.test(label))return 'place';
   return 'text';
 }
-export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel}:{
+export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel,onDraftChange}:{
   kind:MiniKind;label:string;initialValue?:string;
-  onSubmit:(value:string)=>Promise<void>;onCancel:()=>void;
+  onSubmit:(value:string)=>Promise<void>;onCancel:()=>void;onDraftChange?:(value:string)=>void;
 }){
   const initial = kind==='date' && !/^\d{4}-\d{2}-\d{2}$/.test(initialValue) ? ''
     : kind==='money' && !/^\d+(?:\.\d+)?$/.test(initialValue) ? '' : initialValue;
@@ -44,7 +44,7 @@ export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel}:
         </select>}
         <input autoFocus type={kind==='date'?'date':kind==='money'?'number':'text'}
           min={kind==='money'?'0':undefined} step={kind==='money'?'0.01':undefined}
-          aria-label={'Value for '+label} value={value} onChange={event=>setValue(event.target.value)}
+          aria-label={'Value for '+label} value={value} onChange={event=>{setValue(event.target.value);onDraftChange?.(event.target.value);}}
           placeholder={kind==='person'?'Name and role':kind==='place'?'Address, entrance or Plus Code':kind==='money'?'Amount':'What should it say?'}
           className="min-h-11 min-w-0 flex-1 rounded-lg border border-cream-200 bg-white px-3 py-2 text-sm text-forest-900"/>
       </div>
