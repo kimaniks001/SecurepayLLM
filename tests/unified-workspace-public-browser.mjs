@@ -22,9 +22,11 @@ try{
     });
     try{
       await page.goto(base+'/#/',{waitUntil:'domcontentloaded',timeout:30000});
-      await page.locator('[data-unified-workspace-entry][data-workspace-identity="visitor"]').waitFor({timeout:15000});
-      await page.getByRole('heading',{name:'What would you like to get done?'}).waitFor();
-      assert.equal(await page.locator('[data-workspace-composer] textarea').count(),1);
+      await page.locator('[data-workspace-at-rest][data-workspace-identity="visitor"]').waitFor({timeout:15000});
+      await page.getByRole('heading',{name:'What would you like to make happen?'}).waitFor();
+      assert.equal(await page.locator('textarea[data-ks001-composer]').count(),1);
+      assert.equal(await page.locator('[data-workspace-state="rest"] [role="log"]').count(),1);
+      assert.equal(await page.locator('[data-workspace-sheet]').count(),1);
       assert.ok(await page.getByText('Start without a KS Number.',{exact:false}).count());
       await page.getByRole('button',{name:'Add what you have'}).click();
       const menu=page.getByRole('menu',{name:'Add a source'});
