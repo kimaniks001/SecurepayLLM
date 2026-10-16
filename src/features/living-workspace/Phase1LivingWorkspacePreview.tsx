@@ -23,7 +23,7 @@ import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyRe
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -175,7 +175,21 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   }, [gateway, liveStarted, liveConversationId, liveFormationVersion, liveBusy, livePending]);
 
   const [screen, setScreen] = useState<Screen>('chat');
-  const [toolsOpen, setToolsOpen] = useState(false);
+  // Only presentation preference is persisted. Conversations, identity and Agreements are never stored here.
+  const [shelfPinned,setShelfPinned] = useState(() => {
+    try { return window.localStorage.getItem('sp-living-shelf-pinned') === 'yes'; } catch { return false; }
+  });
+  const [toolsOpen, setToolsOpen] = useState(shelfPinned);
+  const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
+    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
+    : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
+    : ['Photos','Documents','Places','Stores'].includes(tool.name)));
+  const contextHint: Record<Mode,string> = {
+    work:'Add evidence, dates, people or financial details to the Agreement you are building.',
+    vision:'Capture ideas and references. Use your saved Vision Board for drawing and detailed planning.',
+    circle:'Bring supporting material. Group invitations, votes and decisions stay in your authorised Circle.',
+    community:'Bring supporting material and explore Stores. Community participation stays in authorised projects.',
+  };
   const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
   const [toolSelected, setToolSelected] = useState(false);
@@ -207,15 +221,23 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setToolSelected(false);
     setToolsOpen(true);
   }
-  function closeTool() { setSupportingFact(null);setToolsOpen(false); setToolSelected(false); setScreen(previousScreen.current); }
+  function closeTool() {
+    setSupportingFact(null);setToolsOpen(shelfPinned);setToolSelected(false);setScreen(previousScreen.current);
+  }
+  function toggleShelfPin() {
+    const next=!shelfPinned;
+    setShelfPinned(next);
+    setToolsOpen(next || toolsOpen);
+    try { window.localStorage.setItem('sp-living-shelf-pinned',next?'yes':'no'); } catch { /* optional */ }
+  }
   useEffect(()=>{
     if(!toolsOpen)return;
     const onEscape=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();setSupportingFact(null);setToolsOpen(false);setToolSelected(false);setScreen(previousScreen.current);}
+      if(event.key==='Escape'){event.preventDefault();closeTool();}
     };
     window.addEventListener('keydown',onEscape);
     return ()=>window.removeEventListener('keydown',onEscape);
-  },[toolsOpen]);
+  },[toolsOpen,shelfPinned]);
   const returnToKs001=()=>{
     if(!mayLeaveDream())return false;
     // Only a signed-in, settled, server-owned conversation may be resumed.
@@ -268,15 +290,35 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
         </div>
-      : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden">
+      : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
+      <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
+        <button type="button" onClick={()=>{setToolSelected(false);setToolsOpen(v=>!v);}}
+          aria-label={toolsOpen?'Collapse tool shelf':'Expand tool shelf'} aria-expanded={toolsOpen}
+          className="flex min-h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-forest-800">
+          {toolsOpen?<PanelLeftClose size={19}/>:<PanelLeftOpen size={19}/>}
+        </button>
+        {contextTools.map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
+          aria-label={t.name} title={t.name}
+          className="flex min-h-11 w-11 items-center justify-center rounded-xl text-forest-700 hover:bg-cream-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700">
+          <t.icon size={20} aria-hidden="true"/>
+        </button>)}
+      </nav>
       {toolsOpen && <>
-        <button type="button" aria-label="Close tools overlay" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10" />
-        <aside role="dialog" aria-modal="true" aria-label={toolSelected?activeTool+' tool':'Choose a tool'} className={'fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(88dvh,900px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl ring-1 ring-forest-900/10 '+(toolSelected&&activeTool==='Stores'?'sm:w-[min(96vw,1060px)]':'sm:w-[min(94vw,560px)]')}>
+        <button type="button" aria-label="Close tools drawer" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10 xl:hidden" />
+        <aside role="dialog" aria-modal={typeof window !== 'undefined' && window.innerWidth<1280}
+          aria-label={toolSelected?activeTool+' tool':'Choose a tool'} data-tool-shelf
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] min-w-0 flex-col overflow-hidden rounded-t-3xl border border-cream-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(88dvh,900px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:w-[min(94vw,560px)] xl:static xl:inset-auto xl:max-h-none xl:h-full xl:w-[290px] xl:shrink-0 xl:translate-x-0 xl:translate-y-0 xl:rounded-2xl xl:shadow-sm xl:border-cream-200 ring-1 ring-forest-900/10">
         <div className="flex items-center justify-between gap-2 border-b border-cream-100 p-4">
           {toolSelected
             ? <button type="button" onClick={()=>setToolSelected(false)} aria-label="Back to tools" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold hover:bg-cream-100"><ArrowLeft size={18}/> Back to tools</button>
-            : <strong className="sp-type-display text-lg">Add or use a tool</strong>}
-          <button aria-label="Close tools" onClick={closeTool} className="rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button>
+            : <strong className="sp-type-display text-lg">Tools · {areaLabels[mode].split(' · ')[0]}</strong>}
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label={shelfPinned?'Unpin tool shelf':'Pin tool shelf'} aria-pressed={shelfPinned}
+              onClick={toggleShelfPin} className="hidden min-h-10 min-w-10 items-center justify-center rounded-lg hover:bg-cream-100 xl:flex">
+              {shelfPinned?<PinOff size={18}/>:<Pin size={18}/>}
+            </button>
+            <button type="button" aria-label="Close tools" onClick={closeTool} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-cream-100"><X size={19}/></button>
+          </div>
         </div>
         {toolSelected
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
@@ -421,7 +463,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   Supporting <strong>{supportingFact.label}</strong> in this draft. Choose and review a source. It is not automatically accepted into the Agreement.
                 </p>}
             </div>
-          : <nav aria-label="Choose a tool" className="max-h-[65dvh] space-y-5 overflow-y-auto p-4 sm:p-5">
+          : <nav aria-label="Choose a tool" className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
+              <p className="text-xs leading-5 text-sand-600">{contextHint[mode]}</p>
               {supportingFact?.conversationId===liveConversationId ? <>
                 <h4 className="sp-type-display text-base">Add to {supportingFact.label}</h4>
                 <p className="text-xs leading-5 text-sand-600">Add a photo, document, place, date or KS Number for KS001 to review. Nothing changes the Agreement automatically.</p>
@@ -440,8 +483,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 <p className="text-sm text-sand-600">Choose one thing. KS001 stays right here.</p>
               <section aria-label="Add something">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {tools.filter(t=>t.group==='add').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
+                <div className="grid grid-cols-2 gap-2">
+                  {contextTools.filter(t=>t.group==='add').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
                     className="flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white px-2 py-3 text-center hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
                     <t.icon size={23} aria-hidden="true"/><span className="text-xs font-semibold">{t.name}</span>
                   </button>)}
@@ -450,7 +493,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               <section aria-label="Get something done">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Get something done</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  {tools.filter(t=>t.group==='do').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
+                  {contextTools.filter(t=>t.group==='do').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
                     className="flex min-h-24 min-w-0 items-start gap-2 rounded-xl border border-cream-200 bg-white p-3 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
                     <t.icon size={20} className="mt-0.5 shrink-0" aria-hidden="true"/>
                     <span className="min-w-0"><span className="block text-sm font-semibold">{t.name}</span><span className="mt-1 block text-xs text-sand-600">{t.description}</span></span>
@@ -463,7 +506,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Add or use a tool" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold"><Plus size={18}/> Add</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button></div></div>
         {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
           <p className="sp-type-statement max-w-[560px] text-base leading-7">{persona.opening}</p>
