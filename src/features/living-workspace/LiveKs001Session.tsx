@@ -52,7 +52,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening }: { contro
   const canSend = !state.busy && !state.pending && !!draft.trim();
   return <section aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
-      {state.turns.length===0 && <WorkspaceWelcome area="work" onExample={value=>{
+      {state.turns.length===0 && !state.conversationId && !draft.trim() && <WorkspaceWelcome area="work" onExample={value=>{
         if(value.prompt)setDraft(existing=>existing.trim()?existing:value.prompt);
         document.getElementById('live-work-ks001-input')?.focus();
       }}/>}
