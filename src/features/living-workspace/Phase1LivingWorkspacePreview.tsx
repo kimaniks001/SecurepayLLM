@@ -176,10 +176,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   }, [gateway, liveStarted, liveConversationId, liveFormationVersion, liveBusy, livePending]);
 
   const [screen, setScreen] = useState<Screen>('chat');
-  // Only presentation preference is persisted. Conversations, identity and Agreements are never stored here.
-  const [shelfPinned,setShelfPinned] = useState(() => {
-    try { return window.localStorage.getItem('sp-living-shelf-pinned') === 'yes'; } catch { return false; }
-  });
+  // Shelf presentation is remembered while this workspace stays mounted; no browser
+  // storage is used for private preferences, tokens, identity or Agreement work.
+  const [shelfPinned,setShelfPinned] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(shelfPinned);
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
     ? ['Photos','Documents','Places','Stores'].includes(tool.name)
@@ -229,7 +228,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     const next=!shelfPinned;
     setShelfPinned(next);
     setToolsOpen(next || toolsOpen);
-    try { window.localStorage.setItem('sp-living-shelf-pinned',next?'yes':'no'); } catch { /* optional */ }
+    // Mode changes keep this preference in React state; leaving the app resets it.
   }
   useEffect(()=>{
     if(!toolsOpen)return;
