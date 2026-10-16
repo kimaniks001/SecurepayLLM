@@ -41,7 +41,7 @@ test('Phase 7: Circle-only content cannot leak to LIVE',()=>{
  assert.match(community,/Circle-only content must never appear in LIVE/);
 });
 test('Phase 7: payment and booking claims are explicitly limited',()=>{
- assert.match(shell,/No money, invitation, approval or booking authority is granted/);
+ assert.match(shell,/bookings, invitations and money require their own authorisation/);
  assert.match(support,/cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
 });
 test('Phase 7: Quick Documents distinguish requests, offers and receipts',()=>{
@@ -321,24 +321,16 @@ test('Structural S2: only bounded, authenticated ID detail GETs can pass preview
  }finally{globalThis.fetch=original;}
 });
 
-test('Authentication mock: demo is visibly simulated and never grants a SecurePay session',()=>{
+test('Production workspace cannot pretend to sign in or process mock KS001 replies',()=>{
  const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
- assert.match(shell,/const \[mockSignedIn,setMockSignedIn\]\s*=\s*useState\(false\)/);
- assert.match(shell,/setMockSignedIn\(true\)/);
- assert.match(shell,/setMockSignedIn\(false\)/);
- assert.match(shell,/Try mock sign-in/);
- assert.match(shell,/Exit demo/);
- assert.match(shell,/DEMO ACCOUNT · NO REAL ACCESS/);
- assert.match(shell,/mockSignedIn\s*\? <MockWorkspacePanel key=\{mode\}/);
- assert.match(shell,/!mockSignedIn && mode==='work'/);
- assert.match(shell,/!mockSignedIn && !signedIn && mode!=='work'/);
- assert.match(shell,/!mockSignedIn && !signedIn && !liveWork && <>/);
- assert.match(shell,/!mockSignedIn && <button/);
+ assert.match(shell,/const mockSignedIn = false/);
+ assert.match(shell,/useState\(Boolean\(gateway\)\)/);
+ assert.match(shell,/createAgentController\(gateway/);
+ assert.doesNotMatch(shell,/Try mock sign-in|Exit demo|DEMO ACCOUNT · NO REAL ACCESS|setMockSignedIn\(true\)/);
+ assert.doesNotMatch(shell,/setMessages\(/);
+ assert.doesNotMatch(shell,/<MockWorkspacePanel/);
+ assert.match(shell,/bookings, invitations and money require their own authorisation/);
  assert.doesNotMatch(demo,/createSessionStore|setTokens\(|refreshToken|accessToken|fetch\(|axios|localStorage|sessionStorage|setMembership|setRole/);
- assert.match(demo,/simulated signed-in experience/);
- assert.match(demo,/sample records/);
- assert.match(shell,/not a real KS001 response/);
- for(const section of ['work','vision','circle','community'])assert.ok(demo.includes(section),section);
 });
 test('Authentication mock: only real sign-in can set real SessionStore tokens',()=>{
  const sessions=source('src/api/securepay/session.ts');

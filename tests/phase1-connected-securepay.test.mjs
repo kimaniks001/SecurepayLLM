@@ -76,7 +76,9 @@ test('Phase1: Community data stays behind membership and Circle boundaries',()=>
 test('Phase1: preview is explicitly isolated, not secretly promoted as a production runtime',()=>{
   assert.match(router,/hostname\.endsWith\('\.vercel\.app'\)/);
   assert.match(router,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
-  assert.match(shell,/No money, invitation, approval or booking authority is granted/);
+  assert.match(shell,/bookings, invitations and money require their own authorisation/);
+  assert.match(shell,/const mockSignedIn = false/);
+  assert.doesNotMatch(shell,/Try mock sign-in|Return to demonstration/);
 });
 
 test('Phase1: leaving Money can resume original KS001 work without exposing IDs in URLs',()=>{
