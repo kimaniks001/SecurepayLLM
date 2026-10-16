@@ -63,7 +63,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
       </div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
-    {formation&&<p role="status" className="text-xs font-medium text-sand-700">Working draft · Not yet accepted · {formation.question ? 'One detail to clarify' : formation.reviewable ? 'Ready for your review' : 'Still taking shape'}</p>}
+    {formation&&<p role="status" className="text-xs font-medium text-sand-700">Working draft · Not yet accepted · {formation.question ? 'One detail to clarify' : formation.reviewable ? 'Available to inspect · Understanding not yet confirmed' : 'Still taking shape'}</p>}
     {!conversationId && <div className="rounded-xl bg-cream-100 p-4 text-sm">Tell KS001 what you want to do. The Agreement will start appearing here as SecurePay understands it.</div>}
     {conversationId && busy && <p role="status" className="text-xs text-sand-600">KS001 is updating its understanding…</p>}
     {conversationId && state?.status==='loading' && <p role="status" className="text-xs text-sand-600">Reading the current Agreement from SecurePay…</p>}
@@ -138,7 +138,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
           </tbody>
         </table>
         {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanNextQuestion(formation.question.text)}</p>}
-        {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft ready to review.</p>}
+        {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft available to inspect · Material understanding not yet confirmed.</p>}
       </section>
       <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Less':'More'}</button>
       {expanded&&<p className="text-sm text-sand-700">{formation.summary}</p>}

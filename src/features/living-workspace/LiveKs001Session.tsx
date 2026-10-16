@@ -3,6 +3,7 @@ import type { AgentController } from '../agent/controller';
 import { humanNextQuestion } from './livingLanguage';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
+import { answerActions } from './answerActions';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
@@ -23,15 +24,6 @@ function Ks001Reply({ text }: { text: string }) {
   if(!result)return <>{text}</>;
   return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
 }
-function replyPills(question:string):string[] {
-  const lower=question.toLowerCase();
-  if(/where|location|address|deliver to/.test(lower))return ["I'll type the place",'Not sure yet'];
-  if(/when|date|deadline|time/.test(lower))return ["I'll enter the date",'To be agreed','Not sure yet'];
-  if(/who|which person|responsible|supplier|buyer|seller/.test(lower))return ["I'll name the person",'Not decided yet'];
-  if(/how much|price|amount|cost|budget|payment/.test(lower))return ["I'll enter an amount",'To be agreed'];
-  if(/confirm|is that correct|does this look right|agree/.test(lower))return ['Yes, that is correct','I need to correct something'];
-  return ["I'll answer",'Help me decide','Not sure yet'];
-}
 
 /**
  * Phase 7 opt-in backend smoke experience. Uses the SAME authenticated/anonymous
@@ -42,7 +34,7 @@ function replyPills(question:string):string[] {
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening }: { controller: AgentController; nextQuestion?: string | null; opening?: string }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
@@ -71,25 +63,38 @@ export function LiveKs001Session({ controller, nextQuestion, opening }: { contro
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
-      const pills=replyPills(question?.question ?? nextQuestion ?? '');
+      const currentQuestion=question?.question ?? nextQuestion ?? '';
+      const actions=answerActions(currentQuestion);
+      if(!actions.length)return null;
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
-        {pills.map(answer=><button key={answer} type="button"
+        {actions.map(action=><button key={action.label} type="button"
           onClick={()=>{
-            const kind:MiniKind|null=answer==="I'll enter the date"?'date':answer==="I'll enter an amount"?'money':
-              answer==="I'll name the person"?'person':answer==="I'll type the place"?'place':null;
-            if(kind){setMini({kind,question:question?.question??nextQuestion??''});return;}
-            if(answer==="I'll answer"){document.getElementById('live-work-ks001-input')?.focus();return;}
-            void controller.send(answer);
+            if(action.type==='mini'){setMini({kind:action.kind,question:currentQuestion});return;}
+            if(action.type==='tool'){
+              if(onOpenTool)onOpenTool(action.tool);
+              else document.getElementById('live-work-ks001-input')?.focus();
+              return;
+            }
+            if(action.type==='focus'){document.getElementById('live-work-ks001-input')?.focus();return;}
+            if(state.busy||state.pending)return;
+            if(action.type==='local-day'){
+              const date=new Date(); date.setDate(date.getDate()+action.days);
+              const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+              void controller.send('The date is '+iso+'. I have not specified a time.');
+              return;
+            }
+            void controller.send(action.value);
           }}
-          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{answer}</button>)}
+          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{action.label}</button>)}
       </div>;
     })()}
     {mini && <div className="shrink-0 border-t border-cream-200 bg-[#f9faf7] px-4 py-3" data-ks001-mini-answer>
-      <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
+      <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='time'?'What time?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
           if(state.busy||state.pending)throw new Error('Previous turn not finished');
-          await controller.send('For your question "'+mini.question+'", I propose: '+value+'. Please incorporate it into my current draft after checking for contradictions. This is not an accepted term.');
+          const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
+          await controller.send(answer);
           const latest=controller.getSnapshot();
           if(latest.error||latest.pending)throw new Error('Awaiting confirmation');
           setMini(null);

@@ -43,10 +43,11 @@ test('Chat, Summary and Tools use one canonical conversation, with no accepted-t
  assert.match(summary,/editingVersion !== formation\.version/);
  assert.match(summary,/<MiniContextInput/);
  assert.match(mini,/type=\{kind==='date'\?'date'/);
- assert.match(mini,/type=\{kind==='date'\?'date':kind==='money'\?'number'/);
+ assert.match(mini,/type=\{kind==='date'\?'date':kind==='time'\?'time':kind==='money'\?'number'/);
  assert.match(live,/data-ks001-mini-answer/);
  assert.match(live,/<MiniContextInput/);
- assert.match(live,/controller\.send\('For your question/);
+ assert.match(live,/await controller\.send\(answer\)/);
+ assert.doesNotMatch(live,/For your question/);
  assert.doesNotMatch(shell,/setFormationState|acceptAgreement\(/);
 });
 test('area welcomes live inside the existing conversation and yield to real work',()=>{
