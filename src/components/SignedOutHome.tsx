@@ -49,7 +49,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
 
   return (
     <div className="sp-brand-public w-full sp-type-signature max-w-4xl" data-unified-workspace-entry data-workspace-identity={publicMode ? 'visitor' : 'member'}>
-      <section className="sp-lift-in relative isolate overflow-hidden rounded-[2rem] px-3 pb-8 pt-8 sm:px-7 md:px-12 md:pb-12 md:pt-12">
+      <section className="sp-lift-in relative z-20 isolate overflow-visible rounded-[2rem] px-3 pb-8 pt-8 sm:px-7 md:px-12 md:pb-12 md:pt-12">
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#d9e4d8]/60 blur-3xl md:h-96 md:w-96" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-32 h-72 w-72 rounded-full bg-[#eddcc3]/50 blur-3xl md:h-96 md:w-96" />
         <div className="relative z-10">
