@@ -20,7 +20,7 @@ test('original masterpiece composition remains frozen',()=>{
     assert.ok(workspace.includes("name: '"+name+"'"),'Missing tool '+name);
   }
   assert.match(workspace,/<LiveWorkResultPanel/);
-  assert.match(workspace,/onCorrectFact=\{async \(label,previous,replacement\)=>/);
+  assert.match(workspace,/onCorrectFact=\{async \(label,previous,replacement,expectedVersion\)=>/);
 });
 test('real KS001 Work is the default, with server-owned terms and safe failure',()=>{
   assert.match(workspace,/useState\(Boolean\(gateway\)\)/);
@@ -31,7 +31,7 @@ test('real KS001 Work is the default, with server-owned terms and safe failure',
   assert.doesNotMatch(workspace,/Try mock sign-in|Try real KS001 \(Work only\)|Return to demonstration|DEMO ACCOUNT/);
   assert.doesNotMatch(workspace,/Chair delivery|200 chairs for delivery/);
   assert.doesNotMatch(workspace,/setMessages\(/);
-  assert.match(workspace,/we won't invent them/);
+  assert.match(workspace,/Personalised KS001 conversation in this space needs an authorised connection/);
   assert.match(live,/controller\.retry\(\)/);
   assert.match(live,/controller\.send\(next\)/);
   assert.match(agreement,/Display title for this view only · not saved to the Agreement/);
