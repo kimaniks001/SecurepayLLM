@@ -1,0 +1,43 @@
+name: Phase 3 — Actual Vercel Read-Only Browser Gate
+
+on:
+  push:
+    branches:
+      - feature/convergence-phase3-simplicity-datetime-20261016
+    paths:
+      - 'tests/phase3-vercel-readonly-browser.mjs'
+      - '.github/workflows/phase3-vercel-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vercel-public:
+    name: Real Vercel desktop/mobile read-only UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PHASE3_VERCEL_URL: https://securepay-qxteh6kjv-james-8078.vercel.app/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install test dependencies and Chromium
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test exact Vercel preview with write/API network guard
+        run: node tests/phase3-vercel-readonly-browser.mjs
+      - name: Save real deployed browser evidence (no credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-real-vercel-readonly-browser
+          path: artifacts/phase3-vercel/*
+          if-no-files-found: ignore

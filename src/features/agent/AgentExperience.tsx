@@ -72,6 +72,7 @@ import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
 import { createSourceController, type SourceController } from '../sources/controller';
 import { SourceMenu } from '../sources/ui/SourceMenu';
+import { DateTimeTool } from '../living-workspace/DateTimeTool';
 import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/DeclaredSourcePanel';
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
@@ -317,6 +318,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }, [signedIn, signInRoute.active, signInRoute.signingUp]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
+  const [dateTimeOpen, setDateTimeOpen] = useState(false);
   useEffect(() => {
     if (!externalReturnConversationId || returnAttempted.current) return;
     // A tab-local hint is never authority. A different or signed-out identity
@@ -1487,8 +1489,27 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     storeLivingWorkspaceEntry(state.conversationId);
     window.location.hash = '#/preview/living-workspace/work';
   };
+  const proposeTiming = async (proposal: string) => {
+    if (state.busy || state.pending) throw new Error('Finish the current KS001 message first.');
+    let target: WorkSet = currentSet();
+    if (showHome) {
+      const opened = requestFresh(next => { target = next; if (signedIn) setContinuityDismissed(true); setHome(false); });
+      if (!opened) throw new Error('Choose whether to continue or start fresh before sending a date. Your date is still here.');
+    }
+    await target.controller.send(proposal);
+    const result = target.controller.getSnapshot();
+    if (result.busy || result.pending || result.error)
+      throw new Error('SecurePay has not confirmed this turn. Check KS001 before trying again; do not send a duplicate.');
+  };
   const homeDisabled = !state.conversationId && (state.busy || !!state.pending);
   return <div className="h-dvh flex flex-col bg-cream-100">
+    {dateTimeOpen && <div className="fixed inset-0 z-[90] flex items-end justify-center bg-forest-950/35 p-0 sm:items-center sm:p-4" onKeyDown={event=>{if(event.key==='Escape')setDateTimeOpen(false);}}>
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="Close date picker" onClick={()=>setDateTimeOpen(false)}/>
+      <section role="dialog" aria-modal="true" aria-label="Date & Time" className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-cream-200 bg-white p-5 shadow-2xl sm:rounded-3xl" data-phase3-canonical-date-picker>
+        <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-display text-xl text-forest-900">Date & Time</h2><button type="button" onClick={()=>setDateTimeOpen(false)} className="min-h-11 rounded-xl border border-cream-200 px-4 text-sm">Close</button></div>
+        <DateTimeTool onPrepare={proposeTiming} onClose={()=>setDateTimeOpen(false)}/>
+      </section>
+    </div>}
     <NavBar view={showHome ? 'signed-out' : 'conversation'} onNavigate={navigateTo} />
     {notice && <div role="status" className="px-4 py-2 text-sm text-sand-700 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
     {showHome ? <div className="flex-1 overflow-auto">
@@ -1503,6 +1524,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           onPickPhoto={pickPhoto}
           onAddLink={() => openDeclared('link')}
           onAddPlace={() => openDeclared('place')}
+           onAddDateTime={() => setDateTimeOpen(true)}
         />
         {homeAttention.phase === 'ready' && (
           <div className="mx-auto w-full max-w-3xl px-4 md:px-6">
@@ -1664,6 +1686,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
               onAddLink={() => openDeclared('link')}
               onAddPlace={() => openDeclared('place')}
+               onAddDateTime={() => setDateTimeOpen(true)}
             />}
             status={<div className="space-y-3">
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}

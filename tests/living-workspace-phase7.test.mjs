@@ -622,10 +622,11 @@ test('Compact Money: one small tool, four human choices, Agreement-first and no 
  assert.doesNotMatch(shell,/activeTool==='Stores'\|\|activeTool==='Money'/);
  assert.match(personas,/tool:'Money'/);
  for(const token of ['My Money','Borrow','Invest','Protect','My Agreements','Next:',
-   'Review Agreement','Pay this Agreement','See all Money & financial details','Try sample',
+   'Review Agreement','Review funding','See all Money & financial details','Try sample',
    'No actual Agreement or payment','Proposed','Explore with KS001']){
   assert.ok(tool.includes(token),token);
  }
+ assert.doesNotMatch(tool,/Pay this Agreement/);
  assert.match(tool,/const shown=agreements.items.slice\(0,3\)/);
  assert.doesNotMatch(tool,/setShowMore|Show more Agreements/);
  assert.match(tool,/gateways\.agreements\.currentUserAgreements\(0,12\)/);

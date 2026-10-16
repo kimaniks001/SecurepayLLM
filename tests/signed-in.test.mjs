@@ -358,7 +358,8 @@ export const markup = renderToStaticMarkup(React.createElement(SignedInHome, { o
   assert.match(current, /What do you want to make/);
   assert.match(current, />real<\/span>/);
   assert.match(current, /today\?/);
-  assert.match(current, /Start with KS001/);
+  assert.doesNotMatch(current, /Start with KS001/);
+  assert.match(current, /Or choose a starting idea/);
   assert.match(current, /Tell KS001 what you want to make happen/);
   assert.ok(current.includes('Guided by the 12 Principles of Fair Trade'));
 

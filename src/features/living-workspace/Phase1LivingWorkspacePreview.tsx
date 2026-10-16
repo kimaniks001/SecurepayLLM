@@ -1,5 +1,6 @@
 import { InlineCommunityHub } from './InlineCommunityHub';
 import { UniversalSourceTray } from './UniversalSourceTray';
+import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { MockWorkspacePanel } from './MockWorkspacePanel';
@@ -27,7 +28,7 @@ import { LivingAgreementPanel } from './LivingAgreementPanel';
 import { KS001_WORKSPACE_PERSONAS, recommendWorkspaceTool } from './personas';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, HeartHandshake, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -37,6 +38,7 @@ const tools = [
   { name: 'Photos', icon: Camera, description: 'Show a photo', group: 'add' },
   { name: 'Documents', icon: FileText, description: 'Add a document', group: 'add' },
   { name: 'Places', icon: MapPin, description: 'Use a place', group: 'add' },
+  { name: 'Date & Time', icon: CalendarDays, description: 'Set a day, range, repeat or condition', group: 'add' },
   { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
   { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
   { name: 'People & Invitations', icon: UserRoundPlus, description: 'Bring people in', group: 'do' },
@@ -305,7 +307,22 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {toolSelected
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
-              {(['Photos','Documents','Places'] as const).some(name=>name===activeTool)
+              {activeTool==='Date & Time'
+                ? <DateTimeTool context={supportingFact?.conversationId===liveConversationId ? supportingFact.label : ''}
+                    onClose={closeTool}
+                    onPrepare={mode==='work' && gateway && !mockSignedIn && liveWork ? async message=>{
+                      if(!liveController)throw new Error('KS001 is not ready');
+                      const snapshot=liveController.getSnapshot();
+                      if(snapshot.busy || snapshot.pending)throw new Error('Finish the previous KS001 turn before adding dates.');
+                      if(supportingFact?.conversationId && supportingFact.conversationId!==snapshot.conversationId)
+                        throw new Error('Return to the original Agreement before supplying its dates.');
+                      setLiveStarted(true);
+                      await liveController.send(message);
+                      const outcome=liveController.getSnapshot();
+                      if(outcome.error || outcome.pending || outcome.busy)
+                        throw new Error('SecurePay has not confirmed the message. Review your KS001 conversation before trying again.');
+                    } : undefined}/>
+                : (['Photos','Documents','Places'] as const).some(name=>name===activeTool)
                 ? <UniversalSourceTray agreementPlaces={formationState?.data?.conversationId===liveConversationId
                   ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
                       .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
@@ -433,12 +450,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           : <nav aria-label="Choose a tool" className="max-h-[65dvh] space-y-5 overflow-y-auto p-4 sm:p-5">
               {supportingFact?.conversationId===liveConversationId ? <>
                 <h4 className="sp-type-display text-base">Add to {supportingFact.label}</h4>
-                <p className="text-xs leading-5 text-sand-600">Add a photo, document, place, or a KS Number for KS001 to review. Nothing changes the Agreement automatically.</p>
+                <p className="text-xs leading-5 text-sand-600">Add a photo, document, place, date or KS Number for KS001 to review. Nothing changes the Agreement automatically.</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {(['Photos','Documents','Places',...(supportingFact.label==='People'?['People & Invitations']:[])] as Array<(typeof tools)[number]['name']>)
+                  {(['Photos','Documents','Places','Date & Time',...(supportingFact.label==='People'?['People & Invitations']:[])] as Array<(typeof tools)[number]['name']>)
                     .map(name=>{
                       const item=tools.find(tool=>tool.name===name)!;
-                      const label=name==='People & Invitations'?'KS Number':name==='Photos'?'Photo':name==='Documents'?'Document':'Place';
+                      const label=name==='People & Invitations'?'KS Number':name==='Photos'?'Photo':name==='Documents'?'Document':name==='Date & Time'?'Date & Time':'Place';
                       return <button key={name} type="button" onClick={()=>openTool(item.name)}
                         className="flex min-h-16 items-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-left text-sm font-semibold hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
                         <item.icon size={19} aria-hidden="true"/>{label}

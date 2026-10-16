@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Camera, FileSpreadsheet, FileText, Image, Link2, MapPin, Mic, PenLine, Plus } from 'lucide-react';
+import { CalendarDays, Camera, FileSpreadsheet, FileText, Image, Link2, MapPin, Mic, PenLine, Plus } from 'lucide-react';
 
 export const DOCUMENT_ACCEPT = '.pdf,.docx,.txt,.md,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv';
 /** Public Experience Convergence Phase 3 (Slice 3B) -- XLSX in the UI; SecurePay reads cell values only. */
@@ -22,6 +22,8 @@ export interface SourceMenuActions {
   onPickPhoto?: (file: File) => void;
   onAddLink?: () => void;
   onAddPlace?: () => void;
+  /** A proposed timing entry, sent to KS001 for human review rather than saving an Agreement. */
+  onAddDateTime?: () => void;
   /**
    * Slice 3C -- Voice note appears ONLY when a caller passes this, which requires a real, human-approved
    * transcription provider. None exists today (UR-211), so nothing passes it and the item never renders.
@@ -70,6 +72,7 @@ export function SourceMenu({ disabled, placement = 'above', variant = 'composer'
   }
   if (actions.onAddLink) items.push({ key: 'link', label: 'Link', hint: 'Kept as text — never opened', icon: Link2, run: actions.onAddLink });
   if (actions.onAddPlace) items.push({ key: 'place', label: 'Place', hint: 'In your own words', icon: MapPin, run: actions.onAddPlace });
+  if (actions.onAddDateTime) items.push({ key: 'date-time', label: 'Date & Time', hint: 'A day, range, repeat or condition', icon: CalendarDays, run: actions.onAddDateTime });
   if (actions.onPickVoiceNote) items.push({ key: 'voice', label: 'Voice note', hint: VOICE_NOTE_CONSENT, icon: Mic, run: () => voiceInput.current?.click() });
 
   useEffect(() => {

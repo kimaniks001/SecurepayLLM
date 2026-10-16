@@ -9,11 +9,12 @@ const quick = read('src/features/living-workspace/QuickSupportPanel.tsx');
 const store = read('src/features/living-workspace/StoresTool.tsx');
 
 const catalogue = shell.match(/const tools = \[([\s\S]*?)\] as const;/)?.[1];
-test('Launch Add tray has exactly seven working tools and Photos first', () => {
+test('Launch Add tray has eight working tools and Photos first', () => {
   assert.ok(catalogue, 'missing working tools catalogue');
   const names = [...catalogue.matchAll(/name: '([^']+)'/g)].map(match => match[1]);
-  assert.deepEqual(names, ['Photos','Documents','Places','Quick Assist','Stores','People & Invitations','Money']);
-  assert.equal(names.length, 7);
+  assert.deepEqual(names, ['Photos','Documents','Places','Date & Time','Quick Assist','Stores','People & Invitations','Money']);
+  assert.equal(names.length, 8);
+  assert.match(shell, /activeTool==='Date & Time'/);
   for (const removed of ['More tools','Milestones','Vision tools','Community & Circles','Quick Support']) {
     assert.ok(!names.includes(removed), 'placeholder visible: ' + removed);
   }

@@ -121,13 +121,14 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
         </button>;
       })}
       {selectedAgreement&&<div className="rounded-xl bg-cream-50 p-3" aria-label="Next step for this Agreement">
-       <p className="text-xs font-semibold text-forest-900">Next: {next}</p>
+       <p className="text-xs font-semibold text-forest-900">{selectedAgreement.title} · {humanAgreementStatus(selectedAgreement).label}</p>
+       <p className="mt-1 text-xs text-sand-700">Next: {next}</p>
        <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" onClick={()=>onReviewAgreement(selectedAgreement.agreementId)}
          className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold">Review Agreement</button>
         <button type="button" onClick={()=>onOpenAgreementMoney(selectedAgreement)}
          className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">
-         {fundingAction?'Pay this Agreement':'Open Money'} <ArrowRight size={14}/>
+         {fundingAction?'Review funding':'Open Money'} <ArrowRight size={14}/>
         </button>
        </div>
       </div>}
