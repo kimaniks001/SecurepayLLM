@@ -37,5 +37,5 @@ test('real composer uses rich tools rather than legacy SourceMenu picker',()=>{
   assert.match(tray,/<QuickSupportPanel/);
   assert.match(tray,/<PeopleInvitationsTool/);
   assert.match(tray,/onPrepare:\(request:string\)=>Promise<void>/);
-  assert.match(tray,/Nothing .*Agreement, invites someone or moves money/);
+  assert.match(tray,/It never accepts an Agreement, invites someone or moves money/);
 });
