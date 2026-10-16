@@ -205,7 +205,7 @@ test('EP-CERT-015: a failed source offers Try again AND Remove (labelled), Start
   assert.match(text(html(api.SourceCard, { source: artifact(), busy: false, onRetry() {}, onRemove() {}, onStartFresh() {} })), /Start fresh/);
   for (const b of card.match(/<button[^>]*>/g)) assert.match(b, /min-h-11|h-11/, 'every recovery control is a 44px target');
   // Neither the composer nor adding another source is gated on a source error.
-  assert.match(agentSrc, /disabled=\{state\.busy \|\| sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'checking'\}/);
+  assert.match(agentSrc, /disabled=\{state\.busy \|\| !!state\.pending \|\| sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'checking'\}/, 'pending or busy prevents starting another tool action; failed source does not');
   assert.doesNotMatch(agentSrc, /disabled=\{[^}]*sourcesState\.phase === 'error'/);
 });
 
