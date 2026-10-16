@@ -83,7 +83,7 @@ export function SecurePayHero({ onStart, disabled, onBringPlan, onPickDocument, 
               onSend={onStart}
               disabled={disabled}
               draftKey="home"
-              placeholder="Tell KS001 what you want to do…"
+              placeholder="Tell KS001 what you want to get done…"
               leading={hasIntake ? (
                 <SourceMenu
                   variant="composer"
