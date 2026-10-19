@@ -338,7 +338,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               {activeTool==='Date & Time'
                 ? <DateTimeTool context={supportingFact?.conversationId===liveConversationId ? supportingFact.label : ''}
                     onClose={closeTool}
-                    onPrepare={mode==='work' && gateway && !mockSignedIn && liveWork ? async message=>{
+                    onPrepare={mode==='work' && gateway && !mockSignedIn && liveWork && !uiOnlyPreview ? async message=>{
                       if(!liveController)throw new Error('KS001 is not ready');
                       const snapshot=liveController.getSnapshot();
                       if(snapshot.busy || snapshot.pending)throw new Error('Finish the previous KS001 turn before adding dates.');
