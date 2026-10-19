@@ -34,7 +34,7 @@ test('photo relay forwards only canonical source photo multipart with token',asy
     const jpeg=Buffer.from([0xff,0xd8,0xff,0xd9]);
     const response=await call({sourceKind:'PHOTO',filename:'photo.jpg',mediaType:'image/jpeg',label:'Chair delivery',dataBase64:jpeg.toString('base64')},{'x-securepay-conversation-token':'scoped-secret'});
     assert.equal(response.statusCode,201);
-    assert.equal(observed.url,'https://securepay.ke'+path);
+    assert.equal(observed.url,'http://127.0.0.1:18765'+path);
     assert.ok(observed.init.body instanceof FormData);
     assert.equal(observed.init.body.get('sourceKind'),'PHOTO');
     assert.equal(observed.init.body.get('label'),'Chair delivery');
