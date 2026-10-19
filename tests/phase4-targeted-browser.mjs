@@ -60,6 +60,10 @@ try{
   await relationships.getByRole('textbox',{name:'Private relationship tag'}).fill('Preferred deliveries');
   await relationships.getByRole('button',{name:'Add private tag locally'}).click();
   assert.ok(await relationships.getByText('Preferred deliveries').count());
+  await shelf.getByRole('group',{name:'Sample Store viewpoint'}).getByRole('button',{name:'Buyer'}).click();
+  await shelf.getByRole('group',{name:'Sample Store viewpoint'}).getByRole('button',{name:'Seller'}).click();
+  assert.ok(await shelf.locator('[data-phase4-human-relations]').getByText('Preferred deliveries').count(),
+    'Locally tagged provider relationship should survive Store view changes');
   await relationships.getByRole('button',{name:'My Masters'}).click();
   await relationships.getByRole('combobox',{name:'What help do you need?'}).selectOption('Construction');
   assert.ok(await relationships.getByText('No provider matches',{exact:false}).count());
