@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CircleBoard } from '../community/CircleBoard';
+import { CircleInvitePanel } from './CircleInvitePanel';
 import type { CircleResponse, CircleMembershipResponse, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -30,6 +31,7 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
   const [error,setError]=useState<string|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
   const [composing,setComposing]=useState(false);
+  const [inviting,setInviting]=useState(false);
   const [draft,setDraft]=useState<{title:string;body:string;kind:CirclePlanningKind}>({title:'',body:'',kind:'DISCUSSION'});
   const [intent,setIntent]=useState(freshKey);
   const [submitting,setSubmitting]=useState(false);
@@ -85,6 +87,20 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
     {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">{error}</p>}
     {scope && <div className="space-y-3">
       <p className="text-sm text-sand-700">{scope.circle.purpose}</p>
+      {(scope.member.isOwner || scope.member.isSteward) &&
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={()=>setInviting(value=>!value)}
+            className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs">
+            {inviting?'Close invitations':'Invite people'}
+          </button>
+          <button type="button" onClick={()=>{ window.location.hash='#/community'; }}
+            className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs">
+            Membership and governance
+          </button>
+        </div>}
+      {inviting && (scope.member.isOwner || scope.member.isSteward) &&
+        <CircleInvitePanel id={id} gateways={gateways} session={session} onClose={()=>setInviting(false)}/>}
+
       <CircleBoard circleId={id} gateway={gateways.community} objects={objects}
         loading={loading} active={scope.circle.status==='ACTIVE'}
         onOpenObject={setSelected} onAdd={()=>setComposing(true)}/>
