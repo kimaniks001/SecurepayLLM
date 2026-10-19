@@ -46,7 +46,7 @@ test('distinct action readiness never equates inspection, invitation, acceptance
   assert.match(preview,/No principle has been evaluated/);
 });
 test('demonstration is in-memory and production write safeguards remain intact',()=>{
-  assert.match(preview,/KS001 isn't responding and nothing is saved as an Agreement/);
+  assert.match(preview,/KS001 is not responding live; no Agreement is saved/);
   assert.doesNotMatch(preview,/fetch\(|axios|createAgentController|localStorage|sessionStorage|agreementId/);
   assert.match(shell,/setPreviewNotes\(/);
   assert.match(relay,/UPSTREAM = 'https:\/\/securepay\.ke'/);
