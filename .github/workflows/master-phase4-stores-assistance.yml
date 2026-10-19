@@ -6,7 +6,7 @@ on:
       - integration/master-execution-20261019
     paths:
       - 'src/features/living-workspace/**'
-      - 'tests/phase4-master-*'
+      - 'tests/phase4-*'
       - '.github/workflows/master-phase4-stores-assistance.yml'
       - 'docs/MASTER_PHASE4_*'
   push:
@@ -73,6 +73,7 @@ jobs:
           node tests/phase3-master-browser.mjs
           node tests/phase4-master-browser.mjs
           node tests/phase4-targeted-browser.mjs
+          node tests/phase4-fluency-browser.mjs
       - name: Save human visual evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -84,4 +85,5 @@ jobs:
             artifacts/phase3-master/*.png
             artifacts/phase4-master/*.png
             artifacts/phase4-targeted/*.png
+            artifacts/phase4-fluency/*.png
           if-no-files-found: warn
