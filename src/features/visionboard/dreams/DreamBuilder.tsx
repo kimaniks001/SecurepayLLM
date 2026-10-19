@@ -58,13 +58,14 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function DreamBuilder({
-  dream, gateway, onBack, onSaveTitle, onExploreKs001, onUnsavedChange,
+  dream, gateway, onBack, onSaveTitle, onExploreKs001, onShareSelected, onUnsavedChange,
 }: {
   dream: VisionDreamDto;
   gateway: VisionDreamGateway;
   onBack: () => void;
   onSaveTitle: (title: string, content: string, expectedVersion: number) => Promise<boolean>;
   onExploreKs001?: (draftText: string) => void;
+  onShareSelected?: (excerpt: { dreamId: string; dreamTitle: string; boardRevision: number; objectId: string; kind: 'note' | 'text' | 'checklist' | 'frame'; text: string }) => void;
   /** Workspace navigation guard only; the server revision still owns save truth. */
   onUnsavedChange?: (unsaved: boolean) => void;
 }) {
@@ -416,6 +417,18 @@ export function DreamBuilder({
         <button type="button" onClick={removeSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-ember-700 inline-flex items-center gap-1"><Trash2 className="size-3.5" /> Delete</button>
         {onExploreKs001 && 'text' in selectedObject && <button type="button" onClick={() => onExploreKs001(selectedObject.text)}
           className="min-h-9 rounded-full bg-forest-700 px-3 text-white">Ask KS001 about this</button>}
+        {onShareSelected && (selectedObject.kind === 'note' || selectedObject.kind === 'text' ||
+          selectedObject.kind === 'checklist' || selectedObject.kind === 'frame') &&
+          <button type="button"
+            disabled={currentDirty || !serverRevisionKnown.current || saveState === 'loading' || saveState === 'saving' || saveState === 'error'}
+            onClick={() => onShareSelected({
+              dreamId: dream.dreamId, dreamTitle: dream.title, boardRevision: revision,
+              objectId: selectedObject.id, kind: selectedObject.kind, text: selectedObject.text,
+            })}
+            title={currentDirty ? 'Save this Dream before selecting material to share' : 'Choose one saved note for a Circle'}
+            className="min-h-9 rounded-full border border-forest-200 bg-forest-50 px-3 text-forest-800 disabled:opacity-40">
+            Share selected note with a Circle
+          </button>}
       </div>}
 
       {localError && <div className="p-3"><StatusNotice tone="warning" icon={false}>{localError}</StatusNotice></div>}
