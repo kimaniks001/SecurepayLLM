@@ -41,7 +41,7 @@ test('Phase 7: Circle-only content cannot leak to LIVE',()=>{
  assert.match(community,/Circle-only content must never appear in LIVE/);
 });
 test('Phase 7: payment and booking claims are explicitly limited',()=>{
- assert.match(shell,/bookings, invitations and money require their own authorisation/);
+ assert.match(shell,/Agreements, invitations and Money require your review and authorisation/);
  assert.match(support,/cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
 });
 test('Phase 7: Quick Documents distinguish requests, offers and receipts',()=>{
@@ -329,7 +329,7 @@ test('Production workspace cannot pretend to sign in or process mock KS001 repli
  assert.doesNotMatch(shell,/Try mock sign-in|Exit demo|DEMO ACCOUNT · NO REAL ACCESS|setMockSignedIn\(true\)/);
  assert.doesNotMatch(shell,/setMessages\(/);
  assert.doesNotMatch(shell,/<MockWorkspacePanel/);
- assert.match(shell,/bookings, invitations and money require their own authorisation/);
+ assert.match(shell,/Agreements, invitations and Money require your review and authorisation/);
  assert.doesNotMatch(demo,/createSessionStore|setTokens\(|refreshToken|accessToken|fetch\(|axios|localStorage|sessionStorage|setMembership|setRole/);
 });
 test('Authentication mock: only real sign-in can set real SessionStore tokens',()=>{
