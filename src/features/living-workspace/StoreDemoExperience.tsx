@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StorePhoto, type StoreImage } from './StorePhotoViewer';
-import { StoreHumanHelp } from './StoreHumanHelp';
+import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, MapPin, Plus, Store, Users } from 'lucide-react';
 
@@ -66,6 +66,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
  const [planLimit,setPlanLimit]=useState(false);
  const [considered,setConsidered]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
  const [comparisonOpen,setComparisonOpen]=useState(false);
+ const [storeRelations,setStoreRelations]=useState<StoreHumanRelation[]>([]);
 
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
@@ -175,7 +176,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
      className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-3 text-xs font-semibold">Review buying plan · {buyingLines.length} items</button>}
    {practiceReady&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Your sample buying plan is ready for practice. No real sellers have been contacted.</p>}
   </div>}
-  {view==='seller'&&<div className="space-y-3"><StoreHumanHelp owner onPropose={onLocalProposal}/>
+  {view==='seller'&&<div className="space-y-3"><StoreHumanHelp owner relationships={storeRelations} onRelationshipsChange={setStoreRelations} onPropose={onLocalProposal}/>
    <div className="overflow-hidden rounded-xl border border-cream-200 bg-white">
     <Photo src={sampleSeller.cover} title="Sample Store gallery" className="aspect-[16/7]"/>
     <div className="p-3"><p className="font-semibold">{sampleSeller.name}</p><p className="text-xs text-sand-600">{sampleSeller.trade} · Sample seller workspace</p></div>
