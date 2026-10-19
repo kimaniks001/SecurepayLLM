@@ -1,104 +1,286 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { CalendarDays, GraduationCap, HandHeart, RefreshCw, Users } from 'lucide-react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { CalendarDays, Compass, GraduationCap, HandHeart, RefreshCw, Search, Users, MessageCircle, ArrowUpRight, ShieldCheck, BookOpen } from 'lucide-react';
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
-import type { CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityObjectResponse, MembershipResponse } from '../../api/securepay/community/dto';
+import type {
+  ApprenticeshipProjectDto, CirclePendingInvitationView, CircleResponse, CommunityEventDto,
+  CommunityProjectDto, CommunityServiceOpportunityDto, CommunityObjectResponse, MembershipResponse,
+} from '../../api/securepay/community/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
+import { communityLiveOnly, communityOpenOpportunities, communityVisibleProjects, communityPublicEvents,
+  communityApprenticeships, discoverableCircles, invitedCircleCards, matchesCommunityText } from './communityDiscovery';
 
-type Page = 'live' | 'projects' | 'help' | 'events' | 'learning';
-type CommunityRow = CommunityObjectResponse | CommunityProjectDto | CommunityServiceOpportunityDto | CommunityEventDto;
-const sections: { id:Page;label:string;Icon:typeof Users }[]=[
-  {id:'live',label:'LIVE',Icon:Users},{id:'projects',label:'Projects',Icon:HandHeart},
-  {id:'help',label:'Help & skills',Icon:HandHeart},{id:'events',label:'Events',Icon:CalendarDays},
+type Page='home'|'live'|'circles'|'help'|'projects'|'events'|'learning';
+type Section='live'|'circles'|'invitations'|'help'|'projects'|'events'|'learning';
+type Rows={
+  live:CommunityObjectResponse[];circles:CircleResponse[];invitations:CirclePendingInvitationView[];
+  help:CommunityServiceOpportunityDto[];projects:CommunityProjectDto[];
+  events:CommunityEventDto[];learning:ApprenticeshipProjectDto[];
+};
+type RowState<T>={status:'idle'|'loading'|'ready'|'error';items:T[]};
+type Collections={ [K in Section]:RowState<Rows[K][number]> };
+const empty=():Collections=>({
+  live:{status:'idle',items:[]},circles:{status:'idle',items:[]},invitations:{status:'idle',items:[]},
+  help:{status:'idle',items:[]},projects:{status:'idle',items:[]},
+  events:{status:'idle',items:[]},learning:{status:'idle',items:[]},
+});
+const sections=[
+  {id:'home',label:'Discover',Icon:Compass},
+  {id:'live',label:'LIVE',Icon:MessageCircle},
+  {id:'circles',label:'Circles',Icon:Users},
+  {id:'help',label:'Opportunities',Icon:HandHeart},
+  {id:'projects',label:'Projects',Icon:HandHeart},
+  {id:'events',label:'Events',Icon:CalendarDays},
   {id:'learning',label:'Learning',Icon:GraduationCap},
-];
-const dateLabel=(value:string|null)=>{if(!value)return null;const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString():null;};
+] as const;
+const dateLabel=(value:string|null)=>{if(!value)return null;const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('en-KE',{dateStyle:'medium',timeStyle:'short'}):null;};
+function Panel({title,detail,children}:{title:string;detail?:string;children:React.ReactNode}){
+  return <section className="min-w-0 space-y-3 rounded-2xl border border-cream-200 bg-white p-4 shadow-[0_9px_22px_-20px_rgba(20,60,40,.35)]">
+    <h3 className="font-display text-lg text-forest-900">{title}</h3>
+    {detail&&<p className="text-xs leading-5 text-sand-600">{detail}</p>}
+    {children}
+  </section>;
+}
+function Empty({what}:{what:string}){
+  return <p className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">
+    Nothing confirmed in {what} yet. Explore another space or return later.
+  </p>;
+}
+function Card({label,title,body,detail,onOpen}:{label:string;title:string;body:string;detail?:string|null;onOpen?:()=>void}){
+  return <article className="min-w-0 rounded-xl border border-cream-200/80 bg-[#fdfcf9] p-3 space-y-1.5">
+    <p className="text-[0.69rem] font-semibold uppercase tracking-wide text-sand-500">{label}</p>
+    <h4 className="break-words text-sm font-semibold leading-5 text-forest-900">{title}</h4>
+    {body&&<p className="whitespace-pre-wrap break-words text-xs leading-5 text-sand-700">{body}</p>}
+    {detail&&<p className="text-xs text-sand-600">{detail}</p>}
+    {onOpen&&<button type="button" onClick={onOpen}
+      className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700 underline underline-offset-4">
+      Explore this Circle <ArrowUpRight size={14} aria-hidden="true"/>
+    </button>}
+  </article>;
+}
 
-/** The existing Community gateway is the system of record. Never read member
- * sections until the membership endpoint explicitly returns ACTIVE, and never
- * project Circle-only records into Community LIVE.
- */
-export function InlineCommunityHub({gateways,session,onOpenFull}:{
+/** Phase 6 is a connected discoverability surface for the existing Community
+ * gateway. It has no parallel membership engine, Circle board, post controller,
+ * volunteer registry or booking logic. Community authority stays server-side. */
+export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle}:{ 
   gateways:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
-}) {
+  onOpenCircle?:(circleId:string)=>void;
+}){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
-  const [page,setPage]=useState<Page>('live');
-  const [membership,setMembership]=useState<{phase:'loading'|'ready'|'error';data:MembershipResponse|null}>({phase:'loading',data:null});
-  const [content,setContent]=useState<{phase:'idle'|'loading'|'ready'|'error';items:CommunityRow[]}>({phase:'idle',items:[]});
+  const [page,setPage]=useState<Page>('home');
+  const [filter,setFilter]=useState('');
+  const [membership,setMembership]=useState<{status:'loading'|'ready'|'error';value:MembershipResponse|null}>({status:'loading',value:null});
+  const [records,setRecords]=useState<Collections>(empty);
   const [revision,setRevision]=useState(0);
-  const active=identity.status==='signed-in' && membership.phase==='ready' && membership.data?.status==='ACTIVE';
+  const active=identity.status==='signed-in'&&membership.status==='ready'&&membership.value?.status==='ACTIVE';
+
   useEffect(()=>{
-    let live=true;
-    setMembership({phase:'loading',data:null});setContent({phase:'idle',items:[]});
-    if(identity.status!=='signed-in')return;
+    let alive=true;
+    setMembership({status:'loading',value:null});setRecords(empty());
+    if(identity.status!=='signed-in'){setMembership({status:'ready',value:null});return;}
     void (async()=>{
       try{
         await ensureFreshSession(session,gateways.auth);
-        if(!live||session.getSnapshot().status!=='signed-in')return;
+        if(!alive||session.getSnapshot().status!=='signed-in')return;
         const result=await gateways.community.membership.me();
-        if(live)setMembership({phase:'ready',data:result});
-      }catch{if(live)setMembership({phase:'error',data:null});}
+        if(alive)setMembership({status:'ready',value:result});
+      }catch{if(alive)setMembership({status:'error',value:null});}
     })();
-    return()=>{live=false;};
-  },[identity.status,identity.status==='signed-in'?identity.tokens.refreshToken:null,gateways,session,revision]);
+    return ()=>{alive=false;};
+  },[identity.status,identity.status==='signed-in'?identity.tokens.refreshToken:null,session,gateways,revision]);
 
   useEffect(()=>{
-    let live=true;
-    setContent({phase:'idle',items:[]});
-    if(!active || page==='learning')return;
-    setContent({phase:'loading',items:[]});
-    const call:Promise<CommunityRow[]> = page==='live'?gateways.community.feed(20,0)
-      :page==='projects'?gateways.community.projects.list(20,0)
-      :page==='help'?gateways.community.serviceOpportunities.list(20,0)
-      :gateways.community.events.list(20,0);
-    void call.then(rows=>{
-      if(live && session.getSnapshot().status==='signed-in')
-        setContent({phase:'ready',items:rows.filter(row=>row.circleId===null)});
-    }).catch(()=>{if(live)setContent({phase:'error',items:[]});});
-    return()=>{live=false;};
-  },[active,page,revision,gateways,session]);
+    let alive=true;
+    setRecords(empty());
+    if(!active)return;
+    // Read-only, membership-gated authoritative collections. One failing lane
+    // must not turn other authorised lanes into fictional empty successes.
+    function load<K extends Section>(key:K, fetch:()=>Promise<Rows[K]>, safe:(x:Rows[K])=>Rows[K]){
+      setRecords(current=>({...current,[key]:{status:'loading',items:[]}}));
+      void fetch().then(rows=>{
+        if(!alive || session.getSnapshot().status!=='signed-in')return;
+        const filtered=safe(rows);
+        setRecords(current=>({...current,[key]:{status:'ready',items:filtered}}));
+      }).catch(()=>{
+        if(alive)setRecords(current=>({...current,[key]:{status:'error',items:[]}}));
+      });
+    }
+    load('live',()=>gateways.community.feed(25,0),communityLiveOnly);
+    load('projects',()=>gateways.community.projects.list(25,0),communityVisibleProjects);
+    load('help',()=>gateways.community.serviceOpportunities.list(25,0),communityOpenOpportunities);
+    load('events',()=>gateways.community.events.list(25,0),communityPublicEvents);
+    load('learning',()=>gateways.community.apprenticeships.list(25,0),communityApprenticeships);
+    load('circles',()=>gateways.community.circles.discover(25,0),discoverableCircles);
+    load('invitations',()=>gateways.community.circles.myInvitations(25,0),invitedCircleCards);
+    return ()=>{alive=false;};
+  },[active,gateways,session,revision]);
 
-  const isLive=(item:CommunityRow):item is CommunityObjectResponse=>'objectType' in item;
-  const isProject=(item:CommunityRow):item is CommunityProjectDto=>'purpose' in item;
-  const title=(item:CommunityRow)=>item.title;
-  const detail=(item:CommunityRow)=>isLive(item)?item.body:isProject(item)?item.purpose:item.description;
-  const when=(item:CommunityRow)=>'startsAt' in item?dateLabel(item.startsAt):null;
-  return <section data-real-community-hub className="space-y-4" aria-label="Trust Project Community">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><p className="text-xs uppercase tracking-wider text-sand-600">Trust Project · Community</p>
-        <h2 className="font-display text-xl">People make progress together</h2></div>
-      <button type="button" onClick={()=>setRevision(r=>r+1)} aria-label="Refresh Community" className="min-h-11 rounded-lg border border-cream-200 px-3"><RefreshCw size={16}/></button>
+  const filtered=useMemo(()=>({
+    live:records.live.items.filter(x=>matchesCommunityText(filter,x.title,x.body,x.locationLabel)),
+    help:records.help.items.filter(x=>matchesCommunityText(filter,x.title,x.description,x.locationLabel,...x.skillsNeeded)),
+    projects:records.projects.items.filter(x=>matchesCommunityText(filter,x.title,x.purpose,x.locationLabel)),
+    events:records.events.items.filter(x=>matchesCommunityText(filter,x.title,x.description,x.locationLabel)),
+    learning:records.learning.items.filter(x=>matchesCommunityText(filter,x.title,x.learningGoal)),
+    circles:records.circles.items.filter(x=>matchesCommunityText(filter,x.name,x.purpose,x.categoryLabel,x.locationLabel)),
+    invitations:records.invitations.items.filter(x=>matchesCommunityText(filter,x.circleName,x.circlePurpose)),
+  }),[records,filter]);
+  const status=(key:Section)=>{
+    const state=records[key].status;
+    return state==='loading'?<p role="status" className="text-xs text-sand-600">Finding authorised {key}…</p>
+      :state==='error'?<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs text-sand-700">
+        SecurePay could not verify {key}. Nothing has been changed.</p>
+      :state==='ready'&&filtered[key].length===0?<Empty what={key}/>:null;
+  };
+  const openCircle=(id:string)=>onOpenCircle?onOpenCircle(id):onOpenFull();
+
+  const livePanel=(limit=20)=><Panel title="LIVE · Stories and conversation"
+      detail="Real Community activity, not popularity rankings. Private Circle discussions never appear here.">
+    {status('live')}
+    {filtered.live.slice(0,limit).map(x=><Card key={x.id}
+      label={x.objectType.replace(/_/g,' ').toLowerCase()+' · '+(x.authorDisplayName??'Community member')}
+      title={x.title} body={x.body} detail={x.locationLabel}/>)}
+    {limit<20&&filtered.live.length>limit&&<button type="button" onClick={()=>setPage('live')} className="min-h-11 text-xs underline">Read more LIVE stories</button>}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Take part in LIVE · existing Community</button>
+  </Panel>;
+  const circlesPanel=(limit=20)=><Panel title="Find your people"
+      detail="Publicly discoverable Circles only. Private invitations are visible only to their recipient.">
+    {status('invitations')}
+    {filtered.invitations.slice(0,limit).map(x=><Card key={'invited-'+x.circleId}
+      label="Personal Circle invitation · acceptance required" title={x.circleName}
+      body={x.circlePurpose} detail={'Invited by '+(x.invitedByDisplayName??'a member')}
+      onOpen={()=>openCircle(x.circleId)}/>)}
+    {status('circles')}
+    {filtered.circles.slice(0,limit).map(x=><Card key={x.id}
+      label={x.membershipMode.replace(/_/g,' ').toLowerCase()+' · '+x.status.toLowerCase()}
+      title={x.name} body={x.purpose} detail={x.locationLabel} onOpen={()=>openCircle(x.id)}/>)}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Discover, request or join through Community</button>
+  </Panel>;
+  const helpPanel=(limit=20)=><Panel title="Bring your ability. Find a way to help."
+      detail="These are opportunities to explore, not jobs awarded or engagements accepted.">
+    {status('help')}
+    {filtered.help.slice(0,limit).map(x=><Card key={x.id} label={'Opportunity · '+x.status.toLowerCase()}
+      title={x.title} body={x.description}
+      detail={[x.locationLabel,x.skillsNeeded.length?'Skills: '+x.skillsNeeded.join(', '):null,x.startsAt?dateLabel(x.startsAt):null].filter(Boolean).join(' · ')}/>)}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Express interest through the authorised Community pathway</button>
+  </Panel>;
+  const projectPanel=(limit=20)=><Panel title="See what people are building"
+      detail="Purpose and recorded progress matter more than follower counts or unsupported impact claims.">
+    {status('projects')}
+    {filtered.projects.slice(0,limit).map(x=><Card key={x.id}
+      label={'Community project · '+x.status.toLowerCase()} title={x.title}
+      body={x.purpose} detail={x.locationLabel}/>)}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Explore projects, evidence and contributions</button>
+  </Panel>;
+  const eventsPanel=(limit=20)=><Panel title="Make time for one another"
+      detail="A listed event is not an RSVP or confirmed booking.">
+    {status('events')}
+    {filtered.events.slice(0,limit).map(x=><Card key={x.id}
+      label={'Event · '+x.status.toLowerCase()} title={x.title}
+      body={x.description} detail={[dateLabel(x.startsAt),x.locationLabel].filter(Boolean).join(' · ')}/>)}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Open event details and participation</button>
+  </Panel>;
+  const learningPanel=(limit=20)=><Panel title="Experience meets opportunity"
+      detail="Plugs, Masters and apprentices grow through real evidence, skills and independent review.">
+    <div className="rounded-xl bg-[#eff4ed] p-4">
+      <p className="text-sm font-semibold text-forest-900">Learn something. Pass something on.</p>
+      <p className="mt-1 text-xs leading-5 text-sand-700">The Skills Institute, Plug Foundation and Master capability pathways
+        live in the existing Community experience. Training does not automatically grant certification.</p>
     </div>
-    <p className="text-sm text-sand-700">Learn, contribute skills, discover projects and meet people through shared work. Community membership is an explicit choice, not part of signing in.</p>
-    {membership.phase==='loading'&&<p role="status" className="rounded-xl bg-cream-100 p-3 text-sm">Checking Trust Project membership…</p>}
-    {membership.phase==='error'&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">SecurePay could not verify your membership. Member content is not available.</p>}
-    {membership.phase==='ready'&&!active&&<p className="rounded-xl bg-cream-100 p-3 text-sm">Membership: {membership.data?.status??'not joined'}. You can explore the invitation and Join experience, but member content remains protected.</p>}
-    <div role="tablist" aria-label="Community sections" className="flex flex-wrap gap-1">
-      {sections.map(({id,label,Icon})=><button key={id} type="button" role="tab"
-        aria-selected={page===id} onClick={()=>setPage(id)}
-        className={`min-h-11 rounded-lg px-3 text-xs ${page===id?'bg-forest-800 text-white':'bg-cream-100'}`}>
-        <Icon size={15} className="mr-1 inline"/> {label}
-      </button>)}
+    {status('learning')}
+    {filtered.learning.slice(0,limit).map(x=><Card key={x.id}
+      label={'Apprenticeship · '+x.status.toLowerCase()}
+      title={x.title} body={x.learningGoal}
+      detail="Participation, sponsorship and competence require separate confirmation"/>)}
+    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+      Explore learning, human capacities and knowledge</button>
+  </Panel>;
+
+  return <section data-real-community-hub data-phase6-community-discovery
+    className="space-y-4" aria-label="Trust Project Community">
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-forest-700">The Trust Project · Community</p>
+        <h2 className="font-display text-2xl leading-tight text-forest-900">People make progress together</h2>
+        <p className="max-w-xl text-sm leading-6 text-sand-700">
+          Find your people. Share a story. Offer what you know. Discover what you could build together.
+        </p>
+      </div>
+      <button type="button" onClick={()=>setRevision(v=>v+1)} aria-label="Refresh Community"
+        className="min-h-11 min-w-11 rounded-xl border border-cream-200 bg-white p-3"><RefreshCw size={16}/></button>
     </div>
-    {active && page==='learning' && <div className="rounded-xl border border-cream-200 p-4 space-y-2">
-      <h3 className="text-sm font-semibold">Skills Institute and Masters</h3>
-      <p className="text-xs text-sand-700">Training, mentorship and apprenticeship participation are managed by the existing SecurePay Community and Skills Institute. No personal apprentice records or availability are inferred here.</p>
-      <button type="button" onClick={onOpenFull} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open the existing Community experience</button>
-    </div>}
-    {active && page!=='learning' && <>
-      {content.phase==='loading'&&<p role="status" className="text-sm">Loading authorised {sections.find(s=>s.id===page)?.label} records…</p>}
-      {content.phase==='error'&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">SecurePay could not load this section. Nothing was changed.</p>}
-      {content.phase==='ready'&&content.items.length===0&&<p className="rounded-xl bg-cream-100 p-3 text-sm">No public-to-Community records were returned in this section.</p>}
-      {content.phase==='ready'&&content.items.map(item=><article key={item.id} className="rounded-xl border border-cream-200 p-4 space-y-2">
-        <p className="text-xs uppercase tracking-wider text-sand-600">{item.status} · {page==='live'&&isLive(item)?item.objectType:sections.find(s=>s.id===page)?.label}</p>
-        <h3 className="text-sm font-semibold">{title(item)}</h3>
-        <p className="whitespace-pre-wrap text-sm text-sand-700">{detail(item)}</p>
-        {'locationLabel' in item && item.locationLabel&&<p className="text-xs text-sand-600">Location: {item.locationLabel}</p>}
-        {when(item)&&<p className="text-xs text-sand-600">Starts: {when(item)}</p>}
-        {'skillsNeeded' in item && item.skillsNeeded.length>0 && <p className="text-xs text-sand-600">Skills: {item.skillsNeeded.join(', ')}</p>}
-        <p className="text-xs text-sand-600">From SecurePay · Read only · No participation recorded</p>
-      </article>)}
+    {membership.status==='loading'&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-sm">
+      Checking your Trust Project membership…</p>}
+    {membership.status==='error'&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">
+      SecurePay could not verify membership. Restricted content remains unavailable.</p>}
+    {membership.status==='ready'&&!active&&<Panel title="You belong by choice"
+      detail="Signing in does not make anyone a member. Invitations and joining both require your acceptance.">
+      <p className="text-sm text-sand-700">Membership: {membership.value?.status??'Not joined'}.</p>
+      {membership.value?.status==='REVOKED'?<p className="text-sm text-sand-700">
+        Your membership cannot be reactivated through self-join. Use existing Help & Support.</p>
+      :identity.status==='signed-in'?<button type="button" onClick={()=>{window.location.hash='#/join';}}
+        className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white">
+        {membership.value?.status==='INVITED'?'Review my invitation': 'Explore joining the Trust Project'}
+      </button>
+      :<p className="text-xs">Sign in to review an invitation or choose to join.</p>}
+    </Panel>}
+    {active&&<>
+      <label className="flex items-center gap-2 rounded-xl border border-cream-200 bg-white px-3">
+        <Search size={18} className="shrink-0 text-sand-500" aria-hidden="true"/>
+        <span className="sr-only">Find Community topics</span>
+        <input value={filter} maxLength={120} onChange={e=>setFilter(e.target.value)}
+          placeholder="Find a story, skill, Circle or project"
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"/>
+      </label>
+      <div role="tablist" aria-label="Community sections" className="flex gap-1 overflow-x-auto pb-1">
+        {sections.map(({id,label,Icon})=><button key={id} type="button" role="tab"
+          aria-selected={page===id} onClick={()=>setPage(id)}
+          className={`inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-3 text-xs font-semibold ${page===id?'bg-forest-800 text-white':'bg-cream-100 text-forest-800'}`}>
+          <Icon size={15} aria-hidden="true"/> {label}
+        </button>)}
+      </div>
+      {page==='home'?<>
+        <Panel title="What is happening here?"
+          detail="A glimpse of real authorised activity, with no invented people, activity or participation.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(['live','help','projects','events'] as const).map(key=>{
+              const item=filtered[key][0];
+              const titles={live:'Conversations',help:'Ways to contribute',projects:'Shared projects',events:'Gatherings'};
+              return <button type="button" key={key} onClick={()=>setPage(key)}
+                className="min-h-28 rounded-xl border border-cream-200 bg-[#fbfcf8] p-4 text-left hover:border-forest-200">
+                <p className="text-xs font-semibold text-forest-700">{titles[key]}</p>
+                <p className="mt-2 break-words text-sm font-semibold text-forest-900">
+                  {item?.title??(records[key].status==='error'?'Temporarily unavailable':
+                    records[key].status==='loading'?'Checking SecurePay…':'Explore this space')}</p>
+                <p className="mt-1 text-xs text-sand-600">See actual {titles[key].toLowerCase()}</p>
+              </button>;
+            })}
+          </div>
+        </Panel>
+        {circlesPanel(2)}
+        {helpPanel(2)}
+        {livePanel(2)}
+      </>:page==='live'?livePanel():
+        page==='circles'?circlesPanel():
+        page==='help'?helpPanel():
+        page==='projects'?projectPanel():
+        page==='events'?eventsPanel():learningPanel()}
+      <div className="rounded-2xl border border-forest-100 bg-[#eff4ed] p-4 space-y-2">
+        <div className="flex items-center gap-2 text-forest-800"><BookOpen size={18}/><strong className="text-sm">Your experience matters.</strong></div>
+        <p className="text-xs leading-5 text-sand-700">The existing Community is where you can share supported stories,
+          propose useful knowledge, review evidence, report concerns and discover real human assistance.
+          Unreviewed contributions never become official KS001 knowledge.</p>
+        <button type="button" onClick={onOpenFull}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-forest-800">
+          Open Community participation <ArrowUpRight size={16} aria-hidden="true"/>
+        </button>
+      </div>
     </>}
-    <button type="button" onClick={onOpenFull} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm">Open full Community and participation</button>
-    <p className="text-xs text-sand-600">Circle-only projects and posts stay inside their own Circle. No membership, RSVP, volunteering, Agreement or Money action is implied by this listing.</p>
+    <p className="flex items-start gap-2 text-xs leading-5 text-sand-600"><ShieldCheck size={16} className="mt-0.5 shrink-0"/>
+      Private Vision and Circle content never becomes LIVE material by discovery. Joining, volunteering, RSVPs,
+      knowledge approval, moderation decisions, Agreements and payments remain separate authorised actions.</p>
   </section>;
 }
