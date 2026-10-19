@@ -1,0 +1,78 @@
+name: Master Phase 3 — Universal Tool Shelf
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'tests/phase3-master-*'
+      - '.github/workflows/master-phase3-tool-shelf.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase3-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engineering:
+    name: Tool lifecycle, privacy, TypeScript, lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Phase 3 tools and preview write-safety contracts
+        run: node --test tests/phase3-master-tools.test.mjs tests/phase1-preview-production-write-guard.test.mjs tests/phase1-connected-securepay.test.mjs tests/phase2-master-check.test.mjs
+      - name: Complete prior frontend regression certification
+        run: npm run test:final-convergence
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+
+  browser:
+    name: Five real tools on desktop and two mobile sizes
+    needs: engineering
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install isolated browser
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Localhost-only Phase 3 interactions
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/master-phase3-preview.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ > /dev/null
+          node tests/phase3-master-browser.mjs
+          node tests/phase1-public-browser.mjs
+          node tests/phase2-master-browser.mjs
+      - name: Preserve Phase 3 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-five-tool-desktop-mobile-evidence
+          path: |
+            artifacts/phase3-master/*.png
+            artifacts/phase1/*.png
+            artifacts/phase2-master/*.png
+          if-no-files-found: warn
