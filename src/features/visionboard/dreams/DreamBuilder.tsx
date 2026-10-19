@@ -8,6 +8,8 @@ import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import type { VisionDreamDto } from '../../../api/securepay/visiondreams/dto';
+import type { StoreGateway } from '../../../api/securepay/store';
+import { VisionStorePicker } from '../../living-workspace/VisionStorePicker';
 
 type BoardObject =
   | { id: string; kind: 'note' | 'text' | 'checklist' | 'frame'; x: number; y: number; w: number; h: number; text: string; tone?: number }
@@ -58,13 +60,14 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function DreamBuilder({
-  dream, gateway, onBack, onSaveTitle, onExploreKs001, onShareSelected, onUnsavedChange,
+  dream, gateway, onBack, onSaveTitle, onExploreKs001, onShareSelected, onUnsavedChange, storeGateway,
 }: {
   dream: VisionDreamDto;
   gateway: VisionDreamGateway;
   onBack: () => void;
   onSaveTitle: (title: string, content: string, expectedVersion: number) => Promise<boolean>;
   onExploreKs001?: (draftText: string) => void;
+  storeGateway?: Pick<StoreGateway, 'search' | 'offer'>;
   onShareSelected?: (excerpt: { dreamId: string; dreamTitle: string; boardRevision: number; objectId: string; kind: 'note' | 'text' | 'checklist' | 'frame'; text: string }) => void;
   /** Workspace navigation guard only; the server revision still owns save truth. */
   onUnsavedChange?: (unsaved: boolean) => void;
@@ -78,6 +81,7 @@ export function DreamBuilder({
   const [selected, setSelected] = useState<string | null>(null);
   const [groupSelection,setGroupSelection] = useState<string[]>([]);
   const [milestoneOpen,setMilestoneOpen] = useState(false);
+  const [storePickerOpen,setStorePickerOpen] = useState(false);
   const [milestoneName,setMilestoneName] = useState('');
   const [milestoneDate,setMilestoneDate] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -170,6 +174,12 @@ export function DreamBuilder({
     const frame:BoardObject={id:uid(),kind:'frame',x:left,y:top,w:right-left,h:bottom-top,text:'Group'};
     commit({v:1,objects:[frame,...doc.objects]});
     setSelected(frame.id);setGroupSelection([]);
+  };
+  const addStoreOption = (text:string) => {
+    const note:BoardObject={id:uid(),kind:'note',x:140+doc.objects.length*12,
+      y:125+doc.objects.length*10,w:390,h:310,text,tone:2};
+    commit({v:1,objects:[...doc.objects,note]});
+    setSelected(note.id);setStorePickerOpen(false);
   };
   const addMilestone = () => {
     const label=milestoneName.trim();
@@ -470,6 +480,12 @@ export function DreamBuilder({
           className={`size-11 rounded-full border inline-grid place-items-center ${tool === 'erase' ? 'border-forest-400 bg-forest-50 text-forest-700' : 'border-cream-200 text-sand-600'}`}><Eraser className="size-4" /></button>
         <button type="button" title="Undo" onClick={undo} disabled={!history.length} className="size-11 rounded-full border border-cream-200 inline-grid place-items-center disabled:opacity-40"><Undo2 className="size-4" /></button>
         <button type="button" title="Redo" onClick={redo} disabled={!future.length} className="size-11 rounded-full border border-cream-200 inline-grid place-items-center disabled:opacity-40"><Redo2 className="size-4" /></button>
+        {storeGateway && exploration>1 && <button type="button"
+          disabled={dream.locked || dream.superseded}
+          onClick={()=>setStorePickerOpen(v=>!v)}
+          className="min-h-11 rounded-full border border-forest-200 bg-white px-3 text-xs disabled:opacity-40">
+          + Store option
+        </button>}
         <button type="button" onClick={()=>setMilestoneOpen(v=>!v)}
           className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs">
           + Milestone
@@ -478,6 +494,10 @@ export function DreamBuilder({
           className="min-h-11 rounded-full bg-forest-700 px-3 text-xs text-white">Group {groupSelection.length} items</button>}
       </div>
 
+      {storePickerOpen && storeGateway && <div className="border-b border-cream-200 bg-cream-50 p-3">
+        <VisionStorePicker stores={storeGateway} onAdd={addStoreOption}
+          onClose={()=>setStorePickerOpen(false)}/>
+      </div>}
       {milestoneOpen && <div className="border-b border-cream-200 bg-cream-50 p-3 space-y-2" data-vision-milestone>
         <p className="text-sm font-semibold">Proposed milestone — not an Agreement commitment</p>
         <div className="flex flex-wrap items-end gap-2">
