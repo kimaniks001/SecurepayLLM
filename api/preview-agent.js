@@ -40,6 +40,12 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && origin !== `https://${host}`) return reject(res, 403, 'Invalid origin');
   if (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') return reject(res, 403, 'Cross-site requests are not allowed');
+  // Master Phase 1: authenticated preview writes must never reach production.
+  // Preview GETs remain available for read-only baseline inspection.
+  // An isolated staging upstream requires separate reviewed configuration.
+  if (UPSTREAM === 'https://securepay.ke' && req.method !== 'GET') {
+    return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
+  }
   const method = req.method || 'GET';
   if (method !== 'GET' && method !== 'POST') return reject(res, 405, 'Method not allowed');
   const requested = req.query?.path;
