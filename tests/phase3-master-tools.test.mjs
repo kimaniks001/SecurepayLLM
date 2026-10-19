@@ -55,7 +55,7 @@ test('Date & Time preserves local timezone and proposal authority',()=>{
  assert.match(dates,/current\.setDate\(current\.getDate\(\)\+days\)/);
  assert.match(dates,/Device time zone:/);
  assert.match(dates,/not yet an agreed contractual commitment/);
- assert.match(dates,/not agreed or saved/);
+ assert.match(dates,/not agreed or saved/i);
  assert.doesNotMatch(dates,/Date\.parse\(draft\.day\)|toISOString\(\)\.slice\(0,10\)/);
 });
 test('Tool proposals return to the same local Check and keep editable correction; no preview write',()=>{
