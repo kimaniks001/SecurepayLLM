@@ -51,9 +51,9 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
-  return <section aria-label="Live forming Agreement" data-live-formation className="space-y-4">
+  return <section aria-label="Live forming Agreement" data-live-formation data-phase2-live-check className="space-y-5">
     <div className="sp-brand-work sticky top-0 z-20 flex items-start justify-between gap-3 bg-white pb-2">
-      <div className="min-w-0 flex-1"><p className="sp-brand-kicker">My Work · Draft</p>
+      <div className="min-w-0 flex-1"><p className="sp-brand-kicker">SecurePay Check · My Work</p>
         {editingTitle?<form className="mt-2 flex gap-2" onSubmit={e=>{e.preventDefault();setEditingTitle(false);}}>
           <input autoFocus aria-label="Agreement display title" maxLength={80} value={customTitle} onChange={e=>setCustomTitle(e.target.value)} placeholder={humanTitle(formation?.summary)} className="min-w-0 flex-1 rounded-lg border border-cream-200 px-2 py-2 text-sm"/>
           <button type="submit" className="rounded-full bg-forest-800 px-3 text-sm text-white">Done</button>
@@ -73,12 +73,13 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
     </div>}
     {formation && <div className="space-y-3">
       {expanded&&<div className="flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-cream-100 px-3 py-1">{formation.question ? 'Draft · material question open' : formation.reviewable ? 'Draft review available · not qualified' : formation.stage==='BUILD'?'Forming':'Getting started'}</span><span className="text-sand-600">SecurePay version {formation.version}</span></div>}
-      <section className="sticky top-[76px] z-10 rounded-xl border border-cream-200 bg-cream-50 p-3 shadow-sm" aria-label="Agreement summary">
-        <table className="w-full table-fixed text-left text-sm">
+      <section className="rounded-xl border border-cream-200 bg-[#fafbf7] px-3 py-4" aria-label="What we're agreeing">
+        <h3 className="mb-3 text-sm font-semibold text-forest-900">What we're agreeing</h3>
+        <table className="w-full table-fixed text-left text-sm leading-6">
           <caption className="sr-only">Short draft Agreement summary. Check means a fact needs clarification, not that the Agreement is accepted.</caption>
           <tbody>
-            {compactAgreementFacts(formation).map(item=><tr key={item.label} className="border-b border-cream-200 last:border-0">
-              <th scope="row" className="w-[22%] py-2 pr-2 align-top text-xs font-medium text-sand-600">{item.label}</th>
+            {compactAgreementFacts(formation).map(item=><tr key={item.label} className="border-b border-cream-200/70 last:border-0">
+              <th scope="row" className="w-[27%] py-3 pr-2 align-top text-xs font-semibold text-sand-600">{item.label}</th>
               <td className="break-words py-2 align-top">
                 {editingFact===item.label ? <div className="space-y-2">
                   {editingVersion !== formation.version ? <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5">
@@ -140,25 +141,46 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
         {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanNextQuestion(formation.question.text)}</p>}
         {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft available to inspect · Material understanding not yet confirmed.</p>}
       </section>
+      <section aria-label="What deserves attention" className="border-b border-cream-100 pb-3">
+        <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
+        {formation.openPoints.length>0
+          ? formation.openPoints.slice(0,2).map(point=><p key={point.id} className="mt-2 text-sm leading-6 text-sand-700">{point.text}</p>)
+          : <p className="mt-2 text-sm leading-6 text-sand-700">{formation.question?.text || (formation.readingSources.length?'Some supporting sources are still being read.':'No material concern has been confirmed in this draft view. This does not mean the trade has been fully examined.')}</p>}
+        {formation.openPoints.length>2&&<p className="mt-1 text-xs text-sand-600">{formation.openPoints.length-2} further matters available in the detailed draft.</p>}
+      </section>
+      <details className="border-b border-cream-100 pb-3" aria-label="Fair Trade examination" data-phase2-fairtrade>
+        <summary className="cursor-pointer text-sm font-semibold text-forest-900">Fair Trade <span className="font-normal text-sand-600">· {fairTrade?'Partial examination':'Awaiting examination'}</span></summary>
+        {fairTrade ? <div className="mt-3 space-y-3">
+          <p className="text-xs leading-5 text-sand-700">Findings from SecurePay for this conversation and exact Trade Context version {fairTrade.tradeContextVersion}. A partial examination is never a clearance.</p>
+          <p className="text-xs text-sand-600">Principles source: SecurePay {fairTrade.principleSetVersion}</p>
+          {fairTrade.findings.map((finding,i)=><div key={finding.principleNumber+'-'+i} className="border-t border-cream-100 pt-2">
+            <p className="text-sm font-semibold">{finding.principleTitle} · {finding.state==='MATERIAL_CONCERN'?'Material concern':'Needs clarification'}</p>
+            <p className="mt-1 text-xs leading-5 text-sand-700">{finding.explanation}</p>
+            {finding.evidenceReferences.length>0&&<p className="mt-1 text-xs text-sand-600">Evidence references: {finding.evidenceReferences.join(', ')}</p>}
+          </div>)}
+          {!fairTrade.findings.length&&<p className="text-xs">No findings shown yet. Unexamined principles are not approved.</p>}
+        </div>:<p className="mt-3 text-xs leading-6 text-sand-700">
+          {examination.status==='loading'?'Reading the current examination…':'Authoritative Fair Trade findings are not available for this Agreement version. No assessment or score has been inferred.'}
+        </p>}
+      </details>
+      <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-3" data-phase2-next>
+        <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{formation.question?humanNextQuestion(formation.question.text):formation.reviewable?'Review the available draft and its unresolved matters.':'Keep explaining what you want to agree.'}</p>
+        <p className="mt-1 text-xs text-sand-600">A suggestion for the next conversation step, not permission to invite, accept or move Money.</p>
+      </section>
+      <details aria-label="Action readiness" className="border-b border-cream-100 pb-3" data-phase2-readiness>
+        <summary className="cursor-pointer text-sm font-semibold text-forest-900">What can happen next?</summary>
+        <div className="mt-2 space-y-2 text-xs leading-5 text-sand-700">
+          <p><strong>Continue building:</strong> Clarify your work with KS001.</p>
+          <p><strong>Review the draft:</strong> {formation.reviewable?'Available to inspect, not accepted.':'Not yet reviewable.'}</p>
+          <p><strong>Invite or share:</strong> Requires an authorised invitation action.</p>
+          <p><strong>Request acceptance:</strong> Requires a separate, permitted acceptance process.</p>
+          <p><strong>Connect Money:</strong> Requires accepted terms, permissions and real Money readiness.</p>
+          <p><strong>Proceed with work:</strong> Requires the relevant authorised commencement conditions.</p>
+        </div>
+      </details>
       <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm font-semibold">{expanded?'Less':'More'}</button>
       {expanded&&<p className="text-sm text-sand-700">{formation.summary}</p>}
-      {expanded&&<section aria-label="Fair Trade examination" className="rounded-xl border border-cream-200 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Guided by the 12 Principles of Fair Trade</p>
-        {fairTrade ? <>
-          <p className="mt-2 text-sm font-semibold">Partial examination · not qualified</p>
-          <p className="mt-1 text-xs text-sand-700">Evidence-based observations for this Agreement version. Unexamined principles remain unassessed, not approved.</p>
-          {fairTrade.findings.slice(0,3).map(f=><div key={f.principleNumber} className="mt-3 border-t border-cream-200 pt-2">
-            <p className="text-xs font-semibold">{f.principleTitle} · {f.state==='MATERIAL_CONCERN'?'Material concern':'Needs clarification'}</p>
-            <p className="mt-1 text-xs text-sand-700">{f.explanation}</p>
-          </div>)}
-          {!formation.question && fairTrade.advisoryQuestion && <div className="mt-3 rounded-lg bg-cream-100 p-3">
-            <p className="text-xs font-semibold">One practical detail worth exploring with KS001</p>
-            <p className="mt-2 text-sm">{fairTrade.advisoryQuestion}</p>
-            <p className="mt-2 text-xs text-sand-700">Advisory only. It is not an extra required question or permission to move money.</p>
-          </div>}
-          {fairTrade.findings.length===0 && <p className="mt-2 text-xs text-sand-700">No assessed concerns to display yet. This is not a completed qualification.</p>}
-        </> : <p className="mt-2 text-xs text-sand-700">{examination.status==='loading'?'Checking the current Agreement version…':'Formal Fair Trade examination is not yet available for this preview. Draft review is not qualification.'}</p>}
-      </section>}
       {expanded && formation.money.length > 0 && <section aria-label="Money follows the Agreement" className="rounded-xl border border-cream-200 bg-cream-50 p-4">
         <p className="flex items-center gap-2 text-sm font-semibold"><Wallet size={17}/> Where will the money follow?</p>
         <p className="mt-2 text-sm leading-6 text-sand-700">The amount shown in this draft is not a payment instruction. The accepted Agreement establishes the parties and conditions; SecurePay Money must separately verify the payment destination.</p>
@@ -187,7 +209,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
         <Details title="Conditions" terms={formation.conditions}/>
         <Details title="Not included" terms={formation.notIncluded}/>
       </> : <p className="rounded-xl bg-cream-100 p-3 text-sm">The conversation has started. SecurePay hasn't established any Agreement terms yet.</p>}
-      {expanded && formation.openPoints.length>0 && <section className="rounded-xl bg-cream-100 p-4"><p className="text-xs font-semibold uppercase tracking-wider text-sand-600">Still to settle</p>{formation.openPoints.slice(0,5).map(p=><p key={p.id} className="mt-2 text-sm">{p.text}</p>)}</section>}
+
       
       {expanded && formation.readingSources.length>0 && <p className="text-xs text-sand-600">SecurePay is still reading: {formation.readingSources.join(', ')}</p>}
       {expanded && formation.reviewable && <p className="rounded-xl border border-cream-200 p-3 text-xs">SecurePay can offer a draft for review; that does not certify fair-trade quality, consent or Money readiness. Formal review and acceptance remain in the existing SecurePay journey.</p>}
