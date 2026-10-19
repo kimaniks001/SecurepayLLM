@@ -987,7 +987,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle, initialCircleId, onEntryHandled }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle, initialCircleId, initialObjectId, onEntryHandled }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -1009,6 +1009,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   onJoinTrustProject: () => void;
   onInvokeKs001InCircle: (circleId: string) => void;
   initialCircleId?: string | null;
+  initialObjectId?: string | null;
   onEntryHandled?: () => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
@@ -1023,14 +1024,22 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [moderationBusy, setModerationBusy] = useState(false);
 
   const initialEntryId=useRef(initialCircleId??null);
+  const initialObjectEntryId=useRef(initialObjectId??null);
   useEffect(() => {
     const circleId=initialEntryId.current;
+    const objectId=initialObjectEntryId.current;
     initialEntryId.current=null;
+    initialObjectEntryId.current=null;
     void controller.enter().then(() => {
       if(circleId) {
         onEntryHandled?.();
         // Canonical backend get + membership verification; no preview grant.
         return controller.openCircle(circleId);
+      }
+      if(objectId) {
+        onEntryHandled?.();
+        // Reuse the existing authoritative object fetch and conversation loader.
+        return controller.openObject(objectId);
       }
     });
     // One-shot structural S2 navigation, never extra Circle authority.
