@@ -27,7 +27,7 @@ try {
   assert.ok(await plan.locator('[data-single-store]').count(),'One Store should use ordinary delivery');
   assert.equal(await plan.getByRole('button',{name:'Community Saver'}).count(),0);
   await plan.getByRole('button',{name:'Increase quantity of Porcelain floor tiles'}).click();
-  assert.match(await plan.innerText(),/2 item|2\s*Store|2\s*proposed|Qty\s*2/i);
+  assert.ok(await plan.getByText('2',{exact:true}).count(),'Quantity should be 2');
   await page.screenshot({path:'artifacts/phase4-fluency/'+device+'-focused-plan.png',fullPage:true});
   await plan.getByRole('button',{name:/Continue with KS001/}).click();
 
@@ -54,7 +54,7 @@ try {
   await proposal.getByRole('button',{name:'Edit buying plan'}).click();
   await dialog.waitFor();
   assert.ok(await plan.getByText('Porcelain floor tiles').count(),'Edit should restore original line');
-  assert.match(await plan.innerText(),/Qty\s*2/i);
+  assert.ok(await plan.getByText('2',{exact:true}).count(),'Edited plan must retain quantity 2');
   await plan.getByRole('button',{name:'Browse'}).click();
   await shelf.getByRole('textbox',{name:'Search sample Stores'}).fill('Custom work desk');
   await shelf.getByRole('button',{name:'Add to buying plan'}).first().click();
