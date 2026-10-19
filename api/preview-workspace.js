@@ -87,7 +87,16 @@ function reject(res, status, message) {
   res.end(JSON.stringify({ message }));
 }
 
+export function createLoopbackTestHandler(upstream) {
+  if (!/^http:\/\/127\\.0\\.0\\.1(?::\\d+)?$/.test(upstream)) throw new Error('Only literal loopback test upstream is allowed');
+  return (req, res) => handle(req, res, upstream);
+}
+
 export default async function handler(req, res) {
+  return handle(req, res, UPSTREAM);
+}
+
+async function handle(req, res, upstreamBase) {
   res.setHeader('Cache-Control', 'no-store');
   const host = String(req.headers.host || '').toLowerCase();
   if (!/^[a-z0-9-]+\.vercel\.app$/.test(host)) return reject(res,403,'Preview deployment required');
@@ -96,7 +105,7 @@ export default async function handler(req, res) {
   // Master Phase 1: authenticated preview writes must never reach production.
   // Preview GETs remain available for read-only baseline inspection.
   // An isolated staging upstream requires separate reviewed configuration.
-  if (UPSTREAM === 'https://securepay.ke' && req.method !== 'GET') {
+  if (upstreamBase === 'https://securepay.ke' && req.method !== 'GET') {
     return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
   }
   const method = req.method || 'GET';
@@ -105,8 +114,8 @@ export default async function handler(req, res) {
   if (typeof supplied !== 'string' || !supplied.startsWith('/api/')) return reject(res,400,'Invalid API path');
   let upstream;
   try {
-    upstream = new URL(supplied, UPSTREAM);
-    if (upstream.origin !== UPSTREAM || !allowed(method,upstream.pathname,upstream.searchParams)) {
+    upstream = new URL(supplied, upstreamBase);
+    if (upstream.origin !== upstreamBase || !allowed(method,upstream.pathname,upstream.searchParams)) {
       return reject(res,403,'Workspace endpoint not allowed');
     }
   } catch { return reject(res,400,'Invalid API path'); }
@@ -158,7 +167,7 @@ export default async function handler(req, res) {
       '/api/v1/community/service-opportunities',
     ].includes(upstream.pathname);
     if(isMemberList) {
-      const membership = await fetch(UPSTREAM+'/api/v1/community/membership/me', {
+      const membership = await fetch(upstreamBase+'/api/v1/community/membership/me', {
         method:'GET',headers,redirect:'manual',signal:AbortSignal.timeout(12000),
       });
       if(!membership.ok) return reject(res,membership.status===401?401:403,'Community membership could not be verified');
