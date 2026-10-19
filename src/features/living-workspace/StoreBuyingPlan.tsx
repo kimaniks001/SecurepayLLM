@@ -25,6 +25,13 @@ export type StoreBuyingPlanDraft={
  coordination:'separate'|'combined'|'community';
  notes:string;
 };
+/** UI-only review snapshot; never a saved Agreement, quotation or order. */
+export type LocalStoreBuyingPlan={lines:StoreBuyingLine[];draft:StoreBuyingPlanDraft};
+export function localBuyingPlanNextQuestion(plan:LocalStoreBuyingPlan):string{
+ if(!plan.draft.place.trim())return 'Where should these items be delivered or used?';
+ if(!plan.draft.desiredDate)return 'When do you need the items or services?';
+ return 'Have the relevant Stores confirmed the quantities, specifications, delivered prices and their responsibilities?';
+}
 export const MAX_STORE_PLAN_LINES=20;
 export const distinctStoreCount=(lines:readonly StoreBuyingLine[])=>new Set(lines.map(x=>x.storeKsNumber||x.storeName)).size;
 export const emptyStoreBuyingPlan:StoreBuyingPlanDraft={
@@ -172,9 +179,9 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
     <p className="mb-2 text-xs text-sand-600">One proposed plan · {shops} independent Store{shops===1?'':'s'} must confirm their part. Prices, logistics and savings are not yet agreed. This preview supports up to {MAX_STORE_PLAN_LINES} distinct offers per KS001 handoff.</p>
     <button type="button" disabled={!lines.length||busy} onClick={()=>{if(sample)setPractice(true);onPrepare();}}
      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white disabled:opacity-50">
-     {busy?'Working…':sample?'Practice with KS001':'Prepare one plan with KS001'} <ChevronRight size={16}/>
+     {busy?'Working…':sample?'Continue with KS001 · sample':'Prepare one plan with KS001'} <ChevronRight size={16}/>
     </button>
-    {sample&&practice&&<p role="status" className="mt-2 text-xs text-forest-800">Practice summary prepared locally. No real Agreement, quote, reservation or payment was created.</p>}
+    {sample&&practice&&<p role="status" className="mt-2 text-xs text-forest-800">Illustrative proposal only. No real Agreement, quote, reservation or payment was created.</p>}
    </div>
  </section>;
 }
