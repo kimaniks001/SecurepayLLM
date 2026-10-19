@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { StorePhoto, type StoreImage } from './StorePhotoViewer';
 import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
@@ -45,7 +46,7 @@ function Photo({src,title,className='',gallery}:{src:string;title:string;classNa
  return <StorePhoto images={images} index={index} className={className} sample/>;
 }
 function SampleBadge(){return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">SAMPLE · NOT A REAL STORE</span>;}
-export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAssistance}:{onLocalProposal?:(text:string)=>void;initialSearch?:string;initialAssistance?:'plug'|'master'|null}={}){
+export function StoreDemoExperience({onLocalProposal,onLocalBuyingPlan,initialSamplePlan,initialSearch='',initialAssistance}:{onLocalProposal?:(text:string)=>void;onLocalBuyingPlan?:(plan:LocalStoreBuyingPlan)=>void;initialSamplePlan?:LocalStoreBuyingPlan|null;initialSearch?:string;initialAssistance?:'plug'|'master'|null}={}){
  const [view,setView]=useState<View>(initialAssistance?'together':'buyer');
  const [filter,setFilter]=useState<'ALL'|'PRODUCT'|'SERVICE'|'CAPACITY'>('ALL');
  const [search,setSearch]=useState(initialSearch);
@@ -59,9 +60,9 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
  const [draftPrice,setDraftPrice]=useState('');
  const [drafts,setDrafts]=useState<{name:string;price:string}[]>([]);
  const [saver,setSaver]=useState(false);
- const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>([]);
- const [buyingDraft,setBuyingDraft]=useState({...emptyStoreBuyingPlan});
- const [buyingActive,setBuyingActive]=useState(false);
+ const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>(()=>initialSamplePlan?.lines.map(line=>({...line}))??[]);
+ const [buyingDraft,setBuyingDraft]=useState(()=>initialSamplePlan?{...initialSamplePlan.draft}:{...emptyStoreBuyingPlan});
+ const [buyingActive,setBuyingActive]=useState(Boolean(initialSamplePlan?.lines.length));
  const [practiceReady,setPracticeReady]=useState(false);
  const [planLimit,setPlanLimit]=useState(false);
  const [considered,setConsidered]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
@@ -168,10 +169,20 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
     </>}
    </>}
    </div>
-   {buyingLines.length>0&&buyingActive&&<StoreBuyingPlan
-     sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
-     onBack={()=>{setBuyingActive(false);setSelected(null);}}
-     onPrepare={()=>setPracticeReady(true)}/>}
+   {buyingLines.length>0&&buyingActive&&typeof document!=='undefined'&&createPortal(
+     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-forest-950/60 p-0 sm:p-5" data-phase4-focused-plan>
+      <div role="dialog" aria-modal="true" aria-label="Review proposed buying plan" className="flex max-h-[100dvh] w-full max-w-[860px] flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl">
+       <div className="flex items-center justify-between gap-2 border-b border-cream-200 px-4 py-3">
+        <div><p className="text-sm font-semibold">Review your buying plan</p><p className="text-xs text-sand-600">Sample offers · proposed only · not saved</p></div>
+        <button type="button" onClick={()=>setBuyingActive(false)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Back to Stores</button>
+       </div>
+       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
+        <StoreBuyingPlan sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
+         onBack={()=>{setBuyingActive(false);setSelected(null);}}
+         onPrepare={()=>{if(onLocalBuyingPlan)onLocalBuyingPlan({lines:buyingLines.map(line=>({...line})),draft:{...buyingDraft}});else setPracticeReady(true);}}/>
+       </div>
+      </div>
+     </div>,document.body)}
    {buyingLines.length>0&&!buyingActive&&<button type="button" onClick={()=>setBuyingActive(true)}
      className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-3 text-xs font-semibold">Review buying plan · {buyingLines.length} items</button>}
    {practiceReady&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Your sample buying plan is ready for practice. No real sellers have been contacted.</p>}
