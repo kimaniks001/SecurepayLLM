@@ -9,6 +9,7 @@ type QuickAssistProps = {
   initialRequest?: string;
   onContinue?: (request: string) => Promise<void>;
   onFindStoreOffers?: (kind: 'stays' | 'ride', requestedTask: string) => void;
+  onLocalProposal?: (description:string) => void;
 };
 
 const services = [
@@ -32,11 +33,11 @@ function requestForKs001(service: 'stays' | 'ride', description: string, journey
 }
 
 /** A first-party, local-first capability. A tool being visible or added does not grant it any authority. */
-export function QuickSupportPanel({ collection, onCollectionChange, initialRequest = '', onContinue, onFindStoreOffers }: QuickAssistProps) {
+export function QuickSupportPanel({ collection, onCollectionChange, initialRequest = '', onContinue, onFindStoreOffers, onLocalProposal }: QuickAssistProps) {
   const [selected, setSelected] = useState<QuickAssistId | null>(() => suggestedQuickAssist(initialRequest));
   const [catalogue, setCatalogue] = useState(false);
   const [request, setRequest] = useState(initialRequest);
-  const [journey, setJourney] = useState<'person' | 'goods'>('person');
+  const [journey, setJourney] = useState<'person' | 'goods'>(/\b(goods|chairs|parcel|stock|shop delivery)\b/i.test(initialRequest)?'goods':'person');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [prepared, setPrepared] = useState(false);
@@ -71,6 +72,11 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
       return;
     }
     setError('');
+    if (onLocalProposal) {
+      onLocalProposal('Quick Assist: '+(selected==='stays'?'Short Stays':'My Ride')+' inquiry · '+request.trim()+'. Exploring options only. No provider contacted, ride dispatched, room reserved, availability checked or payment made. Location shared with no one.');
+      setPrepared(true);
+      return;
+    }
     if (!onContinue) {
       setPrepared(true);
       return;
@@ -143,7 +149,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
           className="min-h-24 w-full resize-y rounded-xl border border-cream-200 p-3 text-sm"/>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <button type="button" disabled={busy || !request.trim()} onClick={() => void sendRequest()} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
-          {busy ? 'Asking KS001…' : onContinue ? 'Continue with KS001' : 'Prepare this request'}
+          {busy ? 'Asking KS001…' : onLocalProposal ? 'Propose in My Work' : onContinue ? 'Continue with KS001' : 'Prepare this request'}
         </button>
         {prepared && !onContinue && <div role="status" className="rounded-xl bg-cream-100 p-3 text-sm"><strong>Request ready</strong><p className="mt-1 whitespace-pre-wrap">{request.trim()}</p><p className="mt-2 text-xs text-sand-600">Prepared locally only. No booking or provider search was made.</p></div>}
         {onFindStoreOffers && <button type="button" onClick={() => onFindStoreOffers(selected === 'stays' ? 'stays' : 'ride', request.trim())}

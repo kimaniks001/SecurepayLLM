@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
 
 /**
  * A locally editable buyer intention, never an order, payment instruction or
@@ -25,7 +25,15 @@ export type StoreBuyingPlanDraft={
  coordination:'separate'|'combined'|'community';
  notes:string;
 };
+/** UI-only review snapshot; never a saved Agreement, quotation or order. */
+export type LocalStoreBuyingPlan={lines:StoreBuyingLine[];draft:StoreBuyingPlanDraft};
+export function localBuyingPlanNextQuestion(plan:LocalStoreBuyingPlan):string{
+ if(!plan.draft.place.trim())return 'Where should these items be delivered or used?';
+ if(!plan.draft.desiredDate)return 'When do you need the items or services?';
+ return 'Have the relevant Stores confirmed the quantities, specifications, delivered prices and their responsibilities?';
+}
 export const MAX_STORE_PLAN_LINES=20;
+export const distinctStoreCount=(lines:readonly StoreBuyingLine[])=>new Set(lines.map(x=>x.storeKsNumber||x.storeName)).size;
 export const emptyStoreBuyingPlan:StoreBuyingPlanDraft={
  title:'My buying plan',place:'',desiredDate:'',coordination:'separate',notes:'',
 };
@@ -39,13 +47,14 @@ export function addStoreBuyingLine(previous:StoreBuyingLine[],item:Omit<StoreBuy
 export function storeBuyingPrompt(lines:StoreBuyingLine[],draft:StoreBuyingPlanDraft,example=false):string{
  if(lines.length>MAX_STORE_PLAN_LINES)throw new Error('Buying plan exceeds the supported preview size');
  const stores=new Set(lines.map(line=>line.storeKsNumber||line.storeName));
+ const coordination=stores.size>=2?draft.coordination:'separate';
  return [
   'Help me shape ONE coordinated buying plan for '+stores.size+' different Store(s), not an executed purchase.',
   example?'These are fictional sample offers for a practice walkthrough. No real Store identity or quote exists.':'Each listed offer is a public source, not a seller acceptance or reservation.',
   'Proposed purpose: '+draft.title.slice(0,120)+'.',
   'Proposed delivery or service location: '+(draft.place.trim().slice(0,160)||'Needs confirming')+'.',
   'Proposed date: '+(draft.desiredDate||'Needs confirming')+'.',
-  'Coordination preference: '+draft.coordination+'.',
+  'Coordination preference: '+coordination+'.',
   ...lines.map((line,index)=>[
    'Proposed line '+(index+1)+': '+line.title.slice(0,140)+
    ' | Store: '+line.storeName.slice(0,90)+
@@ -59,9 +68,9 @@ export function storeBuyingPrompt(lines:StoreBuyingLine[],draft:StoreBuyingPlanD
   ].join('')),
   draft.notes.trim()?'Buyer notes: '+draft.notes.trim().slice(0,450):'',
   'Keep each seller and offer traceable. Verify quoted amounts, quantities, availability, separate seller acceptance and delivery obligations before describing anything as agreed.',
-  draft.coordination==='community'?
+  coordination==='community'?
    'Explore Community coordination with an authorised Plug. Do not publish private buyer or seller details without consent. Community Saver must prove genuine savings for buyer, seller and Plug, with each party consenting; do not claim savings or participation yet.':
-   draft.coordination==='combined'?
+   coordination==='combined'?
    'Explore pooled delivery and a common schedule; do not imply a Plug, provider, seller or price is already confirmed.':'Keep deliveries independently priced until the buyer chooses otherwise.',
   'The buyer wants one clear overall commitment to review, with independently accepted supplier obligations where needed. Do not combine unaccepted offers into a binding contract. Money must follow accepted Agreements and provider checks.',
   example?'This is a practice example; never call real payment, invitations, Agreements or Store writes.':'Ask the next material question and preserve the Store source references.',
@@ -74,9 +83,19 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
 }){
  const [editing,setEditing]=useState<string|null>(null);
  const [practice,setPractice]=useState(false);
- const shops=new Set(lines.map(line=>line.storeKsNumber||line.storeName)).size;
+ const [resetNotice,setResetNotice]=useState(false);
+ const [saverOptIn,setSaverOptIn]=useState(false);
+ const shops=distinctStoreCount(lines);
+ const crossStore=shops>=2;
+ const removeLine=(key:string)=>{
+   const next=lines.filter(x=>x.key!==key);
+   if(distinctStoreCount(next)<2&&draft.coordination!=='separate'){
+      onDraft({...draft,coordination:'separate'});setSaverOptIn(false);setResetNotice(true);
+   }
+   onLines(next);setPractice(false);
+ };
  const patch=(key:keyof StoreBuyingPlanDraft,value:string)=>{
-  if(key==='coordination'){if(value==='separate'||value==='combined'||value==='community')onDraft({...draft,coordination:value});}
+  if(key==='coordination'){if(value==='separate'||(crossStore&&(value==='combined'||value==='community')))onDraft({...draft,coordination:value});if(value!=='community')setSaverOptIn(false);}
   else onDraft({...draft,[key]:value});
   setPractice(false);
  };
@@ -103,7 +122,7 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
         <p className="mt-1 text-xs text-sand-600">{line.storeName}{line.originPlace?' · '+line.originPlace:''} · {line.kind==='CAPACITY'?'Capacity':line.kind==='SERVICE'?'Service':'Product'}</p>
         <p className="mt-1 text-xs font-semibold">{line.priceLabel} <span className="font-normal text-sand-600">· indicative, not quoted</span></p>
        </div>
-       <button type="button" aria-label={'Remove '+line.title} onClick={()=>onLines(lines.filter(item=>item.key!==line.key))} className="rounded-lg border border-cream-200 p-2"><Trash2 size={15}/></button>
+       <button type="button" aria-label={'Remove '+line.title} onClick={()=>removeLine(line.key)} className="rounded-lg border border-cream-200 p-2"><Trash2 size={15}/></button>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
        <div className="flex items-center gap-2"><span className="text-xs text-sand-600">Qty</span>
@@ -127,14 +146,32 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
      {editing===field.id?<input autoFocus type={field.id==='desiredDate'?'date':'text'} maxLength={160} aria-label={'Edit '+field.label} value={draft[field.id]} onChange={e=>patch(field.id,e.target.value)} className="mt-1 min-h-10 w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>:<p className="mt-1 text-xs">{field.value}</p>}
     </div>)}
    </div>
-   <div className="space-y-2 border-t border-cream-200 pt-3">
-    <strong className="text-xs">How shall we coordinate?</strong>
-    <div className="grid grid-cols-3 gap-1">
-     {([{id:'separate',title:'Separate'},{id:'combined',title:'Combine'},{id:'community',title:'Community'}] as const).map(option=><button type="button" key={option.id} onClick={()=>patch('coordination',option.id)}
-      aria-pressed={draft.coordination===option.id} className={draft.coordination===option.id?'min-h-10 rounded-lg bg-forest-800 px-1 text-xs text-white':'min-h-10 rounded-lg border border-cream-200 px-1 text-xs'}>{option.title}</button>)}
-    </div>
-    <p className="text-xs text-sand-600">{draft.coordination==='community'?'A Plug can help check pooled transport, feasible delivery and fair savings. No one is invited until they consent.':draft.coordination==='combined'?'Explore one delivery plan while keeping every supplier’s acceptance separate.':'Each Store provides and confirms its own work. One overall plan keeps everything together.'}</p>
-    {draft.coordination==='community'&&<p className="flex gap-2 rounded-lg bg-cream-50 p-2 text-xs"><Users size={17} className="shrink-0"/> A Community Saver requires a Plug and verified benefit and consent for buyer, seller and Plug.</p>}
+   <div className="space-y-2 border-t border-cream-200 pt-3" data-store-coordination>
+    {resetNotice&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Only one Store remains. The earlier cross-Store coordination choice was cleared.</p>}
+    {!crossStore?<p className="text-xs text-sand-700" data-single-store>One Store · arrange purchase and delivery directly with that seller. No cross-Store coordination or Community Saver selection is needed.</p>:<>
+      <strong className="text-xs">Coordinate {shops} different Stores</strong>
+      <div className="grid grid-cols-3 gap-1">
+        {([{id:'separate',title:'Separate deliveries'},{id:'combined',title:'Combined delivery'},{id:'community',title:'Community Saver'}] as const).map(option=><button type="button" key={option.id}
+          onClick={()=>patch('coordination',option.id)} aria-pressed={draft.coordination===option.id}
+          className={draft.coordination===option.id?'min-h-11 rounded-lg bg-forest-800 px-1 text-xs text-white':'min-h-11 rounded-lg border border-cream-200 px-1 text-xs'}>{option.title}</button>)}
+      </div>
+      <p className="text-xs text-sand-600">{draft.coordination==='community'?'Explore a possible saving with a Plug. This is not consent or an enrolment.':draft.coordination==='combined'?'Ask about sharing transport, with each seller still confirming their responsibilities.':'Let each seller arrange their own delivery and confirm their own terms.'}</p>
+      {draft.coordination==='community'&&<section aria-label="Community Saver consent and economics" data-saver-consent className="space-y-2 rounded-xl bg-cream-50 p-3">
+        <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={saverOptIn} onChange={e=>setSaverOptIn(e.target.checked)}
+          className="mt-1" /> I want to explore this Saver opportunity. This does not enrol anyone.</label>
+        <p className="text-xs font-semibold">Consent · not yet obtained</p>
+        <p className="text-xs">Buyer: {saverOptIn?'Interested in exploring; formal agreement pending':'Not opted in'} · Each seller: pending · Plug: not appointed or consented</p>
+        <p className="text-xs font-semibold">Evidence before any agreement</p>
+        <dl className="space-y-1 text-xs text-sand-700">
+          <div><dt className="inline font-semibold">Ordinary cost baseline:</dt> <dd className="inline">Not evidenced</dd></div>
+          <div><dt className="inline font-semibold">Coordinated costs:</dt> <dd className="inline">Unquoted</dd></div>
+          <div><dt className="inline font-semibold">Plug compensation:</dt> <dd className="inline">Not agreed</dd></div>
+          <div><dt className="inline font-semibold">Net benefit to buyer, sellers and Plug:</dt> <dd className="inline">Unverified</dd></div>
+          <div><dt className="inline font-semibold">Benefit allocation:</dt> <dd className="inline">Not proposed or agreed</dd></div>
+        </dl>
+        <p className="text-xs leading-5 text-sand-700">A Plug must participate. Membership never implies Saver consent. All parties must separately agree and verify genuine benefits before commitments or payouts.</p>
+      </section>}
+    </>}
     <button type="button" onClick={()=>setEditing(editing==='notes'?null:'notes')} className="text-xs font-semibold underline"> {draft.notes?'Edit other requirements':'Other requirements (optional)'}</button>
     {editing==='notes'&&<textarea autoFocus rows={2} maxLength={450} aria-label="Other buying plan requirements" value={draft.notes} onChange={e=>patch('notes',e.target.value)} className="w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>}
    </div>
@@ -142,9 +179,9 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
     <p className="mb-2 text-xs text-sand-600">One proposed plan · {shops} independent Store{shops===1?'':'s'} must confirm their part. Prices, logistics and savings are not yet agreed. This preview supports up to {MAX_STORE_PLAN_LINES} distinct offers per KS001 handoff.</p>
     <button type="button" disabled={!lines.length||busy} onClick={()=>{if(sample)setPractice(true);onPrepare();}}
      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white disabled:opacity-50">
-     {busy?'Working…':sample?'Practice with KS001':'Prepare one plan with KS001'} <ChevronRight size={16}/>
+     {busy?'Working…':sample?'Continue with KS001 · sample':'Prepare one plan with KS001'} <ChevronRight size={16}/>
     </button>
-    {sample&&practice&&<p role="status" className="mt-2 text-xs text-forest-800">Practice summary prepared locally. No real Agreement, quote, reservation or payment was created.</p>}
+    {sample&&practice&&<p role="status" className="mt-2 text-xs text-forest-800">Illustrative proposal only. No real Agreement, quote, reservation or payment was created.</p>}
    </div>
  </section>;
 }

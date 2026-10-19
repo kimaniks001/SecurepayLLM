@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, ChevronRight, FilePlus2, GalleryHorizontalEnd, Handshake, HeartHandshake, ImagePlus, ListChecks, MapPin, RefreshCw, Search, Store, Users } from 'lucide-react';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { OfferKind, PublicSearchResultView, PublicStoreView, StoreOfferResponse, StoreProfileResponse } from '../../api/securepay/store/dto';
@@ -6,7 +6,9 @@ import type { CurrentUserActionResponse } from '../../api/securepay/agreements/d
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
+import { StorePhoto } from './StorePhotoViewer';
+import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -33,19 +35,19 @@ const actions:{id:SellerAction;label:string;icon:typeof Store}[]=[
 ];
 
 function OfferPhoto({refs,title}:{refs:string[];title:string}){
- const src=imageUrl(refs);
- return <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-cream-100">
-  {src?<img src={src} alt={title} loading="lazy" className="h-full w-full object-cover"/>:<Store size={28} className="text-sand-400" aria-label="No verified photo available"/>}
- </div>;
+ const images=refs.filter(ref=>Boolean(imageUrl([ref]))).map(ref=>({src:ref,title}));
+ return <StorePhoto images={images.length?images:[{src:null,title}]} className="aspect-[4/3] w-full rounded-xl"/>;
 }
 function Status({text}:{text:string}){return <p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">{text}</p>;}
 
-export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery,initialQuickAssistNeed}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string;initialQuickAssistNeed?:string}){
+export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery,initialQuickAssistNeed,onLocalProposal,onLocalBuyingPlan,initialSamplePlan,initialAssistance}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string;initialQuickAssistNeed?:string;onLocalProposal?:(text:string)=>void;onLocalBuyingPlan?:(plan:LocalStoreBuyingPlan)=>void;initialSamplePlan?:LocalStoreBuyingPlan|null;initialAssistance?:'plug'|'master'|null}){
  const [area,setArea]=useState<Area>('buyer');
  const [kind,setKind]=useState<OfferKind>(initialServiceQuery ? 'SERVICE' : 'PRODUCT');
  const [query,setQuery]=useState(initialServiceQuery || '');
  const [location,setLocation]=useState('');
  const [search,setSearch]=useState<ReadState<PublicSearchResultView[]>>(initial([]));
+ const searchRequestId=useRef(0);
+ const storeRequestId=useRef(0);
  const [selectedStore,setSelectedStore]=useState<ReadState<PublicStoreView|null>>(initial(null));
  const [seller,setSeller]=useState<ReadState<{profile:StoreProfileResponse;offers:StoreOfferResponse[]} |null>>(initial(null));
  const [inbox,setInbox]=useState<ReadState<CurrentUserActionResponse[]>>(initial([]));
@@ -63,7 +65,8 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
- const [showSamples,setShowSamples]=useState(!initialServiceQuery);
+ const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal)||!initialServiceQuery);
+ const [storeRelations,setStoreRelations]=useState<StoreHumanRelation[]>([]);
  const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
  const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
  const [planOpen,setPlanOpen]=useState(false);
@@ -71,15 +74,22 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
 
  async function findOffers(){
   if(!gateways)return;
+  const requested=++searchRequestId.current;
+  ++storeRequestId.current;
   setSelectedStore(initial(null));setSearch({status:'loading',data:[],error:null});setError('');
-  try{setSearch({status:'ready',data:await gateways.stores.search({kind,category:query.trim()||undefined,location:location.trim()||undefined,limit:10}),error:null});}
-  catch{setSearch({status:'error',data:[],error:errorText});}
+  try{
+    const data=await gateways.stores.search({kind,category:query.trim()||undefined,location:location.trim()||undefined,limit:10});
+    if(requested===searchRequestId.current)setSearch({status:'ready',data,error:null});
+  }catch{if(requested===searchRequestId.current)setSearch({status:'error',data:[],error:errorText});}
  }
  async function openStore(ksNumber:string){
   if(!gateways)return;
+  const requested=++storeRequestId.current;
   setSelectedStore({status:'loading',data:null,error:null});
-  try{setSelectedStore({status:'ready',data:await gateways.stores.store(ksNumber),error:null});}
-  catch{setSelectedStore({status:'error',data:null,error:errorText});}
+  try{
+    const data=await gateways.stores.store(ksNumber);
+    if(requested===storeRequestId.current)setSelectedStore({status:'ready',data,error:null});
+  }catch{if(requested===storeRequestId.current)setSelectedStore({status:'error',data:null,error:errorText});}
  }
  useEffect(()=>{
   setSeller(initial(null));setInbox(initial([]));setCommunity(initial(null));setMembership(null);
@@ -211,7 +221,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
          className={!showSamples?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>Real Stores</button>
      </div>
    </div>
-   {showSamples?<StoreDemoExperience/>:<>
+   {showSamples?<StoreDemoExperience initialSearch={initialServiceQuery} initialAssistance={initialAssistance} onLocalProposal={onLocalProposal} onLocalBuyingPlan={onLocalBuyingPlan} initialSamplePlan={initialSamplePlan}/>:<>
    <div className="flex items-center justify-between gap-2">
      <div><p className="text-xs text-sand-600">SecurePay Stores</p><p className="text-lg font-semibold">{area==='buyer'?'Discover good work':area==='seller'?'My Store':'Together'}</p></div>
      {area==='seller'&&signedIn&&<button onClick={()=>setRevision(v=>v+1)} aria-label="Refresh my Store" className="rounded-full border border-cream-200 p-2"><RefreshCw size={16}/></button>}
@@ -294,6 +304,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        {seller.status==='loading'&&<Status text="Reading your Store…"/>}
        {seller.status==='error'&&<Status text={seller.error||errorText}/>}
        {seller.data&&<div className="space-y-3">
+          <StoreHumanHelp owner relationships={storeRelations} onRelationshipsChange={setStoreRelations}/>
          <div className="rounded-xl border border-cream-200 bg-cream-50 p-3">
            <div className="flex items-center justify-between"><div><p className="text-xs text-sand-600">My Store</p><p className="font-semibold">{seller.data.profile.heroHeadline||seller.data.profile.tagline||'Show what you do'}</p></div><Store size={20}/></div>
            {seller.data.profile.locationLabel&&<p className="mt-1 text-xs text-sand-600">{seller.data.profile.locationLabel}</p>}

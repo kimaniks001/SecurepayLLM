@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { StorePhoto, type StoreImage } from './StorePhotoViewer';
+import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
  * Preview-only sample Stores. Illustrative names, images, offers, prices and people.
@@ -28,23 +31,25 @@ const samples:DemoStore[]=[
  {id:'delivery',name:'Karibu Delivery Crew',trade:'Delivery & transport',place:'Nairobi metropolitan',cover:photo('photo-1601584115197-04ecc0da31d7'),offers:[
   {id:'pickup',name:'Local pickup and delivery',kind:'SERVICE',price:'From KES 2,000',image:photo('photo-1601584115197-04ecc0da31d7'),description:'Illustrative city delivery; weight, entrance and route must be confirmed.',availability:'Schedule to confirm'},
   {id:'truck',name:'Light truck capacity',kind:'CAPACITY',price:'Quotation',image:photo('photo-1586191582151-f73872dfd183'),description:'Shared loading and delivery slot subject to driver availability.',availability:'Ask for a slot'}],
- jobs:[{title:'Deliveries completed',image:photo('photo-1601584115197-04ecc0da31d7')},{title:'Loading arrangements',image:photo('photo-1586191582151-f73872dfd183')}]}];
+ jobs:[{title:'Deliveries completed',image:photo('photo-1601584115197-04ecc0da31d7')},{title:'Loading arrangements',image:photo('photo-1586191582151-f73872dfd183')}]},
+ {id:'schoolchairs',name:'Sample School Furnishings',trade:'Event chairs',place:'Location not confirmed',cover:photo('photo-1503602642458-232111445657'),offers:[
+  {id:'chairs-delivered',name:'Stacking chairs',kind:'PRODUCT',price:'Sample KES 250 per chair',image:photo('photo-1503602642458-232111445657'),description:'Local transport described as included, but delivery area, quantity and stock still need confirmation.',availability:'Stock not verified'}],jobs:[]},
+ {id:'eventchairs',name:'Example Event Seating',trade:'Chairs for events',place:'Location not confirmed',cover:'',offers:[
+  {id:'chairs-ex-transport',name:'Event chairs',kind:'PRODUCT',price:'Sample KES 210 per chair',image:'',description:'Transport cost NOT stated. Lower unit price does not establish lower delivered cost.',availability:'Stock not verified'}],jobs:[]}];
 const allOffers=samples.flatMap(store=>store.offers.map(offer=>({store,offer})));
 const sampleSeller=samples[0];
 type View='buyer'|'seller'|'together';
 const sectionLabels={buyer:'Find good work',seller:'Manage your Store',together:'Build together'};
-function Photo({src,title,className=''}:{src:string;title:string;className?:string}){
- const [failed,setFailed]=useState(false);
- return <div className={'relative overflow-hidden bg-gradient-to-br from-cream-100 via-cream-200 to-forest-100 '+className}>
-  {!failed?<img src={src} alt={'Illustrative photo: '+title} loading="lazy" className="h-full w-full object-cover" onError={()=>setFailed(true)}/>:<span className="flex h-full items-center justify-center gap-2 text-xs text-sand-600"><Images size={20}/> {title}</span>}
-  <span className="absolute bottom-1 right-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-forest-900">SAMPLE PHOTO</span>
- </div>;
+function Photo({src,title,className='',gallery}:{src:string;title:string;className?:string;gallery?:StoreImage[]}){
+ const images=gallery??[{src:src||null,title}];
+ const index=Math.max(0,images.findIndex(item=>item.src===src&&item.title===title));
+ return <StorePhoto images={images} index={index} className={className} sample/>;
 }
 function SampleBadge(){return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">SAMPLE · NOT A REAL STORE</span>;}
-export function StoreDemoExperience(){
- const [view,setView]=useState<View>('buyer');
+export function StoreDemoExperience({onLocalProposal,onLocalBuyingPlan,initialSamplePlan,initialSearch='',initialAssistance}:{onLocalProposal?:(text:string)=>void;onLocalBuyingPlan?:(plan:LocalStoreBuyingPlan)=>void;initialSamplePlan?:LocalStoreBuyingPlan|null;initialSearch?:string;initialAssistance?:'plug'|'master'|null}={}){
+ const [view,setView]=useState<View>(initialAssistance?'together':'buyer');
  const [filter,setFilter]=useState<'ALL'|'PRODUCT'|'SERVICE'|'CAPACITY'>('ALL');
- const [search,setSearch]=useState('');
+ const [search,setSearch]=useState(initialSearch);
  const [selectedStore,setSelectedStore]=useState<DemoStore|null>(null);
  const [selected,setSelected]=useState<{store:DemoStore;offer:DemoOffer}|null>(null);
  const [answer,setAnswer]=useState('');
@@ -55,15 +60,34 @@ export function StoreDemoExperience(){
  const [draftPrice,setDraftPrice]=useState('');
  const [drafts,setDrafts]=useState<{name:string;price:string}[]>([]);
  const [saver,setSaver]=useState(false);
- const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>([]);
- const [buyingDraft,setBuyingDraft]=useState({...emptyStoreBuyingPlan});
- const [buyingActive,setBuyingActive]=useState(false);
+ const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>(()=>initialSamplePlan?.lines.map(line=>({...line}))??[]);
+ const [buyingDraft,setBuyingDraft]=useState(()=>initialSamplePlan?{...initialSamplePlan.draft}:{...emptyStoreBuyingPlan});
+ const [buyingActive,setBuyingActive]=useState(Boolean(initialSamplePlan?.lines.length));
+ useEffect(()=>{
+  if(!buyingActive)return;
+  const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();setBuyingActive(false);}};
+  document.addEventListener('keydown',onKey,true);
+  return ()=>document.removeEventListener('keydown',onKey,true);
+ },[buyingActive]);
  const [practiceReady,setPracticeReady]=useState(false);
  const [planLimit,setPlanLimit]=useState(false);
+ const [considered,setConsidered]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
+ const [comparisonOpen,setComparisonOpen]=useState(false);
+ const [storeRelations,setStoreRelations]=useState<StoreHumanRelation[]>([]);
 
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
  const openSample=(store:DemoStore,offer:DemoOffer)=>{setSelected({store,offer});setAnswer('');};
+ const isConsidered=(store:DemoStore,offer:DemoOffer)=>considered.some(x=>x.store.id===store.id&&x.offer.id===offer.id);
+ const toggleConsider=(store:DemoStore,offer:DemoOffer)=>{
+   setConsidered(current=>current.some(x=>x.store.id===store.id&&x.offer.id===offer.id)
+     ?current.filter(x=>!(x.store.id===store.id&&x.offer.id===offer.id))
+     :[...current,{store,offer}].slice(-5));
+   setComparisonOpen(true);
+ };
+ const propose=(store:DemoStore,offer:DemoOffer)=>{
+   onLocalProposal?.('Store offer: '+offer.name+' — offered by '+store.name+' (illustrative source '+store.id+'/'+offer.id+'). '+offer.price+'. '+offer.description+' Stock, identity, final location, quantity, delivery cost and seller consent remain unverified. Proposed for discussion only; no purchase or acceptance.');
+ };
  const addToPlan=(store:DemoStore,offer:DemoOffer)=>{
   if(buyingLines.length>=MAX_STORE_PLAN_LINES&&!buyingLines.some(line=>line.key==='sample:'+store.id+':'+offer.id)){setPlanLimit(true);return;}
   setPlanLimit(false);
@@ -108,41 +132,68 @@ export function StoreDemoExperience(){
       <p className="text-xs text-sand-600"><MapPin size={13} className="inline"/> {selectedStore.place} · {selectedStore.trade}</p>
       <p className="font-semibold">Offers</p>
       <div className="grid grid-cols-2 gap-2">{selectedStore.offers.map(offer=><div key={offer.id} className="space-y-1 rounded-xl border border-cream-200 p-2">
-       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
+       <Photo src={offer.image} title={offer.name} gallery={selectedStore.offers.map(x=>({src:x.image,title:x.name}))} className="aspect-[4/3] w-full rounded-lg"/>
        <p className="font-semibold">{offer.name}</p><p className="text-xs">{offer.price}</p>
        <button type="button" onClick={()=>addToPlan(selectedStore,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
-       <button type="button" onClick={()=>openSample(selectedStore,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
+       <button type="button" onClick={()=>onLocalProposal?propose(selectedStore,offer):openSample(selectedStore,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?"Propose in My Work":"Take to KS001"}</button>
+        <button type="button" aria-pressed={isConsidered(selectedStore,offer)} onClick={()=>toggleConsider(selectedStore,offer)} className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs">Consider for comparison</button>
       </div>)}</div>
       <p className="font-semibold">Completed work · sample gallery</p>
-      <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} className="aspect-square rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
+      <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} gallery={selectedStore.jobs.map(x=>({src:x.image,title:x.title}))} className="aspect-square w-full rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
     </div>:<>
      <div className="relative"><input aria-label="Search sample Stores" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Try tiles, delivery, furniture…" maxLength={100} className="min-h-11 w-full rounded-xl border border-cream-200 bg-white pl-9 pr-3 text-sm"/><span className="pointer-events-none absolute left-3 top-3 text-sand-500"><Store size={17}/></span></div>
      <div className="flex flex-wrap gap-2">{(['ALL','PRODUCT','SERVICE','CAPACITY'] as const).map(kind=><button key={kind} type="button" onClick={()=>setFilter(kind)} className={filter===kind?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>{kind==='ALL'?'All':kind==='CAPACITY'?'Capacity':kind==='PRODUCT'?'Products':'Services'}</button>)}</div>
      <p className="text-xs font-semibold">Explore {samples.length} sample Stores</p>
-     <div className="grid grid-cols-2 gap-2">{samples.map(store=><button type="button" key={store.id} onClick={()=>setSelectedStore(store)} className="overflow-hidden rounded-xl border border-cream-200 bg-white text-left">
-       <Photo src={store.cover} title={store.name} className="aspect-[4/3]"/>
-       <div className="p-2"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></div>
-     </button>)}</div>
+     <div className="grid grid-cols-2 gap-2">{samples.map(store=><article key={store.id} className="overflow-hidden rounded-xl border border-cream-200 bg-white text-left">
+       <Photo src={store.cover} title={store.name} className="aspect-[4/3] w-full"/>
+       <button type="button" onClick={()=>setSelectedStore(store)} className="min-h-11 w-full p-2 text-left"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></button>
+     </article>)}</div>
      <p className="text-xs font-semibold">Offers you can try ({matched.length})</p>
+      <p className="text-xs text-sand-600">Viewed is not considered. Considered is not proposed. Nothing is accepted by browsing.</p>
+      {considered.length>0&&<section data-phase4-comparison aria-label="Compare considered offers" className="space-y-2 rounded-xl border border-cream-200 bg-[#f7f9f3] p-3">
+       <button type="button" aria-expanded={comparisonOpen} onClick={()=>setComparisonOpen(v=>!v)} className="min-h-10 text-left text-xs font-semibold">
+        Compare considered offers ({considered.length}) {comparisonOpen?'▴':'▾'}
+       </button>
+       {comparisonOpen&&<div className="grid grid-cols-2 gap-2">
+        {considered.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-1 rounded-lg bg-white p-2 text-xs">
+         <Photo src={offer.image} title={offer.name} gallery={considered.map(x=>({src:x.offer.image,title:x.offer.name}))} className="aspect-[4/3] w-full rounded-lg"/><strong>{offer.name}</strong><p>{store.name}</p><p>{offer.price}</p>
+         <p className="text-sand-600">{offer.description}</p><p className="text-sand-600">{offer.availability}</p>
+         {onLocalProposal&&<button type="button" onClick={()=>propose(store,offer)} className="min-h-10 rounded-lg border border-cream-200 px-2 text-xs font-semibold">Propose in My Work</button>}
+        </article>)}
+        {considered.length===1&&<p className="self-center text-xs text-sand-600">Consider another option to compare.</p>}
+       </div>}
+       <p className="text-xs text-sand-700">Sample offers only. Delivery inclusions can differ and missing costs stay unknown. No reservation or payment.</p>
+      </section>}
      {matched.length===0&&<p className="rounded-lg bg-cream-50 p-3 text-xs">No sample offers match your search.</p>}
      <div className="grid grid-cols-2 gap-2">{matched.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-2 rounded-xl border border-cream-200 bg-white p-2">
       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
       <div><p className="font-semibold">{offer.name}</p><p className="text-xs text-sand-600">{store.name}</p><p className="mt-1 text-xs font-semibold">{offer.price}</p></div>
       <button type="button" onClick={()=>addToPlan(store,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
-      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
+      <button type="button" onClick={()=>onLocalProposal?propose(store,offer):openSample(store,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?'Propose in My Work':'Take to KS001'}</button>
+       <button type="button" aria-pressed={isConsidered(store,offer)} onClick={()=>toggleConsider(store,offer)} className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{isConsidered(store,offer)?'Remove from considered':'Consider for comparison'}</button>
      </article>)}</div>
     </>}
    </>}
    </div>
-   {buyingLines.length>0&&buyingActive&&<StoreBuyingPlan
-     sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
-     onBack={()=>{setBuyingActive(false);setSelected(null);}}
-     onPrepare={()=>setPracticeReady(true)}/>}
+   {buyingLines.length>0&&buyingActive&&typeof document!=='undefined'&&createPortal(
+     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-forest-950/60 p-0 sm:p-5" data-phase4-focused-plan>
+      <div role="dialog" aria-modal="true" aria-label="Review proposed buying plan" className="flex max-h-[100dvh] w-full max-w-[860px] flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl">
+       <div className="flex items-center justify-between gap-2 border-b border-cream-200 px-4 py-3">
+        <div><p className="text-sm font-semibold">Review your buying plan</p><p className="text-xs text-sand-600">Sample offers · proposed only · not saved</p></div>
+        <button type="button" autoFocus onClick={()=>setBuyingActive(false)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Back to Stores</button>
+       </div>
+       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
+        <StoreBuyingPlan sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
+         onBack={()=>{setBuyingActive(false);setSelected(null);}}
+         onPrepare={()=>{if(onLocalBuyingPlan)onLocalBuyingPlan({lines:buyingLines.map(line=>({...line})),draft:{...buyingDraft}});else setPracticeReady(true);}}/>
+       </div>
+      </div>
+     </div>,document.body)}
    {buyingLines.length>0&&!buyingActive&&<button type="button" onClick={()=>setBuyingActive(true)}
      className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-3 text-xs font-semibold">Review buying plan · {buyingLines.length} items</button>}
    {practiceReady&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Your sample buying plan is ready for practice. No real sellers have been contacted.</p>}
   </div>}
-  {view==='seller'&&<div className="space-y-3">
+  {view==='seller'&&<div className="space-y-3"><StoreHumanHelp owner relationships={storeRelations} onRelationshipsChange={setStoreRelations} onPropose={onLocalProposal}/>
    <div className="overflow-hidden rounded-xl border border-cream-200 bg-white">
     <Photo src={sampleSeller.cover} title="Sample Store gallery" className="aspect-[16/7]"/>
     <div className="p-3"><p className="font-semibold">{sampleSeller.name}</p><p className="text-xs text-sand-600">{sampleSeller.trade} · Sample seller workspace</p></div>
@@ -172,8 +223,17 @@ export function StoreDemoExperience(){
     {sellerAction==='calendar'&&<><strong>Schedule and life balance</strong><div className="flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs">Tue · Site visit</span><span className="rounded-full bg-white px-3 py-2 text-xs">Wed · Work</span><span className="rounded-full bg-white px-3 py-2 text-xs">Sun · Rest</span></div><p className="text-xs text-sand-600">Sample schedule; nothing booked.</p></>}
    </div>
   </div>}
-  {view==='together'&&<div className="space-y-3">
-    <div className="overflow-hidden rounded-xl border border-cream-200"><Photo src={samples[0].cover} title="Example joint renovation" className="aspect-[16/8]"/><div className="p-3"><strong>One job, several people</strong><p className="mt-1 text-xs text-sand-600">Example: renovate a bathroom, supply tiles and coordinate delivery.</p></div></div>
+  {view==='together'&&<div className="space-y-3"><StoreHumanHelp initial={initialAssistance??'plug'} onPropose={onLocalProposal}/>
+    <div data-phase4-human-help className="space-y-2 rounded-xl border border-cream-200 bg-white p-3">
+       <h3 className="text-sm font-semibold">Get help from capable people</h3>
+       <p className="text-xs leading-5 text-sand-700">A Plug can coordinate or check practical work. A Master can advise, review difficult terms or mentor. No person, rate, location, qualification or availability is verified here.</p>
+       <div className="grid grid-cols-2 gap-2">
+        <button type="button" className="min-h-11 rounded-xl bg-cream-100 px-2 text-xs font-semibold" onClick={()=>onLocalProposal?.('Assistance: Find an authorised Plug for delivery coordination or evidence checking. Need scope, service area, training evidence, availability, rate and consent; nobody contacted or assigned.')}>Ask for a Plug</button>
+        <button type="button" className="min-h-11 rounded-xl bg-cream-100 px-2 text-xs font-semibold" onClick={()=>onLocalProposal?.('Assistance: Request a Master for experienced advice or milestone review. Need scope, consent, qualifications, availability and fee; no private records shared or engagement confirmed.')}>Ask for a Master</button>
+       </div>
+       <p className="text-xs text-sand-600">Local proposals only, not invitations, certified matches, appointments or confirmations.</p>
+     </div>
+     <div className="overflow-hidden rounded-xl border border-cream-200"><Photo src={samples[0].cover} title="Example joint renovation" className="aspect-[16/8]"/><div className="p-3"><strong>One job, several people</strong><p className="mt-1 text-xs text-sand-600">Example: renovate a bathroom, supply tiles and coordinate delivery.</p></div></div>
     <div className="grid grid-cols-3 gap-2">{[{role:'Buyer',name:'Needs tiling'},{role:'Seller',name:'Supplies the work'},{role:'Plug',name:'Coordinates'}].map(person=><div key={person.role} className="rounded-xl border border-cream-200 bg-white p-2 text-center"><Users size={18} className="mx-auto"/><p className="mt-1 text-xs font-semibold">{person.role}</p><p className="mt-1 text-[11px] text-sand-600">{person.name}</p></div>)}</div>
     <button type="button" onClick={()=>setSaver(v=>!v)} aria-expanded={saver} className="min-h-11 w-full rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">{saver?'Close Saver example':'Explore Community Saver'}</button>
     {saver&&<div className="space-y-2 rounded-xl bg-cream-50 p-3"><strong>Is there a genuine saving?</strong><p className="text-xs">KS001 can compare separate delivery against shared delivery, but a Plug must verify feasibility, evidence, consent and the actual benefit to buyer, seller and Plug.</p><p className="text-xs font-semibold">Savings: not verified · Distribution: not agreed</p><p className="text-xs text-sand-600">No Community Saver or payout is created by this example.</p></div>}

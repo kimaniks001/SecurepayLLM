@@ -19,6 +19,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
+import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
 import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
@@ -74,6 +75,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const uiOnlyPreview=!signedIn && (!gateway || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app')));
   const [previewNotes,setPreviewNotes]=useState<PreviewWorkNote[]>([]);
   const [phase2ExampleId,setPhase2ExampleId]=useState<Phase2ExampleId|null>(null);
+  const [sampleBuyingPlan,setSampleBuyingPlan]=useState<LocalStoreBuyingPlan|null>(null);
   const previewNoteId=useRef(0);
   const addPreviewNote=(text:string)=>{
     if(!text.trim())return;
@@ -90,6 +92,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       thumbnail:proposal.thumbnail,snippet:proposal.snippet}]);
     closeTool();
     focusPreviewComposer();
+  };
+  /** The one local buying proposal uses the existing work preview, not a second Agreement. */
+  const continueSampleBuyingPlan=(proposal:LocalStoreBuyingPlan)=>{
+    const plan={lines:proposal.lines.map(line=>({...line})),draft:{...proposal.draft}};
+    setSampleBuyingPlan(plan);
+    setPhase2ExampleId(null);
+    previewNoteId.current+=1;
+    const id=previewNoteId.current;
+    setPreviewNotes(current=>[
+      ...current.filter(note=>!(note.storePlan&&note.exampleId===null)),
+      {id,exampleId:null,text:'Buying plan: '+plan.lines.length+' proposed item(s) from '+new Set(plan.lines.map(line=>line.storeKsNumber||line.storeName)).size+' sample Store(s).',storePlan:plan}
+    ]);
+    closeTool();
+    setScreen('chat');
   };
   const activePreviewNotes=previewNotes.filter(note=>note.exampleId===phase2ExampleId);
   const focusPreviewComposer=()=>{
@@ -229,15 +245,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
   const [storeServiceQuery, setStoreServiceQuery] = useState('');
   const [storeQuickAssistNeed, setStoreQuickAssistNeed] = useState('');
+  const [phase4Journey,setPhase4Journey]=useState<'chairs'|'solomon'|'plug'|'master'|'stays'|null>(null);
   // A source added while editing a fact must retain the originating conversation.
   // This hint changes only the explicit KS001 request, never Agreement authority.
   const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
+    setPhase4Journey(null);
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setActiveTool(name); setToolSelected(true); setToolsOpen(true);
+  }
+  function startPhase4Journey(id:'chairs'|'solomon'|'plug'|'master'|'stays') {
+    setPhase4Journey(id);
+    if (!toolsOpen) previousScreen.current=screen==='tools'?'chat':screen;
+    const needsStore=id==='chairs'||id==='plug'||id==='master';
+    setActiveTool(needsStore?'Stores':'Quick Assist');
+    setToolSelected(true);setToolsOpen(true);
+    setStoreServiceQuery(id==='chairs'?'chairs':'');
+    setStoreQuickAssistNeed('');
+    setQuickAssistSeed(id==='solomon'?'I have goods at my shop and need someone to deliver them nearby.':id==='stays'?'I need a short stay near tomorrow’s meeting and transport to get there.':'');
   }
   function openToolPicker() {
     setSupportingFact(null);
@@ -451,7 +479,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Stores'?<StoresTool
-                    key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
+                    key={phase4Journey || storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
+                    initialAssistance={phase4Journey==='plug'||phase4Journey==='master'?phase4Journey:null}
+                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
+                    onLocalBuyingPlan={uiOnlyPreview&&mode==='work'?continueSampleBuyingPlan:undefined}
+                    initialSamplePlan={uiOnlyPreview?sampleBuyingPlan:undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -487,9 +519,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Quick Assist'?<QuickSupportPanel
-                    collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
+                    key={phase4Journey || quickAssistSeed || 'quick-assist'} collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
+                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
                     onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
-                    onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
+                    onContinue={mode==='work' && gateway && !mockSignedIn && !uiOnlyPreview ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
                       if(snapshot.busy || snapshot.pending)throw new Error('Finish your current KS001 message first');
@@ -524,6 +557,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 
               <section aria-label="Add something">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
+                {uiOnlyPreview&&mode==='work'&&<details data-phase4-journeys className="mb-3 rounded-xl bg-cream-50 p-2">
+                   <summary className="cursor-pointer py-1 text-xs font-semibold text-forest-800">Try five ways to get help</summary>
+                   <div className="mt-2 space-y-1">
+                     {([['chairs','Compare chairs for a school event'],['solomon','Solomon needs a rider'],['plug','Find practical help from a Plug'],['master','Ask a Master to review milestones'],['stays','Short Stay and My Ride']] as const).map(([id,label])=>
+                       <button key={id} type="button" onClick={()=>startPhase4Journey(id)} className="block min-h-11 w-full rounded-lg px-2 text-left text-xs hover:bg-white">{label}</button>)}
+                   </div>
+                   <p className="mt-2 text-xs text-sand-600">Examples are local only. No real listings, people, rates, bookings or invitations are confirmed.</p>
+                 </details>}
                 {uiOnlyPreview&&mode==='work'&&<details data-phase3-journeys className="mb-3 rounded-xl bg-cream-50 p-2">
                   <summary className="cursor-pointer py-1 text-xs font-semibold text-forest-800">Try the five practical tool journeys</summary>
                   <div className="mt-2 space-y-1">
@@ -580,8 +621,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
           : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
+              onEditStorePlan={()=>openTool('Stores')}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
-              onRemove={id=>setPreviewNotes(notes=>notes.filter(n=>n.id!==id))}/>
+              onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
+                 setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
           : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
