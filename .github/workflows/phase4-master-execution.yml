@@ -1,0 +1,55 @@
+name: Master Phase 4 — Stores and Human Assistance
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'tests/phase4-master-*'
+      - '.github/workflows/phase4-master-execution.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/phase4-master-stores.test.mjs tests/phase1-preview-production-write-guard.test.mjs
+      - run: npm run test:final-convergence
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+  browser:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/phase4-preview.log 2>&1) &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          node tests/phase4-master-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase4-five-journey-browser-screenshots
+          path: artifacts/phase4-master/*.png
+          if-no-files-found: warn
