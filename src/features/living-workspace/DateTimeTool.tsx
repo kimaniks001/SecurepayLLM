@@ -22,6 +22,11 @@ const validTime = (value: string) => !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(
 const meaningful = (value: string) => value.trim().replace(/\s+/g, ' ').slice(0, 240);
 const allowedPurposes: TimingPurpose[] = ['delivery','commencement','completion','inspection','contribution','check-in','check-out','pickup','other'];
 const weekdayLabels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const localDayOffset=(days:number)=>{
+  const current=new Date();
+  current.setDate(current.getDate()+days);
+  return [current.getFullYear(),String(current.getMonth()+1).padStart(2,'0'),String(current.getDate()).padStart(2,'0')].join('-');
+};
 
 export function buildTimingProposal(draft: TimingDraft): { text: string; error: string | null } {
   const purpose = draft.purpose === 'other' ? meaningful(draft.freePurpose) : draft.purpose;
@@ -72,8 +77,8 @@ const purposes: { value: TimingPurpose; label: string }[] = [
   {value:'contribution',label:'Contribution'}, {value:'check-in',label:'Check-in'},
   {value:'check-out',label:'Check-out'}, {value:'pickup',label:'Pickup'}, {value:'other',label:'Something else'}
 ];
-export function DateTimeTool({ context = '', onPrepare, onClose }: {
-  context?: string; onPrepare?: (message: string) => Promise<void>; onClose?: () => void;
+export function DateTimeTool({ context = '', onPrepare, onClose, isLocalPreview=false }: {
+  context?: string; onPrepare?: (message: string) => Promise<void>; onClose?: () => void;isLocalPreview?:boolean;
 }) {
   const [draft, setDraft] = useState<TimingDraft>(()=>({
     mode:'on',purpose:'delivery',freePurpose:'',day:'',time:'',until:'',untilTime:'',
@@ -81,6 +86,8 @@ export function DateTimeTool({ context = '', onPrepare, onClose }: {
     trigger:'',offsetDays:'2',context,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone || 'Device time zone'
   }));
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showTimingTypes,setShowTimingTypes]=useState(false);
+  const [showTime,setShowTime]=useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [sent, setSent] = useState(false);
@@ -96,28 +103,39 @@ export function DateTimeTool({ context = '', onPrepare, onClose }: {
     finally { setBusy(false); }
   };
   return <form onSubmit={event=>void submit(event)} aria-label="Propose a date or time" className="space-y-4" data-phase3-date-time>
-    <p className="text-sm text-sand-700">What is this date for? KS001 will help you review it before it can become a commitment.</p>
+    <p className="text-sm text-sand-700">When should this happen? Choose a day, then add a time only if useful.</p>
+    <div role="group" aria-label="Quick date choices" className="grid grid-cols-3 gap-2">
+      <button type="button" onClick={()=>{set('mode','on');set('day',localDayOffset(0));setError(null);}}
+        className="min-h-11 rounded-xl border border-cream-200 bg-white px-2 text-xs font-semibold">Today</button>
+      <button type="button" onClick={()=>{set('mode','on');set('day',localDayOffset(1));setError(null);}}
+        className="min-h-11 rounded-xl border border-cream-200 bg-white px-2 text-xs font-semibold">Tomorrow</button>
+      <button type="button" onClick={()=>{set('mode','on');setError(null);document.getElementById('phase3-date-picker')?.focus();}}
+        className="min-h-11 rounded-xl border border-cream-200 bg-white px-2 text-xs font-semibold">Choose date</button>
+    </div>
     <label className="block text-sm font-semibold">Purpose
       <select value={draft.purpose} onChange={e=>set('purpose',e.target.value as TimingPurpose)} className={'mt-1 '+field}>
         {purposes.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
       </select>
     </label>
     {draft.purpose==='other'&&<label className="block text-sm">What will happen?<input className={'mt-1 '+field} value={draft.freePurpose} onChange={e=>set('freePurpose',e.target.value)} maxLength={240}/></label>}
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold">When?</legend>
+    <button type="button" aria-expanded={showTimingTypes} onClick={()=>setShowTimingTypes(v=>!v)}
+      className="min-h-10 text-xs font-semibold text-forest-800 underline">{showTimingTypes?'Fewer timing options':'More timing options · ranges, repeat, conditions'}</button>
+    {showTimingTypes&&<fieldset className="space-y-2">
+      <legend className="text-sm font-semibold">Timing type</legend>
       <div className="grid grid-cols-2 gap-2">
         {([['on','On this day'],['between','Between dates'],['every','Repeat'],['after','After an event']] as const).map(([value,label])=>
           <button key={value} type="button" aria-pressed={draft.mode===value} onClick={()=>{set('mode',value);setError(null);}}
             className={'min-h-11 rounded-xl border p-2 text-sm '+(draft.mode===value?'border-forest-700 bg-forest-800 text-white':'border-cream-300 bg-white')}>{label}</button>)}
       </div>
-    </fieldset>
+    </fieldset>}
     {(draft.mode==='on'||draft.mode==='between')&&<>
       <label className="block text-sm">{draft.mode==='between'?'Start date':'Date'}
-        <input aria-label={draft.mode==='between'?'Start date':'Date'} className={'mt-1 '+field} type="date" value={draft.day} onChange={e=>set('day',e.target.value)} min="1900-01-01" max="2100-12-31"/>
+        <input id="phase3-date-picker" aria-label={draft.mode==='between'?'Start date':'Date'} className={'mt-1 '+field} type="date" value={draft.day} onChange={e=>set('day',e.target.value)} min="1900-01-01" max="2100-12-31"/>
       </label>
-      <label className="block text-sm">Time (optional)
-        <input className={'mt-1 '+field} type="time" value={draft.time} onChange={e=>set('time',e.target.value)}/>
-      </label>
+      {!showTime&&!draft.time&&<button type="button" className="min-h-10 text-xs font-semibold text-forest-800 underline" onClick={()=>setShowTime(true)}>Add a time</button>}
+      {(showTime||draft.time)&&<label className="block text-sm">Local time (optional)
+        <input aria-label="Proposed local time" className={'mt-1 '+field} type="time" value={draft.time} onChange={e=>set('time',e.target.value)}/>
+      </label>}
       {draft.mode==='on'&&<label className="block text-sm">Or say it naturally (approximate dates welcome)
         <input className={'mt-1 '+field} placeholder="e.g. next Friday morning" value={draft.approximate} maxLength={240} onChange={e=>set('approximate',e.target.value)}/>
       </label>}
@@ -157,10 +175,10 @@ export function DateTimeTool({ context = '', onPrepare, onClose }: {
     <p className="text-xs text-sand-700">This is a proposed date, not a booking, acceptance, completed milestone or payment instruction.</p>
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{error}</p>}
     {sent?<div role="status" className="space-y-2 rounded-xl bg-cream-50 p-3 text-sm">
-      <p className="flex gap-2"><CheckCircle2 size={18}/> Sent to KS001 for review — not agreed yet.</p>
+      <p className="flex gap-2"><CheckCircle2 size={18}/> {isLocalPreview?'Proposed timing added locally. Not agreed or saved.':'Sent to KS001 for review — not agreed yet.'}</p>
       <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-cream-300 px-3">Return to my work</button>
     </div>:<button type="submit" disabled={busy||!onPrepare} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 font-semibold text-white disabled:opacity-50">
-      {busy?'Sending proposal…':'Ask KS001 to review this date'}
+      {busy?'Preparing…':isLocalPreview?'Add proposed timing locally':'Ask KS001 to review this date'}
     </button>}
     {!onPrepare&&<p role="status" className="text-xs text-sand-700">Start a real KS001 conversation to use dates in your Agreement. No timing has been saved.</p>}
   </form>;
