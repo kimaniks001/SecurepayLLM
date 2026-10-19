@@ -93,6 +93,12 @@ export default async function handler(req, res) {
   if (!/^[a-z0-9-]+\.vercel\.app$/.test(host)) return reject(res,403,'Preview deployment required');
   if (req.headers.origin && req.headers.origin !== 'https://' + host) return reject(res,403,'Invalid origin');
   if (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') return reject(res,403,'Cross-site request refused');
+  // Master Phase 1: authenticated preview writes must never reach production.
+  // Preview GETs remain available for read-only baseline inspection.
+  // An isolated staging upstream requires separate reviewed configuration.
+  if (UPSTREAM === 'https://securepay.ke' && req.method !== 'GET') {
+    return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
+  }
   const method = req.method || 'GET';
   if (!['GET','POST','PATCH','PUT','DELETE'].includes(method)) return reject(res,405,'Method not allowed');
   const supplied = req.query?.path;
