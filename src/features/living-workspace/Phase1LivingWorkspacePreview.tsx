@@ -453,6 +453,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 : activeTool==='Stores'?<StoresTool
                     key={storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
+                     onLocalProposal={uiOnlyPreview?text=>{addPreviewNote(text);closeTool();}:undefined}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
                       : []}
@@ -489,7 +490,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 : activeTool==='Quick Assist'?<QuickSupportPanel
                     collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
                     onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
-                    onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
+                    onContinue={uiOnlyPreview && mode==='work' ? async message=>{addPreviewNote('Quick Assist request: '+message+' No provider contacted or booking made.');closeTool();}
+                       : mode==='work' && gateway && !mockSignedIn ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
                       if(snapshot.busy || snapshot.pending)throw new Error('Finish your current KS001 message first');
