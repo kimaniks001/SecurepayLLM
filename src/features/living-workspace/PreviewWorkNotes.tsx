@@ -12,7 +12,7 @@ const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
 ];
 function displayNote(text:string):{label:string;value:string}{
-  const matched=/^(Person|Date|Amount|Place|Photos?|Documents?|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
+  const matched=/^(Person|Date|Amount|Place|Photos?|Documents?|Store offer|Assistance|Quick Assist|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
   if(matched)return {label:matched[1].startsWith('Proposed')?'Time & milestones':matched[1],value:matched[2]};
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
   return {label:'Your added detail',value:text};
