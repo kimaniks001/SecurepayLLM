@@ -149,7 +149,7 @@ export function QuickSupportPanel({ collection, onCollectionChange, initialReque
           className="min-h-24 w-full resize-y rounded-xl border border-cream-200 p-3 text-sm"/>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <button type="button" disabled={busy || !request.trim()} onClick={() => void sendRequest()} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
-          {busy ? 'Asking KS001…' : onContinue ? 'Continue with KS001' : onLocalProposal ? 'Propose in My Work' : 'Prepare this request'}
+          {busy ? 'Asking KS001…' : onLocalProposal ? 'Propose in My Work' : onContinue ? 'Continue with KS001' : 'Prepare this request'}
         </button>
         {prepared && !onContinue && <div role="status" className="rounded-xl bg-cream-100 p-3 text-sm"><strong>Request ready</strong><p className="mt-1 whitespace-pre-wrap">{request.trim()}</p><p className="mt-2 text-xs text-sand-600">Prepared locally only. No booking or provider search was made.</p></div>}
         {onFindStoreOffers && <button type="button" onClick={() => onFindStoreOffers(selected === 'stays' ? 'stays' : 'ride', request.trim())}
