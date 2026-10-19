@@ -176,6 +176,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,onEdit
                {line.specification&&<p className="mt-1 text-xs">Requirements: {line.specification}</p>}
              </div>)}
              <p className="text-xs">Delivery location: {note.storePlan.draft.place||'Not specified'} · Desired date: {note.storePlan.draft.desiredDate||'Not specified'}</p>
+             {note.storePlan.draft.notes&&<p className="text-xs">Delivery and other requirements: {note.storePlan.draft.notes}</p>}
              <p className="text-xs">Store coordination: {new Set(note.storePlan.lines.map(line=>line.storeKsNumber||line.storeName)).size>1?note.storePlan.draft.coordination:'One Store — ordinary delivery'}</p>
              <p className="text-xs text-sand-700">Illustrative proposal only. No seller has confirmed stock, quantities, delivery, acceptance or payment.</p>
              <div className="flex flex-wrap gap-2">
