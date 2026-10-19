@@ -5,6 +5,14 @@ import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 
+type CirclePlanningKind = 'DISCUSSION' | 'QUESTION' | 'NEED' | 'OPPORTUNITY' | 'WORK_STORY';
+const planningKinds: ReadonlyArray<{value:CirclePlanningKind;label:string;hint:string}> = [
+  {value:'DISCUSSION',label:'Discussion note',hint:'Context to explore together'},
+  {value:'QUESTION',label:'Question for the group',hint:'Not a vote or approved decision'},
+  {value:'NEED',label:'Help or resources needed',hint:'A request, not a confirmed assignment'},
+  {value:'OPPORTUNITY',label:'Option to explore',hint:'Not a supplier commitment'},
+  {value:'WORK_STORY',label:'Progress checkpoint',hint:'Not an Agreement milestone'},
+];
 function freshKey() {
   return 'circle-board-' + (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 }
@@ -22,7 +30,7 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
   const [error,setError]=useState<string|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
   const [composing,setComposing]=useState(false);
-  const [draft,setDraft]=useState({title:'',body:''});
+  const [draft,setDraft]=useState<{title:string;body:string;kind:CirclePlanningKind}>({title:'',body:'',kind:'DISCUSSION'});
   const [intent,setIntent]=useState(freshKey);
   const [submitting,setSubmitting]=useState(false);
 
@@ -57,10 +65,10 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
     if(!title || !body)return;
     setSubmitting(true);setError(null);
     try{
-      const saved=await gateways.community.circles.objects.create(id,'DISCUSSION',title,body,null,intent);
-      if(saved.circleId!==id)throw new Error('Unexpected Circle response');
+      const saved=await gateways.community.circles.objects.create(id,draft.kind,title,body,null,intent);
+      if(saved.circleId!==id || saved.objectType!==draft.kind)throw new Error('Unexpected Circle response');
       setObjects(prev=>[saved,...prev.filter(o=>o.id!==saved.id)]);
-      setDraft({title:'',body:''});setIntent(freshKey());setComposing(false);
+      setDraft({title:'',body:'',kind:'DISCUSSION'});setIntent(freshKey());setComposing(false);
     } catch {
       setError('The Circle note was not confirmed saved. Retry the same note rather than creating a second one.');
     } finally{setSubmitting(false);}
@@ -87,14 +95,21 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
         <button type="button" className="mt-2 min-h-11 rounded-lg bg-white px-3 text-xs" onClick={()=>setSelected(null)}>Close detail</button>
       </div>}
       {composing && <form onSubmit={event=>{event.preventDefault();void add();}} className="space-y-3 rounded-xl border border-cream-200 p-4">
-        <p className="text-sm font-semibold">Share a note with this Circle</p>
+        <p className="text-sm font-semibold">Add something to our Circle's plan</p>
+        <label className="block text-xs">What kind of contribution?
+          <select value={draft.kind} onChange={e=>{setDraft(v=>({...v,kind:e.target.value as CirclePlanningKind}));setIntent(freshKey());}}
+            className="mt-1 min-h-11 block w-full rounded-lg border border-cream-200 p-3 text-sm">
+            {planningKinds.map(kind=><option value={kind.value} key={kind.value}>{kind.label}</option>)}
+          </select>
+        </label>
+        <p className="text-xs text-sand-600">{planningKinds.find(kind=>kind.value===draft.kind)?.hint}</p>
         <label className="block text-xs">Title <input required maxLength={160} value={draft.title} onChange={e=>setDraft(v=>({...v,title:e.target.value}))} className="mt-1 block w-full rounded-lg border border-cream-200 p-3 text-sm"/></label>
         <label className="block text-xs">Note <textarea required maxLength={4000} rows={4} value={draft.body} onChange={e=>setDraft(v=>({...v,body:e.target.value}))} className="mt-1 block w-full rounded-lg border border-cream-200 p-3 text-sm"/></label>
         <div className="flex flex-wrap gap-2">
           <button type="submit" disabled={submitting||!draft.title.trim()||!draft.body.trim()||scope.circle.status!=='ACTIVE'} className="min-h-11 rounded-lg bg-forest-800 px-4 text-xs text-white disabled:opacity-40">{submitting?'Posting…':'Share in Circle'}</button>
           <button type="button" disabled={submitting} onClick={()=>setComposing(false)} className="min-h-11 rounded-lg bg-cream-100 px-4 text-xs">Cancel</button>
         </div>
-        <p className="text-xs text-sand-600">Only this Circle receives the note. The backend enforces membership and idempotency; no invitation, Agreement acceptance or payment is created.</p>
+        <p className="text-xs text-sand-600">This is a Circle planning contribution, not an approved group decision. SecurePay checks membership; no Agreement, formal vote, invitation or payment is created.</p>
       </form>}
     </div>}
   </section>;
