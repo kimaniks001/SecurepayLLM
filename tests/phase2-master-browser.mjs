@@ -6,7 +6,7 @@ const host='http://127.0.0.1:4173';
 const out='artifacts/phase2-master';
 mkdirSync(out,{recursive:true});
 const cases=[
-  {id:'delivery',title:'KES 400 delivery',question:'What needs to be delivered?'},
+  {id:'delivery',title:'KES 400 delivery',question:'What exactly is being delivered?'},
   {id:'chama',title:'Eight-person chama',question:'What is the main purpose of this chama?'},
   {id:'service',title:'Professional service',question:'What result do you need the professional to deliver?'},
   {id:'project',title:'Project milestones',question:'What should the first phase deliver?'},
