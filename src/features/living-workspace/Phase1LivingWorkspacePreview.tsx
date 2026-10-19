@@ -197,10 +197,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
-    work:'Add evidence, dates, people or financial details to the Agreement you are building.',
-    vision:'Capture ideas and references. Use your saved Vision Board for drawing and detailed planning.',
-    circle:'Bring supporting material. Group invitations, votes and decisions stay in your authorised Circle.',
-    community:'Bring supporting material and explore Stores. Community participation stays in authorised projects.',
+    work:'Choose something useful for your work.',
+    vision:'Collect inspiration and ideas.',
+    circle:'Bring material to your shared work.',
+    community:'Explore ways to contribute.',
   };
   const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
@@ -497,13 +497,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     })}
                 </div>
               </> : <>
-                <p className="text-sm text-sand-600">Choose one thing. KS001 stays right here.</p>
+                
               <section aria-label="Add something">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
                 <div className="grid grid-cols-2 gap-2">
                   {contextTools.filter(t=>t.group==='add').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
-                    className="flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white px-2 py-3 text-center hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
-                    <t.icon size={23} aria-hidden="true"/><span className="text-xs font-semibold">{t.name}</span>
+                    className="flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border border-cream-200 bg-white px-3 py-2 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+                    <t.icon size={19} className="shrink-0" aria-hidden="true"/><span className="text-xs font-semibold">{t.name}</span>
                   </button>)}
                 </div>
               </section>
@@ -511,9 +511,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Get something done</h4>
                 <div className="grid grid-cols-2 gap-2">
                   {contextTools.filter(t=>t.group==='do').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
-                    className="flex min-h-24 min-w-0 items-start gap-2 rounded-xl border border-cream-200 bg-white p-3 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
-                    <t.icon size={20} className="mt-0.5 shrink-0" aria-hidden="true"/>
-                    <span className="min-w-0"><span className="block text-sm font-semibold">{t.name}</span><span className="mt-1 block text-xs text-sand-600">{t.description}</span></span>
+                    className="flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border border-cream-200 bg-white px-3 py-2 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+                    <t.icon size={19} className="shrink-0" aria-hidden="true"/>
+                    <span className="min-w-0 text-xs font-semibold">{t.name}</span>
                   </button>)}
                 </div>
               </section>
@@ -525,7 +525,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button></div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={previewNotes} onAdd={addPreviewNote}/>}
+        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={previewNotes} onAdd={addPreviewNote} onOpenTools={openToolPicker}/>}
         {!(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -576,18 +576,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
               <p className="text-xs leading-5 text-sand-600">{persona.dataBoundary}</p>
             </div>}
-        {mode==='work' && !liveConversationId && <div className="mt-4">
+        {mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!signedIn && mode!=='work' && <div className="mt-4">
-          <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
-            session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
-        </div>}
+        {!signedIn && mode!=='work' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
+          className="mt-5 min-h-11 rounded-lg text-left text-xs font-medium text-forest-800 underline underline-offset-4">
+          Sign in to see your saved {mode==='vision'?'dreams':mode==='circle'?'Circles':'community activity'}
+        </button>}
 </div>
       </aside>
     </div>}
     {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
-    <p className="px-5 pb-4 text-center text-xs text-sand-600">KS001 helps you explore. Agreements require review and acceptance; bookings, invitations and money require their own authorisation.</p>
+    {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
   </main>;
 }
