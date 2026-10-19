@@ -33,7 +33,7 @@ try{
     const board=page.locator('[data-phase1-preview-board]');
     assert.ok(await board.getByText('I need 200 chairs delivered to a school').count(),'Work note should appear on the same board');
     await page.getByRole('button',{name:'Preview add Date'}).click();
-    await page.getByRole('textbox',{name:'Value for Date'}).fill('2026-11-12');
+    await page.getByLabel('Value for Date').fill('2026-11-12');
     await page.getByRole('button',{name:'Add locally'}).click();
     assert.ok(await board.getByText('Date: 2026-11-12').count(),'Miniature date must reach the board');
     if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
