@@ -72,6 +72,21 @@ export function consumeCircleEntry(): string | null {
   return id;
 }
 
+/** One-shot ID-only navigation to a real Community LIVE object.
+ * No post body, author identity or permission travels with the hint. */
+let pendingCommunityObjectId:string|null=null;
+export function storeCommunityObjectEntry(objectId:string):void {
+  const id=objectId.trim();
+  if(!id)throw Error('A Community object ID is required');
+  pendingCommunityObjectId=id;
+  pendingView='community';
+}
+export function consumeCommunityObjectEntry():string|null {
+  const id=pendingCommunityObjectId;
+  pendingCommunityObjectId=null;
+  return id;
+}
+
 /** One-shot tab-memory-only return from SecurePay Money to the Living Workspace.
  * Only the server conversation ID is kept, never in URL or persistent storage.
  * Re-entry must re-authorise with the real KS001 controller. */
