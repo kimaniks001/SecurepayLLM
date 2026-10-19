@@ -61,7 +61,7 @@ try{
   }
   const picker=page.getByRole('dialog',{name:'Choose a tool'});
   await picker.waitFor();
-  for(const label of ['Photos','Documents','Places','Quick Assist','Stores','People & Invitations','Money'])
+  for(const label of ['People','Photos','Documents','Places','Date & Time','Quick Assist','Stores','Money'])
    assert.ok(await picker.getByRole('button',{name:new RegExp(label)}).count(),`Missing launch tool: ${label}`);
   for(const label of ['More tools','Vision tools','Milestones'])
    assert.equal(await picker.getByRole('button',{name:label,exact:true}).count(),0,`Dead entry visible: ${label}`);
