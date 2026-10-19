@@ -70,9 +70,12 @@ test('Phase1: Money is downstream of real Agreement and protected backend state'
   assert.match(panel,/Money cannot be initiated from this preview/);
 });
 test('Phase1: Community data stays behind membership and Circle boundaries',()=>{
-  assert.match(community,/membership\.data\?\.status==='ACTIVE'/);
-  assert.match(community,/row\.circleId===null/);
-  assert.match(community,/SecurePay could not verify your membership/);
+  const projection=fs.readFileSync(new URL('../src/features/living-workspace/communityDiscovery.ts', import.meta.url),'utf8');
+  assert.match(community,/membership\.value\?\.status==='ACTIVE'/);
+  assert.match(community,/if\(!active\)return;/);
+  assert.match(projection,/row=>row\.circleId===null/);
+  assert.match(projection,/visibility==='PUBLIC'/);
+  assert.match(community,/SecurePay could not verify membership/);
 });
 test('Phase1: preview is explicitly isolated, not secretly promoted as a production runtime',()=>{
   assert.match(router,/hostname\.endsWith\('\.vercel\.app'\)/);
