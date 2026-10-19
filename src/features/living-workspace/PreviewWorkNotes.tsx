@@ -45,7 +45,7 @@ export function PreviewWorkComposer({notes,onAdd}:{
       </div>
       {mini&&<MiniContextInput key={mini} kind={mini} label={additions.find(x=>x.kind===mini)?.label||'Detail'}
         onSubmit={async value=>{onAdd((additions.find(x=>x.kind===mini)?.label||'Detail')+': '+value);setMini(null);}}
-        onCancel={()=>setMini(null)}/>}
+        onCancel={()=>setMini(null)} submitLabel="Add locally"/>}
       <form onSubmit={event=>{event.preventDefault();add();}} className="space-y-2">
         <label htmlFor="phase1-local-note" className="text-xs font-medium text-sand-600">Your request · preview only</label>
         <textarea id="phase1-local-note" aria-label="Preview a message to KS001" value={draft} onChange={event=>setDraft(event.target.value)}
