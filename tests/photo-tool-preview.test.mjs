@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import handler from '../api/preview-agent.js';
+import { createLoopbackTestHandler } from '../api/preview-agent.js';
+const handler=createLoopbackTestHandler('http://127.0.0.1:18765');
 
 const source=(file)=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const headers={host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app','content-type':'application/json'};
