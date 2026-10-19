@@ -320,7 +320,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
       </div>}
-      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, Word, Excel, text or CSV · up to 2 MB</p>}
+      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, DOCX, XLSX, TXT or CSV · up to 2 MB. Local preview reads only text/CSV; other formats need authorised processing.</p>}
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<details open><summary className="cursor-pointer text-xs font-semibold">Preview photo</summary><img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-72 w-full rounded-lg object-contain"/></details>}
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
@@ -352,7 +352,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         setTaskBusy(true);try{await onContinueTask(serverSource,action.id);}catch{setError('Could not continue. The place remains in KS001.');}finally{setTaskBusy(false);}
       }} className="min-h-10 rounded-full border border-cream-200 bg-white px-3 text-xs">{action.label}</button>)}</div>}
     </section>}
-    {(tool==='Photos'||tool==='Documents')&&pending&&detailsOpen&&uploadState==='confirmed'&&<label className="block text-xs text-sand-600">
+    {(tool==='Photos'||tool==='Documents')&&pending&&(isDemo||(detailsOpen&&uploadState==='confirmed'))&&<label className="block text-xs text-sand-600">
       Add a note (optional)
       <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
     </label>}
