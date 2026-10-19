@@ -465,7 +465,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 : activeTool==='Stores'?<StoresTool
                     key={phase4Journey || storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     initialAssistance={phase4Journey==='plug'||phase4Journey==='master'?phase4Journey:null}
-                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();focusPreviewComposer();}:undefined}
+                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -502,7 +502,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     }}/>
                 : activeTool==='Quick Assist'?<QuickSupportPanel
                     key={phase4Journey || quickAssistSeed || 'quick-assist'} collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
-                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();focusPreviewComposer();}:undefined}
+                    onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
                     onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
                     onContinue={mode==='work' && gateway && !mockSignedIn && !uiOnlyPreview ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
