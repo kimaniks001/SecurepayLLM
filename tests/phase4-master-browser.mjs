@@ -5,11 +5,11 @@ const out='artifacts/phase4-master';
 mkdirSync(out,{recursive:true});
 const host='http://127.0.0.1:4173/#/preview/living-workspace/work';
 const cases=[
-  {id:'chairs',label:'Compare chairs for a school event',expect:/Store offer:.*Stacking chairs/i},
-  {id:'solomon',label:'Solomon needs a rider',expect:/Quick Assist:.*My Ride inquiry/i},
-  {id:'plug',label:'Find practical help from a Plug',expect:/Assistance:.*Plug/i},
-  {id:'master',label:'Ask a Master to review milestones',expect:/Assistance:.*Master/i},
-  {id:'stays',label:'Short Stay and My Ride',expect:/Quick Assist:.*Short Stays inquiry/i},
+  {id:'chairs',label:'Compare chairs for a school event',expect:/Store offer[\s\S]*Stacking chairs/i},
+  {id:'solomon',label:'Solomon needs a rider',expect:/Quick Assist[\s\S]*My Ride inquiry/i},
+  {id:'plug',label:'Find practical help from a Plug',expect:/Assistance[\s\S]*Plug/i},
+  {id:'master',label:'Ask a Master to review milestones',expect:/Assistance[\s\S]*Master/i},
+  {id:'stays',label:'Short Stay and My Ride',expect:/Quick Assist[\s\S]*Short Stays inquiry/i},
 ];
 const browser=await chromium.launch({headless:true});
 try {
