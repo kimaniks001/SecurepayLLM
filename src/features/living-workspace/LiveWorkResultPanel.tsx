@@ -138,8 +138,6 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
             {!compactAgreementFacts(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
           </tbody>
         </table>
-        {formation.question&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm"><span className="font-semibold">Next: </span>{humanNextQuestion(formation.question.text)}</p>}
-        {!formation.question&&formation.reviewable&&<p className="mt-2 border-t border-cream-200 pt-2 text-sm">Draft available to inspect · Material understanding not yet confirmed.</p>}
       </section>
       <section aria-label="What deserves attention" className="border-b border-cream-100 pb-3">
         <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
