@@ -14,7 +14,7 @@ export function CircleInvitePanel({id,gateways,session,onClose}:{
   const [key,setKey] = useState(makeKey);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState<string|null>(null);
-  const [invited,setInvited] = useState<string[]>([]);
+  const [invited,setInvited] = useState<Array<{ks:string;status:'INVITED'|'ACTIVE'}>>([]);
   const invite=async()=>{
     const proposed = ksNumber.trim();
     if(!proposed || busy || !agree) return;
@@ -29,7 +29,7 @@ export function CircleInvitePanel({id,gateways,session,onClose}:{
         throw Error('SecurePay did not confirm invitation authority for this Circle.');
       const result=await gateways.community.circles.invite(id,proposed,key);
       if(result.status!=='INVITED' && result.status!=='ACTIVE')throw Error('SecurePay did not confirm this invitation.');
-      setInvited(rows=>[...rows,proposed]);
+      setInvited(rows=>[...rows,{ks:proposed,status:result.status as 'INVITED'|'ACTIVE'}]);
       setKsNumber('');setAgree(false);setKey(makeKey());
     } catch(e) {
       setError(e instanceof Error ? e.message : 'SecurePay has not confirmed the invitation. Retry the same request.');
@@ -58,8 +58,8 @@ export function CircleInvitePanel({id,gateways,session,onClose}:{
       {busy?'Requesting invitation…':'Send Circle invitation'}</button>
     {error && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}
     {invited.length>0 && <div role="status" className="rounded-xl bg-forest-50 p-3 text-xs">
-      <p>{invited.length} invitation request(s) confirmed during this session.</p>
-      {invited.map((ks,index)=><p key={index} className="mt-1">{ks} · accepted membership not assumed</p>)}
+      <p>{invited.length} Circle membership result(s) confirmed during this session.</p>
+      {invited.map((row,index)=><p key={index} className="mt-1">{row.ks} · {row.status==='ACTIVE'?'Already an active Circle member':'Invitation pending acceptance'}</p>)}
     </div>}
   </section>;
 }
