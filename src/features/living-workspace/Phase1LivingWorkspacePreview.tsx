@@ -14,6 +14,7 @@ import { createAgentController, deviceTimeZone, type AgentState } from '../agent
 import { createFormationController, type FormationState } from '../formation/controller';
 import { LiveKs001Session } from './LiveKs001Session';
 import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
+import { phase2ExampleById, type Phase2ExampleId } from './phase2Examples';
 import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
@@ -72,6 +73,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // Signed-in users retain the existing authoritative controllers and permission gates.
   const uiOnlyPreview=!signedIn && (!gateway || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app')));
   const [previewNotes,setPreviewNotes]=useState<PreviewWorkNote[]>([]);
+  const [phase2ExampleId,setPhase2ExampleId]=useState<Phase2ExampleId|null>(null);
   const previewNoteId=useRef(0);
   const addPreviewNote=(text:string)=>{
     if(!text.trim())return;
@@ -525,7 +527,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={previewNotes} onAdd={addPreviewNote} onOpenTools={openToolPicker}/>}
+        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={previewNotes} onAdd={addPreviewNote} onOpenTools={openToolPicker}
+          onSelectExample={id=>{const example=phase2ExampleById(id);if(example){setPhase2ExampleId(id);addPreviewNote(example.humanSays);}}}/>}
         {!(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -546,7 +549,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
-          : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={previewNotes}
+          : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={previewNotes} exampleId={phase2ExampleId}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>setPreviewNotes(notes=>notes.filter(n=>n.id!==id))}/>
           : mode==='work' && liveWork?<LiveWorkResultPanel
