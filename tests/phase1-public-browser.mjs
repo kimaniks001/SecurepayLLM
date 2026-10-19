@@ -18,6 +18,7 @@ try{
   assert.equal(await page.getByRole('heading',{name:'What would you love to create?'}).count(),0);
   // Local static previews deliberately have no production API relay. Live typing can
   // only be certified on the Vercel host against an approved gateway.
+  await page.screenshot({path:`${out}/${name}-work.png`,fullPage:true});
   if(await page.locator('#live-work-ks001-input').count()){
     await page.locator('#live-work-ks001-input').fill('I need a delivery Agreement');
     assert.equal(await page.getByRole('heading',{name:'What would you like to get done?'}).count(),0,
@@ -25,10 +26,25 @@ try{
     assert.equal(await page.locator('#live-work-ks001-input').inputValue(),'I need a delivery Agreement');
     await page.locator('#live-work-ks001-input').fill('');
   }else {
-    console.log('Live KS001 typing is UNVERIFIED on this local static preview; no relay is configured.');
-    assert.ok(await page.getByText('KS001 is temporarily unavailable.',{exact:false}).count());
+    // Public read-only preview: test real local interactions, never pretend API persistence.
+    const noteInput=page.getByRole('textbox',{name:'Preview a message to KS001'});
+    await noteInput.fill('I need 200 chairs delivered to a school');
+    await page.getByRole('button',{name:'Add to preview'}).click();
+    const board=page.locator('[data-phase1-preview-board]');
+    assert.ok(await board.getByText('I need 200 chairs delivered to a school').count(),'Work note should appear on the same board');
+    await page.getByRole('button',{name:'Preview add Date'}).click();
+    await page.getByRole('textbox',{name:'Value for Date'}).fill('2026-11-12');
+    await page.getByRole('button',{name:'Add locally'}).click();
+    assert.ok(await board.getByText('Date: 2026-11-12').count(),'Miniature date must reach the board');
+    if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
+    await board.getByRole('button',{name:'Edit preview note 1'}).click();
+    await board.getByRole('textbox',{name:'Edit local preview note'}).fill('I need 200 chairs delivered to my school');
+    await board.getByRole('button',{name:'Save locally'}).click();
+    assert.ok(await board.getByText('I need 200 chairs delivered to my school').count(),'Corrected preview note must appear on board');
+    await page.screenshot({path:`${out}/${name}-interactive-work.png`,fullPage:true});
+    if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
+    console.log('Preview notes, miniature input and correction PASS (LOCAL ONLY; no API integration).');
   }
-  await page.screenshot({path:`${out}/${name}-work.png`,fullPage:true});
   await page.getByRole('button',{name:'Expand tool shelf'}).click();
   assert.ok(await page.locator('[data-tool-shelf]').count());
   if(width>=1280){
