@@ -45,7 +45,7 @@ function Empty({what}:{what:string}){
     Nothing confirmed in {what} yet. Explore another space or return later.
   </p>;
 }
-function Card({label,title,body,detail,onOpen}:{label:string;title:string;body:string;detail?:string|null;onOpen?:()=>void}){
+function Card({label,title,body,detail,onOpen,actionLabel='Explore this Circle'}:{label:string;title:string;body:string;detail?:string|null;onOpen?:()=>void;actionLabel?:string}){
   return <article className="min-w-0 rounded-xl border border-cream-200/80 bg-[#fdfcf9] p-3 space-y-1.5">
     <p className="text-[0.69rem] font-semibold uppercase tracking-wide text-sand-500">{label}</p>
     <h4 className="break-words text-sm font-semibold leading-5 text-forest-900">{title}</h4>
@@ -53,7 +53,7 @@ function Card({label,title,body,detail,onOpen}:{label:string;title:string;body:s
     {detail&&<p className="text-xs text-sand-600">{detail}</p>}
     {onOpen&&<button type="button" onClick={onOpen}
       className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700 underline underline-offset-4">
-      Explore this Circle <ArrowUpRight size={14} aria-hidden="true"/>
+      {actionLabel} <ArrowUpRight size={14} aria-hidden="true"/>
     </button>}
   </article>;
 }
@@ -61,9 +61,10 @@ function Card({label,title,body,detail,onOpen}:{label:string;title:string;body:s
 /** Phase 6 is a connected discoverability surface for the existing Community
  * gateway. It has no parallel membership engine, Circle board, post controller,
  * volunteer registry or booking logic. Community authority stays server-side. */
-export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle}:{ 
+export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject}:{ 
   gateways:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
   onOpenCircle?:(circleId:string)=>void;
+  onOpenObject?:(objectId:string)=>void;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const [page,setPage]=useState<Page>('home');
@@ -137,7 +138,8 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle}:{
     {status('live')}
     {filtered.live.slice(0,limit).map(x=><Card key={x.id}
       label={x.objectType.replace(/_/g,' ').toLowerCase()+' · '+(x.authorDisplayName??'Community member')}
-      title={x.title} body={x.body} detail={x.locationLabel}/>)}
+      title={x.title} body={x.body} detail={x.locationLabel}
+      actionLabel="Read & respond" onOpen={()=>onOpenObject?onOpenObject(x.id):onOpenFull()}/>)}
     {limit<20&&filtered.live.length>limit&&<button type="button" onClick={()=>setPage('live')} className="min-h-11 text-xs underline">Read more LIVE stories</button>}
     <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Take part in LIVE · existing Community</button>
