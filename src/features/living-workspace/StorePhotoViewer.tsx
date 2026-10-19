@@ -15,9 +15,16 @@ export function StorePhoto({images,index=0,className='',sample=false}:{
  const item=images[current]??images[index]??{src:null,title:'Store photo'};
  const usable=(x:StoreImage)=>Boolean(x.src&&!failed[x.src]);
  useEffect(()=>{if(!open)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';
-   const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setOpen(false);if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1);};
-   window.addEventListener('keydown',key);
-   return()=>{document.body.style.overflow=previous;window.removeEventListener('keydown',key)};
+   const key=(e:KeyboardEvent)=>{
+     if(!['Escape','ArrowLeft','ArrowRight'].includes(e.key))return;
+     // Consume modal keys before the Workspace's Escape-to-close-shelf handler.
+     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+     if(e.key==='Escape')setOpen(false);
+     if(e.key==='ArrowLeft'&&images.length>1)move(-1);
+     if(e.key==='ArrowRight'&&images.length>1)move(1);
+   };
+   window.addEventListener('keydown',key,true);
+   return()=>{document.body.style.overflow=previous;window.removeEventListener('keydown',key,true)};
  },[open,images.length]);
  function move(delta:number){setCurrent(i=>(i+delta+images.length)%images.length);setScale(1);}
  const touch=(e:TouchEvent)=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];const distance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
