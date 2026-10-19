@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StorePhoto, type StoreImage } from './StorePhotoViewer';
+import { StoreHumanHelp } from './StoreHumanHelp';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
 
@@ -174,7 +175,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
      className="min-h-11 rounded-full border border-forest-200 bg-cream-50 px-3 text-xs font-semibold">Review buying plan · {buyingLines.length} items</button>}
    {practiceReady&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Your sample buying plan is ready for practice. No real sellers have been contacted.</p>}
   </div>}
-  {view==='seller'&&<div className="space-y-3">
+  {view==='seller'&&<div className="space-y-3"><StoreHumanHelp owner onPropose={onLocalProposal}/>
    <div className="overflow-hidden rounded-xl border border-cream-200 bg-white">
     <Photo src={sampleSeller.cover} title="Sample Store gallery" className="aspect-[16/7]"/>
     <div className="p-3"><p className="font-semibold">{sampleSeller.name}</p><p className="text-xs text-sand-600">{sampleSeller.trade} · Sample seller workspace</p></div>
@@ -204,7 +205,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
     {sellerAction==='calendar'&&<><strong>Schedule and life balance</strong><div className="flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-2 text-xs">Tue · Site visit</span><span className="rounded-full bg-white px-3 py-2 text-xs">Wed · Work</span><span className="rounded-full bg-white px-3 py-2 text-xs">Sun · Rest</span></div><p className="text-xs text-sand-600">Sample schedule; nothing booked.</p></>}
    </div>
   </div>}
-  {view==='together'&&<div className="space-y-3">
+  {view==='together'&&<div className="space-y-3"><StoreHumanHelp initial={initialAssistance??'plug'} onPropose={onLocalProposal}/>
     <div data-phase4-human-help className="space-y-2 rounded-xl border border-cream-200 bg-white p-3">
        <h3 className="text-sm font-semibold">Get help from capable people</h3>
        <p className="text-xs leading-5 text-sand-700">A Plug can coordinate or check practical work. A Master can advise, review difficult terms or mentor. No person, rate, location, qualification or availability is verified here.</p>
