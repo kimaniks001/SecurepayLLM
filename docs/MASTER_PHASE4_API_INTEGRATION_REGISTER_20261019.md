@@ -14,6 +14,19 @@ UI-first only. The existing authorised `StoresTool`, `QuickSupportPanel`, Places
 | Places and Plus Codes | Phase 3 Places tool and existing gateways | No location-based provider ranking certified | No device-location request; private entrances are not searched or shared | Purpose-bound location and provider consent | PENDING |
 | Community Saver | Existing Store demo policy | No verified economics or distribution | Displays buyer/seller/Plug prerequisite; zero payment operation | Plug mandatory, three-party consent and verified benefit | PENDING |
 
+## Targeted owner corrections — live API gaps
+
+| Needed capability | Reused UI / existing boundary | Missing operation | Honest fallback | Required authority | Integration |
+| --- | --- | --- | --- | --- | --- |
+| Enlarged authorised Store photos | Existing Store media references / published offers | Gallery/provenance of nonpublic completed jobs not available | Reusable viewer; only authorised image URLs, otherwise honest placeholder | Store publication and access rights | PARTIAL |
+| One vs many Store coordination | Existing `StoreBuyingPlan` and offer references | Provider prices, cross-seller delivery terms and confirmation not certified | Distinct Store IDs gate local coordination, no new Agreement | Each seller and buyer must separately agree | UI BUILT / API PENDING |
+| Store Saver eligibility | Store management and Plug roles | Per-provider opt-in discoverability/publishing and revocation | Local preference clearly not published | Store owner or Plug’s explicit opt-in | PENDING |
+| Per-arrangement Saver consent and economics | Existing Saver policy, `StoreBuyingPlan` | Versioned baseline, coordinated costs, Plug compensation, evidenced allocations, explicit buyer/all-seller/Plug consent | Pending/unknown fields; no Saver approval or payout | Each involved party consents to specific proposal; Plug mandatory | PENDING |
+| My Plugs / My Masters private tags | Existing KS identity and capacity/Skills Institute boundaries | Private per-Store relationship list, tag CRUD, provider-category search and authorised availability/rate/qualification evidence | In-memory Store-specific tags and category filter; no fake person | Owner-private storage and provider publication consent | PENDING |
+| Service-area capacity matching | Places tool and provider-publication boundaries | Matching live service categories and consented service area | Optional typed area; no device GPS or exact proximity inference | Provider area/availability publication and seeker location consent | PENDING |
+
+No new backend route is authorised by this UI build. The local Store Saver interest checkbox is not buyer/seller/Plug acceptance for a specific arrangement.
+
 ## Safety
 - `api/preview-agent.js` and `api/preview-workspace.js` retain production-upstream write refusal. No use of GET as implied permission to mutate.
 - This phase adds no API endpoint, persistence, identity issuance, financial action, live booking or master-agent controller.
