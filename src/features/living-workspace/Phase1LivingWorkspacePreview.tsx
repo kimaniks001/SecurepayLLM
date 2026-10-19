@@ -24,7 +24,7 @@ import { StoresTool } from './StoresTool';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeCircleEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
@@ -642,6 +642,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             onOpenFull={()=>{window.location.hash='#/community';}}
             onOpenCircle={circleId=>{
               storeCircleEntry(circleId);
+              window.location.hash='#/community';
+            }}
+            onOpenObject={objectId=>{
+              storeCommunityObjectEntry(objectId);
               window.location.hash='#/community';
             }}/>
         </div>}
