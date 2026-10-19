@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { KsIdentitySelectionResult } from '../../api/securepay/agent/dto';
 type Purpose='agreement'|'circle'|'project'|'trust';
 const LABELS:Record<Purpose,string>={agreement:'Agreement',circle:'Circle',project:'Community project',trust:'Trust Project'};
-export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{onPrepare:(text:string)=>Promise<void>;onCheckKs?:(ksNumber:string)=>Promise<KsIdentitySelectionResult>;agreementPeople?:string[]}){
+export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],localPreview=false,onLocalProposal}:{onPrepare:(text:string)=>Promise<void>;onCheckKs?:(ksNumber:string)=>Promise<KsIdentitySelectionResult>;agreementPeople?:string[];localPreview?:boolean;onLocalProposal?:(text:string)=>void}){
   const [purpose,setPurpose]=useState<Purpose>('agreement');
   const [people,setPeople]=useState('');
   const [role,setRole]=useState('');
@@ -50,6 +50,32 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[]}:{
     try{await onPrepare(message);setSent(true);}catch{setError('Could not confirm KS001 received this request. Check Chat before retrying.');}
     finally{setBusy(false);}
   }
+  if(localPreview)return <section aria-label="People and invitations" data-phase3-people className="space-y-4 text-sm">
+    <h3 className="font-display text-lg font-semibold text-forest-900">Who is involved?</h3>
+    <p className="text-xs leading-5 text-sand-700">Add a proposed person. A KS Number alone does not verify identity or give consent.</p>
+    <label className="block text-xs font-semibold">Name or KS Number
+      <input aria-label="Proposed person's name or KS Number" value={people} onChange={e=>{setPeople(e.target.value);setSent(false);}}
+        maxLength={120} placeholder="e.g. KS002 or a person's name" className="mt-2 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
+    </label>
+    <label className="block text-xs font-semibold">What will they do?
+      <select aria-label="Proposed person's role" value={role} onChange={e=>setRole(e.target.value)}
+        className="mt-2 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm">
+        <option value="">Choose a role</option>
+        {['Recipient','Buyer','Seller','Provider','Witness','Organiser','Other'].map(x=><option key={x}>{x}</option>)}
+      </select>
+    </label>
+    {role==='Other'&&<label className="block text-xs">Describe their role
+      <input value={note} maxLength={100} onChange={e=>setNote(e.target.value)} aria-label="Describe proposed role"
+        className="mt-2 min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm"/>
+    </label>}
+    <button type="button" disabled={!people.trim()||!role.trim()||(role==='Other'&&!note.trim())} onClick={()=>{
+      const who=people.trim(),proposed=role==='Other'?note.trim():role;
+      onLocalProposal?.('Person: '+who+' · Role: '+proposed+' · '+(/^KS[0-9A-Z-]+$/i.test(who)?'KS identity not verified':'Identity not verified')+' · Participation not accepted');
+      setSent(true);setPeople('');setRole('');setNote('');
+    }} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">Add proposed person locally</button>
+    {sent&&<p role="status" className="text-xs text-forest-800">Proposed person added to SecurePay Check. You can edit or remove them there.</p>}
+    <p className="text-xs leading-5 text-sand-700">A specific authorised KS lookup requires sign-in and a live conversation. No invitation was sent. No membership, consent, Agreement party or acceptance was created.</p>
+  </section>;
   return <section aria-label="People and invitations" className="space-y-3 text-sm">
     <p className="font-semibold">Who would you like to involve?</p>
     <div className="flex flex-wrap gap-2" role="group" aria-label="Invitation purpose">
