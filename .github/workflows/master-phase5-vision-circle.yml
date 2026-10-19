@@ -1,0 +1,81 @@
+name: Master Phase 5 — Vision and Circle
+
+on:
+  pull_request:
+    branches:
+      - integration/master-execution-20261019
+    paths:
+      - 'src/features/visionboard/**'
+      - 'src/features/living-workspace/**'
+      - 'src/features/community/**'
+      - 'tests/master-phase5-*'
+      - '.github/workflows/master-phase5-vision-circle.yml'
+      - 'docs/MASTER_PHASE5_*'
+  push:
+    branches:
+      - integration/master-execution-20261019
+
+permissions:
+  contents: read
+
+concurrency:
+  group: master-phase5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Vision privacy, cumulative regressions, type/lint/build
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Selected-note privacy and Circle access denial
+        run: node --test tests/master-phase5-vision-circle-share.test.mjs
+      - name: Complete cumulative frontend test suite
+        run: npm run test:final-convergence
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+
+  browser:
+    name: Previous approved human journeys preserved
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Run existing local-only visual journeys
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/master-phase5-preview.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          node tests/phase1-public-browser.mjs
+          node tests/phase2-master-browser.mjs
+          node tests/phase3-master-browser.mjs
+          node tests/phase4-master-browser.mjs
+          node tests/phase4-targeted-browser.mjs
+          node tests/phase4-fluency-browser.mjs
+      - name: Upload baseline screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-phase5-inherited-workspace-screenshots
+          path: artifacts/**/*.png
+          if-no-files-found: warn
