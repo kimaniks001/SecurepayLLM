@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Pencil, Trash2 } from 'lucide-react';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
+import { WorkspaceWelcome } from './WorkspaceWelcome';
 
 /** A UI-only demonstration of the existing Workspace's interaction geometry.
  * It is NOT an AgentController, a Trade Context, an Agreement or server storage.
@@ -23,6 +24,7 @@ export function PreviewWorkComposer({notes,onAdd}:{
   };
   return <div data-phase1-preview-composer className="flex min-h-0 min-w-0 flex-1 flex-col">
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-white to-[#fcfcf8] p-4" aria-label="Local preview notes">
+      {!notes.length&&!draft.trim()&&<WorkspaceWelcome area="work" onExample={example=>{if(example.prompt)setDraft(example.prompt);}}/>}
       <div className="rounded-xl border border-cream-200 bg-cream-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-forest-800">Interactive design preview · Local only</p>
         <p className="mt-2 text-sm leading-6">Try entering a request, adding a detail or editing the right-hand board. This preview does not contact KS001 or create an Agreement.</p>
