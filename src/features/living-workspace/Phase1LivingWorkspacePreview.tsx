@@ -85,6 +85,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const activePreviewNotes=previewNotes.filter(note=>note.exampleId===phase2ExampleId);
   const focusPreviewComposer=()=>{
     setScreen('chat');
+    // Desktop is already visible; mobile becomes visible on the next paint.
+    document.getElementById('phase1-local-note')?.focus();
     window.requestAnimationFrame(()=>document.getElementById('phase1-local-note')?.focus());
   };
   const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
