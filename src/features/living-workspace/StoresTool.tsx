@@ -6,6 +6,7 @@ import type { CurrentUserActionResponse } from '../../api/securepay/agreements/d
 import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
 import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
+import { StorePhoto } from './StorePhotoViewer';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
@@ -33,10 +34,8 @@ const actions:{id:SellerAction;label:string;icon:typeof Store}[]=[
 ];
 
 function OfferPhoto({refs,title}:{refs:string[];title:string}){
- const src=imageUrl(refs);
- return <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-cream-100">
-  {src?<img src={src} alt={title} loading="lazy" className="h-full w-full object-cover"/>:<Store size={28} className="text-sand-400" aria-label="No verified photo available"/>}
- </div>;
+ const images=refs.filter(ref=>Boolean(imageUrl([ref]))).map(ref=>({src:ref,title}));
+ return <StorePhoto images={images.length?images:[{src:null,title}]} className="aspect-[4/3] w-full rounded-xl"/>;
 }
 function Status({text}:{text:string}){return <p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">{text}</p>;}
 
