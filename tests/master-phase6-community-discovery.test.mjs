@@ -84,3 +84,17 @@ test('Approved Living Workspace and Agreement architecture remains in place',()=
   assert.match(preview,/LiveWorkResultPanel/);
   assert.match(preview,/InlineCommunityHub gateways=\{workspaceGateways\}/);
 });
+
+test('selected LIVE stories use an ID-only, real-authority detail and conversation handoff',()=>{
+  const entry=readFileSync('src/features/experience/entryIntent.ts','utf8');
+  const agent=readFileSync('src/features/agent/AgentExperience.tsx','utf8');
+  assert.match(hub,/onOpenObject\?:\(objectId:string\)=>void/);
+  assert.match(hub,/actionLabel="Read & respond"/);
+  assert.match(preview,/storeCommunityObjectEntry\(objectId\)/);
+  assert.match(entry,/pendingCommunityObjectId/);
+  assert.match(entry,/consumeCommunityObjectEntry/);
+  assert.match(agent,/initialObjectId=\{externalCommunityObjectId\}/);
+  assert.match(experience,/controller\.openObject\(objectId\)/);
+  // A hint conveys no body, author, member role, or Agreement permission.
+  assert.doesNotMatch(entry,/pendingCommunityObjectBody|pendingCommunityObjectAuthor/);
+});
