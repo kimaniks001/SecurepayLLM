@@ -124,22 +124,22 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
       <p className="text-xs text-sand-600"><MapPin size={13} className="inline"/> {selectedStore.place} · {selectedStore.trade}</p>
       <p className="font-semibold">Offers</p>
       <div className="grid grid-cols-2 gap-2">{selectedStore.offers.map(offer=><div key={offer.id} className="space-y-1 rounded-xl border border-cream-200 p-2">
-       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
+       <Photo src={offer.image} title={offer.name} gallery={selectedStore.offers.map(x=>({src:x.image,title:x.name}))} className="aspect-[4/3] w-full rounded-lg"/>
        <p className="font-semibold">{offer.name}</p><p className="text-xs">{offer.price}</p>
        <button type="button" onClick={()=>addToPlan(selectedStore,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
        <button type="button" onClick={()=>onLocalProposal?propose(selectedStore,offer):openSample(selectedStore,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?"Propose in My Work":"Take to KS001"}</button>
         <button type="button" aria-pressed={isConsidered(selectedStore,offer)} onClick={()=>toggleConsider(selectedStore,offer)} className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs">Consider for comparison</button>
       </div>)}</div>
       <p className="font-semibold">Completed work · sample gallery</p>
-      <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} className="aspect-square rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
+      <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} gallery={selectedStore.jobs.map(x=>({src:x.image,title:x.title}))} className="aspect-square w-full rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
     </div>:<>
      <div className="relative"><input aria-label="Search sample Stores" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Try tiles, delivery, furniture…" maxLength={100} className="min-h-11 w-full rounded-xl border border-cream-200 bg-white pl-9 pr-3 text-sm"/><span className="pointer-events-none absolute left-3 top-3 text-sand-500"><Store size={17}/></span></div>
      <div className="flex flex-wrap gap-2">{(['ALL','PRODUCT','SERVICE','CAPACITY'] as const).map(kind=><button key={kind} type="button" onClick={()=>setFilter(kind)} className={filter===kind?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>{kind==='ALL'?'All':kind==='CAPACITY'?'Capacity':kind==='PRODUCT'?'Products':'Services'}</button>)}</div>
      <p className="text-xs font-semibold">Explore {samples.length} sample Stores</p>
-     <div className="grid grid-cols-2 gap-2">{samples.map(store=><button type="button" key={store.id} onClick={()=>setSelectedStore(store)} className="overflow-hidden rounded-xl border border-cream-200 bg-white text-left">
-       <Photo src={store.cover} title={store.name} className="aspect-[4/3]"/>
-       <div className="p-2"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></div>
-     </button>)}</div>
+     <div className="grid grid-cols-2 gap-2">{samples.map(store=><article key={store.id} className="overflow-hidden rounded-xl border border-cream-200 bg-white text-left">
+       <Photo src={store.cover} title={store.name} className="aspect-[4/3] w-full"/>
+       <button type="button" onClick={()=>setSelectedStore(store)} className="min-h-11 w-full p-2 text-left"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></button>
+     </article>)}</div>
      <p className="text-xs font-semibold">Offers you can try ({matched.length})</p>
       <p className="text-xs text-sand-600">Viewed is not considered. Considered is not proposed. Nothing is accepted by browsing.</p>
       {considered.length>0&&<section data-phase4-comparison aria-label="Compare considered offers" className="space-y-2 rounded-xl border border-cream-200 bg-[#f7f9f3] p-3">
