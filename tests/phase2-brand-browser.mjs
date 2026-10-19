@@ -26,8 +26,14 @@ try {
     await page.locator('aside[aria-label="Living result"]').waitFor();
     if(await page.locator('[data-live-formation]').count()){
       await page.locator('[data-live-formation]').waitFor();
+    }else if(await page.locator('[data-phase1-preview-board]').count()){
+      // Phase 1 supports an explicit local UI preview, never a fabricated Agreement.
+      const board=page.locator('[data-phase1-preview-board]');
+      await board.waitFor();
+      assert.ok(await board.getByText('Local notes only.',{exact:false}).count(),
+        'Preview work must state plainly that its notes are not saved Agreement terms');
     }else {
-      // No live upstream during local static screenshots: show honest empty state.
+      // No authenticated work and no opted-in preview: preserve an honest empty state.
       await page.getByText('Your Agreement will appear here when KS001 has confirmed the conversation.').waitFor();
     }
     // A real live Agreement only exists after KS001 has returned server-owned formation.\n    // A new visitor sees the truthful right-hand empty work area instead.\n    assert.ok(await page.locator('aside[aria-label="Living result"]').isVisible());
