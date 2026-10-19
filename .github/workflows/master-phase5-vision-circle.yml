@@ -35,7 +35,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Selected-note privacy and Circle access denial
-        run: node --test tests/master-phase5-vision-circle-share.test.mjs
+        run: node --test tests/master-phase5-vision-circle-share.test.mjs tests/master-phase5-circle-planning.test.mjs
       - name: Complete cumulative frontend test suite
         run: npm run test:final-convergence
       - run: npm run typecheck
