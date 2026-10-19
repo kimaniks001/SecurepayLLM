@@ -568,7 +568,7 @@ test('Living Store sample catalogue is visibly fictional, photograph-led, and ne
  const live=source('src/features/living-workspace/StoresTool.tsx');
  const demo=source('src/features/living-workspace/StoreDemoExperience.tsx');
  assert.match(live,/const \[showSamples,setShowSamples\]=useState\(!initialServiceQuery\)/);
- assert.match(live,/showSamples\?<StoreDemoExperience\/>/);
+ assert.match(live,/showSamples\?<StoreDemoExperience onLocalProposal=\{onLocalProposal\}\/>/);
  assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='seller'\)return/);
  assert.match(live,/if\(showSamples\|\|!gateways\|\|!signedIn\|\|area!=='community'\)return/);
  assert.match(demo,/SAMPLE · NOT A REAL STORE/);
