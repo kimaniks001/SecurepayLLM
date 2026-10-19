@@ -155,7 +155,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
         {considered.length===1&&<p className="self-center text-xs text-sand-600">Consider another option to compare.</p>}
        </div>}
        <p className="text-xs text-sand-700">Sample offers only. Delivery inclusions can differ and missing costs stay unknown. No reservation or payment.</p>
-      </section>
+      </section>}
      {matched.length===0&&<p className="rounded-lg bg-cream-50 p-3 text-xs">No sample offers match your search.</p>}
      <div className="grid grid-cols-2 gap-2">{matched.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-2 rounded-xl border border-cream-200 bg-white p-2">
       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
