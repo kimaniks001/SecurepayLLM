@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const src=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const source=src('src/features/living-workspace/UniversalSourceTray.tsx');
 const shell=src('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const localPreview=src('src/features/living-workspace/PreviewWorkNotes.tsx');
 const quick=src('src/features/living-workspace/QuickSupportPanel.tsx');
 const store=src('src/features/living-workspace/StoresTool.tsx');
 const panel=src('src/features/living-workspace/LiveWorkResultPanel.tsx');
@@ -76,7 +77,10 @@ test('Phase1: Community data stays behind membership and Circle boundaries',()=>
 test('Phase1: preview is explicitly isolated, not secretly promoted as a production runtime',()=>{
   assert.match(router,/hostname\.endsWith\('\.vercel\.app'\)/);
   assert.match(router,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
-  assert.match(shell,/bookings, invitations and money require their own authorisation/);
+  assert.match(shell,/!uiOnlyPreview &&/);
+  assert.match(shell,/Agreements, invitations and Money require your review and authorisation/);
+  assert.match(localPreview,/KS001 isn't responding; nothing here is saved as an Agreement/);
+  assert.match(localPreview,/Never an Agent turn, Agreement or server record/);
   assert.match(shell,/const mockSignedIn = false/);
   assert.doesNotMatch(shell,/Try mock sign-in|Return to demonstration/);
 });
