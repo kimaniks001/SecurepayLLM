@@ -1,3 +1,4 @@
+import { VisionCreatePanel } from './VisionCreatePanel';
 import { SelectedWorkspaceRecord, type PrivateRecordArea } from './SelectedWorkspaceRecord';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Bookmark, FolderOpen, Globe2, Layers3, LockKeyhole, RefreshCw, Users } from 'lucide-react';
@@ -143,7 +144,8 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <button type="button" onClick={()=>openRealAgreement(a.agreementId)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Open this Agreement</button>
      </article>)}
    </div>}
-   {area==='vision' && <div className="space-y-2">
+   {area==='vision' && <div className="space-y-3">
+     {onEditDream && <VisionCreatePanel gateways={gateways} session={session} onCreated={onEditDream}/>}
      <p className="flex items-center gap-2 text-sm font-semibold"><Layers3 size={17}/> My saved Dreams</p>
      {dreams.status==='loading' && <p role="status" className="text-xs">Loading your Dreams…</p>}
      {dreams.status==='error' && <p role="alert" className="text-xs">{dreams.error}</p>}
