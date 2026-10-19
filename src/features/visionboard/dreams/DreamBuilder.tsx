@@ -531,7 +531,7 @@ export function DreamBuilder({
         {selectedObject.kind==='frame' && <button type="button" onClick={()=>{
           commit({v:1,objects:doc.objects.filter(o=>o.id!==selectedObject.id)});
           setSelected(null);
-        }} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Ungroup (keep items)</button>
+        }} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Ungroup (keep items)</button>}
         <button type="button" onClick={removeSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-ember-700 inline-flex items-center gap-1"><Trash2 className="size-3.5" /> Delete</button>
         {onExploreKs001 && 'text' in selectedObject && <button type="button"
           disabled={currentDirty || !serverRevisionKnown.current || saveState === 'saving' || saveState === 'error'}
