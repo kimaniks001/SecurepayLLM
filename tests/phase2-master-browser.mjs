@@ -64,7 +64,7 @@ try {
       await page.screenshot({path:out+'/'+device+'-'+scenario.id+'.png',fullPage:true});
       await board.getByRole('button',{name:'Continue in conversation'}).click();
       if(width<768)assert.ok(await chat.isVisible(),'Next step should switch mobile back to Chat');
-      await page.waitForFunction(()=>document.activeElement?.id==='phase1-local-note',{timeout:4000});
+      await page.waitForFunction(()=>document.activeElement?.id==='phase1-local-note',null,{timeout:4000});
       await input.fill(scenario.note);
       await chat.getByRole('button',{name:'Add to preview'}).click();
       if(width<768)await mobileNav.getByRole('button',{name:'Your Work'}).click();
