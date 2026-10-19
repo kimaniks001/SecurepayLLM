@@ -28,7 +28,11 @@ const samples:DemoStore[]=[
  {id:'delivery',name:'Karibu Delivery Crew',trade:'Delivery & transport',place:'Nairobi metropolitan',cover:photo('photo-1601584115197-04ecc0da31d7'),offers:[
   {id:'pickup',name:'Local pickup and delivery',kind:'SERVICE',price:'From KES 2,000',image:photo('photo-1601584115197-04ecc0da31d7'),description:'Illustrative city delivery; weight, entrance and route must be confirmed.',availability:'Schedule to confirm'},
   {id:'truck',name:'Light truck capacity',kind:'CAPACITY',price:'Quotation',image:photo('photo-1586191582151-f73872dfd183'),description:'Shared loading and delivery slot subject to driver availability.',availability:'Ask for a slot'}],
- jobs:[{title:'Deliveries completed',image:photo('photo-1601584115197-04ecc0da31d7')},{title:'Loading arrangements',image:photo('photo-1586191582151-f73872dfd183')}]}];
+ jobs:[{title:'Deliveries completed',image:photo('photo-1601584115197-04ecc0da31d7')},{title:'Loading arrangements',image:photo('photo-1586191582151-f73872dfd183')}]},
+ {id:'schoolchairs',name:'Sample School Furnishings',trade:'Event chairs',place:'Location not confirmed',cover:photo('photo-1503602642458-232111445657'),offers:[
+  {id:'chairs-delivered',name:'Stacking chairs',kind:'PRODUCT',price:'Sample KES 250 per chair',image:photo('photo-1503602642458-232111445657'),description:'Local transport described as included, but delivery area, quantity and stock still need confirmation.',availability:'Stock not verified'}],jobs:[]},
+ {id:'eventchairs',name:'Example Event Seating',trade:'Chairs for events',place:'Location not confirmed',cover:photo('photo-1598300056393-4aac492f4344'),offers:[
+  {id:'chairs-ex-transport',name:'Event chairs',kind:'PRODUCT',price:'Sample KES 210 per chair',image:photo('photo-1598300056393-4aac492f4344'),description:'Transport cost NOT stated. Lower unit price does not establish lower delivered cost.',availability:'Stock not verified'}],jobs:[]}];
 const allOffers=samples.flatMap(store=>store.offers.map(offer=>({store,offer})));
 const sampleSeller=samples[0];
 type View='buyer'|'seller'|'together';
@@ -41,10 +45,10 @@ function Photo({src,title,className=''}:{src:string;title:string;className?:stri
  </div>;
 }
 function SampleBadge(){return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">SAMPLE · NOT A REAL STORE</span>;}
-export function StoreDemoExperience(){
- const [view,setView]=useState<View>('buyer');
+export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAssistance}:{onLocalProposal?:(text:string)=>void;initialSearch?:string;initialAssistance?:'plug'|'master'|null}={}){
+ const [view,setView]=useState<View>(initialAssistance?'together':'buyer');
  const [filter,setFilter]=useState<'ALL'|'PRODUCT'|'SERVICE'|'CAPACITY'>('ALL');
- const [search,setSearch]=useState('');
+ const [search,setSearch]=useState(initialSearch);
  const [selectedStore,setSelectedStore]=useState<DemoStore|null>(null);
  const [selected,setSelected]=useState<{store:DemoStore;offer:DemoOffer}|null>(null);
  const [answer,setAnswer]=useState('');
@@ -60,10 +64,22 @@ export function StoreDemoExperience(){
  const [buyingActive,setBuyingActive]=useState(false);
  const [practiceReady,setPracticeReady]=useState(false);
  const [planLimit,setPlanLimit]=useState(false);
+ const [considered,setConsidered]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
+ const [comparisonOpen,setComparisonOpen]=useState(false);
 
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
  const openSample=(store:DemoStore,offer:DemoOffer)=>{setSelected({store,offer});setAnswer('');};
+ const isConsidered=(store:DemoStore,offer:DemoOffer)=>considered.some(x=>x.store.id===store.id&&x.offer.id===offer.id);
+ const toggleConsider=(store:DemoStore,offer:DemoOffer)=>{
+   setConsidered(current=>current.some(x=>x.store.id===store.id&&x.offer.id===offer.id)
+     ?current.filter(x=>!(x.store.id===store.id&&x.offer.id===offer.id))
+     :[...current,{store,offer}].slice(-5));
+   setComparisonOpen(true);
+ };
+ const propose=(store:DemoStore,offer:DemoOffer)=>{
+   onLocalProposal?.('Store offer: '+offer.name+' — offered by '+store.name+' (illustrative source '+store.id+'/'+offer.id+'). '+offer.price+'. '+offer.description+' Stock, identity, final location, quantity, delivery cost and seller consent remain unverified. Proposed for discussion only; no purchase or acceptance.');
+ };
  const addToPlan=(store:DemoStore,offer:DemoOffer)=>{
   if(buyingLines.length>=MAX_STORE_PLAN_LINES&&!buyingLines.some(line=>line.key==='sample:'+store.id+':'+offer.id)){setPlanLimit(true);return;}
   setPlanLimit(false);
@@ -124,12 +140,28 @@ export function StoreDemoExperience(){
        <div className="p-2"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></div>
      </button>)}</div>
      <p className="text-xs font-semibold">Offers you can try ({matched.length})</p>
+      <p className="text-xs text-sand-600">Viewed is not considered. Considered is not proposed. Nothing is accepted by browsing.</p>
+      {considered.length>0&&<section data-phase4-comparison aria-label="Compare considered offers" className="space-y-2 rounded-xl border border-cream-200 bg-[#f7f9f3] p-3">
+       <button type="button" aria-expanded={comparisonOpen} onClick={()=>setComparisonOpen(v=>!v)} className="min-h-10 text-left text-xs font-semibold">
+        Compare considered offers ({considered.length}) {comparisonOpen?'▴':'▾'}
+       </button>
+       {comparisonOpen&&<div className="grid grid-cols-2 gap-2">
+        {considered.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-1 rounded-lg bg-white p-2 text-xs">
+         <strong>{offer.name}</strong><p>{store.name}</p><p>{offer.price}</p>
+         <p className="text-sand-600">{offer.description}</p><p className="text-sand-600">{offer.availability}</p>
+         {onLocalProposal&&<button type="button" onClick={()=>propose(store,offer)} className="min-h-10 rounded-lg border border-cream-200 px-2 text-xs font-semibold">Propose in My Work</button>}
+        </article>)}
+        {considered.length===1&&<p className="self-center text-xs text-sand-600">Consider another option to compare.</p>}
+       </div>}
+       <p className="text-xs text-sand-700">Sample offers only. Delivery inclusions can differ and missing costs stay unknown. No reservation or payment.</p>
+      </section>
      {matched.length===0&&<p className="rounded-lg bg-cream-50 p-3 text-xs">No sample offers match your search.</p>}
      <div className="grid grid-cols-2 gap-2">{matched.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-2 rounded-xl border border-cream-200 bg-white p-2">
       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
       <div><p className="font-semibold">{offer.name}</p><p className="text-xs text-sand-600">{store.name}</p><p className="mt-1 text-xs font-semibold">{offer.price}</p></div>
       <button type="button" onClick={()=>addToPlan(store,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
-      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
+      <button type="button" onClick={()=>onLocalProposal?propose(store,offer):openSample(store,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?'Propose in My Work':'Take to KS001'}</button>
+       <button type="button" aria-pressed={isConsidered(store,offer)} onClick={()=>toggleConsider(store,offer)} className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{isConsidered(store,offer)?'Remove from considered':'Consider for comparison'}</button>
      </article>)}</div>
     </>}
    </>}
@@ -173,7 +205,16 @@ export function StoreDemoExperience(){
    </div>
   </div>}
   {view==='together'&&<div className="space-y-3">
-    <div className="overflow-hidden rounded-xl border border-cream-200"><Photo src={samples[0].cover} title="Example joint renovation" className="aspect-[16/8]"/><div className="p-3"><strong>One job, several people</strong><p className="mt-1 text-xs text-sand-600">Example: renovate a bathroom, supply tiles and coordinate delivery.</p></div></div>
+    <div data-phase4-human-help className="space-y-2 rounded-xl border border-cream-200 bg-white p-3">
+       <h3 className="text-sm font-semibold">Get help from capable people</h3>
+       <p className="text-xs leading-5 text-sand-700">A Plug can coordinate or check practical work. A Master can advise, review difficult terms or mentor. No person, rate, location, qualification or availability is verified here.</p>
+       <div className="grid grid-cols-2 gap-2">
+        <button type="button" className="min-h-11 rounded-xl bg-cream-100 px-2 text-xs font-semibold" onClick={()=>onLocalProposal?.('Assistance: Find an authorised Plug for delivery coordination or evidence checking. Need scope, service area, training evidence, availability, rate and consent; nobody contacted or assigned.')}>Ask for a Plug</button>
+        <button type="button" className="min-h-11 rounded-xl bg-cream-100 px-2 text-xs font-semibold" onClick={()=>onLocalProposal?.('Assistance: Request a Master for experienced advice or milestone review. Need scope, consent, qualifications, availability and fee; no private records shared or engagement confirmed.')}>Ask for a Master</button>
+       </div>
+       <p className="text-xs text-sand-600">Local proposals only, not invitations, certified matches, appointments or confirmations.</p>
+     </div>
+     <div className="overflow-hidden rounded-xl border border-cream-200"><Photo src={samples[0].cover} title="Example joint renovation" className="aspect-[16/8]"/><div className="p-3"><strong>One job, several people</strong><p className="mt-1 text-xs text-sand-600">Example: renovate a bathroom, supply tiles and coordinate delivery.</p></div></div>
     <div className="grid grid-cols-3 gap-2">{[{role:'Buyer',name:'Needs tiling'},{role:'Seller',name:'Supplies the work'},{role:'Plug',name:'Coordinates'}].map(person=><div key={person.role} className="rounded-xl border border-cream-200 bg-white p-2 text-center"><Users size={18} className="mx-auto"/><p className="mt-1 text-xs font-semibold">{person.role}</p><p className="mt-1 text-[11px] text-sand-600">{person.name}</p></div>)}</div>
     <button type="button" onClick={()=>setSaver(v=>!v)} aria-expanded={saver} className="min-h-11 w-full rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">{saver?'Close Saver example':'Explore Community Saver'}</button>
     {saver&&<div className="space-y-2 rounded-xl bg-cream-50 p-3"><strong>Is there a genuine saving?</strong><p className="text-xs">KS001 can compare separate delivery against shared delivery, but a Plug must verify feasibility, evidence, consent and the actual benefit to buyer, seller and Plug.</p><p className="text-xs font-semibold">Savings: not verified · Distribution: not agreed</p><p className="text-xs text-sand-600">No Community Saver or payout is created by this example.</p></div>}
