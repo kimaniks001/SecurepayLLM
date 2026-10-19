@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, Camera, CheckCircle2, ChevronRight, FilePlus2, GalleryHorizontalEnd, Handshake, HeartHandshake, ImagePlus, ListChecks, MapPin, RefreshCw, Search, Store, Users } from 'lucide-react';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { OfferKind, PublicSearchResultView, PublicStoreView, StoreOfferResponse, StoreProfileResponse } from '../../api/securepay/store/dto';
@@ -46,6 +46,8 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [query,setQuery]=useState(initialServiceQuery || '');
  const [location,setLocation]=useState('');
  const [search,setSearch]=useState<ReadState<PublicSearchResultView[]>>(initial([]));
+ const searchRequestId=useRef(0);
+ const storeRequestId=useRef(0);
  const [selectedStore,setSelectedStore]=useState<ReadState<PublicStoreView|null>>(initial(null));
  const [seller,setSeller]=useState<ReadState<{profile:StoreProfileResponse;offers:StoreOfferResponse[]} |null>>(initial(null));
  const [inbox,setInbox]=useState<ReadState<CurrentUserActionResponse[]>>(initial([]));
@@ -71,15 +73,22 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
 
  async function findOffers(){
   if(!gateways)return;
+  const requested=++searchRequestId.current;
+  ++storeRequestId.current;
   setSelectedStore(initial(null));setSearch({status:'loading',data:[],error:null});setError('');
-  try{setSearch({status:'ready',data:await gateways.stores.search({kind,category:query.trim()||undefined,location:location.trim()||undefined,limit:10}),error:null});}
-  catch{setSearch({status:'error',data:[],error:errorText});}
+  try{
+    const data=await gateways.stores.search({kind,category:query.trim()||undefined,location:location.trim()||undefined,limit:10});
+    if(requested===searchRequestId.current)setSearch({status:'ready',data,error:null});
+  }catch{if(requested===searchRequestId.current)setSearch({status:'error',data:[],error:errorText});}
  }
  async function openStore(ksNumber:string){
   if(!gateways)return;
+  const requested=++storeRequestId.current;
   setSelectedStore({status:'loading',data:null,error:null});
-  try{setSelectedStore({status:'ready',data:await gateways.stores.store(ksNumber),error:null});}
-  catch{setSelectedStore({status:'error',data:null,error:errorText});}
+  try{
+    const data=await gateways.stores.store(ksNumber);
+    if(requested===storeRequestId.current)setSelectedStore({status:'ready',data,error:null});
+  }catch{if(requested===storeRequestId.current)setSelectedStore({status:'error',data:null,error:errorText});}
  }
  useEffect(()=>{
   setSeller(initial(null));setInbox(initial([]));setCommunity(initial(null));setMembership(null);
