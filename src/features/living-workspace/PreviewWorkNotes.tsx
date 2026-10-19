@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUp, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
+import { phase2Examples, phase2ExampleById, type Phase2ExampleId } from './phase2Examples';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
 export type PreviewWorkNote = { id:number; text:string };
@@ -15,8 +16,8 @@ function displayNote(text:string):{label:string;value:string}{
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
   return {label:'Your plan',value:text};
 }
-export function PreviewWorkComposer({notes,onAdd,onOpenTools}:{
-  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;
+export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample}:{
+  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;onSelectExample?:(id:Phase2ExampleId)=>void;
 }){
   const [draft,setDraft]=useState('');
   const [expanded,setExpanded]=useState(false);
@@ -32,6 +33,15 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools}:{
   return <div data-phase1-preview-composer className="flex min-h-0 min-w-0 flex-1 flex-col">
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-white to-[#fcfcf8] px-4 py-3 sm:px-5" aria-label="Workspace conversation preview">
       {!notes.length&&!draft.trim()&&<WorkspaceWelcome area="work" onExample={example=>{if(example.prompt){setDraft(example.prompt);setExpanded(true);}}}/>}
+      {!notes.length&&onSelectExample&&<details className="mx-auto max-w-2xl rounded-xl border border-cream-200 bg-white/90 px-3 py-2" data-phase2-scenarios>
+        <summary className="cursor-pointer py-2 text-xs font-semibold text-forest-800">Explore five example trades</summary>
+        <p className="my-2 text-xs text-sand-600">Illustrations only, not KS001 findings.</p>
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {phase2Examples.map(example=><button type="button" key={example.id}
+            onClick={()=>onSelectExample(example.id)}
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm text-forest-800 hover:bg-cream-100">{example.title}</button>)}
+        </div>
+      </details>}
       {notes.map(note=><div key={note.id} className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-cream-100 px-4 py-3" data-phase1-preview-message>
         <p className="mb-1 text-xs font-medium text-sand-600">You</p>
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{note.text}</p>
@@ -39,7 +49,7 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools}:{
     </div>
     <div className="shrink-0 space-y-2 border-t border-cream-100 bg-white px-3 py-3 sm:px-4">
       <p role="status" className="text-xs leading-5 text-sand-600" data-preview-truth>
-        <span className="font-semibold text-forest-800">Design preview.</span> KS001 isn't responding; nothing here is saved as an Agreement.
+        <span className="font-semibold text-forest-800">Design preview.</span> Questions and examples are illustrative; KS001 isn't responding and nothing is saved as an Agreement.
       </p>
       {notes.length>0&&<div className="flex items-center justify-end">
         <button type="button" aria-expanded={showDetails} aria-controls="preview-contextual-details"
@@ -80,27 +90,38 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools}:{
     </div>
   </div>;
 }
-export function PreviewWorkBoard({notes,onUpdate,onRemove}:{
+export function PreviewWorkBoard({notes,onUpdate,onRemove,exampleId=null}:{
   notes:readonly PreviewWorkNote[];onUpdate:(id:number,text:string)=>void;onRemove:(id:number)=>void;
+  exampleId?:Phase2ExampleId|null;
 }){
   const [editing,setEditing]=useState<number|null>(null);
   const [draft,setDraft]=useState('');
-  return <section aria-label="Local preview board" data-phase1-preview-board className="space-y-5">
-    <header className="pb-2">
+  const example=phase2ExampleById(exampleId);
+  return <section aria-label="SecurePay Check" data-phase1-preview-board data-phase2-check className="space-y-6">
+    <header>
       <p className="sp-brand-kicker">My Work</p>
-      <h2 className="mt-1 font-display text-2xl text-forest-900">Taking shape</h2>
-      <p className="mt-1 text-sm text-sand-600">Your proposed details</p>
+      <h2 className="mt-1 font-display text-2xl text-forest-900">SecurePay Check</h2>
+      <p className="mt-2 text-sm text-sand-600">What we're agreeing</p>
     </header>
-    {!notes.length?<div className="space-y-3 py-5">
-      <p className="font-display text-xl text-forest-900">A clear place for your work.</p>
+    {example&&<div className="space-y-3 border-b border-cream-200 pb-4" aria-label="Illustrative proposed terms">
+      <p className="text-xs font-medium text-sand-600">{example.title} · illustrative example</p>
+      {example.proposed.map(proposal=><div key={proposal.label}>
+        <p className="text-xs font-semibold text-sand-600">{proposal.label} · proposed</p>
+        <p className="mt-1 text-sm leading-6 text-forest-900">{proposal.value}</p>
+      </div>)}
+    </div>}
+    {!notes.length&&!example?<div className="space-y-3 py-3">
+      <p className="font-display text-lg text-forest-900">A clear place for your work.</p>
       <p className="text-sm leading-7 text-sand-700">Start with what you want to achieve. Your ideas and details will take shape here.</p>
-    </div>:
+    </div>:null}
+    {notes.length>0&&<section aria-label="Proposed information" className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-sand-600">Your proposed information</h3>
       <div className="divide-y divide-cream-200">{notes.map((note,i)=>{
         const shown=displayNote(note.text);
-        return <article key={note.id} className="group py-4 first:pt-1" data-phase1-preview-fact>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold tracking-wide text-sand-600">{shown.label}</p>
-            <span className="text-[0.7rem] text-sand-600">Proposed</span>
+        return <article key={note.id} className="py-3" data-phase1-preview-fact>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-sand-600">{shown.label}</p>
+            <span className="text-[0.7rem] text-sand-600">Not checked</span>
           </div>
           {editing===note.id?<form className="mt-2 space-y-2" onSubmit={event=>{event.preventDefault();if(draft.trim()){onUpdate(note.id,draft.trim());setEditing(null);}}}>
             <textarea autoFocus aria-label="Edit local preview note" value={draft} maxLength={1200} rows={3} onChange={event=>setDraft(event.target.value)}
@@ -110,20 +131,42 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove}:{
               <button type="button" onClick={()=>setEditing(null)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-sm">Cancel</button>
             </div>
           </form>:<>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-forest-900">{shown.value}</p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <button type="button" aria-label={'Edit preview note '+(i+1)}
-                onClick={()=>{setEditing(note.id);setDraft(note.text);}}
-                className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-forest-800 hover:bg-cream-100">
-                <Pencil size={14}/> Edit
-              </button>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{shown.value}</p>
+            <div className="mt-1 flex gap-2">
+              <button type="button" aria-label={'Edit preview note '+(i+1)} onClick={()=>{setEditing(note.id);setDraft(note.text);}}
+                className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-forest-800 hover:bg-cream-100"><Pencil size={14}/> Edit</button>
               <button type="button" aria-label={'Remove preview note '+(i+1)} onClick={()=>onRemove(note.id)}
-                className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-sand-700 hover:bg-cream-100">
-                <Trash2 size={14}/> Remove
-              </button>
+                className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-sand-700 hover:bg-cream-100"><Trash2 size={14}/> Remove</button>
             </div>
           </>}
         </article>;
-      })}</div>}
+      })}</div>
+    </section>}
+    {(notes.length>0||example)&&<section aria-label="What deserves attention" className="border-t border-cream-200 pt-4">
+      <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
+      <p className="mt-2 text-sm leading-6 text-sand-700">
+        {example?example.attention:'These details have not been examined by KS001. Their meaning and any missing facts still need review.'}
+      </p>
+    </section>}
+    <details className="border-t border-cream-200 pt-4" aria-label="Fair Trade examination" data-phase2-fairtrade>
+      <summary className="cursor-pointer text-sm font-semibold text-forest-900">Fair Trade <span className="font-normal text-sand-600">· Awaiting examination</span></summary>
+      <p className="mt-2 text-xs leading-6 text-sand-700">SecurePay's canonical twelve Fair Trade Principles must be examined by the authorised backend. No principle has been evaluated in this demonstration, and no score or clearance is shown.</p>
+    </details>
+    <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-4" data-phase2-next>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</h3>
+      <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{example?example.question:notes.length?'Let KS001 examine what you have described.':'Tell KS001 what you want to do.'}</p>
+      {example&&<p className="mt-2 text-xs leading-5 text-sand-700">Illustrative question · {example.next}</p>}
+    </section>
+    <details className="border-t border-cream-200 pt-4" aria-label="Action readiness" data-phase2-readiness>
+      <summary className="cursor-pointer text-sm font-semibold text-forest-900">What can happen next?</summary>
+      <div className="mt-3 space-y-2 text-sm">
+        <p><strong>Continue building:</strong> Explore and correct your local notes.</p>
+        <p><strong>Review the draft:</strong> Requires a real SecurePay draft.</p>
+        <p><strong>Invite or share:</strong> Requires actual permissions and an explicit invitation.</p>
+        <p><strong>Request acceptance:</strong> Not authorised in this preview.</p>
+        <p><strong>Connect Money:</strong> Not authorised in this preview.</p>
+        <p><strong>Proceed with agreed work:</strong> Requires accepted terms and real authority.</p>
+      </div>
+    </details>
   </section>;
 }
