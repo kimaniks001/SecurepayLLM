@@ -55,7 +55,7 @@ export function InlineVisionEditor({ id, gateways, session, onBack, onUnsavedCha
     {(authError||state.error)&&!state.selected&&
       <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">{authError||state.error}</p>}
     {state.selected?.dreamId===id && <DreamBuilder key={state.selected.dreamId}
-      dream={state.selected} gateway={gateways.dreams} onBack={onBack}
+      dream={state.selected} gateway={gateways.dreams} storeGateway={gateways.stores} onBack={onBack}
       onSaveTitle={(title,content,version)=>controller.saveSummary(title,content,version)}
       onShareSelected={setShareExcerpt}
       onExploreKs001={text=>{setReviewText(text);setHandoffError(null);setWorkConfirmed(false);}}
