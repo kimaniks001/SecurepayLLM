@@ -19,6 +19,7 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
+import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
 import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
@@ -74,6 +75,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const uiOnlyPreview=!signedIn && (!gateway || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app')));
   const [previewNotes,setPreviewNotes]=useState<PreviewWorkNote[]>([]);
   const [phase2ExampleId,setPhase2ExampleId]=useState<Phase2ExampleId|null>(null);
+  const [sampleBuyingPlan,setSampleBuyingPlan]=useState<LocalStoreBuyingPlan|null>(null);
   const previewNoteId=useRef(0);
   const addPreviewNote=(text:string)=>{
     if(!text.trim())return;
@@ -90,6 +92,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       thumbnail:proposal.thumbnail,snippet:proposal.snippet}]);
     closeTool();
     focusPreviewComposer();
+  };
+  /** The one local buying proposal uses the existing work preview, not a second Agreement. */
+  const continueSampleBuyingPlan=(proposal:LocalStoreBuyingPlan)=>{
+    const plan={lines:proposal.lines.map(line=>({...line})),draft:{...proposal.draft}};
+    setSampleBuyingPlan(plan);
+    setPhase2ExampleId(null);
+    previewNoteId.current+=1;
+    const id=previewNoteId.current;
+    setPreviewNotes(current=>[
+      ...current.filter(note=>!(note.storePlan&&note.exampleId===null)),
+      {id,exampleId:null,text:'Buying plan: '+plan.lines.length+' proposed item(s) from '+new Set(plan.lines.map(line=>line.storeKsNumber||line.storeName)).size+' sample Store(s).',storePlan:plan}
+    ]);
+    closeTool();
+    setScreen('chat');
   };
   const activePreviewNotes=previewNotes.filter(note=>note.exampleId===phase2ExampleId);
   const focusPreviewComposer=()=>{
@@ -466,6 +482,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     key={phase4Journey || storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     initialAssistance={phase4Journey==='plug'||phase4Journey==='master'?phase4Journey:null}
                     onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
+                    onLocalBuyingPlan={uiOnlyPreview&&mode==='work'?continueSampleBuyingPlan:undefined}
+                    initialSamplePlan={uiOnlyPreview?sampleBuyingPlan:undefined}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} onOpenPhoto={()=>openTool('Photos')}
                     agreementNeeds={formationState?.data?.conversationId===liveConversationId
                       ? [...formationState.data.what,...formationState.data.conditions].map(term=>term.value).filter(Boolean)
@@ -603,8 +621,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
           : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
+              onEditStorePlan={()=>openTool('Stores')}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
-              onRemove={id=>setPreviewNotes(notes=>notes.filter(n=>n.id!==id))}/>
+              onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
+                 setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
           : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
