@@ -8,7 +8,7 @@ import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
 import { StorePhoto } from './StorePhotoViewer';
 import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
-import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
+import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
 type SellerAction = 'offers' | 'gallery' | 'decisions' | 'agreements' | 'quote' | 'contract' | 'saver' | 'calendar';
@@ -40,7 +40,7 @@ function OfferPhoto({refs,title}:{refs:string[];title:string}){
 }
 function Status({text}:{text:string}){return <p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-600">{text}</p>;}
 
-export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery,initialQuickAssistNeed,onLocalProposal,initialAssistance}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string;initialQuickAssistNeed?:string;onLocalProposal?:(text:string)=>void;initialAssistance?:'plug'|'master'|null}){
+export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false,onOpenPhoto,initialServiceQuery,initialQuickAssistNeed,onLocalProposal,onLocalBuyingPlan,initialSamplePlan,initialAssistance}:{onContinue:(message:string)=>Promise<void>;agreementNeeds?:string[];gateways?:PreviewWorkspaceGateways;signedIn?:boolean;onOpenPhoto?:()=>void;initialServiceQuery?:string;initialQuickAssistNeed?:string;onLocalProposal?:(text:string)=>void;onLocalBuyingPlan?:(plan:LocalStoreBuyingPlan)=>void;initialSamplePlan?:LocalStoreBuyingPlan|null;initialAssistance?:'plug'|'master'|null}){
  const [area,setArea]=useState<Area>('buyer');
  const [kind,setKind]=useState<OfferKind>(initialServiceQuery ? 'SERVICE' : 'PRODUCT');
  const [query,setQuery]=useState(initialServiceQuery || '');
@@ -221,7 +221,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
          className={!showSamples?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>Real Stores</button>
      </div>
    </div>
-   {showSamples?<StoreDemoExperience initialSearch={initialServiceQuery} initialAssistance={initialAssistance} onLocalProposal={onLocalProposal}/>:<>
+   {showSamples?<StoreDemoExperience initialSearch={initialServiceQuery} initialAssistance={initialAssistance} onLocalProposal={onLocalProposal} onLocalBuyingPlan={onLocalBuyingPlan} initialSamplePlan={initialSamplePlan}/>:<>
    <div className="flex items-center justify-between gap-2">
      <div><p className="text-xs text-sand-600">SecurePay Stores</p><p className="text-lg font-semibold">{area==='buyer'?'Discover good work':area==='seller'?'My Store':'Together'}</p></div>
      {area==='seller'&&signedIn&&<button onClick={()=>setRevision(v=>v+1)} aria-label="Refresh my Store" className="rounded-full border border-cream-200 p-2"><RefreshCw size={16}/></button>}
