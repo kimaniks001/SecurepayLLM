@@ -34,7 +34,7 @@ test('provider capacities are separate from private Store relationships and no f
  for(const s of ['Delivery','Pickup','Stock inspection','Delivery inspection','Logistics','Coordination','Sourcing','Store onboarding','Technical consultation','Project review','Disputes','Mentoring','Construction','Costing'])assert.ok(help.includes(s),s);
  for(const s of ['My Plugs','My Masters','Private relationship tag','not the provider\'s published skills','no identity lookup or backend saving','No provider matches'])assert.ok(help.includes(s),s);
  assert.doesNotMatch(help,/qualified:true|certified:true|available:true|fakeMaster|fakePlug/);
- assert.match(stores,/<StoreHumanHelp owner\/>/);
+ assert.match(stores,/<StoreHumanHelp owner relationships=\{storeRelations\} onRelationshipsChange=\{setStoreRelations\}/);
 });
 test('authoritative gateways and production-write guard remain in place',()=>{
  assert.match(stores,/gateways\.stores\.offer/);
