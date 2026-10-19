@@ -58,7 +58,7 @@ test('KS001 suggestions identify service intent before generic Places/Documents'
 });
 
 test('Preview isolation remains; Store baseline does not acquire any payment or booking action', () => {
-  assert.match(workspace, /bookings, invitations and money require their own authorisation/);
+  assert.match(workspace, /Agreements, invitations and Money require your review and authorisation/);
   assert.match(assist, /cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
   assert.ok(!assist.includes('fetch('));
   assert.ok(!assist.includes('localStorage'));
