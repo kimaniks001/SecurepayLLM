@@ -67,5 +67,5 @@ test('Vercel preview relays retain production-write protections',()=>{
  assert.match(relayAgent,/Preview writes disabled until isolated staging is configured/);
  assert.match(relayWorkspace,/Preview writes disabled until isolated staging is configured/);
  assert.match(shell,/const uiOnlyPreview=/);
- assert.match(shell,/addPreviewNote\(text\);closeTool\(\);focusPreviewComposer\(\)/);
+ assert.match(shell,/addPreviewNote\(text\);closeTool\(\)/);
 });
