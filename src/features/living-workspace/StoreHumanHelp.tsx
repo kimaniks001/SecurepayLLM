@@ -16,6 +16,7 @@ export function StoreHumanHelp({initial='plug',owner=false,onPropose}:{
  const [relations,setRelations]=useState<Relation[]>([]);
  const [next,setNext]=useState(0);
  const [eligible,setEligible]=useState(false);
+ const [storeSaverEligible,setStoreSaverEligible]=useState(false);
  const options=kind==='plug'?plugCapacities:masterCapacities;
  const changeKind=(nextKind:HumanCapacity)=>{setKind(nextKind);setCapacity(nextKind==='plug'?'Delivery':'Project review');};
  const save=()=>{
@@ -66,6 +67,9 @@ export function StoreHumanHelp({initial='plug',owner=false,onPropose}:{
              className="min-h-10 min-w-10 rounded-lg p-2"><X size={15}/></button>
          </div>)}
      </div>
+     <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={storeSaverEligible}
+       onChange={e=>setStoreSaverEligible(e.target.checked)}/>
+       My Store may be considered for future Community Saver discovery (local preference only; not published; no customer or Plug has agreed)</label>
      <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={eligible} onChange={e=>setEligible(e.target.checked)}/>
        {kind==='plug'?'Interested in publishing eligibility for Saver opportunities':'Interested in participating in relevant community work'} (local preference only; not active or shared)</label>
      <p className="text-xs text-sand-600">Private tags are never advertised as verified capacity or public qualifications. Live connections require identity and explicit permission.</p>
