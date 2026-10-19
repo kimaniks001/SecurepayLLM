@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { DreamBuilder } from '../visionboard/dreams/DreamBuilder';
+import { VisionCircleShare, type VisionCircleExcerpt } from './VisionCircleShare';
 import { createVisionDreamController } from '../visionboard/dreams/controller';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
@@ -19,6 +20,7 @@ export function InlineVisionEditor({ id, gateways, session, onBack, onUnsavedCha
   const [controller] = useState(()=>createVisionDreamController(gateways.dreams,gateways.agent));
   const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
   const [authError,setAuthError]=useState<string|null>(null);
+  const [shareExcerpt,setShareExcerpt]=useState<VisionCircleExcerpt|null>(null);
   useEffect(()=>{
     let active=true;
     void (async()=>{
@@ -48,6 +50,10 @@ export function InlineVisionEditor({ id, gateways, session, onBack, onUnsavedCha
     {state.selected?.dreamId===id && <DreamBuilder key={state.selected.dreamId}
       dream={state.selected} gateway={gateways.dreams} onBack={onBack}
       onSaveTitle={(title,content,version)=>controller.saveSummary(title,content,version)}
+      onShareSelected={setShareExcerpt}
       onUnsavedChange={onUnsavedChange}/>}
+    {shareExcerpt && <VisionCircleShare key={shareExcerpt.objectId + ':' + shareExcerpt.boardRevision}
+      excerpt={shareExcerpt} gateways={gateways} session={session}
+      onClose={()=>setShareExcerpt(null)}/>}
   </section>;
 }
