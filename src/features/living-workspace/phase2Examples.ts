@@ -11,9 +11,9 @@ export const phase2Examples: readonly Phase2Example[] = [
   {
     id:'delivery',title:'KES 400 delivery',
     humanSays:'I need something delivered. It will cost KES 400.',
-    proposed:[{label:'Work',value:'Delivery service being explored'},{label:'Amount',value:'KES 400, proposed for delivery'}],
-    attention:'The goods being delivered have not been described. The item, pickup, destination and handover are separate details.',
-    question:'What exactly is being delivered?',next:'Clarify the goods before considering timing, destination and who is responsible.',
+    proposed:[{label:'Delivery service',value:'Proposed'},{label:'Delivery charge',value:'KES 400 · proposed'},{label:'Goods',value:'Not yet specified'}],
+    attention:'The goods being delivered have not yet been identified. Pickup, destination and handover arrangements may also need clarification.',
+    question:'What exactly is being delivered?',next:'Describe the goods first, then clarify pickup, delivery and responsibilities.',
   },
   {
     id:'chama',title:'Eight-person chama',
