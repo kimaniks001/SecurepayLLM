@@ -76,6 +76,7 @@ jobs:
           node tests/phase4-master-browser.mjs
           node tests/phase4-targeted-browser.mjs
           node tests/phase4-fluency-browser.mjs
+          node tests/phase5-master-browser.mjs
       - name: Upload baseline screenshot evidence
         if: always()
         uses: actions/upload-artifact@v4
