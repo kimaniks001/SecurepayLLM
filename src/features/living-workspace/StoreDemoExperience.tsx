@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StorePhoto, type StoreImage } from './StorePhotoViewer';
 import { StoreHumanHelp } from './StoreHumanHelp';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, MapPin, Plus, Store, Users } from 'lucide-react';
 
 /**
  * Preview-only sample Stores. Illustrative names, images, offers, prices and people.
