@@ -32,7 +32,7 @@ try {
       await board.waitFor();
       const notice=page.locator('[data-preview-truth]');
       assert.equal(await notice.count(),1,'Exactly one concise local-preview notice must exist');
-      assert.match(await notice.innerText(),/KS001 isn't responding; nothing here is saved as an Agreement/,
+      assert.match(await notice.innerText(),/Questions and examples are illustrative; KS001 isn't responding and nothing is saved as an Agreement/,
         'Preview work must not resemble persisted Agreement terms');
     }else {
       // No authenticated work and no opted-in preview: preserve an honest empty state.
