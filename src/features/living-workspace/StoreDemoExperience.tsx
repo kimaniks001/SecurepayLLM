@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StorePhoto, type StoreImage } from './StorePhotoViewer';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, type StoreBuyingLine } from './StoreBuyingPlan';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardList, FileText, Handshake, HeartHandshake, Images, MapPin, Plus, Store, Users } from 'lucide-react';
 
@@ -31,18 +32,16 @@ const samples:DemoStore[]=[
  jobs:[{title:'Deliveries completed',image:photo('photo-1601584115197-04ecc0da31d7')},{title:'Loading arrangements',image:photo('photo-1586191582151-f73872dfd183')}]},
  {id:'schoolchairs',name:'Sample School Furnishings',trade:'Event chairs',place:'Location not confirmed',cover:photo('photo-1503602642458-232111445657'),offers:[
   {id:'chairs-delivered',name:'Stacking chairs',kind:'PRODUCT',price:'Sample KES 250 per chair',image:photo('photo-1503602642458-232111445657'),description:'Local transport described as included, but delivery area, quantity and stock still need confirmation.',availability:'Stock not verified'}],jobs:[]},
- {id:'eventchairs',name:'Example Event Seating',trade:'Chairs for events',place:'Location not confirmed',cover:photo('photo-1598300056393-4aac492f4344'),offers:[
-  {id:'chairs-ex-transport',name:'Event chairs',kind:'PRODUCT',price:'Sample KES 210 per chair',image:photo('photo-1598300056393-4aac492f4344'),description:'Transport cost NOT stated. Lower unit price does not establish lower delivered cost.',availability:'Stock not verified'}],jobs:[]}];
+ {id:'eventchairs',name:'Example Event Seating',trade:'Chairs for events',place:'Location not confirmed',cover:'',offers:[
+  {id:'chairs-ex-transport',name:'Event chairs',kind:'PRODUCT',price:'Sample KES 210 per chair',image:'',description:'Transport cost NOT stated. Lower unit price does not establish lower delivered cost.',availability:'Stock not verified'}],jobs:[]}];
 const allOffers=samples.flatMap(store=>store.offers.map(offer=>({store,offer})));
 const sampleSeller=samples[0];
 type View='buyer'|'seller'|'together';
 const sectionLabels={buyer:'Find good work',seller:'Manage your Store',together:'Build together'};
-function Photo({src,title,className=''}:{src:string;title:string;className?:string}){
- const [failed,setFailed]=useState(false);
- return <div className={'relative overflow-hidden bg-gradient-to-br from-cream-100 via-cream-200 to-forest-100 '+className}>
-  {!failed?<img src={src} alt={'Illustrative photo: '+title} loading="lazy" className="h-full w-full object-cover" onError={()=>setFailed(true)}/>:<span className="flex h-full items-center justify-center gap-2 text-xs text-sand-600"><Images size={20}/> {title}</span>}
-  <span className="absolute bottom-1 right-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] text-forest-900">SAMPLE PHOTO</span>
- </div>;
+function Photo({src,title,className='',gallery}:{src:string;title:string;className?:string;gallery?:StoreImage[]}){
+ const images=gallery??[{src:src||null,title}];
+ const index=Math.max(0,images.findIndex(item=>item.src===src&&item.title===title));
+ return <StorePhoto images={images} index={index} className={className} sample/>;
 }
 function SampleBadge(){return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">SAMPLE · NOT A REAL STORE</span>;}
 export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAssistance}:{onLocalProposal?:(text:string)=>void;initialSearch?:string;initialAssistance?:'plug'|'master'|null}={}){
@@ -148,7 +147,7 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
        </button>
        {comparisonOpen&&<div className="grid grid-cols-2 gap-2">
         {considered.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-1 rounded-lg bg-white p-2 text-xs">
-         <strong>{offer.name}</strong><p>{store.name}</p><p>{offer.price}</p>
+         <Photo src={offer.image} title={offer.name} gallery={considered.map(x=>({src:x.offer.image,title:x.offer.name}))} className="aspect-[4/3] w-full rounded-lg"/><strong>{offer.name}</strong><p>{store.name}</p><p>{offer.price}</p>
          <p className="text-sand-600">{offer.description}</p><p className="text-sand-600">{offer.availability}</p>
          {onLocalProposal&&<button type="button" onClick={()=>propose(store,offer)} className="min-h-10 rounded-lg border border-cream-200 px-2 text-xs font-semibold">Propose in My Work</button>}
         </article>)}
