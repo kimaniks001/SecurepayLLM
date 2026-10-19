@@ -45,7 +45,7 @@ try{
     await board.getByRole('button',{name:'Save locally'}).click();
     assert.ok(await board.getByText('I need 200 chairs delivered to my school').count(),'Corrected preview note must appear on board');
     await page.screenshot({path:`${out}/${name}-interactive-work.png`,fullPage:true});
-    assert.ok(await board.getByText('Taking shape').count(),'Living Board heading remains human-friendly');
+    assert.ok(await board.getByText('SecurePay Check').count(),'Living Board now presents SecurePay Check');
     assert.equal(await page.getByText('Not sent · not saved · no AI response').count(),0,'Old repeated technical notice must be removed');
     assert.equal(await page.getByRole('button',{name:'Preview add Date'}).count(),0,'Miniature tools must collapse after use');
     if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
