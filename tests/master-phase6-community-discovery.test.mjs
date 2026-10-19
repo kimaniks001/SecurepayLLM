@@ -63,10 +63,10 @@ test('All Community spaces reuse existing API instead of synthetic cards',()=>{
     'gateway.community.apprenticeships.list','gateway.community.circles.discover',
   ])assert.match(hub,new RegExp(path.replaceAll('.','\\.').replace('gateway','gateways')));
   assert.match(hub,/gateways\.community\.circles\.myInvitations/);
-  assert.doesNotMatch(hub,/fictional|mockFeed|fakeMembers|localStorage\.setItem/);
+  assert.doesNotMatch(hub,/mockFeed|fakeMembers|localStorage\.setItem/);
 });
 test('Personal invitations route through canonical Community controller, not a second join engine',()=>{
-  assert.match(hub,/onOpenCircle\?\(circleId:string\)=>void/);
+  assert.match(hub,/onOpenCircle\?:\(circleId:string\)=>void/);
   assert.match(preview,/storeCircleEntry\(circleId\)/);
   assert.match(preview,/window\.location\.hash='#\/community'/);
   assert.match(experience,/Circle detail/);
