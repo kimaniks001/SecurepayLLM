@@ -4,6 +4,7 @@ import { humanNextQuestion } from './livingLanguage';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { answerActions } from './answerActions';
+import { readDraft, writeDraft } from '../conversation/drafts';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
@@ -34,9 +35,15 @@ function Ks001Reply({ text }: { text: string }) {
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0 }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
+  // Review handoffs only populate the existing conversation's unsent composer.
+  // Rehydrate whenever the authorised conversation or the explicit handoff
+  // revision changes; do NOT submit a message on behalf of the human.
+  useEffect(()=>{
+    setDraft(readDraft(state.conversationId??undefined));
+  },[state.conversationId,draftRevision]);
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
   const historyEnd=useRef<HTMLDivElement|null>(null);
   const lastTurn=state.turns[state.turns.length-1]?.id;
@@ -45,7 +52,11 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
   return <section aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
       {state.turns.length===0 && !state.conversationId && !draft.trim() && <WorkspaceWelcome area="work" onExample={value=>{
-        if(value.prompt)setDraft(existing=>existing.trim()?existing:value.prompt);
+        if(value.prompt)setDraft(existing=>{
+          const next=existing.trim()?existing:value.prompt;
+          writeDraft(state.conversationId??undefined,next);
+          return next;
+        });
         document.getElementById('live-work-ks001-input')?.focus();
       }}/>}
       {state.turns.length>0 && opening && <span className="sr-only">{opening}</span>}
@@ -103,11 +114,14 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
     <form className="shrink-0 flex gap-2 border-t border-cream-200 bg-white p-3" onSubmit={e=>{
       e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending)return;
       void (async()=>{await controller.send(next);const current=controller.getSnapshot();
-        if(!current.error&&!current.pending)setDraft(text=>text.trim()===next?'':text);
+        if(!current.error&&!current.pending){
+          setDraft(text=>text.trim()===next?'':text);
+          if(draft.trim()===next)writeDraft(state.conversationId??undefined,'');
+        }
       })();
     }}>
       <label htmlFor="live-work-ks001-input" className="sr-only">Message live KS001</label>
-      <input id="live-work-ks001-input" value={draft} onChange={e=>setDraft(e.target.value)} disabled={state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
+      <input id="live-work-ks001-input" value={draft} onChange={e=>{setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
       <button type="submit" disabled={!canSend} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-50">Send</button>
     </form>
   </section>;

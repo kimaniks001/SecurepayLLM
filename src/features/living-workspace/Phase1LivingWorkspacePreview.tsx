@@ -2,6 +2,8 @@ import { InlineCommunityHub } from './InlineCommunityHub';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
+import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
+import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
@@ -156,6 +158,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // Never create a second conversation for My Work, and never derive terms from chat text.
   const [liveController] = useState(() => gateway ? createAgentController(gateway, undefined, { timeZone: deviceTimeZone }) : null);
   const [returnError,setReturnError] = useState<string|null>(null);
+  const [draftRevision,setDraftRevision]=useState(0);
   useEffect(()=>{
     const moneyHint=consumeWorkspaceMoneyReturn();
     const fromKs001=consumeLivingWorkspaceEntry();
@@ -314,6 +317,37 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     chooseMode('work');setLiveStarted(true);setLiveWork(true);
     await liveController.resumeConversation(conversationId);
   };
+  const continueVisionToWork = async(handoff:DreamHandoff)=>{
+    if(!signedIn || !liveController || !gateway)
+      throw new Error('Sign in and connect KS001 before continuing this private Vision.');
+    const result=await prepareDreamHandoff(liveController,handoff);
+    if(!result.ok)throw new Error(result.error);
+    // The original Dream conversation is reopened and an unsent draft has been
+    // placed in its canonical composer. No turn, Agreement or Money was created.
+    chooseMode('work');
+    setDraftRevision(value=>value+1);
+    setLiveStarted(true);setLiveWork(true);
+  };
+  const continueCircleToWork = async(text:string)=>{
+    if(!signedIn || !liveController || !gateway)
+      throw new Error('Sign in and connect KS001 before bringing a Circle proposal into My Work.');
+    const current=liveController.getSnapshot();
+    if(current.busy || current.pending)throw new Error('Complete the current KS001 action first.');
+    if(current.conversationId && readDraft(current.conversationId).trim())
+      throw new Error('You have an unsent My Work message. Finish it before starting this Circle proposal.');
+    // A Circle proposal starts a fresh server-owned KS001 conversation. It never
+    // mutates an existing Agreement, imports Circle membership or sends a turn.
+    const created=await gateway.createConversation();
+    if(!created?.conversationId)throw new Error('SecurePay could not start a verified conversation.');
+    await liveController.resumeConversation(created.conversationId);
+    const opened=liveController.getSnapshot();
+    if(!authorisedResumedConversation(created.conversationId,opened))
+      throw new Error('SecurePay could not reauthorise this new conversation.');
+    if(readDraft(created.conversationId).trim())
+      throw new Error('An unsent message already exists in the new conversation.');
+    writeDraft(created.conversationId,text);
+    chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
+  };
   if(signInOpen && workspaceGateways){
     return <SignInExperience
       auth={workspaceGateways.auth} session={session}
@@ -342,12 +376,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
-            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}/>
+            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
+             onContinueToWork={continueVisionToWork}/>
         </div>
       : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
-            gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
+            gateways={workspaceGateways} session={session} onBack={backToWorkspace}
+             onContinueToWork={continueCircleToWork}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
       <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
@@ -597,7 +633,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {!(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
