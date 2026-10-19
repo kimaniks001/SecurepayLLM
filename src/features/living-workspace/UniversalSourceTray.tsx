@@ -324,7 +324,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<details open><summary className="cursor-pointer text-xs font-semibold">Preview photo</summary><img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-72 w-full rounded-lg object-contain"/></details>}
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
-        {tool==='Documents'&&!localSnippet&&<p className="text-xs text-sand-600">Selected locally. No document extraction has taken place.</p>
+        {tool==='Documents'&&!localSnippet&&<p className="text-xs text-sand-600">Selected locally. No document extraction has taken place.</p>}
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
