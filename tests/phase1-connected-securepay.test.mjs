@@ -70,7 +70,7 @@ test('Phase1: Money is downstream of real Agreement and protected backend state'
   assert.match(panel,/Money cannot be initiated from this preview/);
 });
 test('Phase1: Community data stays behind membership and Circle boundaries',()=>{
-  const projection=fs.readFileSync(new URL('../src/features/living-workspace/communityDiscovery.ts', import.meta.url),'utf8');
+  const projection=src('src/features/living-workspace/communityDiscovery.ts');
   assert.match(community,/membership\.value\?\.status==='ACTIVE'/);
   assert.match(community,/if\(!active\)return;/);
   assert.match(projection,/row=>row\.circleId===null/);
