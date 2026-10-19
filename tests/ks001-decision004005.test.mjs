@@ -77,5 +77,5 @@ test('early draft inspection is not falsely displayed as sufficient understandin
  const panel=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
  assert.doesNotMatch(panel,/Ready for your review|Draft ready to review/);
  assert.match(panel,/Available to inspect · Understanding not yet confirmed/);
- assert.match(panel,/Draft available to inspect · Material understanding not yet confirmed/);
+ assert.match(panel,/Review the available draft and its unresolved matters/);
 });
