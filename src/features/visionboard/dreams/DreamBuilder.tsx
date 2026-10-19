@@ -439,8 +439,11 @@ export function DreamBuilder({
           className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Change colour</button>}
         <button type="button" onClick={duplicateSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700 inline-flex items-center gap-1"><Copy className="size-3.5" /> Duplicate</button>
         <button type="button" onClick={removeSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-ember-700 inline-flex items-center gap-1"><Trash2 className="size-3.5" /> Delete</button>
-        {onExploreKs001 && 'text' in selectedObject && <button type="button" onClick={() => onExploreKs001(selectedObject.text)}
-          className="min-h-9 rounded-full bg-forest-700 px-3 text-white">Ask KS001 about this</button>}
+        {onExploreKs001 && 'text' in selectedObject && <button type="button"
+          disabled={currentDirty || !serverRevisionKnown.current || saveState === 'saving' || saveState === 'error'}
+          title={currentDirty ? 'Save this board before taking a note to KS001' : 'Review this note as an unsent KS001 draft'}
+          onClick={() => onExploreKs001(selectedObject.text)}
+          className="min-h-9 rounded-full bg-forest-700 px-3 text-white disabled:opacity-40">Explore with KS001</button>}
         {onShareSelected && (selectedObject.kind === 'note' || selectedObject.kind === 'text' ||
           selectedObject.kind === 'checklist' || selectedObject.kind === 'frame') &&
           <button type="button"
