@@ -3,18 +3,9 @@ import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
 import type { CircleResponse } from '../../api/securepay/community/dto';
+import { publishSelectedVisionNote, type VisionCircleExcerpt } from './visionCircleShareAuthority';
+export type { VisionCircleExcerpt } from './visionCircleShareAuthority';
 
-/** Only an individually chosen text item is eligible. No private board assets, IDs,
- * drawing bytes, links or the rest of the Dream are copied into Circle content. */
-export interface VisionCircleExcerpt {
-  dreamId: string;
-  dreamTitle: string;
-  boardRevision: number;
-  objectId: string;
-  kind: 'note' | 'text' | 'checklist' | 'frame';
-  text: string;
-}
-const SHAREABLE = new Set(['note', 'text', 'checklist', 'frame']);
 function newIntent(): string {
   return globalThis.crypto?.randomUUID?.() ?? 'vision-excerpt-' + Math.random().toString(36).slice(2);
 }
@@ -59,42 +50,10 @@ export function VisionCircleShare({ excerpt, gateways, session, onClose }: {
     try {
       await ensureFreshSession(session, gateways.auth);
       if (session.getSnapshot().status !== 'signed-in') throw new Error('Sign in required');
-      // Re-read the exact persisted board before publishing any excerpt. An
-      // unsaved, replaced or deleted item cannot be shared from a stale dialog.
-      const [dream, board] = await Promise.all([
-        gateways.dreams.get(excerpt.dreamId),
-        gateways.dreams.board(excerpt.dreamId),
-      ]);
-      if (dream.dreamId !== excerpt.dreamId || board.revision !== excerpt.boardRevision || board.schemaVersion !== 1) {
-        throw new Error('The Dream changed. Review the latest saved board before sharing.');
-      }
-      const document: unknown = JSON.parse(board.documentJson);
-      const objects = typeof document === 'object' && document !== null && 'objects' in document
-        ? (document as { objects?: unknown }).objects : null;
-      if (!Array.isArray(objects)) throw new Error('The saved Dream board is not readable.');
-      const selected: unknown = objects.find(o =>
-        typeof o === 'object' && o !== null && 'id' in o && o.id === excerpt.objectId);
-      if (typeof selected !== 'object' || selected === null ||
-          !('kind' in selected) || !SHAREABLE.has(String(selected.kind)) ||
-          !('text' in selected) || selected.text !== excerpt.text ||
-          !('kind' in selected) || selected.kind !== excerpt.kind) {
-        throw new Error('The selected note changed. Review the current Dream before sharing.');
-      }
-      const [circle, membership] = await Promise.all([
-        gateways.community.circles.get(target.id),
-        gateways.community.circles.membership(target.id),
-      ]);
-      if (circle.id !== target.id || circle.status !== 'ACTIVE' ||
-          !(membership.isOwner || membership.status === 'ACTIVE')) {
-        throw new Error('Active Circle membership was not confirmed.');
-      }
-      // A Circle-only discussion post, never a vote, accepted Agreement or LIVE post.
-      // The title is deliberately generic so the private Dream title is not leaked.
-      const posted = await gateways.community.circles.objects.create(
-        target.id, 'DISCUSSION', 'Shared Vision note', excerpt.text, null, intent);
-      if (posted.circleId !== target.id || posted.objectType !== 'DISCUSSION') {
-        throw new Error('SecurePay did not confirm the intended Circle post.');
-      }
+      await publishSelectedVisionNote({
+        excerpt, circleId: target.id, intent,
+        dreams: gateways.dreams, community: gateways.community,
+      });
       setShared(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message :
