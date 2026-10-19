@@ -51,7 +51,8 @@ try{
     if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
     console.log('Preview notes, miniature input and correction PASS (LOCAL ONLY; no API integration).');
   }
-  await page.getByRole('button',{name:'Expand tool shelf'}).click();
+  if(width>=1280) await page.getByRole('button',{name:'Expand tool shelf'}).click();
+  else await page.getByRole('button',{name:'Add a tool or source'}).click();
   assert.ok(await page.locator('[data-tool-shelf]').count());
   if(width>=1280){
     const chat=await page.getByRole('region',{name:'KS001 conversation'}).boundingBox();
