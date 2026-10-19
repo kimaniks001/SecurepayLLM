@@ -10,9 +10,9 @@ export function kindForDetail(label: string): MiniKind {
   if(/where|place|location|address|site|destination|entrance/i.test(label))return 'place';
   return 'text';
 }
-export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel,onDraftChange}:{
+export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel,onDraftChange,submitLabel='Send to KS001'}:{
   kind:MiniKind;label:string;initialValue?:string;
-  onSubmit:(value:string)=>Promise<void>;onCancel:()=>void;onDraftChange?:(value:string)=>void;
+  onSubmit:(value:string)=>Promise<void>;onCancel:()=>void;onDraftChange?:(value:string)=>void;submitLabel?:string;
 }){
   const initial = kind==='time' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(initialValue) ? '' : kind==='date' && !/^\d{4}-\d{2}-\d{2}$/.test(initialValue) ? ''
     : kind==='money' && !/^\d+(?:\.\d+)?$/.test(initialValue) ? '' : initialValue;
@@ -56,7 +56,7 @@ export function MiniContextInput({kind,label,initialValue='',onSubmit,onCancel,o
     {kind==='money'&&<p className="text-xs text-sand-600">This proposes an amount to KS001; it does not fund or release money.</p>}
     {error&&<p role="alert" className="text-xs text-amber-900">{error}</p>}
     <div className="flex flex-wrap gap-2">
-      <button type="submit" disabled={busy||!value.trim()} className="min-h-11 rounded-lg bg-forest-800 px-4 text-xs font-semibold text-white disabled:opacity-40">{busy?'Checking…':'Send to KS001'}</button>
+      <button type="submit" disabled={busy||!value.trim()} className="min-h-11 rounded-lg bg-forest-800 px-4 text-xs font-semibold text-white disabled:opacity-40">{busy?'Checking…':submitLabel}</button>
       <button type="button" disabled={busy} onClick={onCancel} className="min-h-11 rounded-lg border border-cream-200 px-4 text-xs">Cancel</button>
     </div>
   </form>;
