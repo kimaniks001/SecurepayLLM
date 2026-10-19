@@ -37,7 +37,7 @@ jobs:
       - name: Complete cumulative frontend regression suite
         run: npm run test:final-convergence
       - name: Stores, Plugs, Masters, Quick Assist and production write boundaries
-        run: node --test tests/phase4-master-contract.test.mjs tests/phase3-master-tools.test.mjs tests/phase1-preview-production-write-guard.test.mjs tests/phase2-master-check.test.mjs
+        run: node --test tests/phase4-master-contract.test.mjs tests/phase4-targeted-corrections.test.mjs tests/phase3-master-tools.test.mjs tests/phase1-preview-production-write-guard.test.mjs tests/phase2-master-check.test.mjs
       - run: npm run typecheck
       - run: npm run lint -- --quiet
       - run: npm run build
@@ -72,6 +72,7 @@ jobs:
           node tests/phase2-master-browser.mjs
           node tests/phase3-master-browser.mjs
           node tests/phase4-master-browser.mjs
+          node tests/phase4-targeted-browser.mjs
       - name: Save human visual evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,4 +83,5 @@ jobs:
             artifacts/phase2-master/*.png
             artifacts/phase3-master/*.png
             artifacts/phase4-master/*.png
+            artifacts/phase4-targeted/*.png
           if-no-files-found: warn
