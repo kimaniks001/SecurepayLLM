@@ -7,6 +7,7 @@ import type { CommunityProjectDto, CommunityServiceOpportunityDto } from '../../
 import { storeAgreementEntry } from '../experience/entryIntent';
 import { StoreDemoExperience } from './StoreDemoExperience';
 import { StorePhoto } from './StorePhotoViewer';
+import { StoreHumanHelp } from './StoreHumanHelp';
 import { StoreBuyingPlan, addStoreBuyingLine, emptyStoreBuyingPlan, MAX_STORE_PLAN_LINES, storeBuyingPrompt, type StoreBuyingLine } from './StoreBuyingPlan';
 
 type Area = 'buyer' | 'seller' | 'community';
@@ -302,6 +303,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
        {seller.status==='loading'&&<Status text="Reading your Store…"/>}
        {seller.status==='error'&&<Status text={seller.error||errorText}/>}
        {seller.data&&<div className="space-y-3">
+          <StoreHumanHelp owner/>
          <div className="rounded-xl border border-cream-200 bg-cream-50 p-3">
            <div className="flex items-center justify-between"><div><p className="text-xs text-sand-600">My Store</p><p className="font-semibold">{seller.data.profile.heroHeadline||seller.data.profile.tagline||'Show what you do'}</p></div><Store size={20}/></div>
            {seller.data.profile.locationLabel&&<p className="mt-1 text-xs text-sand-600">{seller.data.profile.locationLabel}</p>}
