@@ -29,14 +29,15 @@ try{
   const buys=shelf.getByRole('button',{name:'Add to buying plan'});
   assert.equal(await buys.count(),2,'Two chair offers from separate sample Stores must remain available');
   await buys.first().click();
-  let plan=shelf.getByRole('region',{name:'Editable buying plan summary'});
+  let plan=page.getByRole('region',{name:'Editable buying plan summary'});
+  assert.ok(await page.getByRole('dialog',{name:'Review proposed buying plan'}).isVisible(),'Plan must have a spacious focused view');
   assert.ok(await plan.locator('[data-single-store]').isVisible(),'Single Store should have simple purchasing and delivery arrangements');
   assert.equal(await plan.getByRole('button',{name:'Community Saver'}).count(),0,'Saver must not appear for one Store');
   assert.equal(await plan.getByRole('button',{name:'Combined delivery'}).count(),0);
   await page.screenshot({path:'artifacts/phase4-targeted/'+name+'-single-store.png',fullPage:true});
   await plan.getByRole('button',{name:'Browse'}).click();
   await shelf.getByRole('button',{name:'Add to buying plan'}).last().click();
-  plan=shelf.getByRole('region',{name:'Editable buying plan summary'});
+  plan=page.getByRole('region',{name:'Editable buying plan summary'});
   assert.ok(await plan.getByRole('button',{name:'Community Saver'}).isVisible(),'Cross-store Saver option should be discoverable');
   await plan.getByRole('button',{name:'Community Saver'}).click();
   assert.ok(await plan.getByText('Consent · not yet obtained').isVisible());
