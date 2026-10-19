@@ -36,7 +36,8 @@ test('Quick Assist uses the Store service discovery gateway, not another marketp
   assert.match(workspace, /onFindStoreOffers=\{\(service,requestedTask\)=>/);
   assert.match(workspace, /setActiveTool\('Stores'\)/);
   assert.match(stores, /initialServiceQuery \? 'SERVICE' : 'PRODUCT'/);
-  assert.match(stores, /const \[showSamples,setShowSamples\]=useState\(!initialServiceQuery\)/);
+  assert.match(stores, /const \[showSamples,setShowSamples\]=useState\(Boolean\(onLocalProposal\)\|\|!initialServiceQuery\)/);
+  assert.match(stores, /await gateways\.stores\.search\(/, 'Real service discovery remains on the original gateway when not in preview');
   assert.match(stores, /await gateways\.stores\.search\(/);
   assert.match(stores, /Store offers/);
 });
