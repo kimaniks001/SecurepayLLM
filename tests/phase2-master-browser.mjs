@@ -30,6 +30,12 @@ try{
       assert.equal(await page.locator('[data-preview-truth]').count(),1);
       await page.locator('[data-phase2-scenarios] summary').click();
       await page.getByRole('button',{name:scenario.title,exact:true}).click();
+      if(scenario.id==='delivery'){
+        assert.ok(await dialogue.getByRole('button',{name:'Describe the work or goods'}).count(),
+          'Contextual answer hint must appear for the delivery question');
+        assert.ok(await dialogue.getByRole('textbox',{name:'Preview a message to KS001'}).count(),
+          'Free typing must remain available alongside contextual hints');
+      }
       if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
       const board=page.locator('[data-phase2-check]');
       assert.ok(await board.isVisible(),'SecurePay Check must be accessible');
