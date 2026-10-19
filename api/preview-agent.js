@@ -31,7 +31,16 @@ function reject(res, status, message) {
   res.end(JSON.stringify({ message }));
 }
 
+export function createLoopbackTestHandler(upstream) {
+  if (!/^http:\/\/127\\.0\\.0\\.1(?::\\d+)?$/.test(upstream)) throw new Error('Only literal loopback test upstream is allowed');
+  return (req, res) => handle(req, res, upstream);
+}
+
 export default async function handler(req, res) {
+  return handle(req, res, UPSTREAM);
+}
+
+async function handle(req, res, upstreamBase) {
   res.setHeader('Cache-Control', 'no-store');
   // This handler is deployed with the *isolated Vercel preview*, not to the production domain.
   const host = String(req.headers.host || '').toLowerCase();
@@ -43,7 +52,7 @@ export default async function handler(req, res) {
   // Master Phase 1: authenticated preview writes must never reach production.
   // Preview GETs remain available for read-only baseline inspection.
   // An isolated staging upstream requires separate reviewed configuration.
-  if (UPSTREAM === 'https://securepay.ke' && req.method !== 'GET') {
+  if (upstreamBase === 'https://securepay.ke' && req.method !== 'GET') {
     return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
   }
   const method = req.method || 'GET';
@@ -52,8 +61,8 @@ export default async function handler(req, res) {
   if (typeof requested !== 'string') return reject(res, 400, 'Missing conversation path');
   let path;
   try {
-    const url = new URL(requested, UPSTREAM);
-    if (url.origin !== UPSTREAM || !permitted(method, url.pathname)) return reject(res, 403, 'Conversation endpoint not allowed');
+    const url = new URL(requested, upstreamBase);
+    if (url.origin !== upstreamBase || !permitted(method, url.pathname)) return reject(res, 403, 'Conversation endpoint not allowed');
     const endpoint = url.pathname.split('/').at(-1);
     const allowedQuery = endpoint === 'history' ? ['limit'] : (endpoint === 'agreement-formation' || endpoint === 'fair-trade-examination') ? ['timeZone'] : [];
     if ([...url.searchParams.keys()].some(key => !allowedQuery.includes(key))) return reject(res, 400, 'Unexpected query parameter');
@@ -116,7 +125,7 @@ export default async function handler(req, res) {
     return reject(res, 400, 'Conversation creation does not accept a body');
   }
   try {
-    const result = await fetch(UPSTREAM + path, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(55000) });
+    const result = await fetch(upstreamBase + path, { method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(55000) });
     if (result.status >= 300 && result.status < 400) return reject(res, 502, 'Unexpected upstream redirect');
     const payload = await result.text();
     if (Buffer.byteLength(payload,'utf8') > 1024 * 1024) return reject(res, 502, 'Upstream response too large');
