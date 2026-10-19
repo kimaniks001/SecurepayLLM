@@ -13,6 +13,7 @@ import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
 import { LiveKs001Session } from './LiveKs001Session';
+import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
 import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
@@ -67,6 +68,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // The historical screenshot preview remains preserved at its original commit.
   const mockSignedIn = false;
   const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
+  // Read-only Vercel preview: local interaction must never call the production-backed relay.
+  // Signed-in users retain the existing authoritative controllers and permission gates.
+  const uiOnlyPreview=!signedIn && (!gateway || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app')));
+  const [previewNotes,setPreviewNotes]=useState<PreviewWorkNote[]>([]);
+  const previewNoteId=useRef(0);
+  const addPreviewNote=(text:string)=>{
+    if(!text.trim())return;
+    previewNoteId.current+=1;
+    const id=previewNoteId.current;
+    setPreviewNotes(notes=>[...notes,{id,text:text.trim()}]);
+  };
   const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
   const [workingCircleId,setWorkingCircleId]=useState<string|null>(null);
   const [dreamUnsaved,setDreamUnsaved]=useState(false);
@@ -337,6 +349,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       const outcome=liveController.getSnapshot();
                       if(outcome.error || outcome.pending || outcome.busy)
                         throw new Error('SecurePay has not confirmed the message. Review your KS001 conversation before trying again.');
+                    } : uiOnlyPreview && mode==='work' ? async message=>{
+                      addPreviewNote(message);
+                      closeTool();
                     } : undefined}/>
                 : (['Photos','Documents','Places'] as const).some(name=>name===activeTool)
                 ? <UniversalSourceTray agreementPlaces={formationState?.data?.conversationId===liveConversationId
@@ -509,8 +524,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2"><button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button></div></div>
-        {liveStarted && gateway && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!(mode==='work' && liveWork && gateway) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={previewNotes} onAdd={addPreviewNote}/>}
+        {!(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
           }}/>
@@ -530,6 +546,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
+          : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={previewNotes}
+              onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
+              onRemove={id=>setPreviewNotes(notes=>notes.filter(n=>n.id!==id))}/>
           : mode==='work' && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
