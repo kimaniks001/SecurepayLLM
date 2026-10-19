@@ -86,3 +86,14 @@ test('Vision store option reads authoritative detailed offer and cannot claim bo
  assert.match(builder,/groupSelected/);
  assert.match(builder,/Ungroup \(keep items\)/);
 });
+
+test('reviewed drafts appear in the actual Living KS001 composer, and only send on human submission',()=>{
+ const live=readFileSync('src/features/living-workspace/LiveKs001Session.tsx','utf8');
+ const work=readFileSync('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','utf8');
+ assert.match(live,/setDraft\(readDraft\(state\.conversationId/);
+ assert.match(live,/writeDraft\(state\.conversationId/);
+ assert.match(live,/draftRevision/);
+ assert.match(live,/onSubmit=\{e=>/);
+ assert.match(work,/setDraftRevision\(value=>value\+1\)/);
+ assert.match(work,/draftRevision=\{draftRevision\}/);
+});
