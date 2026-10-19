@@ -28,20 +28,26 @@ try{
   }else {
     // Public read-only preview: test real local interactions, never pretend API persistence.
     const noteInput=page.getByRole('textbox',{name:'Preview a message to KS001'});
+    assert.equal(await page.locator('[data-preview-truth]').count(),1,'Exactly one visible local demonstration notice');
+    assert.ok(await page.locator('[data-phase1-preview-board]').count(),'Right-hand board must remain');
     await noteInput.fill('I need 200 chairs delivered to a school');
     await page.getByRole('button',{name:'Add to preview'}).click();
     const board=page.locator('[data-phase1-preview-board]');
     assert.ok(await board.getByText('I need 200 chairs delivered to a school').count(),'Work note should appear on the same board');
+    await page.getByRole('button',{name:'Add a detail'}).click();
     await page.getByRole('button',{name:'Preview add Date'}).click();
     await page.getByLabel('Value for Date').fill('2026-11-12');
     await page.getByRole('button',{name:'Add locally'}).click();
-    assert.ok(await board.getByText('Date: 2026-11-12').count(),'Miniature date must reach the board');
+    assert.ok(await board.getByText('2026-11-12').count(),'Categorised miniature date must reach the board');
     if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
     await board.getByRole('button',{name:'Edit preview note 1'}).click();
     await board.getByRole('textbox',{name:'Edit local preview note'}).fill('I need 200 chairs delivered to my school');
     await board.getByRole('button',{name:'Save locally'}).click();
     assert.ok(await board.getByText('I need 200 chairs delivered to my school').count(),'Corrected preview note must appear on board');
     await page.screenshot({path:`${out}/${name}-interactive-work.png`,fullPage:true});
+    assert.ok(await board.getByText('Taking shape').count(),'Living Board heading remains human-friendly');
+    assert.equal(await page.getByText('Not sent · not saved · no AI response').count(),0,'Old repeated technical notice must be removed');
+    assert.equal(await page.getByRole('button',{name:'Preview add Date'}).count(),0,'Miniature tools must collapse after use');
     if(width<768)await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
     console.log('Preview notes, miniature input and correction PASS (LOCAL ONLY; no API integration).');
   }
