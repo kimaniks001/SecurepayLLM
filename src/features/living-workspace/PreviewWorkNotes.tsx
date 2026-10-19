@@ -6,13 +6,13 @@ import { phase2Examples, phase2ExampleById, type Phase2ExampleId } from './phase
 import { answerActions } from './answerActions';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
-export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null };
+export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null;thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null };
 const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'person',label:'Person'}, {kind:'date',label:'Date'},
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
 ];
 function displayNote(text:string):{label:string;value:string}{
-  const matched=/^(Person|Date|Amount|Place|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
+  const matched=/^(Person|Date|Amount|Place|Photos?|Documents?|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
   if(matched)return {label:matched[1].startsWith('Proposed')?'Time & milestones':matched[1],value:matched[2]};
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
   return {label:'Your added detail',value:text};
@@ -70,6 +70,7 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
       {notes.map(note=><div key={note.id} className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-cream-100 px-4 py-3" data-phase1-preview-message>
         <p className="mb-1 text-xs font-medium text-sand-600">You</p>
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{note.text}</p>
+        {note.thumbnail&&<details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-forest-800">View selected photo</summary><img src={note.thumbnail} alt={'Local photo '+(note.filename||'')} className="mt-2 max-h-48 w-full rounded-lg object-contain"/></details>}
       </div>)}
     </div>
     <div className="shrink-0 space-y-2 border-t border-cream-100 bg-white px-3 py-3 sm:px-4">
@@ -168,6 +169,9 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampl
             </div>
           </form>:<>
             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{shown.value}</p>
+            {note.thumbnail&&<details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-forest-800">View selected photo</summary><img src={note.thumbnail} alt={'Local photograph of '+(note.filename||'selected goods')} className="mt-2 max-h-64 w-full rounded-xl object-contain"/></details>}
+            {note.snippet&&<details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-forest-800">Read selected text</summary><pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words bg-cream-50 p-2 text-xs">{note.snippet}</pre></details>}
+            {note.filename&&<p className="mt-1 text-xs text-sand-600">Selected locally · {note.mime||'Unknown file type'} · {note.size??0} bytes · not uploaded or examined</p>}
             <div className="mt-1 flex gap-2">
               <button type="button" aria-label={'Edit preview note '+(i+1)} onClick={()=>{setEditing(note.id);setDraft(note.text);}}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-forest-800 hover:bg-cream-100"><Pencil size={14}/> Edit</button>
