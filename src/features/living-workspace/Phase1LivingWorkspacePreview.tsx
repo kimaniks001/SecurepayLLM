@@ -1,5 +1,5 @@
 import { InlineCommunityHub } from './InlineCommunityHub';
-import { UniversalSourceTray } from './UniversalSourceTray';
+import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
 import { InlineCircleBoard } from './InlineCircleBoard';
@@ -33,13 +33,13 @@ type Screen = 'chat' | 'result' | 'tools';
 // The launch tray contains functioning entries only. Vision/Circle/Community are
 // workspace areas, while milestones live within Agreements.
 const tools = [
+  { name: 'People & Invitations', icon: UserRoundPlus, description: 'Add a proposed person', group: 'add' },
   { name: 'Photos', icon: Camera, description: 'Show a photo', group: 'add' },
   { name: 'Documents', icon: FileText, description: 'Add a document', group: 'add' },
   { name: 'Places', icon: MapPin, description: 'Use a place', group: 'add' },
   { name: 'Date & Time', icon: CalendarDays, description: 'Set a day, range, repeat or condition', group: 'add' },
   { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
   { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
-  { name: 'People & Invitations', icon: UserRoundPlus, description: 'Bring people in', group: 'do' },
   { name: 'Money', icon: Wallet, description: 'Review Agreement money', group: 'do' },
 ] as const;
 const areaLabels: Record<Mode,string> = {
@@ -82,6 +82,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setPreviewNotes(notes=>[...notes,{id,text:text.trim(),exampleId:phase2ExampleId}]);
   };
   // Each local demonstration keeps its own draft notes. Switching examples never discards them.
+  const addPreviewSource=(proposal:LocalSourceProposal)=>{
+    if(!proposal.text.trim())return;
+    previewNoteId.current+=1;
+    setPreviewNotes(notes=>[...notes,{id:previewNoteId.current,exampleId:phase2ExampleId,
+      text:proposal.text,filename:proposal.filename,mime:proposal.mime,size:proposal.size,
+      thumbnail:proposal.thumbnail,snippet:proposal.snippet}]);
+    closeTool();
+    focusPreviewComposer();
+  };
   const activePreviewNotes=previewNotes.filter(note=>note.exampleId===phase2ExampleId);
   const focusPreviewComposer=()=>{
     setScreen('chat');
@@ -344,9 +353,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>
         {toolSelected
           ? <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label={activeTool+' workspace'}>
-              <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name}</div>
+              <div className="mb-4 flex items-center gap-2 text-lg font-semibold"><tool.icon size={22}/>{tool.name==='People & Invitations'?'People':tool.name}</div>
               {activeTool==='Date & Time'
-                ? <DateTimeTool context={supportingFact?.conversationId===liveConversationId ? supportingFact.label : ''}
+                ? <DateTimeTool isLocalPreview={uiOnlyPreview} context={supportingFact?.conversationId===liveConversationId ? supportingFact.label : ''}
                     onClose={closeTool}
                     onPrepare={mode==='work' && gateway && !mockSignedIn && liveWork && !uiOnlyPreview ? async message=>{
                       if(!liveController)throw new Error('KS001 is not ready');
@@ -360,15 +369,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       if(outcome.error || outcome.pending || outcome.busy)
                         throw new Error('SecurePay has not confirmed the message. Review your KS001 conversation before trying again.');
                     } : uiOnlyPreview && mode==='work' ? async message=>{
-                      addPreviewNote(message);
+                      const parsed=/^Proposed ([a-z-]+) timing \(not yet an agreed contractual commitment\): (.*?)\. Device time zone: ([^.]+)\./.exec(message);
+                      addPreviewNote(parsed?'Date: '+parsed[1]+' · '+parsed[2]+' · '+parsed[3]+' (proposed, not agreed)':message);
                       closeTool();
+                      focusPreviewComposer();
                     } : undefined}/>
                 : (['Photos','Documents','Places'] as const).some(name=>name===activeTool)
                 ? <UniversalSourceTray agreementPlaces={formationState?.data?.conversationId===liveConversationId
                   ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
                       .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
                       .map(term=>term.value).slice(0,6)
-                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn} gateway={mode==='work'?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn||uiOnlyPreview} onLocalProposal={uiOnlyPreview?addPreviewSource:undefined} gateway={mode==='work'&&!uiOnlyPreview?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
                   if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
                   await ensureFreshSession(session,workspaceGateways.auth);
                   if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
@@ -416,7 +427,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   await liveController.send('For source '+source.sourceArtifactId+': '+factInstruction+taskInstruction);
                 }}/>
                 : activeTool==='People & Invitations'?<PeopleInvitationsTool
-                    onCheckKs={gateway?async ksNumber=>{
+                    localPreview={uiOnlyPreview} onLocalProposal={uiOnlyPreview?text=>{
+                      addPreviewNote(text);closeTool();focusPreviewComposer();
+                    }:undefined}
+                    onCheckKs={gateway&&!uiOnlyPreview?async ksNumber=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       let id=liveController.getSnapshot().conversationId;
                       if(!id){
@@ -510,10 +524,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                 
               <section aria-label="Add something">
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-sand-600">Add something</h4>
+                {uiOnlyPreview&&mode==='work'&&<details data-phase3-journeys className="mb-3 rounded-xl bg-cream-50 p-2">
+                  <summary className="cursor-pointer py-1 text-xs font-semibold text-forest-800">Try the five practical tool journeys</summary>
+                  <div className="mt-2 space-y-1">
+                    {([['People & Invitations','A · Add KS002 as recipient'],['Photos','B · Show 200 chairs'],['Documents','C · Bring minutes or quotation'],['Places','D · Identify a school entrance'],['Date & Time','E · Choose tomorrow at 10:00']] as const).map(([toolName,label])=>
+                      <button key={toolName} type="button" onClick={()=>openTool(toolName)} className="block min-h-10 w-full rounded-lg px-2 text-left text-xs hover:bg-white">{label}</button>)}
+                  </div>
+                  <p className="mt-2 text-xs text-sand-600">Choose your own details. These local proposals are not uploaded, checked or accepted.</p>
+                </details>}
                 <div className="grid grid-cols-2 gap-2">
                   {contextTools.filter(t=>t.group==='add').map(t=><button type="button" key={t.name} onClick={()=>openTool(t.name)}
                     className="flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border border-cream-200 bg-white px-3 py-2 text-left hover:bg-cream-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
-                    <t.icon size={19} className="shrink-0" aria-hidden="true"/><span className="text-xs font-semibold">{t.name}</span>
+                    <t.icon size={19} className="shrink-0" aria-hidden="true"/><span className="text-xs font-semibold">{t.name==='People & Invitations'?'People':t.name}</span>
                   </button>)}
                 </div>
               </section>
