@@ -77,7 +77,7 @@ try{
      await board.getByText('Read selected text').click();
      assert.match(await board.innerText(),/Meeting minutes: 200 chairs/);
    }
-   if(scenario.id==='place')assert.match(boardText,/Destination: School delivery gate, Nairobi.*Entrance: Back gate/);
+   if(scenario.id==='place'){assert.ok(await board.getByText('Destination',{exact:true}).count());assert.match(boardText,/School delivery gate, Nairobi.*Entrance: Back gate/);}
    if(scenario.id==='date')assert.match(boardText,/delivery.*10:00.*proposed, not agreed/i);
    assert.ok(await board.getByText('Not checked',{exact:false}).count(),'No fact may be falsely verified');
    await page.screenshot({path:out+'/'+size+'-'+scenario.id+'-board.png',fullPage:true});
