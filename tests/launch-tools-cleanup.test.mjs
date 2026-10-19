@@ -63,5 +63,5 @@ test('Launch cleanup preserves existing provider, Agreement and money boundaries
   assert.match(shell, /activeTool==='Quick Assist'\?<QuickSupportPanel/);
   assert.match(store, /id:'contract',label:'Quick Contract'/);
   assert.match(quick, /No booking or payment is made/);
-  assert.match(shell, /bookings, invitations and money require their own authorisation/);
+  assert.match(shell, /Agreements, invitations and Money require your review and authorisation/);
 });
