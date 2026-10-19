@@ -59,7 +59,7 @@ test('Quick Assist supports existing stays and rides without provider booking',(
 test('geography is not disclosed or inferred and proposed work remains correctable',()=>{
  assert.match(assist,/Location shared with no one/);
  assert.match(samples,/Location not confirmed/);
- assert.match(check,/Store offer\|Assistance\|Quick Assist/);
+ assert.match(check,/Store offer\|Buying plan\|Assistance\|Quick Assist/);
  assert.match(check,/Edit preview note/);
  assert.match(check,/Remove preview note/);
 });
