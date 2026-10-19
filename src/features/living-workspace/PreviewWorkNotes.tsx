@@ -3,6 +3,7 @@ import { ArrowUp, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-re
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { phase2Examples, phase2ExampleById, type Phase2ExampleId } from './phase2Examples';
+import { answerActions } from './answerActions';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
 export type PreviewWorkNote = { id:number; text:string };
@@ -16,13 +17,15 @@ function displayNote(text:string):{label:string;value:string}{
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
   return {label:'Your plan',value:text};
 }
-export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample}:{
-  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;onSelectExample?:(id:Phase2ExampleId)=>void;
+export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exampleId=null}:{
+  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;onSelectExample?:(id:Phase2ExampleId)=>void;exampleId?:Phase2ExampleId|null;
 }){
   const [draft,setDraft]=useState('');
   const [expanded,setExpanded]=useState(false);
   const [showDetails,setShowDetails]=useState(false);
   const [mini,setMini]=useState<MiniKind|null>(null);
+  const chosenExample=phase2ExampleById(exampleId);
+  const exampleHelpers=chosenExample?answerActions(chosenExample.question).filter(a=>a.type==='focus'||a.type==='tool'):[];
   const add=()=>{
     const value=draft.trim();
     if(!value)return;
@@ -69,6 +72,13 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample}:{
         {mini&&<MiniContextInput key={mini} kind={mini} label={detailOptions.find(x=>x.kind===mini)?.label||'Detail'}
           onSubmit={async value=>{onAdd((detailOptions.find(x=>x.kind===mini)?.label||'Detail')+': '+value);setMini(null);setShowDetails(false);}}
           onCancel={()=>setMini(null)} submitLabel="Add locally"/>}
+      </div>}
+      {exampleHelpers.length>0&&<div aria-label="Example answer helpers" className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-sand-600">Illustrative ways to answer</span>
+        {exampleHelpers.map(hint=><button type="button" key={hint.label} onClick={()=>{
+          if(hint.type==='tool')onOpenTools();
+          else document.getElementById('phase1-local-note')?.focus();
+        }} className="min-h-9 rounded-full border border-cream-200 px-3 text-xs font-medium text-forest-800 hover:bg-cream-50">{hint.label}</button>)}
       </div>}
       <form onSubmit={event=>{event.preventDefault();add();}} className="flex min-w-0 items-end gap-2 rounded-2xl border border-cream-200 bg-white p-2 shadow-[0_4px_20px_-18px_rgba(25,55,38,.45)] focus-within:border-forest-300">
         <button type="button" aria-label="Add a tool or source" title="Add something" onClick={onOpenTools}
