@@ -8,6 +8,7 @@ const title=read('src/features/brand/SignatureAgreementTitle.tsx');
 const live=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
 const demo=read('src/features/living-workspace/LivingAgreementPanel.tsx');
 const shell=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const localPreview=read('src/features/living-workspace/PreviewWorkNotes.tsx');
 const home=read('src/components/SignedInHome.tsx');
 const publicHome=read('src/components/SignedOutHome.tsx');
 const money=read('src/features/living-workspace/UnifiedMoneyTool.tsx');
