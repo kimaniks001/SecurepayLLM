@@ -127,7 +127,8 @@ export function StoreDemoExperience({onLocalProposal,initialSearch='',initialAss
        <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
        <p className="font-semibold">{offer.name}</p><p className="text-xs">{offer.price}</p>
        <button type="button" onClick={()=>addToPlan(selectedStore,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
-       <button type="button" onClick={()=>openSample(selectedStore,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
+       <button type="button" onClick={()=>onLocalProposal?propose(selectedStore,offer):openSample(selectedStore,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?"Propose in My Work":"Take to KS001"}</button>
+        <button type="button" aria-pressed={isConsidered(selectedStore,offer)} onClick={()=>toggleConsider(selectedStore,offer)} className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs">Consider for comparison</button>
       </div>)}</div>
       <p className="font-semibold">Completed work · sample gallery</p>
       <div className="grid grid-cols-3 gap-2">{selectedStore.jobs.map(job=><div key={job.title}><Photo src={job.image} title={job.title} className="aspect-square rounded-lg"/><p className="mt-1 text-[11px]">{job.title}</p></div>)}</div>
