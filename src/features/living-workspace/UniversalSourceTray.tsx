@@ -8,6 +8,7 @@ import type { VisionDreamDto } from '../../api/securepay/visiondreams/dto';
 import { isOutcomeUnknown, sourceIngestionErrorText } from '../sources/controller';
 
 type Intake='Photos'|'Documents'|'Places';
+export type LocalSourceProposal={kind:Intake;text:string;filename?:string;mime?:string|null;size?:number|null;thumbnail?:string|null;snippet?:string|null};
 function mapSelection(value:string):string|null{
   const raw=value.trim();
   const coords=/^(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/.exec(raw);
@@ -58,7 +59,7 @@ const nextId=(()=>{let id=1;return()=>id++;})();
 /** User-approved photo/document transmission uses canonical KS001; selection stays local.
  * A processed source is not evidence accepted by an Agreement or Money authority.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn,agreementPlaces=[]}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn,agreementPlaces=[],onLocalProposal}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onLocalProposal?:(proposal:LocalSourceProposal)=>void;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -86,13 +87,16 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [visionPhase,setVisionPhase]=useState<'idle'|'loading'|'saving'|'saved'|'error'>('idle');
   const [visionMessage,setVisionMessage]=useState('');
   const [newVisionTitle,setNewVisionTitle]=useState('');
+  const [localSnippet,setLocalSnippet]=useState<string|null>(null);
+  const [placePurpose,setPlacePurpose]=useState<'Destination'|'Pickup'|'Work location'>('Destination');
+  const [entrance,setEntrance]=useState('');
 
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);seq.current++;},[area,tool,isDemo]);
+  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);setEntrance('');seq.current++;},[area,tool,isDemo]);
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
@@ -109,7 +113,14 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       // Selection and preview stay local. Network upload requires an explicit,
       // separately labelled human action after reviewing this material.
     };
-    if(!photo){prepare(null);return;}
+    if(!photo){
+      prepare(null);
+      if((file.type==='text/plain'||file.type==='text/csv')&&file.size<=MAX_BYTES){
+        void file.text().then(text=>{if(seq.current===sequence)setLocalSnippet(text.slice(0,500));})
+          .catch(()=>{if(seq.current===sequence)setError('Text preview unavailable. Original remains selected on this device.');});
+      }
+      return;
+    }
     const reader=new FileReader();
     reader.onerror=()=>{if(seq.current===sequence)setError('Could not preview this picture; it has not been uploaded.');};
     reader.onload=()=>prepare(typeof reader.result==='string'?reader.result:null);
@@ -233,18 +244,24 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   function saveLocalPreview(){
     if(!pending)return;
+    onLocalProposal?.({kind:tool==='Photos'?'Photos':'Documents',
+      text:(tool==='Photos'?'Photo: ':'Document: ')+pending.filename+(caption.trim()?' · '+caption.trim():''),
+      filename:pending.filename,mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail,snippet:localSnippet});
     setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',
       filename:pending.filename,label:[caption.trim(),selectedTask?('Requested task: '+PHOTO_TASKS.find(t=>t.id===selectedTask)?.label):''].filter(Boolean).join(' · '),mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
     setConfirmation((tool==='Photos'?'Photo':'Document')+' added to this preview. Not uploaded or saved to SecurePay.');
-    setPending(null);setCaption('');setSelectedTask('');setQrValue(null);setQrState(null);setError(null);
+    setPending(null);setCaption('');setLocalSnippet(null);setSelectedTask('');setQrValue(null);setQrState(null);setError(null);
   }
 
   async function addPlace(){
     const value=label.trim();
     if(!value||placeBusy)return;
     if(isDemo||!gateway){
-      setItems(current=>[...current,{id:nextId(),kind:'Places',filename:value,label:caption.trim(),mime:null,size:null,thumbnail:null}]);
-      setLabel('');setCaption('');setError(null);setConfirmation('Place added to this demonstration only.');return;
+      const summary=placePurpose+': '+value+(entrance.trim()?' · Entrance: '+entrance.trim():'')+(caption.trim()?' · Instructions: '+caption.trim():'');
+      setItems(current=>[...current,{id:nextId(),kind:'Places',filename:value,label:summary,mime:null,size:null,thumbnail:null}]);
+      onLocalProposal?.({kind:'Places',text:summary});
+      setLabel('');setCaption('');setEntrance('');setError(null);
+      setConfirmation('Proposed place added locally. Not saved or shared.');return;
     }
     setPlaceBusy(true);setError(null);setConfirmation(null);setServerSource(null);
     try{
@@ -261,9 +278,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   if(!supported)return null;
   return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'||tool==='Documents'?'space-y-2':'space-y-3'}>
     {tool==='Places'&&<><p className="text-xs uppercase tracking-wider text-sand-600">{tool} · {area}</p>
-    <h3 className="font-semibold text-sm">Add a place</h3>
-    <p className="text-xs text-sand-700">Add once. KS001 reads it and suggests what to do.</p></>}
+    <h3 className="font-semibold text-sm">Where should this happen?</h3>
+    <p className="text-xs text-sand-700">{isDemo?'Choose a proposed location. Nothing is shared or verified.':'Add a location for KS001 to review.'}</p></>}
     {tool==='Places'?<>
+      <fieldset><legend className="mb-2 text-xs font-semibold">Pickup or destination?</legend><div className="flex flex-wrap gap-2">{(['Destination','Pickup','Work location'] as const).map(p=><button key={p} type="button" aria-pressed={placePurpose===p} onClick={()=>setPlacePurpose(p)} className={'min-h-10 rounded-full px-3 text-xs '+(placePurpose===p?'bg-forest-800 text-white':'border border-cream-200 bg-white')}>{p}</button>)}</div></fieldset>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Choose location source">
         {([{key:'type',title:'Type place'},{key:'map',title:'From map'},{key:'agreement',title:'From Agreement'}] as const).map(method=><button key={method.key} type="button" onClick={()=>{setPlaceMethod(method.key);setError(null);}}
           className={placeMethod===method.key?'rounded-full bg-forest-800 px-3 py-2 text-xs text-white':'rounded-full border border-cream-200 px-3 py-2 text-xs'}>{method.title}</button>)}
@@ -285,6 +303,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       <label className="block text-xs">Place, address or Plus Code
         <input maxLength={240} className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white p-3" value={label}
           onChange={event=>setLabel(event.target.value)} placeholder="e.g. Nairobi address or 6GCR+..."/></label>
+      <label className="block text-xs">Which entrance? (optional)
+        <input aria-label="Delivery entrance" maxLength={160} value={entrance} onChange={e=>setEntrance(e.target.value)}
+          placeholder="Main gate or back loading entrance" className="mt-1 min-h-11 w-full rounded-xl border border-cream-200 bg-white p-3"/>
+      </label>
     </>:<>
       <input ref={upload} type="file" className="hidden"
         accept={tool==='Photos'?'image/jpeg,image/png':'application/pdf,text/plain,text/csv,.docx,.xlsx'}
@@ -300,11 +322,13 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       </div>}
       {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, Word, Excel, text or CSV · up to 2 MB</p>}
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
-        {pending.thumbnail&&<img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-24 w-full rounded-lg object-contain"/>}
+        {pending.thumbnail&&<details open><summary className="cursor-pointer text-xs font-semibold">Preview photo</summary><img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-72 w-full rounded-lg object-contain"/></details>}
+        {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
+        {tool==='Documents'&&!localSnippet&&<p className="text-xs text-sand-600">Selected locally. No document extraction has taken place.</p>
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          {(tool==='Photos'||tool==='Documents')&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
+          {(tool==='Photos'||tool==='Documents')&&!isDemo&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
             if(!pending)return;
             setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
             setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
@@ -319,7 +343,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       <textarea rows={2} maxLength={500} className="mt-1 block w-full rounded-xl border border-cream-200 bg-white p-3" value={caption} onChange={event=>setCaption(event.target.value)}/>
     </label>}
     {tool==='Places'&&<button type="button" disabled={!label.trim()||placeBusy} onClick={()=>void addPlace()}
-      className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{placeBusy?'Adding…':'Add place to KS001'}</button>}
+      className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">{placeBusy?'Adding…':isDemo?'Add proposed place locally':'Add place to KS001'}</button>}
     {tool==='Places'&&serverSource&&<section aria-label="Place source receipt" className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
       <p className="text-sm font-semibold">Place added</p>
       <p className="text-sm">{serverSource.summary||'KS001 received this place. Exact position and access are not verified.'}</p>
