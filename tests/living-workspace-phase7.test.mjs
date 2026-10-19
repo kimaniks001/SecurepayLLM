@@ -62,7 +62,7 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
 });
 
 test('Phase 7: preview relay never becomes a generic cross-origin API gateway', async()=>{
- const handler=(await import('../api/preview-agent.js')).default;
+ const handler=(await import('../api/preview-agent.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const invoke=async ({method='GET',path='/api/agent/conversations/example123/context',origin='https://securepay-demo.vercel.app',host='securepay-demo.vercel.app',headers={}}={})=>{
    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=body;}};
    await handler({method,query:{path},headers:{host,origin,...headers},body:undefined},res);
@@ -79,7 +79,7 @@ test('Phase 7: preview relay never becomes a generic cross-origin API gateway', 
    globalThis.fetch=async (url,init)=>{ observed={url:String(url),init}; return new Response('{"conversationId":"example123"}',{status:200,headers:{'content-type':'application/json'}}); };
    const result=await invoke({method:'POST',path:'/api/agent/conversations',headers:{cookie:'vercel-sso-cookie',authorization:'Bearer sample', 'x-securepay-conversation-token':'scoped-token'}});
    assert.equal(result.statusCode,200);
-   assert.equal(observed.url,'https://securepay.ke/api/agent/conversations');
+   assert.equal(observed.url,'http://127.0.0.1:18765/api/agent/conversations');
    assert.equal(observed.init.headers.Authorization,'Bearer sample');
    assert.equal(observed.init.headers['X-SecurePay-Conversation-Token'],'scoped-token');
    assert.ok(!Object.keys(observed.init.headers).some(k=>k.toLowerCase()==='cookie'));
@@ -112,7 +112,7 @@ test('Phase 7: My Work and KS001 share one canonical conversation and formation'
  assert.match(ctrl,/agreementFormationView\(await gateway\.readAgreementFormation/);
 });
 test('Phase 7: preview relay permits only the canonical Agreement Formation read and limited timezone', async()=>{
- const handler=(await import('../api/preview-agent.js')).default;
+ const handler=(await import('../api/preview-agent.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const invoke=async(method,path)=>{
    const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
    await handler({method,query:{path},headers:{host:'securepay-demo.vercel.app',origin:'https://securepay-demo.vercel.app'}},res);
@@ -198,7 +198,7 @@ test('Structural workspace: routes preserve chosen mode and have one sign-in ses
  assert.match(shell,/session=\{session\}/);
 });
 test('Structural workspace: preview relay rejects untrusted origins, other peoples private routes and unsigned access',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async({method='GET',path='/api/agent/saved-builds?limit=20',host='securepay-test.vercel.app',origin='https://securepay-test.vercel.app',auth=null,body,headers={}}={})=>{
    const res={statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},end(b){this.body=b;}};
    await handler({method,query:{path},headers:{host,origin,...headers,...(auth?{authorization:auth}:{})},body},res);
@@ -217,7 +217,7 @@ test('Structural workspace: preview relay rejects untrusted origins, other peopl
    globalThis.fetch=async(url,opts)=>{observed={url:String(url),opts};return new Response('[]',{status:200});};
    const r=await call({auth:'Bearer abcdefghijklmnop',headers:{cookie:'VercelProtection=secret'}});
    assert.equal(r.statusCode,200);
-   assert.equal(observed.url,'https://securepay.ke/api/agent/saved-builds?limit=20');
+   assert.equal(observed.url,'http://127.0.0.1:18765/api/agent/saved-builds?limit=20');
    assert.equal(observed.opts.headers.Authorization,'Bearer abcdefghijklmnop');
    assert.ok(!Object.keys(observed.opts.headers).some(k=>k.toLowerCase()==='cookie'));
    const resumed=await call({method:'POST',path:'/api/agent/saved-builds/12345678/resume',auth:'Bearer abcdefghijklmnop'});
@@ -253,7 +253,7 @@ test('Structural S2: Dream, Circle and Agreement IDs enter only canonical experi
  assert.doesNotMatch(bridge,/localStorage|sessionStorage|document\.cookie/);
 });
 test('Structural S2: preview Agreement list is person-scoped and not a generic ID reader',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async(method,path,auth=null)=>{
    const res={statusCode:200,setHeader(){},end(v){this.body=v;}};
    await handler({method,query:{path},headers:{host:'securepay-ci.vercel.app',origin:'https://securepay-ci.vercel.app',...(auth?{authorization:auth}:{})}},res);
@@ -271,7 +271,7 @@ test('Structural S2: preview Agreement list is person-scoped and not a generic I
    let target='';
    globalThis.fetch=async url=>{target=String(url);return new Response(JSON.stringify({items:[],page:0,size:20,totalElements:0}),{status:200});};
    assert.equal((await call('GET','/api/v1/me/agreements?page=0&size=20',auth)).statusCode,200);
-   assert.equal(target,'https://securepay.ke/api/v1/me/agreements?page=0&size=20');
+   assert.equal(target,'http://127.0.0.1:18765/api/v1/me/agreements?page=0&size=20');
  }finally{globalThis.fetch=prior;}
 });
 
@@ -291,7 +291,7 @@ test('Structural S2: explicit inspection reads exact server IDs and never assume
  assert.doesNotMatch(panel,/localStorage|sessionStorage|setRole|joinCircle\(/);
 });
 test('Structural S2: only bounded, authenticated ID detail GETs can pass preview relay',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async(method,path,authorization)=>{
   const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
   await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',...(authorization?{authorization}:{})}},res);
@@ -317,7 +317,7 @@ test('Structural S2: only bounded, authenticated ID detail GETs can pass preview
    let lastPath='';
    globalThis.fetch=async url=>{lastPath=String(url);return new Response('{}',{status:200});};
    assert.equal(await call('GET','/api/v1/vision-dreams/12345678',auth),200);
-   assert.equal(lastPath,'https://securepay.ke/api/v1/vision-dreams/12345678');
+   assert.equal(lastPath,'http://127.0.0.1:18765/api/v1/vision-dreams/12345678');
  }finally{globalThis.fetch=original;}
 });
 
@@ -367,7 +367,7 @@ test('Structural S3: native Dream Builder and Circle Board never run in mock ide
  assert.doesNotMatch(source('src/features/living-workspace/MockWorkspacePanel.tsx'),/InlineVisionEditor|InlineCircleBoard|gateways\.dreams|gateways\.community/);
 });
 test('Structural S3: preview relay confines authenticated Dream edits and Circle writes',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async(method,path,opts={})=>{
   const res={statusCode:200,setHeader(){},end(body){this.body=body;}};
   await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
@@ -461,7 +461,7 @@ test('Structural S5: photo intake stays local in demo and sends through the cano
  assert.ok(!intake.includes('session.setTokens') && !intake.includes('localStorage') && !intake.includes('sessionStorage'));
 });
 test('Structural S4: member Community discovery relay is bounded and separately membership-gated',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const request=async(path,token=false)=>{
   const response={statusCode:200,setHeader(){},end(body){this.body=body;}};
   await handler({method:'GET',query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',...(token?{authorization:'Bearer abcdefghijklmnop'}:{})}},response);
@@ -507,7 +507,7 @@ test('Living Store: buyer sees real public offers, seller stays private, communi
  assert.match(relay,/publicStoreRead/);
 });
 test('Living Store: preview relay allows bounded public browsing but no unauthorised seller access',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async(method,path,token,body)=>{
   const res={statusCode:200,setHeader(){},end(content){this.body=content;}};
   await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
@@ -522,7 +522,7 @@ test('Living Store: preview relay allows bounded public browsing but no unauthor
    return new Response('[]',{status:200,headers:{'Content-Type':'application/json'}});
   };
   assert.equal((await call('GET','/api/v1/stores/search?kind=PRODUCT&limit=10')).statusCode,200);
-  assert.equal(forwarded.url,'https://securepay.ke/api/v1/stores/search?kind=PRODUCT&limit=10');
+  assert.equal(forwarded.url,'http://127.0.0.1:18765/api/v1/stores/search?kind=PRODUCT&limit=10');
   assert.equal(forwarded.options.headers.Authorization,undefined);
   assert.equal((await call('GET','/api/v1/stores/KS123')).statusCode,200);
   assert.equal((await call('GET','/api/v1/stores/search?kind=PRODUCT&limit=500')).statusCode,403);
@@ -538,7 +538,7 @@ test('Living Store: preview relay allows bounded public browsing but no unauthor
 
 test('Living Store: every public product, service and capacity offer has a source-verified Take to KS001 action',async()=>{
  const ui=source('src/features/living-workspace/StoresTool.tsx');
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  assert.match(ui,/gateways\.stores\.offer\(ownerKs,offerId\)/);
  assert.match(ui,/record\.canonicalKsNumber!==ownerKs\|\|record\.offer\.id!==offerId/);
  assert.match(ui,/Do not order, reserve, contact the seller, commit Agreement terms or move money/);
@@ -633,7 +633,7 @@ test('Compact Money: one small tool, four human choices, Agreement-first and no 
  assert.ok(tool.length<15000,'Tool must remain genuinely compact');
 });
 test('Unified Money: preview financial reads require authentication; writes, extra queries and unrelated institutions are rejected',async()=>{
- const handler=(await import('../api/preview-workspace.js')).default;
+ const handler=(await import('../api/preview-workspace.js')).createLoopbackTestHandler('http://127.0.0.1:18765');
  const call=async(method,path,token=false)=>{
   const res={statusCode:200,setHeader(){},end(content){this.body=content;}};
   await handler({method,query:{path},headers:{host:'securepay-test.vercel.app',origin:'https://securepay-test.vercel.app',
