@@ -163,7 +163,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
       </details>
       <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-3" data-phase2-next>
         <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{formation.question?humanNextQuestion(formation.question.text):formation.reviewable?'Review the available draft and its unresolved matters.':'Keep explaining what you want to agree.'}</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{formation.question?humanNextQuestion(formation.question.text):!formation.question && fairTrade?.advisoryQuestion?fairTrade.advisoryQuestion:formation.reviewable?'Review the available draft and its unresolved matters.':'Keep explaining what you want to agree.'}</p>
         <p className="mt-1 text-xs text-sand-600">A suggestion for the next conversation step, not permission to invite, accept or move Money.</p>
       </section>
       <details aria-label="Action readiness" className="border-b border-cream-100 pb-3" data-phase2-readiness>
