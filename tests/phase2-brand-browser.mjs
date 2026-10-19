@@ -46,7 +46,10 @@ try {
   if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
   await page.screenshot({path:`${output}/${device}-ks001.png`,fullPage:true});
   const openPicker=async()=>{
-    await page.getByRole('button',{name:phase==='before'?'Add or use a tool':'Expand tool shelf'}).click();
+    if(phase==='after'&&width<1280)
+      await page.getByRole('button',{name:'Add a tool or source'}).click();
+    else
+      await page.getByRole('button',{name:phase==='before'?'Add or use a tool':'Expand tool shelf'}).click();
     await page.getByRole('dialog',{name:'Choose a tool'}).waitFor();
     if(phase==='after' && width>=1280){
       const shelf=await page.locator('[data-tool-shelf]').boundingBox();
