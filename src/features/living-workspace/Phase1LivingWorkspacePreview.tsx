@@ -3,6 +3,7 @@ import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSource
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
 import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
+import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
@@ -325,6 +326,26 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     chooseMode('work');
     setLiveStarted(true);setLiveWork(true);
   };
+  const continueCircleToWork = async(text:string)=>{
+    if(!signedIn || !liveController || !gateway)
+      throw new Error('Sign in and connect KS001 before bringing a Circle proposal into My Work.');
+    const current=liveController.getSnapshot();
+    if(current.busy || current.pending)throw new Error('Complete the current KS001 action first.');
+    if(current.conversationId && readDraft(current.conversationId).trim())
+      throw new Error('You have an unsent My Work message. Finish it before starting this Circle proposal.');
+    // A Circle proposal starts a fresh server-owned KS001 conversation. It never
+    // mutates an existing Agreement, imports Circle membership or sends a turn.
+    const created=await gateway.createConversation();
+    if(!created?.conversationId)throw new Error('SecurePay could not start a verified conversation.');
+    await liveController.resumeConversation(created.conversationId);
+    const opened=liveController.getSnapshot();
+    if(!authorisedResumedConversation(created.conversationId,opened))
+      throw new Error('SecurePay could not reauthorise this new conversation.');
+    if(readDraft(created.conversationId).trim())
+      throw new Error('An unsent message already exists in the new conversation.');
+    writeDraft(created.conversationId,text);
+    chooseMode('work');setLiveStarted(true);setLiveWork(true);
+  };
   if(signInOpen && workspaceGateways){
     return <SignInExperience
       auth={workspaceGateways.auth} session={session}
@@ -359,7 +380,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
-            gateways={workspaceGateways} session={session} onBack={backToWorkspace}/>
+            gateways={workspaceGateways} session={session} onBack={backToWorkspace}
+             onContinueToWork={continueCircleToWork}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
       <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
