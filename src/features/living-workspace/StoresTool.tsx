@@ -63,7 +63,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
- const [showSamples,setShowSamples]=useState(!initialServiceQuery);
+ const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal)||!initialServiceQuery);
  const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
  const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
  const [planOpen,setPlanOpen]=useState(false);
