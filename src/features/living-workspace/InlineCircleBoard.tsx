@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CircleBoard } from '../community/CircleBoard';
 import { CircleInvitePanel } from './CircleInvitePanel';
+import { verifyCircleWorkProposal } from './circleWorkAuthority';
 import type { CircleResponse, CircleMembershipResponse, CommunityObjectResponse } from '../../api/securepay/community/dto';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -22,8 +23,9 @@ function freshKey() {
  * set of Circle membership, governance or Agreement decisions. Both Circle
  * identity and ACTIVE membership must be confirmed before loading private posts.
  */
-export function InlineCircleBoard({ id, gateways, session, onBack }: {
+export function InlineCircleBoard({ id, gateways, session, onBack, onContinueToWork }: {
   id:string; gateways:PreviewWorkspaceGateways; session:SessionStore; onBack:()=>void;
+  onContinueToWork:(text:string)=>Promise<void>;
 }) {
   const [scope,setScope]=useState<{circle:CircleResponse; member:CircleMembershipResponse}|null>(null);
   const [objects,setObjects]=useState<CommunityObjectResponse[]>([]);
@@ -32,6 +34,10 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
   const [selected,setSelected]=useState<string|null>(null);
   const [composing,setComposing]=useState(false);
   const [inviting,setInviting]=useState(false);
+  const [workReview,setWorkReview]=useState(false);
+  const [workApproval,setWorkApproval]=useState(false);
+  const [workBusy,setWorkBusy]=useState(false);
+  const [workError,setWorkError]=useState<string|null>(null);
   const [draft,setDraft]=useState<{title:string;body:string;kind:CirclePlanningKind}>({title:'',body:'',kind:'DISCUSSION'});
   const [intent,setIntent]=useState(freshKey);
   const [submitting,setSubmitting]=useState(false);
@@ -108,7 +114,45 @@ export function InlineCircleBoard({ id, gateways, session, onBack }: {
         <p className="text-xs text-sand-600">Circle-only · {visible.objectType}</p>
         <h3 className="mt-2 text-sm font-semibold">{visible.title}</h3>
         <p className="mt-2 whitespace-pre-wrap text-sm">{visible.body}</p>
-        <button type="button" className="mt-2 min-h-11 rounded-lg bg-white px-3 text-xs" onClick={()=>setSelected(null)}>Close detail</button>
+        {(scope.member.isOwner || scope.member.isSteward) && <button type="button"
+          onClick={()=>{setWorkReview(true);setWorkApproval(false);setWorkError(null);}}
+          className="mt-3 min-h-11 rounded-lg bg-forest-800 px-3 text-xs text-white">
+          Review for My Work
+        </button>}
+        {workReview && (scope.member.isOwner || scope.member.isSteward) && <div
+          role="dialog" aria-label="Review Circle proposal for My Work"
+          className="mt-3 space-y-3 rounded-xl border border-forest-200 bg-white p-3">
+          <p className="text-xs leading-5 text-sand-700">Only this selected Circle planning item will enter your own
+            KS001 composer as an unsent proposal. It is not a Circle decision, an accepted Agreement or financial authority.</p>
+          <label className="flex items-start gap-2 text-xs">
+            <input type="checkbox" checked={workApproval} onChange={event=>setWorkApproval(event.target.checked)}
+              className="mt-1"/>
+            I have permission to take this selected planning proposal to My Work for examination.
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={!workApproval || workBusy}
+              onClick={()=>void (async()=>{
+                setWorkBusy(true);setWorkError(null);
+                try{
+                  await ensureFreshSession(session,gateways.auth);
+                  if(session.getSnapshot().status!=='signed-in')throw Error('Sign in required');
+                  const verified=await verifyCircleWorkProposal({
+                    circleId:id,objectId:visible.id,title:visible.title,body:visible.body,kind:visible.objectType,
+                  },gateways.community);
+                  await onContinueToWork(verified);
+                }catch(error){
+                  setWorkError(error instanceof Error ? error.message : 'SecurePay could not prepare this Circle work.');
+                }finally{setWorkBusy(false);}
+              })()}
+              className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs text-white disabled:opacity-40">
+              {workBusy?'Checking Circle permission…':'Continue in My Work'}
+            </button>
+            <button type="button" onClick={()=>setWorkReview(false)}
+              className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">Cancel</button>
+          </div>
+          {workError && <p role="alert" className="rounded-lg bg-amber-50 p-2 text-xs">{workError}</p>}
+        </div>}
+        <button type="button" className="mt-2 min-h-11 rounded-lg bg-white px-3 text-xs" onClick={()=>{setSelected(null);setWorkReview(false);}}>Close detail</button>
       </div>}
       {composing && <form onSubmit={event=>{event.preventDefault();void add();}} className="space-y-3 rounded-xl border border-cream-200 p-4">
         <p className="text-sm font-semibold">Add something to our Circle's plan</p>
