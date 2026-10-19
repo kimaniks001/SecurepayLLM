@@ -13,7 +13,7 @@ export const phase2Examples: readonly Phase2Example[] = [
     humanSays:'I need something delivered. It will cost KES 400.',
     proposed:[{label:'Work',value:'Delivery service being explored'},{label:'Amount',value:'KES 400, proposed for delivery'}],
     attention:'The goods being delivered have not been described. The item, pickup, destination and handover are separate details.',
-    question:'What needs to be delivered?',next:'Clarify the goods before considering timing, destination and who is responsible.',
+    question:'What exactly is being delivered?',next:'Clarify the goods before considering timing, destination and who is responsible.',
   },
   {
     id:'chama',title:'Eight-person chama',
