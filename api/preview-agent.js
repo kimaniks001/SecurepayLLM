@@ -32,7 +32,7 @@ function reject(res, status, message) {
 }
 
 export function createLoopbackTestHandler(upstream) {
-  if (!/^http:\/\/127\\.0\\.0\\.1(?::\\d+)?$/.test(upstream)) throw new Error('Only literal loopback test upstream is allowed');
+  if (!/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(upstream)) throw new Error('Only literal loopback test upstream is allowed');
   return (req, res) => handle(req, res, upstream);
 }
 
