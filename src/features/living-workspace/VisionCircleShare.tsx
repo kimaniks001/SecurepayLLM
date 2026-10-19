@@ -23,6 +23,8 @@ export function VisionCircleShare({ excerpt, gateways, session, onClose }: {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  // An unknown POST outcome must not be retried under another Circle identity.
+  const [attemptedCircleId,setAttemptedCircleId] = useState<string|null>(null);
   const [intent] = useState(newIntent);
 
   useEffect(() => {
@@ -44,7 +46,9 @@ export function VisionCircleShare({ excerpt, gateways, session, onClose }: {
 
   const target = circles.find(c => c.id === circleId) ?? null;
   const share = async () => {
-    if (sending || shared || !confirmed || !target || !excerpt.text.trim()) return;
+    if (sending || shared || !confirmed || !target || !excerpt.text.trim() ||
+        (attemptedCircleId!==null && attemptedCircleId!==target.id)) return;
+    setAttemptedCircleId(target.id);
     setSending(true);
     setError(null);
     try {
@@ -79,7 +83,7 @@ export function VisionCircleShare({ excerpt, gateways, session, onClose }: {
       <label className="block text-sm font-medium text-forest-800" htmlFor="vision-circle-target">Share with</label>
       <select id="vision-circle-target" value={circleId}
         onChange={event => { setCircleId(event.target.value); setConfirmed(false); }}
-        disabled={loading || sending}
+        disabled={loading || sending || attemptedCircleId!==null}
         className="min-h-11 w-full rounded-xl border border-cream-200 bg-white px-3 text-sm">
         <option value="">Choose a Circle</option>
         {circles.map(circle => <option key={circle.id} value={circle.id}>{circle.name}</option>)}
@@ -87,6 +91,9 @@ export function VisionCircleShare({ excerpt, gateways, session, onClose }: {
       {loading && <p role="status" className="text-xs">Checking your authorised Circles…</p>}
       {!loading && circles.length === 0 && <p className="text-sm text-sand-600">
         No active Circle was confirmed for sharing. Your note remains private.</p>}
+      {attemptedCircleId && !shared && <p className="text-xs text-sand-600">
+        The sharing result may be uncertain. Retry this same Circle and note rather than changing recipients.
+      </p>}
       {target && <label className="flex items-start gap-3 rounded-xl bg-cream-50 p-3 text-sm">
         <input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)}
           className="mt-1 size-4" />
