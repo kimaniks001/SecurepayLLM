@@ -79,7 +79,7 @@ test('Phase1: preview is explicitly isolated, not secretly promoted as a product
   assert.match(router,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
   assert.match(shell,/!uiOnlyPreview &&/);
   assert.match(shell,/Agreements, invitations and Money require your review and authorisation/);
-  assert.match(localPreview,/KS001 isn't responding and nothing is saved as an Agreement/);
+  assert.match(localPreview,/KS001 is not responding live; no Agreement is saved/);
   assert.match(localPreview,/Never an Agent turn, Agreement or server record/);
   assert.match(shell,/const mockSignedIn = false/);
   assert.doesNotMatch(shell,/Try mock sign-in|Return to demonstration/);
