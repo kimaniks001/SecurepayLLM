@@ -162,8 +162,8 @@ test('Phase 7: Fair Trade examination is read only through canonical scoped acce
  assert.match(shell,/reading\.conversationId !== liveConversationId/);
  assert.match(shell,/reading\.tradeContextVersion !== liveFormationVersion/);
  assert.match(result,/examination\.data\.tradeContextVersion === formation\.version/);
- assert.match(result,/Partial examination · not qualified/);
- assert.match(result,/formation\.question && fairTrade\.advisoryQuestion/);
+ assert.match(result,/A partial examination is never a clearance/);
+ assert.match(result,/!formation\.question && fairTrade\?\.advisoryQuestion/);
  assert.match(relay,/fair-trade-examination/);
  assert.doesNotMatch(result,/Fair Trade Approved|Certified by SecurePay/);
 });
