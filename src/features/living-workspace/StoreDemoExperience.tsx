@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { StorePhoto, type StoreImage } from './StorePhotoViewer';
 import { StoreHumanHelp, type StoreHumanRelation } from './StoreHumanHelp';
@@ -63,6 +63,12 @@ export function StoreDemoExperience({onLocalProposal,onLocalBuyingPlan,initialSa
  const [buyingLines,setBuyingLines]=useState<StoreBuyingLine[]>(()=>initialSamplePlan?.lines.map(line=>({...line}))??[]);
  const [buyingDraft,setBuyingDraft]=useState(()=>initialSamplePlan?{...initialSamplePlan.draft}:{...emptyStoreBuyingPlan});
  const [buyingActive,setBuyingActive]=useState(Boolean(initialSamplePlan?.lines.length));
+ useEffect(()=>{
+  if(!buyingActive)return;
+  const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();setBuyingActive(false);}};
+  document.addEventListener('keydown',onKey,true);
+  return ()=>document.removeEventListener('keydown',onKey,true);
+ },[buyingActive]);
  const [practiceReady,setPracticeReady]=useState(false);
  const [planLimit,setPlanLimit]=useState(false);
  const [considered,setConsidered]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
@@ -174,7 +180,7 @@ export function StoreDemoExperience({onLocalProposal,onLocalBuyingPlan,initialSa
       <div role="dialog" aria-modal="true" aria-label="Review proposed buying plan" className="flex max-h-[100dvh] w-full max-w-[860px] flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-2xl">
        <div className="flex items-center justify-between gap-2 border-b border-cream-200 px-4 py-3">
         <div><p className="text-sm font-semibold">Review your buying plan</p><p className="text-xs text-sand-600">Sample offers · proposed only · not saved</p></div>
-        <button type="button" onClick={()=>setBuyingActive(false)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Back to Stores</button>
+        <button type="button" autoFocus onClick={()=>setBuyingActive(false)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Back to Stores</button>
        </div>
        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
         <StoreBuyingPlan sample lines={buyingLines} draft={buyingDraft} onLines={setBuyingLines} onDraft={setBuyingDraft}
