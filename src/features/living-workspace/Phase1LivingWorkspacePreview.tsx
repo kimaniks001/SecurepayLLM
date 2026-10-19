@@ -24,7 +24,7 @@ import { StoresTool } from './StoresTool';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
@@ -651,7 +651,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
         {signedIn && workspaceGateways && mode==='community'
           ? <InlineCommunityHub gateways={workspaceGateways} session={session}
-              onOpenFull={()=>{ window.location.hash='#/community'; }}/>
+              onOpenFull={()=>{ window.location.hash='#/community'; }}
+              onOpenCircle={circleId=>{
+                storeCircleEntry(circleId); // opaque one-shot hint, not permission
+                window.location.hash='#/community'; // canonical Circle authority
+              }}/>
           : signedIn && workspaceGateways && mode!=='work'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
