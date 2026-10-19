@@ -4,15 +4,16 @@ import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { phase2Examples, phase2ExampleById, type Phase2ExampleId } from './phase2Examples';
 import { answerActions } from './answerActions';
+import { localBuyingPlanNextQuestion, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
-export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null;thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null };
+export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null;thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null;storePlan?:LocalStoreBuyingPlan };
 const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'person',label:'Person'}, {kind:'date',label:'Date'},
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
 ];
 function displayNote(text:string):{label:string;value:string}{
-  const matched=/^(Person|Date|Amount|Place|Photos?|Documents?|Store offer|Assistance|Quick Assist|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
+  const matched=/^(Person|Date|Amount|Place|Photos?|Documents?|Store offer|Buying plan|Assistance|Quick Assist|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
   if(matched)return {label:matched[1].startsWith('Proposed')?'Time & milestones':matched[1],value:matched[2]};
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
   return {label:'Your added detail',value:text};
@@ -25,6 +26,7 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
   const [showDetails,setShowDetails]=useState(false);
   const [mini,setMini]=useState<MiniKind|null>(null);
   const chosenExample=phase2ExampleById(exampleId);
+  const storePlan=notes.find(note=>note.storePlan)?.storePlan;
   const exampleHelpers=chosenExample?answerActions(chosenExample.question).filter(a=>a.type==='focus'||a.type==='tool'):[];
   const focusComposer=(prefix='')=>{
     if(prefix&&!draft.trim())setDraft(prefix);
@@ -72,6 +74,11 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{note.text}</p>
         {note.thumbnail&&<details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-forest-800">View selected photo</summary><img src={note.thumbnail} alt={'Local photo '+(note.filename||'')} className="mt-2 max-h-48 w-full rounded-lg object-contain"/></details>}
       </div>)}
+       {storePlan&&<div className="max-w-[95%] rounded-xl border border-cream-200 bg-white p-4" data-phase4-plan-guidance>
+         <p className="text-xs font-semibold text-sand-600">Example KS001 guidance · not a live AI reply</p>
+         <p className="mt-2 text-sm leading-6">Your proposed buying plan has {storePlan.lines.length} item{storePlan.lines.length===1?'':'s'} from {new Set(storePlan.lines.map(line=>line.storeKsNumber||line.storeName)).size} sample Store(s). Prices, stock and delivery are not confirmed.</p>
+         <p className="mt-3 font-display text-lg font-semibold leading-7 text-forest-900">{localBuyingPlanNextQuestion(storePlan)}</p>
+       </div>}
     </div>
     <div className="shrink-0 space-y-2 border-t border-cream-100 bg-white px-3 py-3 sm:px-4">
       <p role="status" className="text-xs leading-5 text-sand-600" data-preview-truth>
@@ -126,14 +133,15 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
     </div>
   </div>;
 }
-export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampleId=null}:{
+export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,onEditStorePlan,exampleId=null}:{
   notes:readonly PreviewWorkNote[];onUpdate:(id:number,text:string)=>void;onRemove:(id:number)=>void;
-  onFocusComposer:()=>void;exampleId?:Phase2ExampleId|null;
+  onFocusComposer:()=>void;onEditStorePlan?:()=>void;exampleId?:Phase2ExampleId|null;
 }){
   const [editing,setEditing]=useState<number|null>(null);
   const [draft,setDraft]=useState('');
   const example=phase2ExampleById(exampleId);
   const enteredGoods=example?.id==='delivery'&&notes.some(note=>displayNote(note.text).label==='Goods');
+  const storePlan=notes.find(note=>note.storePlan)?.storePlan;
   return <section aria-label="SecurePay Check" data-phase1-preview-board data-phase2-check className="space-y-6">
     <header>
       <p className="sp-brand-kicker">My Work</p>
@@ -160,7 +168,22 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampl
             <p className="text-xs font-semibold text-sand-600">{shown.label}</p>
             <span className="text-[0.7rem] text-sand-600">Not checked</span>
           </div>
-          {editing===note.id?<form className="mt-2 space-y-2" onSubmit={event=>{event.preventDefault();if(draft.trim()){onUpdate(note.id,draft.trim());setEditing(null);}}}>
+          {note.storePlan&&<section aria-label="Proposed Store buying plan" data-phase4-proposed-plan className="mt-3 space-y-3">
+             {note.storePlan.lines.map(line=><div key={line.key} className="rounded-lg border border-cream-200 bg-cream-50 p-3">
+               <p className="font-semibold text-sm">{line.title} · {line.quantity} proposed</p>
+               <p className="text-xs">{line.storeName} · Sample Store · Offer {line.offerId}</p>
+               <p className="text-xs">{line.priceLabel} · displayed sample price, not a confirmed quotation</p>
+               {line.specification&&<p className="mt-1 text-xs">Requirements: {line.specification}</p>}
+             </div>)}
+             <p className="text-xs">Delivery location: {note.storePlan.draft.place||'Not specified'} · Desired date: {note.storePlan.draft.desiredDate||'Not specified'}</p>
+             <p className="text-xs">Store coordination: {new Set(note.storePlan.lines.map(line=>line.storeKsNumber||line.storeName)).size>1?note.storePlan.draft.coordination:'One Store — ordinary delivery'}</p>
+             <p className="text-xs text-sand-700">Illustrative proposal only. No seller has confirmed stock, quantities, delivery, acceptance or payment.</p>
+             <div className="flex flex-wrap gap-2">
+               <button type="button" onClick={onEditStorePlan} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs font-semibold">Edit buying plan</button>
+               <button type="button" onClick={()=>onRemove(note.id)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs">Remove proposed plan</button>
+             </div>
+           </section>}
+           {note.storePlan?null:editing===note.id?<form className="mt-2 space-y-2" onSubmit={event=>{event.preventDefault();if(draft.trim()){onUpdate(note.id,draft.trim());setEditing(null);}}}>
             <textarea autoFocus aria-label="Edit local preview note" value={draft} maxLength={1200} rows={3} onChange={event=>setDraft(event.target.value)}
               className="w-full rounded-xl border border-cream-200 bg-white p-3 text-sm"/>
             <div className="flex flex-wrap gap-2">
@@ -185,7 +208,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampl
     {(notes.length>0||example)&&<section aria-label="What deserves attention" className="border-t border-cream-200 pt-4">
       <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
       <p className="mt-2 text-sm leading-6 text-sand-700">
-        {example?(enteredGoods?'The goods you entered remain a proposal. Pickup, destination and handover arrangements may still need clarification.':example.attention):'These details have not been examined by KS001. Their meaning and any missing facts still need review.'}
+        {storePlan?'These sample Store offers have not been accepted or checked. Stock, source prices, specifications, transport and seller obligations still need confirmation.':example?(enteredGoods?'The goods you entered remain a proposal. Pickup, destination and handover arrangements may still need clarification.':example.attention):'These details have not been examined by KS001. Their meaning and any missing facts still need review.'}
       </p>
     </section>}
     <details className="border-t border-cream-200 pt-4" aria-label="Fair Trade examination" data-phase2-fairtrade>
@@ -194,7 +217,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampl
     </details>
     <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-4" data-phase2-next>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</h3>
-      <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{enteredGoods?'Add a pickup or delivery detail.':example?example.question:notes.length?'Add another detail to your proposal.':'Describe what you want to do.'}</p>
+      <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{storePlan?localBuyingPlanNextQuestion(storePlan):enteredGoods?'Add a pickup or delivery detail.':example?example.question:notes.length?'Add another detail to your proposal.':'Describe what you want to do.'}</p>
       <button type="button" onClick={onFocusComposer} className="mt-3 min-h-11 rounded-lg bg-forest-800 px-4 text-xs font-semibold text-white">Continue in conversation</button>
     </section>
     <details className="border-t border-cream-200 pt-4" aria-label="Action readiness" data-phase2-readiness>
