@@ -6,19 +6,19 @@ import { phase2Examples, phase2ExampleById, type Phase2ExampleId } from './phase
 import { answerActions } from './answerActions';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
-export type PreviewWorkNote = { id:number; text:string };
+export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null };
 const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'person',label:'Person'}, {kind:'date',label:'Date'},
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
 ];
 function displayNote(text:string):{label:string;value:string}{
-  const matched=/^(Person|Date|Amount|Place|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
+  const matched=/^(Person|Date|Amount|Place|Goods|Purpose|Deliverable|Milestone|Responsibility|Pickup|Destination|Evidence|Proposed (?:delivery|commencement|completion|inspection|contribution|check-in|check-out|pickup|other) timing)\s*:\s*(.+)$/is.exec(text.trim());
   if(matched)return {label:matched[1].startsWith('Proposed')?'Time & milestones':matched[1],value:matched[2]};
   if(/^Proposed .+ timing\b/i.test(text))return {label:'Time & milestones',value:text};
-  return {label:'Your plan',value:text};
+  return {label:'Your added detail',value:text};
 }
 export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exampleId=null}:{
-  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;onSelectExample?:(id:Phase2ExampleId)=>void;exampleId?:Phase2ExampleId|null;
+  notes:readonly PreviewWorkNote[];onAdd:(text:string)=>void;onOpenTools:()=>void;onSelectExample?:(id:Phase2ExampleId|null)=>void;exampleId?:Phase2ExampleId|null;
 }){
   const [draft,setDraft]=useState('');
   const [expanded,setExpanded]=useState(false);
@@ -26,6 +26,11 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
   const [mini,setMini]=useState<MiniKind|null>(null);
   const chosenExample=phase2ExampleById(exampleId);
   const exampleHelpers=chosenExample?answerActions(chosenExample.question).filter(a=>a.type==='focus'||a.type==='tool'):[];
+  const focusComposer=(prefix='')=>{
+    if(prefix&&!draft.trim())setDraft(prefix);
+    setExpanded(true);
+    window.requestAnimationFrame(()=>document.getElementById('phase1-local-note')?.focus());
+  };
   const add=()=>{
     const value=draft.trim();
     if(!value)return;
@@ -35,16 +40,33 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
   };
   return <div data-phase1-preview-composer className="flex min-h-0 min-w-0 flex-1 flex-col">
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-white to-[#fcfcf8] px-4 py-3 sm:px-5" aria-label="Workspace conversation preview">
-      {!notes.length&&!draft.trim()&&<WorkspaceWelcome area="work" onExample={example=>{if(example.prompt){setDraft(example.prompt);setExpanded(true);}}}/>}
-      {!notes.length&&onSelectExample&&<details className="mx-auto max-w-2xl rounded-xl border border-cream-200 bg-white/90 px-3 py-2" data-phase2-scenarios>
-        <summary className="cursor-pointer py-2 text-xs font-semibold text-forest-800">Explore five example trades</summary>
-        <p className="my-2 text-xs text-sand-600">Illustrations only, not KS001 findings.</p>
-        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+      {!notes.length&&!draft.trim()&&!chosenExample&&<WorkspaceWelcome area="work" onExample={example=>{if(example.prompt){setDraft(example.prompt);setExpanded(true);}}}/>}
+      {onSelectExample&&<details className="sticky top-0 z-10 mx-auto w-full max-w-2xl rounded-xl border border-cream-200 bg-white/95 px-3 py-1 shadow-sm" data-phase2-scenarios>
+        <summary className="cursor-pointer py-2 text-xs font-semibold text-forest-800">
+          Try an example{chosenExample?' · '+chosenExample.title:''}
+        </summary>
+        <div className="grid grid-cols-1 gap-1 pb-2 sm:grid-cols-2" aria-label="Example choices">
           {phase2Examples.map(example=><button type="button" key={example.id}
-            onClick={()=>onSelectExample(example.id)}
+            aria-pressed={exampleId===example.id} onClick={e=>{onSelectExample(example.id);e.currentTarget.closest('details')?.removeAttribute('open');}}
             className="min-h-11 rounded-lg px-3 py-2 text-left text-sm text-forest-800 hover:bg-cream-100">{example.title}</button>)}
+          <button type="button" aria-pressed={exampleId===null} onClick={e=>{onSelectExample(null);e.currentTarget.closest('details')?.removeAttribute('open');}}
+            className="min-h-11 rounded-lg px-3 py-2 text-left text-sm text-forest-800 hover:bg-cream-100">My own work</button>
         </div>
+        <p className="pb-2 text-xs text-sand-600">Your notes remain here when you switch. Examples are not live KS001 responses.</p>
       </details>}
+      {chosenExample&&<div className="space-y-3" data-phase2-example-conversation>
+        <div className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-cream-100 px-4 py-3">
+          <p className="mb-1 text-xs text-sand-600">Example request · You</p>
+          <p className="text-sm leading-6 text-forest-900">{chosenExample.humanSays}</p>
+        </div>
+        <div className="max-w-[95%] space-y-2 py-2" data-phase2-example-guidance>
+          <p className="text-xs font-medium text-sand-600">Example guidance · not a live KS001 reply</p>
+          <p className="font-display text-lg font-semibold leading-7 text-forest-900">{chosenExample.question}</p>
+          {notes.length>0&&<p className="text-xs leading-5 text-sand-700">
+            Your additional details are shown in SecurePay Check as proposals. They have not been examined or accepted.
+          </p>}
+        </div>
+      </div>}
       {notes.map(note=><div key={note.id} className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-cream-100 px-4 py-3" data-phase1-preview-message>
         <p className="mb-1 text-xs font-medium text-sand-600">You</p>
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{note.text}</p>
@@ -52,7 +74,7 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
     </div>
     <div className="shrink-0 space-y-2 border-t border-cream-100 bg-white px-3 py-3 sm:px-4">
       <p role="status" className="text-xs leading-5 text-sand-600" data-preview-truth>
-        <span className="font-semibold text-forest-800">Design preview.</span> Questions and examples are illustrative; KS001 isn't responding and nothing is saved as an Agreement.
+        <span className="font-semibold text-forest-800">Design preview · Example guidance only.</span> KS001 is not responding live; no Agreement is saved.
       </p>
       {notes.length>0&&<div className="flex items-center justify-end">
         <button type="button" aria-expanded={showDetails} aria-controls="preview-contextual-details"
@@ -74,11 +96,14 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
           onCancel={()=>setMini(null)} submitLabel="Add locally"/>}
       </div>}
       {exampleHelpers.length>0&&<div aria-label="Example answer helpers" className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-sand-600">Illustrative ways to answer</span>
+        <span className="text-xs text-sand-600">You can respond</span>
         {exampleHelpers.map(hint=><button type="button" key={hint.label} onClick={()=>{
           if(hint.type==='tool')onOpenTools();
-          else document.getElementById('phase1-local-note')?.focus();
-        }} className="min-h-9 rounded-full border border-cream-200 px-3 text-xs font-medium text-forest-800 hover:bg-cream-50">{hint.label}</button>)}
+          else focusComposer(chosenExample?.id==='delivery'?'Goods: ':'');
+        }} className="min-h-9 rounded-full border border-cream-200 px-3 text-xs font-medium text-forest-800 hover:bg-cream-50">
+          {hint.type==='focus'&&chosenExample?.id==='delivery'?'Describe the goods':hint.label}
+        </button>)}
+        <button type="button" onClick={()=>focusComposer()} className="min-h-9 rounded-full border border-cream-200 px-3 text-xs font-medium text-forest-800 hover:bg-cream-50">More details</button>
       </div>}
       <form onSubmit={event=>{event.preventDefault();add();}} className="flex min-w-0 items-end gap-2 rounded-2xl border border-cream-200 bg-white p-2 shadow-[0_4px_20px_-18px_rgba(25,55,38,.45)] focus-within:border-forest-300">
         <button type="button" aria-label="Add a tool or source" title="Add something" onClick={onOpenTools}
@@ -100,13 +125,14 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
     </div>
   </div>;
 }
-export function PreviewWorkBoard({notes,onUpdate,onRemove,exampleId=null}:{
+export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,exampleId=null}:{
   notes:readonly PreviewWorkNote[];onUpdate:(id:number,text:string)=>void;onRemove:(id:number)=>void;
-  exampleId?:Phase2ExampleId|null;
+  onFocusComposer:()=>void;exampleId?:Phase2ExampleId|null;
 }){
   const [editing,setEditing]=useState<number|null>(null);
   const [draft,setDraft]=useState('');
   const example=phase2ExampleById(exampleId);
+  const enteredGoods=example?.id==='delivery'&&notes.some(note=>displayNote(note.text).label==='Goods');
   return <section aria-label="SecurePay Check" data-phase1-preview-board data-phase2-check className="space-y-6">
     <header>
       <p className="sp-brand-kicker">My Work</p>
@@ -115,7 +141,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,exampleId=null}:{
     </header>
     {example&&<div className="space-y-3 border-b border-cream-200 pb-4" aria-label="Illustrative proposed terms">
       <p className="text-xs font-medium text-sand-600">{example.title} · illustrative example</p>
-      {example.proposed.map(proposal=><div key={proposal.label}>
+      {example.proposed.filter(proposal=>!notes.some(note=>displayNote(note.text).label===proposal.label)).map(proposal=><div key={proposal.label}>
         <p className="text-xs font-semibold text-sand-600">{proposal.label} · proposed</p>
         <p className="mt-1 text-sm leading-6 text-forest-900">{proposal.value}</p>
       </div>)}
@@ -155,7 +181,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,exampleId=null}:{
     {(notes.length>0||example)&&<section aria-label="What deserves attention" className="border-t border-cream-200 pt-4">
       <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
       <p className="mt-2 text-sm leading-6 text-sand-700">
-        {example?example.attention:'These details have not been examined by KS001. Their meaning and any missing facts still need review.'}
+        {example?(enteredGoods?'The goods you entered remain a proposal. Pickup, destination and handover arrangements may still need clarification.':example.attention):'These details have not been examined by KS001. Their meaning and any missing facts still need review.'}
       </p>
     </section>}
     <details className="border-t border-cream-200 pt-4" aria-label="Fair Trade examination" data-phase2-fairtrade>
@@ -164,8 +190,8 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,exampleId=null}:{
     </details>
     <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-4" data-phase2-next>
       <h3 className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</h3>
-      <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{example?example.question:notes.length?'Let KS001 examine what you have described.':'Tell KS001 what you want to do.'}</p>
-      {example&&<p className="mt-2 text-xs leading-5 text-sand-700">Illustrative question · {example.next}</p>}
+      <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{enteredGoods?'Add a pickup or delivery detail.':example?example.question:notes.length?'Add another detail to your proposal.':'Describe what you want to do.'}</p>
+      <button type="button" onClick={onFocusComposer} className="mt-3 min-h-11 rounded-lg bg-forest-800 px-4 text-xs font-semibold text-white">Continue in conversation</button>
     </section>
     <details className="border-t border-cream-200 pt-4" aria-label="Action readiness" data-phase2-readiness>
       <summary className="cursor-pointer text-sm font-semibold text-forest-900">What can happen next?</summary>
