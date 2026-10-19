@@ -67,7 +67,7 @@ try{
   for (const area of ['Circle','Community','My Work']) {
     await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:area}).click();
     await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
-    await page.getByRole('complementary',{name:'Living result'}).waitFor({state:'attached'});
+    await page.locator('aside[aria-label="Living result"]').waitFor({state:'attached'});
     if(width>=768){
       assert.ok(await page.getByRole('complementary',{name:'Living result'}).isVisible(),area+' Living Board unavailable on desktop');
       const conversation=await page.getByRole('region',{name:'KS001 conversation'}).boundingBox();
