@@ -71,7 +71,7 @@ test('Phase 7: preview relay never becomes a generic cross-origin API gateway', 
  assert.equal((await invoke({origin:'https://attacker.example'})).statusCode,403);
  assert.equal((await invoke({path:'/api/money'})).statusCode,403);
  assert.equal((await invoke({method:'DELETE'})).statusCode,405);
- assert.equal((await invoke({host:'securepay.ke',origin:'https://securepay.ke'})).statusCode,403);
+ assert.equal((await invoke({host:'securepay.ke',origin:'http://127.0.0.1:18765'})).statusCode,403);
  assert.equal((await invoke({path:'https://other.example/api/agent/conversations'})).statusCode,403);
  let observed=null;
  const previous=globalThis.fetch;
@@ -205,7 +205,7 @@ test('Structural workspace: preview relay rejects untrusted origins, other peopl
    return res;
  };
  assert.equal((await call({origin:'https://another.example'})).statusCode,403);
- assert.equal((await call({host:'securepay.ke',origin:'https://securepay.ke'})).statusCode,403);
+ assert.equal((await call({host:'securepay.ke',origin:'http://127.0.0.1:18765'})).statusCode,403);
  assert.equal((await call({path:'/api/v1/community/circles/private-id-123/posts',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
  assert.equal((await call({path:'/api/agent/conversations/secret/context',auth:'Bearer abcdefghijklmnop'})).statusCode,403);
  assert.equal((await call()).statusCode,401);
@@ -397,7 +397,7 @@ test('Structural S3: preview relay confines authenticated Dream edits and Circle
    let seen={};
    globalThis.fetch=async(url,init)=>{seen={url:String(url),headers:init.headers,body:init.body};return new Response('{}',{status:200});};
    assert.equal(await call('GET',dream+'/board',{token:true}),200);
-   assert.equal(seen.url,'https://securepay.ke'+dream+'/board');
+   assert.equal(seen.url,'http://127.0.0.1:18765'+dream+'/board');
    assert.equal(await call('PUT',dream+'/board',{token:true,body:{schemaVersion:1,expectedRevision:0,documentJson:'{}'}}),200);
    assert.equal(await call('POST',circle+'/objects',{token:true,key:'intent-12345678',body:{title:'Circle note',body:'Hello',objectType:'DISCUSSION'}}),200);
    assert.equal(seen.headers['Idempotency-Key'],'intent-12345678');
@@ -486,7 +486,7 @@ test('Structural S4: member Community discovery relay is bounded and separately 
   };
   assert.equal(await request(route,true),200);
   assert.equal(calls.length,2);
-  assert.equal(calls[1],'https://securepay.ke'+route);
+  assert.equal(calls[1],'http://127.0.0.1:18765'+route);
  }finally{globalThis.fetch=before;}
 });
 
@@ -556,7 +556,7 @@ test('Living Store: every public product, service and capacity offer has a sourc
   globalThis.fetch=async (url)=>{path=String(url);return new Response('{}',{status:200});};
   const valid='/api/v1/stores/KS123/offers/offer12345678';
   assert.equal((await response('GET',valid)).statusCode,200);
-  assert.equal(path,'https://securepay.ke'+valid);
+  assert.equal(path,'http://127.0.0.1:18765'+valid);
   assert.equal((await response('GET',valid+'?includePrivate=true')).statusCode,403);
   assert.equal((await response('POST',valid)).statusCode,403);
   assert.equal((await response('GET','/api/v1/stores/KS123/offers/private')).statusCode,403);
@@ -654,7 +654,7 @@ test('Unified Money: preview financial reads require authentication; writes, ext
   assert.equal((await call('GET','/api/v1/financial-services/institutions',true)).statusCode,403);
   assert.equal((await call('GET',partner,true)).statusCode,200);
   assert.equal((await call('GET',snapshot,true)).statusCode,200);
-  assert.deepEqual(requests.map(request=>request.url),['https://securepay.ke'+partner,'https://securepay.ke'+snapshot]);
+  assert.deepEqual(requests.map(request=>request.url),['http://127.0.0.1:18765'+partner,'http://127.0.0.1:18765'+snapshot]);
   assert.equal(requests[0].headers.Authorization,'Bearer abcdefghijklmnop');
  }finally{globalThis.fetch=previous;}
 });
