@@ -41,7 +41,7 @@ function Photo({src,title,className=''}:{src:string;title:string;className?:stri
  </div>;
 }
 function SampleBadge(){return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">SAMPLE · NOT A REAL STORE</span>;}
-export function StoreDemoExperience(){
+export function StoreDemoExperience({onLocalProposal}:{onLocalProposal?:(text:string)=>void}={}){
  const [view,setView]=useState<View>('buyer');
  const [filter,setFilter]=useState<'ALL'|'PRODUCT'|'SERVICE'|'CAPACITY'>('ALL');
  const [search,setSearch]=useState('');
@@ -60,10 +60,23 @@ export function StoreDemoExperience(){
  const [buyingActive,setBuyingActive]=useState(false);
  const [practiceReady,setPracticeReady]=useState(false);
  const [planLimit,setPlanLimit]=useState(false);
+ const [compared,setCompared]=useState<Array<{store:DemoStore;offer:DemoOffer}>>([]);
 
  const matched=allOffers.filter(item=>(filter==='ALL'||item.offer.kind===filter)&&
    (!search.trim()||[item.offer.name,item.offer.description,item.store.name,item.store.trade].join(' ').toLowerCase().includes(search.toLowerCase())));
- const openSample=(store:DemoStore,offer:DemoOffer)=>{setSelected({store,offer});setAnswer('');};
+ const openSample=(store:DemoStore,offer:DemoOffer)=>{
+   if(onLocalProposal){
+     onLocalProposal('Store offer: '+offer.name+' — '+store.name+'; '+offer.price+'; '+offer.availability+'. Illustrative proposal only. Seller, stock, price and delivery have not been confirmed.');
+     return;
+   }
+   setSelected({store,offer});setAnswer('');
+ };
+ const toggleCompare=(store:DemoStore,offer:DemoOffer)=>{
+   const key=store.id+':'+offer.id;
+   setCompared(items=>items.some(x=>x.store.id+':'+x.offer.id===key)
+     ?items.filter(x=>x.store.id+':'+x.offer.id!==key)
+     :[...items.slice(-1),{store,offer}]);
+ };
  const addToPlan=(store:DemoStore,offer:DemoOffer)=>{
   if(buyingLines.length>=MAX_STORE_PLAN_LINES&&!buyingLines.some(line=>line.key==='sample:'+store.id+':'+offer.id)){setPlanLimit(true);return;}
   setPlanLimit(false);
@@ -124,12 +137,27 @@ export function StoreDemoExperience(){
        <div className="p-2"><p className="font-semibold">{store.name}</p><p className="mt-0.5 text-xs text-sand-600">{store.trade} · {store.place}</p></div>
      </button>)}</div>
      <p className="text-xs font-semibold">Offers you can try ({matched.length})</p>
+      {compared.length>0&&<section aria-label="Compare sample Store offers" className="space-y-2 rounded-xl bg-cream-50 p-3" data-phase4-comparison>
+        <h3 className="text-xs font-semibold">Considering {compared.length} of 2 offers · not proposed or accepted</h3>
+        <div className="grid grid-cols-2 gap-2">{compared.map(({store,offer})=><div key={store.id+offer.id} className="min-w-0 space-y-1 rounded-lg bg-white p-2 text-xs">
+          <p className="font-semibold">{offer.name}</p><p>{store.name}</p><p>{offer.price}</p>
+          <p>Scope: {offer.description}</p><p>Availability: {offer.availability} (sample)</p>
+          <p className="text-sand-600">Delivery price: Unknown unless explicitly included above</p>
+          <button type="button" onClick={()=>openSample(store,offer)} className="min-h-10 rounded-lg border border-cream-200 px-2 text-xs">{onLocalProposal?'Propose in My Work':'Discuss sample offer'}</button>
+        </div>)}
+          {compared.length===1&&<p className="self-center text-xs text-sand-600">Choose one more offer to compare.</p>}
+        </div>
+        <p className="text-xs text-sand-600">Illustrative prices are not current quotes. Comparing cannot book, accept or pay.</p>
+      </section>
      {matched.length===0&&<p className="rounded-lg bg-cream-50 p-3 text-xs">No sample offers match your search.</p>}
      <div className="grid grid-cols-2 gap-2">{matched.map(({store,offer})=><article key={store.id+'-'+offer.id} className="space-y-2 rounded-xl border border-cream-200 bg-white p-2">
       <Photo src={offer.image} title={offer.name} className="aspect-[4/3] rounded-lg"/>
       <div><p className="font-semibold">{offer.name}</p><p className="text-xs text-sand-600">{store.name}</p><p className="mt-1 text-xs font-semibold">{offer.price}</p></div>
       <button type="button" onClick={()=>addToPlan(store,offer)} className="min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">Add to buying plan</button>
-      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-9 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Take to KS001</button>
+      <button type="button" onClick={()=>openSample(store,offer)} className="min-h-11 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">{onLocalProposal?'Propose in My Work':'Take to KS001'}</button>
+       <button type="button" aria-pressed={compared.some(x=>x.store.id===store.id&&x.offer.id===offer.id)}
+         onClick={()=>toggleCompare(store,offer)}
+         className="min-h-10 w-full rounded-lg border border-cream-200 px-2 text-xs font-semibold">Consider / compare</button>
      </article>)}</div>
     </>}
    </>}
@@ -173,6 +201,13 @@ export function StoreDemoExperience(){
    </div>
   </div>}
   {view==='together'&&<div className="space-y-3">
+     <section aria-label="Plug and Master assistance" className="space-y-2 rounded-xl border border-cream-200 bg-white p-3">
+       <h3 className="text-sm font-semibold">Find capable human help</h3>
+       <p className="text-xs text-sand-600">A Plug coordinates practical work; a Master offers experience and advice. No person, availability, certification, rate or assignment is verified here.</p>
+       <button type="button" className="min-h-11 w-full rounded-lg border border-cream-200 px-3 text-left text-xs" onClick={()=>onLocalProposal?.('Assistance: I would like to request a Plug to coordinate or verify the delivery. Please clarify work scope, availability, location consent, qualifications and rate. No person assigned.')}>Explore a Plug</button>
+       <button type="button" className="min-h-11 w-full rounded-lg border border-cream-200 px-3 text-left text-xs" onClick={()=>onLocalProposal?.('Assistance: I would like a Master to review my project milestones. Qualifications, scope, availability, private data consent and rate are still unconfirmed.')}>Explore a Master</button>
+       <p className="text-xs text-sand-600">Requests must be authorised separately. A suggestion is not an invitation or a booking.</p>
+     </section>
     <div className="overflow-hidden rounded-xl border border-cream-200"><Photo src={samples[0].cover} title="Example joint renovation" className="aspect-[16/8]"/><div className="p-3"><strong>One job, several people</strong><p className="mt-1 text-xs text-sand-600">Example: renovate a bathroom, supply tiles and coordinate delivery.</p></div></div>
     <div className="grid grid-cols-3 gap-2">{[{role:'Buyer',name:'Needs tiling'},{role:'Seller',name:'Supplies the work'},{role:'Plug',name:'Coordinates'}].map(person=><div key={person.role} className="rounded-xl border border-cream-200 bg-white p-2 text-center"><Users size={18} className="mx-auto"/><p className="mt-1 text-xs font-semibold">{person.role}</p><p className="mt-1 text-[11px] text-sand-600">{person.name}</p></div>)}</div>
     <button type="button" onClick={()=>setSaver(v=>!v)} aria-expanded={saver} className="min-h-11 w-full rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">{saver?'Close Saver example':'Explore Community Saver'}</button>
