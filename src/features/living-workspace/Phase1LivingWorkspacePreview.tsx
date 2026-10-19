@@ -504,7 +504,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                     key={phase4Journey || quickAssistSeed || 'quick-assist'} collection={quickAssistCollection} onCollectionChange={setQuickAssistCollection} initialRequest={quickAssistSeed}
                     onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();focusPreviewComposer();}:undefined}
                     onFindStoreOffers={(service,requestedTask)=>{setStoreServiceQuery(service==='stays'?'accommodation':'transport');setStoreQuickAssistNeed(requestedTask);setActiveTool('Stores');setToolSelected(true);}}
-                    onContinue={mode==='work' && gateway && !mockSignedIn ? async message=>{
+                    onContinue={mode==='work' && gateway && !mockSignedIn && !uiOnlyPreview ? async message=>{
                       if(!liveController)throw new Error('KS001 is unavailable');
                       const snapshot=liveController.getSnapshot();
                       if(snapshot.busy || snapshot.pending)throw new Error('Finish your current KS001 message first');
