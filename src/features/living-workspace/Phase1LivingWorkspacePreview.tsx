@@ -2,6 +2,7 @@ import { InlineCommunityHub } from './InlineCommunityHub';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
+import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
@@ -314,6 +315,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     chooseMode('work');setLiveStarted(true);setLiveWork(true);
     await liveController.resumeConversation(conversationId);
   };
+  const continueVisionToWork = async(handoff:DreamHandoff)=>{
+    if(!signedIn || !liveController || !gateway)
+      throw new Error('Sign in and connect KS001 before continuing this private Vision.');
+    const result=await prepareDreamHandoff(liveController,handoff);
+    if(!result.ok)throw new Error(result.error);
+    // The original Dream conversation is reopened and an unsent draft has been
+    // placed in its canonical composer. No turn, Agreement or Money was created.
+    chooseMode('work');
+    setLiveStarted(true);setLiveWork(true);
+  };
   if(signInOpen && workspaceGateways){
     return <SignInExperience
       auth={workspaceGateways.auth} session={session}
@@ -342,7 +353,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
-            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}/>
+            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
+             onContinueToWork={continueVisionToWork}/>
         </div>
       : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
