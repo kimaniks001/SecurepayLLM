@@ -4,16 +4,19 @@ import { UserRoundPlus, X } from 'lucide-react';
 export type HumanCapacity='plug'|'master';
 export const plugCapacities=['Delivery','Pickup','Stock inspection','Delivery inspection','Logistics','Coordination','Sourcing','Store onboarding','Other'] as const;
 export const masterCapacities=['Technical consultation','Project review','Disputes','Mentoring','Construction','Costing','Other'] as const;
-type Relation={id:number;ks:string;kind:HumanCapacity;tag:string;requestedService:string};
-export function StoreHumanHelp({initial='plug',owner=false,onPropose}:{
+export type StoreHumanRelation={id:number;ks:string;kind:HumanCapacity;tag:string;requestedService:string};
+export function StoreHumanHelp({initial='plug',owner=false,onPropose,relationships,onRelationshipsChange}:{
  initial?:HumanCapacity;owner?:boolean;onPropose?:(text:string)=>void;
+ relationships?:StoreHumanRelation[];onRelationshipsChange?:(next:StoreHumanRelation[])=>void;
 }){
  const [kind,setKind]=useState<HumanCapacity>(initial);
  const [capacity,setCapacity]=useState('Delivery');
  const [serviceArea,setServiceArea]=useState('');
  const [ks,setKs]=useState('');
  const [tag,setTag]=useState('');
- const [relations,setRelations]=useState<Relation[]>([]);
+ const [localRelations,setLocalRelations]=useState<StoreHumanRelation[]>([]);
+ const relations=relationships??localRelations;
+ const updateRelations=(next:StoreHumanRelation[])=>onRelationshipsChange?onRelationshipsChange(next):setLocalRelations(next);
  const [next,setNext]=useState(0);
  const [eligible,setEligible]=useState(false);
  const [storeSaverEligible,setStoreSaverEligible]=useState(false);
@@ -22,7 +25,7 @@ export function StoreHumanHelp({initial='plug',owner=false,onPropose}:{
  const save=()=>{
   if(!/^KS\d{3,18}$/i.test(ks.trim())||!tag.trim())return;
   setNext(n=>n+1);
-  setRelations(current=>[...current,{id:next+1,ks:ks.trim().toUpperCase(),kind,tag:tag.trim().slice(0,48),requestedService:capacity}]);
+  updateRelations([...relations,{id:next+1,ks:ks.trim().toUpperCase(),kind,tag:tag.trim().slice(0,48),requestedService:capacity}]);
   setKs('');setTag('');
  };
  const displayed=relations.filter(x=>x.kind===kind&&(!capacity||x.requestedService===capacity));
@@ -63,7 +66,7 @@ export function StoreHumanHelp({initial='plug',owner=false,onPropose}:{
        {displayed.length===0?<p className="text-xs text-sand-600">No locally tagged {kind==='plug'?'Plugs':'Masters'} for this category yet.</p>:
          displayed.map(item=><div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-50 p-2 text-xs">
            <p><strong>{item.ks}</strong> · {item.tag}<span className="block text-sand-600">{item.requestedService} · Unverified identity and capabilities</span></p>
-           <button type="button" aria-label={'Remove private tag '+item.tag} onClick={()=>setRelations(xs=>xs.filter(x=>x.id!==item.id))}
+           <button type="button" aria-label={'Remove private tag '+item.tag} onClick={()=>updateRelations(relations.filter(x=>x.id!==item.id))}
              className="min-h-10 min-w-10 rounded-lg p-2"><X size={15}/></button>
          </div>)}
      </div>
