@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
 
 /**
  * A locally editable buyer intention, never an order, payment instruction or
