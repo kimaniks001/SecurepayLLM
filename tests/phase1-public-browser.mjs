@@ -63,6 +63,23 @@ try{
   await page.getByRole('heading',{name:'What would you love to create?'}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'What would you like to get done?'}).count(),0);
   await page.screenshot({path:`${out}/${name}-vision.png`,fullPage:true});
+  // Every area must use the same workspace navigation and preserve access to its Living Board.
+  for (const area of ['Circle','Community','My Work']) {
+    await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:area}).click();
+    await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
+    await page.getByRole('complementary',{name:'Living result'}).waitFor();
+    if(width>=768){
+      assert.ok(await page.getByRole('complementary',{name:'Living result'}).isVisible(),area+' Living Board unavailable on desktop');
+      const conversation=await page.getByRole('region',{name:'KS001 conversation'}).boundingBox();
+      const board=await page.getByRole('complementary',{name:'Living result'}).boundingBox();
+      assert.ok(conversation && board && conversation.x+conversation.width<=board.x+2,area+' Living Board intrudes into Chat');
+    }else{
+      await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
+      assert.ok(await page.getByRole('complementary',{name:'Living result'}).isVisible(),area+' board is inaccessible on mobile');
+      await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
+    }
+    await page.screenshot({path:`${out}/${name}-${area.toLowerCase().replaceAll(' ','-')}.png`,fullPage:true});
+  }
   const dims=await page.evaluate(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}));
   assert.ok(dims.width<=dims.viewport+1,'No horizontal overflow');
   assert.equal(problems.length,0,`Browser exceptions: ${problems.join('; ')}`);
