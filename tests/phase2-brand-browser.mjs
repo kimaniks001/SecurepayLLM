@@ -30,8 +30,10 @@ try {
       // Phase 1 supports an explicit local UI preview, never a fabricated Agreement.
       const board=page.locator('[data-phase1-preview-board]');
       await board.waitFor();
-      assert.ok(await board.getByText('Local notes only.',{exact:false}).count(),
-        'Preview work must state plainly that its notes are not saved Agreement terms');
+      const notice=page.locator('[data-preview-truth]');
+      assert.equal(await notice.count(),1,'Exactly one concise local-preview notice must exist');
+      assert.match(await notice.innerText(),/KS001 isn't responding; nothing here is saved as an Agreement/,
+        'Preview work must not resemble persisted Agreement terms');
     }else {
       // No authenticated work and no opted-in preview: preserve an honest empty state.
       await page.getByText('Your Agreement will appear here when KS001 has confirmed the conversation.').waitFor();
