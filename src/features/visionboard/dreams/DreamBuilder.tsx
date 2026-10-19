@@ -79,6 +79,7 @@ export function DreamBuilder({
   const [addOpen, setAddOpen] = useState(false);
   const [tool, setTool] = useState<'select' | 'draw' | 'erase'>('select');
   const [zoom, setZoom] = useState(1);
+  const [exploration, setExploration] = useState<1 | 2 | 3>(1);
   const [saveState, setSaveState] = useState<'loading' | 'idle' | 'saving' | 'saved' | 'error'>('loading');
   const [localError, setLocalError] = useState<string | null>(null);
   const [assetContent, setAssetContent] = useState<Record<string, string>>({});
@@ -366,6 +367,29 @@ export function DreamBuilder({
           <Save className="size-4" /> Save
         </Button>
       </div>
+    </div>
+
+    <div className="rounded-2xl border border-cream-200 bg-white/90 p-3 space-y-2" data-vision-exploration>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-forest-800">How deeply shall we explore?</p>
+        <p className="text-xs text-sand-500">Planning choices · no automatic charges</p>
+      </div>
+      <div role="group" aria-label="Vision exploration depth" className="flex flex-wrap gap-2">
+        {([
+          [1, 'Capture an idea'], [2, 'Explore options'], [3, 'Plan in detail'],
+        ] as const).map(([level, label]) =>
+          <button key={level} type="button" aria-pressed={exploration === level}
+            onClick={() => setExploration(level)}
+            className={`min-h-11 rounded-xl px-3 text-xs ${exploration === level ? 'bg-forest-800 text-white' : 'bg-cream-100 text-forest-800'}`}>
+            {label}
+          </button>)}
+      </div>
+      <p className="text-xs leading-5 text-sand-600" role="status">
+        {exploration === 1 ? 'Collect pictures, thoughts, sketches and notes. Nothing needs to be decided yet.' :
+          exploration === 2 ? 'Compare possible Store offers, people, materials, locations and estimates. Treat every option as provisional.' :
+          'Organise alternative costs, specifications, people and milestones. Move only reviewed proposals toward My Work.'}
+      </p>
+      <p className="text-[0.7rem] text-sand-500">This chooser changes only the guidance shown here; it does not start paid intelligence or alter your saved Dream.</p>
     </div>
 
     <div className="rounded-3xl border border-cream-200 bg-[#fbf7ec] overflow-hidden shadow-sm">
