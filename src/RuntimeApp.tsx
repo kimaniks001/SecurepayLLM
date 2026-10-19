@@ -1,10 +1,14 @@
+import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
+import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
+import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage } from './features/experience/entryIntent';
+import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
 import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
 import { MoneyOperationsExperience } from './features/money/MoneyOperationsExperience';
+import { SkillsInstituteExperience } from './features/skills/SkillsInstituteExperience';
 import { RecipientExperience } from './features/recipient/RecipientExperience';
 import { InvitationInboxExperience } from './features/invitation-inbox/InvitationInboxExperience';
 import { SecureLinkExperience } from './features/securelink/SecureLinkExperience';
@@ -19,10 +23,24 @@ import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
 import { REVIEW_AUTHENTICATED_METHODS } from './api/securepay/agreement-review/refresh';
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
+import type { AppView } from './types';
 
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
 try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
+// The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
+let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
+if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+  try { previewAgentGateway = createPreviewAgentGateway(api.baseUrl, session.getAccessToken); }
+  catch { /* An unsupported API origin never falls back to a cross-origin unsafe fetch. */ }
+}
+// Structural workspace: existing SecurePay auth, saved builds, Dreams, Circles and Community
+// are reached through a narrow preview relay. No second identity store or permanent API proxy.
+let previewWorkspaceGateways: ReturnType<typeof createPreviewWorkspaceGateways> | undefined;
+if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+  try { previewWorkspaceGateways = createPreviewWorkspaceGateways(api.baseUrl, session.getAccessToken); }
+  catch { /* Fail closed if the approved upstream cannot be resolved. */ }
+}
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
@@ -44,6 +62,7 @@ const paymentIntentGateway = api ? withSessionRefresh(api.paymentIntent, MONEY_A
 const agreementReviewGateway = api ? withSessionRefresh(api.agreementReview, REVIEW_AUTHENTICATED_METHODS, session, api.auth) : undefined;
 const paymentReleaseGateway = api ? withSessionRefresh(api.paymentRelease, MONEY_AUTHENTICATED_METHODS.paymentRelease, session, api.auth) : undefined;
 const moneyOperationsGateway = api ? withSessionRefresh(api.moneyOperations, MONEY_AUTHENTICATED_METHODS.moneyOperations, session, api.auth) : undefined;
+const skillsInstituteGateway = api ? withSessionRefresh(api.skillsInstitute, ['learn', 'mine', 'participation'], session, api.auth) : undefined;
 const currencyCapabilityGateway = api ? withSessionRefresh(api.currencyCapability, MONEY_AUTHENTICATED_METHODS.currencyCapability, session, api.auth) : undefined;
 const fxApplicationGateway = api ? withSessionRefresh(api.fxApplication, MONEY_AUTHENTICATED_METHODS.fxApplication, session, api.auth) : undefined;
 const regulatedAccountsGateway = api ? withSessionRefresh(api.regulatedAccounts, MONEY_AUTHENTICATED_METHODS.regulatedAccounts, session, api.auth) : undefined;
@@ -152,6 +171,37 @@ function useMoneyRoute(): [boolean, () => void] {
   }, []);
   const clear = () => { window.location.hash = ''; setActive(false); };
   return [active, clear];
+}
+
+/** Skills Institute is a first-class, non-secret route. Learning/certification authority remains server-owned. */
+function useSkillsRoute(): [boolean, () => void] {
+  const matches = () => typeof window !== 'undefined' && /^#\/?skills\/?$/.test(window.location.hash);
+  const [active, setActive] = useState(matches);
+  useEffect(() => {
+    const onHashChange = () => setActive(matches());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  const clear = () => { window.location.hash = ''; setActive(false); };
+  return [active, clear];
+}
+
+/** Deliberate, non-secret direct entries for the three human surfaces that live inside AgentExperience. */
+function useDirectSurfaceRoute(): AppView | null {
+  const parse = (): AppView | null => {
+    if (typeof window === 'undefined') return null;
+    if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
+    if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
+    if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
+    return null;
+  };
+  const [view, setView] = useState<AppView | null>(parse);
+  useEffect(() => {
+    const onHashChange = () => setView(parse());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+  return view;
 }
 
 /** Money operations is a first-class, non-secret route for support/ops roles -- read-only, gated server-side by REGULATED_PARTNER_READ. */
@@ -269,6 +319,12 @@ function useMoneySessionRoute(): string | null {
 }
 
 export default function RuntimeApp() {
+  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+  useEffect(() => {
+    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+    window.addEventListener('hashchange', syncPreview);
+    return () => window.removeEventListener('hashchange', syncPreview);
+  }, []);
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
   const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
@@ -278,6 +334,8 @@ export default function RuntimeApp() {
   const storeOfferRoute = useStoreOfferRoute();
   const [activationRoute, clearActivationRoute] = useActivationRoute();
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
+  const [skillsRoute, clearSkillsRoute] = useSkillsRoute();
+  const directSurfaceRoute = useDirectSurfaceRoute();
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
@@ -285,6 +343,7 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
+  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }
@@ -337,19 +396,42 @@ export default function RuntimeApp() {
           gateways={{ moneyAuthority: moneyAuthorityGateway, financialPartners: financialPartnerGateway, settlementDestinations: settlementDestinationGateway, agreements: agreementGateway, money: moneyGateway, paymentRelease: paymentReleaseGateway, paymentIntent: paymentIntentGateway, currencyCapability: currencyCapabilityGateway, fxApplication: fxApplicationGateway, regulatedAccounts: regulatedAccountsGateway, businessCurrencyCapability: businessCurrencyCapabilityGateway, businessFxApplication: businessFxApplicationGateway, moneySnapshot: moneySnapshotGateway }}
           auth={api.auth}
           session={session}
-          onLeave={clearMoneyRoute}
+          onLeave={() => {
+             if(hasWorkspaceMoneyReturn()){
+               window.location.hash='#/preview/living-workspace/work';
+               return;
+             }
+             clearMoneyRoute();
+           }}
           onNavigate={view => {
             if (view === 'money') return;
+            clearWorkspaceMoneyReturn();
             storeEntryView(view);
             clearMoneyRoute();
           }}
           onAskKs001={() => {
+            clearWorkspaceMoneyReturn();
             storeKs001EntryMessage('I’m on SecurePay Money. Explain which real SecurePay products, services or capabilities may help around the Agreement and this Money stage. Do not claim current financial authority, payment readiness, fees, release rights or executable actions unless SecurePay can verify them.');
             clearMoneyRoute();
           }}
           onOpenAgreement={agreementId => {
+            clearWorkspaceMoneyReturn();
             storeAgreementEntry(agreementId);
             clearMoneyRoute();
+          }}
+        />
+      : <Unavailable />;
+  }
+  if (skillsRoute) {
+    return skillsInstituteGateway
+      ? <SkillsInstituteExperience
+          gateway={skillsInstituteGateway}
+          session={session}
+          onLeave={clearSkillsRoute}
+          onNavigate={view => {
+            if (view === 'skills') return;
+            storeEntryView(view);
+            clearSkillsRoute();
           }}
         />
       : <Unavailable />;
@@ -371,8 +453,9 @@ export default function RuntimeApp() {
       />
     );
   }
+  if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    ? <AgentExperience key={directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

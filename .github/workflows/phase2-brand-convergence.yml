@@ -1,0 +1,90 @@
+name: Phase 2 — SecurePay Brand Convergence
+
+on:
+  pull_request:
+    paths:
+      - 'src/index.css'
+      - 'src/features/brand/**'
+      - 'src/features/living-workspace/**'
+      - 'src/components/SignedOutHome.tsx'
+      - 'src/components/SignedInHome.tsx'
+      - 'tests/phase2-*'
+      - '.github/workflows/phase2-brand-convergence.yml'
+  push:
+    branches:
+      - design/phase2-securepay-brand-convergence-20261015
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase2-brand-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engineering:
+    name: Brand contracts, TypeScript, lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Brand and previous phase boundaries
+        run: node --test tests/phase2-brand-system.test.mjs tests/phase1-connected-securepay.test.mjs tests/agreement-edit-context-add.test.mjs tests/securepay-brand-typography.test.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Lint errors
+        run: npm run lint -- --quiet
+      - name: Production build
+        run: npm run build
+
+  visual:
+    name: Phase 1 versus Phase 2 / real browser screenshots
+    needs: engineering
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install and Chromium
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build both exact revisions without editing either one
+        run: |
+          now="$(git rev-parse HEAD)"
+          git checkout --detach 7c509834fad0915c34b7a34646aa722596703901
+          npm run build
+          mv dist dist-before
+          git checkout --detach "$now"
+          npm run build
+      - name: Run separate local static previews
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/phase2-after.log 2>&1) &
+          (npm run preview -- --outDir dist-before --host 127.0.0.1 --port 4174 > /tmp/phase2-before.log 2>&1) &
+          for i in $(seq 1 40); do
+            curl -sf http://127.0.0.1:4173/ >/dev/null && curl -sf http://127.0.0.1:4174/ >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          curl -sf http://127.0.0.1:4174/ >/dev/null
+          PHASE2_CAPTURE=before node tests/phase2-brand-browser.mjs
+          PHASE2_CAPTURE=after node tests/phase2-brand-browser.mjs
+      - name: Preserve actual-browser comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-before-after-brand-screenshots
+          path: artifacts/phase2/**/*.png
+          if-no-files-found: ignore

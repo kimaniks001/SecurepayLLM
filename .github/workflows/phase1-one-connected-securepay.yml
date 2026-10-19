@@ -1,0 +1,78 @@
+name: Phase 1 — One Connected SecurePay
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'tests/phase1-*'
+      - 'tests/convergence-living-handoff.test.mjs'
+      - 'src/features/experience/entryIntent.ts'
+      - 'src/features/agent/AgentExperience.tsx'
+      - '.github/workflows/phase1-one-connected-securepay.yml'
+      - 'package.json'
+  push:
+    branches:
+      - feature/phase1-one-connected-securepay-20261015
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase1-one-connected-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Scope, TypeScript, lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Integration boundary contracts (not live E2E)
+        run: node --test tests/convergence-living-handoff.test.mjs tests/phase1-connected-securepay.test.mjs tests/agreement-edit-context-add.test.mjs tests/quick-assist-first-use.test.mjs tests/launch-tools-cleanup.test.mjs tests/securepay-brand-typography.test.mjs
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint -- --quiet
+      - name: Production build
+        run: npm run build
+
+  browser-smoke:
+    name: Public-preview browser smoke and screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install and browser
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build production-like app
+        run: npm run build
+      - name: Start static preview and run browser smoke
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/phase1-vite.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/phase1-public-browser.mjs
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-public-browser-screenshots
+          path: artifacts/phase1/*.png
+          if-no-files-found: ignore

@@ -7,7 +7,7 @@ const api = fs.readFileSync(new URL('../src/api/securepay/subscription/index.ts'
 const dto = fs.readFileSync(new URL('../src/api/securepay/subscription/dto.ts', import.meta.url), 'utf8');
 const adapters = fs.readFileSync(new URL('../src/api/securepay/subscription/adapters.ts', import.meta.url), 'utf8');
 const experience = fs.readFileSync(new URL('../src/features/activation/ActivationExperience.tsx', import.meta.url), 'utf8');
-const home = fs.readFileSync(new URL('../src/components/SignedOutHome.tsx', import.meta.url), 'utf8');
+const account = fs.readFileSync(new URL('../src/features/account/AccountExperience.tsx', import.meta.url), 'utf8');
 
 const requiredEndpoints = [
   '/api/v1/subscriptions/me',
@@ -173,8 +173,9 @@ test('failed authority reads do not expose empty-state mutation actions', () => 
   assert.match(experience, /subscription\s*&&\s*!agreement\s*&&\s*!loading\s*&&\s*!authorityReadFailed/);
 });
 
-test('activation has a real signed-out entry point and a first-class runtime route', () => {
-  assert.match(home, /href="#\/activate"/);
+test('activation remains a real capability without competing with the signed-in operating Home', () => {
+  assert.match(account, /href="#\/activate"/);
+  assert.match(account, /You haven't activated a SecurePay subscription yet/);
   assert.match(runtime, /ActivationExperience/);
   assert.match(runtime, /useActivationRoute/);
   assert.match(runtime, /subscriptionGateway/);

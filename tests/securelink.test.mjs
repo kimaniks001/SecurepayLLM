@@ -249,37 +249,38 @@ const progressedHandoff = (over = {}) => ({
 // honest behavior rather than left asserting on the removed affordance. The real SecureLink journey now
 // lives in the persistent Agreement workspace entry point, reached via "Invite someone to review".
 
-test('post-SET: the deliberate continuations offered are Connect money now / Invite someone to review / Save, and none of them fires automatically', () => {
+
+test('post-SET: the deliberate continuations keep the person on the Agreement and never jump to Money', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff(), review: null, error: null, changedDuringSignIn: false });
   const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, onOpenAgreement() {} }));
-  assert.match(html, /Connect money now/);
-  assert.match(html, /Invite someone to review/);
-  assert.doesNotMatch(html, /Create SecureLink/); // never offered directly from this one-time moment any more
-  assert.match(html, /Save/i);
+  assert.doesNotMatch(html, /Connect money now/);
+  assert.match(html, /Open Agreement &(?:amp;)? invite/);
+  assert.doesNotMatch(html, /Create SecureLink/);
+  assert.match(html, /Done for now/);
 });
 
-test('post-SET: "Connect money now" and "Invite someone to review" are withheld when there is no progressed agreement id', () => {
+
+test('post-SET: Agreement continuation is withheld when there is no progressed agreement id', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff({ progressedAgreementId: null }), review: null, error: null, changedDuringSignIn: false });
   const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, onOpenAgreement() {} }));
   assert.doesNotMatch(html, /Connect money now/);
-  assert.doesNotMatch(html, /Invite someone to review/);
+  assert.doesNotMatch(html, /Open Agreement &(?:amp;)? invite/);
 });
 
-test('post-SET: "Invite someone to review" is withheld entirely when no onOpenAgreement is supplied (no partial/broken affordance)', () => {
+
+test('post-SET: "Open Agreement & invite" is withheld entirely when no onOpenAgreement is supplied (no partial/broken affordance)', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff(), review: null, error: null, changedDuringSignIn: false });
   const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {} }));
-  assert.doesNotMatch(html, /Invite someone to review/);
-  assert.match(html, /Connect money now/); // money handoff has no onOpenAgreement dependency -- it uses the existing openMoneyFor mechanism
+  assert.doesNotMatch(html, /Open Agreement &(?:amp;)? invite/);
+  assert.doesNotMatch(html, /Connect money now/);
 });
 
-test('post-SET: "Save" never implies incompleteness -- it reads as a deliberate, calm choice', () => {
+
+test('post-SET: "Done for now" is a deliberate calm choice', () => {
   const handoff = noopController({ phase: 'progressed', handoff: progressedHandoff(), review: null, error: null, changedDuringSignIn: false });
-  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {} }));
-  assert.match(html, /Save.*I.m done for now/);
-  assert.doesNotMatch(html, /incomplete/i);
+  const html = text(markup(api.HandoffPanel, { handoff, identity: identityStub, onDone() {}, onOpenAgreement() {} }));
+  assert.match(html, /Done for now/);
 });
-
-// ---------------------------------------------------------------- RuntimeApp.tsx -- #/securelink/{slug} route
 
 test('RuntimeApp wires a first-class #/securelink/{slug} route to SecureLinkExperience, with no Agreement id ever in the URL', async () => {
   const runtime = await readFile(new URL('../src/RuntimeApp.tsx', import.meta.url), 'utf8');

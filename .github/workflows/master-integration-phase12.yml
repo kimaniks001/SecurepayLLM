@@ -1,0 +1,77 @@
+name: Master Execution — Phase 1+2 Integration Certification
+
+on:
+  pull_request:
+    branches:
+      - integration/master-execution-20261019
+  push:
+    branches:
+      - integration/master-execution-20261019
+
+permissions:
+  contents: read
+
+concurrency:
+  group: master-execution-phase12-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Full regressions, safety, TypeScript, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Complete existing frontend regression suite
+        run: npm run test:final-convergence
+      - name: Production preview write-guard and retained authority
+        run: node --test tests/phase1-preview-production-write-guard.test.mjs tests/phase1-connected-securepay.test.mjs tests/phase2-master-check.test.mjs
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+
+  browser:
+    name: Phase 1 workspace and five Phase 2 journeys
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install isolated browser dependencies
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Run localhost-only visual tests
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/master-integration-preview.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ > /dev/null
+          node tests/phase1-public-browser.mjs
+          node tests/phase2-master-browser.mjs
+      - name: Attach visual regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase12-integration-browser-evidence
+          path: |
+            artifacts/phase1/*.png
+            artifacts/phase2-master/*.png
+          if-no-files-found: warn

@@ -17,14 +17,14 @@ test('Store landing clearly distinguishes Find from My Store', () => {
   assert.match(home, />Find</);
   assert.match(home, /My Store/);
   assert.match(home, /See what people can find & what needs you/);
-  assert.match(home, /Search a category or place/);
+  assert.match(home, /placeholder="What are you looking for\?"/);
 });
 
 test('Store search stays truthful to current API filters', () => {
   assert.match(view, /category: trimmed/);
   assert.match(view, /location: trimmed/);
   assert.match(view, /PRODUCT.*SERVICE.*CAPACITY/s);
-  assert.match(home, /real category and place filters/);
+  assert.match(home, /real Store filters and published offers/);
   assert.doesNotMatch(view, /fullText|semanticSearch|vectorSearch/);
 });
 

@@ -1,0 +1,35 @@
+name: Phase 3 — Authenticated Certification Safety Gate
+
+# Safe preparation only: no staging connections, payment, credentials, or real
+# authenticated exercises are run by this workflow.
+on:
+  pull_request:
+    paths:
+      - 'tests/certification/staging-guard.mjs'
+      - 'tests/phase3-certification-guard.test.mjs'
+      - 'docs/PHASE3_AUTHENTICATED_HUMAN_CERTIFICATION_20261016.md'
+      - '.github/workflows/phase3-certification-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Production isolation and zero-funds proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject unsafe production, preview and money configurations
+        run: node --test tests/phase3-certification-guard.test.mjs
+      - name: Verify script parses without running against any backend
+        run: node --check tests/certification/staging-guard.mjs
+      - name: Explain certification state
+        run: |
+          echo 'Safety gate PASS does NOT mean authenticated E2E passed.'
+          echo 'No network connection was made to production or staging.'
+          echo 'Human staging environment/roles/permissions and six journeys are still required.'

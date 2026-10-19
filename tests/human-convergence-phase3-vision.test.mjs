@@ -9,10 +9,10 @@ const boardController = await readFile('src/features/visionboard/controller.ts',
 const dreamController = await readFile('src/features/visionboard/dreams/controller.ts', 'utf8');
 const boardDto = await readFile('src/api/securepay/visionboard/dto.ts', 'utf8');
 
-test('Vision home is Dream-first, private and lightweight', () => {
+test('Vision home is Dream-first, private, exploratory and lightweight', () => {
   assert.match(dreamHome, /Your private thinking space/);
-  assert.match(dreamHome, /Think freely\. Keep what matters\./);
-  assert.match(dreamHome, /Add a thought/);
+  assert.match(dreamHome, /What do you want to make possible\?/);
+  assert.match(dreamHome, /Start with a thought/);
   assert.match(dreamHome, /Search & organise/);
   assert.match(dreamHome, /view="vision-board"/);
   assert.match(dreamExperience, /What are you dreaming of\?/);
@@ -43,12 +43,14 @@ test('Vision Library leads with search and one Add affordance', () => {
   assert.match(root, /controller\.search\(searchInput\.trim\(\)\)/);
 });
 
-test('the Library front door does not lead with Store or Agreement commitment actions', () => {
+test('the Library front door keeps Store, Skills and Agreement as deliberate secondary actions, never automatic commitment', () => {
   const root = board.slice(board.lastIndexOf('return <div className="sp-life-canvas min-h-dvh">'));
   assert.doesNotMatch(root, /Start from your Vision/);
-  assert.doesNotMatch(root, /onNavigate\('store'\)/);
-  assert.doesNotMatch(root, /onNavigate\('agreements'\)/);
-  assert.match(root, /Where this can go next/);
+  assert.match(root, /When you are ready to act/);
+  assert.match(root, /onNavigate\('store'\)/);
+  assert.match(root, /onNavigate\('skills'\)/);
+  assert.match(root, /onNavigate\('agreements'\)/);
+  assert.match(root, /does not create a purchase, Agreement or Money instruction/);
 });
 
 test('KS001, documents and fulfilment are contextual rather than dominant', () => {

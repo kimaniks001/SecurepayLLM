@@ -18,7 +18,7 @@ export function MoneyHome({ items, onOpenMoney, onStartConversation }: MoneyHome
   const recent = items.filter((m) => m.state === 'confirmed' || (m.activity.length > 0 && actionableNextActions(m).length === 0));
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin">
+    <div className="sp-brand-home sp-brand-money-home flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
         <div className="mb-5">
           <h1 className="font-display text-xl text-forest-800 font-medium">Money</h1>

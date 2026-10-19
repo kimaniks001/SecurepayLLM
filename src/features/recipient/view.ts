@@ -44,14 +44,10 @@ export function recipientReviewView(invitation: PublicInvitationViewResponse): R
     purpose: invitation.purpose || null,
     proposedAmount: invitation.proposedAmountMinor != null ? formatMoney(invitation.currency, invitation.proposedAmountMinor) : null,
     expiry: `Invitation expires ${formatDate(invitation.invitationExpiresAt)}`,
-    nextSteps: [
-      'Sign in, only if SecurePay needs to know who you are.',
-      'Join, so you can take part. Joining does not mean you agree.',
-      'Read the exact Agreement, then decide.',
-    ],
-    primaryLabel: 'Continue',
+    nextSteps: undefined,
+    primaryLabel: 'Review the Agreement',
     primaryValue: 'continue_review',
-    secondaryLabel: "Not me / I wasn't expecting this",
+    secondaryLabel: 'Not me',
     secondaryValue: 'not_me',
   };
 }
@@ -59,9 +55,9 @@ export function recipientReviewView(invitation: PublicInvitationViewResponse): R
 export function joinPromptView(): JoinPromptResponse {
   return {
     type: 'JOIN_PROMPT',
-    title: 'Join this Agreement',
-    text: 'Joining adds you as a participant so you can read the exact Agreement and respond. It does not mean you agree to the terms, and nothing is paid.',
-    primaryLabel: 'Join this Agreement',
+    title: 'Take part in this Agreement',
+    text: 'SecurePay needs to add you as a participant before you can respond to the Agreement. Joining only gives you that place — it does not mean you agree and nothing is paid.',
+    primaryLabel: 'Take part',
     primaryValue: 'join_agreement',
     secondaryLabel: 'Not now',
     secondaryValue: 'leave',
@@ -71,10 +67,10 @@ export function joinPromptView(): JoinPromptResponse {
 export function joinedStatusView(join: JoinAgreementResponse): JoinedStatusResponse {
   return {
     type: 'JOINED_STATUS',
-    title: 'You have joined this Agreement',
-    text: `You are taking part as: ${roleWords(join.role)}. Next, read the exact version below.`,
-    status: join.participantStatus === 'JOINED_UNCONFIRMED' ? 'Joined' : roleWords(join.participantStatus),
-    notAgreed: 'You have not yet agreed to these terms.',
+    title: 'You can now respond to this Agreement',
+    text: `You are taking part as ${roleWords(join.role)}.`,
+    status: join.participantStatus === 'JOINED_UNCONFIRMED' ? 'Taking part' : roleWords(join.participantStatus),
+    notAgreed: 'You have not agreed yet.',
   };
 }
 
@@ -104,7 +100,7 @@ export function exactVersionView(version: AgreementVersionResponse, parties: { n
     type: 'CANONICAL_AGREEMENT',
     title,
     version: `${version.versionNumber}`,
-    status: 'Current version — you have not confirmed it',
+    status: 'You have not agreed yet',
     parties,
     work: work.length ? work : ['Not yet specified'],
     price: formatMoney(currency, amountMinor),
@@ -112,11 +108,25 @@ export function exactVersionView(version: AgreementVersionResponse, parties: { n
     worthSettling: [],
     mustSettle: [],
     // Truthful: SecurePay records this participant's confirmation of THIS exact version (number + content hash).
-    primaryLabel: 'Yes, I confirm this version',
+    primaryLabel: 'I agree to this Agreement',
     primaryValue: 'confirm_version',
-    secondaryLabel: 'This needs changing',
+    secondaryLabel: 'Suggest a change',
     secondaryValue: 'need_change',
-    consequence: `Your confirmation is recorded against version ${version.versionNumber} exactly. If the Agreement changes, you will be asked again. It doesn’t mean everyone has confirmed, and nothing is paid.`,
+    consequence: `SecurePay records your agreement against this exact version. If the Agreement changes, you will be asked again. Your choice covers only you and moves no money.`,
+  };
+}
+
+
+export function agreedVersionView(version: AgreementVersionResponse, parties: { name: string; role: string }[] = []): CanonicalAgreementResponse {
+  const base = exactVersionView(version, parties);
+  return {
+    ...base,
+    status: 'You agree to this Agreement',
+    primaryLabel: 'Done',
+    primaryValue: 'done',
+    secondaryLabel: 'Done',
+    secondaryValue: 'done',
+    consequence: 'SecurePay has recorded your agreement to the exact Agreement shown here. This does not claim that every other participant has agreed, and it moves no money.',
   };
 }
 
@@ -143,8 +153,8 @@ export function confirmedView(confirmation: AgreementConfirmationResponse): Noti
   const extra = confirmation.reconfirmationRequired ? ' SecurePay may ask you to reconfirm again later.' : '';
   return {
     type: 'NOTICE',
-    label: 'You confirmed this version',
-    text: `Your confirmation of version ${confirmation.versionNumber} is recorded. This covers only you — it does not mean every participant has confirmed, and no payment has been made.${extra}`,
+    label: 'You agree',
+    text: `SecurePay recorded your agreement to the version you just read. This covers only you — it does not mean every participant has agreed, and no payment has been made.${extra}`,
     tone: 'important',
   };
 }

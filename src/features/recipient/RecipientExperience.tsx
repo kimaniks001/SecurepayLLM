@@ -3,11 +3,11 @@ import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-h
 import { RecipientReviewCard } from '../../components/RecipientReview';
 import { SecureAuthCard } from '../../components/SecureAuth';
 import { JoinPromptCard } from '../../components/JoinPrompt';
-import { JoinedStatusCard } from '../../components/JoinedStatus';
 import { CanonicalAgreementCard } from '../../components/CanonicalAgreement';
 import { NoticeCard } from '../../components/NoticeCard';
 import { ErrorStateCard } from '../../components/ErrorState';
 import { ChoiceButtons } from '../../components/ChoiceButtons';
+import { AgreementChangeProposal } from '../amendments/AgreementChangeProposal';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
@@ -16,7 +16,7 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { createSignupController } from '../signup/controller';
 import { signupView } from '../signup/view';
-import { recipientReviewView, joinPromptView, joinedStatusView, exactVersionView, participantsView, roleWords, needsChangingView, changedVersionNoticeView, confirmedView, recipientErrorView } from './view';
+import { recipientReviewView, joinPromptView, joinedStatusView, exactVersionView, agreedVersionView, participantsView, roleWords, changedVersionNoticeView, confirmedView, recipientErrorView } from './view';
 
 const AUTH_CONTEXT = { title: 'SecurePay needs to know who you are', reason: 'Before adding you to this Agreement, SecurePay needs to know who you are. Signing in only proves that — it does not join, confirm or accept anything, and you’ll come straight back to this invitation.', secondaryLabel: 'Not now' };
 
@@ -191,7 +191,9 @@ export function RecipientExperience({ token, invitationId, gateway, auth, sessio
   } else if ((state.phase === 'version-ready' || state.phase === 'confirming' || state.phase === 'confirm-error' || state.phase === 'confirm-uncertain') && state.join && state.version) {
     body = (
       <div className="space-y-3">
-        <JoinedStatusCard data={joinedStatusView(state.join)} />
+        <p className="mx-auto max-w-2xl text-[0.82rem] leading-5 text-sand-700" role="status">
+          {joinedStatusView(state.join).text} {joinedStatusView(state.join).notAgreed}
+        </p>
         {state.changed && <NoticeCard data={changedVersionNoticeView()} />}
         {state.phase === 'confirm-error' && <p role="alert" className="text-[0.85rem] text-ember-700 text-center">{state.error}</p>}
         {state.phase === 'confirm-uncertain' && <div className="space-y-2">
@@ -205,18 +207,26 @@ export function RecipientExperience({ token, invitationId, gateway, auth, sessio
             else if (value === 'need_change') setNeedsChanging(open => !open);
           }}
         />
-        {needsChanging && <NoticeCard data={needsChangingView()} />}
+        {needsChanging && <AgreementChangeProposal
+          gateway={gateway}
+          agreementId={state.join.agreementId}
+          expectedVersionId={state.version.id}
+          currentDescription={typeof state.version.snapshot.description === 'string' ? state.version.snapshot.description : ''}
+        />}
         {state.phase === 'confirming' && <p role="status" className="text-sm text-sand-500 text-center">Recording your confirmation…</p>}
       </div>
     );
   } else if (state.phase === 'confirmed' && state.confirmation) {
     body = (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <NoticeCard data={confirmedView(state.confirmation)} />
-        <ChoiceButtons data={{ type: 'CHOICE_BUTTONS', choices: [{ label: 'Done', value: 'done' }] }} onChoice={leave} />
-        {/* Public Experience Convergence Phase 4 -- a quiet, optional doorway. The Agreement never depends on
-            Trust Project membership, and joining it is always a separate, explicit choice. */}
-        <p className="text-center text-[0.85rem] text-sand-700" data-optional-trust-project-join>
+        {state.version && state.join && <CanonicalAgreementCard
+          data={agreedVersionView(state.version, participantsView(state.participants, state.join.participantId))}
+          onChoice={leave}
+          readOnly
+        />}
+        <div className="text-center"><button type="button" onClick={leave} className="min-h-11 rounded-full bg-forest-700 px-5 text-[0.85rem] font-medium text-white">Done</button></div>
+        <p className="text-center text-[0.82rem] text-sand-700" data-optional-trust-project-join>
           <a href="#/join" className="inline-flex min-h-11 items-center underline text-forest-700 hover:text-forest-800">You can also join The Trust Project.</a>
         </p>
       </div>
