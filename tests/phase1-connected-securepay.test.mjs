@@ -72,7 +72,7 @@ test('Phase1: Money is downstream of real Agreement and protected backend state'
 test('Phase1: Community data stays behind membership and Circle boundaries',()=>{
   const projection=src('src/features/living-workspace/communityDiscovery.ts');
   assert.match(community,/membership\.value\?\.status==='ACTIVE'/);
-  assert.match(community,/if\(!active\)return;/);
+  assert.match(community,/if\(!active \|\| !gateways\)return;/);
   assert.match(projection,/row=>row\.circleId===null/);
   assert.match(projection,/visibility==='PUBLIC'/);
   assert.match(community,/SecurePay could not verify membership/);
