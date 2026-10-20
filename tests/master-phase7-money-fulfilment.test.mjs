@@ -49,7 +49,7 @@ test('duplicate obligation, cross-agreement position and invalid money values fa
     [{...base.positions[0],agreementId:'somebody-else'}],
     [{...base.positions[0],fundedTotalMinor:-1}],
     [{...base.positions[0],releasedTotalMinor:1.25}],
-    [{...base.positions[0],obligationId:null}],
+    [{...base.positions[0],obligationId:null},{...base.positions[0],obligationId:null}],
   ]){
     const truth=verifyMoneyReviewSnapshot('agreement-one','version-7',backendSnapshot({positions}));
     assert.equal(truth.kind,'unavailable');
@@ -92,4 +92,11 @@ test('one controlled Money shelf, authoritative snapshot, seven labelled demonst
   assert.match(workspace,/activeTool==='Money'\?<UnifiedMoneyTool/);
   assert.match(workspace,/openMoneyFor\(/);
   assert.match(gateway,/auth: 'required'/);
+});
+
+test('one legitimate agreement-level position can be displayed without an obligation ID',()=>{
+ const base=backendSnapshot();
+ const truth=verifyMoneyReviewSnapshot('agreement-one','version-7',backendSnapshot({positions:[{...base.positions[0],obligationId:null}]}));
+ assert.equal(truth.kind,'ready');
+ assert.equal(truth.snapshot.positions.length,1);
 });
