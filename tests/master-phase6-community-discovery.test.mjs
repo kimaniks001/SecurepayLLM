@@ -50,7 +50,7 @@ test('Discovery is factual, not a popularity score or profile inference',()=>{
 });
 test('No membership implies no member-content API queries and a real Join pathway',()=>{
   assert.match(hub,/membership\.value\?\.status==='ACTIVE'/);
-  assert.match(hub,/if\(!active\)return;/);
+  assert.match(hub,/if\(!active \|\| !gateways\)return;/);
   assert.match(hub,/gateways\.community\.membership\.me\(\)/);
   assert.match(hub,/window\.location\.hash='#\/join'/);
   assert.match(hub,/membership\.value\?\.status==='REVOKED'/);
