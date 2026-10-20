@@ -438,7 +438,7 @@ test('Structural S4: Community is member-gated and restricts public discovery to
   assert.match(app,/<InlineCommunityHub/);
   assert.match(hub,/gateways\.community\.membership\.me\(\)/);
   assert.match(hub,/membership\.value\?\.status==='ACTIVE'/);
-  assert.match(hub,/if\(!active\)return;/);
+  assert.match(hub,/if\(!active \|\| !gateways\)return;/);
   assert.match(hub,/gateways\.community\.projects\.list\(25,0\)/);
   assert.match(hub,/gateways\.community\.serviceOpportunities\.list\(25,0\)/);
   assert.match(hub,/gateways\.community\.events\.list\(25,0\)/);
