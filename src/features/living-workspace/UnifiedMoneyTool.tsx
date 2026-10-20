@@ -5,6 +5,7 @@ import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/ag
 import { moneyText, minorFromString } from '../money/amount';
 import { humanAgreementStatus } from './MoneyAgreementCards';
 import { Phase7MoneyJourneyPreview, Phase7MoneySnapshotReview } from './Phase7MoneyJourney';
+import { MoneyPartnerFacts } from './MoneyPartnerFacts';
 
 type Door='my'|'borrow'|'invest'|'protect';
 type AgreementsState={state:'idle'|'loading'|'ready'|'error';items:CurrentUserAgreementSummaryResponse[]};
@@ -154,6 +155,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
     {door==='protect'&&<p className="text-xs text-sand-600">Find cover relevant to your purchase; confirm the insurer, terms and start of cover before adding it.</p>}
     {door==='borrow'&&<p className="text-xs text-sand-600">Understand costs and repayments before choosing a lender.</p>}
     {door==='invest'&&<p className="text-xs text-sand-600">Explore regulated options and their risks; returns are never guaranteed.</p>}
+    <MoneyPartnerFacts key={door} gateway={gateways?.financialPartners} enabled={signedIn&&!sample} focus={door}/>
     <button type="button" disabled={busy} onClick={()=>{if(!signedIn||sample){onOpenMoney();return;}void explore();}}
       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 font-semibold text-white disabled:opacity-50">
       {signedIn&&!sample?'Explore with KS001':'Continue securely'} <ArrowRight size={15}/>
