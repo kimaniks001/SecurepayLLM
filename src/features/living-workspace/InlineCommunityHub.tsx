@@ -65,7 +65,7 @@ const demonstration=():Collections=>({
   events:{status:'ready',items:[
     {id:'sample-event-1',circleId:null,status:'CONFIRMED',
       title:'How to document work fairly',description:'Illustrative gathering about evidence, agreed tasks and respectful collaboration.',
-      startsAt:null,locationLabel:'Sample only · no confirmed time or booking'} as CommunityEventDto,
+      startsAt:null,locationLabel:'Sample only · no confirmed time or booking'} as unknown as CommunityEventDto,
   ]},
   learning:{status:'ready',items:[
     {id:'sample-learning-1',circleId:null,status:'PROPOSED',
