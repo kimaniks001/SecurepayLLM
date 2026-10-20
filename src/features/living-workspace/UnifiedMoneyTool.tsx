@@ -4,6 +4,7 @@ import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import { moneyText, minorFromString } from '../money/amount';
 import { humanAgreementStatus } from './MoneyAgreementCards';
+import { Phase7MoneyJourneyPreview, Phase7MoneySnapshotReview } from './Phase7MoneyJourney';
 
 type Door='my'|'borrow'|'invest'|'protect';
 type AgreementsState={state:'idle'|'loading'|'ready'|'error';items:CurrentUserAgreementSummaryResponse[]};
@@ -101,6 +102,10 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
        <button type="button" onClick={()=>setSampleIndex(current=>(current+1)%samples.length)}
          className="text-xs font-semibold text-forest-700 underline underline-offset-2">Next example</button></div>
       <p className="text-xs text-sand-700">Next: {sampleAgreement.next}</p>
+      <details data-phase7-demo-details className="rounded-xl border border-forest-100 bg-white p-2">
+        <summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-forest-800">Explore Agreement → Money → fulfilment (7 examples)</summary>
+        <div className="pt-2"><Phase7MoneyJourneyPreview/></div>
+      </details>
       <button type="button" onClick={onOpenMoney}
         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-forest-200 bg-cream-50 px-3 font-semibold">
         Open real Money <ArrowRight size={15}/>
@@ -131,6 +136,13 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
          {fundingAction?'Review funding':'Open Money'} <ArrowRight size={14}/>
         </button>
        </div>
+       <details data-phase7-authoritative-money className="mt-2 rounded-xl border border-forest-200 bg-white p-2">
+        <summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-forest-800">Where is this Agreement's money?</summary>
+        <div className="pt-2"><Phase7MoneySnapshotReview key={selectedAgreement.agreementId+':'+selectedAgreement.currentAgreementVersionId}
+          gateway={gateways?.moneySnapshot} agreement={selectedAgreement}
+          onOpenAgreement={()=>onReviewAgreement(selectedAgreement.agreementId)}
+          onOpenMoney={()=>onOpenAgreementMoney(selectedAgreement)}/></div>
+       </details>
       </div>}
       <button type="button" onClick={onOpenMoney} className="flex min-h-10 items-center gap-1 text-xs font-semibold text-forest-800">
        See all Money & financial details <ArrowRight size={14}/>
