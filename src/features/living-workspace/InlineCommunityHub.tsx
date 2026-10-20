@@ -23,6 +23,59 @@ const empty=():Collections=>({
   help:{status:'idle',items:[]},projects:{status:'idle',items:[]},
   events:{status:'idle',items:[]},learning:{status:'idle',items:[]},
 });
+/** Preview-only fixtures for the exact Community discovery UI.
+ * They are in-memory illustrations, not authenticated membership or API data.
+ * Never pass these records to Community gateways or store them as user data. */
+const demonstration=():Collections=>({
+  live:{status:'ready',items:[
+    {id:'sample-live-1',circleId:null,status:'ACTIVE',objectType:'WORK_STORY',
+      authorDisplayName:'Illustrative member',title:'A workshop sharing practical skills',
+      body:'An example of members documenting a repair, what they learned, and who could help next.',
+      locationLabel:'Illustrative community story'} as CommunityObjectResponse,
+    {id:'sample-live-2',circleId:null,status:'ACTIVE',objectType:'QUESTION',
+      authorDisplayName:'Illustrative member',title:'What makes a delivery verifiable?',
+      body:'A demonstration discussion about photographs, dates, locations and clear handover responsibilities.',
+      locationLabel:'Sample · no real author'} as CommunityObjectResponse,
+  ]},
+  circles:{status:'ready',items:[
+    {id:'sample-circle-1',name:'Neighbourhood Garden Circle',purpose:'Plan a shared garden day and learn practical skills together.',
+      status:'ACTIVE',visibility:'PUBLIC',membershipMode:'REQUEST_TO_JOIN',
+      categoryLabel:'Neighbourhood',locationLabel:'Illustrative Circle'} as CircleResponse,
+    {id:'sample-circle-2',name:'Repair & Making Circle',purpose:'Share tools, questions and experience before starting a community repair.',
+      status:'ACTIVE',visibility:'PUBLIC',membershipMode:'OPEN',categoryLabel:'Practical skills',
+      locationLabel:'Illustrative Circle'} as CircleResponse,
+  ]},
+  invitations:{status:'ready',items:[]},
+  help:{status:'ready',items:[
+    {id:'sample-help-1',circleId:null,status:'OPEN',title:'Help plan a school furniture repair',
+      description:'Illustrative service opportunity: list the tools, skills and delivery conditions needed before anyone commits.',
+      locationLabel:'Sample location',skillsNeeded:['Carpentry','Coordination'],startsAt:null} as CommunityServiceOpportunityDto,
+    {id:'sample-help-2',circleId:null,status:'OPEN',title:'Document a water project site',
+      description:'A sample opportunity to photograph and verify existing conditions, then ask a qualified person for advice.',
+      locationLabel:'Illustrative locality',skillsNeeded:['Photography','Project support'],startsAt:null} as CommunityServiceOpportunityDto,
+  ]},
+  projects:{status:'ready',items:[
+    {id:'sample-project-1',circleId:null,status:'ACTIVE',title:'Community rainwater storage idea',
+      purpose:'Compare tank locations, practical capacity and responsibility for inspection before arranging work.',
+      locationLabel:'Sample project · no participants or funds'} as CommunityProjectDto,
+    {id:'sample-project-2',circleId:null,status:'ACTIVE',title:'Shared neighbourhood clean-up',
+      purpose:'Explore safe roles, materials, dates and consent for a collective improvement day.',
+      locationLabel:'Sample · no event scheduled'} as CommunityProjectDto,
+  ]},
+  events:{status:'ready',items:[
+    {id:'sample-event-1',circleId:null,status:'CONFIRMED',
+      title:'How to document work fairly',description:'Illustrative gathering about evidence, agreed tasks and respectful collaboration.',
+      startsAt:null,locationLabel:'Sample only · no confirmed time or booking'} as CommunityEventDto,
+  ]},
+  learning:{status:'ready',items:[
+    {id:'sample-learning-1',circleId:null,status:'PROPOSED',
+      title:'Apprenticeship in workshop skills',
+      learningGoal:'Learn preparation, safe tools, craftsmanship and the value of reliable evidence from experienced people.'} as ApprenticeshipProjectDto,
+    {id:'sample-learning-2',circleId:null,status:'PROPOSED',
+      title:'Community project coordination',
+      learningGoal:'Discover how a Plug supports people, consent, schedules and practical verification.'} as ApprenticeshipProjectDto,
+  ]},
+});
 const sections=[
   {id:'home',label:'Discover',Icon:Compass},
   {id:'live',label:'LIVE',Icon:MessageCircle},
@@ -61,21 +114,28 @@ function Card({label,title,body,detail,onOpen,actionLabel='Explore this Circle'}
 /** Phase 6 is a connected discoverability surface for the existing Community
  * gateway. It has no parallel membership engine, Circle board, post controller,
  * volunteer registry or booking logic. Community authority stays server-side. */
-export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject}:{ 
+export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject,previewOnly=false,onSignIn}:{ 
   gateways:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
   onOpenCircle?:(circleId:string)=>void;
   onOpenObject?:(objectId:string)=>void;
+  previewOnly?:boolean;
+  onSignIn?:()=>void;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const [page,setPage]=useState<Page>('home');
   const [filter,setFilter]=useState('');
   const [membership,setMembership]=useState<{status:'loading'|'ready'|'error';value:MembershipResponse|null}>({status:'loading',value:null});
-  const [records,setRecords]=useState<Collections>(empty);
+  const [records,setRecords]=useState<Collections>(()=>previewOnly?demonstration():empty());
   const [revision,setRevision]=useState(0);
-  const active=identity.status==='signed-in'&&membership.status==='ready'&&membership.value?.status==='ACTIVE';
+  const active=previewOnly||(identity.status==='signed-in'&&membership.status==='ready'&&membership.value?.status==='ACTIVE');
 
   useEffect(()=>{
     let alive=true;
+    if(previewOnly){
+      setMembership({status:'ready',value:null});
+      setRecords(demonstration());
+      return;
+    }
     setMembership({status:'loading',value:null});setRecords(empty());
     if(identity.status!=='signed-in'){setMembership({status:'ready',value:null});return;}
     void (async()=>{
@@ -87,10 +147,14 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       }catch{if(alive)setMembership({status:'error',value:null});}
     })();
     return ()=>{alive=false;};
-  },[identity.status,identity.status==='signed-in'?identity.tokens.refreshToken:null,session,gateways,revision]);
+  },[identity.status,identity.status==='signed-in'?identity.tokens.refreshToken:null,session,gateways,revision,previewOnly]);
 
   useEffect(()=>{
     let alive=true;
+    if(previewOnly){
+      setRecords(demonstration());
+      return;
+    }
     setRecords(empty());
     if(!active)return;
     // Read-only, membership-gated authoritative collections. One failing lane
@@ -113,7 +177,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     load('circles',()=>gateways.community.circles.discover(25,0),discoverableCircles);
     load('invitations',()=>gateways.community.circles.myInvitations(25,0),invitedCircleCards);
     return ()=>{alive=false;};
-  },[active,gateways,session,revision]);
+  },[active,gateways,session,revision,previewOnly]);
 
   const filtered=useMemo(()=>({
     live:records.live.items.filter(x=>matchesCommunityText(filter,x.title,x.body,x.locationLabel)),
@@ -131,7 +195,19 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
         SecurePay could not verify {key}. Nothing has been changed.</p>
       :state==='ready'&&filtered[key].length===0?<Empty what={key}/>:null;
   };
-  const openCircle=(id:string)=>onOpenCircle?onOpenCircle(id):onOpenFull();
+  const [previewDetail,setPreviewDetail]=useState<string|null>(null);
+  const openCircle=(id:string)=>{
+    if(previewOnly){setPreviewDetail('This is an illustrative Circle. No real membership, invitation or shared board has been opened.');return;}
+    if(onOpenCircle)onOpenCircle(id);else onOpenFull();
+  };
+  const openParticipation=()=>{
+    if(previewOnly){setPreviewDetail('Demonstration only. Real participation requires a SecurePay identity and explicit Trust Project membership.');return;}
+    onOpenFull();
+  };
+  const openLive=(id:string)=>{
+    if(previewOnly){setPreviewDetail('This is a sample story. There is no actual author, discussion or published response.');return;}
+    if(onOpenObject)onOpenObject(id);else onOpenFull();
+  };
 
   const livePanel=(limit=20)=><Panel title="LIVE · Stories and conversation"
       detail="Real Community activity, not popularity rankings. Private Circle discussions never appear here.">
@@ -139,9 +215,9 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.live.slice(0,limit).map(x=><Card key={x.id}
       label={x.objectType.replace(/_/g,' ').toLowerCase()+' · '+(x.authorDisplayName??'Community member')}
       title={x.title} body={x.body} detail={x.locationLabel}
-      actionLabel="Read & respond" onOpen={()=>onOpenObject?onOpenObject(x.id):onOpenFull()}/>)}
+      actionLabel="Read & respond" onOpen={()=>openLive(x.id)}/>)}
     {limit<20&&filtered.live.length>limit&&<button type="button" onClick={()=>setPage('live')} className="min-h-11 text-xs underline">Read more LIVE stories</button>}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Take part in LIVE · existing Community</button>
   </Panel>;
   const circlesPanel=(limit=20)=><Panel title="Find your people"
@@ -155,7 +231,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.circles.slice(0,limit).map(x=><Card key={x.id}
       label={x.membershipMode.replace(/_/g,' ').toLowerCase()+' · '+x.status.toLowerCase()}
       title={x.name} body={x.purpose} detail={x.locationLabel} onOpen={()=>openCircle(x.id)}/>)}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Discover, request or join through Community</button>
   </Panel>;
   const helpPanel=(limit=20)=><Panel title="Bring your ability. Find a way to help."
@@ -164,7 +240,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.help.slice(0,limit).map(x=><Card key={x.id} label={'Opportunity · '+x.status.toLowerCase()}
       title={x.title} body={x.description}
       detail={[x.locationLabel,x.skillsNeeded.length?'Skills: '+x.skillsNeeded.join(', '):null,x.startsAt?dateLabel(x.startsAt):null].filter(Boolean).join(' · ')}/>)}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Express interest through the authorised Community pathway</button>
   </Panel>;
   const projectPanel=(limit=20)=><Panel title="See what people are building"
@@ -173,7 +249,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.projects.slice(0,limit).map(x=><Card key={x.id}
       label={'Community project · '+x.status.toLowerCase()} title={x.title}
       body={x.purpose} detail={x.locationLabel}/>)}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Explore projects, evidence and contributions</button>
   </Panel>;
   const eventsPanel=(limit=20)=><Panel title="Make time for one another"
@@ -182,7 +258,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.events.slice(0,limit).map(x=><Card key={x.id}
       label={'Event · '+x.status.toLowerCase()} title={x.title}
       body={x.description} detail={[dateLabel(x.startsAt),x.locationLabel].filter(Boolean).join(' · ')}/>)}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Open event details and participation</button>
   </Panel>;
   const learningPanel=(limit=20)=><Panel title="Experience meets opportunity"
@@ -197,7 +273,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       label={'Apprenticeship · '+x.status.toLowerCase()}
       title={x.title} body={x.learningGoal}
       detail="Participation, sponsorship and competence require separate confirmation"/>)}
-    <button type="button" onClick={onOpenFull} className="min-h-11 text-xs font-semibold text-forest-700 underline">
+    <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Explore learning, human capacities and knowledge</button>
   </Panel>;
 
@@ -214,11 +290,28 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       <button type="button" onClick={()=>setRevision(v=>v+1)} aria-label="Refresh Community"
         className="min-h-11 min-w-11 rounded-xl border border-cream-200 bg-white p-3"><RefreshCw size={16}/></button>
     </div>
-    {membership.status==='loading'&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-sm">
+    {previewOnly && <div data-phase6-guest-review role="status"
+      className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+      <p className="text-sm font-semibold text-amber-950">Phase 6 · Interactive sample preview — no sign-in needed</p>
+      <p className="text-xs leading-5 text-amber-900">These stories, Circles, people, projects and events are illustrative,
+        not live SecurePay records. Explore each section, search and open sample details safely.
+        Real membership, invitations, publishing and Money remain protected.</p>
+      {onSignIn && <button type="button" onClick={onSignIn}
+        className="min-h-11 rounded-xl border border-amber-300 bg-white px-4 text-xs font-semibold text-forest-800">
+        Sign in for real Community activity
+      </button>}
+    </div>}
+    {previewDetail && <div role="dialog" aria-label="Sample Community detail"
+      className="rounded-xl border border-forest-200 bg-white p-4 space-y-2">
+      <h3 className="font-semibold text-sm text-forest-900">Sample preview</h3>
+      <p className="text-sm text-sand-700">{previewDetail}</p>
+      <button type="button" onClick={()=>setPreviewDetail(null)} className="min-h-11 rounded-lg bg-cream-100 px-3 text-xs">Close</button>
+    </div>}
+    {!previewOnly && membership.status==='loading'&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-sm">
       Checking your Trust Project membership…</p>}
-    {membership.status==='error'&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">
+    {!previewOnly && membership.status==='error'&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">
       SecurePay could not verify membership. Restricted content remains unavailable.</p>}
-    {membership.status==='ready'&&!active&&<Panel title="You belong by choice"
+    {!previewOnly && membership.status==='ready'&&!active&&<Panel title="You belong by choice"
       detail="Signing in does not make anyone a member. Invitations and joining both require your acceptance.">
       <p className="text-sm text-sand-700">Membership: {membership.value?.status??'Not joined'}.</p>
       {membership.value?.status==='REVOKED'?<p className="text-sm text-sand-700">
@@ -275,7 +368,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
         <p className="text-xs leading-5 text-sand-700">The existing Community is where you can share supported stories,
           propose useful knowledge, review evidence, report concerns and discover real human assistance.
           Unreviewed contributions never become official KS001 knowledge.</p>
-        <button type="button" onClick={onOpenFull}
+        <button type="button" onClick={openParticipation}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-forest-800">
           Open Community participation <ArrowUpRight size={16} aria-hidden="true"/>
         </button>
