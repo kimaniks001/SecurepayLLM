@@ -430,10 +430,10 @@ test('Structural S4: Community is member-gated and restricts public discovery to
   const filtering=source('src/features/living-workspace/communityDiscovery.ts');
   const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
   const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
-  assert.match(app,/mode==='community' && workspaceGateways/);
+  assert.match(app,/mode==='community' && \(!signedIn \|\| workspaceGateways\)/);
   assert.match(app,/previewOnly=\{!signedIn\}/);
   assert.match(hub,/if\(previewOnly\)\{/);
-  assert.match(hub,/if\(!active\)return;/);
+  assert.match(hub,/if\(!active \|\| !gateways\)return;/);
   assert.match(app,/data-phase6-community-main/);
   assert.match(app,/<InlineCommunityHub/);
   assert.match(hub,/gateways\.community\.membership\.me\(\)/);
