@@ -636,7 +636,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
-        {mode==='community' && workspaceGateways && <div data-phase6-community-main
+        {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
@@ -651,7 +651,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               window.location.hash='#/community';
             }}/>
         </div>}
-       {!(mode==='community' && workspaceGateways) &&
+       {!(mode==='community' && (!signedIn || workspaceGateways)) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
