@@ -18,15 +18,16 @@ export function verifyMoneyReviewSnapshot(
   }
   const keys = new Set<string>();
   for (const position of snapshot.positions) {
-    if (position.agreementId !== agreementId || !position.obligationId ||
-        keys.has(position.obligationId) ||
+    const scopeKey = position.obligationId ?? 'agreement-level';
+    if (position.agreementId !== agreementId ||
+        keys.has(scopeKey) ||
         [
           position.authorisedMaxAmountMinor, position.fundedTotalMinor, position.exercisedOrSettledMinor,
           position.releasedTotalMinor, position.remainingFundedMinor,
         ].some(amount => amount !== null && (!Number.isSafeInteger(amount) || amount < 0))) {
       return { kind: 'unavailable', reason: 'The financial records cannot be shown consistently. Refresh the Agreement Money.' };
     }
-    keys.add(position.obligationId);
+    keys.add(scopeKey);
   }
   const move = snapshot.movement;
   const canMove = move.state === 'READY' && move.amountMinor !== null &&
