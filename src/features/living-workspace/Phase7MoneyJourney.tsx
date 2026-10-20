@@ -115,9 +115,9 @@ export function Phase7MoneySnapshotReview({agreement,gateway,onOpenAgreement,onO
     {state==='ready'&&truth?.kind==='ready'&&<>
       {truth.snapshot.positions.length===0?<p className="text-xs text-sand-600">
         No authoritative funded positions were returned. This does not establish that funding is unnecessary.</p>:
-        truth.snapshot.positions.map(position=><div key={position.obligationId}
+        truth.snapshot.positions.map(position=><div key={position.obligationId??'agreement-level'}
           className="rounded-xl border border-cream-200 bg-cream-50 p-3 space-y-2">
-          <p className="text-xs font-semibold">{position.obligationTitle||'Agreement obligation'}</p>
+          <p className="text-xs font-semibold">{position.obligationTitle||'Agreement funding scope'}</p>
           <p className="text-xs text-sand-600">{position.established?'Established position':'Not established · proposed only'}</p>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
             <div><dt className="text-sand-600">Authorised maximum</dt><dd className="font-semibold">{moneyText(position.authorisedMaxAmountMinor,position.currency)}</dd></div>
