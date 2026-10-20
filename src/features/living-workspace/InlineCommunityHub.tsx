@@ -115,7 +115,7 @@ function Card({label,title,body,detail,onOpen,actionLabel='Explore this Circle'}
  * gateway. It has no parallel membership engine, Circle board, post controller,
  * volunteer registry or booking logic. Community authority stays server-side. */
 export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject,previewOnly=false,onSignIn}:{ 
-  gateways:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
+  gateways?:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
   onOpenCircle?:(circleId:string)=>void;
   onOpenObject?:(objectId:string)=>void;
   previewOnly?:boolean;
@@ -137,6 +137,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       return;
     }
     setMembership({status:'loading',value:null});setRecords(empty());
+    if(!gateways){setMembership({status:'error',value:null});return;}
     if(identity.status!=='signed-in'){setMembership({status:'ready',value:null});return;}
     void (async()=>{
       try{
@@ -156,7 +157,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       return;
     }
     setRecords(empty());
-    if(!active)return;
+    if(!active || !gateways)return;
     // Read-only, membership-gated authoritative collections. One failing lane
     // must not turn other authorised lanes into fictional empty successes.
     function load<K extends Section>(key:K, fetch:()=>Promise<Rows[K]>, safe:(x:Rows[K])=>Rows[K]){
