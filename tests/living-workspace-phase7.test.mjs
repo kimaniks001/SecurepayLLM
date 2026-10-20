@@ -425,23 +425,29 @@ test('Structural S3: unavailable Dream board revision cannot silently be overwri
  assert.match(board,/expectedRevision: revision/);
 });
 
-test('Structural S4: real Community exposes only ACTIVE-member, Circle-free records',()=>{
- const hub=source('src/features/living-workspace/InlineCommunityHub.tsx');
- const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
- const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
- assert.match(app,/signedIn && workspaceGateways && mode==='community'/);
- assert.match(app,/<InlineCommunityHub/);
- assert.match(hub,/gateways\.community\.membership\.me\(\)/);
- assert.match(hub,/membership\.data\?\.status==='ACTIVE'/);
- assert.match(hub,/if\(!active \|\| page==='learning'\)return/);
- assert.match(hub,/rows\.filter\(row=>row\.circleId===null\)/);
- assert.match(hub,/gateways\.community\.projects\.list\(20,0\)/);
- assert.match(hub,/gateways\.community\.serviceOpportunities\.list\(20,0\)/);
- assert.match(hub,/gateways\.community\.events\.list\(20,0\)/);
- assert.match(hub,/No participation recorded/);
- assert.match(demo,/data-mock-community-tools/);
- assert.match(demo,/<LivingCommunityPanel\/>/);
- assert.doesNotMatch(demo,/gateways\.community\.|fetch\(/);
+test('Structural S4: Community is member-gated and restricts public discovery to non-Circle records',()=>{
+  const hub=source('src/features/living-workspace/InlineCommunityHub.tsx');
+  const filtering=source('src/features/living-workspace/communityDiscovery.ts');
+  const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+  const demo=source('src/features/living-workspace/MockWorkspacePanel.tsx');
+  assert.match(app,/mode==='community' && \(!signedIn \|\| workspaceGateways\)/);
+  assert.match(app,/previewOnly=\{!signedIn\}/);
+  assert.match(hub,/if\(previewOnly\)\{/);
+  assert.match(hub,/if\(!active \|\| !gateways\)return;/);
+  assert.match(app,/data-phase6-community-main/);
+  assert.match(app,/<InlineCommunityHub/);
+  assert.match(hub,/gateways\.community\.membership\.me\(\)/);
+  assert.match(hub,/membership\.value\?\.status==='ACTIVE'/);
+  assert.match(hub,/if\(!active \|\| !gateways\)return;/);
+  assert.match(hub,/gateways\.community\.projects\.list\(25,0\)/);
+  assert.match(hub,/gateways\.community\.serviceOpportunities\.list\(25,0\)/);
+  assert.match(hub,/gateways\.community\.events\.list\(25,0\)/);
+  assert.match(filtering,/row=>row\.circleId===null/);
+  assert.match(filtering,/row\.visibility==='PUBLIC' && row\.status==='ACTIVE'/);
+  assert.match(hub,/No membership, RSVP, volunteering|separate authorised actions/);
+  assert.match(demo,/data-mock-community-tools/);
+  assert.match(demo,/<LivingCommunityPanel\/>/);
+  assert.doesNotMatch(demo,/gateways\.community\.|fetch\(/);
 });
 test('Structural S5: photo intake stays local in demo and sends through the canonical API on explicit action',()=>{
  const app=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -198,6 +198,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [externalEntryView] = useState(() => consumeEntryView());
   const [externalDreamId,setExternalDreamId] = useState(() => consumeDreamEntry());
   const [externalCircleId,setExternalCircleId] = useState(() => consumeCircleEntry());
+  const [externalCommunityObjectId,setExternalCommunityObjectId]=useState(()=>consumeCommunityObjectEntry());
   const [externalAgreementId] = useState(() => consumeAgreementEntry());
   const [externalKs001Message] = useState(() => consumeKs001EntryMessage());
   const [externalReturnConversationId] = useState(() => consumeKs001ConversationReturn());
@@ -1027,7 +1028,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   if (community) {
     return (
       <CommunityExperience
-        initialCircleId={externalCircleId} onEntryHandled={()=>setExternalCircleId(null)}
+        initialCircleId={externalCircleId}
+        initialObjectId={externalCommunityObjectId}
+        onEntryHandled={()=>{setExternalCircleId(null);setExternalCommunityObjectId(null);}}
         gateway={storeGateway}
         communityGateway={communityGateway}
         discoveryGateway={discoveryGateway}

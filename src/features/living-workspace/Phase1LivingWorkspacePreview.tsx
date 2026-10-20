@@ -24,7 +24,7 @@ import { StoresTool } from './StoresTool';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
@@ -636,7 +636,23 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
-        {!(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <InlineCommunityHub gateways={workspaceGateways} session={session}
+            previewOnly={!signedIn}
+            onSignIn={()=>setSignInOpen(true)}
+            onOpenFull={()=>{window.location.hash='#/community';}}
+            onOpenCircle={circleId=>{
+              storeCircleEntry(circleId);
+              window.location.hash='#/community';
+            }}
+            onOpenObject={objectId=>{
+              storeCommunityObjectEntry(objectId);
+              window.location.hash='#/community';
+            }}/>
+        </div>}
+       {!(mode==='community' && (!signedIn || workspaceGateways)) &&
+         !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
           }}/>
@@ -649,10 +665,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {signedIn && workspaceGateways && mode==='community'
-          ? <InlineCommunityHub gateways={workspaceGateways} session={session}
-              onOpenFull={()=>{ window.location.hash='#/community'; }}/>
-          : signedIn && workspaceGateways && mode!=='work'
+        {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
