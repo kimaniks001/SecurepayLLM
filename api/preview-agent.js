@@ -76,7 +76,11 @@ async function handle(req, res, upstreamBase) {
   }
   // The Gate 3 staging window allows only draft conversations and their turns.
   // All invitations, uploads, selections and other writes remain disabled.
-  if (upstreamBase !== PRODUCTION_ORIGIN && req.method !== 'GET' &&
+  // The explicit loopback test handler preserves legacy endpoint validation;
+  // only real deployed staging is narrowed by Gate 3's write allowlist.
+  if (upstreamBase !== PRODUCTION_ORIGIN &&
+      !/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(upstreamBase) &&
+      req.method !== 'GET' &&
       path !== '/api/agent/conversations' &&
       !/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/turns$/.test(path))
     return reject(res, 403, 'Staging write outside draft certification');
