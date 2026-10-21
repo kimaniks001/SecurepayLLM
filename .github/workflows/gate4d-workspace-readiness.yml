@@ -1,0 +1,35 @@
+name: Gate 4D — Living Workspace truthful readiness
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/workspaceReadinessTruth.ts'
+      - 'src/features/living-workspace/LiveWorkResultPanel.tsx'
+      - 'tests/gate4d-workspace-readiness-truth.test.mjs'
+      - '.github/workflows/gate4d-workspace-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  truthful-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Execute readiness projector tests and existing Living Workspace contracts
+        run: |
+          node --test tests/gate4d-workspace-readiness-truth.test.mjs tests/living-workspace-phase7.test.mjs tests/phase2-master-check.test.mjs
+      - name: Typecheck, lint and build without accessing live services
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
