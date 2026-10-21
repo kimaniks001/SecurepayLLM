@@ -1,4 +1,6 @@
 import { InlineCommunityHub } from './InlineCommunityHub';
+import { Gate5BConceptJourney, Gate5BConceptResult, gate5BReviewRoute } from './Gate5BConceptReview';
+import { gate5BAreas, type Gate5BArea, type Gate5BExample } from './gate5bConcept';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
@@ -29,10 +31,11 @@ import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, ShieldCheck, Users, HeartHandshake } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
+const gate5BIcons = {work:ShieldCheck,vision:Lightbulb,circle:Users,community:HeartHandshake,money:Wallet} as const;
 // The launch tray contains functioning entries only. Vision/Circle/Community are
 // workspace areas, while milestones live within Agreements.
 const tools = [
@@ -55,10 +58,11 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session }: {
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, conceptReview=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
   session: SessionStore;
+  conceptReview?: boolean;
 }) {
   const initialMode=():Mode=>{
     if(typeof window==='undefined')return 'work';
@@ -66,6 +70,21 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return (match?.[1] as Mode | undefined)??'work';
   };
   const [mode, setMode] = useState<Mode>(initialMode);
+  // Gate 5B is a local design example, never a real workspace controller.
+  const initialReviewArea=():Gate5BArea=>{
+    if(typeof window==='undefined')return 'vision';
+    const match=/^#\/?preview\/living-workspace\/gate5b\/(work|vision|circle|community|money)\/?$/.exec(window.location.hash);
+    return (match?.[1] as Gate5BArea|undefined)??'vision';
+  };
+  const [reviewArea,setReviewArea]=useState<Gate5BArea>(initialReviewArea);
+  const [reviewExample,setReviewExample]=useState<Gate5BExample>('chama');
+  const [reviewPrepared,setReviewPrepared]=useState<Gate5BArea|null>(null);
+  useEffect(()=>{
+    if(!conceptReview)return;
+    const sync=()=>setReviewArea(initialReviewArea());
+    window.addEventListener('hashchange',sync);
+    return ()=>window.removeEventListener('hashchange',sync);
+  },[conceptReview]);
   const [signInOpen,setSignInOpen]=useState(false);
   // Pure client-side illustration, intentionally separate from the real SessionStore.
   // Retired mock sign-in is deliberately inaccessible in this production candidate.
@@ -160,6 +179,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [returnError,setReturnError] = useState<string|null>(null);
   const [draftRevision,setDraftRevision]=useState(0);
   useEffect(()=>{
+    if(conceptReview)return; // Never consume a private resume signal in concept mode.
     const moneyHint=consumeWorkspaceMoneyReturn();
     const fromKs001=consumeLivingWorkspaceEntry();
     if(!moneyHint && !fromKs001)return;
@@ -185,7 +205,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       }
     });
     return()=>{active=false;};
-  },[liveController,signedIn]);
+  },[liveController,signedIn,conceptReview]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
@@ -226,6 +246,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   }, [gateway, liveStarted, liveConversationId, liveFormationVersion, liveBusy, livePending]);
 
   const [screen, setScreen] = useState<Screen>('chat');
+  const chooseReviewArea=(next:Gate5BArea)=>{
+    if(!conceptReview)return;
+    setReviewArea(next);
+    setScreen('chat');
+    window.location.hash=gate5BReviewRoute(next);
+  };
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
@@ -348,7 +374,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
   };
-  if(signInOpen && workspaceGateways){
+  if(!conceptReview && signInOpen && workspaceGateways){
     return <SignInExperience
       auth={workspaceGateways.auth} session={session}
       onSignedIn={()=>setSignInOpen(false)} onCancel={()=>setSignInOpen(false)}
@@ -356,24 +382,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
     />;
   }
-  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
+  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={conceptReview?reviewArea:mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3"><img src={securepayWordmark} alt="SecurePay" className="h-9 w-auto max-w-[164px] object-contain" /><p className="text-xs text-sand-600">KS001 · Your space to make progress</p></div>
-        <nav aria-label="Workspace experience" className="sp-brand-nav flex max-w-full rounded-xl bg-cream-100 p-1">
+        {conceptReview?<nav aria-label="Gate 5B explore areas" className="sp-brand-nav flex max-w-full flex-wrap rounded-xl bg-cream-100 p-1" data-gate5b-area-navigation>
+          {gate5BAreas.map(item=><button type="button" key={item.id} aria-current={reviewArea===item.id?'page':undefined} onClick={()=>chooseReviewArea(item.id)}
+            className={`min-h-11 rounded-lg px-2.5 text-xs sm:px-3 sm:text-sm ${reviewArea===item.id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{item.title}</button>)}
+        </nav>:<nav aria-label="Workspace experience" className="sp-brand-nav flex max-w-full rounded-xl bg-cream-100 p-1">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
             <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
-        </nav>
+        </nav>}
         <div className="flex flex-wrap items-center gap-2">
-          {!signedIn && workspaceGateways
+          {conceptReview?<span className="rounded-full bg-[#eff4ed] px-3 py-2 text-xs font-semibold text-forest-800">Local concept · Nothing saved</span> : !signedIn && workspaceGateways
             ? <button type="button" onClick={()=>setSignInOpen(true)}
                 className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-800 hover:bg-cream-50">Sign in</button>
             : signedIn ? <span className="rounded-full bg-[#eaf2e9] px-3 py-2 text-xs font-medium text-forest-800">Your SecurePay workspace</span> : null}
-          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> SecurePay</a>
+          <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!conceptReview && !returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> {conceptReview?'Exit concept preview':'SecurePay'}</a>
         </div>
       </div>
     </header>
-    {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
+    {!conceptReview && signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
             session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
