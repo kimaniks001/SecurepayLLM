@@ -1,5 +1,6 @@
 import { CalendarCheck2, Camera, FileText, MapPin, Sparkles, type LucideIcon } from 'lucide-react';
 import type { Ks001WorkspaceMode } from './personas';
+import { workspacePurpose } from './workspacePurpose';
 type WelcomeExample = { label:string; help:string; icon:LucideIcon; prompt:string; tool:'Photos'|'Documents'|'Places'|null };
 const examples:Record<Ks001WorkspaceMode,WelcomeExample[]> = {
   work:[
@@ -23,17 +24,16 @@ const examples:Record<Ks001WorkspaceMode,WelcomeExample[]> = {
     {label:'Share evidence',help:'Add a picture',icon:Camera,prompt:'',tool:'Photos'},
   ],
 };
-const words:Record<Ks001WorkspaceMode,{title:string;intro:string}>={
-  work:{title:'What would you like to get done?',intro:'Tell me what you’re planning. We can make the responsibilities, dates, evidence and next steps clear together.'},
-  vision:{title:'What would you love to create?',intro:'A home, a business, a new adventure. Gather inspiration and plan what could make it possible.'},
-  circle:{title:'What could you do together?',intro:'Bring people around an idea. Explore plans and places while the Circle keeps decisions in members’ hands.'},
-  community:{title:'Where would you like to contribute?',intro:'Discover meaningful work, people and opportunities, and bring the skills or evidence that may help.'},
-};
+// The work entry keeps its established KS001 introduction. The other areas
+// take their purpose and boundary wording from the approved shared model.
+const workWords = { title:'What would you like to get done?',
+  intro:'Tell me what you’re planning. We can make the responsibilities, dates, evidence and next steps clear together.' };
 /** An empty state inside an existing workspace, never a second Home or a fictitious work record. */
 export function WorkspaceWelcome({area,onExample}:{
   area:Ks001WorkspaceMode;onExample:(example:{prompt:string;tool:WelcomeExample['tool']})=>void;
 }){
-  const content=words[area];
+  const purpose=area==='work'?null:workspacePurpose(area);
+  const content=purpose??workWords;
   return <section aria-label={area+' welcome'} data-workspace-welcome={area} className="mx-auto w-full max-w-2xl px-1 py-5 sm:py-10">
     <div aria-hidden="true" className="mb-7 flex items-center gap-3 text-forest-600">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-forest-200 bg-[#eef4e9] shadow-sm"><Sparkles size={23}/></div>
@@ -54,7 +54,7 @@ export function WorkspaceWelcome({area,onExample}:{
       })}
     </div>
     <p className="mt-6 text-xs leading-5 text-sand-600">
-      {area==='work'?'Nothing becomes an Agreement until it has been reviewed and accepted.':area==='vision'?'Keep exploring. Sharing or spending requires your choice.':area==='circle'?'Ideas are not decisions. Your Circle controls who sees and approves them.':'Choose where to contribute. Private Circle discussions stay private.'}
+      {area==='work'?'Nothing becomes an Agreement until it has been reviewed and accepted.':purpose?.boundary}
     </p>
   </section>;
 }

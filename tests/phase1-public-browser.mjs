@@ -15,7 +15,7 @@ try{
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'My Work'}).waitFor();
   await page.getByRole('region',{name:'KS001 conversation'}).waitFor();
   await page.getByRole('heading',{name:'What would you like to get done?'}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'What would you love to create?'}).count(),0);
+  assert.equal(await page.getByRole('heading',{name:'Imagine what could be possible'}).count(),0);
   // Local static previews deliberately have no production API relay. Live typing can
   // only be certified on the Vercel host against an approved gateway.
   await page.screenshot({path:`${out}/${name}-work.png`,fullPage:true});
@@ -83,7 +83,7 @@ try{
   }
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'Vision'}).click();
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'Vision'}).waitFor();
-  await page.getByRole('heading',{name:'What would you love to create?'}).waitFor();
+  await page.getByRole('heading',{name:'Imagine what could be possible'}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'What would you like to get done?'}).count(),0);
   await page.screenshot({path:`${out}/${name}-vision.png`,fullPage:true});
   // Every area must use the same workspace navigation and preserve access to its Living Board.

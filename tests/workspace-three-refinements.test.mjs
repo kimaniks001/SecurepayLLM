@@ -53,7 +53,13 @@ test('Chat, Summary and Tools use one canonical conversation, with no accepted-t
 test('area welcomes live inside the existing conversation and yield to real work',()=>{
  assert.match(live,/state\.turns\.length===0 && !state\.conversationId && !draft\.trim\(\) && <WorkspaceWelcome area="work"/);
  assert.match(shell,/<WorkspaceWelcome area=\{mode\}/);
- for(const key of ['work','vision','circle','community'])assert.ok(welcome.includes(key+':{title:'),key);
+ // Work stays the first starter; the three other areas inherit the one
+ // owner-approved purpose model instead of duplicating explanatory wording.
+ const purpose=read('src/features/living-workspace/workspacePurpose.ts');
+ assert.match(welcome,/const workWords/);
+ assert.match(welcome,/workspacePurpose\(area\)/);
+ for(const key of ['vision','circle','community'])
+   assert.ok(purpose.includes(key+': {'),key);
  assert.match(welcome,/data-workspace-welcome=\{area\}/);
  assert.match(welcome,/motion-reduce:transition-none/);
  assert.match(welcome,/Nothing becomes an Agreement until it has been reviewed and accepted/);
