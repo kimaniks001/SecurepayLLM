@@ -3,7 +3,7 @@
  * Used only by Vercel preview hosts; every path/method/query is allow-listed.
  * Browser's Vercel preview protection cookies are NEVER forwarded upstream.
  */
-const UPSTREAM = 'https://securepay.ke';
+import { PRODUCTION_ORIGIN, resolveGate3PreviewTarget, isGate3WorkspaceWriteAllowed } from './preview-staging-policy.js';
 const MAX_REQUEST_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024; // vision asset responses; bounded
 
@@ -93,7 +93,9 @@ export function createLoopbackTestHandler(upstream) {
 }
 
 export default async function handler(req, res) {
-  return handle(req, res, UPSTREAM);
+  const target = resolveGate3PreviewTarget();
+  if (!target) return reject(res, 503, 'Staging API is not safely configured');
+  return handle(req, res, target.origin);
 }
 
 async function handle(req, res, upstreamBase) {
@@ -105,7 +107,7 @@ async function handle(req, res, upstreamBase) {
   // Master Phase 1: authenticated preview writes must never reach production.
   // Preview GETs remain available for read-only baseline inspection.
   // An isolated staging upstream requires separate reviewed configuration.
-  if (upstreamBase === 'https://securepay.ke' && req.method !== 'GET') {
+  if (upstreamBase === PRODUCTION_ORIGIN && req.method !== 'GET') {
     return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
   }
   const method = req.method || 'GET';
@@ -119,6 +121,13 @@ async function handle(req, res, upstreamBase) {
       return reject(res,403,'Workspace endpoint not allowed');
     }
   } catch { return reject(res,400,'Invalid API path'); }
+
+  // A staging API may exist, but this phase may mutate only test authentication
+  // and resume test drafts. In particular: no payment, Circle, Store, Vision
+  // or provider booking writes.
+  if (upstreamBase !== PRODUCTION_ORIGIN && method !== 'GET' &&
+      !isGate3WorkspaceWriteAllowed(method, upstream.pathname))
+    return reject(res, 403, 'Staging write outside authentication certification');
 
   const publicStoreRead = method === 'GET' &&
      (upstream.pathname === '/api/v1/stores/search' ||
