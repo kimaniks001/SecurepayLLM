@@ -74,7 +74,7 @@ test('Gate 5B: normal frozen layout and its real controllers remain, local route
 test('Gate 5B: no fake login, payment, member join, backend handoff or inferred approval',()=>{
   assert.doesNotMatch(presentation,/(?:fetch\(|localStorage|sessionStorage|\.createConversation\(|\.send\(|\.confirm\(|\.join\(|\.createPayment|gateway\.get)/);
   assert.doesNotMatch(source,/(?:fetch\(|localStorage|sessionStorage|\.createConversation\(|\.submit\()/);
-  assert.match(presentation,/Nothing has actually happened\?/);
+  assert.match(presentation,/What has actually happened\?/);
   assert.match(presentation,/No data was saved or sent|Nothing here saves/);
   assert.match(presentation,/No funding, cover, quote|No institution has offered/);
   assert.match(shell,/Gate 5B is a local concept demonstration/);
