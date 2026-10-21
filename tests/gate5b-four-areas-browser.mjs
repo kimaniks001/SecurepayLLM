@@ -33,7 +33,10 @@ try {
       assert.equal(await page.locator('[data-gate5b-concept]').getAttribute('data-prototype-scope'),'LOCAL_CONCEPT_ONLY');
       const nav=page.getByRole('navigation',{name:'Gate 5B explore areas'});
       assert.equal(await nav.getByRole('button').count(),5);
-      assert.equal(await page.getByRole('navigation',{name:'Workspace tool rail'}).count(),1);
+      // The approved left rail is present in DOM but intentionally hidden on
+      // phones (mobile uses the existing bottom navigation). Accessible-role
+      // queries omit hidden nodes, so use a structural selector here.
+      assert.equal(await page.locator('nav[aria-label="Workspace tool rail"]').count(),1);
       assert.equal(await page.locator('[data-tool-shelf]').count(),0);
       assert.equal(await page.locator('[data-testid="compact-money-tool"]').count(),0);
 
