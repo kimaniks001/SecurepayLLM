@@ -1,6 +1,7 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { Gate5BFourSpacesPrototype } from './features/living-workspace/Gate5BFourSpacesPrototype';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -319,6 +320,14 @@ function useMoneySessionRoute(): string | null {
 }
 
 export default function RuntimeApp() {
+  // Gate 5B: separate owner-review experience; zero live controllers or mutations.
+  const [gate5BPreview, setGate5BPreview] = useState(() =>
+    typeof window !== 'undefined' && /^#\/?preview\/gate5b\/?$/.test(window.location.hash));
+  useEffect(() => {
+    const syncGate5B=()=>setGate5BPreview(/^#\/?preview\/gate5b\/?$/.test(window.location.hash));
+    window.addEventListener('hashchange',syncGate5B);
+    return ()=>window.removeEventListener('hashchange',syncGate5B);
+  }, []);
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
   useEffect(() => {
     const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
@@ -343,6 +352,7 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
+  if (gate5BPreview) return <Gate5BFourSpacesPrototype />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;

@@ -1,0 +1,35 @@
+name: Gate 5B — Four spaces owner-review prototype
+
+on:
+  pull_request:
+    paths:
+      - 'src/RuntimeApp.tsx'
+      - 'src/features/living-workspace/Gate5BFourSpacesPrototype.tsx'
+      - 'tests/gate5b-four-spaces-prototype.test.mjs'
+      - '.github/workflows/gate5b-prototype.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-review-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Four purpose and non-authority regression tests
+        run: node --test tests/gate5b-four-spaces-prototype.test.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build read-only prototype and approved workspace
+        run: npm run build
