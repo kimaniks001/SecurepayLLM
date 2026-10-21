@@ -361,9 +361,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3"><img src={securepayWordmark} alt="SecurePay" className="h-9 w-auto max-w-[164px] object-contain" /><p className="text-xs text-sand-600">KS001 · Your space to make progress</p></div>
-        <nav aria-label="Workspace experience" className="sp-brand-nav flex max-w-full rounded-xl bg-cream-100 p-1">
+        <nav aria-label="Workspace experience" className="sp-brand-nav flex w-full min-w-0 max-w-full overflow-x-auto rounded-xl bg-cream-100 p-1 sm:w-auto">
           {([['work','My Work'],['vision','Vision'],['circle','Circle'],['community','Community']] as const).map(([id,label]) =>
-            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
+            <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 shrink-0 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
           {!signedIn && workspaceGateways
@@ -710,7 +710,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result','Your Work',Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
   </main>;
 }

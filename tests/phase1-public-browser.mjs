@@ -97,7 +97,7 @@ try{
       const board=await page.getByRole('complementary',{name:'Living result'}).boundingBox();
       assert.ok(conversation && board && conversation.x+conversation.width<=board.x+2,area+' Living Board intrudes into Chat');
     }else{
-      await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
+      await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:area==='My Work'?'Your Work':'About '+area}).click();
       assert.ok(await page.getByRole('complementary',{name:'Living result'}).isVisible(),area+' board is inaccessible on mobile');
       await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Chat'}).click();
     }

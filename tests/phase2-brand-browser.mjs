@@ -68,7 +68,7 @@ try {
   for(const [mode,label] of [['vision','Vision'],['circle','Circle'],['community','Community']]){
     await nav.getByRole('button',{name:label,exact:true}).click();
     if(phase==='after') await page.locator(`.sp-brand-shell[data-sp-area="${mode}"]`).waitFor();
-    if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:'Your Work'}).click();
+    if(width<768) await page.getByRole('navigation',{name:'Mobile workspace panels'}).getByRole('button',{name:phase==='before'?'Your Work':'About '+label}).click();
     await page.screenshot({path:`${output}/${device}-${mode}.png`,fullPage:true});
   }
   await page.goto(site+'/#/',{waitUntil:'domcontentloaded',timeout:40_000});
