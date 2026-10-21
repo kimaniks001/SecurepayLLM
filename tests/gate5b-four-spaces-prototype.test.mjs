@@ -18,8 +18,8 @@ test('Gate 5B is reachable on a completely separate hash route',()=>{
 test('All four spaces show unique purposes, ownership boundaries and practical next steps',()=>{
   const matches=[...prototype.matchAll(/id:'(vision|circle|community|money)',label:'([^']+)',purpose:'([^']+)'/g)];
   assert.deepEqual(matches.map(m=>m[1]),['vision','circle','community','money']);
-  for(const [id] of matches.map(m=>[m[1]])){
-    assert.match(prototype,new RegExp('id:\\''+id+'\\''));
+  for(const match of matches){
+    assert.ok(prototype.includes("id:'"+match[1]+"'"),match[1]);
   }
   for(const required of ['A Dream is not an Agreement','Support, reactions and membership never equal','Public LIVE is not a Circle','Money should follow the agreement','My money · Borrow · Invest · Protect','One useful next step','Parties']){
     assert.ok(prototype.includes(required)||required==='Parties',required);
