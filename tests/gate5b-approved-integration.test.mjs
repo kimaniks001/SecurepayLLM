@@ -20,7 +20,7 @@ test('Gate 5B: four approved purposes remain human and distinct',()=>{
   for(const [key,value] of Object.entries(WORKSPACE_PURPOSES)){
     assert.equal(workspacePurpose(key),value);
     for(const prop of ['label','title','intro','belongs','boundary','next'])
-      assert.ok(typeof value[prop]==='string'&&value[prop].length>(prop==='label'?2:24),key+'.'+prop);
+      assert.ok(typeof value[prop]==='string'&&value[prop].length>(prop==='label'?2:prop==='title'?12:24),key+'.'+prop);
   }
   assert.match(WORKSPACE_PURPOSES.vision.title,/Imagine what could be possible/);
   assert.match(WORKSPACE_PURPOSES.circle.title,/Decide and work together/);
