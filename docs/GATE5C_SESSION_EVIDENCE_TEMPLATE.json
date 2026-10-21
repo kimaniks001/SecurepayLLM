@@ -1,0 +1,364 @@
+{
+  "_instructions": "SAFE UNFINISHED TEMPLATE. Keep your completed copy PRIVATE. Do not put real names, credentials, addresses, recordings or financial information in Git. All fields must be based on observed humans and independently verified staging.",
+  "candidate": {
+    "repo": "kimaniks001/SecurepayLLM",
+    "sha": "",
+    "deploymentSha": "",
+    "previewUrl": ""
+  },
+  "environment": {
+    "isolated": false,
+    "noRealMoney": false,
+    "noProductionWrites": false,
+    "noProductionReads": false,
+    "syntheticIdentitiesOnly": false,
+    "noExternalProviderWrites": false,
+    "connectedStagingReady": false,
+    "isolationEvidenceRef": "",
+    "stagingDeploymentEvidenceRef": "",
+    "gate4cEvidenceRef": "",
+    "verifiedAt": ""
+  },
+  "sessions": [
+    {
+      "id": "anonymous-01",
+      "priorSecurePayExperience": null,
+      "coached": null,
+      "consent": false,
+      "device": "",
+      "candidateSha": "",
+      "startedAt": "",
+      "evidenceRef": "",
+      "journeys": [
+        {
+          "id": "first-impression",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "work-400-delivery",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "vision-private",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "circle-chama",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "community-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "money-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "securepay-check",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "return-journey",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        }
+      ]
+    },
+    {
+      "id": "anonymous-02",
+      "priorSecurePayExperience": null,
+      "coached": null,
+      "consent": false,
+      "device": "",
+      "candidateSha": "",
+      "startedAt": "",
+      "evidenceRef": "",
+      "journeys": [
+        {
+          "id": "first-impression",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "work-400-delivery",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "vision-private",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "circle-chama",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "community-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "money-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "securepay-check",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "return-journey",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        }
+      ]
+    },
+    {
+      "id": "anonymous-03",
+      "priorSecurePayExperience": null,
+      "coached": null,
+      "consent": false,
+      "device": "",
+      "candidateSha": "",
+      "startedAt": "",
+      "evidenceRef": "",
+      "journeys": [
+        {
+          "id": "first-impression",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "work-400-delivery",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "vision-private",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "circle-chama",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "community-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "money-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "securepay-check",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "return-journey",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        }
+      ]
+    },
+    {
+      "id": "anonymous-04",
+      "priorSecurePayExperience": null,
+      "coached": null,
+      "consent": false,
+      "device": "",
+      "candidateSha": "",
+      "startedAt": "",
+      "evidenceRef": "",
+      "journeys": [
+        {
+          "id": "first-impression",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "work-400-delivery",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "vision-private",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "circle-chama",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "community-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "money-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "securepay-check",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "return-journey",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        }
+      ]
+    },
+    {
+      "id": "anonymous-05",
+      "priorSecurePayExperience": null,
+      "coached": null,
+      "consent": false,
+      "device": "",
+      "candidateSha": "",
+      "startedAt": "",
+      "evidenceRef": "",
+      "journeys": [
+        {
+          "id": "first-impression",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "work-400-delivery",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "vision-private",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "circle-chama",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "community-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "money-boundary",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "securepay-check",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        },
+        {
+          "id": "return-journey",
+          "result": "not-run",
+          "observation": "",
+          "evidenceRef": "",
+          "defects": []
+        }
+      ]
+    }
+  ]
+}
