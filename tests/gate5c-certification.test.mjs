@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { certify } from '../scripts/gate5c-certify.mjs';
+const ids=['first-impression','work-400-delivery','vision-private','circle-chama','community-boundary','money-boundary','securepay-check','return-journey'];
+const session=(i)=>({id:'anonymous-'+i,priorSecurePayExperience:false,coached:false,device:i%2?'mobile Android':'desktop Mac',startedAt:'2026-10-21T12:00:00+03:00',evidenceRef:'private://evidence/'+i,journeys:ids.map(id=>({id,result:'pass',observation:'Observed uncoached completion',evidenceRef:'private://evidence/'+i+'/'+id,defects:[]}))});
+const valid=()=>({candidate:{repo:'kimaniks001/SecurepayLLM',sha:'exact-commit-reference',previewUrl:'https://isolated-preview.example'},environment:{isolated:true,noRealMoney:true,noProductionWrites:true},sessions:[1,2,3,4,5].map(session)});
+test('complete documented cohort is eligible for owner review, never automatically certified',()=>assert.equal(certify(valid()).status,'ELIGIBLE_FOR_OWNER_REVIEW'));
+test('no sessions cannot pass',()=>assert.equal(certify({...valid(),sessions:[]}).status,'NOT_CERTIFIED'));
+test('coached test cannot pass',()=>{const r=valid();r.sessions[0].coached=true;assert.equal(certify(r).status,'NOT_CERTIFIED')});
+test('missing journey cannot pass',()=>{const r=valid();r.sessions[0].journeys.pop();assert.equal(certify(r).status,'NOT_CERTIFIED')});
+test('money representation defect blocks gate even if marked pass',()=>{const r=valid();r.sessions[0].journeys[5].defects=[{code:'money-misrepresentation',description:'Claims funds moved'}];assert.equal(certify(r).status,'NOT_CERTIFIED')});
+test('failed journey does not pass',()=>{const r=valid();r.sessions[0].journeys[2].result='fail';assert.equal(certify(r).status,'NOT_CERTIFIED')});
+test('no isolation cannot pass',()=>{const r=valid();r.environment.isolated=false;assert.equal(certify(r).status,'NOT_CERTIFIED')});
+test('no mobile cannot pass',()=>{const r=valid();r.sessions.forEach(s=>s.device='desktop Mac');assert.equal(certify(r).status,'NOT_CERTIFIED')});
