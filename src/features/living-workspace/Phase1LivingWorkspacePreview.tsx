@@ -675,7 +675,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4">
           <div>
             <p className="text-xs text-sand-600">{conceptReview?'Explore how SecurePay fits together':areaLabels[mode]+' · '+persona.label}</p>
-            <strong className="sp-type-display text-xl">{conceptReview?'Your journey · '+reviewArea.charAt(0).toUpperCase()+reviewArea.slice(1):'KS001'}</strong>
+            {conceptReview
+              ? <strong className="sp-type-display text-xl">{'Your journey · '+reviewArea.charAt(0).toUpperCase()+reviewArea.slice(1)}</strong>
+              : <strong className="sp-type-display text-xl">KS001</strong>}
           </div>
           <div className="flex flex-wrap gap-2">{!conceptReview && (!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div>
         </div>
