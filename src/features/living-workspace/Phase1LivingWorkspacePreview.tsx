@@ -415,7 +415,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
              onContinueToWork={continueCircleToWork}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
-      <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
+      {conceptReview?<nav aria-label="Workspace tool rail" data-tool-rail data-gate5b-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
+        <span className="pt-2 text-[9px] font-bold uppercase tracking-wider text-sand-600">Explore</span>
+        {gate5BAreas.map(item=>{
+          const Icon=gate5BIcons[item.id];
+          return <button key={item.id} type="button" onClick={()=>chooseReviewArea(item.id)}
+            aria-label={'Explore '+item.title} title={item.title}
+            aria-current={reviewArea===item.id?'page':undefined}
+            className={'flex min-h-11 w-11 items-center justify-center rounded-xl '+(reviewArea===item.id?'bg-forest-800 text-white':'text-forest-700 hover:bg-cream-100')}>
+            <Icon size={20} aria-hidden="true"/>
+          </button>;
+        })}
+      </nav>:<nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
         <button type="button" onClick={()=>{setToolSelected(false);if(toolsOpen){setToolsOpen(false);setShelfPinned(false);}else setToolsOpen(true);}}
           aria-label={toolsOpen?'Collapse tool shelf':'Expand tool shelf'} aria-expanded={toolsOpen}
           className="flex min-h-11 w-11 items-center justify-center rounded-xl bg-cream-100 text-forest-800">
@@ -426,8 +437,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           className="flex min-h-11 w-11 items-center justify-center rounded-xl text-forest-700 hover:bg-cream-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700">
           <t.icon size={20} aria-hidden="true"/>
         </button>)}
-      </nav>
-      {toolsOpen && <>
+      </nav>}
+      {!conceptReview && toolsOpen && <>
         <button type="button" aria-label="Close tools drawer" onClick={closeTool} className="fixed inset-0 z-40 cursor-default bg-forest-950/10 xl:hidden" />
         <aside role="dialog" aria-modal={typeof window !== 'undefined' && window.innerWidth<1280}
           aria-label={toolSelected?activeTool+' tool':'Choose a tool'} data-tool-shelf
@@ -659,7 +670,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             </nav>}
         </aside>
       </>}
-      {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
+      {!conceptReview && returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
