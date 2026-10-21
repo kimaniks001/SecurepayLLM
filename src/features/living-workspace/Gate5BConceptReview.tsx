@@ -191,7 +191,7 @@ export function Gate5BConceptResult({area,example,prepared,onSelectArea,onClear}
         Vision is personal. Circles are shared with a specific group. Community helps you find knowledge and people.
         My Work handles Agreements. Money follows the real Agreement and its permissions.
       </p>
-      <p className="mt-3 text-[11px] font-semibold text-sand-600">All permissions unchanged · {truth.scope.replaceAll('_',' ').toLowerCase()}</p>
+      <p className="mt-3 text-[11px] font-semibold text-sand-600">All permissions unchanged · {truth.scope.replace(/_/g,' ').toLowerCase()}</p>
     </div>
   </section>;
 }
