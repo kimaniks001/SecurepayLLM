@@ -55,6 +55,8 @@ test('preview cannot silently switch away from read-only production',()=>{
   assert.deepEqual(resolveGate3PreviewTarget({}),{
     origin:'https://securepay.ke',writesEnabled:false
   });
+  assert.equal(resolveGate3PreviewTarget({VERCEL_PROJECT_ID:GATE3_VERCEL_PROJECT_ID}),
+    null,'Unconfigured staging project must NEVER read production');
   for(const invalid of [
     {...good,VERCEL_PROJECT_ID:'prj_another'},
     {...good,VERCEL_PROJECT_ID:undefined},
