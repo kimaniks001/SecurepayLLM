@@ -382,7 +382,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
     />;
   }
-  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={conceptReview?reviewArea:mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
+  return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3"><img src={securepayWordmark} alt="SecurePay" className="h-9 w-auto max-w-[164px] object-contain" /><p className="text-xs text-sand-600">KS001 · Your space to make progress</p></div>
@@ -674,7 +674,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4">
           <div>
-            <p className="text-xs text-sand-600">{conceptReview?'Explore how SecurePay fits together':areaLabels[mode]+' · '+persona.label}</p>
+            <p className="text-xs text-sand-600">{conceptReview?'Explore how SecurePay fits together':<>{areaLabels[mode]} · {persona.label}</>}</p>
             {conceptReview
               ? <strong className="sp-type-display text-xl">{'Your journey · '+reviewArea.charAt(0).toUpperCase()+reviewArea.slice(1)}</strong>
               : <strong className="sp-type-display text-xl">KS001</strong>}
