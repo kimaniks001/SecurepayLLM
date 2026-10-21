@@ -1,0 +1,78 @@
+name: Gate 5B — Four-area clarity prototype
+
+# A standalone local-only prototype; never deploy or contact production.
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/Gate5BConceptReview.tsx'
+      - 'src/features/living-workspace/gate5bConcept.ts'
+      - 'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx'
+      - 'src/RuntimeApp.tsx'
+      - 'tests/gate5b-four-areas-prototype.test.mjs'
+      - 'tests/gate5b-four-areas-browser.mjs'
+      - 'tests/living-workspace-phase7.test.mjs'
+      - '.github/workflows/gate5b-concept-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Pure local concept permissions, existing Living Workspace and full regression
+        run: |
+          node --test tests/gate5b-four-areas-prototype.test.mjs tests/living-workspace-phase7.test.mjs
+          npm run test:final-convergence
+      - name: Type safety, ESLint and production build
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
+
+  browser:
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install browser on disposable runner
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Desktop / mobile / small mobile without API traffic
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/gate5b-preview.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          node tests/gate5b-four-areas-browser.mjs
+      - name: Retain screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate5b-vision-circle-community-money-screenshots
+          path: artifacts/gate5b/*.png
+          if-no-files-found: warn

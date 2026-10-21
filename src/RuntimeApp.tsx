@@ -319,9 +319,9 @@ function useMoneySessionRoute(): string | null {
 }
 
 export default function RuntimeApp() {
-  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community)|\/gate5b(?:\/(?:work|vision|circle|community|money))?)?\/?$/.test(window.location.hash));
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community)|\/gate5b(?:\/(?:work|vision|circle|community|money))?)?\/?$/.test(window.location.hash));
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
   }, []);
@@ -343,7 +343,17 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
-  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />;
+  // Gate 5B is an opt-in, purely local design review inside the existing shell.
+  // Never attach real KS001 or workspace gateways to its sample journey.
+  if (phase1Preview) {
+    const gate5BReview=typeof window!=='undefined'
+      && /^#\/?preview\/living-workspace\/gate5b(?:\/(?:work|vision|circle|community|money))?\/?$/.test(window.location.hash);
+    return <Phase1LivingWorkspacePreview key={gate5BReview?'gate5b-concept':'live-workspace'}
+      conceptReview={gate5BReview}
+      gateway={gate5BReview?undefined:previewAgentGateway}
+      workspaceGateways={gate5BReview?undefined:previewWorkspaceGateways}
+      session={session}/>;
+  }
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }

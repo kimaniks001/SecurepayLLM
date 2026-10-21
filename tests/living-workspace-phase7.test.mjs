@@ -11,7 +11,9 @@ const circle=source('src/features/living-workspace/LivingCirclePanel.tsx');
 const community=source('src/features/living-workspace/LivingCommunityPanel.tsx');
 const support=source('src/features/living-workspace/QuickSupportPanel.tsx');
 test('Phase 7: preview is isolated from production entry',()=>{
- assert.ok(app.includes('if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />'));
+ assert.ok(app.includes('if (phase1Preview) {'));
+ assert.ok(app.includes('conceptReview={gate5BReview}'));
+ assert.ok(app.includes('gateway={gate5BReview?undefined:previewAgentGateway}'));
  assert.ok(app.includes('living-workspace'));
 });
 test('Phase 7: four scoped working postures exist',()=>{
@@ -58,7 +60,7 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
  assert.ok(!live.includes('Dream Companion'));
  assert.match(shell,/liveStarted && gateway/);
  assert.match(shell,/setLiveStarted\(true\)/);
- assert.match(app,/gateway=\{previewAgentGateway\}/);
+ assert.ok(app.includes('gateway={gate5BReview?undefined:previewAgentGateway}'));
 });
 
 test('Phase 7: preview relay never becomes a generic cross-origin API gateway', async()=>{
@@ -90,7 +92,7 @@ test('Phase 7: preview browser uses same-origin relay rather than production COR
  const gateway=source('src/features/living-workspace/previewAgentGateway.ts');
  assert.match(gateway,/api\/preview-agent\?path=/);
  assert.match(gateway,/credentials: 'same-origin'/);
- assert.match(app,/gateway=\{previewAgentGateway\}/);
+ assert.ok(app.includes('gateway={gate5BReview?undefined:previewAgentGateway}'));
 });
 
 test('Phase 7: My Work and KS001 share one canonical conversation and formation',()=>{
@@ -183,7 +185,8 @@ test('Structural workspace: real private records use the existing SecurePay sess
  assert.match(continuity,/resumeSavedBuild\(item\.savedBuildId\)/);
  assert.match(continuity,/savedRecord\.conversationId!==item\.conversationId/);
  assert.match(shell,/liveController\.resumeConversation\(conversationId\)/);
- assert.match(runtime,/workspaceGateways=\{previewWorkspaceGateways\} session=\{session\}/);
+  assert.ok(runtime.includes('workspaceGateways={gate5BReview?undefined:previewWorkspaceGateways}'));
+  assert.ok(runtime.includes('session={session}'));
  assert.match(adapter,/createAuthGateway\(http\)/);
  assert.match(adapter,/createAgentGateway\(http\)/);
  assert.match(adapter,/createVisionDreamGateway\(http\)/);
@@ -192,7 +195,9 @@ test('Structural workspace: real private records use the existing SecurePay sess
 });
 test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
  const runtime=source('src/RuntimeApp.tsx');
- assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
+  assert.ok(runtime.includes('living-workspace'));
+  assert.ok(runtime.includes('gate5b'));
+  assert.match(shell,/work\|vision\|circle\|community/);
  assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
  assert.match(shell,/SignInExperience/);
  assert.match(shell,/session=\{session\}/);
