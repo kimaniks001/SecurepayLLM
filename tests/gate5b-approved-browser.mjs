@@ -8,7 +8,7 @@ mkdirSync(output,{recursive:true});
 const browser=await chromium.launch({headless:true});
 
 try {
-  for (const [device,width,height] of [['desktop',1440,900],['mobile',390,844]]) {
+  for (const [device,width,height] of [['desktop',1440,900],['mobile',390,844],['small-phone',320,700]]) {
     const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'});
     const errors=[],writes=[];
     page.on('pageerror',err=>errors.push(err.message));
@@ -44,7 +44,7 @@ try {
         assert.equal(await page.locator('[data-workspace-shell]').count(),1,'Original three-column shell must be intact');
         if(width<768) {
           await page.screenshot({path:output+'/'+device+'-'+area+'-chat.png',fullPage:true});
-          await mobile.getByRole('button',{name:'Your Work'}).click();
+          await mobile.getByRole('button',{name:'About '+label}).click();
           await guide.waitFor({state:'visible'});
         } else await guide.waitFor({state:'visible'});
         await page.screenshot({path:output+'/'+device+'-'+area+'-summary.png',fullPage:true});
@@ -75,6 +75,9 @@ try {
         'Horizontal overflow at '+device+': '+JSON.stringify(dimensions));
       assert.deepEqual(errors,[],'Browser exceptions');
       assert.deepEqual(writes,[],'Purpose navigation must never execute authenticated writes');
+      await page.keyboard.press('Escape');
+      await page.locator('[data-tool-shelf]').waitFor({state:'detached'});
+      assert.equal(await page.locator('[data-tool-shelf]').count(),0,'Escape closes contextual tools');
       console.log('Gate 5B approved real workspace PASS '+device+' '+width+'px');
     } finally {await page.close();}
   }
