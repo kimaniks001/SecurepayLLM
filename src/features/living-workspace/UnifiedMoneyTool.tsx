@@ -5,6 +5,7 @@ import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/ag
 import { moneyText, minorFromString } from '../money/amount';
 import { humanAgreementStatus } from './MoneyAgreementCards';
 import { Phase7MoneyJourneyPreview, Phase7MoneySnapshotReview } from './Phase7MoneyJourney';
+import { workspacePurpose } from './workspacePurpose';
 import { MoneyPartnerFacts } from './MoneyPartnerFacts';
 
 type Door='my'|'borrow'|'invest'|'protect';
@@ -59,6 +60,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
  },[sample,signedIn,gateways,revision]);
  const selectedAgreement=agreements.items.find(a=>a.agreementId===selected)??null;
  const sampleAgreement=samples[sampleIndex];
+ const moneyPurpose=workspacePurpose('money');
  const currentDoor=doors.find(item=>item.id===door)??doors[0];
  const shown=agreements.items.slice(0,3);
  const next=selectedAgreement?.nextActions[0]?.reason
@@ -76,6 +78,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
    }finally{setBusy(false);}
  }
  return <section aria-label="Money tool" className="sp-brand-money space-y-3 p-1 text-sm" data-testid="compact-money-tool">
+  <p data-approved-gate5b-money-purpose className="rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs leading-5 text-sand-700">{moneyPurpose.intro}</p>
   <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
    {doors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
      aria-pressed={door===item.id}
