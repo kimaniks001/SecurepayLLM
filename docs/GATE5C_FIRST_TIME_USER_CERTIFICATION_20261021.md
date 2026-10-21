@@ -1,43 +1,59 @@
-# Gate 5C — First-Time-User Experience Certification
-**21 October 2026 — certification tooling; human sessions NOT yet conducted**
+# Gate 5C — First-time-user experience certification
+**21 October 2026 · Engineering completion candidate; human certification remains pending**
 
-## Candidate and dependencies
-This Gate 5C branch inherits draft Gate 5B PR #160 (which inherited Gate 4D PR #157). It tests the **actual three-column Living Workspace**, not the separate #159 concept prototype. Exact tested SHA and preview URL must be recorded at execution; never silently use the production site. Gate 3/4 protected backend staging and safe test identities remain separate, explicit prerequisites for connected KS001 observations.
+## Source of truth and scope
+- UI PR [#161](https://github.com/kimaniks001/SecurepayLLM/pull/161) is stacked on the *actual* four-space Living Workspace integration PR [#160](https://github.com/kimaniks001/SecurepayLLM/pull/160), not a concept prototype.
+- The approved three-column arrangement, existing controllers, canonical SecurePay Check and 12 Fair Trade principles are preserved. Gate 5C creates **certification tooling only**, not another workspace redesign, permission change, Agreement authority or money operation.
+- Only test the **exact 40-character SHA of the Git branch head** on an HTTPS **non-production preview**. Match this against the deployment's reported commit SHA and each participant's session SHA.
+- Automatic regression/CI success does not establish first-time-human ease of use, live KS001 intelligence, proof of a connected isolated API or release approval.
 
-## Recruitment and procedure
-Recruit **five or more genuinely first-time people**, including mobile and desktop, preferably with different familiarity levels. Do not teach the navigation, suggest answers, or explain the four spaces before they act. Participants use anonymous session IDs and consenting, access-controlled evidence links. Never record passwords, tokens, real financial data, precise addresses, or unnecessary personally identifying details. Use synthetic data only. For each journey: read one neutral goal, allow independent interaction, capture observed action and confusion, mark pass/fail/blocked, and attach timestamped evidence. Facilitator can intervene only for safety; intervention makes the journey fail and session coached (not qualifying).
+## Human test prerequisite — STOP if absent
+A dedicated protected, isolated staging environment must be deployed and independently evidenced before performing connected journeys. Verify:
+1. UI preview routes to this isolated API and never to production, including reads.
+2. Test accounts and data are synthetic and segregated from customers.
+3. Money execution, external bank/payment/provider writes and real-value movement are impossible.
+4. API, model and Agreement semantics are verified with Gate 4C evidence; the UI does not simulate canonical sufficiency/12-principles clearance.
+5. Protect preview/test identity access. Obtain recording consent and store recordings in a restricted private evidence location.
+6. Record staging verification time and evidence of isolation and exact staging deployment.
 
-## Eight mandatory journeys
-1. **first-impression** — from the actual first visit, explain in their own words what SecurePay enables; locate one natural next action without facilitator advice.
-2. **work-400-delivery** — describe 'I want to pay KES 400 for delivery'; KS001 must elicit what exactly is being delivered, relevant parties, place, timing and other material facts before asserting sufficient understanding. No invented 12/12 fair-trade clearance; the canonical evaluator remains authoritative.
-3. **vision-private** — start a prospective goal; articulate that Vision is not an accepted Agreement and that transfer to My Work is deliberate.
-4. **circle-chama** — explore eight friends contributing KES 2,000 monthly; distinguish a Circle discussion/support reaction from formal decision, membership or Agreement acceptance.
-5. **community-boundary** — find a relevant public opportunity or help; understand that Circle-only material cannot be published to LIVE without authority.
-6. **money-boundary** — identify My Money, Borrow, Invest and Protect; understand offers are possibilities, not approved funds or payment; Money must follow Agreement readiness.
-7. **securepay-check** — distinguish draft inspection, material sufficiency, parties' acceptance and money authorisation; no greyed action may suggest it completed.
-8. **return-journey** — navigate away and return to current work without losing draft context or accidentally sending/accepting/authorising anything.
+**As inspected on 21 October 2026, `securepay-ks001-staging` had zero deployments. Gate 5C therefore cannot honestly be declared human-certified yet.** UI-only preview is suitable for non-connected visual inspection, but is not proof for connected Agreement, Money, Circle governance or persistence.
 
-## Evidence schema
-Create a PRIVATE JSON file (do not commit participant evidence) matching:
-```json
-{
-  "candidate": {"repo":"kimaniks001/SecurepayLLM","sha":"<exact commit>","previewUrl":"<verified isolated preview URL>"},
-  "environment": {"isolated":true,"noRealMoney":true,"noProductionWrites":true},
-  "sessions": [{
-    "id":"anonymous-01","priorSecurePayExperience":false,"coached":false,
-    "device":"mobile Android","startedAt":"2026-10-21T12:00:00+03:00","evidenceRef":"private://controlled/session-01",
-    "journeys":[{"id":"first-impression","result":"pass","observation":"What the person actually did and said","evidenceRef":"private://controlled/session-01/first-impression","defects":[]}]
-  }]
-}
-```
-Add exactly one journey entry for each of the eight IDs, for every participant. Other participants require distinct IDs and evidence. Defects have `code` and `description` fields. Critical codes: `privacy-leak`, `money-misrepresentation`, `false-acceptance`, `unauthorized-action`, `lost-work`, `inaccessible-critical-action`.
+## Uncoached first-time cohort
+Recruit at least five distinct people with no prior SecurePay experience. Include phone and desktop. Avoid coaching, priming or steering answers. Use anonymous session IDs, do not store identifying details, passwords, tokens, GPS addresses, real trade details or payment data. A facilitator safety intervention disqualifies that session from certification, and a failed task is a failure, not a pass with an excuse. Ask the neutral prompt in the [facilitator card](GATE5C_VERIFICATION_AND_HUMAN_SESSION_CARD_20261021.md).
 
-## Execution
+Every participant must attempt all eight journeys:
+| ID | Task and pass condition |
+| --- | --- |
+| `first-impression` | Explain what SecurePay does and locate a natural beginning without coaching |
+| `work-400-delivery` | KES 400 delivery; KS001 asks *what* is delivered and material facts before readiness |
+| `vision-private` | Add an aspiration without assuming an Agreement was accepted |
+| `circle-chama` | Eight friends x KES 2,000 monthly; differentiate discussion from formal decision |
+| `community-boundary` | Find public help without exposing private Circle material |
+| `money-boundary` | Understand My Money/Borrow/Invest/Protect without claiming funds are approved or moved |
+| `securepay-check` | Distinguish inspected draft, sufficiency, parties' acceptance and Money authority |
+| `return-journey` | Navigate away and return without losing work or accidentally approving anything |
+
+Each journey needs the human's observed action and uncoached words, a pass/fail/blocked result, an access-controlled evidence reference, and an explicit `defects` array. Record confusion even when the task succeeds; it will appear in the final human review.
+
+## Private evidence file
+Start with [the deliberately unfinished JSON template](GATE5C_SESSION_EVIDENCE_TEMPLATE.json), then create a **private copy outside Git** and supply real evidence. Never commit filled session records to the repo.
+
+Required fields:
+- `candidate`: `repo`, full `sha`, `deploymentSha` (identical), HTTPS `previewUrl` (not production).
+- `environment`: booleans `isolated`, `noRealMoney`, `noProductionWrites`, `noProductionReads`, `syntheticIdentitiesOnly`, `noExternalProviderWrites`, `connectedStagingReady`; references `isolationEvidenceRef`, `stagingDeploymentEvidenceRef`, `gate4cEvidenceRef`; and `verifiedAt` in offset-aware ISO format.
+- `sessions`: at least five unique anonymous `id` values; `priorSecurePayExperience:false`, `coached:false`, `consent:true`; `device`, `startedAt` (offset-aware), `candidateSha`, `evidenceRef`, eight `journeys`.
+- Each `journey`: mandatory ID, `result` (`pass`, `fail`, `blocked`), `observation`, `evidenceRef`, and `defects` as an array, even if empty. Defects need `code` and `description`.
+- Critical defect codes: `privacy-leak`, `money-misrepresentation`, `false-acceptance`, `unauthorized-action`, `lost-work`, `inaccessible-critical-action`.
+
+Run:
 ```bash
 node --test tests/gate5c-certification.test.mjs
-node scripts/gate5c-certify.mjs /private/path/gate5c-human-sessions.json
+node scripts/gate5c-certify.mjs /private/path/to/gate5c-human-sessions.json
 ```
-This runner validates evidence completeness and blocks false green certification. No mocks count as human evidence. CI unit tests prove the **evaluator**, not the customer journey. Eligibility for owner review requires five uncoached, first-time participants; both mobile and desktop; all eight journeys per participant; observations and private evidence links; isolated preview; zero critical blockers; **all journeys passing**. A failure is a repair task, not a silent waiver. After corrections retest against the new exact SHA. Human owner certification is a separate recorded decision and requires staging safety assurance for connected exercises.
 
-## Boundaries
-No layout rebuild; no new controllers or hardcoded Fair Trade evaluation; no real users or payments; no production or staging deployment, PR merge or settings change. Gate 5C is NOT a substitute for Gate 4C semantic/model and API certification. Until real sessions are performed, status is **NOT CERTIFIED**.
+Output **NOT_CERTIFIED** means at least one evidence/experience gate failed or evidence is incomplete. **ELIGIBLE_FOR_OWNER_REVIEW** means the written metadata is complete, all 40+ tasks are reported passing, staging is attested and no critical blocker is reported. It NEVER proves the observations were genuine; the owner/independent reviewer must inspect recordings and proof of actual environment safeguards before deciding whether to certify.
+
+## Release boundary
+- Gate 5C engineering does not itself authorise merging Gate 5B, Gate 5C or deploying SecurePay to production.
+- If actual participants find material defects, repair narrowly without changing the approved shell, rerun CI at the new SHA, and retest affected journeys.
+- Do not replace independent Gate 4C KS001 semantic tests or the canonical 12-principles evaluation with staged UI success.
