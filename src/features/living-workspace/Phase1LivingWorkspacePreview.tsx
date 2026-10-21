@@ -672,11 +672,21 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </>}
       {!conceptReview && returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4">
+          <div>
+            <p className="text-xs text-sand-600">{conceptReview?'Explore how SecurePay fits together':areaLabels[mode]+' · '+persona.label}</p>
+            <strong className="sp-type-display text-xl">{conceptReview?'Your journey · '+reviewArea.charAt(0).toUpperCase()+reviewArea.slice(1):'KS001'}</strong>
+          </div>
+          <div className="flex flex-wrap gap-2">{!conceptReview && (!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div>
+        </div>
+        {conceptReview && <Gate5BConceptJourney area={reviewArea} example={reviewExample} prepared={reviewPrepared}
+          onSelectArea={chooseReviewArea}
+          onSelectExample={id=>{setReviewExample(id);setReviewPrepared(null);setScreen('chat');}}
+          onPrepare={setReviewPrepared}/>}
+        {!conceptReview && liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {!conceptReview && uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
-        {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
+        {!conceptReview && mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
@@ -691,7 +701,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               window.location.hash='#/community';
             }}/>
         </div>}
-       {!(mode==='community' && (!signedIn || workspaceGateways)) &&
+       {!conceptReview && !(mode==='community' && (!signedIn || workspaceGateways)) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -705,7 +715,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
+        {conceptReview?<Gate5BConceptResult area={reviewArea} example={reviewExample} prepared={reviewPrepared}
+          onSelectArea={chooseReviewArea} onClear={()=>setReviewPrepared(null)}/>
+        : signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
@@ -741,11 +753,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
               <p className="text-xs leading-5 text-sand-600">{persona.dataBoundary}</p>
             </div>}
-        {mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
+        {!conceptReview && mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!signedIn && mode!=='work' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
+        {!conceptReview && !signedIn && mode!=='work' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
           className="mt-5 min-h-11 rounded-lg text-left text-xs font-medium text-forest-800 underline underline-offset-4">
           Sign in to see your saved {mode==='vision'?'dreams':mode==='circle'?'Circles':'community activity'}
         </button>}
