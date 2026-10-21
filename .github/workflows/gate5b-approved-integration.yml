@@ -1,0 +1,41 @@
+name: Gate 5B — Approved Four Spaces Integration
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/workspacePurpose.ts'
+      - 'src/features/living-workspace/WorkspacePurposeGuide.tsx'
+      - 'src/features/living-workspace/WorkspaceWelcome.tsx'
+      - 'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx'
+      - 'src/features/living-workspace/UnifiedMoneyTool.tsx'
+      - 'tests/gate5b-approved-integration.test.mjs'
+      - '.github/workflows/gate5b-approved-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-approved-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Four-space purpose and domain-boundary tests
+        run: |
+          node --test tests/gate5b-approved-integration.test.mjs
+          node --test tests/gate4d-workspace-readiness-truth.test.mjs
+          node --test tests/living-workspace-phase7.test.mjs
+      - name: Types and lint
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Production bundle build; no deployment or providers
+        run: npm run build
