@@ -8,6 +8,7 @@ const preview=read('src/features/living-workspace/PreviewWorkNotes.tsx');
 const examples=read('src/features/living-workspace/phase2Examples.ts');
 const live=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
 const relay=read('api/preview-agent.js');
+const stagingPolicy=read('api/preview-staging-policy.js');
 test('five Phase 2 journeys are explicitly synthetic with material questions',()=>{
   for(const id of ['delivery','chama','service','project','store'])
     assert.match(examples,new RegExp("id:'"+id+"'"));
@@ -49,6 +50,9 @@ test('demonstration is in-memory and production write safeguards remain intact',
   assert.match(preview,/KS001 is not responding live; no Agreement is saved/);
   assert.doesNotMatch(preview,/fetch\(|axios|createAgentController|localStorage|sessionStorage|agreementId/);
   assert.match(shell,/setPreviewNotes\(/);
-  assert.match(relay,/UPSTREAM = 'https:\/\/securepay\.ke'/);
+  assert.match(stagingPolicy,/PRODUCTION_ORIGIN = 'https:\/\/securepay\.ke'/);
+  assert.match(relay,/resolveGate3PreviewTarget/);
+  assert.match(stagingPolicy,/VERCEL_PROJECT_ID === GATE3_VERCEL_PROJECT_ID/);
+  assert.match(stagingPolicy,/writesEnabled: false/);
   assert.match(relay,/Preview writes disabled until isolated staging is configured/);
 });
