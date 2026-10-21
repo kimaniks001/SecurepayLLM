@@ -29,8 +29,12 @@ export function approvedSecurePayStagingOrigin(value) {
 export function resolveGate3PreviewTarget(env = process.env) {
   const configured = ['SECUREPAY_STAGING_API_ORIGIN','SECUREPAY_STAGING_TEST_ONLY']
     .some(k => env[k] !== undefined && String(env[k]).length > 0);
-  // Old previews must never become writable simply because this file deploys.
-  if (!configured) return { origin: PRODUCTION_ORIGIN, writesEnabled: false };
+  // A staging project with no upstream is unavailable, NOT a production fallback.
+  // Other historical previews retain their existing production read-only behavior.
+  if (!configured) {
+    if (env.VERCEL_PROJECT_ID === GATE3_VERCEL_PROJECT_ID) return null;
+    return { origin: PRODUCTION_ORIGIN, writesEnabled: false };
+  }
   const origin = approvedSecurePayStagingOrigin(env.SECUREPAY_STAGING_API_ORIGIN);
   if (!origin ||
       env.VERCEL_PROJECT_ID !== GATE3_VERCEL_PROJECT_ID ||
