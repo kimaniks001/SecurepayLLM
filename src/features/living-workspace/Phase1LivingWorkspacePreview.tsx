@@ -27,6 +27,7 @@ import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
 import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
+import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
@@ -665,6 +666,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
@@ -696,11 +698,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
-          : <div className="space-y-3 rounded-xl border border-forest-100 bg-[#f9faf7] p-4">
-              <h2 className="font-display text-xl text-forest-900">{persona.label}</h2>
-              <p className="text-sm leading-6 text-sand-700">{persona.objective}</p>
-              <p className="text-xs leading-5 text-sand-600">{persona.dataBoundary}</p>
-            </div>}
+          : null}
         {mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
