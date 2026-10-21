@@ -76,6 +76,9 @@ test('server-selected general subject question offers describing work or goods a
 test('early draft inspection is not falsely displayed as sufficient understanding',()=>{
  const panel=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
  assert.doesNotMatch(panel,/Ready for your review|Draft ready to review/);
- assert.match(panel,/Available to inspect · Understanding not yet confirmed/);
+ const readiness=read('src/features/living-workspace/workspaceReadinessTruth.ts');
+ assert.match(readiness,/Available to inspect/);
+ assert.match(readiness,/Acceptance not shown/);
+ assert.match(panel,/state\?\.status === 'ready' && !state\.error/);
  assert.match(panel,/Review the available draft and its unresolved matters/);
 });

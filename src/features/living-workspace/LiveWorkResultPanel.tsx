@@ -6,6 +6,7 @@ import type { FormationTerm } from '../formation/view';
 import { compactAgreementFacts, livingFactStatus, humanNextQuestion } from './livingLanguage';
 import { ArrowRight, CheckCircle2, RefreshCw, ShieldCheck, AlertCircle, Wallet, Plus } from 'lucide-react';
 import { MiniContextInput, kindForDetail } from './MiniContextInput';
+import { workspaceReadinessIndicators } from './workspaceReadinessTruth';
 
 function Details({ title, terms }: { title:string; terms:FormationTerm[] }) {
   if (terms.length===0) return null;
@@ -46,8 +47,11 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   const [editingVersion,setEditingVersion]=useState<number|null>(null);
   const [useFreeText,setUseFreeText]=useState(false);
   useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);setEditingFact(null);setFactDraft('');setFactError(null);},[conversationId]);
-  const formation = state?.data?.conversationId === conversationId ? state.data : null;
+  // A failed/stale load cannot continue presenting the previously cached
+  // Agreement as the current truth. The error panel below explains how to retry.
+  const formation = state?.status === 'ready' && !state.error && state.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
+  const indicators = formation ? workspaceReadinessIndicators(formation, examination) : null;
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
@@ -63,7 +67,13 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
       </div>
       <button type="button" onClick={onRefresh} disabled={!conversationId||busy||state?.status==='loading'} aria-label="Refresh Agreement from SecurePay" className="min-h-11 rounded-lg border border-cream-200 px-3 disabled:opacity-40"><RefreshCw size={17}/></button>
     </div>
-    {formation&&<p role="status" className="text-xs font-medium text-sand-700">Working draft · Not yet accepted · {formation.question ? 'One detail to clarify' : formation.reviewable ? 'Available to inspect · Understanding not yet confirmed' : 'Still taking shape'}</p>}
+    {formation && indicators && <div role="group" aria-label="Agreement readiness" data-gate4d-readiness
+      className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border border-cream-200 bg-cream-50 px-3 py-2 text-xs">
+      {indicators.map(item=><div key={item.label} className="min-w-0 leading-5">
+        <span className="font-semibold text-forest-900">{item.label}</span>
+        <span className="block text-sand-700">{item.value}</span>
+      </div>)}
+    </div>}
     {!conversationId && <div className="rounded-xl bg-cream-100 p-4 text-sm">Tell KS001 what you want to do. The Agreement will start appearing here as SecurePay understands it.</div>}
     {conversationId && busy && <p role="status" className="text-xs text-sand-600">KS001 is updating its understanding…</p>}
     {conversationId && state?.status==='loading' && <p role="status" className="text-xs text-sand-600">Reading the current Agreement from SecurePay…</p>}
