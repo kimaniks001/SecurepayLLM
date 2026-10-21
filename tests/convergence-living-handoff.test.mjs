@@ -71,7 +71,9 @@ test('a resolved read promise is NOT access when the server context was refused'
 test('A handoff is a hint, never a persistent identifier or backend mutation',()=>{
  for(const s of [entry,agent,preview]) assert.doesNotMatch(s,/encodeURIComponent\(externalReturnConversationId\)|localStorage\.setItem\(['"]workspace/);
  assert.doesNotMatch(entry,/window\.location\.hash|fetch\(/);
- assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
+ assert.match(runtime,/if \\(phase1Preview\\) \\{/);
+ assert.ok(runtime.includes('conceptReview={gate5BReview}'));
+ assert.ok(runtime.includes('gateway={gate5BReview?undefined:previewAgentGateway}'));
  assert.match(preview,/if\(!mayLeaveDream\(\)\)return false/);
 });
 
