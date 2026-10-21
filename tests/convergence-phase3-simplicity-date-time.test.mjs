@@ -91,7 +91,10 @@ test('canonical Home/KS001 + is one source menu and the picker is actually wired
 test('one starting input, visible Agreement status and truthful Money labels',()=>{
   assert.doesNotMatch(home,/Start with KS001<\/span>/);
   assert.match(home,/data-optional-quick-starts/);
-  assert.match(agreement,/Working draft · Not yet accepted/);
+  const readiness = read('src/features/living-workspace/workspaceReadinessTruth.ts');
+  assert.match(agreement,/workspaceReadinessIndicators/);
+  assert.match(readiness,/Acceptance not shown/);
+  assert.match(readiness,/Not authorised here/);
   assert.match(money,/Review funding/);
   assert.doesNotMatch(money,/Pay this Agreement/);
   assert.match(calendar,/new Date\(\)\.getMonth\(\)/);
