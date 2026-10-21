@@ -185,7 +185,8 @@ test('Structural workspace: real private records use the existing SecurePay sess
  assert.match(continuity,/resumeSavedBuild\(item\.savedBuildId\)/);
  assert.match(continuity,/savedRecord\.conversationId!==item\.conversationId/);
  assert.match(shell,/liveController\.resumeConversation\(conversationId\)/);
- assert.match(runtime,/workspaceGateways=\{previewWorkspaceGateways\} session=\{session\}/);
+  assert.ok(runtime.includes('workspaceGateways={gate5BReview?undefined:previewWorkspaceGateways}'));
+  assert.ok(runtime.includes('session={session}'));
  assert.match(adapter,/createAuthGateway\(http\)/);
  assert.match(adapter,/createAgentGateway\(http\)/);
  assert.match(adapter,/createVisionDreamGateway\(http\)/);
@@ -194,7 +195,9 @@ test('Structural workspace: real private records use the existing SecurePay sess
 });
 test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
  const runtime=source('src/RuntimeApp.tsx');
- assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
+  assert.ok(runtime.includes('living-workspace'));
+  assert.ok(runtime.includes('gate5b'));
+  assert.match(shell,/work\|vision\|circle\|community/);
  assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
  assert.match(shell,/SignInExperience/);
  assert.match(shell,/session=\{session\}/);
