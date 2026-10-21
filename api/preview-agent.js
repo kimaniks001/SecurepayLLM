@@ -7,7 +7,7 @@
  * protects browsers, while the HTTPS server-to-server hop has its own narrow
  * endpoint allowlist and SecurePay's existing authentication/authority.
  */
-const UPSTREAM = 'https://securepay.ke';
+import { PRODUCTION_ORIGIN, resolveGate3PreviewTarget } from './preview-staging-policy.js';
 const MAX_JSON_BYTES = 64 * 1024;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024; // Bounded multipart envelope (file UI limit 2MB).
 const conversationPath = /^\/api\/agent\/conversations\/([A-Za-z0-9_-]{8,128})\/(turns|context|history|agreement-formation|fair-trade-examination)$/;
@@ -37,7 +37,9 @@ export function createLoopbackTestHandler(upstream) {
 }
 
 export default async function handler(req, res) {
-  return handle(req, res, UPSTREAM);
+  const target = resolveGate3PreviewTarget();
+  if (!target) return reject(res, 503, 'Staging API is not safely configured');
+  return handle(req, res, target.origin);
 }
 
 async function handle(req, res, upstreamBase) {
@@ -52,7 +54,7 @@ async function handle(req, res, upstreamBase) {
   // Master Phase 1: authenticated preview writes must never reach production.
   // Preview GETs remain available for read-only baseline inspection.
   // An isolated staging upstream requires separate reviewed configuration.
-  if (upstreamBase === 'https://securepay.ke' && req.method !== 'GET') {
+  if (upstreamBase === PRODUCTION_ORIGIN && req.method !== 'GET') {
     return reject(res, 403, 'Preview writes disabled until isolated staging is configured');
   }
   const method = req.method || 'GET';
@@ -72,6 +74,12 @@ async function handle(req, res, upstreamBase) {
   } catch {
     return reject(res, 400, 'Invalid conversation path');
   }
+  // The Gate 3 staging window allows only draft conversations and their turns.
+  // All invitations, uploads, selections and other writes remain disabled.
+  if (upstreamBase !== PRODUCTION_ORIGIN && req.method !== 'GET' &&
+      path !== '/api/agent/conversations' &&
+      !/^\/api\/agent\/conversations\/[A-Za-z0-9_-]{8,128}\/turns$/.test(path))
+    return reject(res, 403, 'Staging write outside draft certification');
   const headers = { 'Accept': 'application/json' };
   for (const [client, upstream] of [['authorization','Authorization'], ['x-securepay-conversation-token','X-SecurePay-Conversation-Token']]) {
     const value = req.headers[client];
