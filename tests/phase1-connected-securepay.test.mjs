@@ -79,7 +79,7 @@ test('Phase1: Community data stays behind membership and Circle boundaries',()=>
 });
 test('Phase1: preview is explicitly isolated, not secretly promoted as a production runtime',()=>{
   assert.match(router,/hostname\.endsWith\('\.vercel\.app'\)/);
- assert.match(router,/if \\(phase1Preview\\) \\{/);
+ assert.ok(router.includes('if (phase1Preview) {'));
  assert.ok(router.includes('conceptReview={gate5BReview}'));
  assert.ok(router.includes('gateway={gate5BReview?undefined:previewAgentGateway}'));
   assert.match(shell,/!uiOnlyPreview &&/);
