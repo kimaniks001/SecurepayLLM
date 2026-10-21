@@ -42,6 +42,14 @@ test('KS001 presents area-appropriate human guidance without claiming new model 
   assert.match(persona,/UI guidance\. This is NOT a substitute/);
   assert.match(workspace,/\{areaLabels\[mode\]\} · \{persona\.label\}/);
   assert.match(workspace,/\{persona\.opening\}/);
-  assert.match(workspace,/\{persona\.objective\}/);
-  assert.match(workspace,/\{persona\.dataBoundary\}/);
+  // Gate 5B shows the owner-approved boundary and next step in the actual
+  // right-hand panel; model-side persona guidance remains untouched.
+  const purpose=read('src/features/living-workspace/workspacePurpose.ts');
+  const guide=read('src/features/living-workspace/WorkspacePurposeGuide.tsx');
+  assert.match(workspace,/<WorkspacePurposeGuide area=\{mode\}/);
+  assert.match(guide,/\{guidance\.belongs\}/);
+  assert.match(guide,/\{guidance\.boundary\}/);
+  assert.match(guide,/\{guidance\.next\}/);
+  assert.match(persona,/dataBoundary:/);
+  assert.match(purpose,/Circle-only/);
 });
