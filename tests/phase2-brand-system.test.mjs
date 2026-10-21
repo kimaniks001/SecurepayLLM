@@ -81,7 +81,12 @@ test('printed agreements remain clear and no Store gallery code is changed by th
 test('visual changes do not claim an Agreement is accepted or make demo real',()=>{
  assert.match(demo,/A working illustration/);
  assert.match(demo,/ready = false/);
- assert.match(live,/Working draft · Not yet accepted/);
+ // Gate 4D replaced the ambiguous old status sentence with four explicit,
+ // non-authorising human states sourced from the current Formation version.
+ const readiness=read('src/features/living-workspace/workspaceReadinessTruth.ts');
+ assert.match(live,/workspaceReadinessIndicators\(formation, examination\)/);
+ assert.match(readiness,/Acceptance not shown/);
+ assert.match(readiness,/Not authorised here/);
  assert.doesNotMatch(shell,/Try mock sign-in|DEMO ACCOUNT · NO REAL ACCESS/);
  assert.match(shell,/Agreements, invitations and Money require your review and authorisation/);
 });
