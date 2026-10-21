@@ -1,7 +1,6 @@
 import { createAgentGateway } from '../../api/securepay/agent';
 import { createHttpClient, type AccessTokenProvider } from '../../api/securepay/http';
-
-const APPROVED_UPSTREAM = 'https://securepay.ke';
+import { requireApprovedPreviewApiOrigin } from './previewApiOrigin';
 
 /**
  * Phase 7 preview-only KS001 transport. The existing trusted API contract,
@@ -12,12 +11,10 @@ const APPROVED_UPSTREAM = 'https://securepay.ke';
  * through the same-origin relay; no blanket rewrite of other SecurePay APIs.
  */
 export function createPreviewAgentGateway(baseUrl: string, getAccessToken: AccessTokenProvider) {
-  if (new URL(baseUrl).origin !== APPROVED_UPSTREAM) {
-    throw new Error('Preview relay requires the approved SecurePay API origin');
-  }
+  const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl);
   const previewFetch: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
-    if (url.origin !== APPROVED_UPSTREAM || !/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {
+    if (url.origin !== approvedOrigin || !/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {
       return Promise.reject(new Error('Only KS001 conversation calls can use the preview relay'));
     }
     const endpoint = '/api/preview-agent?path=' + encodeURIComponent(url.pathname + url.search);
