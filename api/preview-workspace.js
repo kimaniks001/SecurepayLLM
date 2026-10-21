@@ -125,7 +125,11 @@ async function handle(req, res, upstreamBase) {
   // A staging API may exist, but this phase may mutate only test authentication
   // and resume test drafts. In particular: no payment, Circle, Store, Vision
   // or provider booking writes.
-  if (upstreamBase !== PRODUCTION_ORIGIN && method !== 'GET' &&
+  // The explicit loopback test handler preserves legacy endpoint validation;
+  // only real deployed staging is narrowed by Gate 3's write allowlist.
+  if (upstreamBase !== PRODUCTION_ORIGIN &&
+      !/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(upstreamBase) &&
+      method !== 'GET' &&
       !isGate3WorkspaceWriteAllowed(method, upstream.pathname))
     return reject(res, 403, 'Staging write outside authentication certification');
 
