@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  ArrowRight, BookOpen, Check, CircleHelp, Compass, HandCoins, HeartHandshake,
+  ArrowRight, BookOpen, Check, CircleHelp, Compass, HeartHandshake,
   Lightbulb, LockKeyhole, MessageCircle, ShieldCheck, Sparkles, Users, Wallet,
 } from 'lucide-react';
 import {
