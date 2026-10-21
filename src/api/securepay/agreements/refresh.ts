@@ -20,7 +20,7 @@ export const AUTHENTICATED_AGREEMENT_METHODS = [
   // Execution (obligations, completion status, start, complete, evidence submit (Phase 7 Slice 2) + list + review, next actions)
   'obligations', 'obligationCompletionStatus', 'startObligation', 'completeObligation', 'submitEvidence', 'obligationEvidence', 'reviewEvidence', 'myNextActions',
   // Amendments (list, structured diff, overview, accept / reject / withdraw -- Phase 7 Slice 5)
-  'amendments', 'amendmentDiff', 'amendmentOverview', 'acceptAmendment', 'rejectAmendment', 'withdrawAmendment',
+  'amendments', 'amendmentDiff', 'amendmentOverview', 'proposeAmendment', 'acceptAmendment', 'rejectAmendment', 'withdrawAmendment',
   // Plug / referral attribution
   'attributePlug', 'plugAttribution', 'referralStatus',
   // Living Agreement enrichments

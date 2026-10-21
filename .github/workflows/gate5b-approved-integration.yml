@@ -1,0 +1,79 @@
+name: Gate 5B — Approved Four Spaces Integration
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/workspacePurpose.ts'
+      - 'src/features/living-workspace/WorkspacePurposeGuide.tsx'
+      - 'src/features/living-workspace/WorkspaceWelcome.tsx'
+      - 'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx'
+      - 'src/features/living-workspace/UnifiedMoneyTool.tsx'
+      - 'tests/gate5b-approved-integration.test.mjs'
+      - 'tests/gate5b-approved-browser.mjs'
+      - '.github/workflows/gate5b-approved-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-approved-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Four-space purpose and domain-boundary tests
+        run: |
+          node --test tests/gate5b-approved-integration.test.mjs
+          node --test tests/gate4d-workspace-readiness-truth.test.mjs
+          node --test tests/living-workspace-phase7.test.mjs
+      - name: Types and lint
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Production bundle build; no deployment or providers
+        run: npm run build
+
+  browser-evidence:
+    name: Approved purposes on real desktop and mobile workspace
+    needs: owner-approved-copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install local Chromium with no production credentials
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build local UI
+        run: npm run build
+      - name: Real three-column journeys, no backend writes
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gate5b-approved-browser.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ > /dev/null
+          node tests/gate5b-approved-browser.mjs
+      - name: Preserve synthetic owner-review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate5b-approved-desktop-mobile
+          path: artifacts/gate5b-approved/*.png
+          if-no-files-found: warn

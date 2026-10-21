@@ -26,14 +26,21 @@ test('assembled product contains all five prior Human Convergence contracts', as
   }
 });
 
-test('signed-in navigation exposes one consistent core destination vocabulary', () => {
-  for (const label of ['Home', 'Agreements', 'Money', 'Store', 'Community', 'Account']) {
-    assert.match(nav, new RegExp(`label: '${label}'`));
+test('signed-in navigation no longer teaches the product module map', () => {
+  assert.match(nav, /data-human-shell-nav/);
+  assert.match(nav, /aria-label="SecurePay Home"/);
+  assert.match(nav, /aria-label="Notifications"/);
+  assert.match(nav, /aria-label="Account"/);
+  assert.doesNotMatch(nav, /mobileNavItems|const navItems/);
+  for (const label of ['Agreements', 'Money', 'Store', 'Community', 'Vision']) {
+    assert.doesNotMatch(nav, new RegExp(`label: ['"]${label}['"]`));
   }
-  assert.match(nav, /mobileNavItems[\s\S]*label: 'Vision', view: 'vision-board'/);
-  assert.match(nav, /view: 'agreements'/);
-  assert.match(nav, /view: 'money'/);
-  assert.doesNotMatch(nav, /label: 'Agreement Hub'|label: 'Marketplace'|label: 'Social'/);
+  // Specialist routes remain real in the parent router; they simply are not persistent navigation.
+  assert.match(agent, /view === 'agreements'/);
+  assert.match(agent, /view === 'money'/);
+  assert.match(agent, /view === 'store'/);
+  assert.match(agent, /view === 'community'/);
+  assert.match(agent, /view === 'vision-board'/);
 });
 
 test('Agreement to Money remains in-memory, identifier-free in the URL and returnable', () => {

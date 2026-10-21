@@ -987,7 +987,7 @@ function CommunityProfileView({
   );
 }
 
-export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle }: {
+export function CommunityExperience({ gateway, communityGateway, discoveryGateway, trustedMediaOrigin, onNavigate, onOpenStoreOffer, onOpenCircle, onUseThis, onJoinTrustProject, onInvokeKs001InCircle, initialCircleId, initialObjectId, onEntryHandled }: {
   gateway: Gateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search, composed thinly
@@ -1008,6 +1008,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   /** Public Experience Convergence Phase 4 -- opens `#/join` (direct Join / invitation acceptance). */
   onJoinTrustProject: () => void;
   onInvokeKs001InCircle: (circleId: string) => void;
+  initialCircleId?: string | null;
+  initialObjectId?: string | null;
+  onEntryHandled?: () => void;
 }) {
   // Phase 4 -- the invite dialog offers two different things: a canonical invitation of an EXISTING KS
   // Number, or a quick share link (no membership row, no referral, no capacity).
@@ -1020,8 +1023,26 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [reportDetails, setReportDetails] = useState('');
   const [moderationBusy, setModerationBusy] = useState(false);
 
+  const initialEntryId=useRef(initialCircleId??null);
+  const initialObjectEntryId=useRef(initialObjectId??null);
   useEffect(() => {
-    void controller.enter();
+    const circleId=initialEntryId.current;
+    const objectId=initialObjectEntryId.current;
+    initialEntryId.current=null;
+    initialObjectEntryId.current=null;
+    void controller.enter().then(() => {
+      if(circleId) {
+        onEntryHandled?.();
+        // Canonical backend get + membership verification; no preview grant.
+        return controller.openCircle(circleId);
+      }
+      if(objectId) {
+        onEntryHandled?.();
+        // Reuse the existing authoritative object fetch and conversation loader.
+        return controller.openObject(objectId);
+      }
+    });
+    // One-shot structural S2 navigation, never extra Circle authority.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1732,6 +1753,7 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           onOpenBusiness={() => {}}
           onCreate={() => (isActiveMember ? controller.openComposer() : controller.showNotice('Join The Trust Project to share with the community.'))}
           onOpenCircles={onOpenCircle}
+          onOpenSkills={() => onNavigate('skills')}
           showSearch={false}
           // Phase 6 Slice 6 (Production Convergence) -- renamed from "Your Circle profile" (originally
           // chosen back when no named-Circle authority existed at all). Named Circles ("Your Circles"/
@@ -1748,8 +1770,8 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
           // own dedicated entry point (Slice 5, Section 28-29) -- see the "Search Community" button.
           searchPlaceholder="Search store offers by category or location..."
           noResultsMessage={`No store offers found for "${state.query}".`}
-          heading="Community activity"
-          description="Questions, needs, discussions, work stories and Store references."
+          heading="What is happening that matters to you?"
+          description="Real questions, needs, projects, opportunities and work stories — without turning Community into a feature dashboard."
           composerLabel="Start a question, need or discussion"
           composerDescription="Use a Project Contribution above for experiences, criticism, reflection, art and longer-form stories."
         />

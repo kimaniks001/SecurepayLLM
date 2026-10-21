@@ -16,7 +16,7 @@ import { VisionDreamExperience } from './VisionDreamExperience';
  * it stays on the draft Vision branch; no shared Home/KS001 route is modified.
  */
 export function VisionDreamHome({
-  controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError,
+  controller, gateway, onContinue, onOpenLibrary, onNavigate, handoffError, initialDreamId, onEntryHandled,
 }: {
   controller: VisionDreamController;
   gateway: VisionDreamGateway;
@@ -25,6 +25,8 @@ export function VisionDreamHome({
   onOpenLibrary: () => void;
   onNavigate: (view: AppView) => void;
   handoffError?: string | null;
+  initialDreamId?: string | null;
+  onEntryHandled?: () => void;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   return <div className="min-h-dvh bg-cream-100">
@@ -32,14 +34,14 @@ export function VisionDreamHome({
     <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-6" data-vision-home>
       {!state.selected && <section className="sp-hero px-5 py-5 md:px-7 md:py-6">
         <div className="sp-kicker">Your private thinking space</div>
-        <h1 className="sp-display mt-2 text-3xl md:text-4xl">Think freely. Keep what matters.</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-sand-600">Start with one thought, return to a Dream, or open your private Library when you want more structure. Nothing becomes a commitment until you choose.</p>
+        <h1 className="sp-display mt-2 text-3xl md:text-4xl">What do you want to make possible?</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-sand-600">Start with one thought, return to a Dream, or open your private Library when you want more structure. Vision stays exploratory until you choose what, if anything, should become a commitment.</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => document.getElementById('vision-dream-thought')?.focus()}>Add a thought</Button>
+          <Button onClick={() => document.getElementById('vision-dream-thought')?.focus()}>Start with a thought</Button>
           <Button variant="secondary" onClick={onOpenLibrary}>Search & organise</Button>
         </div>
       </section>}
-      <VisionDreamExperience controller={controller} gateway={gateway} onContinue={onContinue} />
+      <VisionDreamExperience controller={controller} gateway={gateway} onContinue={onContinue} initialDreamId={initialDreamId} onEntryHandled={onEntryHandled} />
       {handoffError && <StatusNotice tone="warning" icon={false}>{handoffError}</StatusNotice>}
       <Surface>
         <SurfaceBody className="space-y-3">

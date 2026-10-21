@@ -6,6 +6,11 @@ const words = (value: string): string =>
 
 const partyName = (name: string | null, ksNumber: string | null): string =>
   name?.trim() || ksNumber?.trim() || 'Participant';
+const dateOf = (iso: string | null): string | null => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+};
 
 export function AgreementPrintRecord({ detail, statusLabel }: { detail: AgreementDetailResponse; statusLabel: string }) {
   const amount = detail.overview.proposedAmountMinor
@@ -14,6 +19,7 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
   const version = detail.currentVersion ? `Version ${detail.currentVersion.versionNumber}` : 'Current version';
   const terms = [...detail.terms].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
   const milestones = [...detail.milestones].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  const recordDate = dateOf(detail.currentVersion?.createdAt ?? detail.overview.updatedAt);
 
   return (
     <article className="agreement-print-record" data-agreement-print aria-hidden="true">
@@ -37,6 +43,7 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
         {detail.overview.description && detail.overview.description !== detail.overview.purpose && (
           <p className="agreement-print-description">{detail.overview.description}</p>
         )}
+        {recordDate && <p className="agreement-print-description">Agreement record: {recordDate}</p>}
       </section>
 
       <section className="agreement-print-section">
@@ -58,8 +65,7 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
           <h2>Key details</h2>
           <dl className="agreement-print-details">
             {amount && <div><dt>Value</dt><dd>{amount}</dd></div>}
-            {detail.overview.expiresAt && <div><dt>Expires</dt><dd>{detail.overview.expiresAt}</dd></div>}
-            <div><dt>Type</dt><dd>{words(detail.overview.agreementType)}</dd></div>
+            {detail.overview.expiresAt && <div><dt>Expires</dt><dd>{dateOf(detail.overview.expiresAt)}</dd></div>}
           </dl>
         </section>
       )}
@@ -92,7 +98,7 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
                   <span>{words(milestone.status)}</span>
                 </div>
                 {milestone.description && <p>{milestone.description}</p>}
-                {milestone.dueAt && <p className="agreement-print-note">Due: {milestone.dueAt}</p>}
+                {milestone.dueAt && <p className="agreement-print-note">Due: {dateOf(milestone.dueAt)}</p>}
               </li>
             ))}
           </ol>
@@ -102,8 +108,8 @@ export function AgreementPrintRecord({ detail, statusLabel }: { detail: Agreemen
       <section className="agreement-print-section agreement-print-confirmation">
         <h2>Participant record</h2>
         <p>
-          Participant joining and confirmation remain recorded by SecurePay against the current Agreement version.
-          This printed copy does not create or change a confirmation.
+          SecurePay keeps the participant and confirmation record for this Agreement.
+          This printed copy is a readable record; printing it does not create or change anyone’s agreement.
         </p>
         <div className="agreement-print-signatures">
           {detail.participants.map(participant => (

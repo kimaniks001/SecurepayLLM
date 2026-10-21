@@ -69,7 +69,7 @@ test('Review says what is still being read, and offers "Not this person" only fo
     busy: false, checking: null, error: null, onBack() {}, onCheck() {}, onCorrect() {}, onSetUp() {}, onAcknowledgeChanges() {}, setUp: null, onUnlink() {} })));
   assert.match(out, /Still reading quotation\.pdf — you can review what I have so far\./);
   assert.equal((out.match(/Not this person/g) || []).length, 1);
-  assert.match(out, /Set this up securely Still reading quotation\.pdf/);
+  assert.match(out, /Keep this Agreement/); assert.match(out, /Still reading quotation\.pdf/);
 });
 
 test('"Not this person" is pinned to the version on screen', async () => {

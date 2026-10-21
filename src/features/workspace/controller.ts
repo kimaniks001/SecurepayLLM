@@ -116,6 +116,8 @@ export interface WorkspaceState {
    * refreshDetail(), matching the existing selectedStatus/selectedCompletion behaviour.
    */
   selectedAgreementNextActions: WorkspaceNextActionResponse[];
+  /** false means the authoritative read needed to know the current next action failed. */
+  selectedAgreementNextActionsKnown: boolean;
   /** The caller's OWN participant status on the selected Agreement, from the Hub summary (`CREATOR` = they created it). */
   selectedActorStatus: string | null;
   detail: RemoteState<DetailData>;
@@ -128,7 +130,7 @@ const initial: WorkspaceState = {
   myCalendarEvents: [],
   homeExtras: { problems: [], recentActivity: [], moneyByCurrency: [] },
   myInvitations: [],
-  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedActorStatus: null,
+  selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedAgreementNextActionsKnown: false, selectedActorStatus: null,
   detail: { status: 'idle' }, money: { status: 'idle' },
 };
 
@@ -208,7 +210,7 @@ export function createWorkspaceController(gateway: Gateway, entry: WorkspaceEntr
     const completion: DetailCompletion = { completed: !!summary.completion?.completed, completedAt: summary.completion?.completedAt ?? null };
     update({
       view: 'detail', selectedAgreementId: summary.agreementId, selectedStatus: status, selectedCompletion: completion, selectedCompletionFacts: summary.completion ?? null,
-      selectedAgreementNextActions: summary.nextActions, selectedActorStatus: summary.currentActor?.participantStatus ?? null, detail: { status: 'loading' },
+      selectedAgreementNextActions: summary.nextActions, selectedAgreementNextActionsKnown: true, selectedActorStatus: summary.currentActor?.participantStatus ?? null, detail: { status: 'loading' },
     });
     try {
       const data = await loadDetailData(summary.agreementId);
@@ -250,12 +252,12 @@ export function createWorkspaceController(gateway: Gateway, entry: WorkspaceEntr
         if (found && state.selectedAgreementId === agreementId) update({
           selectedStatus: boltAgreementStatus(found.summary, found.origin),
           selectedCompletion: { completed: !!found.summary.completion?.completed, completedAt: found.summary.completion?.completedAt ?? null },
-          selectedCompletionFacts: found.summary.completion ?? null, selectedAgreementNextActions: found.summary.nextActions,
+          selectedCompletionFacts: found.summary.completion ?? null, selectedAgreementNextActions: found.summary.nextActions, selectedAgreementNextActionsKnown: true,
         });
       } catch {
         // Fail closed: a stale "Not complete yet" or an old next action must not keep looking like SecurePay's current answer.
         // Known Detail facts stay; only what needed this refresh becomes unknown / empty.
-        if (state.selectedAgreementId === agreementId) update({ selectedCompletionFacts: null, selectedAgreementNextActions: [] });
+        if (state.selectedAgreementId === agreementId) update({ selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedAgreementNextActionsKnown: false });
       }
     },
 
@@ -302,8 +304,8 @@ export function createWorkspaceController(gateway: Gateway, entry: WorkspaceEntr
       } catch { /* same as addTag -- organizational only, never blocks Agreement state. */ }
     },
 
-    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedActorStatus: null, detail: { status: 'idle' } }); },
-    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedActorStatus: null, detail: { status: 'idle' } }); },
+    backToHome() { update({ view: 'home', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedAgreementNextActionsKnown: false, selectedActorStatus: null, detail: { status: 'idle' } }); },
+    backToHub() { update({ view: 'hub', selectedAgreementId: null, selectedStatus: null, selectedCompletion: null, selectedCompletionFacts: null, selectedAgreementNextActions: [], selectedAgreementNextActionsKnown: false, selectedActorStatus: null, detail: { status: 'idle' } }); },
 
     /** Money is always entered for one selected Agreement and always re-reads status/records/actions fresh. */
     async openMoney(agreementId: string) {

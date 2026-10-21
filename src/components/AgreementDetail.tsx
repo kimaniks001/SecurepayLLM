@@ -44,11 +44,13 @@ interface AgreementDetailProps {
   /** Real path only: the canonical Agreement Review surface, shown from the Support tab/section. */
   reviewPanel?: React.ReactNode;
   /** Real path only: open on this tab (one-shot navigation hint from Help). */
-  initialTab?: 'support';
+  initialTab?: 'support' | 'changes' | 'progress';
   /** Real path only: opens Help & Support scoped to this Agreement. */
   onOpenHelp?: () => void;
   onOpenMoney?: (id: string) => void;
   onOpenReferral?: () => void;
+  /** Phase 4: user-requested Plug/Master chooser. This is not an automatic recommendation. */
+  onOpenHumanHelp?: () => void;
   /**
    * The demo fixture's Money/progress source lives with its caller (see src/App.tsx), never inside this
    * locked component, so a real caller can never accidentally bundle or fall back to fixture Money/
@@ -151,9 +153,11 @@ function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?:
   );
 }
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, onOpenHumanHelp, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
-  const [mobileSection, setMobileSection] = useState<MobileSection>(initialTab ?? 'overview');
+  const [mobileSection, setMobileSection] = useState<MobileSection>(
+    initialTab === 'changes' ? 'activity-changes' : initialTab ?? 'overview',
+  );
   const [showAgent, setShowAgent] = useState(false);
 
   const showVersion = detail.status !== 'taking_shape';
@@ -273,7 +277,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {tab === 'calendar' && onAddTag && onRemoveTag && (
               <AgreementCalendarAndTags events={events} conflicts={conflicts} tags={tags} onAddTag={onAddTag} onRemoveTag={onRemoveTag} />
             )}
-            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />}
+            {tab === 'support' && <AgreementSupport onAskAgent={() => { setShowAgent(true); setTab('overview'); }} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} onOpenHumanHelp={onOpenHumanHelp} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />}
 
             {showReuse && tab === 'overview' && <AgreementReuse detail={detail} />}
 
@@ -393,7 +397,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
           )}
 
           {mobileSection === 'support' && (
-            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />
+            <AgreementSupport onAskAgent={() => setShowAgent(true)} onRaiseIssue={onRaiseIssue} onOpenReferral={onOpenReferral} onOpenHumanHelp={onOpenHumanHelp} reviewPanel={reviewPanel} onOpenMoney={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} onOpenHelp={onOpenHelp} initialOpenReviews={initialTab === 'support'} />
           )}
         </div>
       </div>

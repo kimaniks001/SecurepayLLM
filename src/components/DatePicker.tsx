@@ -23,8 +23,8 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 export function DatePickerCard({ data, onSelect }: DatePickerCardProps) {
-  const [viewYear, setViewYear] = useState(2026);
-  const [viewMonth, setViewMonth] = useState(9); // October 2026
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [selected, setSelected] = useState<number | null>(null);
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
@@ -37,10 +37,12 @@ export function DatePickerCard({ data, onSelect }: DatePickerCardProps) {
   };
 
   const prevMonth = () => {
+    setSelected(null);
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
     else setViewMonth((m) => m - 1);
   };
   const nextMonth = () => {
+    setSelected(null);
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
   };
@@ -53,13 +55,13 @@ export function DatePickerCard({ data, onSelect }: DatePickerCardProps) {
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <button onClick={prevMonth} className="w-8 h-8 rounded-lg hover:bg-cream-100 flex items-center justify-center text-sand-500 transition-colors">
+          <button type="button" aria-label="Previous month" onClick={prevMonth} className="w-8 h-8 rounded-lg hover:bg-cream-100 flex items-center justify-center text-sand-500 transition-colors">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="font-display text-sm text-forest-800">
             {monthNames[viewMonth]} {viewYear}
           </span>
-          <button onClick={nextMonth} className="w-8 h-8 rounded-lg hover:bg-cream-100 flex items-center justify-center text-sand-500 transition-colors">
+          <button type="button" aria-label="Next month" onClick={nextMonth} className="w-8 h-8 rounded-lg hover:bg-cream-100 flex items-center justify-center text-sand-500 transition-colors">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -78,6 +80,8 @@ export function DatePickerCard({ data, onSelect }: DatePickerCardProps) {
             return (
               <button
                 key={day}
+                type="button"
+                aria-label={day+' '+monthNames[viewMonth]+' '+viewYear}
                 onClick={() => handleSelect(day)}
                 className={`aspect-square rounded-lg text-[0.8rem] transition-all ${
                   isSelected

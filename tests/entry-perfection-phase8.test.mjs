@@ -39,7 +39,7 @@ test('described is never shown as verified; verified is never shown as having ag
   const out = review();
   assert.match(out, /Kamau · Provider as you described · not yet linked to a SecurePay identity/);
   assert.match(out, /KS000123 · linked to a verified SecurePay identity · hasn’t joined yet/);
-  assert.match(out, /Nobody else has joined or agreed yet\. You can link or invite them after you set this up\./);
+  assert.match(out, /Nobody else has joined or agreed yet\. You can invite them after you keep this Agreement\./);
   assert.doesNotMatch(out, /KS000666/, 'a KS Number on a party the server did not verify is never shown');
   assert.match(out, /offered by KS000321 \(not a participant yet\)/);
   assert.doesNotMatch(out, /agreed to|has accepted|has confirmed/);

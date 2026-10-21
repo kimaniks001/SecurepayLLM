@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, CheckCircle2, FileText, Search, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FileText, Search, Users } from 'lucide-react';
 import securepayMark from '../assets/brand/securepay/securepay-mark-green.png';
 import { ConversationInput } from './ConversationInput';
 import { FairTradeAffordance, FairTradePrinciplesPanel } from './FairTradePrinciples';
@@ -85,7 +85,7 @@ export function SignedInHome({
   ];
 
   return (
-    <div className="sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
+    <div className="sp-brand-home sp-life-canvas flex-1 overflow-y-auto scrollbar-thin pb-24 md:pb-0">
       <div className="mx-auto w-full max-w-6xl px-4 py-4 md:px-8 md:py-8">
         <section className="sp-hero sp-lift-in px-5 py-6 md:px-9 md:py-9">
           <div className="relative z-10 max-w-3xl">
@@ -101,23 +101,12 @@ export function SignedInHome({
               What do you want to make <span className="sp-real-word">real</span> today?
             </h1>
             <p className="mt-5 max-w-xl text-[0.95rem] leading-6 text-sand-700 md:text-base">
-              {subheading} KS001 can help you think, plan, compare, prepare an Agreement, find people and move into action.
+              {subheading}
             </p>
 
             <div className="mt-6">
               <ConversationInput onSend={onStart} placeholder="Tell KS001 what you want to make happen…" />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>('input[placeholder*="Tell KS001"], textarea[placeholder*="Tell KS001"]');
-                input?.focus();
-              }}
-              className="sp-primary-action mt-3 flex w-full items-center justify-between px-5 text-[0.92rem] font-semibold md:max-w-xl"
-            >
-              <span className="flex items-center gap-2.5"><Sparkles className="h-4 w-4" /> Start with KS001</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
 
             <div className="mt-3">
               <FairTradeAffordance onOpen={() => setFairTradeOpen(true)} />
@@ -125,7 +114,7 @@ export function SignedInHome({
           </div>
         </section>
 
-        <section aria-label="Quick starts" className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
+        <details className="mt-4 rounded-2xl border border-cream-200 bg-white/70 p-3" data-optional-quick-starts><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-forest-800">Or choose a starting idea</summary><section aria-label="Quick starts" className="mt-2 grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
           {quickActions.map(({ label, help, icon: Icon, prompt }, index) => (
             <button
               key={label}
@@ -141,7 +130,7 @@ export function SignedInHome({
               <span className="mt-1 block text-[0.68rem] leading-4 text-sand-500">{help}</span>
             </button>
           ))}
-        </section>
+        </section></details>
 
         <section className="mt-7 md:grid md:grid-cols-[1.15fr_0.85fr] md:gap-6">
           <div>

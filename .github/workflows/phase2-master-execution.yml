@@ -1,0 +1,67 @@
+name: Master Phase 2 — KS001 Fair Trade Referee & SecurePay Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/living-workspace/**'
+      - 'tests/phase2-master-*'
+      - '.github/workflows/phase2-master-execution.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: master-phase2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui:
+    name: SecurePay Check contracts, TypeScript, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Truthful five-journey and real-controller contracts
+        run: node --test tests/phase2-master-check.test.mjs
+      - run: npm run typecheck
+      - run: npm run lint -- --quiet
+      - run: npm run build
+
+  browser:
+    name: Five scenario screenshots — desktop and mobile
+    needs: ui
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Browser dependencies
+        run: |
+          npm ci
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Run local read-only visual preview
+        run: |
+          (npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/phase2-master-preview.log 2>&1) &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4173/ >/dev/null
+          node tests/phase2-master-browser.mjs
+      - name: Save real browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-master-five-journey-screenshots
+          path: artifacts/phase2-master/*.png
+          if-no-files-found: warn

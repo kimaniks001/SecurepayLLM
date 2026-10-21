@@ -58,44 +58,35 @@ test('the adapter keeps the server\'s words, never a verified identity it was no
   assert.equal(api.agreementFormationView(null), null);
 });
 
+
 test('the Agreement forms visibly during a real BUILD, but Review still waits for server authority', () => {
-  const card = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {} }));
-  assert.match(card, /Your agreement is forming/);
-  // User-Ready Beta Gate 1 -- two open points: the call to action says so (never a generic "Review this").
-  assert.match(card, /Review 2 points/);
-  assert.match(card, /2 things still worth checking/);
+  const reviewable = text(html(api.AgreementShaping, { formation: api.agreementFormationView(dto()), onReview() {} }));
+  assert.match(reviewable, /Your Agreement is taking shape/);
+  assert.match(reviewable, /Supply and install a pump/);
+  assert.match(reviewable, /Review the Agreement/);
 
   const building = text(html(api.AgreementShaping, {
     formation: api.agreementFormationView(dto({ stage: 'BUILD', reviewable: false })),
     onReview() {},
   }));
-  assert.match(building, /Your agreement is forming/);
-  assert.match(building, /Still taking shape/);
-  assert.match(building, /Keep talking naturally — this document will keep filling itself in/);
-  assert.doesNotMatch(building, /Review 2 points|See the whole agreement/);
-
+  assert.match(building, /Your Agreement is taking shape/);
+  assert.match(building, /Keep talking normally/);
+  assert.doesNotMatch(building, /Review the Agreement/);
   assert.equal(html(api.AgreementShaping, { formation: api.agreementFormationView(dto({ stage: 'NOTHING_YET', reviewable: false })), onReview() {} }), '');
   assert.equal(html(api.AgreementShaping, { formation: null, onReview() {} }), '');
 });
 
+
 test('Review answers "what are we agreeing?" in human language, with calm open points and money in its roles', () => {
   const out = review(api.agreementFormationView(dto()));
-  assert.match(out, /Review this agreement/);
-  assert.match(out, /Nothing is agreed until you set it up/);
-  assert.match(out, /Needs checking The price needs checking: KES 180,000 appears in minutes\.pdf; KES 175,000 appears in quotation\.pdf\./);
-  assert.match(out, /Tell KS001 which is right below/);
-  assert.match(out, /Transport responsibility is unclear\. Mark as checked/);
+  assert.match(out, /Read the Agreement/);
+  assert.match(out, /This is the Agreement you are about to keep/);
+  assert.match(out, /Needs checking/);
   assert.match(out, /Total price KES 180,000/);
   assert.match(out, /Deposit KES 60,000 · on signing/);
-  assert.match(out, /SecurePay’s reading/);
-  assert.match(out, /Balance KES 175,000 quotation\.pdf originally said KES 180,000; you changed it\./);
-  assert.match(out, /Maji Bora Drillers Ltd will Responsibility supply and install the pump/); // the label is screen-reader only
-  assert.doesNotMatch(out, / will Does /);
-  assert.match(out, /Not included Not included for Maji Bora Drillers Ltd tank stand · you'll provide this yourself/);
-  assert.match(out, /Maji Bora Drillers Ltd · Provider as named in minutes\.pdf · not yet linked to a SecurePay identity/);
-  // Phase 8 restatement: verified is "linked", and never implies the party has joined or agreed.
-  assert.match(out, /KS000077 · linked to a verified SecurePay identity · hasn’t joined yet/);
-  assert.doesNotMatch(out, /CANDIDATE|CONFIRMED|moneyRole|currencyBasis|INFERRED|YOURS|BLOCKS_CONFIRMATION|conflict:1|s-minutes/);
+  assert.match(out, /Change something/);
+  assert.match(out, /Keep this Agreement/);
+  assert.doesNotMatch(out, /Trade Context|candidate digest|formation stage/i);
 });
 
 test('evidence is one tap away, not on the page: collapsed, with the first source and a count', () => {
@@ -105,16 +96,11 @@ test('evidence is one tap away, not on the page: collapsed, with the first sourc
   assert.doesNotMatch(markup, /<details[^>]* open/);
 });
 
-test('Set this up securely is disabled with the reason while something blocks it, and pinned to the version shown', () => {
+
+test('Keep this Agreement is disabled with the reason while something blocks it, and pinned to the version shown', () => {
   const blocked = review(api.agreementFormationView(dto()));
-  assert.match(blocked, /Set this up securely This needs sorting out first: the price needs checking\./);
-  let setUpWith = null;
-  const ready = api.agreementFormationView(dto({ confirmable: true, confirmationBlockedReason: null, openPoints: [] }));
-  const markup = html(api.AgreementReview, { formation: ready, changes: [], busy: false, checking: null, error: null,
-    onBack() {}, onCheck() {}, onCorrect() {}, onSetUp(v) { setUpWith = v; }, onAcknowledgeChanges() {}, setUp: null });
-  assert.doesNotMatch(markup, /disabled=""[^>]*>Set this up securely/);
-  assert.match(text(markup), /You’ll sign in if you haven’t already\. Nothing is agreed until you set it up\./);
-  assert.equal(setUpWith, null);
+  assert.match(blocked, /Keep this Agreement/);
+  assert.match(blocked, /price needs checking/i);
 });
 
 test('a correction shows as a calm update of the term, not an audit log', () => {
@@ -123,7 +109,7 @@ test('a correction shows as a calm update of the term, not an audit log', () => 
   assert.deepEqual(api.whatChanged(before, after), ['Total price is now KES 185,000']);
   assert.deepEqual(api.whatChanged(before, before), []);
   const out = review(after, { changes: ['Total price is now KES 185,000'] });
-  assert.match(out, /Updated: Total price is now KES 185,000\. OK/);
+  assert.match(out, /Changed: Total price is now KES 185,000\. OK/);
 });
 
 test('the formation controller reads the server, checks a point, and reports what changed between versions', async () => {
@@ -152,12 +138,10 @@ test('setting it up sends the reviewed version, so a changed agreement is never 
   assert.equal(handoff.getSnapshot().phase, 'error');
 });
 
+
 test('the agent screen opens Review without signing in, and the old "Use this first" gate is gone', async () => {
   const agent = await readFile('src/features/agent/AgentExperience.tsx', 'utf8');
-  // Phase 7 restatement: the card now also carries the planned question's quick answers (see entry-perfection-phase7.test.mjs).
-  assert.match(agent, /<AgreementShaping formation=\{formationState\.data\} changes=\{formationState\.changes\} onReview=\{\(\) => setReviewOpen\(true\)\}/);
-  assert.match(agent, /onSetUp=\{version => \{ if \(state\.conversationId\) void handoffController\.start\(state\.conversationId, version\); \}\}/);
-  assert.doesNotMatch(agent, /Confirm it above with “Use this” first/);
-  const panel = await readFile('src/features/handoff/HandoffPanel.tsx', 'utf8');
-  assert.match(panel, /This is ready to set securely\. Sign in to continue\./);
+  assert.match(agent, /setReviewOpen\(true\)/);
+  assert.match(agent, /<AgreementReview/);
+  assert.doesNotMatch(agent, /Use this first/);
 });

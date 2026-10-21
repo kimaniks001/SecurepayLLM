@@ -1,68 +1,57 @@
-import { Mail, User, FileText, Banknote, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import type { RecipientReviewResponse } from '../types';
 import { ChoiceButtons } from './ChoiceButtons';
 
 interface RecipientReviewCardProps {
   data: RecipientReviewResponse;
   onChoice: (value: string) => void;
-  /** When provided, replaces the fixed demo caption with real backend-supplied notice text. */
   notice?: string;
 }
 
 /**
- * Deep-review correction pass: generalized off the old construction/labour-shaped card (fixed
- * "Labour"/"Materials"/"Complete" rows, always shown) so a service, product, contribution,
- * project, or general commercial Agreement can all be represented honestly. Purpose and proposed
- * amount are shown only when the backend actually supplied them; nothing is invented to fill a row.
+ * Phase 3 — the public doorway is the first page of the Agreement, not a recipient dashboard.
+ * Only public-invitation facts are shown; opening this card still has no Join/confirm/payment authority.
  */
 export function RecipientReviewCard({ data, onChoice, notice }: RecipientReviewCardProps) {
   return (
-    <div className="rounded-2xl border border-forest-200 bg-white shadow-lifted overflow-hidden max-w-md mx-auto animate-quiet-in">
-      <div className="px-6 py-4 bg-forest-50 border-b border-forest-100 flex items-center gap-2">
-        <Mail className="w-4 h-4 text-forest-600" />
-        <span className="text-[0.75rem] font-medium text-forest-700 uppercase tracking-wide">You've been invited</span>
+    <article className="sp-agreement-paper mx-auto max-w-2xl overflow-hidden px-5 py-6 md:px-8 md:py-8" data-recipient-agreement-preview>
+      <header className="border-b border-cream-200 pb-5">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-forest-700">Agreement invitation</p>
+        <p className="mt-2 text-[0.9rem] leading-6 text-sand-700">
+          {data.inviterName ? `${data.inviterName} wants to agree this with you.` : 'Someone wants to agree this with you.'}
+        </p>
+        <h1 className="mt-2 break-words font-display text-2xl leading-tight tracking-[-0.02em] text-forest-900 md:text-3xl">{data.title}</h1>
+      </header>
+
+      <div className="divide-y divide-cream-100">
+        <section className="py-4">
+          <h2 className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-600">Your part</h2>
+          <p className="mt-1 text-[0.95rem] text-forest-900">{data.role}</p>
+        </section>
+        {data.purpose && <section className="py-4">
+          <h2 className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-600">What this is for</h2>
+          <p className="mt-1 text-[0.95rem] leading-6 text-forest-900">{data.purpose}</p>
+        </section>}
+        {data.proposedAmount && <section className="py-4">
+          <h2 className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-sand-600">Price</h2>
+          <p className="mt-1 text-[1.05rem] font-medium text-forest-900">{data.proposedAmount}</p>
+        </section>}
       </div>
 
-      <div className="px-6 py-5">
-        <p className="text-[0.875rem] text-sand-600 mb-1">{data.inviterName ? `${data.inviterName} has invited you to review` : 'You’ve been invited to look at this before deciding anything'}</p>
-        <h2 className="break-words font-display text-lg text-forest-800 leading-tight">{data.title}</h2>
-
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <User className="w-4 h-4 text-forest-400 shrink-0" />
-            <span className="text-[0.78rem] text-sand-600">Your role:</span>
-            <span className="min-w-0 break-words text-[0.875rem] font-medium text-forest-800">{data.role}</span>
-          </div>
-          {data.purpose && (
-            <div className="flex items-start gap-2.5">
-              <FileText className="w-4 h-4 text-forest-400 shrink-0" />
-              <span className="text-[0.78rem] text-sand-600">Purpose:</span>
-              <span className="min-w-0 break-words text-[0.875rem] text-forest-800">{data.purpose}</span>
-            </div>
-          )}
-          {data.proposedAmount && (
-            <div className="flex items-center gap-2.5">
-              <Banknote className="w-4 h-4 text-forest-400 shrink-0" />
-              <span className="text-[0.78rem] text-sand-600">Proposed amount:</span>
-              <span className="text-[0.875rem] font-medium text-forest-800">{data.proposedAmount}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2.5">
-            <Calendar className="w-4 h-4 text-forest-400 shrink-0" />
-            <span className="text-[0.78rem] text-sand-600">{data.expiry}</span>
-          </div>
-        </div>
-
-        <p className="mt-4 text-[0.85rem] leading-snug text-forest-800">Opening this page has not added you to the Agreement, and nothing has been agreed.</p>
-        {data.nextSteps && data.nextSteps.length > 0 && <div className="mt-3">
-          <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sand-500">What happens next</p>
-          <ol className="mt-1 list-decimal space-y-1 pl-5 text-[0.82rem] leading-snug text-sand-700">{data.nextSteps.map((step, i) => <li key={i}>{step}</li>)}</ol>
-        </div>}
-        {!data.nextSteps && <p className="mt-2 text-[0.78rem] text-sand-500">Continuing only lets you review this Agreement in detail. It does not join or accept anything yet.</p>}
-        <p className="mt-2 text-[0.7rem] text-sand-400">{notice ?? 'Demo SecureLink invitation'}</p>
+      <div className="mt-4 flex items-center gap-2 text-[0.78rem] text-sand-600">
+        <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>{data.expiry}</span>
       </div>
 
-      <div className="px-6 pb-5">
+      <p className="mt-4 text-[0.84rem] leading-5 text-sand-700">
+        You have not joined or agreed to anything. Review the Agreement first; SecurePay will ask who you are only when that becomes necessary.
+      </p>
+      {notice && <details className="mt-3 text-[0.74rem] text-sand-600">
+        <summary className="cursor-pointer select-none underline underline-offset-2">Invitation details</summary>
+        <p className="mt-1">{notice}</p>
+      </details>}
+
+      <footer className="mt-6 border-t border-cream-200 pt-5">
         <ChoiceButtons
           data={{ type: 'CHOICE_BUTTONS', choices: [
             { label: data.primaryLabel, value: data.primaryValue },
@@ -70,7 +59,7 @@ export function RecipientReviewCard({ data, onChoice, notice }: RecipientReviewC
           ] }}
           onChoice={onChoice}
         />
-      </div>
-    </div>
+      </footer>
+    </article>
   );
 }

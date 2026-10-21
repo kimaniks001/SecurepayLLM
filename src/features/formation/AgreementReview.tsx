@@ -5,11 +5,20 @@ import type { ResolveOutcome } from './MicroReview';
 import type { CorrectionOutcome } from './correction';
 import { TURN_MAX_CHARS } from '../entry/lifecycle';
 
+const NO_CHANGE_PHRASES = [
+  'nothing', 'nothing change', 'nothing to change', 'no change', 'no changes',
+  'everything is okay', 'everything is ok', 'all good', 'looks good', 'it is okay', 'it is ok',
+];
+export function meansNoAgreementChange(value: string): boolean {
+  const normal = value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normal) return false;
+  return NO_CHANGE_PHRASES.some(phrase => normal === phrase || normal.includes(phrase));
+}
+
 /**
- * Entry Perfection Phase 6 -- REVIEW: "What does SecurePay think we are agreeing?" In human agreement language, from the
- * server's canonical projection only. Scannable sections, the current value of every term (a corrected source figure is
- * history, never the value), calm "Needs checking" points, evidence one tap away, corrections in plain words to KS001, and
- * the one explicit action that can lead to confirmation: "Set this up securely" (pinned to the version shown here).
+ * Phase 3 Human Experience — REVIEW IS THE AGREEMENT. Every term still comes from the server's canonical
+ * formation projection, but implementation/version/provenance machinery stays secondary unless the person asks for it.
+ * Corrections remain natural-language messages to KS001; consequential set-up remains version-pinned underneath.
  */
 export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onRetryCorrection, onResolve, onOpenPoint, onSetUp, onAcknowledgeChanges, setUp, settingUpAs, onUnlink }: {
   formation: AgreementFormation; changes: string[]; busy: boolean; checking: string | null; error: string | null;
@@ -67,26 +76,29 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     <div className="agreement-screen-only flex flex-wrap items-center justify-between gap-2">
       <button type="button" onClick={onBack} className="min-h-11 text-[0.85rem] text-forest-700 underline focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">← Back to the conversation</button>
       <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-forest-200 bg-white px-4 text-[0.82rem] font-semibold text-forest-700 shadow-soft hover:border-forest-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300">
-        <Printer className="h-4 w-4" aria-hidden="true" /> Print draft
+        <Printer className="h-4 w-4" aria-hidden="true" /> Print Agreement
       </button>
     </div>
     <article data-agreement-print className="sp-agreement-paper space-y-5 px-5 py-6 md:px-8 md:py-8">
       <header className="border-b border-cream-200 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-forest-700"><Sparkles className="h-4 w-4" aria-hidden="true" /> SecurePay Agreement</div>
-          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Draft for review · not agreed</div>
+          <div className="rounded-full border border-ember-200 bg-ember-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-wide text-ember-800">Not agreed yet</div>
         </div>
         <h1 className="mt-5 font-display text-3xl leading-tight tracking-[-0.025em] text-forest-900">{documentTitle}</h1>
         {formation.summary && formation.summary !== documentTitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-6 text-sand-700">{formation.summary}</p>}
-        <p className="mt-3 text-[0.76rem] text-sand-500">Version {formation.version} · built from the current SecurePay understanding</p>
+        <details className="agreement-screen-only mt-3 text-[0.76rem] text-sand-600">
+          <summary className="cursor-pointer select-none underline decoration-sand-300 underline-offset-2">Agreement details</summary>
+          <p className="mt-1">Version {formation.version}. SecurePay keeps the version and source record underneath so the Agreement can be audited without making you operate it.</p>
+        </details>
       </header>
       <div className="agreement-screen-only mt-5">
-      <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Review this agreement</h2>
-      <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is what SecurePay understands so far. Nothing is agreed until you set it up.</p>
+      <h2 id="agreement-review-title" ref={heading} tabIndex={-1} className="font-display text-lg text-forest-800 focus:outline-none">Read the Agreement</h2>
+      <p className="mt-1 text-[0.85rem] leading-snug text-sand-600">This is the Agreement you are about to keep. Nothing is agreed with anyone else yet.</p>
       </div>
 
     {changes.length > 0 && <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-forest-200 bg-forest-50 px-3.5 py-2.5 text-[0.85rem] text-forest-800">
-      <span>Updated: {changes.join('; ')}.</span>
+      <span><strong>Changed:</strong> {changes.join('; ')}.</span>
       <button type="button" onClick={onAcknowledgeChanges} className="min-h-11 shrink-0 px-1 text-[0.8rem] underline">OK</button>
     </div>}
 
@@ -132,7 +144,7 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
             aria-label={`Not ${p.name} — unlink this identity`}>{checking === p.key ? 'Unlinking…' : 'Not this person'}</button>}
         </li>)}
       </ul>
-      <p className="px-1 pt-1.5 text-[0.75rem] text-sand-500">Nobody else has joined or agreed yet. You can link or invite them after you set this up.</p>
+      <p className="px-1 pt-1.5 text-[0.75rem] text-sand-600">Nobody else has joined or agreed yet. You can invite them after you keep this Agreement.</p>
     </div>}
     <Section title="Money" terms={formation.money} />
     <Section title="When" terms={formation.when} />
@@ -148,10 +160,21 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
       </footer>
     </article>
 
-    <form className="agreement-screen-only surface-info p-3" onSubmit={e => { e.preventDefault(); const text = correction.trim(); if (text && !tooLong && !correcting) void run(() => onCorrect(text)); }}>
-      <label htmlFor="review-correction" className="block text-[0.82rem] text-forest-800">Something not right? Tell KS001 in your own words.</label>
+    <form className="agreement-screen-only border-t border-cream-200 pt-4" onSubmit={e => {
+      e.preventDefault();
+      const text = correction.trim();
+      if (!text || tooLong || correcting) return;
+      if (meansNoAgreementChange(text)) {
+        setCorrection('');
+        setCorrectionNote({ tone: 'ok', text: "Okay. I haven't changed anything.", retry: false });
+        return;
+      }
+      void run(() => onCorrect(text));
+    }}>
+      <label htmlFor="review-correction" className="block text-[0.82rem] font-medium text-forest-800">Change something</label>
+      <p className="mt-0.5 text-[0.78rem] text-sand-600">Tell KS001 normally, for example “make it KES 90,000” or “nothing, everything is okay”.</p>
       <div className="mt-2 flex gap-2">
-        <input id="review-correction" value={correction} onChange={e => setCorrection(e.target.value)} placeholder="e.g. It’s 185,000, not 180"
+        <input id="review-correction" value={correction} onChange={e => setCorrection(e.target.value)} placeholder="Tell KS001 what to change…"
           readOnly={correcting} aria-describedby="review-correction-note" aria-invalid={tooLong || undefined}
           className="min-h-11 min-w-0 flex-1 rounded-xl border border-cream-300 px-3 text-[0.9rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300" />
         <button type="submit" disabled={busy || correcting || !correction.trim() || tooLong} className="min-h-11 shrink-0 rounded-full border border-forest-300 px-4 text-[0.85rem] text-forest-700 disabled:opacity-40">{correcting ? 'Sending…' : 'Send'}</button>
@@ -169,9 +192,9 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
     <div className="agreement-screen-only space-y-2">
       <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-forest-700 px-5 text-[0.95rem] font-medium text-white hover:bg-forest-800 disabled:bg-sand-300 disabled:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 sm:w-auto">
-        Set this up securely
+        Keep this Agreement
       </button>
-      <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'You’ll sign in if you haven’t already. Nothing is agreed until you set it up.' : formation.confirmationBlockedReason}</p>
+      <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'If SecurePay needs to know who you are, sign-in happens next and returns you to this same Agreement. Keeping it does not make anyone else agree.' : formation.confirmationBlockedReason}</p>
       {settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
         {settingUpAs.actingFor
           ? `You’ll set this up as yourself, not as ${settingUpAs.actingFor} — setting up an agreement for a business or organization from a conversation isn’t available yet.`

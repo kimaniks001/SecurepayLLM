@@ -8,6 +8,8 @@ import { Button } from '../../../components/dna/Button';
 import { StatusNotice } from '../../../components/dna/StatusNotice';
 import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import type { VisionDreamDto } from '../../../api/securepay/visiondreams/dto';
+import type { StoreGateway } from '../../../api/securepay/store';
+import { VisionStorePicker } from '../../living-workspace/VisionStorePicker';
 
 type BoardObject =
   | { id: string; kind: 'note' | 'text' | 'checklist' | 'frame'; x: number; y: number; w: number; h: number; text: string; tone?: number }
@@ -58,13 +60,17 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export function DreamBuilder({
-  dream, gateway, onBack, onSaveTitle, onExploreKs001,
+  dream, gateway, onBack, onSaveTitle, onExploreKs001, onShareSelected, onUnsavedChange, storeGateway,
 }: {
   dream: VisionDreamDto;
   gateway: VisionDreamGateway;
   onBack: () => void;
   onSaveTitle: (title: string, content: string, expectedVersion: number) => Promise<boolean>;
   onExploreKs001?: (draftText: string) => void;
+  storeGateway?: Pick<StoreGateway, 'search' | 'offer'>;
+  onShareSelected?: (excerpt: { dreamId: string; dreamTitle: string; boardRevision: number; objectId: string; kind: 'note' | 'text' | 'checklist' | 'frame'; text: string }) => void;
+  /** Workspace navigation guard only; the server revision still owns save truth. */
+  onUnsavedChange?: (unsaved: boolean) => void;
 }) {
   const legacyInitial = useMemo(() => decode(dream.content), [dream.dreamId]);
   const [title, setTitle] = useState(dream.title);
@@ -73,15 +79,37 @@ export function DreamBuilder({
   const [history, setHistory] = useState<BoardDoc[]>([]);
   const [future, setFuture] = useState<BoardDoc[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [groupSelection,setGroupSelection] = useState<string[]>([]);
+  const [milestoneOpen,setMilestoneOpen] = useState(false);
+  const [storePickerOpen,setStorePickerOpen] = useState(false);
+  const [milestoneName,setMilestoneName] = useState('');
+  const [milestoneDate,setMilestoneDate] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [tool, setTool] = useState<'select' | 'draw' | 'erase'>('select');
   const [zoom, setZoom] = useState(1);
+  const [exploration, setExploration] = useState<1 | 2 | 3>(1);
   const [saveState, setSaveState] = useState<'loading' | 'idle' | 'saving' | 'saved' | 'error'>('loading');
   const [localError, setLocalError] = useState<string | null>(null);
   const [assetContent, setAssetContent] = useState<Record<string, string>>({});
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const drawRef = useRef<{ id: string; before: BoardDoc; points: Array<[number, number]> } | null>(null);
+  const savedBoardSignature = useRef<string | null>(null);
+  const serverRevisionKnown = useRef(false);
+  const currentDirty = savedBoardSignature.current !== null &&
+    (encode(doc) !== savedBoardSignature.current || title !== dream.title ||
+      saveState === 'saving' || saveState === 'error');
+  useEffect(() => {
+    onUnsavedChange?.(currentDirty);
+    return () => onUnsavedChange?.(false);
+  }, [currentDirty, onUnsavedChange]);
+  useEffect(() => {
+    if (!currentDirty) return;
+    const warn=(event: BeforeUnloadEvent)=>{ event.preventDefault(); event.returnValue=''; };
+    window.addEventListener('beforeunload',warn);
+    return ()=>window.removeEventListener('beforeunload',warn);
+  },[currentDirty]);
+
 
   useEffect(() => {
     let live = true;
@@ -89,6 +117,8 @@ export function DreamBuilder({
     void gateway.board(dream.dreamId).then(board => {
       if (!live) return;
       const authoritative = board.revision > 0 ? decode(board.documentJson) : legacyInitial;
+      serverRevisionKnown.current = true;
+      savedBoardSignature.current = encode(authoritative);
       setDoc(authoritative);
       setRevision(board.revision);
       setHistory([]);
@@ -97,9 +127,12 @@ export function DreamBuilder({
       setLocalError(null);
     }).catch(() => {
       if (!live) return;
+      // Never claim a failed board load is an authoritative blank revision.
+      serverRevisionKnown.current = false;
+      savedBoardSignature.current = encode(legacyInitial);
       setDoc(legacyInitial);
       setRevision(0);
-      setSaveState('idle');
+      setSaveState('error');
       setLocalError('Visual board storage is not reachable yet. Your existing Dream is still available; do not rely on this board as saved until SecurePay confirms it.');
     });
     return () => { live = false; };
@@ -131,6 +164,32 @@ export function DreamBuilder({
 
   const patchObject = (id: string, patch: Partial<BoardObject>) =>
     commit({ v: 1, objects: doc.objects.map(o => o.id === id ? ({ ...o, ...patch } as BoardObject) : o) });
+  const groupSelected = () => {
+    const chosen=doc.objects.filter(o=>groupSelection.includes(o.id) && o.kind!=='drawing');
+    if(chosen.length<2)return;
+    const left=Math.min(...chosen.map(o=>o.x))-28;
+    const top=Math.min(...chosen.map(o=>o.y))-42;
+    const right=Math.max(...chosen.map(o=>o.x+o.w))+28;
+    const bottom=Math.max(...chosen.map(o=>o.y+o.h))+28;
+    const frame:BoardObject={id:uid(),kind:'frame',x:left,y:top,w:right-left,h:bottom-top,text:'Group'};
+    commit({v:1,objects:[frame,...doc.objects]});
+    setSelected(frame.id);setGroupSelection([]);
+  };
+  const addStoreOption = (text:string) => {
+    const note:BoardObject={id:uid(),kind:'note',x:140+doc.objects.length*12,
+      y:125+doc.objects.length*10,w:390,h:310,text,tone:2};
+    commit({v:1,objects:[...doc.objects,note]});
+    setSelected(note.id);setStorePickerOpen(false);
+  };
+  const addMilestone = () => {
+    const label=milestoneName.trim();
+    if(!label || !/^\\d{4}-\\d{2}-\\d{2}$/.test(milestoneDate))return;
+    const object:BoardObject={id:uid(),kind:'checklist',
+      x:140+doc.objects.length*12,y:130+doc.objects.length*10,w:290,h:142,
+      text:'☐ '+label+'\\nProposed milestone date: '+milestoneDate+'\\nNot an agreed delivery commitment'};
+    commit({v:1,objects:[...doc.objects,object]});
+    setSelected(object.id);setMilestoneOpen(false);setMilestoneName('');setMilestoneDate('');
+  };
 
   const add = (kind: 'note' | 'text' | 'checklist' | 'frame' | 'shape' | 'arrow' | 'line' | 'link') => {
     const base = { id: uid(), x: 120 + doc.objects.length * 12, y: 110 + doc.objects.length * 10 };
@@ -221,6 +280,11 @@ export function DreamBuilder({
   };
 
   const save = async () => {
+    if(!serverRevisionKnown.current) {
+      setSaveState('error');
+      setLocalError('This board did not load its current revision. Do not save over an unknown version; reopen the Dream when SecurePay is available.');
+      return;
+    }
     const payload = encode(doc);
     if (bytes(payload) > MAX_BOARD_BYTES) {
       setLocalError('This Dream has grown beyond the current 512 KB board limit. Nothing has been discarded. Remove some board detail before saving.');
@@ -234,6 +298,7 @@ export function DreamBuilder({
         schemaVersion: 1, documentJson: payload, expectedRevision: revision, idempotencyKey: uid(),
       });
       setRevision(saved.revision);
+      savedBoardSignature.current = encode(doc);
       const titleOk = title === dream.title || await onSaveTitle(title, dream.content ?? '', dream.version);
       setSaveState(titleOk ? 'saved' : 'error');
       if (!titleOk) setLocalError('The board saved, but the Dream title did not. Refresh before editing the title again.');
@@ -293,7 +358,7 @@ export function DreamBuilder({
   };
 
   const objectClass = (o: BoardObject) => {
-    const active = selected === o.id ? 'ring-2 ring-forest-500 ring-offset-2' : '';
+    const active = selected === o.id || groupSelection.includes(o.id) ? 'ring-2 ring-forest-500 ring-offset-2' : '';
     if (o.kind === 'note') return `${TONES[o.tone ?? 0]} border border-black/5 shadow-sm ${active}`;
     if (o.kind === 'frame') return `bg-transparent border-2 border-dashed border-forest-200 ${active}`;
     return `bg-white/95 border border-cream-200 shadow-sm ${active}`;
@@ -302,12 +367,31 @@ export function DreamBuilder({
   const beginDrag = (event: React.PointerEvent, o: BoardObject) => {
     if (tool !== 'select') return;
     event.stopPropagation();
+    if(event.shiftKey) {
+      setGroupSelection(items=>items.includes(o.id)?items.filter(id=>id!==o.id):[...items,o.id]);
+      setSelected(o.id);
+      return;
+    }
+    setGroupSelection([]);
     setSelected(o.id);
     const before = doc;
-    const start = { x: event.clientX, y: event.clientY, ox: o.x, oy: o.y };
+    const movingIds=new Set([o.id]);
+    if(o.kind==='frame') {
+      // A frame groups contained cards without changing the persisted board schema.
+      for(const item of before.objects){
+        if(item.id!==o.id && item.kind!=='drawing' &&
+           item.x>=o.x && item.y>=o.y &&
+           item.x+item.w<=o.x+o.w && item.y+item.h<=o.y+o.h) movingIds.add(item.id);
+      }
+    }
+    const original=new Map(before.objects.filter(item=>movingIds.has(item.id)).map(item=>[item.id,{x:item.x,y:item.y}]));
+    const start = { x: event.clientX, y: event.clientY };
     const move = (e: PointerEvent) => {
-      setDoc(current => ({ v: 1, objects: current.objects.map(item =>
-        item.id === o.id ? ({ ...item, x: start.ox + (e.clientX - start.x) / zoom, y: start.oy + (e.clientY - start.y) / zoom } as BoardObject) : item) }));
+      const dx=(e.clientX-start.x)/zoom,dy=(e.clientY-start.y)/zoom;
+      setDoc(current => ({ v: 1, objects: current.objects.map(item => {
+        const origin=original.get(item.id);
+        return origin ? ({ ...item, x:origin.x+dx, y:origin.y+dy } as BoardObject) : item;
+      }) }));
       setSaveState('idle');
     };
     const up = () => {
@@ -336,6 +420,29 @@ export function DreamBuilder({
           <Save className="size-4" /> Save
         </Button>
       </div>
+    </div>
+
+    <div className="rounded-2xl border border-cream-200 bg-white/90 p-3 space-y-2" data-vision-exploration>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-forest-800">How deeply shall we explore?</p>
+        <p className="text-xs text-sand-500">Planning choices · no automatic charges</p>
+      </div>
+      <div role="group" aria-label="Vision exploration depth" className="flex flex-wrap gap-2">
+        {([
+          [1, 'Capture an idea'], [2, 'Explore options'], [3, 'Plan in detail'],
+        ] as const).map(([level, label]) =>
+          <button key={level} type="button" aria-pressed={exploration === level}
+            onClick={() => setExploration(level)}
+            className={`min-h-11 rounded-xl px-3 text-xs ${exploration === level ? 'bg-forest-800 text-white' : 'bg-cream-100 text-forest-800'}`}>
+            {label}
+          </button>)}
+      </div>
+      <p className="text-xs leading-5 text-sand-600" role="status">
+        {exploration === 1 ? 'Collect pictures, thoughts, sketches and notes. Nothing needs to be decided yet.' :
+          exploration === 2 ? 'Compare possible Store offers, people, materials, locations and estimates. Treat every option as provisional.' :
+          'Organise alternative costs, specifications, people and milestones. Move only reviewed proposals toward My Work.'}
+      </p>
+      <p className="text-[0.7rem] text-sand-500">This chooser changes only the guidance shown here; it does not start paid intelligence or alter your saved Dream.</p>
     </div>
 
     <div className="rounded-3xl border border-cream-200 bg-[#fbf7ec] overflow-hidden shadow-sm">
@@ -373,8 +480,39 @@ export function DreamBuilder({
           className={`size-11 rounded-full border inline-grid place-items-center ${tool === 'erase' ? 'border-forest-400 bg-forest-50 text-forest-700' : 'border-cream-200 text-sand-600'}`}><Eraser className="size-4" /></button>
         <button type="button" title="Undo" onClick={undo} disabled={!history.length} className="size-11 rounded-full border border-cream-200 inline-grid place-items-center disabled:opacity-40"><Undo2 className="size-4" /></button>
         <button type="button" title="Redo" onClick={redo} disabled={!future.length} className="size-11 rounded-full border border-cream-200 inline-grid place-items-center disabled:opacity-40"><Redo2 className="size-4" /></button>
+        {storeGateway && exploration>1 && <button type="button"
+          disabled={dream.locked || dream.superseded}
+          onClick={()=>setStorePickerOpen(v=>!v)}
+          className="min-h-11 rounded-full border border-forest-200 bg-white px-3 text-xs disabled:opacity-40">
+          + Store option
+        </button>}
+        <button type="button" onClick={()=>setMilestoneOpen(v=>!v)}
+          className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs">
+          + Milestone
+        </button>
+        {groupSelection.length>=2 && <button type="button" onClick={groupSelected}
+          className="min-h-11 rounded-full bg-forest-700 px-3 text-xs text-white">Group {groupSelection.length} items</button>}
       </div>
 
+      {storePickerOpen && storeGateway && <div className="border-b border-cream-200 bg-cream-50 p-3">
+        <VisionStorePicker stores={storeGateway} onAdd={addStoreOption}
+          onClose={()=>setStorePickerOpen(false)}/>
+      </div>}
+      {milestoneOpen && <div className="border-b border-cream-200 bg-cream-50 p-3 space-y-2" data-vision-milestone>
+        <p className="text-sm font-semibold">Proposed milestone — not an Agreement commitment</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs">What needs to happen?
+            <input maxLength={120} value={milestoneName} onChange={e=>setMilestoneName(e.target.value)}
+              className="mt-1 block min-h-11 rounded-xl border border-cream-200 bg-white p-2 text-sm"/></label>
+          <label className="text-xs">Proposed date
+            <input type="date" value={milestoneDate} onChange={e=>setMilestoneDate(e.target.value)}
+              className="mt-1 block min-h-11 rounded-xl border border-cream-200 bg-white p-2 text-sm"/></label>
+          <button type="button" onClick={addMilestone} disabled={!milestoneName.trim()||!milestoneDate}
+            className="min-h-11 rounded-xl bg-forest-700 px-3 text-xs text-white disabled:opacity-40">Add to board</button>
+          <button type="button" onClick={()=>setMilestoneOpen(false)}
+            className="min-h-11 rounded-xl bg-white px-3 text-xs">Cancel</button>
+        </div>
+      </div>}
       {selectedObject && <div className="border-b border-cream-200 bg-cream-50 px-3 py-2 flex flex-wrap items-center gap-2 text-xs">
         <span className="text-sand-500 inline-flex items-center gap-1"><Grip className="size-3.5" /> Selected {selectedObject.kind}</span>
         {'text' in selectedObject && selectedObject.kind !== 'link' && <button type="button" onClick={() => {
@@ -384,9 +522,34 @@ export function DreamBuilder({
         {selectedObject.kind === 'note' && <button type="button" onClick={() => patchObject(selectedObject.id, { tone: nextTone(selectedObject.tone) } as Partial<BoardObject>)}
           className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Change colour</button>}
         <button type="button" onClick={duplicateSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700 inline-flex items-center gap-1"><Copy className="size-3.5" /> Duplicate</button>
+        <button type="button" onClick={()=>patchObject(selectedObject.id,{w:Math.min(selectedObject.w+40,900)} as Partial<BoardObject>)}
+          className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Wider</button>
+        <button type="button" onClick={()=>patchObject(selectedObject.id,{h:Math.min(selectedObject.h+40,750)} as Partial<BoardObject>)}
+          className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Taller</button>
+        <button type="button" onClick={()=>patchObject(selectedObject.id,{w:Math.max(100,selectedObject.w-40),h:Math.max(70,selectedObject.h-25)} as Partial<BoardObject>)}
+          className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Smaller</button>
+        {selectedObject.kind==='frame' && <button type="button" onClick={()=>{
+          commit({v:1,objects:doc.objects.filter(o=>o.id!==selectedObject.id)});
+          setSelected(null);
+        }} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-forest-700">Ungroup (keep items)</button>}
         <button type="button" onClick={removeSelected} className="min-h-9 rounded-full border border-cream-200 bg-white px-3 text-ember-700 inline-flex items-center gap-1"><Trash2 className="size-3.5" /> Delete</button>
-        {onExploreKs001 && 'text' in selectedObject && <button type="button" onClick={() => onExploreKs001(selectedObject.text)}
-          className="min-h-9 rounded-full bg-forest-700 px-3 text-white">Ask KS001 about this</button>}
+        {onExploreKs001 && 'text' in selectedObject && <button type="button"
+          disabled={currentDirty || !serverRevisionKnown.current || saveState === 'saving' || saveState === 'error'}
+          title={currentDirty ? 'Save this board before taking a note to KS001' : 'Review this note as an unsent KS001 draft'}
+          onClick={() => onExploreKs001(selectedObject.text)}
+          className="min-h-9 rounded-full bg-forest-700 px-3 text-white disabled:opacity-40">Explore with KS001</button>}
+        {onShareSelected && (selectedObject.kind === 'note' || selectedObject.kind === 'text' ||
+          selectedObject.kind === 'checklist' || selectedObject.kind === 'frame') &&
+          <button type="button"
+            disabled={currentDirty || !serverRevisionKnown.current || saveState === 'loading' || saveState === 'saving' || saveState === 'error'}
+            onClick={() => onShareSelected({
+              dreamId: dream.dreamId, dreamTitle: dream.title, boardRevision: revision,
+              objectId: selectedObject.id, kind: selectedObject.kind, text: selectedObject.text,
+            })}
+            title={currentDirty ? 'Save this Dream before selecting material to share' : 'Choose one saved note for a Circle'}
+            className="min-h-9 rounded-full border border-forest-200 bg-forest-50 px-3 text-forest-800 disabled:opacity-40">
+            Share selected note with a Circle
+          </button>}
       </div>}
 
       {localError && <div className="p-3"><StatusNotice tone="warning" icon={false}>{localError}</StatusNotice></div>}

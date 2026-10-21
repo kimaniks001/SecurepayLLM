@@ -1,0 +1,40 @@
+name: Gate 3 — Protected staging relay safety
+
+# Unit/compile checks only. No staging credentials, deployment or production calls.
+on:
+  pull_request:
+    paths:
+      - 'api/preview-agent.js'
+      - 'api/preview-workspace.js'
+      - 'api/preview-staging-policy.js'
+      - 'src/features/living-workspace/previewAgentGateway.ts'
+      - 'src/features/living-workspace/previewWorkspaceGateways.ts'
+      - 'src/features/living-workspace/previewApiOrigin.ts'
+      - 'tests/preview-staging-routing.test.mjs'
+      - 'tests/phase1-preview-production-write-guard.test.mjs'
+      - '.github/workflows/gate3-preview-staging-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  protected-routing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Production-write rejection and staging fake-network policy tests
+        run: node --test tests/phase1-preview-production-write-guard.test.mjs tests/preview-staging-routing.test.mjs tests/phase3-certification-guard.test.mjs
+      - name: Compile frontend transports and preserve full UI regression checks
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
