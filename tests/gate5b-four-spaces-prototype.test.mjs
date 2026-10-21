@@ -10,7 +10,7 @@ const approved=read('src/features/living-workspace/Phase1LivingWorkspacePreview.
 
 test('Gate 5B is reachable on a completely separate hash route',()=>{
   assert.match(runtime,/preview\\\/gate5b/);
-  assert.match(runtime,/if \(gate5BPreview\) return <Gate5BFourSpacesPrototype\/>/);
+  assert.match(runtime,/if \(gate5BPreview\) return <Gate5BFourSpacesPrototype\s*\/>/);
   assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
   assert.doesNotMatch(approved,/Gate5BFourSpacesPrototype|gate5BPreview/);
 });
