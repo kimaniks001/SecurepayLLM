@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CalendarDays, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
 import { MiniContextInput } from './MiniContextInput';
 import { UniversalSourceTray } from './UniversalSourceTray';
@@ -88,6 +88,32 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
  const [practice,setPractice]=useState(false);
  const [resetNotice,setResetNotice]=useState(false);
  const [saverOptIn,setSaverOptIn]=useState(false);
+ const [gpsBusy,setGpsBusy]=useState(false);
+ const [gpsError,setGpsError]=useState<string|null>(null);
+ const latestDraft=useRef(draft);latestDraft.current=draft;
+ const mounted=useRef(true);
+ useEffect(()=>()=>{mounted.current=false;},[]);
+ /** The browser asks for location ONLY after the buyer presses My location. */
+ const useCurrentGps=()=>{
+   if(typeof navigator==='undefined'||!navigator.geolocation){
+     setGpsError('This browser cannot share your location. Enter an address, Plus Code or map point instead.');
+     return;
+   }
+   setGpsBusy(true);setGpsError(null);
+   navigator.geolocation.getCurrentPosition(position=>{
+     if(!mounted.current)return;
+     const lat=position.coords.latitude,lon=position.coords.longitude;
+     if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){
+       setGpsError('Location unavailable. Please choose the place yourself.');setGpsBusy(false);return;
+     }
+     onDraft({...latestDraft.current,place:'Proposed GPS point (unverified): '+lat.toFixed(6)+', '+lon.toFixed(6)});
+     setPractice(false);setEditing(null);setGpsBusy(false);
+   },()=>{
+     if(!mounted.current)return;
+     setGpsError('Location was not shared. Use an address, Plus Code or map point instead.');
+     setGpsBusy(false);
+   },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+ };
  const shops=distinctStoreCount(lines);
  const crossStore=shops>=2;
  const removeLine=(key:string)=>{
@@ -152,6 +178,9 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
           className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Type place</button>
         <button type="button" onClick={()=>setEditing(editing==='place-tool'?null:'place-tool')} aria-expanded={editing==='place-tool'}
           className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Map / Plus Code</button>
+        <button type="button" disabled={gpsBusy} onClick={useCurrentGps}
+          aria-label="Use my current GPS location for this proposed buying plan"
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs disabled:opacity-50">{gpsBusy?'Finding…':'My location'}</button>
        </div>
       </div>
       <p className="mt-1 break-words text-xs">{draft.place||'Where should items arrive?'}</p>
@@ -170,7 +199,8 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
          }}/>
        <button type="button" className="min-h-10 text-xs font-semibold underline" onClick={()=>setEditing(null)}>Back to buying plan</button>
       </div>}
-      <p className="mt-2 text-[11px] text-sand-600">Proposed location only. No automatic GPS access, verification or Store sharing.</p>
+      {gpsError&&<p role="alert" className="mt-2 text-xs text-amber-900">{gpsError}</p>}
+      <p className="mt-2 text-[11px] text-sand-600">GPS is requested only when you tap My location. Proposed and unverified; not shared with Stores or saved to an Agreement.</p>
      </div>
      <div className="rounded-lg bg-cream-50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
