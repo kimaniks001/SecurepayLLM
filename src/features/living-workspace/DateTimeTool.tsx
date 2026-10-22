@@ -70,6 +70,20 @@ export function buildTimingProposal(draft: TimingDraft): { text: string; error: 
     ' Ask me to review the purpose, people, deadlines and any missing conditions. Do not assume acceptance, verify a milestone, amend an accepted Agreement or release Money.', error: null };
 }
 
+/** A short, explicitly provisional label for a local Store buying plan.
+ * Validation and semantics come from the same Date & Time proposal engine.
+ */
+export function compactTimingProposal(draft:TimingDraft):{text:string;error:string|null} {
+  const proposal=buildTimingProposal(draft);
+  if(proposal.error)return {text:'',error:proposal.error};
+  const from=proposal.text.indexOf(': ');
+  const to=proposal.text.indexOf('. Device time zone: ');
+  if(from<0||to<=from)return {text:'',error:'Could not prepare proposed timing.'};
+  const detail=proposal.text.slice(from+2,to);
+  const zone=meaningful(draft.timeZone||'Local device time');
+  return {text:(detail+' · '+zone+' (proposed, not agreed)').slice(0,400),error:null};
+}
+
 const field = 'min-h-11 w-full rounded-xl border border-cream-300 bg-white px-3 text-sm text-forest-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700';
 const purposes: { value: TimingPurpose; label: string }[] = [
   {value:'delivery',label:'Delivery'}, {value:'commencement',label:'Start of work'},
@@ -77,8 +91,11 @@ const purposes: { value: TimingPurpose; label: string }[] = [
   {value:'contribution',label:'Contribution'}, {value:'check-in',label:'Check-in'},
   {value:'check-out',label:'Check-out'}, {value:'pickup',label:'Pickup'}, {value:'other',label:'Something else'}
 ];
-export function DateTimeTool({ context = '', onPrepare, onClose, isLocalPreview=false }: {
-  context?: string; onPrepare?: (message: string) => Promise<void>; onClose?: () => void;isLocalPreview?:boolean;
+export function DateTimeTool({ context = '', onPrepare, onChoose, onClose, isLocalPreview=false }: {
+  context?: string; onPrepare?: (message: string) => Promise<void>;
+  /** Local selection for a buying-plan draft. Does not create or send an Agreement. */
+  onChoose?: (draft:TimingDraft)=>Promise<void>;
+  onClose?: () => void;isLocalPreview?:boolean;
 }) {
   const [draft, setDraft] = useState<TimingDraft>(()=>({
     mode:'on',purpose:'delivery',freePurpose:'',day:'',time:'',until:'',untilTime:'',
@@ -94,11 +111,11 @@ export function DateTimeTool({ context = '', onPrepare, onClose, isLocalPreview=
   const set = <K extends keyof TimingDraft>(key: K, value: TimingDraft[K]) =>
     setDraft(previous=>({...previous,[key]:value}));
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (busy || sent || !onPrepare) return;
+    event.preventDefault(); if (busy || sent || (!onPrepare&&!onChoose)) return;
     const result = buildTimingProposal(draft);
     if (result.error) { setError(result.error); return; }
     setBusy(true); setError(null);
-    try { await onPrepare(result.text); setSent(true); }
+    try { if(onChoose)await onChoose(draft); else await onPrepare!(result.text); setSent(true); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'The request was not confirmed. Your selection is still here.'); }
     finally { setBusy(false); }
   };
@@ -177,9 +194,9 @@ export function DateTimeTool({ context = '', onPrepare, onClose, isLocalPreview=
     {sent?<div role="status" className="space-y-2 rounded-xl bg-cream-50 p-3 text-sm">
       <p className="flex gap-2"><CheckCircle2 size={18}/> {isLocalPreview?'Proposed timing added locally. Not agreed or saved.':'Sent to KS001 for review — not agreed yet.'}</p>
       <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-cream-300 px-3">Return to my work</button>
-    </div>:<button type="submit" disabled={busy||!onPrepare} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 font-semibold text-white disabled:opacity-50">
-      {busy?'Preparing…':isLocalPreview?'Add proposed timing locally':'Ask KS001 to review this date'}
+    </div>:<button type="submit" disabled={busy||(!onPrepare&&!onChoose)} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 font-semibold text-white disabled:opacity-50">
+      {busy?'Preparing…':onChoose?'Use timing in buying plan':isLocalPreview?'Add proposed timing locally':'Ask KS001 to review this date'}
     </button>}
-    {!onPrepare&&<p role="status" className="text-xs text-sand-700">Start a real KS001 conversation to use dates in your Agreement. No timing has been saved.</p>}
+    {!onPrepare&&!onChoose&&<p role="status" className="text-xs text-sand-700">Start a real KS001 conversation to use dates in your Agreement. No timing has been saved.</p>}
   </form>;
 }
