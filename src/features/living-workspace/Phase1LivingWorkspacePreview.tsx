@@ -7,6 +7,7 @@ import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
+import { AgreementDiscovery } from './AgreementDiscovery';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -666,6 +667,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
@@ -700,7 +702,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             </div>
           : null}
         {mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
-          <WorkspaceContinuityPanel area="work" gateways={workspaceGateways}
+          <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={false}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
         {!signedIn && mode!=='work' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
