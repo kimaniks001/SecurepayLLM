@@ -39,11 +39,14 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
   const [tab,setTab]=useState<Tab>('Overview');
   const [detail,setDetail]=useState<DetailState>(emptyDetail);
   const closeButton=useRef<HTMLButtonElement>(null);
+  const dialogRef=useRef<HTMLDivElement>(null);
   const returnFocus=useRef<HTMLElement|null>(null);
   const openDetail=fullId ?? chosenId ?? hoverId;
+  // Hover is a cheap summary from the list; detail is fetched only after deliberate selection.
+  const requestedDetail=fullId ?? chosenId;
   const canUse=index.owner===identity && index.phase==='ready';
   const current=canUse ? index.items.find(a=>a.agreementId===openDetail) : undefined;
-  const verified=detail.owner===identity && detail.id===openDetail && detail.phase==='ready' ? detail.value : null;
+  const verified=detail.owner===identity && detail.id===requestedDetail && detail.phase==='ready' ? detail.value : null;
 
   useEffect(()=>{
     let active=true;
@@ -69,29 +72,37 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
 
   useEffect(()=>{
     let active=true;
-    setDetail({owner:identity,id:openDetail,phase:openDetail?'loading':'idle',value:null});
-    if(openDetail && signedIn && gateways && canUse && index.items.some(a=>a.agreementId===openDetail)){
+    setDetail({owner:identity,id:requestedDetail,phase:requestedDetail?'loading':'idle',value:null});
+    if(requestedDetail && signedIn && gateways && canUse && index.items.some(a=>a.agreementId===requestedDetail)){
       void (async()=>{
         try{
           await ensureFreshSession(session,gateways.auth);
           if(!active || session.getSnapshot()!==identity)return;
-          const value=await gateways.agreements.detail(openDetail);
-          if(value.overview.agreementId!==openDetail)throw new Error('Mismatched Agreement');
+          const value=await gateways.agreements.detail(requestedDetail);
+          if(value.overview.agreementId!==requestedDetail)throw new Error('Mismatched Agreement');
           if(active && session.getSnapshot()===identity)
-            setDetail({owner:identity,id:openDetail,phase:'ready',value});
+            setDetail({owner:identity,id:requestedDetail,phase:'ready',value});
         }catch{
           if(active && session.getSnapshot()===identity)
-            setDetail({owner:identity,id:openDetail,phase:'error',value:null});
+            setDetail({owner:identity,id:requestedDetail,phase:'error',value:null});
         }
       })();
     }
     return ()=>{active=false;};
-  },[identity,openDetail,signedIn,gateways,session,canUse,index.items]);
+  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items]);
 
   useEffect(()=>{
     if(!fullId)return;
     closeButton.current?.focus();
-    const onEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();setFullId(null);}};
+    const onEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){event.preventDefault();setFullId(null);window.requestAnimationFrame(()=>returnFocus.current?.focus());return;}
+      if(event.key!=='Tab')return;
+      const focusable=Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')||[]);
+      if(!focusable.length)return;
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(event.shiftKey && document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first.focus();}
+    };
     window.addEventListener('keydown',onEscape);
     return ()=>window.removeEventListener('keydown',onEscape);
   },[fullId]);
@@ -108,7 +119,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
     if(chosenId===id){showFull(id);return;}
     setChosenId(id);setHoverId(null);
   };
-  const label=canUse ? (index.total>20 ? '20+' : String(index.total)) : null;
+  const label=canUse ? String(index.total) : null;
   const rows=canUse ? index.items : [];
   return <section className="relative mb-3 rounded-xl border border-cream-200 bg-cream-50/90" aria-label="My Agreements" data-agreement-discovery>
     <div className="flex items-center gap-2 p-2">
@@ -150,7 +161,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
       <p className="mt-2 text-[11px] text-sand-600">Hover or focus to peek; tap once to select and again to open. No Agreement is changed.</p>
     </div>}
     {fullId && signedIn && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-forest-950/60 p-2 sm:p-5" data-agreement-full>
-      <div role="dialog" aria-modal="true" aria-label="Living Agreement" className="flex max-h-[94dvh] w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Living Agreement" className="flex max-h-[94dvh] w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-2 border-b border-cream-200 p-3 sm:p-5">
           <div className="min-w-0"><p className="text-xs uppercase tracking-wider text-sand-600">Living Agreement · Read-only record</p><h2 className="truncate font-display text-xl">{verified?.overview.title||current?.title||'Agreement'}</h2></div>
           <button ref={closeButton} type="button" onClick={closeFull} aria-label="Close Agreement and return to KS001" className="flex min-h-11 items-center gap-2 rounded-lg bg-cream-100 px-3 text-xs"><ArrowLeft size={16}/> Back to My Work <X size={16}/></button>
