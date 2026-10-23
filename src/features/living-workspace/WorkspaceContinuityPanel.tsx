@@ -26,7 +26,7 @@ function errorLabel(error:unknown):string{
  * No private data is cached in browser storage; no membership or ownership inferred,
  * no client-side Circle access grants, no demo cards passed off as real.
  */
-export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResume,onEditDream,onOpenCircleBoard}:{
+export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResume,onEditDream,onOpenCircleBoard,showEstablishedAgreements=true}:{
  area:WorkspaceArea;
  gateways?:PreviewWorkspaceGateways;
  session:SessionStore;
@@ -34,6 +34,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
  onResume:(conversationId:string)=>Promise<void>;
  onEditDream?:(dreamId:string)=>void;
  onOpenCircleBoard?:(circleId:string)=>void;
+ showEstablishedAgreements?:boolean;
 }){
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const signedIn=identity.status==='signed-in';
@@ -131,7 +132,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
        <button type="button" disabled={busy!==null} onClick={()=>void resume(b)} className="mt-2 min-h-11 rounded-lg bg-cream-100 px-3 text-xs disabled:opacity-50">{busy===b.savedBuildId?'Opening…':'Continue the same conversation'}</button>
      </article>)}
    </div>}
-   {area==='work' && <div className="mt-5 space-y-2" data-real-agreements>
+   {area==='work' && showEstablishedAgreements && <div className="mt-5 space-y-2" data-real-agreements>
      <p className="flex items-center gap-2 text-sm font-semibold"><FolderOpen size={17}/> Your Agreements</p>
      <p className="text-xs text-sand-700">Established Agreement records are separate from saved KS001 drafts. SecurePay determines each Agreement's status, participant access and next action.</p>
      {agreements.status==='loading' && <p role="status" className="text-xs">Loading your Agreements…</p>}
