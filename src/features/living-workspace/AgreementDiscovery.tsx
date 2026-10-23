@@ -1,0 +1,185 @@
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { ArrowLeft, ChevronRight, FolderOpen, LockKeyhole, RefreshCw, X } from 'lucide-react';
+import { ensureFreshSession, type SessionStore, type SessionState } from '../../api/securepay/session';
+import type { AgreementDetailResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
+import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
+
+type IndexState = { owner: SessionState | null; phase: 'idle'|'loading'|'ready'|'error'; items: CurrentUserAgreementSummaryResponse[]; total: number };
+type DetailState = { owner: SessionState | null; id: string | null; phase: 'idle'|'loading'|'ready'|'error'; value: AgreementDetailResponse | null };
+type Tab = 'Overview'|'People'|'Terms'|'Milestones'|'Evidence'|'Money'|'History';
+const tabs: Tab[] = ['Overview','People','Terms','Milestones','Evidence','Money','History'];
+const emptyIndex = ():IndexState => ({owner:null,phase:'idle',items:[],total:0});
+const emptyDetail = ():DetailState => ({owner:null,id:null,phase:'idle',value:null});
+const safeDate = (value:string|null|undefined) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString() : null;
+const money = (amount:string|number|null|undefined,currency:string) => {
+  if (amount===null || amount===undefined || !/^-?\d+$/.test(String(amount))) return 'Not stated';
+  const numeric=Number(amount);
+  return Number.isSafeInteger(numeric) ? currency+' '+(numeric/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : 'See official Agreement';
+};
+const message = 'SecurePay could not verify this record for your current identity. Reload or sign in again.';
+
+/**
+ * One read-only route into the SAME server-owned Agreements.
+ * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
+ * existing Agreement authority never unmount, mutate, or switch route on open/close.
+ */
+export function AgreementDiscovery({gateways,session,onSignIn}:{
+  gateways?:PreviewWorkspaceGateways;
+  session:SessionStore;
+  onSignIn:()=>void;
+}){
+  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
+  const signedIn=identity.status==='signed-in';
+  const [expanded,setExpanded]=useState(false);
+  const [index,setIndex]=useState<IndexState>(emptyIndex);
+  const [revision,setRevision]=useState(0);
+  const [hoverId,setHoverId]=useState<string|null>(null);
+  const [chosenId,setChosenId]=useState<string|null>(null);
+  const [fullId,setFullId]=useState<string|null>(null);
+  const [tab,setTab]=useState<Tab>('Overview');
+  const [detail,setDetail]=useState<DetailState>(emptyDetail);
+  const closeButton=useRef<HTMLButtonElement>(null);
+  const returnFocus=useRef<HTMLElement|null>(null);
+  const openDetail=fullId ?? chosenId ?? hoverId;
+  const canUse=index.owner===identity && index.phase==='ready';
+  const current=canUse ? index.items.find(a=>a.agreementId===openDetail) : undefined;
+  const verified=detail.owner===identity && detail.id===openDetail && detail.phase==='ready' ? detail.value : null;
+
+  useEffect(()=>{
+    let active=true;
+    setIndex({owner:identity,phase:signedIn&&gateways?'loading':'idle',items:[],total:0});
+    setDetail(emptyDetail());
+    setHoverId(null);setChosenId(null);setFullId(null);setExpanded(false);
+    if(signedIn&&gateways){
+      void (async()=>{
+        try{
+          await ensureFreshSession(session,gateways.auth);
+          if(!active || session.getSnapshot()!==identity)return;
+          const page=await gateways.agreements.currentUserAgreements(0,20);
+          if(active && session.getSnapshot()===identity)
+            setIndex({owner:identity,phase:'ready',items:page.items,total:page.totalElements});
+        }catch{
+          if(active && session.getSnapshot()===identity)
+            setIndex({owner:identity,phase:'error',items:[],total:0});
+        }
+      })();
+    }
+    return ()=>{active=false;};
+  },[identity,signedIn,gateways,session,revision]);
+
+  useEffect(()=>{
+    let active=true;
+    setDetail({owner:identity,id:openDetail,phase:openDetail?'loading':'idle',value:null});
+    if(openDetail && signedIn && gateways && canUse && index.items.some(a=>a.agreementId===openDetail)){
+      void (async()=>{
+        try{
+          await ensureFreshSession(session,gateways.auth);
+          if(!active || session.getSnapshot()!==identity)return;
+          const value=await gateways.agreements.detail(openDetail);
+          if(value.overview.agreementId!==openDetail)throw new Error('Mismatched Agreement');
+          if(active && session.getSnapshot()===identity)
+            setDetail({owner:identity,id:openDetail,phase:'ready',value});
+        }catch{
+          if(active && session.getSnapshot()===identity)
+            setDetail({owner:identity,id:openDetail,phase:'error',value:null});
+        }
+      })();
+    }
+    return ()=>{active=false;};
+  },[identity,openDetail,signedIn,gateways,session,canUse,index.items]);
+
+  useEffect(()=>{
+    if(!fullId)return;
+    closeButton.current?.focus();
+    const onEscape=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();setFullId(null);}};
+    window.addEventListener('keydown',onEscape);
+    return ()=>window.removeEventListener('keydown',onEscape);
+  },[fullId]);
+
+  const showFull=(id:string)=>{
+    returnFocus.current=document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setHoverId(null);setChosenId(id);setFullId(id);setTab('Overview');
+  };
+  const closeFull=()=>{
+    setFullId(null);setChosenId(null);setHoverId(null);
+    window.requestAnimationFrame(()=>returnFocus.current?.focus());
+  };
+  const peek=(id:string)=>{
+    if(chosenId===id){showFull(id);return;}
+    setChosenId(id);setHoverId(null);
+  };
+  const label=canUse ? (index.total>20 ? '20+' : String(index.total)) : null;
+  const rows=canUse ? index.items : [];
+  return <section className="relative mb-3 rounded-xl border border-cream-200 bg-cream-50/90" aria-label="My Agreements" data-agreement-discovery>
+    <div className="flex items-center gap-2 p-2">
+      <button type="button" aria-expanded={expanded} aria-controls="workspace-my-agreements-list"
+        onClick={()=>{setExpanded(v=>!v);setChosenId(null);setHoverId(null);}}
+        className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 text-left hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+        <span className="flex min-w-0 items-center gap-2 text-sm font-semibold"><FolderOpen size={17} aria-hidden="true"/> My Agreements {label!==null&&<span className="rounded-full bg-white px-2 py-0.5 text-xs" data-agreement-count>{label}</span>}</span>
+        <ChevronRight size={16} className={expanded?'rotate-90':''} aria-hidden="true"/>
+      </button>
+      {signedIn&&gateways&&<button type="button" onClick={()=>setRevision(n=>n+1)} aria-label="Refresh My Agreements" title="Refresh My Agreements" className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white"><RefreshCw size={15}/></button>}
+    </div>
+    {expanded&&<div id="workspace-my-agreements-list" className="border-t border-cream-200 px-3 py-3" data-agreement-list>
+      {!signedIn&&<div className="space-y-2"><p className="flex gap-2 text-xs"><LockKeyhole size={14}/> Sign in with your KS Number to see your private Agreements.</p><button type="button" onClick={onSignIn} className="min-h-11 rounded-lg bg-forest-800 px-3 text-xs text-white">Sign in</button></div>}
+      {signedIn&&!gateways&&<p role="status" className="text-xs">Agreement services are unavailable in this preview.</p>}
+      {signedIn&&gateways&&!canUse&&<p role={index.owner===identity&&index.phase==='error'?'alert':'status'} className="text-xs">{index.owner===identity&&index.phase==='error'?message:'Loading your Agreements…'}</p>}
+      {canUse&&rows.length===0&&<p className="text-xs text-sand-700">No established Agreements returned for this identity. Saved KS001 drafts are separate.</p>}
+      {canUse&&rows.length>0&&<div className="max-h-52 space-y-1 overflow-y-auto" aria-label="Established Agreement records">
+        {rows.map(a=><button key={a.agreementId} type="button" aria-pressed={chosenId===a.agreementId}
+          onMouseEnter={()=>{if(!chosenId)setHoverId(a.agreementId);}}
+          onMouseLeave={()=>setHoverId(null)}
+          onFocus={()=>{if(!chosenId)setHoverId(a.agreementId);}}
+          onClick={()=>peek(a.agreementId)}
+          className="flex min-h-12 w-full items-center justify-between gap-2 rounded-lg border border-cream-200 bg-white p-2 text-left hover:border-forest-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-800">
+          <span className="min-w-0"><span className="block truncate text-xs font-semibold">{a.title||a.publicReference}</span><span className="block text-[11px] text-sand-700">{a.status} · {a.publicReference}</span></span><ChevronRight className="shrink-0" size={15}/>
+        </button>)}
+      </div>}
+      {canUse&&index.total>rows.length&&<p className="mt-2 text-xs text-sand-600">Showing the first {rows.length} of {index.total} Agreements. Use the existing Agreements list for the rest.</p>}
+      {current&&<section className="mt-3 rounded-xl border border-forest-200 bg-white p-3 shadow-sm" aria-label="Agreement quick peek" data-agreement-peek>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-sand-600">Quick peek · {current.publicReference}</p>
+        <p className="mt-1 text-sm font-semibold">{current.title}</p>
+        <p className="mt-1 text-xs">{current.status} · {money(current.proposedAmountMinor,current.currency)}</p>
+        <p className="mt-1 text-xs text-sand-700">With: {current.counterparty?.displayName||'See Agreement people'}</p>
+        <p className="mt-1 text-xs text-sand-700">{current.nextActions[0]?.reason||'No next action reported'}</p>
+        {detail.owner===identity&&detail.id===current.agreementId&&detail.phase==='ready'&&verified&&
+          <p className="mt-1 text-xs text-sand-700">{verified.participants.length} people · {verified.milestones.length} milestones · version {verified.currentVersion?.versionNumber??'not established'}</p>}
+        {detail.owner===identity&&detail.id===current.agreementId&&detail.phase==='error'&&<p role="alert" className="mt-1 text-xs">{message}</p>}
+        <button type="button" onClick={()=>showFull(current.agreementId)} className="mt-3 min-h-11 w-full rounded-lg bg-forest-800 px-3 text-xs font-semibold text-white">Open Agreement</button>
+      </section>}
+      <p className="mt-2 text-[11px] text-sand-600">Hover or focus to peek; tap once to select and again to open. No Agreement is changed.</p>
+    </div>}
+    {fullId && signedIn && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-forest-950/60 p-2 sm:p-5" data-agreement-full>
+      <div role="dialog" aria-modal="true" aria-label="Living Agreement" className="flex max-h-[94dvh] w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between gap-2 border-b border-cream-200 p-3 sm:p-5">
+          <div className="min-w-0"><p className="text-xs uppercase tracking-wider text-sand-600">Living Agreement · Read-only record</p><h2 className="truncate font-display text-xl">{verified?.overview.title||current?.title||'Agreement'}</h2></div>
+          <button ref={closeButton} type="button" onClick={closeFull} aria-label="Close Agreement and return to KS001" className="flex min-h-11 items-center gap-2 rounded-lg bg-cream-100 px-3 text-xs"><ArrowLeft size={16}/> Back to My Work <X size={16}/></button>
+        </div>
+        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-cream-200 p-2" role="tablist" aria-label="Living Agreement sections">
+          {tabs.map(name=><button key={name} type="button" role="tab" aria-selected={tab===name} onClick={()=>setTab(name)} className={'min-h-10 shrink-0 rounded-lg px-3 text-xs '+(tab===name?'bg-forest-800 text-white':'bg-cream-100 text-forest-800')}>{name}</button>)}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" role="tabpanel">
+          {(!verified) && <p role={detail.phase==='error'?'alert':'status'} className="text-sm">{detail.owner===identity&&detail.phase==='error'?message:'Checking current Agreement details and access…'}</p>}
+          {verified&&<>
+            {tab==='Overview'&&<div className="space-y-3"><h3 className="text-lg font-semibold">{verified.overview.title}</h3>
+              <p className="text-sm">{verified.overview.description||verified.overview.purpose||'No description recorded.'}</p>
+              <p className="text-sm">Reference: {verified.overview.publicReference} · Status: {verified.overview.status}</p>
+              <p className="text-sm">Proposed amount: {money(verified.overview.proposedAmountMinor,verified.overview.currency)}</p>
+              <p className="text-sm">Current version: {verified.currentVersion?.versionNumber??'Not established'}</p>
+              <p className="text-xs text-sand-600">Status and completeness are determined by SecurePay, not by this reader.</p></div>}
+            {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}</div>}
+            {tab==='Terms'&&<div className="space-y-2">{verified.terms.length?verified.terms.map(t=><article key={t.obligationId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{t.title}</strong><p>{t.description||t.obligationType}</p><p className="text-xs text-sand-600">Status: {t.status}{t.amountMinor!==null?' · '+money(t.amountMinor,t.currency):''}</p></article>):<p>No terms returned.</p>}</div>}
+            {tab==='Milestones'&&<div className="space-y-2">{verified.milestones.length?verified.milestones.map(m=><article key={m.milestoneId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{m.title}</strong><p>{m.description}</p><p className="text-xs text-sand-600">{m.status}{m.dueAt?' · Due '+safeDate(m.dueAt):''}</p></article>):<p>No milestones returned.</p>}</div>}
+            {tab==='Evidence'&&<div className="space-y-2">{verified.documents.length?verified.documents.map(d=><article key={d.evidenceId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{d.description||d.originalFilename}</strong><p className="text-xs text-sand-600">{d.status} · {safeDate(d.submittedAt)||'No date'}</p></article>):<p>No evidence returned.</p>}</div>}
+            {tab==='Money'&&<div className="space-y-3"><h3 className="font-semibold">Agreement money</h3><p className="text-sm">Server status: {verified.money.status}</p><p className="text-sm">Money records: {verified.money.moneyRecordCount}</p>
+              {verified.money.outstandingReasons.map((r,i)=><p key={i} className="text-xs">{r.gateCode}: {r.reasonCode}</p>)}
+              <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p></div>}
+            {tab==='History'&&<div className="space-y-3"><h3 className="font-semibold">Version history</h3>{verified.versionHistory.length?verified.versionHistory.map(v=><p key={v.versionId} className="rounded-lg border border-cream-200 p-3 text-sm">Version {v.versionNumber} · {safeDate(v.createdAt)||'Date unavailable'}{v.amendmentReason?' · '+v.amendmentReason:''}</p>):<p>No version history returned.</p>}
+              <h3 className="font-semibold">Activity</h3>{verified.activity.length?verified.activity.map(a=><p key={a.id} className="text-sm">{a.activityType} · {safeDate(a.occurredAt)||'Date unavailable'}</p>):<p>No activity returned.</p>}</div>}
+          </>}
+        </div>
+        <div className="border-t border-cream-200 p-3 text-xs text-sand-600">Verified detail is scoped to your current identity. Close to resume the same KS001 conversation and unsent draft.</div>
+      </div>
+    </div>}
+  </section>;
+}
