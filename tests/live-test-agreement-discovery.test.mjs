@@ -25,11 +25,13 @@ test('live testing: idle, hover/focus or tap-to-peek, and explicit open are dist
    assert.ok(discovery.includes(token),token);
  assert.match(discovery,/if\(event\.key==='Escape'\)/);
  assert.match(discovery,/returnFocus\.current\?\.focus\(\)/);
+ assert.match(discovery,/if\(event\.key!=='Tab'\)return/);
+ assert.match(discovery,/const requestedDetail=fullId \?\? chosenId/);
 });
 test('live testing: only current user backend Agreement reads, no made-up status or write authority',()=>{
  assert.match(discovery,/ensureFreshSession\(session,gateways\.auth\)/);
  assert.match(discovery,/currentUserAgreements\(0,20\)/);
- assert.match(discovery,/gateways\.agreements\.detail\(openDetail\)/);
+ assert.match(discovery,/gateways\.agreements\.detail\(requestedDetail\)/);
  assert.match(discovery,/value\.overview\.agreementId!==openDetail/);
  assert.match(discovery,/session\.getSnapshot\(\)===identity/);
  assert.match(discovery,/index\.owner===identity/);
