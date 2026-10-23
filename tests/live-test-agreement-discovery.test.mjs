@@ -32,7 +32,7 @@ test('live testing: only current user backend Agreement reads, no made-up status
  assert.match(discovery,/ensureFreshSession\(session,gateways\.auth\)/);
  assert.match(discovery,/currentUserAgreements\(0,20\)/);
  assert.match(discovery,/gateways\.agreements\.detail\(requestedDetail\)/);
- assert.match(discovery,/value\.overview\.agreementId!==openDetail/);
+ assert.match(discovery,/value\.overview\.agreementId!==requestedDetail/);
  assert.match(discovery,/session\.getSnapshot\(\)===identity/);
  assert.match(discovery,/index\.owner===identity/);
  assert.match(discovery,/detail\.owner===identity/);
