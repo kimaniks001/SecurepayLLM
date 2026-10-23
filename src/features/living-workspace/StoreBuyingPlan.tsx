@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, CalendarDays, Check, ChevronRight, MapPin, Minus, Plus, Pencil, Trash2 } from 'lucide-react';
+import { MiniContextInput } from './MiniContextInput';
+import { UniversalSourceTray } from './UniversalSourceTray';
+import { DateTimeTool, compactTimingProposal } from './DateTimeTool';
 
 /**
  * A locally editable buyer intention, never an order, payment instruction or
@@ -52,8 +55,8 @@ export function storeBuyingPrompt(lines:StoreBuyingLine[],draft:StoreBuyingPlanD
   'Help me shape ONE coordinated buying plan for '+stores.size+' different Store(s), not an executed purchase.',
   example?'These are fictional sample offers for a practice walkthrough. No real Store identity or quote exists.':'Each listed offer is a public source, not a seller acceptance or reservation.',
   'Proposed purpose: '+draft.title.slice(0,120)+'.',
-  'Proposed delivery or service location: '+(draft.place.trim().slice(0,160)||'Needs confirming')+'.',
-  'Proposed date: '+(draft.desiredDate||'Needs confirming')+'.',
+  'Proposed delivery or service location: '+(draft.place.trim().slice(0,320)||'Needs confirming')+'.',
+  'Proposed delivery or service timing: '+(draft.desiredDate||'Needs confirming')+'.',
   'Coordination preference: '+coordination+'.',
   ...lines.map((line,index)=>[
    'Proposed line '+(index+1)+': '+line.title.slice(0,140)+
@@ -85,6 +88,32 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
  const [practice,setPractice]=useState(false);
  const [resetNotice,setResetNotice]=useState(false);
  const [saverOptIn,setSaverOptIn]=useState(false);
+ const [gpsBusy,setGpsBusy]=useState(false);
+ const [gpsError,setGpsError]=useState<string|null>(null);
+ const latestDraft=useRef(draft);latestDraft.current=draft;
+ const mounted=useRef(true);
+ useEffect(()=>()=>{mounted.current=false;},[]);
+ /** The browser asks for location ONLY after the buyer presses My location. */
+ const useCurrentGps=()=>{
+   if(typeof navigator==='undefined'||!navigator.geolocation){
+     setGpsError('This browser cannot share your location. Enter an address, Plus Code or map point instead.');
+     return;
+   }
+   setGpsBusy(true);setGpsError(null);
+   navigator.geolocation.getCurrentPosition(position=>{
+     if(!mounted.current)return;
+     const lat=position.coords.latitude,lon=position.coords.longitude;
+     if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180){
+       setGpsError('Location unavailable. Please choose the place yourself.');setGpsBusy(false);return;
+     }
+     onDraft({...latestDraft.current,place:'Proposed GPS point (unverified): '+lat.toFixed(6)+', '+lon.toFixed(6)});
+     setPractice(false);setEditing(null);setGpsBusy(false);
+   },()=>{
+     if(!mounted.current)return;
+     setGpsError('Location was not shared. Use an address, Plus Code or map point instead.');
+     setGpsBusy(false);
+   },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+ };
  const shops=distinctStoreCount(lines);
  const crossStore=shops>=2;
  const removeLine=(key:string)=>{
@@ -139,14 +168,71 @@ export function StoreBuyingPlan({lines,draft,onDraft,onLines,onBack,onPrepare,sa
       </div>}
     </article>)}
    </div>
-   <div className="space-y-2 border-t border-cream-200 pt-3">
-    <div className="flex items-center justify-between"><strong className="text-xs">Delivery & timing</strong><MapPin size={15}/></div>
-    {([{id:'place',label:'Place',value:draft.place||'Where should items arrive?'},{id:'desiredDate',label:'When',value:draft.desiredDate||'Date not set'}] as const).map(field=><div key={field.id} className="rounded-lg bg-cream-50 p-2">
-     <div className="flex items-center justify-between gap-2"><span className="text-xs text-sand-600">{field.label}</span><button type="button" onClick={()=>setEditing(editing===field.id?null:field.id)} className="rounded-lg border border-cream-200 bg-white px-2 py-1 text-xs">Edit</button></div>
-     {editing===field.id?<input autoFocus type={field.id==='desiredDate'?'date':'text'} maxLength={160} aria-label={'Edit '+field.label} value={draft[field.id]} onChange={e=>patch(field.id,e.target.value)} className="mt-1 min-h-10 w-full rounded-lg border border-cream-200 bg-white p-2 text-sm"/>:<p className="mt-1 text-xs">{field.value}</p>}
-    </div>)}
-   </div>
-   <div className="space-y-2 border-t border-cream-200 pt-3" data-store-coordination>
+   <div className="space-y-2 border-t border-cream-200 pt-3" data-store-plan-delivery-tools>
+     <div className="flex items-center justify-between gap-2"><strong className="text-xs">Delivery & timing</strong><MapPin size={15} aria-hidden="true"/></div>
+     <div className="rounded-lg bg-cream-50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+       <span className="inline-flex items-center gap-1 text-xs font-semibold text-sand-700"><MapPin size={15} aria-hidden="true"/> Place</span>
+       <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={()=>setEditing(editing==='place'?null:'place')} aria-expanded={editing==='place'}
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Type place</button>
+        <button type="button" onClick={()=>setEditing(editing==='place-tool'?null:'place-tool')} aria-expanded={editing==='place-tool'}
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Map / Plus Code</button>
+        <button type="button" disabled={gpsBusy} onClick={useCurrentGps}
+          aria-label="Use my current GPS location for this proposed buying plan"
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs disabled:opacity-50">{gpsBusy?'Finding…':'My location'}</button>
+       </div>
+      </div>
+      <p className="mt-1 break-words text-xs">{draft.place||'Where should items arrive?'}</p>
+      {editing==='place'&&<div className="mt-3" data-store-plan-mini-place>
+       <MiniContextInput kind="place" label="Delivery address, entrance or Plus Code" initialValue={draft.place}
+         submitLabel="Use in buying plan" onCancel={()=>setEditing(null)}
+         onSubmit={async value=>{patch('place',value);setEditing(null);}}/>
+      </div>}
+      {editing==='place-tool'&&<div data-store-plan-place-picker className="mt-3 space-y-2 rounded-xl border border-cream-200 bg-white p-3">
+       <p className="text-xs text-sand-700">Choose a point on the map, paste map coordinates or enter a Plus Code and the delivery entrance.</p>
+       <UniversalSourceTray tool="Places" area="Buying plan" isDemo={true}
+         onLocalProposal={proposal=>{
+           if(proposal.kind!=='Places')return;
+           patch('place',proposal.text);
+           setEditing(null);
+         }}/>
+       <button type="button" className="min-h-10 text-xs font-semibold underline" onClick={()=>setEditing(null)}>Back to buying plan</button>
+      </div>}
+      {gpsError&&<p role="alert" className="mt-2 text-xs text-amber-900">{gpsError}</p>}
+      <p className="mt-2 text-[11px] text-sand-600">GPS is requested only when you tap My location. Proposed and unverified; not shared with Stores or saved to an Agreement.</p>
+     </div>
+     <div className="rounded-lg bg-cream-50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+       <span className="inline-flex items-center gap-1 text-xs font-semibold text-sand-700"><CalendarDays size={15} aria-hidden="true"/> When</span>
+       <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={()=>setEditing(editing==='desiredDate'?null:'desiredDate')} aria-expanded={editing==='desiredDate'}
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Choose date</button>
+        <button type="button" onClick={()=>setEditing(editing==='timing-tool'?null:'timing-tool')} aria-expanded={editing==='timing-tool'}
+          className="min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs">Date & Time</button>
+       </div>
+      </div>
+      <p className="mt-1 break-words text-xs">{draft.desiredDate||'Date not set'}</p>
+      {editing==='desiredDate'&&<div className="mt-3" data-store-plan-mini-date>
+       <MiniContextInput kind="date" label="Proposed delivery date"
+         initialValue={/^\d{4}-\d{2}-\d{2}$/.test(draft.desiredDate)?draft.desiredDate:''}
+         submitLabel="Use date in buying plan" onCancel={()=>setEditing(null)}
+         onSubmit={async value=>{patch('desiredDate',value);setEditing(null);}}/>
+      </div>}
+      {editing==='timing-tool'&&<div data-store-plan-timing-picker className="mt-3 space-y-2 rounded-xl border border-cream-200 bg-white p-3">
+       <DateTimeTool context="Store buying plan delivery" isLocalPreview
+         onChoose={async selected=>{
+           const result=compactTimingProposal(selected);
+           if(result.error)throw new Error(result.error);
+           patch('desiredDate',result.text);
+           setEditing(null);
+         }} onClose={()=>setEditing(null)}/>
+       <button type="button" className="min-h-10 text-xs font-semibold underline" onClick={()=>setEditing(null)}>Back to buying plan</button>
+      </div>}
+      <p className="mt-2 text-[11px] text-sand-600">Proposed timing only. A date, range or event condition is not a booking or seller commitment.</p>
+     </div>
+    </div>
+    <div className="space-y-2 border-t border-cream-200 pt-3" data-store-coordination>
     {resetNotice&&<p role="status" className="rounded-lg bg-cream-50 p-2 text-xs">Only one Store remains. The earlier cross-Store coordination choice was cleared.</p>}
     {!crossStore?<p className="text-xs text-sand-700" data-single-store>One Store · arrange purchase and delivery directly with that seller. No cross-Store coordination or Community Saver selection is needed.</p>:<>
       <strong className="text-xs">Coordinate {shops} different Stores</strong>
