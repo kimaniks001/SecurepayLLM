@@ -68,7 +68,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      // off unrelated screens and avoids expensive background access checks.
      if(area==='work') {
        apply(setSaved,gateways.agent.listSavedBuilds(20,0));
-       apply(setAgreements,gateways.agreements.currentUserAgreements(0,20).then(page=>page.items));
+       if(showEstablishedAgreements)apply(setAgreements,gateways.agreements.currentUserAgreements(0,20).then(page=>page.items));
      }
      if(area==='vision') apply(setDreams,gateways.dreams.mine());
      if(area==='circle') apply(setCircles,gateways.community.circles.mine(20,0));
@@ -82,7 +82,7 @@ export function WorkspaceContinuityPanel({area,gateways,session,onSignIn,onResum
      }
    })();
    return ()=>{stopped=true;};
- },[signedIn,gateways,session,area,revision]);
+ },[signedIn,gateways,session,area,revision,showEstablishedAgreements]);
  const resume=async(item:SavedBuildDto)=>{
    if(!gateways||!signedIn||busy)return;
    setBusy(item.savedBuildId);setActionError(null);
