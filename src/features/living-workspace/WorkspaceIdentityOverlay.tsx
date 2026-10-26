@@ -14,17 +14,18 @@ type AuthMethods = Pick<AuthGateway,'signIn'|'completeOtp'|'resendOtp'|'signupSt
  * The parent KS001 conversation, tool shelf, Vision and right-hand Check remain mounted
  * while this dialog is open. Only the existing AuthGateway/SessionStore issue identities.
  */
-export function WorkspaceIdentityOverlay({auth,session,identityStagingReady,onDone,onChooseVision,onJoin,onBusiness,onActivation}:{
+export function WorkspaceIdentityOverlay({auth,session,identityStagingReady,initialStage='signin',onDone,onChooseVision,onJoin,onBusiness,onActivation}:{
   auth:AuthMethods;
   session:SessionStore;
   identityStagingReady:boolean;
+  initialStage?:'signin'|'signup';
   onDone:()=>void;
   onChooseVision:()=>void;
   onJoin:()=>void;
   onBusiness:()=>void;
   onActivation:()=>void;
 }){
-  const [stage,setStage]=useState<AuthStage>('signin');
+  const [stage,setStage]=useState<AuthStage>(initialStage);
   const [issuedKsNumber,setIssuedKsNumber]=useState<string|null>(null);
   const closeButton=useRef<HTMLButtonElement>(null);
   const pane=useRef<HTMLDivElement>(null);
