@@ -444,7 +444,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 shrink-0 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
-          {!signedIn && workspaceGateways
+          {!signedIn
             ? <><button type="button" onClick={()=>openIdentity('signin')}
                 className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-800 hover:bg-cream-50">Sign in</button>
               <button type="button" onClick={()=>openIdentity('signup')} data-gate-d-get-ks-number
