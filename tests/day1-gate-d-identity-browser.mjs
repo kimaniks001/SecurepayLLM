@@ -16,7 +16,7 @@ try{
       await page.goto('http://127.0.0.1:4173/#/preview/living-workspace/work',{waitUntil:'domcontentloaded',timeout:40000});
       await page.locator('[data-workspace-frozen-layout]').waitFor();
       assert.equal(await page.locator('[data-workspace-shell]').count(),1,'Must show the approved Workspace, not old homepage');
-      assert.equal(await page.getByRole('navigation',{name:'Workspace tool rail'}).count(),1);
+      assert.equal(await page.locator('[data-tool-rail]').count(),1,'Tool rail is retained in DOM even when collapsed for mobile');
       assert.equal(await page.getByRole('button',{name:'Get KS Number',exact:true}).count(),1);
       await page.getByRole('button',{name:'Get KS Number',exact:true}).click();
       const modal=page.getByRole('dialog');
