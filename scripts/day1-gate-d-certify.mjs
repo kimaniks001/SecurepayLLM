@@ -84,8 +84,9 @@ source('D07','Review → authorised Save / Share / Connect Money in same Workspa
   'Version-checked draft, creator-gated invitation and backend-ready Money tool are now connected. Provider execution, party confirmation and full same-shell settlement require real staging tests and remain separate authority.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','src/features/living-workspace/AgreementDiscovery.tsx','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx']);
 source('D08','Vision financial possibilities strictly separate from Agreement Money',
   /<VisionFinancialPossibilities\/>/.test(files.workspace) &&
-  /if\(area==='vision'\)return <VisionFinancialPossibilities\/>/.test(files.money) &&
-  /railFamily\(rail\.displayName,rail\.railCode\)/.test(files.rails),
+  /if\(context==='vision'\)return <VisionFinancialPossibilities\/>/.test(files.money) &&
+  /groupedSettlementOptions\(options\)/.test(files.rails) &&
+  /settlementFamily\(rail\)/.test(files.rails),
   'Categories and planning/execution separation represented; provider prices, eligibility and authorisation still need actual backend testing.', ['src/features/living-workspace/UnifiedMoneyTool.tsx','src/features/living-workspace/MoneyRailCeremony.tsx']);
 source('D09','Active Agreement task-first and genuine version-bound written evidence',
   /data-gate-b-active-agreement/.test(files.activeWorkspace) &&
