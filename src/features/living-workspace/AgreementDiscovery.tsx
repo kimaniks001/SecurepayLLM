@@ -4,6 +4,7 @@ import { ensureFreshSession, type SessionStore, type SessionState } from '../../
 import type { AgreementDetailResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import { AgreementStatementEvidence } from './AgreementStatementEvidence';
+import { AgreementMediaEvidence } from './AgreementMediaEvidence';
 import { AgreementInviteInsideWorkspace } from './AgreementInviteInsideWorkspace';
 
 type IndexState = { owner: SessionState | null; phase: 'idle'|'loading'|'ready'|'error'; items: CurrentUserAgreementSummaryResponse[]; total: number };
@@ -25,7 +26,7 @@ const message = 'SecurePay could not verify this record for your current identit
  * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
  * existing Agreement authority never unmount, mutate, or switch route on open/close.
  */
-export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,onAgreementClosed,onConnectMoney}:{
+export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,onAgreementClosed,onConnectMoney,mediaStagingReady=false}:{
   gateways?:PreviewWorkspaceGateways;
   session:SessionStore;
   onSignIn:()=>void;
@@ -34,6 +35,8 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
   onAgreementClosed?:()=>void;
   /** Opens the contextual, separately authorised Agreement Money tool, not payment execution. */
   onConnectMoney?:(agreementId:string)=>void;
+  /** Only a separately configured, isolated private-media staging API may accept files. */
+  mediaStagingReady?:boolean;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn=identity.status==='signed-in';
@@ -226,7 +229,11 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
                     session={session} agreementId={verified.overview.agreementId}
                     versionId={verified.currentVersion.versionId} />
                 : <p className="text-xs text-sand-700">A verified current Agreement version is required before submitting evidence.</p>}
-              <p className="text-xs text-sand-600">Photo and document uploads are not currently supported by the Agreement evidence API. A written caption is submitted only as a TEXT_STATEMENT; no media file is implied or attached.</p>
+              {mediaStagingReady && gateways && verified.currentVersion?.versionId
+                ? <AgreementMediaEvidence gateway={gateways.agreements} auth={gateways.auth}
+                    session={session} agreementId={verified.overview.agreementId}
+                    versionId={verified.currentVersion.versionId} />
+                : <p className="text-xs text-sand-600">Photo and document uploads are not currently supported by the Agreement evidence API in this environment. Written evidence remains available. Private media needs the isolated, verified API staging integration first.</p>}
             </div>}
             {tab==='Money'&&<div className="space-y-3"><h3 className="font-semibold">Agreement money</h3><p className="text-sm">Server status: {verified.money.status}</p><p className="text-sm">Money records: {verified.money.moneyRecordCount}</p>
               {verified.money.outstandingReasons.map((r,i)=><p key={i} className="text-xs">{r.gateCode}: {r.reasonCode}</p>)}
