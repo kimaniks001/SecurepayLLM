@@ -1,3 +1,5 @@
+> **REVISED 26 October 2026 — superseded navigation decision:** This document remains useful for regulatory families, provider verification, dynamic limits and rail certification, but its original proposal to present **all five families as the My Work execution chooser is withdrawn**. Financial product families and multi-year scenario planning belong in **Vision → Financial Possibilities**. My Work Money is **only** Agreement funding/settlement via eligible bank/mobile payment mechanisms. Use [DAY1_VISION_FINANCIAL_POSSIBILITIES_VS_WORK_MONEY_20261026.md](DAY1_VISION_FINANCIAL_POSSIBILITIES_VS_WORK_MONEY_20261026.md) as the controlling user-experience and tool-design specification. No production code change or certification is implied.
+
 # SecurePay Day 1 — Money institution hierarchy & Agreement eligibility
 **Owner direction:** 26 October 2026, morning session  
 **Status:** DESIGN + ACCEPTANCE SPECIFICATION; NOT implemented or certified.  
