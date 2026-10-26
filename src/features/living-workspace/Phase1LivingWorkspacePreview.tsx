@@ -233,6 +233,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // The same canonical Agreement reader opens inside the masterpiece, never on a legacy route.
   // The existing live KS001 controller stays mounted and retains the original conversation.
   const [draftReviewOpen, setDraftReviewOpen] = useState(false);
+  // If server truth changes or a refresh fails, do not leave a blank centre behind a stale reader.
+  const showDraftReview = draftReviewOpen && mode==='work' && liveStarted && !uiOnlyPreview &&
+    !!liveController && !!formationController && formationState?.status==='ready' &&
+    !formationState.error && formationState.data?.conversationId===liveConversationId &&
+    !!formationState.data.reviewable;
   useEffect(() => { setDraftReviewOpen(false); }, [mode, liveConversationId]);
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
@@ -641,10 +646,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !draftReviewOpen?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {mode==='work' && draftReviewOpen && liveStarted && !uiOnlyPreview && liveController && formationController &&
-          formationState?.status==='ready' && !formationState.error &&
-          formationState.data?.conversationId===liveConversationId && formationState.data.reviewable &&
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
               formation={formationState.data} changes={formationState.changes}
