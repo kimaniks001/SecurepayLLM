@@ -815,6 +815,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           </div>)}
         </section>}
         {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session}
+          mediaStagingReady={identityStagingReady && import.meta.env.VITE_SECUREPAY_MEDIA_EVIDENCE_STAGING_ENABLED === 'true'}
           openAgreementId={createdAgreementId} onAgreementClosed={()=>setCreatedAgreementId(null)}
           onConnectMoney={()=>openTool('Money')}
           onSignIn={()=>openIdentity('signin')}/>}
