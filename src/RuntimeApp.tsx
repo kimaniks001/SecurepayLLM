@@ -326,7 +326,7 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/');
+  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
@@ -355,7 +355,15 @@ export default function RuntimeApp() {
   let mode;
   try { mode = runtimeMode(import.meta.env.VITE_SECUREPAY_MODE, import.meta.env.PROD); }
   catch { return <Unavailable />; }
-  if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />;
+  // Never send an OTP/signup write via a preview pointed at production.
+  // In-memory identity flows are enabled only against an explicitly named SecurePay staging origin.
+  const identityStagingReady = !!api && (() => {
+    const host=new URL(api.baseUrl).hostname.toLowerCase();
+    return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
+  })();
+  if (phase1Preview) return <Phase1LivingWorkspacePreview
+    gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
+    identityStagingReady={identityStagingReady} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
   }

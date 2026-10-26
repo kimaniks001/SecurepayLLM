@@ -3,6 +3,9 @@ import { ArrowLeft, ChevronRight, FolderOpen, LockKeyhole, RefreshCw, X } from '
 import { ensureFreshSession, type SessionStore, type SessionState } from '../../api/securepay/session';
 import type { AgreementDetailResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
+import { AgreementStatementEvidence } from './AgreementStatementEvidence';
+import { AgreementMediaEvidence } from './AgreementMediaEvidence';
+import { AgreementInviteInsideWorkspace } from './AgreementInviteInsideWorkspace';
 
 type IndexState = { owner: SessionState | null; phase: 'idle'|'loading'|'ready'|'error'; items: CurrentUserAgreementSummaryResponse[]; total: number };
 type DetailState = { owner: SessionState | null; id: string | null; phase: 'idle'|'loading'|'ready'|'error'; value: AgreementDetailResponse | null };
@@ -23,23 +26,37 @@ const message = 'SecurePay could not verify this record for your current identit
  * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
  * existing Agreement authority never unmount, mutate, or switch route on open/close.
  */
-export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}:{
+export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace,openAgreementId,onAgreementClosed,onConnectMoney,mediaStagingReady=false}:{
   gateways?:PreviewWorkspaceGateways;
   session:SessionStore;
   onSignIn:()=>void;
   /** Opens the authenticated, task-first detail inside the canonical centre instead of a second page. */
   onOpenInWorkspace?:(agreementId:string)=>void;
+  /** Only a confirmed server-generated draft ID from canonical handoff may be passed here. */
+  openAgreementId?:string|null;
+  onAgreementClosed?:()=>void;
+  /** Opens the contextual, separately authorised Agreement Money tool, not payment execution. */
+  onConnectMoney?:(agreementId:string)=>void;
+  /** Only a separately configured, isolated private-media staging API may accept files. */
+  mediaStagingReady?:boolean;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn=identity.status==='signed-in';
   const [expanded,setExpanded]=useState(false);
   const [index,setIndex]=useState<IndexState>(emptyIndex);
   const [revision,setRevision]=useState(0);
+  const [detailRevision,setDetailRevision]=useState(0);
   const [hoverId,setHoverId]=useState<string|null>(null);
   const [chosenId,setChosenId]=useState<string|null>(null);
   const [fullId,setFullId]=useState<string|null>(null);
   const [tab,setTab]=useState<Tab>('Overview');
   const [detail,setDetail]=useState<DetailState>(emptyDetail);
+  useEffect(()=>{
+    if(openAgreementId && signedIn) {
+      // Read-only opening still requires the server's current identity, details and permissions.
+      setExpanded(true);setChosenId(openAgreementId);setFullId(openAgreementId);setTab('Overview');
+    }
+  },[openAgreementId,signedIn]);
   const closeButton=useRef<HTMLButtonElement>(null);
   const dialogRef=useRef<HTMLDivElement>(null);
   const returnFocus=useRef<HTMLElement|null>(null);
@@ -75,7 +92,7 @@ export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}
   useEffect(()=>{
     let active=true;
     setDetail({owner:identity,id:requestedDetail,phase:requestedDetail?'loading':'idle',value:null});
-    if(requestedDetail && signedIn && gateways && canUse && index.items.some(a=>a.agreementId===requestedDetail)){
+    if(requestedDetail && signedIn && gateways && canUse && (index.items.some(a=>a.agreementId===requestedDetail) || openAgreementId===requestedDetail)){
       void (async()=>{
         try{
           await ensureFreshSession(session,gateways.auth);
@@ -91,13 +108,13 @@ export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}
       })();
     }
     return ()=>{active=false;};
-  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items]);
+  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items,openAgreementId,detailRevision]);
 
   useEffect(()=>{
     if(!fullId)return;
     closeButton.current?.focus();
     const onEscape=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();setFullId(null);window.requestAnimationFrame(()=>returnFocus.current?.focus());return;}
+      if(event.key==='Escape'){event.preventDefault();setFullId(null);onAgreementClosed?.();window.requestAnimationFrame(()=>returnFocus.current?.focus());return;}
       if(event.key!=='Tab')return;
       const focusable=Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')||[]);
       if(!focusable.length)return;
@@ -115,6 +132,7 @@ export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}
   };
   const closeFull=()=>{
     setFullId(null);setChosenId(null);setHoverId(null);
+    onAgreementClosed?.();
     window.requestAnimationFrame(()=>returnFocus.current?.focus());
   };
   const peek=(id:string)=>{
@@ -180,13 +198,36 @@ export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}
               <p className="text-sm">Proposed amount: {money(verified.overview.proposedAmountMinor,verified.overview.currency)}</p>
               <p className="text-sm">Current version: {verified.currentVersion?.versionNumber??'Not established'}</p>
               <p className="text-xs text-sand-600">Status and completeness are determined by SecurePay, not by this reader.</p></div>}
-            {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}</div>}
+            {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}
+              {gateways&&<AgreementInviteInsideWorkspace key={verified.overview.agreementId}
+                gateway={gateways.agreements} auth={gateways.auth} session={session}
+                agreementId={verified.overview.agreementId} status={verified.overview.status}
+                onChanged={()=>setDetailRevision(n=>n+1)}/>}
+            </div>}
             {tab==='Terms'&&<div className="space-y-2">{verified.terms.length?verified.terms.map(t=><article key={t.obligationId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{t.title}</strong><p>{t.description||t.obligationType}</p><p className="text-xs text-sand-600">Status: {t.status}{t.amountMinor!==null?' · '+money(t.amountMinor,t.currency):''}</p></article>):<p>No terms returned.</p>}</div>}
             {tab==='Milestones'&&<div className="space-y-2">{verified.milestones.length?verified.milestones.map(m=><article key={m.milestoneId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{m.title}</strong><p>{m.description}</p><p className="text-xs text-sand-600">{m.status}{m.dueAt?' · Due '+safeDate(m.dueAt):''}</p></article>):<p>No milestones returned.</p>}</div>}
-            {tab==='Evidence'&&<div className="space-y-2">{verified.documents.length?verified.documents.map(d=><article key={d.evidenceId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{d.description||d.originalFilename}</strong><p className="text-xs text-sand-600">{d.status} · {safeDate(d.submittedAt)||'No date'}</p></article>):<p>No evidence returned.</p>}</div>}
+            {tab==='Evidence'&&<div className="space-y-3">
+              {verified.documents.length?verified.documents.map(d=><article key={d.evidenceId} className="rounded-lg border border-cream-200 p-3 text-sm">
+                <strong>{d.description||d.originalFilename}</strong><p className="text-xs text-sand-600">{d.status} · {safeDate(d.submittedAt)||'No date'}</p>
+              </article>):<p className="text-sm">No Agreement documents returned by SecurePay.</p>}
+              {gateways&&verified.currentVersion?.versionId
+                ? <AgreementStatementEvidence gateway={gateways.agreements} auth={gateways.auth}
+                    session={session} agreementId={verified.overview.agreementId}
+                    versionId={verified.currentVersion.versionId} />
+                : <p className="text-xs text-sand-700">A verified current Agreement version is required before submitting evidence.</p>}
+              {mediaStagingReady && gateways?.media && verified.currentVersion?.versionId
+                ? <AgreementMediaEvidence gateway={gateways.media} auth={gateways.auth}
+                    session={session} agreementId={verified.overview.agreementId}
+                    versionId={verified.currentVersion.versionId} />
+                : <p className="text-xs text-sand-600">Photo and document uploads are not currently supported by the Agreement evidence API in this environment. Written evidence remains available. Private media needs the isolated, verified API staging integration first.</p>}
+            </div>}
             {tab==='Money'&&<div className="space-y-3"><h3 className="font-semibold">Agreement money</h3><p className="text-sm">Server status: {verified.money.status}</p><p className="text-sm">Money records: {verified.money.moneyRecordCount}</p>
               {verified.money.outstandingReasons.map((r,i)=><p key={i} className="text-xs">{r.gateCode}: {r.reasonCode}</p>)}
-              <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p></div>}
+              <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p>
+              {onConnectMoney&&<button type="button" onClick={()=>{const id=verified.overview.agreementId;closeFull();onConnectMoney(id);}}
+                className="min-h-11 rounded-xl border border-forest-300 bg-cream-50 px-4 text-sm font-semibold text-forest-900" data-gate-d-connect-money>
+                {verified.money.status==='READY'?'Connect Money · check eligible rails':'Explore Agreement Money choices'}
+              </button>}</div>}
             {tab==='History'&&<div className="space-y-3"><h3 className="font-semibold">Version history</h3>{verified.versionHistory.length?verified.versionHistory.map(v=><p key={v.versionId} className="rounded-lg border border-cream-200 p-3 text-sm">Version {v.versionNumber} · {safeDate(v.createdAt)||'Date unavailable'}{v.amendmentReason?' · '+v.amendmentReason:''}</p>):<p>No version history returned.</p>}
               <h3 className="font-semibold">Activity</h3>{verified.activity.length?verified.activity.map(a=><p key={a.id} className="text-sm">{a.activityType} · {safeDate(a.occurredAt)||'Date unavailable'}</p>):<p>No activity returned.</p>}</div>}
           </>}

@@ -50,6 +50,20 @@ try {
         await page.screenshot({path:output+'/'+device+'-'+area+'-summary.png',fullPage:true});
         if(width<768 && area!=='community') await mobile.getByRole('button',{name:'Chat'}).click();
       }
+      // Gate B supersedes the old mixed Money tabs: Vision alone explores financial possibilities.
+      await nav.getByRole('button',{name:'Vision',exact:true}).click();
+      // Vision's financial possibilities live in the contextual Money tool, not a second page.
+      if(width>=1280) {
+        await page.getByRole('navigation',{name:'Workspace tool rail'}).getByRole('button',{name:'Money'}).click();
+      } else {
+        await mobile.getByRole('button',{name:'Tools'}).click();
+        await page.getByRole('navigation',{name:'Choose a tool'}).getByRole('button',{name:'Money',exact:true}).click();
+      }
+      await page.locator('[data-gate-b-financial-possibilities]').waitFor({state:'visible'});
+      await page.keyboard.press('Escape');
+      await page.locator('[data-tool-shelf]').waitFor({state:'detached'});
+      await nav.getByRole('button',{name:'Community',exact:true}).click();
+      if(width<768)await mobile.getByRole('button',{name:'About Community'}).click();
       const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
       await action.click();
       await page.locator('[data-workspace-frozen-layout][data-sp-area="work"]').waitFor();
@@ -64,8 +78,9 @@ try {
       const money=page.locator('[data-approved-gate5b-money-purpose]');
       await money.waitFor({state:'visible'});
       assert.match(await money.textContent(),/Money should follow the agreement/);
-      assert.ok(await page.getByRole('navigation',{name:'Money choices'}).count(),
-        'Real compact My Money/Borrow/Invest/Protect tool must remain');
+      assert.equal(await page.getByRole('navigation',{name:'Money choices'}).count(),0,
+        'Approved Gate B: legacy Borrow/Invest/Protect categories must not appear as Agreement funding rails');
+      assert.match(await money.textContent(),/My Work.*Money settles and funds an Agreement/s);
       await page.screenshot({path:output+'/'+device+'-money-tool.png',fullPage:true});
       const dimensions=await page.evaluate(()=>({
         scroll:document.documentElement.scrollWidth,
