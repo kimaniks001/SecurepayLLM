@@ -19,6 +19,7 @@ const files = Object.fromEntries([
  ['money','src/features/living-workspace/UnifiedMoneyTool.tsx'],
  ['rails','src/features/living-workspace/MoneyRailCeremony.tsx'],
  ['active','src/features/living-workspace/AgreementDiscovery.tsx'],
+ ['invitation','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx'],
  ['vision','src/features/living-workspace/VisionFinancialPossibilities.tsx'],
  ['activation','src/features/activation/ActivationExperience.tsx'],
 ].map(([name,p])=>[name,read(p)]));
@@ -68,9 +69,14 @@ source('D06','KS001 amount-vs-currency and review boundaries represented in code
   'Review now uses the versioned canonical handoff, not an inspection-only dead end. Actual Nakuru/KES400 model/formation proof remains required.', ['src/features/living-workspace/answerActions.ts','src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
 source('D07','Review → authorised Save / Share / Connect Money in same Workspace',
   /data-gate-d-post-review-actions/.test(files.workspace) &&
-  /Connect Money/.test(files.workspace) &&
-  /reviewable/.test(files.workspace),
-  'Reader inspection exists; full post-review action gateway with backend readiness is not integrated.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
+  /handoffController\.start\(liveConversationId,version\)/.test(files.workspace) &&
+  /<AgreementInviteInsideWorkspace/.test(files.active) &&
+  /gateway\.confirmationStatus\(agreementId\)/.test(files.invitation) &&
+  /matched\?\.isCreator===true/.test(files.invitation) &&
+  /data-gate-d-connect-money/.test(files.active) &&
+  /verified\.money\.status==='READY'/.test(files.active) &&
+  /onConnectMoney=\{\(\)=>openTool\('Money'\)\}/.test(files.workspace),
+  'Version-checked draft, creator-gated invitation and backend-ready Money tool are now connected. Provider execution, party confirmation and full same-shell settlement require real staging tests and remain separate authority.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','src/features/living-workspace/AgreementDiscovery.tsx','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx']);
 source('D08','Vision financial possibilities strictly separate from Agreement Money',
   /<VisionFinancialPossibilities\/>/.test(files.workspace) &&
   /if\(area==='vision'\)return <VisionFinancialPossibilities\/>/.test(files.money) &&
