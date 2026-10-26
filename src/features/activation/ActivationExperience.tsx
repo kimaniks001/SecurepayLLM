@@ -246,7 +246,26 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
           <div className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-orange-600">Activation</div>
           <h1 className="font-display text-3xl md:text-4xl text-forest-800 mt-2">Begin with SecurePay's own agreement.</h1>
           <p className="mt-3 text-sand-600 leading-relaxed">SecurePay does not ask you to pay an unexplained activation fee. Choose the relationship you need, review the exact backend-authored promise, then confirm that exact Agreement before any billing intent is prepared.</p>
+          <p className="mt-3 text-sm text-sand-600">Your KS Number has already been issued. Financial activation is separate from identity, Business representation and The Trust Project membership.</p>
         </div>
+        <section aria-label="Financial activation progress" data-gate-c-activation-progress className="rounded-2xl border border-cream-200 bg-white p-4">
+          <h2 className="text-sm font-semibold text-forest-800">Your financial activation journey</h2>
+          <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+            <li className="rounded-xl bg-cream-50 p-3">
+              <p className="text-xs font-semibold text-forest-800">1. Choose a plan</p>
+              <p className="mt-1 text-xs text-sand-600">{authorityReadFailed?'State unverified':subscription?'Selected by SecurePay':'Choose only if you want financial activation'}</p>
+            </li>
+            <li className="rounded-xl bg-cream-50 p-3">
+              <p className="text-xs font-semibold text-forest-800">2. Review your Agreement</p>
+              <p className="mt-1 text-xs text-sand-600">{authorityReadFailed?'State unverified':agreement?.confirmed?'Exact Agreement confirmed':agreement?'Review and explicitly confirm':'Not yet confirmed'}</p>
+            </li>
+            <li className="rounded-xl bg-cream-50 p-3">
+              <p className="text-xs font-semibold text-forest-800">3. Confirm funding</p>
+              <p className="mt-1 text-xs text-sand-600">{authorityReadFailed?'State unverified':funding?.financiallyEnabled?'All components confirmed by SecurePay':'Only actual backend funding can complete activation'}</p>
+            </li>
+          </ol>
+          <p className="mt-3 text-xs leading-5 text-sand-600">A selected plan or prepared intent is not a paid subscription. A confirmed Activation Agreement is not financial activation. Until SecurePay confirms all required funding components, Money remains subject to separate checks.</p>
+        </section>
 
         {error && <div role="alert" className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-sand-700">{error}</div>}
         {loading && <p role="status" className="text-sm text-sand-500">Checking SecurePay…</p>}
