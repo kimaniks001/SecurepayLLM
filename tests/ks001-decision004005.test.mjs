@@ -10,7 +10,7 @@ const mini=read('src/features/living-workspace/MiniContextInput.tsx');
 const shell=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 
 test('KS001 derives bounded answers for a known question, not generic random pills',()=>{
- for(const intent of ["date","time","money","person","place","goods","confirmation","unknown"])
+ for(const intent of ["date","time","currency","money","person","place","goods","confirmation","unknown"])
    assert.match(actions,new RegExp("case '"+intent+"':|\u0027"+intent+"\u0027"));
  assert.match(actions,/default:return \[\]/);
  assert.doesNotMatch(chat,/function replyPills\(/);
@@ -81,4 +81,33 @@ test('early draft inspection is not falsely displayed as sufficient understandin
  assert.match(readiness,/Acceptance not shown/);
  assert.match(panel,/state\?\.status === 'ready' && !state\.error/);
  assert.match(panel,/Review the available draft and its unresolved matters/);
+});
+
+test('Day 1: currency questions use distinct contextual reply pills, never an amount entry or silent default', () => {
+ const source=ts.transpileModule(actions,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const exported={};runInNewContext(source,{exports:exported});
+ const {answerActions:resolve, questionIntent:intent}=exported;
+ const questions=[
+   'Which currency is that in?',
+   'What currency is the 400 total in?',
+   'Is the amount in KES or USD?',
+   'Should we use Kenyan shillings or dollars?',
+ ];
+ for(const q of questions) {
+   assert.equal(intent(q),'currency',q);
+   const found=resolve(q);
+   for(const cc of ['KES','USD','EUR','GBP']) {
+     const pill=found.find(p=>p.label===cc);
+     assert.equal(pill?.type,'answer',q+' -> '+cc);
+     assert.match(pill.value,new RegExp('\\\\b'+cc+'\\\\b'));
+     assert.doesNotMatch(pill.value,/agreed|paid|authori[sz]ed|accepted/i);
+   }
+   assert.ok(found.some(p=>p.label==='Other currency'&&p.type==='focus'));
+   assert.ok(found.some(p=>p.label==='Not sure yet'&&p.type==='answer'));
+   assert.ok(!found.some(p=>p.kind==='money'),'Must not ask for an amount again');
+ }
+ assert.equal(intent('How much is the delivery?'),'money');
+ assert.equal(intent('Which currency is that in.'),'unknown','Only explicit questions get pills');
+ assert.equal(resolve('The total is KES 400.').length,0);
+ assert.match(chat,/void controller\\.send\\(action\\.value\\)/,'Replies use existing authorised conversation');
 });
