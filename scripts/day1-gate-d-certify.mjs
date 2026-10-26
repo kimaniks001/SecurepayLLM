@@ -55,12 +55,17 @@ source('D04','Verified server-issued KS Number is shown inside the same Workspac
   'Server KS Number is passed to welcome in the still-mounted Workspace. Requires actual OTP/DB staging evidence.', ['src/features/living-workspace/WorkspaceIdentityOverlay.tsx','src/features/signup/controller.ts']);
 source('D05','Identity handoff keeps original anonymous work and does not duplicate it',
   /data-gate-d-authorised-anonymous-conversation-claim/.test(files.workspace) &&
-  /data-gate-d-no-loss-guest-proposals/.test(files.workspace),
-  'The dialog preserves component state, but anonymous server conversations and any local proposals still need an explicit, proven handoff.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
+  /data-gate-d-no-loss-guest-proposals/.test(files.workspace) &&
+  /gateway\.resumableConversationId\?\.\(\)/.test(files.workspace) &&
+  /gateway\.saveBuild\(id\)/.test(files.workspace) &&
+  /authorisedResumedConversation\(id,liveController\.getSnapshot\(\)\)/.test(files.workspace),
+  'Explicit claim uses SecurePay saved-build authority and verifies the same returned conversation. Anonymous identity-transfer still requires a real OTP/API staging replay.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
 source('D06','KS001 amount-vs-currency and review boundaries represented in code',
   /case 'currency':/.test(files.answerActions)&&/data-day1-workspace-review/.test(files.workspace)&&
-  /setUpAvailable=\{false\}/.test(files.workspace),
-  'Automated source readiness only; exact Nakuru and KES400 live-model/formation tests remain required.', ['src/features/living-workspace/answerActions.ts','src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
+  /createHandoffController\(gateway\)/.test(files.workspace)&&
+  /handoffController\.start\(liveConversationId,version\)/.test(files.workspace)&&
+  /formationState\?\.data\?\.confirmable/.test(files.workspace),
+  'Review now uses the versioned canonical handoff, not an inspection-only dead end. Actual Nakuru/KES400 model/formation proof remains required.', ['src/features/living-workspace/answerActions.ts','src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
 source('D07','Review → authorised Save / Share / Connect Money in same Workspace',
   /data-gate-d-post-review-actions/.test(files.workspace) &&
   /Connect Money/.test(files.workspace) &&
