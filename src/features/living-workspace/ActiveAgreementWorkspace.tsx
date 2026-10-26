@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AlertCircle, ArrowLeft, ClipboardCheck, RefreshCw, Wallet } from 'lucide-react';
 import type { AgreementDetailResponse } from '../../api/securepay/agreements/dto';
 import type { NextActionDto, ObligationDto } from '../../api/securepay/agreements';
+import type { AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
+import { MoneyRailCeremony } from './MoneyRailCeremony';
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 
@@ -17,7 +19,7 @@ const empty=():Loaded=>({phase:'loading',detail:null,actions:null,obligations:nu
  */
 export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,onAskKs001,onOpenMoney}:{
  agreementId:string;gateways:PreviewWorkspaceGateways;session:SessionStore;
- onBack:()=>void;onAskKs001:(reference:string)=>Promise<void>;onOpenMoney:(detail:AgreementDetailResponse)=>void;
+ onBack:()=>void;onAskKs001:(reference:string)=>Promise<void>;onOpenMoney:(detail:AgreementDetailResponse,railCode?:string)=>void;
 }){
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const [record,setRecord]=useState<Loaded>(empty);
@@ -27,9 +29,11 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
  const [sending,setSending]=useState(false);
  const [notice,setNotice]=useState('');
  const [uncertain,setUncertain]=useState(false);
+ const [moneyState,setMoneyState]=useState<'idle'|'loading'|'ready'|'error'>('idle');
+ const [moneySnapshot,setMoneySnapshot]=useState<AgreementMoneySnapshotResponse|null>(null);
  const submitting=useRef<{key:string;agreementVersionId:string;obligationId:string;stateVersion:number;description:string}|null>(null);
 
- useEffect(()=>{setUncertain(false);submitting.current=null;},[agreementId,identity]);
+ useEffect(()=>{setUncertain(false);submitting.current=null;setMoneyState('idle');setMoneySnapshot(null);},[agreementId,identity]);
  useEffect(()=>{
   let active=true;
   setRecord(empty());setSelectedAction(null);setCaption('');setNotice('');
@@ -64,7 +68,20 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
  const validEvidence=!!requested&&!!obligation&&!!detail?.currentVersion &&
    requested.currentAgreementVersionId===detail.currentVersion.versionId &&
    obligation.agreementVersionId===detail.currentVersion.versionId;
- const refresh=()=>{setVersion(x=>x+1);};
+ const refresh=()=>{setVersion(x=>x+1);setMoneyState('idle');setMoneySnapshot(null);};
+ const inspectMoney=async()=>{
+  if(!detail?.currentVersion?.versionId)return;
+  setMoneyState('loading');setMoneySnapshot(null);
+  try {
+   await ensureFreshSession(session,gateways.auth);
+   if(identity!==session.getSnapshot()||identity.status!=='signed-in')throw Error('Session changed');
+   const snapshot=await gateways.moneySnapshot.read(agreementId);
+   if(snapshot.agreementId!==agreementId||snapshot.currentVersionId!==detail.currentVersion.versionId)
+    throw Error('Money version changed');
+   if(identity!==session.getSnapshot())throw Error('Session changed');
+   setMoneySnapshot(snapshot);setMoneyState('ready');
+  }catch{setMoneySnapshot(null);setMoneyState('error');}
+ };
  const submit=async()=>{
   if(sending||uncertain||!validEvidence||!obligation||!detail?.currentVersion)return;
   const text=caption.trim();
@@ -129,9 +146,16 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
     <div className="flex flex-wrap gap-2">
       <button type="button" onClick={()=>{void onAskKs001(detail.overview.publicReference).catch(()=>setNotice('KS001 could not securely reopen a conversation. Your Agreement remains unchanged.'));}}
         className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-xs font-semibold">Ask KS001 for help</button>
-      <button type="button" disabled={!detail.currentVersion} onClick={()=>onOpenMoney(detail)}
-        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-forest-200 bg-white px-4 text-xs font-semibold disabled:opacity-40"><Wallet size={15}/> Agreement Money</button>
+      <button type="button" disabled={!detail.currentVersion} onClick={()=>void inspectMoney()}
+        className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-forest-200 bg-white px-4 text-xs font-semibold disabled:opacity-40"><Wallet size={15}/> Connect Agreement Money</button>
     </div>
+    {moneyState==='loading'&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-xs">Checking real Agreement-version Money and eligible rails…</p>}
+    {moneyState==='error'&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">Money options are not verified for the current Agreement version. No rail can be selected here; refresh or use the authorised Money journey.</p>}
+    {moneyState==='ready'&&moneySnapshot&&<div data-gate-b-work-money-chooser>
+      <MoneyRailCeremony agreementTitle={detail.overview.title} options={moneySnapshot.fundingOptions}
+        sample={false} onProceed={railCode=>onOpenMoney(detail,railCode)}/>
+      <p className="mt-2 text-xs text-sand-600">The rail choice is a preference; the existing authorised Money journey must obtain a current quote, show exact charges and obtain separate payer consent. No money is moved here.</p>
+    </div>}
     <div className="grid gap-3 sm:grid-cols-2">
       <section className="rounded-xl border border-cream-200 bg-white p-3"><h3 className="text-sm font-semibold">Milestones</h3>
         <p className="mt-2 text-xs text-sand-700">{detail.milestones.length?detail.milestones.map(m=>m.title+' · '+m.status).join(' | '):'No milestones returned.'}</p></section>
