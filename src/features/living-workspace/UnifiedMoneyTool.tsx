@@ -7,6 +7,7 @@ import { humanAgreementStatus } from './MoneyAgreementCards';
 import { Phase7MoneyJourneyPreview, Phase7MoneySnapshotReview } from './Phase7MoneyJourney';
 import { workspacePurpose } from './workspacePurpose';
 import { MoneyPartnerFacts } from './MoneyPartnerFacts';
+import { VisionFinancialPossibilities } from './VisionFinancialPossibilities';
 
 type Door='my'|'borrow'|'invest'|'protect';
 type AgreementsState={state:'idle'|'loading'|'ready'|'error';items:CurrentUserAgreementSummaryResponse[]};
@@ -29,9 +30,10 @@ function BriefAmount({agreement}:{agreement:CurrentUserAgreementSummaryResponse}
 }
 
 /** Small companion tool, not a second Money page. Financial authority stays with canonical Money. */
-export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001}:{
+export function UnifiedMoneyTool({gateways,signedIn=false,context='work',onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001}:{
  gateways?:PreviewWorkspaceGateways;
  signedIn?:boolean;
+ context?:'work'|'vision';
  onOpenMoney:()=>void;
  onOpenAgreementMoney:(agreement:CurrentUserAgreementSummaryResponse,railCode?:string)=>void;
  onReviewAgreement:(agreementId:string)=>void;
@@ -77,10 +79,14 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
      setError('KS001 could not confirm the conversation. Check your work before retrying.');
    }finally{setBusy(false);}
  }
+ if(context==='vision')return <VisionFinancialPossibilities/>;
  return <section aria-label="Money tool" className="sp-brand-money space-y-3 p-1 text-sm" data-testid="compact-money-tool">
   <p data-approved-gate5b-money-purpose className="rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs leading-5 text-sand-700">{moneyPurpose.intro}</p>
+  <p className="rounded-xl bg-[#eef4ed] p-3 text-xs leading-5 text-forest-800" data-gate-b-work-money>
+    <strong>My Work · Agreement Money.</strong> Fund or settle a verified Agreement only. Borrow, Invest and Protect are possibilities you can explore in Vision, not payment rails for this Agreement.
+  </p>
   <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
-   {doors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
+   {doors.filter(item=>item.id==='my').map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
      aria-pressed={door===item.id}
      className={'flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center '+(door===item.id?'bg-forest-800 text-white':'bg-white text-forest-800')}>
      <item.icon size={18}/><span className="text-[11px] font-semibold">{item.title}</span>
@@ -165,6 +171,6 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
     </button>
     {error&&<p role="alert" className="text-xs text-amber-800">{error}</p>}
   </div>}
-  <p className="text-[11px] text-sand-500">Payment rails, provider terms, quotes and authorisation appear when you open the actual Agreement in Money. Nothing is paid or approved here.</p>
+  <p className="text-[11px] text-sand-500">Banks and mobile-payment routes are compared under the actual Agreement's eligible funding options. Regulated savings, MMF, insurance and SACCO possibilities belong to Vision and are not interchangeable settlement rails. Nothing is paid or approved here.</p>
  </section>;
 }
