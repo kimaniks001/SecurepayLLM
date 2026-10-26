@@ -931,6 +931,22 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const retryTemporaryDream = async () => finishDreamClaim(await visionDreamController.retry());
   const reconcileTemporaryDream = async () => finishDreamClaim(await visionDreamController.reconcilePending());
 
+  // A person who arrived through Trust Project Join also deserves to see the
+  // exact server-issued KS Number before making the wholly separate membership choice.
+  if (joinRoute.value && signedIn && issuedKsNumber) {
+    const dismissIssued = () => setIssuedKsNumber(null);
+    const leaveTrust = () => { dismissIssued(); joinRoute.close(); };
+    return <div className="min-h-dvh flex flex-col bg-cream-100" data-gate-c-trust-issued-welcome>
+      <NavBar view="community" onNavigate={view=>{leaveTrust();navigateTo(view);}}/>
+      <SignupIssuedWelcome ksNumber={issuedKsNumber} continueLabel="Continue to The Trust Project"
+        onContinue={dismissIssued}
+        onJoin={dismissIssued}
+        onVision={()=>{leaveTrust();navigateTo('vision-board');}}
+        onBusiness={()=>{leaveTrust();navigateTo('business');}}
+        onActivation={()=>{leaveTrust();window.location.hash='#/activate';}}/>
+    </div>;
+  }
+
   if (joinRoute.value) {
     return (
       <div className={`min-h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
@@ -940,6 +956,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           actingFor={actingForBusiness}
           actingForOrganization={actingForOrganization}
           selfName={businessState.self.data?.displayName ?? null}
+          onIssued={setIssuedKsNumber}
           onSwitchToSelf={() => { businessController.actAsSelf(); void businessController.loadMine(); }}
           communityGateway={communityGateway}
           auth={auth}
