@@ -39,6 +39,9 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
  onReviewAgreement:(agreementId:string)=>void;
  onAskKs001:(text:string)=>Promise<void>;
 }){
+ // Keep legacy advisory doors in source until Gate B API work is reconciled; they must
+ // not appear in My Work or masquerade as rails for settling this Agreement.
+ const showLegacyAdvisoryDoors=false;
  const [door,setDoor]=useState<Door>('my');
  const [sample,setSample]=useState(!signedIn);
  const [sampleIndex,setSampleIndex]=useState(0);
@@ -82,7 +85,7 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
  if(area==='vision')return <VisionFinancialPossibilities/>;
  return <section aria-label="Money tool" className="sp-brand-money space-y-3 p-1 text-sm" data-testid="compact-money-tool">
   <p data-approved-gate5b-money-purpose className="rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs leading-5 text-sand-700">My Work · Money settles and funds an Agreement. Borrowing, investing and protection are explored as possibilities in Vision. {moneyPurpose.intro}</p>
-  {false && <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
+  {showLegacyAdvisoryDoors && <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
    {doors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
      aria-pressed={door===item.id}
      className={'flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center '+(door===item.id?'bg-forest-800 text-white':'bg-white text-forest-800')}>
