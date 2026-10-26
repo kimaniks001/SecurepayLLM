@@ -61,6 +61,8 @@ test('Day 1 question classification does not confuse currency with amount',()=>{
     assert.ok(pills.some(a=>a.label==='Other currency'&&a.type==='focus'));
     assert.ok(!pills.some(a=>a.kind==='money'));
   }
+  assert.equal(exports.questionIntent('What is being delivered for KES 400?'),'goods');
+  assert.equal(exports.questionIntent('When should I pay KES 400?'),'date');
   assert.equal(exports.questionIntent('How much is the delivery?'),'money');
   assert.equal(exports.answerActions('The price is KES 400.').length,0);
 });
