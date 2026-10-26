@@ -13,14 +13,14 @@ test('live testing: My Agreements exists in the actual unchanged three-column wo
  assert.match(shell,/data-workspace-frozen-layout/);
  assert.match(shell,/md:w-\[35%\] lg:max-w-\[460px\]/);
  assert.match(shell,/mode==='work' && workspaceGateways && <AgreementDiscovery/);
- assert.ok(shell.indexOf('<AgreementDiscovery')<shell.indexOf('mode===\'work\' && liveWork?<LiveWorkResultPanel'),
+ assert.ok(shell.indexOf('<AgreementDiscovery')<shell.indexOf('mode===\'work\' && !openedAgreementId && liveWork?<LiveWorkResultPanel'),
    'Agreement entry is above the live result and not conditional on lack of conversation');
  assert.match(shell,/showEstablishedAgreements=\{false\}/);
  assert.match(continuity,/area==='work' && showEstablishedAgreements &&/);
 });
 test('live testing: idle, hover/focus or tap-to-peek, and explicit open are distinct, keyboard accessible states',()=>{
  for(const token of ['data-agreement-discovery','data-agreement-list','data-agreement-peek','data-agreement-full',
-   'onMouseEnter','onFocus','onClick={()=>peek(a.agreementId)}','if(chosenId===id){showFull(id);return;}',
+   'onMouseEnter','onFocus','onClick={()=>peek(a.agreementId)}','if(chosenId===id){if(onOpenInWorkspace)onOpenInWorkspace(id);else showFull(id);return;}',
    'aria-expanded','aria-pressed','role="dialog"','aria-modal="true"','aria-label="Close Agreement and return to KS001"'])
    assert.ok(discovery.includes(token),token);
  assert.match(discovery,/if\(event\.key==='Escape'\)/);
