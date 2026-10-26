@@ -684,7 +684,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
             session={session} onBack={()=>setOpenedAgreementId(null)}
             onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
-        {mode==='vision' && signedIn && workspaceGateways && editingDreamId &&
+        {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId &&
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
             <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
               session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
