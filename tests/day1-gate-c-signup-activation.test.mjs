@@ -76,7 +76,8 @@ test('Gate C one-time welcome cannot issue credentials, join, apply or fund',()=
  assert.match(welcome,/Explore The Trust Project/);
  assert.match(welcome,/Explore financial activation/);
  assert.doesNotMatch(welcome,/fetch\(|localStorage|sessionStorage|signupVerify\s*\(|session\.setTokens|payNow|activateFinancially/);
- assert.match(agent,/issuedKsNumber \|\| !\(signInRoute\.active/);
+ assert.match(agent,/if \(issuedKsNumber\) return;/);
+ assert.match(agent,/if \(!signedIn \|\| !\(signInRoute\.active \|\| signInRoute\.signingUp\)\) return;/);
  assert.match(agent,/signInRoute\.signingUp && signedIn && issuedKsNumber/);
  assert.match(agent,/onIssued=\{setIssuedKsNumber\}/);
  assert.match(agent,/signInRoute\.close\(\)/);
