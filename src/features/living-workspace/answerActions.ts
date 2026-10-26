@@ -13,7 +13,7 @@ export function questionIntent(question:string):QuestionIntent{
   if(!q.endsWith('?'))return 'unknown';
   // Currency is a separate decision from amount. Identify it BEFORE the generic money words.
   // Never infer a currency from the person's location, a KES-looking example, or the amount.
-  if(/currency|which (?:one )?(?:is (?:that|this|the (?:amount|price|total))|should we use).*?(?:shillings?|dollars?|pounds?|euros?)|\b(?:kes|usd|eur|gbp)\b|shillings? or dollars?|dollars? or shillings?/.test(q))return 'currency';
+  if(/\bcurrency\b|\b(?:kes|usd|eur|gbp)\s+or\s+(?:kes|usd|eur|gbp)\b|(?:shillings?|dollars?|pounds?|euros?)\s+or\s+(?:shillings?|dollars?|pounds?|euros?)|\b(?:is|are)\s+(?:this|that|it|the amount|the price|the total)\s+in\s+(?:kes|usd|eur|gbp)\s*\?/.test(q))return 'currency';
   if(/how much|price|amount|cost|fee|budget|payment|deposit/.test(q))return 'money';
   if(/what (goods|items|products|materials|are we deliver|is being deliver|will be deliver)|what.*(deliver|transport|supply|buy)|which (goods|items)|quantity|how many|what exactly is being provided or done|what work or item are you arranging/.test(q))return 'goods';
   if(/what time|which time|at what time/.test(q))return 'time';
