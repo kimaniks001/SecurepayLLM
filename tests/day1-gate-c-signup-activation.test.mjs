@@ -61,6 +61,8 @@ test('Gate C verify failure has no KS Number, callback, session or membership si
 test('Gate C uses exactly one existing signup API controller for generic and Trust entry',()=>{
  assert.match(generic,/SignupForm auth=\{auth\} session=\{session\}/);
  assert.match(generic,/onIssued=\{onIssued\}/);
+ assert.match(generic,/data-gate-c-three-column-onboarding/);
+ assert.match(generic,/Your SecurePay Check/);
  assert.match(signup,/createSignupController\(auth, session, context, onIssued\)/);
  assert.match(signup,/data-gate-c-signup-progress/);
  assert.match(signup,/context="TRUST_PROJECT_JOIN"/);
