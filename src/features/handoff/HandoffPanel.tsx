@@ -14,7 +14,7 @@ import type { AgreementGateway } from '../../api/securepay/agreements';
 
 type SecureLinkGateway = Pick<AgreementGateway, 'activateProduct' | 'issuePublicLocator' | 'activeLocator' | 'rotatePublicLocator' | 'revokePublicLocator'>;
 
-export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; openAgreementLabel?: string; openAgreementLabel?: string; agreementGateway?: SecureLinkGateway }) {
+export function HandoffPanel(props: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; openAgreementLabel?: string; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(props.handoff.subscribe, props.handoff.getSnapshot, props.handoff.getSnapshot);
   // Focus follows the moment: when the phase changes the region takes focus, so a keyboard or screen-reader
   // user lands on what is now true rather than on a control that has just disappeared.
@@ -28,7 +28,7 @@ export function HandoffPanel(props: { handoff: HandoffController; identity: Iden
   return <div ref={region} tabIndex={-1} aria-label="Agreement review" className="space-y-3 focus:outline-none"><HandoffBody {...props} /></div>;
 }
 
-function HandoffBody({ handoff, identity, onDone, onOpenAgreement, openAgreementLabel }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; agreementGateway?: SecureLinkGateway }) {
+function HandoffBody({ handoff, identity, onDone, onOpenAgreement, openAgreementLabel }: { handoff: HandoffController; identity: IdentityController; onDone: () => void; onOpenAgreement?: (agreementId: string) => void; openAgreementLabel?: string; agreementGateway?: SecureLinkGateway }) {
   const state = useSyncExternalStore(handoff.subscribe, handoff.getSnapshot, handoff.getSnapshot);
   const identityState = useSyncExternalStore(identity.subscribe, identity.getSnapshot, identity.getSnapshot);
 
