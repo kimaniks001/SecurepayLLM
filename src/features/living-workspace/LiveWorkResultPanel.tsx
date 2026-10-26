@@ -28,13 +28,15 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, examination }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, examination, onReview }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
   onCorrectFact: (label:string, previous:string, replacement:string, expectedVersion:number)=>Promise<void>;
   onAddToFact: (label:string)=>void;
+  /** Opens the existing server-derived Agreement reader in the same Living Workspace. */
+  onReview?: () => void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
 }) {
   const [expanded,setExpanded]=useState(false);
@@ -171,6 +173,11 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
           {examination.status==='loading'?'Reading the current examination…':'Authoritative Fair Trade findings are not available for this Agreement version. No assessment or score has been inferred.'}
         </p>}
       </details>
+      {formation.reviewable && onReview && <button type="button" disabled={busy}
+        onClick={onReview} data-day1-review-in-workspace
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-forest-200 bg-white px-4 py-3 text-sm font-semibold text-forest-800 disabled:opacity-50">
+        Read &amp; review Agreement <ArrowRight size={16} aria-hidden="true"/>
+      </button>}
       <section aria-label="Next step" className="rounded-xl bg-[#f3f6ef] p-3" data-phase2-next>
         <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">One useful next step</p>
         <p className="mt-2 text-sm font-semibold leading-6 text-forest-900">{formation.question?humanNextQuestion(formation.question.text):!formation.question && fairTrade?.advisoryQuestion?fairTrade.advisoryQuestion:formation.reviewable?'Review the available draft and its unresolved matters.':'Keep explaining what you want to agree.'}</p>
