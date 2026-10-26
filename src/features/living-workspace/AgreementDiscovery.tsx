@@ -23,10 +23,12 @@ const message = 'SecurePay could not verify this record for your current identit
  * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
  * existing Agreement authority never unmount, mutate, or switch route on open/close.
  */
-export function AgreementDiscovery({gateways,session,onSignIn}:{
+export function AgreementDiscovery({gateways,session,onSignIn,onOpenInWorkspace}:{
   gateways?:PreviewWorkspaceGateways;
   session:SessionStore;
   onSignIn:()=>void;
+  /** Opens the authenticated, task-first detail inside the canonical centre instead of a second page. */
+  onOpenInWorkspace?:(agreementId:string)=>void;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn=identity.status==='signed-in';
@@ -116,7 +118,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
     window.requestAnimationFrame(()=>returnFocus.current?.focus());
   };
   const peek=(id:string)=>{
-    if(chosenId===id){showFull(id);return;}
+    if(chosenId===id){if(onOpenInWorkspace)onOpenInWorkspace(id);else showFull(id);return;}
     setChosenId(id);setHoverId(null);
   };
   const label=canUse ? String(index.total) : null;
@@ -156,7 +158,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
         {detail.owner===identity&&detail.id===current.agreementId&&detail.phase==='ready'&&verified&&
           <p className="mt-1 text-xs text-sand-700">{verified.participants.length} people · {verified.milestones.length} milestones · version {verified.currentVersion?.versionNumber??'not established'}</p>}
         {detail.owner===identity&&detail.id===current.agreementId&&detail.phase==='error'&&<p role="alert" className="mt-1 text-xs">{message}</p>}
-        <button type="button" onClick={()=>showFull(current.agreementId)} className="mt-3 min-h-11 w-full rounded-lg bg-forest-800 px-3 text-xs font-semibold text-white">Open Agreement</button>
+        <button type="button" onClick={()=>onOpenInWorkspace?onOpenInWorkspace(current.agreementId):showFull(current.agreementId)} className="mt-3 min-h-11 w-full rounded-lg bg-forest-800 px-3 text-xs font-semibold text-white">Open Agreement</button>
       </section>}
       <p className="mt-2 text-[11px] text-sand-600">Hover or focus to peek; tap once to select and again to open. No Agreement is changed.</p>
     </div>}
