@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, FolderOpen, LockKeyhole, RefreshCw, X } from '
 import { ensureFreshSession, type SessionStore, type SessionState } from '../../api/securepay/session';
 import type { AgreementDetailResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
+import { AgreementStatementEvidence } from './AgreementStatementEvidence';
 
 type IndexState = { owner: SessionState | null; phase: 'idle'|'loading'|'ready'|'error'; items: CurrentUserAgreementSummaryResponse[]; total: number };
 type DetailState = { owner: SessionState | null; id: string | null; phase: 'idle'|'loading'|'ready'|'error'; value: AgreementDetailResponse | null };
@@ -197,7 +198,17 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
             {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}</div>}
             {tab==='Terms'&&<div className="space-y-2">{verified.terms.length?verified.terms.map(t=><article key={t.obligationId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{t.title}</strong><p>{t.description||t.obligationType}</p><p className="text-xs text-sand-600">Status: {t.status}{t.amountMinor!==null?' · '+money(t.amountMinor,t.currency):''}</p></article>):<p>No terms returned.</p>}</div>}
             {tab==='Milestones'&&<div className="space-y-2">{verified.milestones.length?verified.milestones.map(m=><article key={m.milestoneId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{m.title}</strong><p>{m.description}</p><p className="text-xs text-sand-600">{m.status}{m.dueAt?' · Due '+safeDate(m.dueAt):''}</p></article>):<p>No milestones returned.</p>}</div>}
-            {tab==='Evidence'&&<div className="space-y-2">{verified.documents.length?verified.documents.map(d=><article key={d.evidenceId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{d.description||d.originalFilename}</strong><p className="text-xs text-sand-600">{d.status} · {safeDate(d.submittedAt)||'No date'}</p></article>):<p>No evidence returned.</p>}</div>}
+            {tab==='Evidence'&&<div className="space-y-3">
+              {verified.documents.length?verified.documents.map(d=><article key={d.evidenceId} className="rounded-lg border border-cream-200 p-3 text-sm">
+                <strong>{d.description||d.originalFilename}</strong><p className="text-xs text-sand-600">{d.status} · {safeDate(d.submittedAt)||'No date'}</p>
+              </article>):<p className="text-sm">No Agreement documents returned by SecurePay.</p>}
+              {gateways&&verified.currentVersion?.versionId
+                ? <AgreementStatementEvidence gateway={gateways.agreements} auth={gateways.auth}
+                    session={session} agreementId={verified.overview.agreementId}
+                    versionId={verified.currentVersion.versionId} />
+                : <p className="text-xs text-sand-700">A verified current Agreement version is required before submitting evidence.</p>}
+              <p className="text-xs text-sand-600">Photo and document uploads are not currently supported by the Agreement evidence API. A written caption is submitted only as a TEXT_STATEMENT; no media file is implied or attached.</p>
+            </div>}
             {tab==='Money'&&<div className="space-y-3"><h3 className="font-semibold">Agreement money</h3><p className="text-sm">Server status: {verified.money.status}</p><p className="text-sm">Money records: {verified.money.moneyRecordCount}</p>
               {verified.money.outstandingReasons.map((r,i)=><p key={i} className="text-xs">{r.gateCode}: {r.reasonCode}</p>)}
               <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p></div>}
