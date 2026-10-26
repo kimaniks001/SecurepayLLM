@@ -106,6 +106,8 @@ test('Day 1: currency questions use distinct contextual reply pills, never an am
    assert.ok(found.some(p=>p.label==='Not sure yet'&&p.type==='answer'));
    assert.ok(!found.some(p=>p.kind==='money'),'Must not ask for an amount again');
  }
+ assert.equal(intent('What is being delivered for KES 400?'),'goods');
+ assert.equal(intent('When should I pay KES 400?'),'date');
  assert.equal(intent('How much is the delivery?'),'money');
  assert.equal(intent('Which currency is that in.'),'unknown','Only explicit questions get pills');
  assert.equal(resolve('The total is KES 400.').length,0);
