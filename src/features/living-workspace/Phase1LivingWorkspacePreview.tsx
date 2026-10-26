@@ -245,7 +245,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [shelfPinned,setShelfPinned] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(shelfPinned);
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
+    ? ['Photos','Documents','Places','Stores','Money'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -547,6 +547,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Money'?<UnifiedMoneyTool
+                    area={mode==='vision'?'vision':'work'}
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
                     onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
                     onOpenAgreementMoney={(agreement,railCode)=>{
