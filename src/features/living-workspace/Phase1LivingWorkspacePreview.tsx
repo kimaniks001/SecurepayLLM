@@ -757,7 +757,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work'
+        />:mode==='work' && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
