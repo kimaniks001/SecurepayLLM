@@ -63,7 +63,7 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
  const detail=record.phase==='ready'?record.detail:null;
  const actions=record.actions??[];
  const requested=selectedAction?actions.find(a=>a.targetObligationId===selectedAction &&
-   (a.actionType==='SUBMIT_EVIDENCE'||a.actionType==='REPLACE_EVIDENCE')):null;
+   (a.actionType==='SUBMIT_EVIDENCE')):null;
  const obligation=requested?record.obligations?.find(o=>o.id===requested.targetObligationId):null;
  const validEvidence=!!requested&&!!obligation&&!!detail?.currentVersion &&
    requested.currentAgreementVersionId===detail.currentVersion.versionId &&
@@ -125,14 +125,14 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
       <div className="mt-3 space-y-2">{actions.slice(0,8).map((a,i)=><article key={a.actionType+':'+(a.targetObligationId||i)} className="rounded-xl border border-cream-200 bg-white p-3">
         <p className="text-xs font-semibold text-forest-900">{a.actionReason||a.actionType.replace(/_/g,' ')}</p>
         <p className="mt-1 text-xs text-sand-600">{a.urgency}{a.deadline?' · Deadline '+new Date(a.deadline).toLocaleDateString():''}{a.prerequisiteStatus?' · '+a.prerequisiteStatus:''}</p>
-        {(a.actionType==='SUBMIT_EVIDENCE'||a.actionType==='REPLACE_EVIDENCE')&&a.targetObligationId&&
+        {(a.actionType==='SUBMIT_EVIDENCE')&&a.targetObligationId&&
           <button type="button" onClick={()=>{setSelectedAction(a.targetObligationId);setNotice('');}}
             className="mt-2 min-h-11 rounded-lg border border-forest-200 px-3 text-xs font-semibold">Add written evidence & caption</button>}
       </article>)}</div>}
     </div>
     {selectedAction&&!uncertain&&<section aria-label="Written evidence and caption" className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4" data-gate-b-evidence>
       <h3 className="text-base font-semibold">Written evidence & caption</h3>
-      <p className="text-xs text-sand-700">This is a written statement for the exact obligation and Agreement version. It is not a photo or file upload, proof of beneficiary acceptance, or confirmation of completion.</p>
+      <p className="text-xs text-sand-700">This is a first written statement for the exact obligation and Agreement version. Replacing earlier evidence requires a separate reference to that specific evidence record, available through the authorised Progress journey. No photo or file is uploaded, and this does not mean beneficiary acceptance or completion.</p>
       {validEvidence?<><label className="block text-xs font-semibold">Describe the evidence
         <textarea rows={4} maxLength={2000} value={caption} onChange={e=>setCaption(e.target.value)}
           className="mt-2 w-full rounded-xl border border-cream-200 p-3 text-sm" placeholder="What happened, where, when, and what can the other party verify?"/></label>
