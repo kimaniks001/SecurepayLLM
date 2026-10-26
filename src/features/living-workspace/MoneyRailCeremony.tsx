@@ -7,7 +7,13 @@ const examples:AgreementFundingOptionResponse[]=[
   {railCode:'SAMPLE_BANK',displayName:'Bank',currency:'KES',minimumAmountMinor:null,maximumAmountMinor:null,quoteAvailable:false},
   {railCode:'SAMPLE_PESALINK',displayName:'PesaLink',currency:'KES',minimumAmountMinor:null,maximumAmountMinor:null,quoteAvailable:false},
 ];
-const isMobile=(name:string)=>name.toLowerCase().includes('mpesa')||name.toLowerCase().includes('m-pesa');
+const isMobile=(name:string)=>/m[.-]?pesa|mobile|wallet|airtel/i.test(name);
+function railFamily(name:string,code:string):'bank'|'mobile'|'other'{
+ const s=(name+' '+code).toLowerCase();
+ if(/m[.-]?pesa|mobile|wallet|airtel/.test(s))return 'mobile';
+ if(/bank|pesalink|rtgs|eft|swift|ach/.test(s))return 'bank';
+ return 'other'; // Never infer that an unclassified rail is regulated or supported.
+}
 export function MoneyRailCeremony({
   agreementTitle, options, sample, onProceed,
 }:{
@@ -21,13 +27,21 @@ export function MoneyRailCeremony({
  const rails=sample?examples:options;
  const selected=rails.find(r=>r.railCode===chosen)||null;
  const visible=alternatives||!selected?rails:[selected];
+ const groups=[
+  {key:'bank',label:'Bank settlement rails',hint:'Availability and amount limits must come from SecurePay, not this category.'},
+  {key:'mobile',label:'Mobile money rails',hint:'Mobile limits and eligibility must be confirmed for this Agreement.'},
+  {key:'other',label:'Other returned payment routes',hint:'Institution and regulation must be verified before use.'},
+ ] as const;
  return <section aria-label="Choose the financial institution and payment rail" className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4" data-testid="money-rail-ceremony">
   <div className="flex items-center gap-2"><Landmark size={20} className="text-forest-700"/><div><p className="text-xs font-semibold uppercase tracking-wide text-sand-600">The financial choice</p><h3 className="font-display text-xl">Who will handle this payment?</h3></div></div>
   <p className="text-sm leading-6 text-sand-700">For <strong>{agreementTitle}</strong>, examine the route, institution, terms and alternatives before you decide. Choosing here never authorises payment.</p>
   {sample?<p className="rounded-lg bg-cream-50 p-2 text-xs text-sand-600">Practice only. These three rails are illustrations, not verified eligible options for this Agreement.</p>:
   rails.length===0?<p className="rounded-lg bg-cream-50 p-3 text-xs">SecurePay has not returned an eligible funding route for this Agreement. Payment cannot be initiated from this selection.</p>:null}
-  <div className="space-y-2">
-   {visible.map(rail=>{
+  <div className="space-y-3">
+   {groups.map(group=>visible.some(rail=>railFamily(rail.displayName,rail.railCode)===group.key) && <section key={group.key} aria-label={group.label} className="space-y-2">
+    <h4 className="text-xs font-semibold uppercase tracking-wider text-forest-800">{group.label}</h4>
+    <p className="text-xs text-sand-600">{group.hint}</p>
+   {visible.filter(rail=>railFamily(rail.displayName,rail.railCode)===group.key).map(rail=>{
     const isSelected=rail.railCode===chosen;
     const Icon=isMobile(rail.displayName)?Smartphone:Landmark;
     return <button key={rail.railCode} type="button" aria-pressed={isSelected}
@@ -41,6 +55,7 @@ export function MoneyRailCeremony({
       {isSelected&&<CheckCircle2 size={18} className="mt-1 shrink-0 text-forest-700"/>}
     </button>;
    })}
+   </section>)}
   </div>
   {chosen&&rails.length>1&&<button type="button" onClick={()=>setAlternatives(v=>!v)} className="min-h-10 text-sm font-semibold text-forest-700 underline underline-offset-4">{alternatives?'Return to your selection':'Compare '+(rails.length-1)+' other '+(rails.length===2?'option':'options')}</button>}
   {selected&&<div className="space-y-3 rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Selected arrangement terms">
