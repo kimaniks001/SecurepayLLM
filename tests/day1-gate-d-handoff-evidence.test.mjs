@@ -27,6 +27,16 @@ test('Gate D: established Agreements open by confirmed ID and re-authorize with 
  assert.match(reader,/onAgreementClosed\?\.\(\)/);
  assert.match(reader,/detail\.owner===identity/);
 });
+test('Gate D: guest KS001 continuity is explicitly claimed with existing backend authority',()=>{
+ assert.match(shell,/data-gate-d-authorised-anonymous-conversation-claim/);
+ assert.match(shell,/gateway\.resumableConversationId\?\.\(\)/);
+ assert.match(shell,/gateway\.saveBuild\(id\)/);
+ assert.match(shell,/record\.conversationId!==id\|\|!record\.savedBuildId/);
+ assert.match(shell,/authorisedResumedConversation\(id,liveController\.getSnapshot\(\)\)/);
+ assert.match(shell,/data-gate-d-no-loss-guest-proposals/);
+ assert.match(shell,/writeDraft\(id,text\)/);
+ assert.doesNotMatch(shell,/onClick=\{\(\)=>void gateway\.saveBuild/);
+});
 test('Gate D: statement evidence is version- and obligation-specific with a stable retry key',()=>{
  assert.match(written,/expectedAgreementVersionId:versionId/);
  assert.match(written,/expectedObligationVersion:current\.stateVersion/);
