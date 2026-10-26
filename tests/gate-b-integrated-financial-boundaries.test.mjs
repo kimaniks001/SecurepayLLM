@@ -49,3 +49,10 @@ test('Active Agreement leads with backend-owned attention and returns to the sam
  assert.match(agreement,/setTab\('Money'\)/);
  assert.doesNotMatch(agreement,/createPaymentIntent|payNow|acceptAgreement/);
 });
+
+test('Gate B Money tool separates My Work execution from Vision possibilities',()=>{
+ assert.match(shell,/\['Photos','Documents','Places','Stores','Money'\]\.includes\(tool\.name\)/);
+ assert.match(shell,/area=\{mode==='vision'\?'vision':'work'\}/);
+ assert.match(money,/if\(area==='vision'\)return <VisionFinancialPossibilities\/>/);
+ assert.match(money,/My Work · Money settles and funds an Agreement/);
+});
