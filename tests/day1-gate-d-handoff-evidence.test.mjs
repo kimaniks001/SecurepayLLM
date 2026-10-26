@@ -6,6 +6,7 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const shell=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 const reader=read('src/features/living-workspace/AgreementDiscovery.tsx');
 const written=read('src/features/living-workspace/AgreementStatementEvidence.tsx');
+const sharing=read('src/features/living-workspace/AgreementInviteInsideWorkspace.tsx');
 const handoff=read('src/features/handoff/controller.ts');
 const api=read('src/api/securepay/agreements/index.ts');
 test('Gate D: review creates a backend-versioned handoff, not a frontend Agreement',()=>{
@@ -37,6 +38,19 @@ test('Gate D: guest KS001 continuity is explicitly claimed with existing backend
  assert.match(shell,/writeDraft\(id,text\)/);
  assert.doesNotMatch(shell,/onClick=\{\(\)=>void gateway\.saveBuild/);
 });
+test('Gate D: creator-only Share is verified by backend identity and existing invitation authority',()=>{
+ assert.match(sharing,/createInviteController\(gateway,agreementId/);
+ assert.match(sharing,/gateway\.confirmationStatus\(agreementId\)/);
+ assert.match(sharing,/gateway\.people\(agreementId\)/);
+ assert.match(sharing,/mine\.length===1/);
+ assert.match(sharing,/people\.people\.find\(p=>p\.participantId===actor\.participantId\)/);
+ assert.match(sharing,/matched\?\.isCreator===true/);
+ assert.match(sharing,/<InvitePanel controller=\{controller\} isCreator=\{true\}/);
+ assert.match(reader,/<AgreementInviteInsideWorkspace/);
+ assert.match(reader,/data-gate-d-connect-money/);
+ assert.match(shell,/onConnectMoney=\{\(\)=>openTool\('Money'\)\}/);
+ assert.doesNotMatch(sharing,/window\.location\.hash|copyLink\(/);
+});
 test('Gate D: statement evidence is version- and obligation-specific with a stable retry key',()=>{
  assert.match(written,/expectedAgreementVersionId:versionId/);
  assert.match(written,/expectedObligationVersion:current\.stateVersion/);
@@ -51,7 +65,7 @@ test('Gate D: statement evidence is version- and obligation-specific with a stab
  assert.match(written,/has not completed the obligation or released Money/);
 });
 test('Gate D: modified TypeScript and TSX compiles syntactically',()=>{
- for(const [filename,source] of [['Phase1LivingWorkspacePreview.tsx',shell],['AgreementDiscovery.tsx',reader],['AgreementStatementEvidence.tsx',written]]){
+ for(const [filename,source] of [['Phase1LivingWorkspacePreview.tsx',shell],['AgreementDiscovery.tsx',reader],['AgreementStatementEvidence.tsx',written],['AgreementInviteInsideWorkspace.tsx',sharing]]){
   const result=ts.transpileModule(source,{fileName:filename,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}});
   const errors=(result.diagnostics??[]).filter(d=>d.category===ts.DiagnosticCategory.Error);
   assert.equal(errors.length,0,filename+': '+errors.map(e=>ts.flattenDiagnosticMessageText(e.messageText,' ')).join(', '));
