@@ -15,6 +15,8 @@ import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
 import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
+import { AgreementReview } from '../formation/AgreementReview';
+import { retryPending, submitCorrection } from '../formation/correction';
 import { LiveKs001Session } from './LiveKs001Session';
 import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
 import { type Phase2ExampleId } from './phase2Examples';
@@ -228,6 +230,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   }, [gateway, liveStarted, liveConversationId, liveFormationVersion, liveBusy, livePending]);
 
   const [screen, setScreen] = useState<Screen>('chat');
+  // The same canonical Agreement reader opens inside the masterpiece, never on a legacy route.
+  // The existing live KS001 controller stays mounted and retains the original conversation.
+  const [draftReviewOpen, setDraftReviewOpen] = useState(false);
+  // If server truth changes or a refresh fails, do not leave a blank centre behind a stale reader.
+  const showDraftReview = draftReviewOpen && mode==='work' && liveStarted && !uiOnlyPreview &&
+    !!liveController && !!formationController && formationState?.status==='ready' &&
+    !formationState.error && formationState.data?.conversationId===liveConversationId &&
+    !!formationState.data.reviewable;
+  useEffect(() => { setDraftReviewOpen(false); }, [mode, liveConversationId]);
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
@@ -635,7 +646,22 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {showDraftReview && liveController && formationController && formationState?.data &&
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
+            <AgreementReview
+              formation={formationState.data} changes={formationState.changes}
+              busy={liveBusy||livePending} checking={formationState.checking} error={formationState.error}
+              onBack={()=>setDraftReviewOpen(false)}
+              onCheck={pointId=>{if(liveConversationId)void formationController.check(liveConversationId,pointId);}}
+              onCorrect={text=>submitCorrection(liveController,text)}
+              onRetryCorrection={()=>retryPending(liveController)}
+              onOpenPoint={()=>setDraftReviewOpen(false)}
+              onSetUp={()=>{}} setUpAvailable={false} setUp={null}
+              onAcknowledgeChanges={()=>formationController.acknowledgeChanges()}
+              onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
+            />
+          </div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
@@ -682,6 +708,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
+          onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
           onCorrectFact={async (label,previous,replacement,expectedVersion)=>{
             if(!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');
             // Re-read authoritative context immediately before proposing. A changed version is a

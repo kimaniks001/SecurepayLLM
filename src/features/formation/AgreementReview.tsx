@@ -20,9 +20,11 @@ export function meansNoAgreementChange(value: string): boolean {
  * formation projection, but implementation/version/provenance machinery stays secondary unless the person asks for it.
  * Corrections remain natural-language messages to KS001; consequential set-up remains version-pinned underneath.
  */
-export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onRetryCorrection, onResolve, onOpenPoint, onSetUp, onAcknowledgeChanges, setUp, settingUpAs, onUnlink }: {
+export function AgreementReview({ formation, changes, busy, checking, error, onBack, onCheck, onCorrect, onRetryCorrection, onResolve, onOpenPoint, onSetUp, onAcknowledgeChanges, setUp, settingUpAs, onUnlink, setUpAvailable = true }: {
   formation: AgreementFormation; changes: string[]; busy: boolean; checking: string | null; error: string | null;
   onBack: () => void; onCheck: (openPointId: string) => void; onSetUp: (version: number) => void;
+  /** A draft reader can be embedded safely where canonical Agreement set-up is not wired. */
+  setUpAvailable?: boolean;
   /**
    * User-Ready Beta Gate 1 (EP-CERT-002) -- resolves only once the outcome is KNOWN. The words stay in the box until it is
    * 'ok'; `onRetryCorrection` re-sends the SAME pending message (never a duplicate) for 'failed' / 'unknown' / 'blocked'.
@@ -190,17 +192,17 @@ export function AgreementReview({ formation, changes, busy, checking, error, onB
 
     {error && <p role="alert" className="text-[0.85rem] text-ember-800">{error}</p>}
     <div className="agreement-screen-only space-y-2">
-      <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
+      {setUpAvailable && <button type="button" disabled={busy || !formation.confirmable} onClick={() => onSetUp(formation.version)}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-forest-700 px-5 text-[0.95rem] font-medium text-white hover:bg-forest-800 disabled:bg-sand-300 disabled:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 sm:w-auto">
         Keep this Agreement
-      </button>
-      <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'If SecurePay needs to know who you are, sign-in happens next and returns you to this same Agreement. Keeping it does not make anyone else agree.' : formation.confirmationBlockedReason}</p>
-      {settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
+      </button>}
+      {setUpAvailable ? <p className="text-[0.78rem] text-sand-600">{formation.confirmable ? 'If SecurePay needs to know who you are, sign-in happens next and returns you to this same Agreement. Keeping it does not make anyone else agree.' : formation.confirmationBlockedReason}</p> : <p className="text-[0.78rem] text-sand-600">This draft is available to inspect inside My Work. Return to KS001 to clarify it. Keeping, sharing, inviting and Money require their own authorised Agreement actions.</p>}
+      {setUpAvailable && settingUpAs?.signedIn && <p className="text-[0.78rem] text-sand-600" data-testid="setting-up-as">
         {settingUpAs.actingFor
           ? `You’ll set this up as yourself, not as ${settingUpAs.actingFor} — setting up an agreement for a business or organization from a conversation isn’t available yet.`
           : 'You’ll set this up as yourself.'}
       </p>}
-      {setUp}
+      {setUpAvailable && setUp}
     </div>
   </section>;
 }
