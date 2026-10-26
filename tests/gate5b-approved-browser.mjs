@@ -50,6 +50,10 @@ try {
         await page.screenshot({path:output+'/'+device+'-'+area+'-summary.png',fullPage:true});
         if(width<768 && area!=='community') await mobile.getByRole('button',{name:'Chat'}).click();
       }
+      // Gate B supersedes the old mixed Money tabs: Vision alone explores financial possibilities.
+      await nav.getByRole('button',{name:'Vision',exact:true}).click();
+      await page.locator('[data-gate-b-vision-money]').waitFor({state:'attached'});
+      await nav.getByRole('button',{name:'Community',exact:true}).click();
       const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
       await action.click();
       await page.locator('[data-workspace-frozen-layout][data-sp-area="work"]').waitFor();
@@ -64,8 +68,9 @@ try {
       const money=page.locator('[data-approved-gate5b-money-purpose]');
       await money.waitFor({state:'visible'});
       assert.match(await money.textContent(),/Money should follow the agreement/);
-      assert.ok(await page.getByRole('navigation',{name:'Money choices'}).count(),
-        'Real compact My Money/Borrow/Invest/Protect tool must remain');
+      assert.equal(await page.getByRole('navigation',{name:'Money choices'}).count(),0,
+        'Approved Gate B: legacy Borrow/Invest/Protect categories must not appear as Agreement funding rails');
+      assert.match(await money.textContent(),/My Work.*Money settles and funds an Agreement/s);
       await page.screenshot({path:output+'/'+device+'-money-tool.png',fullPage:true});
       const dimensions=await page.evaluate(()=>({
         scroll:document.documentElement.scrollWidth,
