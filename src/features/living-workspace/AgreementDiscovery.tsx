@@ -172,6 +172,22 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" role="tabpanel">
           {(!verified) && <p role={detail.phase==='error'?'alert':'status'} className="text-sm">{detail.owner===identity&&detail.phase==='error'?message:'Checking current Agreement details and access…'}</p>}
           {verified&&<>
+            {tab==='Overview'&&<section data-gate-b-active-attention aria-label="What needs attention in this Agreement" className="space-y-3 rounded-xl border border-forest-200 bg-cream-50 p-4">
+              <h3 className="font-display text-lg text-forest-900">What needs you now?</h3>
+              <p className="text-xs text-sand-600">Actions below come from this Agreement's current backend summary. They are not approvals, verified completion or permission to move Money.</p>
+              {current?.nextActions?.length ? <div className="space-y-2">
+                {current.nextActions.slice(0,4).map((action,index)=><div key={action.actionCode+':'+index} className="rounded-lg border border-cream-200 bg-white p-3">
+                  <p className="text-sm font-semibold">{action.reason}</p>
+                  <p className="text-xs text-sand-600">SecurePay action · {action.actionCode}</p>
+                </div>)}
+              </div> : <p className="text-sm text-sand-700">No immediate action was returned for this identity. Check milestones, evidence and Money before assuming the Agreement is complete.</p>}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={()=>setTab('Milestones')} className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold">Milestones</button>
+                <button type="button" onClick={()=>setTab('Evidence')} className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold">Evidence</button>
+                <button type="button" onClick={()=>setTab('Money')} className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold">Money status</button>
+                <button type="button" onClick={closeFull} className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">Return to KS001 for help</button>
+              </div>
+            </section>}
             {tab==='Overview'&&<div className="space-y-3"><h3 className="text-lg font-semibold">{verified.overview.title}</h3>
               <p className="text-sm">{verified.overview.description||verified.overview.purpose||'No description recorded.'}</p>
               <p className="text-sm">Reference: {verified.overview.publicReference} · Status: {verified.overview.status}</p>
