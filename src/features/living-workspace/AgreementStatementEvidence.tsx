@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AgreementGateway, ObligationDto, EvidenceDto } from '../../api/securepay/agreements';
+import type { AuthGateway } from '../../api/securepay/auth';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
 
@@ -8,8 +9,9 @@ type Pending={obligationId:string; text:string; idempotencyKey:string; expectedA
 /** Actual canonical statement evidence, not a substitute for an image/document upload.
  * Submit uses the existing idempotent, version-pinned API and lets the SERVER identify
  * the responsible participant. Unknown outcomes are NOT locally treated as saved. */
-export function AgreementStatementEvidence({gateway,session,agreementId,versionId,onRecorded}:{
+export function AgreementStatementEvidence({gateway,auth,session,agreementId,versionId,onRecorded}:{
   gateway:Pick<AgreementGateway,'obligations'|'submitEvidence'|'obligationEvidence'>;
+  auth:AuthGateway;
   session:SessionStore;
   agreementId:string;versionId:string;
   onRecorded?:()=>void;
@@ -26,7 +28,7 @@ export function AgreementStatementEvidence({gateway,session,agreementId,versionI
     setState({phase:'loading',obligations:[],message:''});setSelected('');setDescription('');setPending(null);setOutcome('');setKnownEvidence([]);
     void (async()=>{
       try{
-        await ensureFreshSession(session, {refresh:async()=>{throw new Error('Please sign in again to continue.');}} as never);
+        await ensureFreshSession(session,auth);
         const all=await gateway.obligations(agreementId);
         if(!live)return;
         const valid=all.filter(o=>o.agreementId===agreementId&&o.agreementVersionId===versionId);
@@ -34,7 +36,7 @@ export function AgreementStatementEvidence({gateway,session,agreementId,versionI
       }catch{if(live)setState({phase:'error',obligations:[],message:'Could not verify current obligations. Refresh or sign in again.'});}
     })();
     return()=>{live=false;};
-  },[agreementId,versionId,gateway,session]);
+  },[agreementId,versionId,gateway,auth,session]);
   const current=state.obligations.find(o=>o.id===selected);
   async function send(request:Pending) {
     if(busy)return;
