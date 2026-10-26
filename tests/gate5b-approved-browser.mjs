@@ -52,7 +52,16 @@ try {
       }
       // Gate B supersedes the old mixed Money tabs: Vision alone explores financial possibilities.
       await nav.getByRole('button',{name:'Vision',exact:true}).click();
-      await page.locator('[data-gate-b-vision-money]').waitFor({state:'attached'});
+      // Vision's financial possibilities live in the contextual Money tool, not a second page.
+      if(width>=1280) {
+        await page.getByRole('navigation',{name:'Workspace tool rail'}).getByRole('button',{name:'Money'}).click();
+      } else {
+        await mobile.getByRole('button',{name:'Tools'}).click();
+        await page.getByRole('navigation',{name:'Choose a tool'}).getByRole('button',{name:'Money',exact:true}).click();
+      }
+      await page.locator('[data-gate-b-financial-possibilities]').waitFor({state:'visible'});
+      await page.keyboard.press('Escape');
+      await page.locator('[data-tool-shelf]').waitFor({state:'detached'});
       await nav.getByRole('button',{name:'Community',exact:true}).click();
       if(width<768)await mobile.getByRole('button',{name:'About Community'}).click();
       const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
