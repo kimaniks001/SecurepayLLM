@@ -318,10 +318,22 @@ function useMoneySessionRoute(): string | null {
   return token;
 }
 
+/**
+ * This *draft preview deployment* must open the approved Living Workspace as its
+ * home, not the retired AgentExperience homepage. Production remains routed by
+ * existing rules until real API/identity integration is independently certified.
+ * Explicit invitation, activation, recovery, and regulated-money routes are never
+ * captured by this rule. No token-bearing route is inspected or rewritten.
+ */
+export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
+  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/');
+}
 export default function RuntimeApp() {
-  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' && /^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
+    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
+      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash));
+    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
   }, []);
