@@ -19,6 +19,9 @@ import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
 import { AgreementReview } from '../formation/AgreementReview';
+import { createHandoffController } from '../handoff/controller';
+import { HandoffPanel } from '../handoff/HandoffPanel';
+import { createIdentityController } from '../identity/controller';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { LiveKs001Session } from './LiveKs001Session';
 import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
@@ -196,6 +199,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return()=>{active=false;};
   },[liveController,signedIn]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
+  // Reuse the existing Agreement handoff and identity authorities. An inspected draft does
+  // not become a formal Agreement until the separate canonical version-bound ceremony passes.
+  const [handoffController] = useState(() => gateway ? createHandoffController(gateway) : null);
+  const [handoffIdentity] = useState(() => workspaceGateways ? createIdentityController(workspaceGateways.auth,session) : null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
@@ -676,7 +683,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onCorrect={text=>submitCorrection(liveController,text)}
               onRetryCorrection={()=>retryPending(liveController)}
               onOpenPoint={()=>setDraftReviewOpen(false)}
-              onSetUp={()=>{}} setUpAvailable={false} setUp={null}
+              onSetUp={version=>{if(liveConversationId&&handoffController)void handoffController.start(liveConversationId,version);}}
+              setUpAvailable={!!handoffController&&!!handoffIdentity}
+              setUp={handoffController&&handoffIdentity&&workspaceGateways
+                ? <HandoffPanel handoff={handoffController} identity={handoffIdentity} onDone={()=>setDraftReviewOpen(false)}
+                   agreementGateway={workspaceGateways.agreements}
+                   onOpenAgreement={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>
+                : null}
               onAcknowledgeChanges={()=>formationController.acknowledgeChanges()}
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
