@@ -5,7 +5,7 @@ import { InlineVisionEditor } from './InlineVisionEditor';
 import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
 import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
-import { SignInExperience } from '../public/SignInExperience';
+import { WorkspaceIdentityOverlay } from './WorkspaceIdentityOverlay';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import { AgreementDiscovery } from './AgreementDiscovery';
 import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
@@ -65,10 +65,12 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session }: {
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
   session: SessionStore;
+  /** Identity write operations must be backed by isolated, configured staging. */
+  identityStagingReady?: boolean;
 }) {
   const initialMode=():Mode=>{
     if(typeof window==='undefined')return 'work';
@@ -76,7 +78,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return (match?.[1] as Mode | undefined)??'work';
   };
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [signInOpen,setSignInOpen]=useState(false);
+  const [signInOpen,setSignInOpen]=useState(()=>typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash));
+  const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>(()=>typeof window!=='undefined' && /^#\/?sign-up\/?$/.test(window.location.hash)?'signup':'signin');
+  const openIdentity=(intent:'signin'|'signup'='signin')=>{setIdentityIntent(intent);setSignInOpen(true);};
   // Pure client-side illustration, intentionally separate from the real SessionStore.
   // Retired mock sign-in is deliberately inaccessible in this production candidate.
   // The historical screenshot preview remains preserved at its original commit.
@@ -201,11 +205,44 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
   // Reuse the existing Agreement handoff and identity authorities. An inspected draft does
   // not become a formal Agreement until the separate canonical version-bound ceremony passes.
+  // Reuse the canonical, idempotent Agreement handoff. No second Agreement engine.
   const [handoffController] = useState(() => gateway ? createHandoffController(gateway) : null);
   const [handoffIdentity] = useState(() => workspaceGateways ? createIdentityController(workspaceGateways.auth,session) : null);
+  const handoffState=useSyncExternalStore(handoffController?.subscribe??subscribeNever,
+    handoffController?.getSnapshot??(()=>null));
+  const [createdAgreementId,setCreatedAgreementId]=useState<string|null>(null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
+  // Explicit claim: preserve the exact anonymous KS001 conversation by the backend's
+  // existing owner-binding saved-build authority, never by copying its turns.
+  const [guestClaim,setGuestClaim]=useState<{id:string;phase:'offered'|'saving'|'saved'|'error'|'dismissed';message:string}|null>(null);
+  useEffect(()=>{
+    const resumable=gateway?.resumableConversationId?.();
+    if(signedIn && resumable && resumable===liveConversationId){
+      setGuestClaim(current=>current?.id===resumable?current:{id:resumable,phase:'offered',message:''});
+    }else if(!signedIn){setGuestClaim(null);}
+  },[signedIn,gateway,liveConversationId]);
+  const claimGuestConversation=async()=>{
+    if(!signedIn||!gateway||!liveController||!guestClaim||guestClaim.phase==='saving')return;
+    const id=guestClaim.id;
+    if(gateway.resumableConversationId?.()!==id||liveController.getSnapshot().conversationId!==id){
+      setGuestClaim({id,phase:'error',message:'This is no longer the same temporary conversation. Open Saved Work instead.'});return;
+    }
+    setGuestClaim({id,phase:'saving',message:''});
+    try{
+      const record=await gateway.saveBuild(id); // the canonical server claim; retriable, never client-owned
+      if(record.conversationId!==id||!record.savedBuildId)
+        throw new Error('SecurePay did not confirm that your original conversation was saved.');
+      await liveController.resumeConversation(id);
+      if(!authorisedResumedConversation(id,liveController.getSnapshot()))
+        throw new Error('Saved successfully, but SecurePay cannot verify access yet. Check Saved Work.');
+      setGuestClaim({id,phase:'saved',message:'Your original KS001 conversation is now saved to your identity. Your work has not been sent or accepted as an Agreement.'});
+    }catch(e){
+      setGuestClaim({id,phase:'error',message:e instanceof Error?e.message:'Could not confirm the save. Check Saved Work before retrying.'});
+    }
+  };
+
   const liveContextVersion = liveState?.context.data?.version;
   const lastLiveTurnId = liveState?.turns.length ? liveState.turns[liveState.turns.length - 1].id : null;
   const liveBusy = liveState?.busy ?? false;
@@ -246,11 +283,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // The existing live KS001 controller stays mounted and retains the original conversation.
   const [draftReviewOpen, setDraftReviewOpen] = useState(false);
   // If server truth changes or a refresh fails, do not leave a blank centre behind a stale reader.
-  const showDraftReview = draftReviewOpen && mode==='work' && liveStarted && !uiOnlyPreview &&
+  const showDraftReview = draftReviewOpen && !createdAgreementId && mode==='work' && liveStarted && !uiOnlyPreview &&
     !!liveController && !!formationController && formationState?.status==='ready' &&
     !formationState.error && formationState.data?.conversationId===liveConversationId &&
     !!formationState.data.reviewable;
-  useEffect(() => { setDraftReviewOpen(false); }, [mode, liveConversationId]);
+  useEffect(() => {
+    setDraftReviewOpen(false);
+    // Old handoffs may never be used to create a draft for a different conversation.
+    handoffController?.reset();
+    setCreatedAgreementId(null);
+  }, [mode, liveConversationId, handoffController]);
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
@@ -373,6 +415,26 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setDraftRevision(value=>value+1);
     setLiveStarted(true);setLiveWork(true);
   };
+  // Local, unsigned proposals are retained after sign-in, never silently sent or
+  // imported as facts. The user explicitly chooses which text to review with KS001.
+  const prepareLocalNoteForKs001=async(text:string)=>{
+    if(!signedIn || !liveController || !gateway)throw new Error('Sign in and connect KS001 first.');
+    if(liveController.getSnapshot().busy || liveController.getSnapshot().pending)
+      throw new Error('Finish the previous KS001 action before bringing in a local note.');
+    let id=liveController.getSnapshot().conversationId;
+    if(!id){
+      const created=await gateway.createConversation();
+      if(!created?.conversationId)throw new Error('Could not start your KS001 conversation.');
+      await liveController.resumeConversation(created.conversationId);
+      if(!authorisedResumedConversation(created.conversationId,liveController.getSnapshot()))
+        throw new Error('The KS001 conversation has not been authorised for your identity.');
+      id=created.conversationId;
+    }
+    if(readDraft(id).trim())throw new Error('Your KS001 composer already contains unsent work. Review it first.');
+    writeDraft(id,text);
+    setLiveStarted(true);setLiveWork(true);setScreen('chat');setDraftRevision(n=>n+1);
+    setReturnError('Your earlier local note is ready in KS001. Review it before sending. Images and attachments have not been uploaded.');
+  };
   const continueCircleToWork = async(text:string)=>{
     if(!signedIn || !liveController || !gateway)
       throw new Error('Sign in and connect KS001 before bringing a Circle proposal into My Work.');
@@ -393,14 +455,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
   };
-  if(signInOpen && workspaceGateways){
-    return <SignInExperience
-      auth={workspaceGateways.auth} session={session}
-      onSignedIn={()=>setSignInOpen(false)} onCancel={()=>setSignInOpen(false)}
-      onRecover={()=>{setSignInOpen(false);window.location.hash='#/recovery';}}
-      onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
-    />;
-  }
+  const closeIdentity=()=>{
+    setSignInOpen(false);
+    // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
+    if(typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash))
+      window.location.hash='#/preview/living-workspace/work';
+  };
   return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
@@ -410,9 +470,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             <button key={id} aria-current={mode===id?'page':undefined} onClick={()=>chooseMode(id)} className={`min-h-11 shrink-0 rounded-lg px-3 text-xs sm:px-5 sm:text-sm ${mode===id?'bg-white font-semibold shadow-sm':'text-sand-600'}`}>{label}</button>)}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
-          {!signedIn && workspaceGateways
-            ? <button type="button" onClick={()=>setSignInOpen(true)}
+          {!signedIn
+            ? <><button type="button" onClick={()=>openIdentity('signin')}
                 className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-800 hover:bg-cream-50">Sign in</button>
+              <button type="button" onClick={()=>openIdentity('signup')} data-gate-d-get-ks-number
+                className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">Get KS Number</button></>
             : signedIn ? <span className="rounded-full bg-[#eaf2e9] px-3 py-2 text-xs font-medium text-forest-800">Your SecurePay workspace</span> : null}
           <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> SecurePay</a>
         </div>
@@ -672,8 +734,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {!openedAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {!openedAgreementId && !createdAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
               formation={formationState.data} changes={formationState.changes}
@@ -683,14 +745,19 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onCorrect={text=>submitCorrection(liveController,text)}
               onRetryCorrection={()=>retryPending(liveController)}
               onOpenPoint={()=>setDraftReviewOpen(false)}
-              onSetUp={version=>{if(liveConversationId&&handoffController)void handoffController.start(liveConversationId,version);}}
-              setUpAvailable={!!handoffController&&!!handoffIdentity}
-              setUp={handoffController&&handoffIdentity&&workspaceGateways
-                ? <HandoffPanel handoff={handoffController} identity={handoffIdentity} onDone={()=>setDraftReviewOpen(false)}
-                   openAgreementLabel="Open Agreement in My Work"
-                   agreementGateway={workspaceGateways.agreements}
-                   onOpenAgreement={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>
-                : null}
+              onSetUp={version=>{
+                if(!liveConversationId||!handoffController||!signedIn||liveBusy||livePending||!formationState?.data?.confirmable) return;
+                void handoffController.start(liveConversationId,version);
+              }}
+              setUpAvailable={!!signedIn && !!handoffController && !!handoffIdentity}
+              settingUpAs={signedIn?{signedIn:true,actingFor:null}:undefined}
+              setUp={handoffController&&handoffIdentity&&handoffState?.phase!=='idle' ?
+                <div data-gate-d-post-review-actions className="mt-3">
+                  <HandoffPanel handoff={handoffController} identity={handoffIdentity}
+                    onDone={()=>handoffController.reset()}
+                    onOpenAgreement={id=>{setCreatedAgreementId(id);setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}
+                    agreementGateway={workspaceGateways?.agreements}/>
+                </div>:null}
               onAcknowledgeChanges={()=>formationController.acknowledgeChanges()}
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
@@ -705,6 +772,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
               onContinueToWork={continueVisionToWork}/>
           </div>}
+        {mode==='work' && createdAgreementId && !openedAgreementId && <section data-gate-d-agreement-created
+            className="flex-1 space-y-3 overflow-y-auto p-5">
+            <h2 className="font-display text-2xl text-forest-900">Your draft Agreement is saved</h2>
+            <p className="text-sm text-sand-700">SecurePay confirmed a draft. Nobody else has accepted it. Open My Agreements to review participants and invitations. Money remains unavailable until the separate backend checks permit it.</p>
+            <p className="break-all text-xs text-sand-600">Agreement reference: {createdAgreementId}</p>
+            <button type="button" onClick={()=>{setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('result');}}
+              className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm font-semibold text-forest-800">Open My Agreements</button>
+          </section>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
@@ -738,7 +813,43 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)} onOpenInWorkspace={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>}
+        {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
+          <section data-gate-d-authorised-anonymous-conversation-claim
+            aria-label="Keep your KS001 conversation after signup"
+            className="mb-3 space-y-2 rounded-xl border border-forest-200 bg-cream-50 p-3">
+            <h3 className="font-display text-lg text-forest-900">Keep your earlier KS001 conversation?</h3>
+            <p className="text-xs leading-5 text-sand-700">This conversation began before sign-in. SecurePay can save that exact conversation under your KS Number; no new Agreement, money action or automatic membership is created.</p>
+            {guestClaim.phase==='saved'?<p role="status" className="text-xs text-forest-800">{guestClaim.message}</p>:
+              <>
+                {guestClaim.message&&<p role="alert" className="text-xs text-amber-900">{guestClaim.message}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={guestClaim.phase==='saving'} onClick={()=>{void claimGuestConversation();}}
+                    className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white disabled:opacity-50">
+                    {guestClaim.phase==='saving'?'Verifying with SecurePay…':'Save this conversation to my KS Number'}
+                  </button>
+                  <button type="button" disabled={guestClaim.phase==='saving'}
+                    onClick={()=>setGuestClaim({...guestClaim,phase:'dismissed'})}
+                    className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">Not now</button>
+                </div>
+              </>}
+          </section>}
+        {mode==='work' && signedIn && previewNotes.length>0 && <section
+          data-gate-d-no-loss-guest-proposals aria-label="Your notes from before signing in"
+          className="mb-3 space-y-3 rounded-xl border border-forest-200 bg-cream-50 p-3">
+          <h3 className="font-display text-lg text-forest-900">Your earlier notes are still here</h3>
+          <p className="text-xs leading-5 text-sand-700">These were local proposals before sign-in, not server-saved Agreements. Choose a note to prepare in KS001. Nothing is sent automatically, and images must be uploaded separately.</p>
+          {previewNotes.map(note=><div key={note.id} className="rounded-xl bg-white p-3">
+            <p className="whitespace-pre-wrap break-words text-xs text-forest-900">{note.text}</p>
+            <button type="button" onClick={()=>{void prepareLocalNoteForKs001(note.text).catch(error=>setReturnError(error instanceof Error?error.message:'Could not prepare the note'));}}
+              className="mt-2 min-h-11 rounded-lg border border-forest-200 px-3 text-xs font-semibold text-forest-800">Prepare in KS001 (review before sending)</button>
+          </div>)}
+        </section>}
+        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session}
+          mediaStagingReady={identityStagingReady && import.meta.env.VITE_SECUREPAY_MEDIA_EVIDENCE_STAGING_ENABLED === 'true'}
+          openAgreementId={createdAgreementId} onAgreementClosed={()=>setCreatedAgreementId(null)}
+          onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
+          onConnectMoney={()=>openTool('Money')}
+          onSignIn={()=>openIdentity('signin')}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
@@ -789,5 +900,23 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     </div>}
     {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
+    {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
+      aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/50 p-3">
+      <section className="w-full max-w-md space-y-3 rounded-2xl border border-cream-200 bg-white p-5 shadow-2xl">
+        <h2 className="font-display text-2xl text-forest-900">Identity is not connected in this preview</h2>
+        <p className="text-sm leading-6 text-sand-700">The approved Workspace can be explored without creating a KS Number. Sign-in and verification require an authorised SecurePay staging connection. Nothing has been registered or sent.</p>
+        <button type="button" onClick={closeIdentity} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">Back to my work</button>
+      </section>
+    </div>}
+    {signInOpen && workspaceGateways && <WorkspaceIdentityOverlay
+      key={identityIntent} initialStage={identityIntent}
+      auth={workspaceGateways.auth} session={session} identityStagingReady={identityStagingReady}
+      onDone={closeIdentity}
+      onChooseVision={()=>chooseMode('vision')}
+      onJoin={()=>{window.location.hash='#/join';}}
+      onBusiness={()=>{window.location.hash='#/business';}}
+      onActivation={()=>{window.location.hash='#/activate';}}
+    />}
   </main>;
 }
