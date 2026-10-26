@@ -8,6 +8,9 @@ import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import { AgreementDiscovery } from './AgreementDiscovery';
+import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
+import { SelectedWorkspaceRecord } from './SelectedWorkspaceRecord';
+import type { AgreementDetailResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -122,6 +125,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
   const [workingCircleId,setWorkingCircleId]=useState<string|null>(null);
+  const [openedAgreementId,setOpenedAgreementId]=useState<string|null>(null);
   const [dreamUnsaved,setDreamUnsaved]=useState(false);
   const noteUnsaved=useCallback((dirty:boolean)=>setDreamUnsaved(dirty),[]);
   const mayLeaveDream=()=>!dreamUnsaved || window.confirm('Your Dream has changes that have not been confirmed saved. Leave without saving?');
@@ -130,7 +134,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);
   };
   useEffect(()=>{
-    if(!signedIn){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
+    if(!signedIn){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);setOpenedAgreementId(null);}
   },[signedIn]);
 
   useEffect(()=>{
@@ -150,6 +154,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   },[mode,dreamUnsaved]);
   const chooseMode=(next:Mode)=>{
     if(next!==mode && !mayLeaveDream())return;
+    if(next!=='work')setOpenedAgreementId(null);
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
     setMode(next);setScreen('chat');setToolSelected(false);setToolsOpen(shelfPinned);
     window.location.hash='#/preview/living-workspace/'+next;
@@ -329,6 +334,25 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     }
     chooseMode('work');setLiveStarted(true);setLiveWork(true);
     await liveController.resumeConversation(conversationId);
+  };
+  const askKs001FromAgreement = async(reference:string)=>{
+    if(!signedIn || !gateway || !liveController)throw new Error('Sign in to ask KS001.');
+    if(liveBusy || livePending)throw new Error('Finish your current KS001 action first.');
+    // A new Agreement question gets a fresh conversation; another Agreement's chat is never
+    // silently amended. The person must press Send themselves after reading the unsent draft.
+    const started=await gateway.createConversation();
+    if(!started?.conversationId)throw new Error('Could not start a verified conversation.');
+    await liveController.resumeConversation(started.conversationId);
+    if(!authorisedResumedConversation(started.conversationId,liveController.getSnapshot()))
+      throw new Error('The new conversation was not authorised.');
+    writeDraft(started.conversationId,'I am looking at Agreement '+reference+'. Help me understand what needs attention. Check my authority and the exact Agreement before using private facts or suggesting actions. No changes or payments are authorised by this question.');
+    setOpenedAgreementId(null);setDraftRevision(x=>x+1);setLiveWork(true);setLiveStarted(true);setScreen('chat');
+  };
+  const openActiveAgreementMoney = (detail:AgreementDetailResponse)=>{
+    if(!detail.currentVersion?.versionId) return;
+    storeWorkspaceMoneyReturn(liveConversationId);
+    openMoneyFor({agreementId:detail.overview.agreementId,title:detail.overview.title,
+      versionLabel:'version '+detail.currentVersion.versionNumber,currentVersionId:detail.currentVersion.versionId});
   };
   const continueVisionToWork = async(handoff:DreamHandoff)=>{
     if(!signedIn || !liveController || !gateway)
@@ -640,8 +664,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {showDraftReview && liveController && formationController && formationState?.data &&
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {!openedAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
               formation={formationState.data} changes={formationState.changes}
@@ -656,6 +680,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
           </div>}
+        {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
+          <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
+            session={session} onBack={()=>setOpenedAgreementId(null)}
+            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
         {mode==='vision' && signedIn && workspaceGateways && editingDreamId &&
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
             <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
@@ -681,6 +709,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>}
        {!(mode==='community' && (!signedIn || workspaceGateways)) &&
          !(mode==='vision' && signedIn && editingDreamId) &&
+         !(mode==='work' && openedAgreementId) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -694,8 +723,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)}/>}
+        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)} onOpenInWorkspace={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
+          <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
+            gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
@@ -705,7 +737,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
-          : mode==='work' && liveWork?<LiveWorkResultPanel
+          : mode==='work' && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
