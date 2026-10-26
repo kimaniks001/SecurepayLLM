@@ -208,6 +208,35 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
+  // Explicit claim: preserve the exact anonymous KS001 conversation by the backend's
+  // existing owner-binding saved-build authority, never by copying its turns.
+  const [guestClaim,setGuestClaim]=useState<{id:string;phase:'offered'|'saving'|'saved'|'error'|'dismissed';message:string}|null>(null);
+  useEffect(()=>{
+    const resumable=gateway?.resumableConversationId?.();
+    if(signedIn && resumable && resumable===liveConversationId){
+      setGuestClaim(current=>current?.id===resumable?current:{id:resumable,phase:'offered',message:''});
+    }else if(!signedIn){setGuestClaim(null);}
+  },[signedIn,gateway,liveConversationId]);
+  const claimGuestConversation=async()=>{
+    if(!signedIn||!gateway||!liveController||!guestClaim||guestClaim.phase==='saving')return;
+    const id=guestClaim.id;
+    if(gateway.resumableConversationId?.()!==id||liveController.getSnapshot().conversationId!==id){
+      setGuestClaim({id,phase:'error',message:'This is no longer the same temporary conversation. Open Saved Work instead.'});return;
+    }
+    setGuestClaim({id,phase:'saving',message:''});
+    try{
+      const record=await gateway.saveBuild(id); // the canonical server claim; retriable, never client-owned
+      if(record.conversationId!==id||!record.savedBuildId)
+        throw new Error('SecurePay did not confirm that your original conversation was saved.');
+      await liveController.resumeConversation(id);
+      if(!authorisedResumedConversation(id,liveController.getSnapshot()))
+        throw new Error('Saved successfully, but SecurePay cannot verify access yet. Check Saved Work.');
+      setGuestClaim({id,phase:'saved',message:'Your original KS001 conversation is now saved to your identity. Your work has not been sent or accepted as an Agreement.'});
+    }catch(e){
+      setGuestClaim({id,phase:'error',message:e instanceof Error?e.message:'Could not confirm the save. Check Saved Work before retrying.'});
+    }
+  };
+
   const liveContextVersion = liveState?.context.data?.version;
   const lastLiveTurnId = liveState?.turns.length ? liveState.turns[liveState.turns.length - 1].id : null;
   const liveBusy = liveState?.busy ?? false;
@@ -754,6 +783,26 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
+          <section data-gate-d-authorised-anonymous-conversation-claim
+            aria-label="Keep your KS001 conversation after signup"
+            className="mb-3 space-y-2 rounded-xl border border-forest-200 bg-cream-50 p-3">
+            <h3 className="font-display text-lg text-forest-900">Keep your earlier KS001 conversation?</h3>
+            <p className="text-xs leading-5 text-sand-700">This conversation began before sign-in. SecurePay can save that exact conversation under your KS Number; no new Agreement, money action or automatic membership is created.</p>
+            {guestClaim.phase==='saved'?<p role="status" className="text-xs text-forest-800">{guestClaim.message}</p>:
+              <>
+                {guestClaim.message&&<p role="alert" className="text-xs text-amber-900">{guestClaim.message}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" disabled={guestClaim.phase==='saving'} onClick={()=>{void claimGuestConversation();}}
+                    className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white disabled:opacity-50">
+                    {guestClaim.phase==='saving'?'Verifying with SecurePay…':'Save this conversation to my KS Number'}
+                  </button>
+                  <button type="button" disabled={guestClaim.phase==='saving'}
+                    onClick={()=>setGuestClaim({...guestClaim,phase:'dismissed'})}
+                    className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs">Not now</button>
+                </div>
+              </>}
+          </section>}
         {mode==='work' && signedIn && previewNotes.length>0 && <section
           data-gate-d-no-loss-guest-proposals aria-label="Your notes from before signing in"
           className="mb-3 space-y-3 rounded-xl border border-forest-200 bg-cream-50 p-3">
