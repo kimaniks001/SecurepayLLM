@@ -80,6 +80,9 @@ test('Gate C one-time welcome cannot issue credentials, join, apply or fund',()=
  assert.match(agent,/signInRoute\.signingUp && signedIn && issuedKsNumber/);
  assert.match(agent,/onIssued=\{setIssuedKsNumber\}/);
  assert.match(agent,/signInRoute\.close\(\)/);
+ assert.match(agent,/data-gate-c-trust-issued-welcome/);
+ assert.match(agent,/continueLabel="Continue to The Trust Project"/);
+ assert.match(signup,/context="TRUST_PROJECT_JOIN" onUseExisting=\{onUseExisting\} onBack=\{onBack\} onIssued=\{onIssued\}/);
 });
 
 test('Gate C reuses backend Truth for Trust, Business and Activation—not enrollment from signup',()=>{
