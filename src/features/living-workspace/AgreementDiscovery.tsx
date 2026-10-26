@@ -229,8 +229,8 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
                     session={session} agreementId={verified.overview.agreementId}
                     versionId={verified.currentVersion.versionId} />
                 : <p className="text-xs text-sand-700">A verified current Agreement version is required before submitting evidence.</p>}
-              {mediaStagingReady && gateways && verified.currentVersion?.versionId
-                ? <AgreementMediaEvidence gateway={gateways.agreements} auth={gateways.auth}
+              {mediaStagingReady && gateways?.media && verified.currentVersion?.versionId
+                ? <AgreementMediaEvidence gateway={gateways.media} auth={gateways.auth}
                     session={session} agreementId={verified.overview.agreementId}
                     versionId={verified.currentVersion.versionId} />
                 : <p className="text-xs text-sand-600">Photo and document uploads are not currently supported by the Agreement evidence API in this environment. Written evidence remains available. Private media needs the isolated, verified API staging integration first.</p>}
