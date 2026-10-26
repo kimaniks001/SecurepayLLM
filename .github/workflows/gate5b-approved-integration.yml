@@ -10,6 +10,7 @@ on:
       - 'src/features/living-workspace/UnifiedMoneyTool.tsx'
       - 'tests/gate5b-approved-integration.test.mjs'
       - 'tests/gate5b-approved-browser.mjs'
+      - 'tests/day1-gate-d-identity-browser.mjs'
       - '.github/workflows/gate5b-approved-integration.yml'
   workflow_dispatch:
 
@@ -70,10 +71,13 @@ jobs:
           done
           curl -sf http://127.0.0.1:4173/ > /dev/null
           node tests/gate5b-approved-browser.mjs
+          node tests/day1-gate-d-identity-browser.mjs
       - name: Preserve synthetic owner-review screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gate5b-approved-desktop-mobile
-          path: artifacts/gate5b-approved/*.png
+          path: |
+            artifacts/gate5b-approved/*.png
+            artifacts/gate-d-identity/*.png
           if-no-files-found: warn
