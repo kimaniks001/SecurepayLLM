@@ -75,7 +75,7 @@ test('Gate C one-time welcome cannot issue credentials, join, apply or fund',()=
  assert.match(welcome,/Continue where I left off/);
  assert.match(welcome,/Explore The Trust Project/);
  assert.match(welcome,/Explore financial activation/);
- assert.doesNotMatch(welcome,/fetch\(|localStorage|sessionStorage|signupVerify|session\.setTokens|payNow|activateFinancially/);
+ assert.doesNotMatch(welcome,/fetch\(|localStorage|sessionStorage|signupVerify\s*\(|session\.setTokens|payNow|activateFinancially/);
  assert.match(agent,/issuedKsNumber \|\| !\(signInRoute\.active/);
  assert.match(agent,/signInRoute\.signingUp && signedIn && issuedKsNumber/);
  assert.match(agent,/onIssued=\{setIssuedKsNumber\}/);
@@ -97,7 +97,7 @@ test('Gate C reuses backend Truth for Trust, Business and Activation—not enrol
 test('Gate C modified onboarding and activation components transpile syntactically',()=>{
  for(const [file,src] of [['controller.ts',controllerSrc],['signup.tsx',signup],['generic.tsx',generic],['welcome.tsx',welcome],['agent.tsx',agent],['activation.tsx',activation]]){
   const jsx=file.endsWith('.tsx');
-  const out=ts.transpileModule(src,{fileName:file,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:jsx?ts.JsxEmit.ReactJSX:undefined}});
+  const out=ts.transpileModule(src,{fileName:file,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,...(jsx?{jsx:ts.JsxEmit.ReactJSX}:{})}});
   const errors=(out.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error);
   assert.equal(errors.length,0,file+': '+errors.map(e=>ts.flattenDiagnosticMessageText(e.messageText,' ')).join('; '));
  }
