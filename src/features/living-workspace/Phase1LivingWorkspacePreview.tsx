@@ -47,7 +47,7 @@ const tools = [
   { name: 'Date & Time', icon: CalendarDays, description: 'Set a day, range, repeat or condition', group: 'add' },
   { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
   { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
-  { name: 'Money', icon: Wallet, description: 'Review Agreement money', group: 'do' },
+  { name: 'Money', icon: Wallet, description: 'Fund Agreements in My Work; plan possibilities in Vision', group: 'do' },
 ] as const;
 const areaLabels: Record<Mode,string> = {
   work: 'My Work · Agreement',
@@ -244,7 +244,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [shelfPinned,setShelfPinned] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(shelfPinned);
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
+    ? ['Photos','Documents','Places','Stores','Money'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -540,7 +540,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Money'?<UnifiedMoneyTool
-                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
+                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} context={mode==='vision'?'vision':'work'}
                     onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
                     onOpenAgreementMoney={(agreement,railCode)=>{
                       if(railCode)setMoneyRailPreference({agreementId:agreement.agreementId,railCode});
