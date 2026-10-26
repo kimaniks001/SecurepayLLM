@@ -23,13 +23,14 @@ test('Day 1 legacy-review regression: canonical Agreement reader remains inside 
   assert.match(shell,/<LiveKs001Session controller=\{liveController!\}/);
 });
 
-test('Day 1 review inspection cannot create Agreement, invite parties or activate Money',()=>{
+test('Day 1 review remains non-consequential until explicit versioned handoff',()=>{
   assert.match(review,/setUpAvailable\?: boolean/);
   assert.match(review,/setUpAvailable && <button/);
   assert.match(review,/setUpAvailable && setUp/);
-  assert.match(shell,/setUpAvailable=\{false\}/);
-  assert.match(shell,/onSetUp=\{\(\)=>\{\}\}/);
-  assert.match(review,/Keeping, sharing, inviting and Money require their own authorised Agreement actions/);
+  assert.match(shell,/setUpAvailable=\{!!signedIn && !!handoffController && !!handoffIdentity\}/);
+  assert.match(shell,/formationState\?\.data\?\.confirmable/);
+  assert.match(shell,/handoffController\.start\(liveConversationId,version\)/);
+  assert.match(shell,/<HandoffPanel handoff=\{handoffController\} identity=\{handoffIdentity\}/);
   assert.match(shell,/submitCorrection\(liveController,text\)/);
   assert.match(shell,/retryPending\(liveController\)/);
 });
