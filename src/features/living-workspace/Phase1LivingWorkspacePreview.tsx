@@ -687,6 +687,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               setUpAvailable={!!handoffController&&!!handoffIdentity}
               setUp={handoffController&&handoffIdentity&&workspaceGateways
                 ? <HandoffPanel handoff={handoffController} identity={handoffIdentity} onDone={()=>setDraftReviewOpen(false)}
+                   openAgreementLabel="Open Agreement in My Work"
                    agreementGateway={workspaceGateways.agreements}
                    onOpenAgreement={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>
                 : null}
