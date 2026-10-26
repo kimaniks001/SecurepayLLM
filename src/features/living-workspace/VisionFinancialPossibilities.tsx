@@ -33,16 +33,17 @@ export function VisionFinancialPossibilities({onAddToVision}:{onAddToVision?:(no
  const horizon=finiteAmount(years,50);
  const assumption=finiteAmount(rate,30);
  const valid=amount!==null&&horizon!==null&&horizon>0&&assumption!==null;
- const forecast=valid?visionScenario(amount!,horizon!,assumption!):null;
+ const savingsMode=option==='bank'||option==='mmf'||option==='sacco';
+ const forecast=valid?visionScenario(amount!,horizon!,savingsMode?assumption!:0):null;
  const selected=options.find(x=>x.id===option)!;
  const money=(n:number)=>'KES '+n.toLocaleString('en-KE',{maximumFractionDigits:0});
  const add=()=>{
   if(!onAddToVision||!forecast||amount===null||horizon===null||assumption===null){setError('Enter valid planning assumptions before adding the possibility.');return;}
   const note=['FINANCIAL POSSIBILITY — NOT AN OFFER OR AGREEMENT',
     selected.label,'Monthly planning amount: '+money(amount),
-    'Time horizon: '+horizon+' years','User-chosen illustration: '+assumption+'% annually (not a quoted yield)',
+    'Time horizon: '+horizon+' years','User-chosen illustration: '+(savingsMode?assumption:0)+'% annually (not a quoted yield)',
     'Total deposits/budget: '+money(forecast.contributed),
-    'Illustrative end value (monthly compounding; end-month contributions): '+money(forecast.projected),
+    (savingsMode?'Illustrative end value (monthly compounding; end-month contributions): ':'Long-term budget only (not a loan offer or policy premium): ')+money(forecast.projected),
     'Assumptions only. Verify institution, eligibility, costs, taxes, liquidity, rate changes and risk before deciding.',
     'No financing, insurance cover, investment, deposit or payment has been initiated.'].join('\n');
   onAddToVision(note);
@@ -63,13 +64,13 @@ export function VisionFinancialPossibilities({onAddToVision}:{onAddToVision?:(no
     onChange={e=>setMonthly(e.target.value)} className="mt-1 w-full rounded-xl border border-cream-200 p-3"/></label>
    <label className="text-xs font-medium">Years<input aria-label="Planning years" inputMode="decimal" value={years}
     onChange={e=>setYears(e.target.value)} className="mt-1 w-full rounded-xl border border-cream-200 p-3"/></label>
-   <label className="text-xs font-medium">Illustrative rate % yearly<input aria-label="Illustrative annual rate" inputMode="decimal" value={rate}
+   <label className="text-xs font-medium">{savingsMode?'Illustrative rate % yearly':'Growth rate not applicable'}<input aria-label="Illustrative annual rate" inputMode="decimal" value={savingsMode?rate:'0'} disabled={!savingsMode}
     onChange={e=>setRate(e.target.value)} className="mt-1 w-full rounded-xl border border-cream-200 p-3"/></label>
   </div>
   {forecast?<div className="rounded-xl bg-cream-50 p-3 text-sm" data-gate-b-vision-projection>
     <div className="flex justify-between gap-3"><span>Your total contributions/budget</span><strong>{money(forecast.contributed)}</strong></div>
-    <div className="mt-2 flex justify-between gap-3"><span>Illustrative end amount</span><strong>{money(forecast.projected)}</strong></div>
-    <p className="mt-2 text-xs text-sand-600">{assumption===0?'Zero growth assumed.':'Your chosen rate is only a hypothetical constant; it is not a quoted MMF or bank return.'} The example ignores fees, taxes, inflation and rate changes. For borrowing or protection this is a savings/budget illustration, not loan repayment or a premium quote.</p>
+    <div className="mt-2 flex justify-between gap-3"><span>{savingsMode?'Illustrative end amount':'Long-term budget'}</span><strong>{money(forecast.projected)}</strong></div>
+    <p className="mt-2 text-xs text-sand-600">{!savingsMode?'This is spending capacity over time only, not a loan repayment calculation, policy premium or cover quote.':assumption===0?'Zero growth assumed.':'Your chosen rate is hypothetical, not a quoted MMF or bank return.'} This illustration ignores fees, taxes, inflation and rate changes.</p>
   </div>:<p role="alert" className="text-xs text-amber-800">Enter a non-negative amount, 0–30% illustration and a horizon above zero up to 50 years.</p>}
   {onAddToVision?<button type="button" disabled={!valid} onClick={add} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-xs font-semibold text-white disabled:opacity-40">Add this possibility to my Dream board (unsaved)</button>
    :<p className="rounded-xl bg-cream-50 p-3 text-xs text-sand-700">Open your own Dream board to add this plan and save it with your existing SecurePay Vision revision.</p>}
