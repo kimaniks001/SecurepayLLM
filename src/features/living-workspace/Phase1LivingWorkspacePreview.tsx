@@ -73,8 +73,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return (match?.[1] as Mode | undefined)??'work';
   };
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [signInOpen,setSignInOpen]=useState(false);
-  const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>('signin');
+  const [signInOpen,setSignInOpen]=useState(()=>typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash));
+  const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>(()=>typeof window!=='undefined' && /^#\/?sign-up\/?$/.test(window.location.hash)?'signup':'signin');
   const openIdentity=(intent:'signin'|'signup'='signin')=>{setIdentityIntent(intent);setSignInOpen(true);};
   // Pure client-side illustration, intentionally separate from the real SessionStore.
   // Retired mock sign-in is deliberately inaccessible in this production candidate.
@@ -386,7 +386,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
   };
-  const closeIdentity=()=>setSignInOpen(false);
+  const closeIdentity=()=>{
+    setSignInOpen(false);
+    // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
+    if(typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash))
+      window.location.hash='#/preview/living-workspace/work';
+  };
   return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
