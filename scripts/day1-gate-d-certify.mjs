@@ -20,6 +20,9 @@ const files = Object.fromEntries([
  ['rails','src/features/living-workspace/MoneyRailCeremony.tsx'],
  ['active','src/features/living-workspace/AgreementDiscovery.tsx'],
  ['writtenEvidence','src/features/living-workspace/AgreementStatementEvidence.tsx'],
+ ['mediaEvidence','src/features/living-workspace/AgreementMediaEvidence.tsx'],
+ ['mediaApi','src/api/securepay/agreements/index.ts'],
+ ['mediaRoute','src/features/living-workspace/previewWorkspaceGateways.ts'],
  ['invitation','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx'],
  ['vision','src/features/living-workspace/VisionFinancialPossibilities.tsx'],
  ['activation','src/features/activation/ActivationExperience.tsx'],
@@ -91,11 +94,21 @@ source('D09','Active Agreement task-first and genuine version-bound written evid
   /expectedObligationVersion:current.stateVersion/.test(files.writtenEvidence) &&
   /idempotencyKey:crypto.randomUUID\(\)/.test(files.writtenEvidence),
   'Real TEXT_STATEMENT submission with obligation/version/idempotency; not an uploaded photo or proof of review/completion.', ['src/features/living-workspace/AgreementDiscovery.tsx','src/features/living-workspace/AgreementStatementEvidence.tsx']);
-source('D16','Private captioned photo/document upload stored and bound to an obligation',
-  /data-gate-d-real-obligation-media-upload/.test(files.active) &&
-  /verifiedUploadReceipt/.test(files.active),
-  'BLOCKED: SecurePay Agreement API accepts a participant-declared file reference + hash but does not store or verify obligation media bytes. Requires API #345 with authenticated, durable bytes, immutable digest and role-limited retrieval; no handoff-place photo shortcut.',
-  ['SecurePayAPI issue #345','src/features/living-workspace/AgreementDiscovery.tsx']);
+source('D16','Isolated-staging photo/PDF UI, verifiable upload receipt and explicit canonical evidence submit are present in source',
+  /<AgreementMediaEvidence gateway=\{gateways\.media\}/.test(files.active) &&
+  /mediaStagingReady && gateways\?\.media/.test(files.active) &&
+  /data-gate-d-real-obligation-media-upload/.test(files.mediaEvidence) &&
+  /gateway\.uploadVerifiedMedia\(/.test(files.mediaEvidence) &&
+  /gateway\.submitVerifiedMediaEvidence\(/.test(files.mediaEvidence) &&
+  /gateway\.readVerifiedMedia\(/.test(files.mediaEvidence) &&
+  /return null/.test(files.mediaRoute) &&
+  /if \(origin === 'https:\/\/securepay\.ke'\)/.test(files.mediaRoute) &&
+  /submitVerifiedMediaEvidence:/.test(files.mediaApi),
+  'UI-only source contract is present on media PR #174. Actual SecurePayAPI issue #345 provider storage/scanner/auth and full private media approval are separate staging dependencies; source is NOT acceptance.',
+  ['src/features/living-workspace/AgreementMediaEvidence.tsx','src/features/living-workspace/previewWorkspaceGateways.ts','SecurePayAPI issue #345']);
+staging('D16-S','Real private photo/PDF evidence uploads, original-byte retrieval and role-safe review',
+  'Prove exact API PR #346 and UI PR #174 SHA in isolated staging: encrypted private bucket, clamd, PostgreSQL, approved preview CORS, authorised upload->submission->review, wrong participant/Agreement rejects, idempotent retry, bad MIME, interrupted upload, storage mismatch and cleanup. Evidence review and Money remain separate. Do not mark source-only D16 as release-ready.',
+  ['SecurePayAPI issue #345','SecurePayAPI PR #346','SecurepayLLM PR #174']);
 source('D10','Financial activation shows actual authority stages',
   /data-gate-c-activation-progress/.test(files.activation) &&
   /funding\?\.financiallyEnabled/.test(files.activation) &&
