@@ -277,7 +277,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // The existing live KS001 controller stays mounted and retains the original conversation.
   const [draftReviewOpen, setDraftReviewOpen] = useState(false);
   // If server truth changes or a refresh fails, do not leave a blank centre behind a stale reader.
-  const showDraftReview = draftReviewOpen && mode==='work' && liveStarted && !uiOnlyPreview &&
+  const showDraftReview = draftReviewOpen && !createdAgreementId && mode==='work' && liveStarted && !uiOnlyPreview &&
     !!liveController && !!formationController && formationState?.status==='ready' &&
     !formationState.error && formationState.data?.conversationId===liveConversationId &&
     !!formationState.data.reviewable;
