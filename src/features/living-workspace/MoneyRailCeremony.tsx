@@ -10,9 +10,9 @@ const examples:AgreementFundingOptionResponse[]=[
 ];
 const isMobile=(name:string)=>name.toLowerCase().includes('mpesa')||name.toLowerCase().includes('m-pesa');
 export function MoneyRailCeremony({
-  agreementTitle, options, sample, onProceed,
+  agreementTitle, options, sample, quoteAllowed=true, onProceed,
 }:{
-  agreementTitle:string;options:AgreementFundingOptionResponse[];sample:boolean;
+  agreementTitle:string;options:AgreementFundingOptionResponse[];sample:boolean;quoteAllowed?:boolean;
   /** A selection is a preference only, not a payment authority, quote or provider appointment. */
   onProceed:(railCode:string)=>void;
 }){
@@ -59,10 +59,11 @@ export function MoneyRailCeremony({
     </dl>
     <div className="flex items-start gap-2 text-xs leading-5 text-sand-700"><CircleHelp size={16} className="mt-0.5 shrink-0"/><p>The rail is not itself a named bank, guarantor or insurer. SecurePay must establish which institution performs which regulated service before final authorisation. No provider responsibility is being assumed here.</p></div>
     {sample?<p className="rounded-lg bg-white p-2 text-xs">Example only: the next real step would be an Agreement-bound provider quotation, showing named institutional responsibility when available, prices and terms before consent.</p>:
-      <button type="button" disabled={!selected.quoteAvailable} onClick={()=>onProceed(selected.railCode)}
+      <button type="button" disabled={!selected.quoteAvailable||!quoteAllowed} onClick={()=>onProceed(selected.railCode)}
        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">
        Review verified terms in Money <ArrowRight size={16}/>
       </button>}
+    {!sample&&!quoteAllowed&&<p className="text-xs text-sand-600">SecurePay has not authorised quotation for this Agreement version. You can inspect options but cannot continue to quotation yet.</p>}
     {!sample&&!selected.quoteAvailable&&<p className="text-xs text-sand-600">This rail has no authoritative quote step at present. You can compare other eligible options instead.</p>}
   </div>}
   <div className="flex items-start gap-2 border-t border-cream-200 pt-3 text-xs text-sand-600"><ShieldCheck size={17} className="mt-0.5 shrink-0"/><p>Selection → verify provider and quote → examine other options → explicitly authorise. No payment occurs in this preview.</p></div>
