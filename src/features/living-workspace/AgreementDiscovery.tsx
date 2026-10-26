@@ -24,10 +24,13 @@ const message = 'SecurePay could not verify this record for your current identit
  * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
  * existing Agreement authority never unmount, mutate, or switch route on open/close.
  */
-export function AgreementDiscovery({gateways,session,onSignIn}:{
+export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,onAgreementClosed}:{
   gateways?:PreviewWorkspaceGateways;
   session:SessionStore;
   onSignIn:()=>void;
+  /** Only a confirmed server-generated draft ID from canonical handoff may be passed here. */
+  openAgreementId?:string|null;
+  onAgreementClosed?:()=>void;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn=identity.status==='signed-in';
@@ -39,6 +42,12 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
   const [fullId,setFullId]=useState<string|null>(null);
   const [tab,setTab]=useState<Tab>('Overview');
   const [detail,setDetail]=useState<DetailState>(emptyDetail);
+  useEffect(()=>{
+    if(openAgreementId && signedIn) {
+      // Read-only opening still requires the server's current identity, details and permissions.
+      setExpanded(true);setChosenId(openAgreementId);setFullId(openAgreementId);setTab('Overview');
+    }
+  },[openAgreementId,signedIn]);
   const closeButton=useRef<HTMLButtonElement>(null);
   const dialogRef=useRef<HTMLDivElement>(null);
   const returnFocus=useRef<HTMLElement|null>(null);
@@ -74,7 +83,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
   useEffect(()=>{
     let active=true;
     setDetail({owner:identity,id:requestedDetail,phase:requestedDetail?'loading':'idle',value:null});
-    if(requestedDetail && signedIn && gateways && canUse && index.items.some(a=>a.agreementId===requestedDetail)){
+    if(requestedDetail && signedIn && gateways && canUse && (index.items.some(a=>a.agreementId===requestedDetail) || openAgreementId===requestedDetail)){
       void (async()=>{
         try{
           await ensureFreshSession(session,gateways.auth);
@@ -90,13 +99,13 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
       })();
     }
     return ()=>{active=false;};
-  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items]);
+  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items,openAgreementId]);
 
   useEffect(()=>{
     if(!fullId)return;
     closeButton.current?.focus();
     const onEscape=(event:KeyboardEvent)=>{
-      if(event.key==='Escape'){event.preventDefault();setFullId(null);window.requestAnimationFrame(()=>returnFocus.current?.focus());return;}
+      if(event.key==='Escape'){event.preventDefault();setFullId(null);onAgreementClosed?.();window.requestAnimationFrame(()=>returnFocus.current?.focus());return;}
       if(event.key!=='Tab')return;
       const focusable=Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')||[]);
       if(!focusable.length)return;
@@ -114,6 +123,7 @@ export function AgreementDiscovery({gateways,session,onSignIn}:{
   };
   const closeFull=()=>{
     setFullId(null);setChosenId(null);setHoverId(null);
+    onAgreementClosed?.();
     window.requestAnimationFrame(()=>returnFocus.current?.focus());
   };
   const peek=(id:string)=>{
