@@ -308,14 +308,15 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // one in-memory origin + intent (signInRoute), so a KS Number created there returns the person to the
   // same place Sign in would have. Join owns its own continuation and never uses it.
   const joinRoute = useJoinRoute();
-  // Transient, server-issued public KS Number only. Never saved to URL, localStorage or a second session.
+  // Transient, server-issued public KS Number only. Never saved to the URL, browser persistence or a second session.
   const [issuedKsNumber, setIssuedKsNumber] = useState<string|null>(null);
   const [pendingSection, setPendingSection] = useState<PublicSectionId | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
   // Once SecurePay confirms the person, leave Sign in for where they came from, or the area they asked
   // for. A signed-in person who lands on #/sign-in is simply returned too.
   useEffect(() => {
-    if (!signedIn || issuedKsNumber || !(signInRoute.active || signInRoute.signingUp)) return;
+    if (issuedKsNumber) return; // The owner must first acknowledge their server-issued KS Number.
+    if (!signedIn || !(signInRoute.active || signInRoute.signingUp)) return;
     const intent = signInRoute.close();
     if (intent) navigateTo(intent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
