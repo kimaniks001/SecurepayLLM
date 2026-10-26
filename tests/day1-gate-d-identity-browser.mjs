@@ -21,8 +21,8 @@ try{
       await page.getByRole('button',{name:'Get KS Number',exact:true}).click();
       const modal=page.getByRole('dialog');
       await modal.waitFor({state:'visible'});
-      const unavailable=(await modal.locator('[data-gate-d-signup-staging-hold]').count())+
-        (await modal.locator('[data-gate-d-identity-not-connected]').count());
+      const unavailable=(await page.locator('[data-gate-d-signup-staging-hold]').count())+
+        (await page.locator('[data-gate-d-identity-not-connected]').count());
       assert.ok(unavailable>0,'No isolated identity backend: show safe disabled state, never a signup request');
       assert.equal(await page.locator('[data-workspace-shell]').count(),1,'Workspace must stay mounted under signup');
       await page.screenshot({path:'artifacts/gate-d-identity/'+label+'-signup.png',fullPage:true});
