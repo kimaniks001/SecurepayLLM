@@ -7,6 +7,7 @@ import { humanAgreementStatus } from './MoneyAgreementCards';
 import { Phase7MoneyJourneyPreview, Phase7MoneySnapshotReview } from './Phase7MoneyJourney';
 import { workspacePurpose } from './workspacePurpose';
 import { MoneyPartnerFacts } from './MoneyPartnerFacts';
+import { VisionFinancialPossibilities } from './VisionFinancialPossibilities';
 
 type Door='my'|'borrow'|'invest'|'protect';
 type AgreementsState={state:'idle'|'loading'|'ready'|'error';items:CurrentUserAgreementSummaryResponse[]};
@@ -29,9 +30,10 @@ function BriefAmount({agreement}:{agreement:CurrentUserAgreementSummaryResponse}
 }
 
 /** Small companion tool, not a second Money page. Financial authority stays with canonical Money. */
-export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001}:{
+export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgreementMoney,onReviewAgreement,onAskKs001,area='work'}:{
  gateways?:PreviewWorkspaceGateways;
  signedIn?:boolean;
+ area?:'work'|'vision';
  onOpenMoney:()=>void;
  onOpenAgreementMoney:(agreement:CurrentUserAgreementSummaryResponse,railCode?:string)=>void;
  onReviewAgreement:(agreementId:string)=>void;
@@ -77,15 +79,16 @@ export function UnifiedMoneyTool({gateways,signedIn=false,onOpenMoney,onOpenAgre
      setError('KS001 could not confirm the conversation. Check your work before retrying.');
    }finally{setBusy(false);}
  }
+ if(area==='vision')return <VisionFinancialPossibilities/>;
  return <section aria-label="Money tool" className="sp-brand-money space-y-3 p-1 text-sm" data-testid="compact-money-tool">
-  <p data-approved-gate5b-money-purpose className="rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs leading-5 text-sand-700">{moneyPurpose.intro}</p>
-  <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
+  <p data-approved-gate5b-money-purpose className="rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs leading-5 text-sand-700">My Work · Money settles and funds an Agreement. Borrowing, investing and protection are explored as possibilities in Vision. {moneyPurpose.intro}</p>
+  {false && <nav aria-label="Money choices" className="grid grid-cols-4 gap-1 rounded-2xl bg-cream-50 p-1">
    {doors.map(item=><button key={item.id} type="button" onClick={()=>setDoor(item.id)}
      aria-pressed={door===item.id}
      className={'flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-center '+(door===item.id?'bg-forest-800 text-white':'bg-white text-forest-800')}>
      <item.icon size={18}/><span className="text-[11px] font-semibold">{item.title}</span>
    </button>)}
-  </nav>
+  </nav>}
   {door==='my'?<div className="space-y-3">
     <div className="flex items-center justify-between gap-2">
       <h2 className="font-display text-lg text-forest-900">My Agreements</h2>
