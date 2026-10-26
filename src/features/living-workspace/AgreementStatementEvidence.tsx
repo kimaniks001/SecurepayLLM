@@ -88,7 +88,14 @@ export function AgreementStatementEvidence({gateway,auth,session,agreementId,ver
         <button type="button" disabled={busy} onClick={()=>void send(pending)}
           className="min-h-11 rounded-xl border border-forest-300 bg-white px-4 text-sm font-semibold text-forest-900 disabled:opacity-50">Retry exact submission</button>}
       {outcome&&<p role="status" className="rounded-lg bg-white p-3 text-sm">{outcome}</p>}
-      {knownEvidence.length>0&&<p className="text-xs text-sand-700">SecurePay returned {knownEvidence.length} evidence record(s) for this obligation. Review status and approval are separate.</p>}
+      {knownEvidence.length>0&&<div className="space-y-2" data-gate-d-statement-evidence-status>
+        <p className="text-xs font-semibold text-forest-800">SecurePay's recorded evidence for this obligation</p>
+        {knownEvidence.map(item=><article key={item.id} className="rounded-lg border border-cream-200 bg-white p-3">
+          <p className="break-words text-xs font-semibold text-forest-900">{item.description||'Evidence statement'}</p>
+          <p className="mt-1 text-xs text-sand-700">Submission: {item.status} · Review: {item.reviewState||'Not returned'}</p>
+          <p className="mt-1 text-xs text-sand-600">This is recorded evidence, not proof the work is completed or Money can move.</p>
+        </article>)}
+      </div>}
     </>}
   </section>;
 }
