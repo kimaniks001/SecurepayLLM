@@ -6,7 +6,7 @@ import { VisionFinancialPossibilities } from './VisionFinancialPossibilities';
 import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
 import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
-import { SignInExperience } from '../public/SignInExperience';
+import { WorkspaceIdentityOverlay } from './WorkspaceIdentityOverlay';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import { AgreementDiscovery } from './AgreementDiscovery';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
@@ -60,10 +60,12 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session }: {
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
   session: SessionStore;
+  /** Identity write operations must be backed by isolated, configured staging. */
+  identityStagingReady?: boolean;
 }) {
   const initialMode=():Mode=>{
     if(typeof window==='undefined')return 'work';
@@ -362,14 +364,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
   };
-  if(signInOpen && workspaceGateways){
-    return <SignInExperience
-      auth={workspaceGateways.auth} session={session}
-      onSignedIn={()=>setSignInOpen(false)} onCancel={()=>setSignInOpen(false)}
-      onRecover={()=>{setSignInOpen(false);window.location.hash='#/recovery';}}
-      onGetKsNumber={()=>{setSignInOpen(false);window.location.hash='#/sign-up';}}
-    />;
-  }
+  const closeIdentity=()=>setSignInOpen(false);
   return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
       <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-3">
@@ -744,5 +739,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     </div>}
     {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
+    {signInOpen && workspaceGateways && <WorkspaceIdentityOverlay
+      auth={workspaceGateways.auth} session={session} identityStagingReady={identityStagingReady}
+      onDone={closeIdentity}
+      onChooseVision={()=>chooseMode('vision')}
+      onJoin={()=>{window.location.hash='#/join';}}
+      onBusiness={()=>{window.location.hash='#/business';}}
+      onActivation={()=>{window.location.hash='#/activate';}}
+    />}
   </main>;
 }
