@@ -386,13 +386,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>
       </div>
     </header>
-    {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
-      ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
-          <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
-            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
-             onContinueToWork={continueVisionToWork}/>
-        </div>
-      : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
+    {signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}
@@ -662,6 +656,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
           </div>}
+        {mode==='vision' && signedIn && workspaceGateways && editingDreamId &&
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
+            <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
+              session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
+              onContinueToWork={continueVisionToWork}/>
+          </div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
@@ -680,6 +680,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             }}/>
         </div>}
        {!(mode==='community' && (!signedIn || workspaceGateways)) &&
+         !(mode==='vision' && signedIn && editingDreamId) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -698,7 +699,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
-              onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
+              onEditDream={id=>{setEditingDreamId(id);setScreen('chat');}} onOpenCircleBoard={setWorkingCircleId}/>
           : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
               onEditStorePlan={()=>openTool('Stores')}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
@@ -739,7 +740,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
   </main>;
 }
