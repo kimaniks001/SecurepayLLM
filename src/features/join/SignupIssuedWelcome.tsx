@@ -5,9 +5,10 @@ import { CheckCircle2, ArrowRight, ShieldCheck } from 'lucide-react';
  * The canonical session store is already authenticated. Nothing in this component
  * joins Community, creates Business authority, accepts a contract or activates Money.
  */
-export function SignupIssuedWelcome({ksNumber,onContinue,onVision,onJoin,onBusiness,onActivation}:{
+export function SignupIssuedWelcome({ksNumber,onContinue,onVision,onJoin,onBusiness,onActivation,continueLabel='Continue where I left off'}:{
   ksNumber:string;
   onContinue:()=>void;
+  continueLabel?:string;
   onVision:()=>void;
   onJoin:()=>void;
   onBusiness:()=>void;
@@ -31,7 +32,7 @@ export function SignupIssuedWelcome({ksNumber,onContinue,onVision,onJoin,onBusin
         </div>
         <button type="button" onClick={onContinue}
           className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white hover:bg-forest-900">
-          Continue where I left off <ArrowRight size={17} aria-hidden="true"/>
+          {continueLabel} <ArrowRight size={17} aria-hidden="true"/>
         </button>
       </div>
       <section aria-label="Other things you may choose later" className="rounded-2xl border border-cream-200 bg-white p-5">
