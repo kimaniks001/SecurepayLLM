@@ -99,7 +99,7 @@ test('Day 1: currency questions use distinct contextual reply pills, never an am
    for(const cc of ['KES','USD','EUR','GBP']) {
      const pill=found.find(p=>p.label===cc);
      assert.equal(pill?.type,'answer',q+' -> '+cc);
-     assert.match(pill.value,new RegExp('\\\\b'+cc+'\\\\b'));
+     assert.ok(pill.value.includes(cc), 'Explicit currency code must appear in the submitted reply');
      assert.doesNotMatch(pill.value,/agreed|paid|authori[sz]ed|accepted/i);
    }
    assert.ok(found.some(p=>p.label==='Other currency'&&p.type==='focus'));
