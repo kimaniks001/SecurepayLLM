@@ -57,7 +57,7 @@ test('Day 1 question classification does not confuse currency with amount',()=>{
   for(const q of cases){
     assert.equal(exports.questionIntent(q),'currency',q);
     const pills=exports.answerActions(q);
-    assert.deepEqual(pills.filter(a=>a.type==='answer'&&['KES','USD','EUR','GBP'].includes(a.label)).map(a=>a.label),['KES','USD','EUR','GBP']);
+    assert.equal(pills.filter(a=>a.type==='answer'&&['KES','USD','EUR','GBP'].includes(a.label)).map(a=>a.label).join(','),'KES,USD,EUR,GBP');
     assert.ok(pills.some(a=>a.label==='Other currency'&&a.type==='focus'));
     assert.ok(!pills.some(a=>a.kind==='money'));
   }
