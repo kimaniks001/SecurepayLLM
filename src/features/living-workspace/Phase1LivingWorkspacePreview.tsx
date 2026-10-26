@@ -346,6 +346,26 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setDraftRevision(value=>value+1);
     setLiveStarted(true);setLiveWork(true);
   };
+  // Local, unsigned proposals are retained after sign-in, never silently sent or
+  // imported as facts. The user explicitly chooses which text to review with KS001.
+  const prepareLocalNoteForKs001=async(text:string)=>{
+    if(!signedIn || !liveController || !gateway)throw new Error('Sign in and connect KS001 first.');
+    if(liveController.getSnapshot().busy || liveController.getSnapshot().pending)
+      throw new Error('Finish the previous KS001 action before bringing in a local note.');
+    let id=liveController.getSnapshot().conversationId;
+    if(!id){
+      const created=await gateway.createConversation();
+      if(!created?.conversationId)throw new Error('Could not start your KS001 conversation.');
+      await liveController.resumeConversation(created.conversationId);
+      if(!authorisedResumedConversation(created.conversationId,liveController.getSnapshot()))
+        throw new Error('The KS001 conversation has not been authorised for your identity.');
+      id=created.conversationId;
+    }
+    if(readDraft(id).trim())throw new Error('Your KS001 composer already contains unsent work. Review it first.');
+    writeDraft(id,text);
+    setLiveStarted(true);setLiveWork(true);setScreen('chat');setDraftRevision(n=>n+1);
+    setReturnError('Your earlier local note is ready in KS001. Review it before sending. Images and attachments have not been uploaded.');
+  };
   const continueCircleToWork = async(text:string)=>{
     if(!signedIn || !liveController || !gateway)
       throw new Error('Sign in and connect KS001 before bringing a Circle proposal into My Work.');
@@ -695,6 +715,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {mode==='work' && signedIn && previewNotes.length>0 && <section
+          data-gate-d-no-loss-guest-proposals aria-label="Your notes from before signing in"
+          className="mb-3 space-y-3 rounded-xl border border-forest-200 bg-cream-50 p-3">
+          <h3 className="font-display text-lg text-forest-900">Your earlier notes are still here</h3>
+          <p className="text-xs leading-5 text-sand-700">These were local proposals before sign-in, not server-saved Agreements. Choose a note to prepare in KS001. Nothing is sent automatically, and images must be uploaded separately.</p>
+          {previewNotes.map(note=><div key={note.id} className="rounded-xl bg-white p-3">
+            <p className="whitespace-pre-wrap break-words text-xs text-forest-900">{note.text}</p>
+            <button type="button" onClick={()=>{void prepareLocalNoteForKs001(note.text).catch(error=>setReturnError(error instanceof Error?error.message:'Could not prepare the note'));}}
+              className="mt-2 min-h-11 rounded-lg border border-forest-200 px-3 text-xs font-semibold text-forest-800">Prepare in KS001 (review before sending)</button>
+          </div>)}
+        </section>}
         {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
