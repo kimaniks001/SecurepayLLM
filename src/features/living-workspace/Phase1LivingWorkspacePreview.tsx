@@ -74,6 +74,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const [mode, setMode] = useState<Mode>(initialMode);
   const [signInOpen,setSignInOpen]=useState(false);
+  const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>('signin');
+  const openIdentity=(intent:'signin'|'signup'='signin')=>{setIdentityIntent(intent);setSignInOpen(true);};
   // Pure client-side illustration, intentionally separate from the real SessionStore.
   // Retired mock sign-in is deliberately inaccessible in this production candidate.
   // The historical screenshot preview remains preserved at its original commit.
@@ -375,8 +377,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </nav>
         <div className="flex flex-wrap items-center gap-2">
           {!signedIn && workspaceGateways
-            ? <button type="button" onClick={()=>setSignInOpen(true)}
+            ? <><button type="button" onClick={()=>openIdentity('signin')}
                 className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-800 hover:bg-cream-50">Sign in</button>
+              <button type="button" onClick={()=>openIdentity('signup')} data-gate-d-get-ks-number
+                className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">Get KS Number</button></>
             : signedIn ? <span className="rounded-full bg-[#eaf2e9] px-3 py-2 text-xs font-medium text-forest-800">Your SecurePay workspace</span> : null}
           <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> SecurePay</a>
         </div>
@@ -740,6 +744,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
     {signInOpen && workspaceGateways && <WorkspaceIdentityOverlay
+      key={identityIntent} initialStage={identityIntent}
       auth={workspaceGateways.auth} session={session} identityStagingReady={identityStagingReady}
       onDone={closeIdentity}
       onChooseVision={()=>chooseMode('vision')}
