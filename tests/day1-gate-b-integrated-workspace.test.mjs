@@ -29,7 +29,8 @@ test('Gate B: existing masterpiece shell hosts Dream and active Agreement; same 
  assert.match(shell,/createIdentityController\(workspaceGateways\.auth,session\)/);
  assert.match(shell,/handoffController\.start\(liveConversationId,version\)/);
  assert.match(shell,/<HandoffPanel handoff=\{handoffController\}/);
- assert.match(shell,/setUpAvailable=\{!!handoffController&&!!handoffIdentity\}/);
+ assert.match(shell,/setUpAvailable=\{!!signedIn && !!handoffController && !!handoffIdentity\}/);
+ assert.match(shell,/formationState\?\.data\?\.confirmable/);
 });
 
 test('Gate B: My Work and Vision Money are distinct; no executable Vision rail',()=>{
