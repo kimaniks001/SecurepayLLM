@@ -4,6 +4,7 @@ import { ensureFreshSession, type SessionStore, type SessionState } from '../../
 import type { AgreementDetailResponse, CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import { AgreementStatementEvidence } from './AgreementStatementEvidence';
+import { AgreementInviteInsideWorkspace } from './AgreementInviteInsideWorkspace';
 
 type IndexState = { owner: SessionState | null; phase: 'idle'|'loading'|'ready'|'error'; items: CurrentUserAgreementSummaryResponse[]; total: number };
 type DetailState = { owner: SessionState | null; id: string | null; phase: 'idle'|'loading'|'ready'|'error'; value: AgreementDetailResponse | null };
@@ -24,19 +25,22 @@ const message = 'SecurePay could not verify this record for your current identit
  * Idle -> peek -> full is disclosure only. The KS001 controller, draft, tool shelf and
  * existing Agreement authority never unmount, mutate, or switch route on open/close.
  */
-export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,onAgreementClosed}:{
+export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,onAgreementClosed,onConnectMoney}:{
   gateways?:PreviewWorkspaceGateways;
   session:SessionStore;
   onSignIn:()=>void;
   /** Only a confirmed server-generated draft ID from canonical handoff may be passed here. */
   openAgreementId?:string|null;
   onAgreementClosed?:()=>void;
+  /** Opens the contextual, separately authorised Agreement Money tool, not payment execution. */
+  onConnectMoney?:(agreementId:string)=>void;
 }){
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn=identity.status==='signed-in';
   const [expanded,setExpanded]=useState(false);
   const [index,setIndex]=useState<IndexState>(emptyIndex);
   const [revision,setRevision]=useState(0);
+  const [detailRevision,setDetailRevision]=useState(0);
   const [hoverId,setHoverId]=useState<string|null>(null);
   const [chosenId,setChosenId]=useState<string|null>(null);
   const [fullId,setFullId]=useState<string|null>(null);
@@ -99,7 +103,7 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
       })();
     }
     return ()=>{active=false;};
-  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items,openAgreementId]);
+  },[identity,requestedDetail,signedIn,gateways,session,canUse,index.items,openAgreementId,detailRevision]);
 
   useEffect(()=>{
     if(!fullId)return;
@@ -205,7 +209,12 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
               <p className="text-sm">Proposed amount: {money(verified.overview.proposedAmountMinor,verified.overview.currency)}</p>
               <p className="text-sm">Current version: {verified.currentVersion?.versionNumber??'Not established'}</p>
               <p className="text-xs text-sand-600">Status and completeness are determined by SecurePay, not by this reader.</p></div>}
-            {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}</div>}
+            {tab==='People'&&<div className="space-y-2">{verified.participants.length?verified.participants.map(p=><article key={p.participantId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{p.displayName||p.ksNumber||'Participant'}</strong><p>{p.roleCode} · {p.participantStatus}</p></article>):<p>No participants returned.</p>}
+              {gateways&&<AgreementInviteInsideWorkspace key={verified.overview.agreementId}
+                gateway={gateways.agreements} auth={gateways.auth} session={session}
+                agreementId={verified.overview.agreementId} status={verified.overview.status}
+                onChanged={()=>setDetailRevision(n=>n+1)}/>}
+            </div>}
             {tab==='Terms'&&<div className="space-y-2">{verified.terms.length?verified.terms.map(t=><article key={t.obligationId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{t.title}</strong><p>{t.description||t.obligationType}</p><p className="text-xs text-sand-600">Status: {t.status}{t.amountMinor!==null?' · '+money(t.amountMinor,t.currency):''}</p></article>):<p>No terms returned.</p>}</div>}
             {tab==='Milestones'&&<div className="space-y-2">{verified.milestones.length?verified.milestones.map(m=><article key={m.milestoneId} className="rounded-lg border border-cream-200 p-3 text-sm"><strong>{m.title}</strong><p>{m.description}</p><p className="text-xs text-sand-600">{m.status}{m.dueAt?' · Due '+safeDate(m.dueAt):''}</p></article>):<p>No milestones returned.</p>}</div>}
             {tab==='Evidence'&&<div className="space-y-3">
@@ -221,7 +230,11 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
             </div>}
             {tab==='Money'&&<div className="space-y-3"><h3 className="font-semibold">Agreement money</h3><p className="text-sm">Server status: {verified.money.status}</p><p className="text-sm">Money records: {verified.money.moneyRecordCount}</p>
               {verified.money.outstandingReasons.map((r,i)=><p key={i} className="text-xs">{r.gateCode}: {r.reasonCode}</p>)}
-              <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p></div>}
+              <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p>
+              {onConnectMoney&&<button type="button" onClick={()=>{const id=verified.overview.agreementId;closeFull();onConnectMoney(id);}}
+                className="min-h-11 rounded-xl border border-forest-300 bg-cream-50 px-4 text-sm font-semibold text-forest-900" data-gate-d-connect-money>
+                Explore Agreement Money choices
+              </button>}</div>}
             {tab==='History'&&<div className="space-y-3"><h3 className="font-semibold">Version history</h3>{verified.versionHistory.length?verified.versionHistory.map(v=><p key={v.versionId} className="rounded-lg border border-cream-200 p-3 text-sm">Version {v.versionNumber} · {safeDate(v.createdAt)||'Date unavailable'}{v.amendmentReason?' · '+v.amendmentReason:''}</p>):<p>No version history returned.</p>}
               <h3 className="font-semibold">Activity</h3>{verified.activity.length?verified.activity.map(a=><p key={a.id} className="text-sm">{a.activityType} · {safeDate(a.occurredAt)||'Date unavailable'}</p>):<p>No activity returned.</p>}</div>}
           </>}
