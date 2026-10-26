@@ -5,12 +5,14 @@ import ts from 'typescript';
 
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const active=read('src/features/living-workspace/AgreementDiscovery.tsx');
+const activeWork=read('src/features/living-workspace/ActiveAgreementWorkspace.tsx');
 const statement=read('src/features/living-workspace/AgreementStatementEvidence.tsx');
 const api=read('src/api/securepay/agreements/index.ts');
 const preflight=read('scripts/day1-gate-d-certify.mjs');
 
 test('D09 written evidence belongs to a real current Agreement obligation; no fabricated acceptance',()=>{
- assert.match(active,/data-gate-b-active-attention/);
+ assert.match(activeWork,/data-gate-b-active-agreement/);
+ assert.match(activeWork,/myNextActions\(agreementId\)/);
  assert.match(active,/<AgreementStatementEvidence/);
  assert.match(statement,/data-gate-d-authorised-statement-evidence/);
  assert.match(statement,/gateway\.obligations\(agreementId\)/);
@@ -26,12 +28,14 @@ test('D09 written evidence belongs to a real current Agreement obligation; no fa
  assert.doesNotMatch(statement,/releaseMoney|authoriseRelease|completeObligation\(/);
 });
 
-test('D16 photo/document evidence cannot claim upload while Agreement API is declared-reference only',()=>{
- assert.match(api,/SecurePay has no file storage/);
- assert.match(active,/Photo and document uploads are not currently supported/);
+test('D16 private media requires approved staging and cannot impersonate canonical Agreement evidence',()=>{
+ assert.match(api,/submitVerifiedMediaEvidence:/);
+ assert.match(active,/mediaStagingReady && gateways\?\.media/);
+ assert.match(active,/<AgreementMediaEvidence gateway=\{gateways\.media\}/);
  assert.match(preflight,/source\('D16'/);
  assert.match(preflight,/SecurePayAPI issue #345/);
- assert.doesNotMatch(active,/data-gate-d-real-obligation-media-upload/);
+ assert.match(preflight,/staging\('D16-S'/);
+ assert.doesNotMatch(active,/releaseMoney\(|authoriseRelease\(/);
  assert.doesNotMatch(statement,/fetch\(.+multipart|FormData\(|readAsDataURL/);
 });
 test('D09 and D16 code transpile as valid TSX',()=>{
