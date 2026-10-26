@@ -1,0 +1,29 @@
+name: Day 1 Gate D — Fail-Closed End-to-End Certification
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/day1-gate-d-certify.mjs"
+      - "src/**"
+      - ".github/workflows/day1-gate-d-certification.yml"
+jobs:
+  certification-preflight:
+    name: Gate D acceptance — BLOCK when journeys or real staging evidence are missing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evaluate source and staging requirements (fail closed)
+        run: node scripts/day1-gate-d-certify.mjs --strict
+      - name: Publish assessment even when certification is blocked
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-d-qualification-${{ github.sha }}
+          path: |
+            gate-d-preflight.json
+            gate-d-preflight.md
+          if-no-files-found: warn
+          retention-days: 14
