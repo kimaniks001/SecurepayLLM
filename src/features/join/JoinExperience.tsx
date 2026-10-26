@@ -285,14 +285,15 @@ function JoinSignup({ auth, session, onUseExisting, onBack }: {
   return <SignupForm auth={auth} session={session} context="TRUST_PROJECT_JOIN" onUseExisting={onUseExisting} onBack={onBack} />;
 }
 
-export function SignupForm({ auth, session, context, onUseExisting, onBack }: {
+export function SignupForm({ auth, session, context, onUseExisting, onBack, onIssued }: {
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   context: 'GENERIC' | 'TRUST_PROJECT_JOIN';
   onUseExisting: () => void;
   onBack: () => void;
+  onIssued?: (ksNumber:string) => void;
 }) {
-  const [signup] = useState(() => createSignupController(auth, session, context));
+  const [signup] = useState(() => createSignupController(auth, session, context, onIssued));
   const state = useSyncExternalStore(signup.subscribe, signup.getSnapshot, signup.getSnapshot);
   const view = signupView(state, context);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -302,6 +303,10 @@ export function SignupForm({ auth, session, context, onUseExisting, onBack }: {
   };
   return (
     <div className="space-y-3" onKeyDown={onKeyDown} data-signup-context={context}>
+      <div aria-label="KS Number signup progress" className="rounded-xl border border-cream-200 bg-cream-50 p-3" data-gate-c-signup-progress>
+        <p className="text-xs font-semibold text-forest-800">{state.phase==='form'?'1 of 3 · Your details':state.phase==='otp'?'2 of 3 · Verify your contact':'3 of 3 · KS Number issued'}</p>
+        <p className="mt-1 text-xs text-sand-700">{state.phase==='form'?'Choose how SecurePay should verify you. Nothing is issued when you submit the form.':state.phase==='otp'?'Only a confirmed code allows SecurePay to issue your KS Number. No community membership or Money is activated.':'A server-issued KS Number and SecurePay session are confirmed. Other choices remain separate.'}</p>
+      </div>
       {state.phase === 'form' && (
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">How should SecurePay reach you?</legend>
