@@ -326,7 +326,7 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/');
+  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
