@@ -54,6 +54,7 @@ try {
       await nav.getByRole('button',{name:'Vision',exact:true}).click();
       await page.locator('[data-gate-b-vision-money]').waitFor({state:'attached'});
       await nav.getByRole('button',{name:'Community',exact:true}).click();
+      if(width<768)await mobile.getByRole('button',{name:'About Community'}).click();
       const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
       await action.click();
       await page.locator('[data-workspace-frozen-layout][data-sp-area="work"]').waitFor();
