@@ -816,6 +816,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </section>}
         {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session}
           openAgreementId={createdAgreementId} onAgreementClosed={()=>setCreatedAgreementId(null)}
+          onConnectMoney={()=>openTool('Money')}
           onSignIn={()=>openIdentity('signin')}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
