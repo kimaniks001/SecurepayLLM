@@ -348,8 +348,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(started.conversationId,'I am looking at Agreement '+reference+'. Help me understand what needs attention. Check my authority and the exact Agreement before using private facts or suggesting actions. No changes or payments are authorised by this question.');
     setOpenedAgreementId(null);setDraftRevision(x=>x+1);setLiveWork(true);setLiveStarted(true);setScreen('chat');
   };
-  const openActiveAgreementMoney = (detail:AgreementDetailResponse)=>{
+  const openActiveAgreementMoney = (detail:AgreementDetailResponse,railCode?:string)=>{
     if(!detail.currentVersion?.versionId) return;
+    if(railCode)setMoneyRailPreference({agreementId:detail.overview.agreementId,railCode});
     storeWorkspaceMoneyReturn(liveConversationId);
     openMoneyFor({agreementId:detail.overview.agreementId,title:detail.overview.title,
       versionLabel:'version '+detail.currentVersion.versionNumber,currentVersionId:detail.currentVersion.versionId});
