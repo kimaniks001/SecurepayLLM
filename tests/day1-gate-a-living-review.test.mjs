@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
@@ -51,7 +52,7 @@ test('Day 1 source compiles syntactically as TSX without changing the approved s
 
 test('Day 1 question classification does not confuse currency with amount',()=>{
   const js=ts.transpileModule(actions,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
-  const exports={};new Function('exports',js)(exports);
+  const exports={};runInNewContext(js,{exports});
   const cases=['Which currency is that in?','What currency is the 400 total in?','Is the amount in KES or USD?','Should we use Kenyan shillings or dollars?'];
   for(const q of cases){
     assert.equal(exports.questionIntent(q),'currency',q);
