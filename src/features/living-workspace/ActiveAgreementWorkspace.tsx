@@ -153,7 +153,8 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
     {moneyState==='error'&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">Money options are not verified for the current Agreement version. No rail can be selected here; refresh or use the authorised Money journey.</p>}
     {moneyState==='ready'&&moneySnapshot&&<div data-gate-b-work-money-chooser>
       <MoneyRailCeremony agreementTitle={detail.overview.title} options={moneySnapshot.fundingOptions}
-        sample={false} onProceed={railCode=>onOpenMoney(detail,railCode)}/>
+        sample={false} quoteAllowed={moneySnapshot.feeQuoteRequestsPermitted}
+        onProceed={railCode=>onOpenMoney(detail,railCode)}/>
       <p className="mt-2 text-xs text-sand-600">The rail choice is a preference; the existing authorised Money journey must obtain a current quote, show exact charges and obtain separate payer consent. No money is moved here.</p>
     </div>}
     <div className="grid gap-3 sm:grid-cols-2">
