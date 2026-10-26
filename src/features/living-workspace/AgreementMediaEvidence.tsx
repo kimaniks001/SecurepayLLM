@@ -60,6 +60,26 @@ export function AgreementMediaEvidence({ gateway, auth, session, agreementId, ve
 
   useEffect(() => () => { if (opened) URL.revokeObjectURL(opened.url); }, [opened]);
 
+  // A reviewer must see server-recorded evidence before submitting anything themselves.
+  // Never synthesize proof from local uploads, filenames or the selected obligation.
+  useEffect(() => {
+    let live = true;
+    setKnown([]);
+    if (phase.loading || phase.error || !obligationId) return () => { live = false; };
+    void (async () => {
+      try {
+        await ensureFreshSession(session, auth);
+        const recorded = await gateway.obligationEvidence(agreementId, obligationId);
+        if (live) setKnown(recorded.filter(e => e.obligationId === obligationId));
+      } catch {
+        if (live) setStatus('SecurePay could not load evidence for this obligation. Refresh or sign in again.');
+      }
+    })();
+    return () => { live = false; };
+  }, [agreementId, obligationId, phase.loading, phase.error, gateway, auth, session]);
+
+
+
   const obligation = phase.obligations.find(o => o.id === obligationId);
   const maySubmit = obligation && ['IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'OVERDUE'].includes(obligation.status);
   const chooseFile = (candidate: File | null) => {
