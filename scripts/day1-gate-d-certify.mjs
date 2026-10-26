@@ -19,6 +19,7 @@ const files = Object.fromEntries([
  ['money','src/features/living-workspace/UnifiedMoneyTool.tsx'],
  ['rails','src/features/living-workspace/MoneyRailCeremony.tsx'],
  ['active','src/features/living-workspace/AgreementDiscovery.tsx'],
+ ['activeWorkspace','src/features/living-workspace/ActiveAgreementWorkspace.tsx'],
  ['writtenEvidence','src/features/living-workspace/AgreementStatementEvidence.tsx'],
  ['mediaEvidence','src/features/living-workspace/AgreementMediaEvidence.tsx'],
  ['mediaApi','src/api/securepay/agreements/index.ts'],
@@ -87,7 +88,8 @@ source('D08','Vision financial possibilities strictly separate from Agreement Mo
   /railFamily\(rail\.displayName,rail\.railCode\)/.test(files.rails),
   'Categories and planning/execution separation represented; provider prices, eligibility and authorisation still need actual backend testing.', ['src/features/living-workspace/UnifiedMoneyTool.tsx','src/features/living-workspace/MoneyRailCeremony.tsx']);
 source('D09','Active Agreement task-first and genuine version-bound written evidence',
-  /data-gate-b-active-attention/.test(files.active) &&
+  /data-gate-b-active-agreement/.test(files.activeWorkspace) &&
+  /myNextActions\(agreementId\)/.test(files.activeWorkspace) &&
   /<AgreementStatementEvidence/.test(files.active) &&
   /data-gate-d-authorised-statement-evidence/.test(files.writtenEvidence) &&
   /expectedAgreementVersionId:versionId/.test(files.writtenEvidence) &&
