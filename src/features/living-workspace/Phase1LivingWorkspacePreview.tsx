@@ -17,6 +17,9 @@ import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
 import { AgreementReview } from '../formation/AgreementReview';
+import { createHandoffController } from '../handoff/controller';
+import { HandoffPanel } from '../handoff/HandoffPanel';
+import { createIdentityController } from '../identity/controller';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { LiveKs001Session } from './LiveKs001Session';
 import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
@@ -196,6 +199,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return()=>{active=false;};
   },[liveController,signedIn]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
+  // Reuse the canonical, idempotent Agreement handoff. No second Agreement engine.
+  const [handoffController] = useState(() => gateway ? createHandoffController(gateway) : null);
+  const [handoffIdentity] = useState(() => workspaceGateways ? createIdentityController(workspaceGateways.auth,session) : null);
+  const handoffState=useSyncExternalStore(handoffController?.subscribe??subscribeNever,
+    handoffController?.getSnapshot??(()=>null));
+  const [createdAgreementId,setCreatedAgreementId]=useState<string|null>(null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
@@ -243,7 +252,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     !!liveController && !!formationController && formationState?.status==='ready' &&
     !formationState.error && formationState.data?.conversationId===liveConversationId &&
     !!formationState.data.reviewable;
-  useEffect(() => { setDraftReviewOpen(false); }, [mode, liveConversationId]);
+  useEffect(() => {
+    setDraftReviewOpen(false);
+    // Old handoffs may never be used to create a draft for a different conversation.
+    handoffController?.reset();
+    setCreatedAgreementId(null);
+  }, [mode, liveConversationId, handoffController]);
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
@@ -683,11 +697,31 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onCorrect={text=>submitCorrection(liveController,text)}
               onRetryCorrection={()=>retryPending(liveController)}
               onOpenPoint={()=>setDraftReviewOpen(false)}
-              onSetUp={()=>{}} setUpAvailable={false} setUp={null}
+              onSetUp={version=>{
+                if(!liveConversationId||!handoffController||!signedIn||liveBusy||livePending||!formationState?.data?.confirmable) return;
+                void handoffController.start(liveConversationId,version);
+              }}
+              setUpAvailable={!!signedIn && !!handoffController && !!handoffIdentity}
+              settingUpAs={signedIn?{signedIn:true,actingFor:null}:undefined}
+              setUp={handoffController&&handoffIdentity&&handoffState?.phase!=='idle' ?
+                <div data-gate-d-post-review-actions className="mt-3">
+                  <HandoffPanel handoff={handoffController} identity={handoffIdentity}
+                    onDone={()=>handoffController.reset()}
+                    onOpenAgreement={id=>{setCreatedAgreementId(id);setDraftReviewOpen(false);}}
+                    agreementGateway={workspaceGateways?.agreements}/>
+                </div>:null}
               onAcknowledgeChanges={()=>formationController.acknowledgeChanges()}
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
           </div>}
+        {mode==='work' && createdAgreementId && <section data-gate-d-agreement-created
+            className="flex-1 space-y-3 overflow-y-auto p-5">
+            <h2 className="font-display text-2xl text-forest-900">Your draft Agreement is saved</h2>
+            <p className="text-sm text-sand-700">SecurePay confirmed a draft. Nobody else has accepted it. Open My Agreements to review participants and invitations. Money remains unavailable until the separate backend checks permit it.</p>
+            <p className="break-all text-xs text-sand-600">Agreement reference: {createdAgreementId}</p>
+            <button type="button" onClick={()=>{setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('result');}}
+              className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm font-semibold text-forest-800">Open My Agreements</button>
+          </section>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
