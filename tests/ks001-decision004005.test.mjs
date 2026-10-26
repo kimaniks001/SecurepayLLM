@@ -109,5 +109,5 @@ test('Day 1: currency questions use distinct contextual reply pills, never an am
  assert.equal(intent('How much is the delivery?'),'money');
  assert.equal(intent('Which currency is that in.'),'unknown','Only explicit questions get pills');
  assert.equal(resolve('The total is KES 400.').length,0);
- assert.match(chat,/void controller\\.send\\(action\\.value\\)/,'Replies use existing authorised conversation');
+ assert.ok(chat.includes('void controller.send(action.value);'),'Replies use existing authorised conversation');
 });
