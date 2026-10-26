@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { AlertCircle, ArrowLeft, ClipboardCheck, FileText, RefreshCw, Wallet } from 'lucide-react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { AlertCircle, ArrowLeft, ClipboardCheck, RefreshCw, Wallet } from 'lucide-react';
 import type { AgreementDetailResponse } from '../../api/securepay/agreements/dto';
 import type { NextActionDto, ObligationDto } from '../../api/securepay/agreements';
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
@@ -29,9 +29,10 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
  const [uncertain,setUncertain]=useState(false);
  const submitting=useRef<{key:string;agreementVersionId:string;obligationId:string;stateVersion:number;description:string}|null>(null);
 
+ useEffect(()=>{setUncertain(false);submitting.current=null;},[agreementId,identity]);
  useEffect(()=>{
   let active=true;
-  setRecord(empty());setSelectedAction(null);setCaption('');setNotice('');setUncertain(false);submitting.current=null;
+  setRecord(empty());setSelectedAction(null);setCaption('');setNotice('');
   void (async()=>{
    try{
     await ensureFreshSession(session,gateways.auth);
@@ -126,7 +127,7 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
     {uncertain&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">Evidence status is unconfirmed. Refresh the authorised record; never retry with a new key without reconciliation.</p>}
     {notice&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-xs">{notice}</p>}
     <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={()=>void onAskKs001(detail.overview.publicReference)}
+      <button type="button" onClick={()=>{void onAskKs001(detail.overview.publicReference).catch(()=>setNotice('KS001 could not securely reopen a conversation. Your Agreement remains unchanged.'));}}
         className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-xs font-semibold">Ask KS001 for help</button>
       <button type="button" disabled={!detail.currentVersion} onClick={()=>onOpenMoney(detail)}
         className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-forest-200 bg-white px-4 text-xs font-semibold disabled:opacity-40"><Wallet size={15}/> Agreement Money</button>
