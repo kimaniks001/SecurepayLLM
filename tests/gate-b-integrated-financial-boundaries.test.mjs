@@ -7,6 +7,7 @@ const vision=read('src/features/living-workspace/VisionFinancialPossibilities.ts
 const shell=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 const chooser=read('src/features/living-workspace/MoneyRailCeremony.tsx');
 const money=read('src/features/living-workspace/UnifiedMoneyTool.tsx');
+const agreement=read('src/features/living-workspace/AgreementDiscovery.tsx');
 test('Vision financial possibilities remain in the existing three-column shell',()=>{
  assert.match(shell,/data-workspace-shell/);
  assert.match(shell,/data-workspace-frozen-layout/);
@@ -35,4 +36,16 @@ test('Gate B additions transpile as TSX without errors',()=>{
   const out=ts.transpileModule(source,{fileName:path+'.tsx',reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}});
   assert.equal(out.diagnostics?.filter(d=>d.category===ts.DiagnosticCategory.Error).length??0,0,path);
  }
+});
+
+test('Active Agreement leads with backend-owned attention and returns to the same KS001 shell',()=>{
+ assert.match(agreement,/data-gate-b-active-attention/);
+ assert.match(agreement,/current\?\.nextActions/);
+ assert.match(agreement,/current\.nextActions\.slice\(0,4\)/);
+ assert.match(agreement,/Return to KS001 for help/);
+ assert.match(agreement,/onClick=\{closeFull\}/);
+ assert.match(agreement,/setTab\('Evidence'\)/);
+ assert.match(agreement,/setTab\('Milestones'\)/);
+ assert.match(agreement,/setTab\('Money'\)/);
+ assert.doesNotMatch(agreement,/createPaymentIntent|payNow|acceptAgreement/);
 });
