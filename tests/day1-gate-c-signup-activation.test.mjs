@@ -14,6 +14,7 @@ const activation=read('src/features/activation/ActivationExperience.tsx');
 const business=read('src/features/business/BusinessExperience.tsx');
 const principles=read('src/features/join/controller.ts');
 const session=read('src/api/securepay/session.ts');
+const runtime=read('src/RuntimeApp.tsx');
 
 const bundle=await build({stdin:{contents:`
 export { createSignupController } from './src/features/signup/controller';
@@ -105,4 +106,16 @@ test('Gate C modified onboarding and activation components transpile syntactical
   const errors=(out.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error);
   assert.equal(errors.length,0,file+': '+errors.map(e=>ts.flattenDiagnosticMessageText(e.messageText,' ')).join('; '));
  }
+});
+
+test('A draft Vercel root opens the masterpiece rather than legacy public AgentExperience',()=>{
+ assert.match(runtime,/isCandidateWorkspaceEntry/);
+ assert.match(runtime,/hostname\.endsWith\('\.vercel\.app'\)/);
+ assert.match(runtime,/hash===''/);
+ assert.match(runtime,/isCandidateWorkspaceEntry\(window\.location\.hash,window\.location\.hostname\)/);
+ assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
+ assert.match(runtime,/if \(invitationToken\)/);
+ assert.match(runtime,/if \(activationRoute\)/);
+ // No blanket redirect on securepay.ke before the live backend is qualified.
+ assert.doesNotMatch(runtime,/window\.location\.replace\(['"]#\/preview/);
 });
