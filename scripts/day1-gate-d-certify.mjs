@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const read = path => readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const files = Object.fromEntries([
  ['runtime','src/RuntimeApp.tsx'],
+ ['identityOverlay','src/features/living-workspace/WorkspaceIdentityOverlay.tsx'],
  ['workspace','src/features/living-workspace/Phase1LivingWorkspacePreview.tsx'],
  ['signup','src/features/join/SignUpExperience.tsx'],
  ['signupController','src/features/signup/controller.ts'],
@@ -40,19 +41,22 @@ source('D02','Same three-column shell, one KS001 controller and right Check',
   /<LiveKs001Session controller=\{liveController!\}/.test(files.workspace),
   'Shell source present. This does not certify user-visible routing or mobile layout.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
 source('D03','Get KS Number opens inside the approved Workspace',
-  /<SignupForm\b|<SignUpExperience\b/.test(files.workspace) &&
+  /<WorkspaceIdentityOverlay\b/.test(files.workspace) &&
+  /<SignupForm\b/.test(files.identityOverlay) &&
+  /data-gate-d-workspace-signup/.test(files.identityOverlay) &&
   !/onGetKsNumber=\{\(\)=>\{setSignInOpen\(false\);window\.location\.hash='#\/sign-up'/.test(files.workspace),
-  'Current Workspace still redirects to the legacy signup route; integrate canonical SignupForm without losing work.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
+  'Canonical SignupForm opens in a dialog while the Workspace stays mounted. Real signup needs isolated staging.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','src/features/living-workspace/WorkspaceIdentityOverlay.tsx']);
 source('D04','Verified server-issued KS Number is shown inside the same Workspace',
-  /<SignupIssuedWelcome\b/.test(files.workspace) &&
+  /<WorkspaceIdentityOverlay\b/.test(files.workspace) &&
+  /<SignupIssuedWelcome\b/.test(files.identityOverlay) &&
+  /onIssued=\{ksNumber=>/.test(files.identityOverlay) &&
   /data-gate-c-issued-number/.test(files.ksWelcome) &&
   /issuedKsNumber: completed\.ksNumber/.test(files.signupController),
-  'Backend-issued KS callback exists but welcome is mounted in legacy AgentExperience, not masterpiece.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','src/features/signup/controller.ts']);
-source('D05','Identity handoff keeps existing work and never recreates it',
-  !/onGetKsNumber=\{\(\)=>\{setSignInOpen\(false\);window\.location\.hash='#\/sign-up'/.test(files.workspace) &&
-  /consumeLivingWorkspaceEntry/.test(files.workspace) &&
-  /issuedKsNumber/.test(files.workspace),
-  'Need complete anonymous intent → contact verification → welcome → same KS001 conversation and tools.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
+  'Server KS Number is passed to welcome in the still-mounted Workspace. Requires actual OTP/DB staging evidence.', ['src/features/living-workspace/WorkspaceIdentityOverlay.tsx','src/features/signup/controller.ts']);
+source('D05','Identity handoff keeps original anonymous work and does not duplicate it',
+  /data-gate-d-authorised-anonymous-conversation-claim/.test(files.workspace) &&
+  /data-gate-d-no-loss-guest-proposals/.test(files.workspace),
+  'The dialog preserves component state, but anonymous server conversations and any local proposals still need an explicit, proven handoff.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx']);
 source('D06','KS001 amount-vs-currency and review boundaries represented in code',
   /case 'currency':/.test(files.answerActions)&&/data-day1-workspace-review/.test(files.workspace)&&
   /setUpAvailable=\{false\}/.test(files.workspace),
