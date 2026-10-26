@@ -8,11 +8,12 @@ import { SignupForm } from './JoinExperience';
  * wording. It never joins The Trust Project or any Agreement, never selects a plan, activates Money or funds
  * anything. Once the session exists, `AgentExperience` returns the person to where they were.
  */
-export function SignUpExperience({ auth, session, onSignIn, onCancel }: {
+export function SignUpExperience({ auth, session, onSignIn, onCancel, onIssued }: {
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   onSignIn: () => void;
   onCancel: () => void;
+  onIssued?: (ksNumber: string) => void;
 }) {
   return (
     <main id="main" className="flex-1 overflow-auto bg-cream-100 bg-ks001-surface px-4 py-12 md:py-20" data-public-sign-up>
@@ -22,7 +23,7 @@ export function SignUpExperience({ auth, session, onSignIn, onCancel }: {
           This creates your SecurePay identity. It does not join The Trust Project or any Agreement.
         </p>
         <div className="mt-8">
-          <SignupForm auth={auth} session={session} context="GENERIC" onUseExisting={onSignIn} onBack={onCancel} />
+          <SignupForm auth={auth} session={session} context="GENERIC" onUseExisting={onSignIn} onBack={onCancel} onIssued={onIssued} />
         </div>
       </div>
     </main>
