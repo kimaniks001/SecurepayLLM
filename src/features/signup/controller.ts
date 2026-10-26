@@ -18,12 +18,14 @@ export interface SignupState {
   password: string;
   otp: string;
   challengeToken: string | null;
+  /** Backend-issued public KS Number, available only after successful verification. */
+  issuedKsNumber: string | null;
   maskedDestination: string | null;
   error: string | null;
 }
 const initial: SignupState = {
   phase: 'form', busy: false, displayName: '', channelType: 'SMS', destination: '', password: '',
-  otp: '', challengeToken: null, maskedDestination: null, error: null,
+  otp: '', challengeToken: null, issuedKsNumber: null, maskedDestination: null, error: null,
 };
 
 /**
@@ -48,6 +50,8 @@ export function createSignupController(
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>,
   session: Pick<SessionStore, 'setTokens'>,
   context: SignupContext = 'AGREEMENT_INVITATION',
+  /** One-time display handoff; never creates, joins or financially activates anything. */
+  onIssued?: (ksNumber: string) => void,
 ) {
   const errorText = (error: unknown) => signupErrorText(error, context);
   let state: SignupState = { ...initial };
@@ -99,13 +103,19 @@ export function createSignupController(
     async verify() {
       if (state.phase !== 'otp' || state.busy || !state.challengeToken || !state.otp.trim()) return;
       update({ busy: true, error: null });
+      let issued: string | null = null;
       try {
         const completed = await auth.signupVerify({ signupChallengeToken: state.challengeToken, otp: state.otp.trim() });
+        // Only the API may issue a KS Number. No local numbering, JWT decoding, or guessing.
+        // Keep the server's confirmed number in transient component state for the welcome step.
         session.setTokens(completed);
-        update({ ...initial, phase: 'completed' });
+        update({ ...initial, phase: 'completed', issuedKsNumber: completed.ksNumber });
+        issued = completed.ksNumber;
       } catch (error) {
         update({ busy: false, otp: '', error: errorText(error) });
       }
+      // A presentation callback must not be mistaken for an API/OTP failure.
+      if (issued !== null) onIssued?.(issued);
     },
 
     /** Returns to the initial form. Does not affect any invitation state — the invitation itself remains usable. */

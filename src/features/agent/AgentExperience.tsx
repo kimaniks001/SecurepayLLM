@@ -10,6 +10,7 @@ import { SignInExperience } from '../public/SignInExperience';
 import { useSignInRoute } from '../public/signInRoute';
 import { JoinExperience } from '../join/JoinExperience';
 import { SignUpExperience } from '../join/SignUpExperience';
+import { SignupIssuedWelcome } from '../join/SignupIssuedWelcome';
 import { useJoinRoute } from '../join/route';
 import type { ContinuationOutcome } from '../join/controller';
 import { PublicShellProvider, createPublicShellBridge, focusKs001Composer, focusPublicSection, type PublicSectionId } from '../public/publicShell';
@@ -307,16 +308,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // one in-memory origin + intent (signInRoute), so a KS Number created there returns the person to the
   // same place Sign in would have. Join owns its own continuation and never uses it.
   const joinRoute = useJoinRoute();
+  // Transient, server-issued public KS Number only. Never saved to the URL, browser persistence or a second session.
+  const [issuedKsNumber, setIssuedKsNumber] = useState<string|null>(null);
   const [pendingSection, setPendingSection] = useState<PublicSectionId | null>(null);
   const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
   // Once SecurePay confirms the person, leave Sign in for where they came from, or the area they asked
   // for. A signed-in person who lands on #/sign-in is simply returned too.
   useEffect(() => {
+    if (issuedKsNumber) return; // The owner must first acknowledge their server-issued KS Number.
     if (!signedIn || !(signInRoute.active || signInRoute.signingUp)) return;
     const intent = signInRoute.close();
     if (intent) navigateTo(intent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, signInRoute.active, signInRoute.signingUp]);
+  }, [signedIn, signInRoute.active, signInRoute.signingUp, issuedKsNumber]);
   const [notice, setNotice] = useState<string | null>(null);
   const [home, setHome] = useState(false);
   const [dateTimeOpen, setDateTimeOpen] = useState(false);
@@ -928,6 +932,22 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const retryTemporaryDream = async () => finishDreamClaim(await visionDreamController.retry());
   const reconcileTemporaryDream = async () => finishDreamClaim(await visionDreamController.reconcilePending());
 
+  // A person who arrived through Trust Project Join also deserves to see the
+  // exact server-issued KS Number before making the wholly separate membership choice.
+  if (joinRoute.value && signedIn && issuedKsNumber) {
+    const dismissIssued = () => setIssuedKsNumber(null);
+    const leaveTrust = () => { dismissIssued(); joinRoute.close(); };
+    return <div className="min-h-dvh flex flex-col bg-cream-100" data-gate-c-trust-issued-welcome>
+      <NavBar view="community" onNavigate={view=>{leaveTrust();navigateTo(view);}}/>
+      <SignupIssuedWelcome ksNumber={issuedKsNumber} continueLabel="Continue to The Trust Project"
+        onContinue={dismissIssued}
+        onJoin={dismissIssued}
+        onVision={()=>{leaveTrust();navigateTo('vision-board');}}
+        onBusiness={()=>{leaveTrust();navigateTo('business');}}
+        onActivation={()=>{leaveTrust();window.location.hash='#/activate';}}/>
+    </div>;
+  }
+
   if (joinRoute.value) {
     return (
       <div className={`min-h-dvh flex flex-col bg-cream-100 ${signedIn ? 'pb-16 md:pb-0' : ''}`}>
@@ -937,6 +957,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           actingFor={actingForBusiness}
           actingForOrganization={actingForOrganization}
           selfName={businessState.self.data?.displayName ?? null}
+          onIssued={setIssuedKsNumber}
           onSwitchToSelf={() => { businessController.actAsSelf(); void businessController.loadMine(); }}
           communityGateway={communityGateway}
           auth={auth}
@@ -967,9 +988,29 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           session={session}
           onSignIn={() => { signInRoute.toSignIn(); }}
           onCancel={() => { signInRoute.toSignIn(); }}
+          onIssued={setIssuedKsNumber}
         />
       </div>
     );
+  }
+
+  if (signInRoute.signingUp && signedIn && issuedKsNumber) {
+    const leaveIssuance = () => {
+      // Restore only the in-memory intent from the existing route. Issuance does NOT
+      // join the Trust Project, activate Money, create a Business or accept an Agreement.
+      setIssuedKsNumber(null);
+      return signInRoute.close();
+    };
+    return <div className="min-h-dvh flex flex-col bg-cream-100" data-gate-c-one-time-welcome>
+      <NavBar view="signed-in" onNavigate={view=>{leaveIssuance();navigateTo(view);}}/>
+      <SignupIssuedWelcome ksNumber={issuedKsNumber}
+        onContinue={()=>{const intent=leaveIssuance();if(intent)navigateTo(intent);}}
+        onVision={()=>{leaveIssuance();navigateTo('vision-board');}}
+        onJoin={()=>{leaveIssuance();joinRoute.open();}}
+        onBusiness={()=>{leaveIssuance();navigateTo('business');}}
+        onActivation={()=>{leaveIssuance();window.location.hash='#/activate';}}
+      />
+    </div>;
   }
 
   if (signInRoute.active && !signedIn) {

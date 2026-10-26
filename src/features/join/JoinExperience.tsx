@@ -34,7 +34,7 @@ const quiet = `min-h-11 rounded-lg px-2 text-[0.85rem] text-forest-700 underline
  */
 export function JoinExperience({
   communityGateway, auth, session, signedIn, interest, continueConversation,
-  onExploreCommunity, onReturnToConversation, onHelp, onDone, actingFor = null, actingForOrganization = null, selfName = null, onSwitchToSelf,
+  onExploreCommunity, onReturnToConversation, onHelp, onDone, actingFor = null, actingForOrganization = null, selfName = null, onSwitchToSelf, onIssued,
 }: {
   communityGateway: Pick<CommunityGateway, 'currentPrinciples'> & {
     membership: Pick<CommunityGateway['membership'], 'me' | 'join'>
@@ -55,6 +55,7 @@ export function JoinExperience({
   actingForOrganization?: { organizationKsNumber: string; displayName: string | null } | null;
   selfName?: string | null;
   onSwitchToSelf?: () => void;
+  onIssued?: (ksNumber:string) => void;
 }) {
   const [target] = useState<JoinTarget>(() => signedIn && actingFor
     ? { kind: 'business', businessKsNumber: actingFor.businessKsNumber, displayName: actingFor.displayName }
@@ -167,7 +168,7 @@ export function JoinExperience({
               </div>
             </div>
           )}
-          {!signedIn && identityPath === 'signup' && <JoinSignup auth={auth} session={session} onUseExisting={() => setIdentityPath('signin')} onBack={() => setIdentityPath('choose')} />}
+          {!signedIn && identityPath === 'signup' && <JoinSignup auth={auth} session={session} onUseExisting={() => setIdentityPath('signin')} onBack={() => setIdentityPath('choose')} onIssued={onIssued} />}
           {!signedIn && identityPath === 'signin' && <JoinSignIn auth={auth} session={session} onBack={() => setIdentityPath('choose')} onHelp={onHelp} />}
 
           {signedIn && state.membership.status === 'loading' && state.phase !== 'joined' && <p className="text-[0.88rem] text-sand-600">{business ? `Checking ${businessName}’s membership…` : 'Checking your membership…'}</p>}
@@ -276,23 +277,25 @@ export function JoinExperience({
 }
 
 /** Identity only: the same signup controller every other flow uses, with Join's own honest wording. */
-function JoinSignup({ auth, session, onUseExisting, onBack }: {
+function JoinSignup({ auth, session, onUseExisting, onBack, onIssued }: {
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   onUseExisting: () => void;
   onBack: () => void;
+  onIssued?: (ksNumber:string) => void;
 }) {
-  return <SignupForm auth={auth} session={session} context="TRUST_PROJECT_JOIN" onUseExisting={onUseExisting} onBack={onBack} />;
+  return <SignupForm auth={auth} session={session} context="TRUST_PROJECT_JOIN" onUseExisting={onUseExisting} onBack={onBack} onIssued={onIssued} />;
 }
 
-export function SignupForm({ auth, session, context, onUseExisting, onBack }: {
+export function SignupForm({ auth, session, context, onUseExisting, onBack, onIssued }: {
   auth: Pick<AuthGateway, 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   context: 'GENERIC' | 'TRUST_PROJECT_JOIN';
   onUseExisting: () => void;
   onBack: () => void;
+  onIssued?: (ksNumber:string) => void;
 }) {
-  const [signup] = useState(() => createSignupController(auth, session, context));
+  const [signup] = useState(() => createSignupController(auth, session, context, onIssued));
   const state = useSyncExternalStore(signup.subscribe, signup.getSnapshot, signup.getSnapshot);
   const view = signupView(state, context);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -302,6 +305,10 @@ export function SignupForm({ auth, session, context, onUseExisting, onBack }: {
   };
   return (
     <div className="space-y-3" onKeyDown={onKeyDown} data-signup-context={context}>
+      <div aria-label="KS Number signup progress" className="rounded-xl border border-cream-200 bg-cream-50 p-3" data-gate-c-signup-progress>
+        <p className="text-xs font-semibold text-forest-800">{state.phase==='form'?'1 of 3 · Your details':state.phase==='otp'?'2 of 3 · Verify your contact':'3 of 3 · KS Number issued'}</p>
+        <p className="mt-1 text-xs text-sand-700">{state.phase==='form'?'Choose how SecurePay should verify you. Nothing is issued when you submit the form.':state.phase==='otp'?'Only a confirmed code allows SecurePay to issue your KS Number. No community membership or Money is activated.':'A server-issued KS Number and SecurePay session are confirmed. Other choices remain separate.'}</p>
+      </div>
       {state.phase === 'form' && (
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="sr-only">How should SecurePay reach you?</legend>
