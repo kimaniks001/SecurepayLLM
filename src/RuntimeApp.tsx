@@ -330,7 +330,7 @@ export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
-    (/^#\\/?preview\\/living-workspace(?:\\/(?:work|vision|circle|community))?\\/?$/.test(window.location.hash) ||
+    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
   useEffect(() => {
     const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
