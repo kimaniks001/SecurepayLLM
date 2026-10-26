@@ -12,6 +12,8 @@ export class ApiError extends Error {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** Authenticated private evidence bytes; never parse or cache as JSON. */
+  responseKind?: 'json' | 'blob';
   auth?: 'none' | 'optional' | 'required';
   signal?: AbortSignal;
   /** Extra request headers (e.g. `Idempotency-Key`). Never used for Authorization/Content-Type. */
@@ -31,7 +33,7 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
   return {
     async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
       if (!path.startsWith('/api/') || path.includes('..') || path.includes('\\')) throw new Error('Invalid API path');
-      const headers = new Headers({ Accept: 'application/json' });
+      const headers = new Headers({ Accept: options.responseKind === 'blob' ? 'application/octet-stream' : 'application/json' });
       const token = options.auth === 'none' ? null : getAccessToken();
       if (options.auth === 'required' && !token) throw new ApiError('http', 'Authentication required', 401, 'AUTHENTICATION_REQUIRED');
       if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -56,6 +58,19 @@ export function createHttpClient(baseUrl: string, getAccessToken: AccessTokenPro
           signal: controller.signal, credentials: 'omit', cache: 'no-store', redirect: 'error',
         });
         status = response.status;
+        // Private authenticated evidence media must not be interpreted as JSON.
+        // Enforce size even if a server or proxy reports an incorrect content length.
+        if (response.ok && options.responseKind === 'blob') {
+          const stated = Number(response.headers.get('content-length') || '0');
+          if (Number.isFinite(stated) && stated > 12 * 1024 * 1024) {
+            throw new ApiError('invalid-response', 'Evidence file exceeded the safe viewer limit', status);
+          }
+          const blob = await response.blob();
+          if (blob.size > 12 * 1024 * 1024) {
+            throw new ApiError('invalid-response', 'Evidence file exceeded the safe viewer limit', status);
+          }
+          return blob as T;
+        }
         const text = await response.text();
         let data: unknown;
         try { data = text ? JSON.parse(text, (_key, value: unknown) => {

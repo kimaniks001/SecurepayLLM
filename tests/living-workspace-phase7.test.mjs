@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const source=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const app=source('src/RuntimeApp.tsx');
 const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const identityOverlay=source('src/features/living-workspace/WorkspaceIdentityOverlay.tsx');
 const personas=source('src/features/living-workspace/personas.ts');
 const agreement=source('src/features/living-workspace/LivingAgreementPanel.tsx');
 const vision=source('src/features/living-workspace/LivingVisionPanel.tsx');
@@ -11,7 +12,9 @@ const circle=source('src/features/living-workspace/LivingCirclePanel.tsx');
 const community=source('src/features/living-workspace/LivingCommunityPanel.tsx');
 const support=source('src/features/living-workspace/QuickSupportPanel.tsx');
 test('Phase 7: preview is isolated from production entry',()=>{
- assert.ok(app.includes('if (phase1Preview) return <Phase1LivingWorkspacePreview gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways} session={session} />'));
+ assert.match(app,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
+ assert.match(app,/isCandidateWorkspaceEntry/);
+ assert.match(app,/identityStagingReady=\{identityStagingReady\}/);
  assert.ok(app.includes('living-workspace'));
 });
 test('Phase 7: four scoped working postures exist',()=>{
@@ -183,7 +186,8 @@ test('Structural workspace: real private records use the existing SecurePay sess
  assert.match(continuity,/resumeSavedBuild\(item\.savedBuildId\)/);
  assert.match(continuity,/savedRecord\.conversationId!==item\.conversationId/);
  assert.match(shell,/liveController\.resumeConversation\(conversationId\)/);
- assert.match(runtime,/workspaceGateways=\{previewWorkspaceGateways\} session=\{session\}/);
+ assert.match(runtime,/workspaceGateways=\{previewWorkspaceGateways\}/);
+ assert.match(runtime,/identityStagingReady=\{identityStagingReady\} session=\{session\}/);
  assert.match(adapter,/createAuthGateway\(http\)/);
  assert.match(adapter,/createAgentGateway\(http\)/);
  assert.match(adapter,/createVisionDreamGateway\(http\)/);
@@ -194,7 +198,9 @@ test('Structural workspace: routes preserve chosen mode and have one sign-in ses
  const runtime=source('src/RuntimeApp.tsx');
  assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
  assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
- assert.match(shell,/SignInExperience/);
+ assert.match(shell,/<WorkspaceIdentityOverlay/);
+ assert.match(identityOverlay,/<SignInExperience/);
+ assert.match(identityOverlay,/<SignupForm/);
  assert.match(shell,/session=\{session\}/);
 });
 test('Structural workspace: preview relay rejects untrusted origins, other peoples private routes and unsigned access',async()=>{

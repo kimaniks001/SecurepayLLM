@@ -33,6 +33,11 @@ export interface EvidenceReviewDto { evidenceId: string; obligationId: string; d
 export interface SubmitStatementEvidenceRequest { idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; evidenceType: 'TEXT_STATEMENT'; description: string;
   /** Phase 7 Slice 3: explicitly replaces the caller's own evidence that was not accepted or needs more information. */
   supersedesEvidenceId?: string }
+/** Gate D API #346: a verified receipt is NOT Agreement evidence until explicitly submitted. */
+export interface VerifiedMediaReceipt { receiptId: string; mime: 'image/jpeg'|'image/png'|'application/pdf'; sizeBytes: number; serverSha256: string; expiresAt: string }
+export interface UploadVerifiedMediaResponse { verifiedUpload: VerifiedMediaReceipt; agreementEvidenceSubmitted: false; status: 'VERIFIED_UPLOAD_ONLY' }
+export interface SubmitVerifiedMediaRequest { receiptId: string; idempotencyKey: string; expectedAgreementVersionId: string; expectedObligationVersion: number; caption: string; userDeclaredCapturedAt?: string }
+
 export interface NextActionDto { participantId: string; agreementId: string; currentAgreementVersionId: string; actionType: string; targetObligationId: string | null; targetMilestoneId: string | null; actionReason: string; prerequisiteStatus: string | null; deadline: string | null; urgency: string; requiredEvidenceTypes: string[]; blockedByObligationIds: string[]; supportingEvidenceIds: string[] }
 export interface AgreementAmendmentDto { id: string; sourceVersionId: string; proposedTerms: Record<string, unknown>; reason: string | null; status: string; appliedVersionId: string | null; createdAt: string; updatedAt: string }
 export interface AmendmentFieldChangeDto { field: string; oldValue: unknown; newValue: unknown; changeType: string }
@@ -152,6 +157,23 @@ export function createAgreementGateway(http: HttpClient) {
     submitEvidence: (id: string, obligationId: string, body: SubmitStatementEvidenceRequest) => http.request<EvidenceDto>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { method: 'POST', body, auth: 'required' }),
     // Narrow evidence RECORD list (no filename, uploader, size, hash or object reference). There is no upload or retrieval API.
     obligationEvidence: (id: string, obligationId: string) => http.request<EvidenceDto[]>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence`, { auth: 'required' }),
+    // Gate D D16: opt-in ONLY against the isolated API staging origin with real private storage.
+    // Verified receipt -> explicit canonical evidence command. Neither step approves/releases Money.
+    uploadVerifiedMedia: (id: string, obligationId: string, file: File, expectedAgreementVersionId: string,
+                          expectedObligationVersion: number, idempotencyKey: string) => {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const query = `?expectedAgreementVersionId=${segment(expectedAgreementVersionId)}&expectedObligationVersion=${expectedObligationVersion}`;
+      return http.request<UploadVerifiedMediaResponse>(
+        `${agreement(id)}/obligations/${segment(obligationId)}/evidence-media${query}`,
+        { method: 'POST', body: form, headers: { 'Idempotency-Key': idempotencyKey }, auth: 'required', timeoutMs: 120000 });
+    },
+    submitVerifiedMediaEvidence: (id: string, obligationId: string, body: SubmitVerifiedMediaRequest) =>
+      http.request<EvidenceDto>(`${agreement(id)}/obligations/${segment(obligationId)}/verified-media-evidence`,
+        { method: 'POST', body, auth: 'required' }),
+    readVerifiedMedia: (id: string, obligationId: string, evidenceId: string) =>
+      http.request<Blob>(`${agreement(id)}/obligations/${segment(obligationId)}/evidence/${segment(evidenceId)}/media`,
+        { auth: 'required', responseKind: 'blob', timeoutMs: 60000 }),
     // Phase 7 Slice 3: records ONE decision about one evidence item. Only the obligation's beneficiary may review (derived server-side);
     // bound to the expected versions (stale / superseded / already reviewed -> 409); a reason is required unless approving. It does NOT
     // change the evidence's status, complete anything or move money.
