@@ -27,8 +27,9 @@ test('Day 1 review inspection cannot create Agreement, invite parties or activat
   assert.match(review,/setUpAvailable\?: boolean/);
   assert.match(review,/setUpAvailable && <button/);
   assert.match(review,/setUpAvailable && setUp/);
-  assert.match(shell,/setUpAvailable=\{false\}/);
-  assert.match(shell,/onSetUp=\{\(\)=>\{\}\}/);
+  assert.match(shell,/setUpAvailable=\{!!handoffController&&!!handoffIdentity\}/);
+  assert.match(shell,/handoffController\.start\(liveConversationId,version\)/);
+  assert.match(shell,/<HandoffPanel handoff=\{handoffController\}/);
   assert.match(review,/Keeping, sharing, inviting and Money require their own authorised Agreement actions/);
   assert.match(shell,/submitCorrection\(liveController,text\)/);
   assert.match(shell,/retryPending\(liveController\)/);
