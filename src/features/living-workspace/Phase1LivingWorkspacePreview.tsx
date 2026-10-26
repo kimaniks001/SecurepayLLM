@@ -8,6 +8,9 @@ import { InlineCircleBoard } from './InlineCircleBoard';
 import { SignInExperience } from '../public/SignInExperience';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
 import { AgreementDiscovery } from './AgreementDiscovery';
+import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
+import { SelectedWorkspaceRecord } from './SelectedWorkspaceRecord';
+import type { AgreementDetailResponse } from '../../api/securepay/agreements/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -16,6 +19,9 @@ import { LiveWorkResultPanel } from './LiveWorkResultPanel';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createFormationController, type FormationState } from '../formation/controller';
 import { AgreementReview } from '../formation/AgreementReview';
+import { createHandoffController } from '../handoff/controller';
+import { HandoffPanel } from '../handoff/HandoffPanel';
+import { createIdentityController } from '../identity/controller';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { LiveKs001Session } from './LiveKs001Session';
 import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
@@ -47,7 +53,7 @@ const tools = [
   { name: 'Date & Time', icon: CalendarDays, description: 'Set a day, range, repeat or condition', group: 'add' },
   { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
   { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
-  { name: 'Money', icon: Wallet, description: 'Review Agreement money', group: 'do' },
+  { name: 'Money', icon: Wallet, description: 'Fund Agreements in My Work; plan possibilities in Vision', group: 'do' },
 ] as const;
 const areaLabels: Record<Mode,string> = {
   work: 'My Work · Agreement',
@@ -122,6 +128,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const [editingDreamId,setEditingDreamId]=useState<string|null>(null);
   const [workingCircleId,setWorkingCircleId]=useState<string|null>(null);
+  const [openedAgreementId,setOpenedAgreementId]=useState<string|null>(null);
   const [dreamUnsaved,setDreamUnsaved]=useState(false);
   const noteUnsaved=useCallback((dirty:boolean)=>setDreamUnsaved(dirty),[]);
   const mayLeaveDream=()=>!dreamUnsaved || window.confirm('Your Dream has changes that have not been confirmed saved. Leave without saving?');
@@ -130,7 +137,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);
   };
   useEffect(()=>{
-    if(!signedIn){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
+    if(!signedIn){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);setOpenedAgreementId(null);}
   },[signedIn]);
 
   useEffect(()=>{
@@ -150,6 +157,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   },[mode,dreamUnsaved]);
   const chooseMode=(next:Mode)=>{
     if(next!==mode && !mayLeaveDream())return;
+    if(next!=='work')setOpenedAgreementId(null);
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
     setMode(next);setScreen('chat');setToolSelected(false);setToolsOpen(shelfPinned);
     window.location.hash='#/preview/living-workspace/'+next;
@@ -191,6 +199,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     return()=>{active=false;};
   },[liveController,signedIn]);
   const [formationController] = useState(() => gateway ? createFormationController(gateway) : null);
+  // Reuse the existing Agreement handoff and identity authorities. An inspected draft does
+  // not become a formal Agreement until the separate canonical version-bound ceremony passes.
+  const [handoffController] = useState(() => gateway ? createHandoffController(gateway) : null);
+  const [handoffIdentity] = useState(() => workspaceGateways ? createIdentityController(workspaceGateways.auth,session) : null);
   const liveState = useSyncExternalStore<AgentState | null>(liveController?.subscribe ?? subscribeNever, liveController?.getSnapshot ?? noLiveState);
   const formationState = useSyncExternalStore<FormationState | null>(formationController?.subscribe ?? subscribeNever, formationController?.getSnapshot ?? noFormationState);
   const liveConversationId = liveState?.conversationId ?? null;
@@ -244,7 +256,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [shelfPinned,setShelfPinned] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(shelfPinned);
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
+    ? ['Photos','Documents','Places','Stores','Money'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -330,6 +342,26 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     chooseMode('work');setLiveStarted(true);setLiveWork(true);
     await liveController.resumeConversation(conversationId);
   };
+  const askKs001FromAgreement = async(reference:string)=>{
+    if(!signedIn || !gateway || !liveController)throw new Error('Sign in to ask KS001.');
+    if(liveBusy || livePending)throw new Error('Finish your current KS001 action first.');
+    // A new Agreement question gets a fresh conversation; another Agreement's chat is never
+    // silently amended. The person must press Send themselves after reading the unsent draft.
+    const started=await gateway.createConversation();
+    if(!started?.conversationId)throw new Error('Could not start a verified conversation.');
+    await liveController.resumeConversation(started.conversationId);
+    if(!authorisedResumedConversation(started.conversationId,liveController.getSnapshot()))
+      throw new Error('The new conversation was not authorised.');
+    writeDraft(started.conversationId,'I am looking at Agreement '+reference+'. Help me understand what needs attention. Check my authority and the exact Agreement before using private facts or suggesting actions. No changes or payments are authorised by this question.');
+    setOpenedAgreementId(null);setDraftRevision(x=>x+1);setLiveWork(true);setLiveStarted(true);setScreen('chat');
+  };
+  const openActiveAgreementMoney = (detail:AgreementDetailResponse,railCode?:string)=>{
+    if(!detail.currentVersion?.versionId) return;
+    if(railCode)setMoneyRailPreference({agreementId:detail.overview.agreementId,railCode});
+    storeWorkspaceMoneyReturn(liveConversationId);
+    openMoneyFor({agreementId:detail.overview.agreementId,title:detail.overview.title,
+      versionLabel:'version '+detail.currentVersion.versionNumber,currentVersionId:detail.currentVersion.versionId});
+  };
   const continueVisionToWork = async(handoff:DreamHandoff)=>{
     if(!signedIn || !liveController || !gateway)
       throw new Error('Sign in and connect KS001 before continuing this private Vision.');
@@ -386,13 +418,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>
       </div>
     </header>
-    {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId
-      ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
-          <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
-            session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
-             onContinueToWork={continueVisionToWork}/>
-        </div>
-      : signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
+    {signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}
@@ -546,7 +572,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       closeTool();
                     }}/>
                 : activeTool==='Money'?<UnifiedMoneyTool
-                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn}
+                    gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} context={mode==='vision'?'vision':'work'}
                     onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
                     onOpenAgreementMoney={(agreement,railCode)=>{
                       if(railCode)setMoneyRailPreference({agreementId:agreement.agreementId,railCode});
@@ -646,8 +672,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
-        {showDraftReview && liveController && formationController && formationState?.data &&
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {!openedAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
               formation={formationState.data} changes={formationState.changes}
@@ -657,10 +683,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onCorrect={text=>submitCorrection(liveController,text)}
               onRetryCorrection={()=>retryPending(liveController)}
               onOpenPoint={()=>setDraftReviewOpen(false)}
-              onSetUp={()=>{}} setUpAvailable={false} setUp={null}
+              onSetUp={version=>{if(liveConversationId&&handoffController)void handoffController.start(liveConversationId,version);}}
+              setUpAvailable={!!handoffController&&!!handoffIdentity}
+              setUp={handoffController&&handoffIdentity&&workspaceGateways
+                ? <HandoffPanel handoff={handoffController} identity={handoffIdentity} onDone={()=>setDraftReviewOpen(false)}
+                   openAgreementLabel="Open Agreement in My Work"
+                   agreementGateway={workspaceGateways.agreements}
+                   onOpenAgreement={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>
+                : null}
               onAcknowledgeChanges={()=>formationController.acknowledgeChanges()}
               onUnlink={partyKey=>{if(liveConversationId)void formationController.unlink(liveConversationId,partyKey);}}
             />
+          </div>}
+        {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
+          <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
+            session={session} onBack={()=>setOpenedAgreementId(null)}
+            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
+        {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId &&
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
+            <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
+              session={session} onBack={backToWorkspace} onUnsavedChange={noteUnsaved}
+              onContinueToWork={continueVisionToWork}/>
           </div>}
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
@@ -680,6 +723,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             }}/>
         </div>}
        {!(mode==='community' && (!signedIn || workspaceGateways)) &&
+         !(mode==='vision' && signedIn && editingDreamId) &&
+         !(mode==='work' && openedAgreementId) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
@@ -693,18 +738,21 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </section>
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
-        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)}/>}
+        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session} onSignIn={()=>setSignInOpen(true)} onOpenInWorkspace={id=>{setOpenedAgreementId(id);setDraftReviewOpen(false);setScreen('chat');}}/>}
         {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
+          <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
+            gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
         {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
-              onEditDream={setEditingDreamId} onOpenCircleBoard={setWorkingCircleId}/>
+              onEditDream={id=>{setEditingDreamId(id);setScreen('chat');}} onOpenCircleBoard={setWorkingCircleId}/>
           : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
               onEditStorePlan={()=>openTool('Stores')}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
-          : mode==='work' && liveWork?<LiveWorkResultPanel
+          : mode==='work' && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
@@ -723,7 +771,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work'
+        />:mode==='work' && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
@@ -739,7 +787,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
   </main>;
 }

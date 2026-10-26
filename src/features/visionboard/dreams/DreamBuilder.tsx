@@ -10,6 +10,7 @@ import type { VisionDreamGateway } from '../../../api/securepay/visiondreams';
 import type { VisionDreamDto } from '../../../api/securepay/visiondreams/dto';
 import type { StoreGateway } from '../../../api/securepay/store';
 import { VisionStorePicker } from '../../living-workspace/VisionStorePicker';
+import { VisionFinancialPossibilities } from '../../living-workspace/VisionFinancialPossibilities';
 
 type BoardObject =
   | { id: string; kind: 'note' | 'text' | 'checklist' | 'frame'; x: number; y: number; w: number; h: number; text: string; tone?: number }
@@ -180,6 +181,18 @@ export function DreamBuilder({
       y:125+doc.objects.length*10,w:390,h:310,text,tone:2};
     commit({v:1,objects:[...doc.objects,note]});
     setSelected(note.id);setStorePickerOpen(false);
+  };
+  const addFinancialPossibility = (text:string) => {
+    // This is a board note only; the existing saveBoard(expectedRevision) remains the sole persistence path.
+    // No instrument, provider, Agreement, Money call or automatic commitment is performed.
+    if(dream.locked || dream.superseded || !serverRevisionKnown.current) {
+      setLocalError('This Dream cannot be edited until SecurePay confirms an unlocked current board.');
+      return;
+    }
+    const note:BoardObject={id:uid(),kind:'note',x:140+doc.objects.length*12,
+      y:125+doc.objects.length*10,w:395,h:320,text,tone:3};
+    commit({v:1,objects:[...doc.objects,note]});
+    setSelected(note.id);
   };
   const addMilestone = () => {
     const label=milestoneName.trim();
@@ -445,6 +458,13 @@ export function DreamBuilder({
       <p className="text-[0.7rem] text-sand-500">This chooser changes only the guidance shown here; it does not start paid intelligence or alter your saved Dream.</p>
     </div>
 
+    <details className="rounded-2xl border border-cream-200 bg-white/90 p-3" data-gate-b-vision-money>
+      <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-forest-800">Financial possibilities · build a long-term plan</summary>
+      <div className="pt-2">
+        <VisionFinancialPossibilities onAddToVision={!dream.locked&&!dream.superseded&&serverRevisionKnown.current?addFinancialPossibility:undefined}/>
+      </div>
+      <p className="mt-2 text-xs text-sand-600">Adding a possibility edits this board only. Press Save above to persist it under the existing Dream revision.</p>
+    </details>
     <div className="rounded-3xl border border-cream-200 bg-[#fbf7ec] overflow-hidden shadow-sm">
       <div className="border-b border-cream-200 bg-white/90 px-3 py-3 flex flex-wrap items-center gap-2">
         <input value={title} onChange={e => { setTitle(e.target.value); setSaveState('idle'); }} maxLength={200}

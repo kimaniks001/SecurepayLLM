@@ -12,6 +12,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { ApiError } from '../../api/securepay/http';
+import { groupedSettlementOptions, settlementFamily, settlementFamilyTitle } from '../living-workspace/settlementRailFamily';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type {
@@ -364,7 +365,7 @@ export function MoneyPaymentSettlementJourney({
   const fundingOptions = snapshot?.fundingOptions ?? [];
   const currentVersionId = snapshot?.currentVersionId ?? null;
   const chosenRail=fundingOptions.find(option=>option.railCode===chosenRailCode)||null;
-  const visibleFundingOptions=chosenRail&&!showAlternativeRails?[chosenRail]:fundingOptions;
+  const visibleFundingOptions=groupedSettlementOptions(chosenRail&&!showAlternativeRails?[chosenRail]:fundingOptions);
   const scopeCurrency = currency?.toUpperCase() ?? null;
 
   const loadIntents = async () => {
@@ -710,6 +711,7 @@ export function MoneyPaymentSettlementJourney({
               <p className="text-xs font-semibold uppercase tracking-wide text-forest-700">Your financial choice</p>
               <h3 className="mt-1 font-display text-xl text-forest-900">Who will handle this transaction?</h3>
               <p className="mt-2 text-sm leading-6 text-sand-700">SecurePay shows only backend-returned funding rails for this Agreement. Choose a route, request its current price, and reconsider other options before making a payment.</p>
+              <p className="mt-2 text-xs text-sand-700"><strong>Rail hierarchy:</strong> Bank and bank-network settlement routes are shown separately from mobile money. Each provider-returned minimum and maximum is displayed; a name alone never means this rail supports the amount. MMFs, insurance and SACCO savings belong to separate Vision/regulated-product decisions, not interchangeable payment rails.</p>
               <p className="mt-2 text-xs text-sand-700"><strong>Institutional responsibility:</strong> Not yet verified by the funding-route record. A rail name is not a legal institution, financing commitment, guarantee or insurance policy. Confirm the actual provider and terms during the authorised provider process.</p>
             </div>
             {routeSwitchLocked&&<p className="rounded-lg border border-cream-200 bg-white p-3 text-xs text-sand-700">{intents.state!=='ready'?'Checking existing payment attempts before allowing another selection.':'A payment attempt may already exist or be in progress. Inspect its confirmed status before choosing another rail; SecurePay will not invite a duplicate payment.'}</p>}
@@ -721,8 +723,10 @@ export function MoneyPaymentSettlementJourney({
             {chosenRailCode&&!chosenRail&&<StatusNotice tone="warning">The previously chosen rail is not in the latest eligible funding options. Choose a current option before proceeding.</StatusNotice>}
             {fundingOptions.length === 0 ? (
               <p className="rounded-xl bg-cream-50 p-4 text-sm text-sand-600">No funding route is currently available for this Agreement.</p>
-            ) : visibleFundingOptions.map(rail => (
+            ) : visibleFundingOptions.map((rail,index) => (
               <div key={rail.railCode} className={"rounded-2xl border p-4 "+(rail.railCode===chosenRailCode?"border-forest-400 bg-forest-50":"border-cream-200 bg-cream-50/70")}>
+                {(index===0 || settlementFamily(rail)!==settlementFamily(visibleFundingOptions[index-1])) &&
+                  <p className="mb-3 border-b border-cream-200 pb-2 text-xs font-bold uppercase tracking-wide text-forest-800" data-gate-b-rail-family>{settlementFamilyTitle[settlementFamily(rail)]}</p>}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
