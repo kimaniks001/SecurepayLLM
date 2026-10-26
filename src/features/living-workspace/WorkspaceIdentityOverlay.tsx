@@ -54,10 +54,15 @@ export function WorkspaceIdentityOverlay({auth,session,identityStagingReady,onDo
           className="flex min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-cream-100"><X size={18}/></button>}
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto" data-gate-d-identity-content>
-      {stage==='signin'&&<SignInExperience
+      {stage==='signin'&&(identityStagingReady ? <SignInExperience
         auth={auth} session={session} onSignedIn={complete} onCancel={complete}
         onRecover={()=>{complete();window.location.hash='#/recovery';}}
-        onGetKsNumber={()=>setStage('signup')}/>}
+        onGetKsNumber={()=>setStage('signup')}/> :
+        <section className="mx-auto max-w-lg space-y-3 p-6" data-gate-d-identity-staging-hold>
+          <h2 className="font-display text-2xl text-forest-900">Identity is not connected in this preview</h2>
+          <p className="text-sm leading-6 text-sand-700">The approved Workspace is available to explore. Sign-in and KS Number issuance require a verified staging identity service first. We will not collect your password or create a live identity on a public demonstration build.</p>
+          <button type="button" onClick={()=>setStage('signup')} className="min-h-11 rounded-xl border border-forest-200 bg-cream-50 px-4 text-sm font-semibold text-forest-800">See the KS Number process</button>
+        </section>)}
       {stage==='signup'&&<div className="mx-auto w-full max-w-xl space-y-4 p-5 sm:p-8" data-gate-d-workspace-signup>
         <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">Identity · Not financial activation</p>
         <h2 className="font-display text-3xl text-forest-900">Get your KS Number</h2>
