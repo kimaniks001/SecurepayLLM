@@ -19,6 +19,7 @@ const files = Object.fromEntries([
  ['money','src/features/living-workspace/UnifiedMoneyTool.tsx'],
  ['rails','src/features/living-workspace/MoneyRailCeremony.tsx'],
  ['active','src/features/living-workspace/AgreementDiscovery.tsx'],
+ ['writtenEvidence','src/features/living-workspace/AgreementStatementEvidence.tsx'],
  ['invitation','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx'],
  ['vision','src/features/living-workspace/VisionFinancialPossibilities.tsx'],
  ['activation','src/features/activation/ActivationExperience.tsx'],
@@ -82,10 +83,19 @@ source('D08','Vision financial possibilities strictly separate from Agreement Mo
   /if\(area==='vision'\)return <VisionFinancialPossibilities\/>/.test(files.money) &&
   /railFamily\(rail\.displayName,rail\.railCode\)/.test(files.rails),
   'Categories and planning/execution separation represented; provider prices, eligibility and authorisation still need actual backend testing.', ['src/features/living-workspace/UnifiedMoneyTool.tsx','src/features/living-workspace/MoneyRailCeremony.tsx']);
-source('D09','Active Agreement has task-first backend status and real evidence submission UX',
-  /data-gate-b-active-attention/.test(files.active)&&
-  /data-gate-d-captioned-evidence-submit/.test(files.active),
-  'Task-first overview exists; no proven captioned photo/document upload and obligation-specific authorised submission in the same panel.', ['src/features/living-workspace/AgreementDiscovery.tsx']);
+source('D09','Active Agreement task-first and genuine version-bound written evidence',
+  /data-gate-b-active-attention/.test(files.active) &&
+  /<AgreementStatementEvidence/.test(files.active) &&
+  /data-gate-d-authorised-statement-evidence/.test(files.writtenEvidence) &&
+  /expectedAgreementVersionId:versionId/.test(files.writtenEvidence) &&
+  /expectedObligationVersion:current.stateVersion/.test(files.writtenEvidence) &&
+  /idempotencyKey:crypto.randomUUID\(\)/.test(files.writtenEvidence),
+  'Real TEXT_STATEMENT submission with obligation/version/idempotency; not an uploaded photo or proof of review/completion.', ['src/features/living-workspace/AgreementDiscovery.tsx','src/features/living-workspace/AgreementStatementEvidence.tsx']);
+source('D16','Private captioned photo/document upload stored and bound to an obligation',
+  /data-gate-d-real-obligation-media-upload/.test(files.active) &&
+  /verifiedUploadReceipt/.test(files.active),
+  'BLOCKED: SecurePay Agreement API accepts a participant-declared file reference + hash but does not store or verify obligation media bytes. Requires API #345 with authenticated, durable bytes, immutable digest and role-limited retrieval; no handoff-place photo shortcut.',
+  ['SecurePayAPI issue #345','src/features/living-workspace/AgreementDiscovery.tsx']);
 source('D10','Financial activation shows actual authority stages',
   /data-gate-c-activation-progress/.test(files.activation) &&
   /funding\?\.financiallyEnabled/.test(files.activation) &&
