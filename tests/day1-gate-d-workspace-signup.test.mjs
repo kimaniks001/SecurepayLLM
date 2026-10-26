@@ -19,7 +19,7 @@ test('Gate D: preview root and explicit identity deep-links retain the masterpie
  assert.match(shell,/data-workspace-shell/);
  assert.match(shell,/data-workspace-frozen-layout/);
  assert.match(shell,/data-gate-d-get-ks-number/);
- assert.match(shell,/data-gate-d-workspace-identity/);
+ assert.match(overlay,/data-gate-d-workspace-identity/);
  assert.doesNotMatch(shell,/window\.location\.hash='#\/sign-up'/);
 });
 test('Gate D: identity stays over mounted KS001/chat/tools/result',()=>{
