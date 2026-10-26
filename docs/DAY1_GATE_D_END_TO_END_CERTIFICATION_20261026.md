@@ -24,6 +24,8 @@ This remains a **blocking product gap** even if all ordinary UI build tests are 
 | D07 | Agreement reader → backend-authorised Save / Share / Connect Money in one shell; no acceptance or funding before readiness |
 | D08 | Vision financial planning never executes; My Work selects only eligible institution and rail, exact amount, fee, provider quote, consent and Agreement version |
 | D09 | Real ACTIVE Agreement shows participant's top action, obligation-specific photo/document caption and location provenance, contextual KS001 and permission-gated human help; evidence submission, review and Money release are separate |
+| D09 | Actual current obligation TEXT_STATEMENT submission, idempotent and version-bound. Display the server-returned submission/review status without implying completion or payment. This is supported by current API. |
+| D16 | **BLOCKING media requirement:** real private photo/document bytes + caption, GPS/Plus Code provenance, server digest, obligation/version/participant binding, secure viewer and reviewer authority; see [API #345](https://github.com/kimaniks001/SecurePayAPI/issues/345). Existing API stores only participant-declared references, not media bytes; geo handoff photos are separately purpose-bound. |
 | D10 | Activation Agreement and backend funding components remain independent from identity issuance and Trust membership |
 | D11–D15 | Real-model staged trade cases; real OTP/DB issue-and-login; consented Trust/Business roles; provider sandbox callbacks and accounting; mobile/desktop evidence |
 
@@ -45,4 +47,10 @@ This remains a **blocking product gap** even if all ordinary UI build tests are 
 
 This is a source-and-evidence **preflight**, not a full browser or backend suite. Real-provider operations and live-model tests require independently linked evidence before formal owner release signoff.
 
-**Current expected result: BLOCKED.** The first job of Gate D is to prove and repair the unfinished Gate C integration. Do not rebuild/reimagine the approved masterpiece.
+**Actual source snapshot (26 October 2026):** 10/11 source checks ready (D01–D10), D16 **BLOCKED** because secure Agreement-obligation photo/document upload does not exist; D11–D15 **NOT CERTIFIED** pending real staging. Written evidence already works at the source-contract level and displays the returned status, but media does not. Keep the fail-closed workflow red until the API #345 media work and real multi-service staging evidence are proven.
+
+**Required isolated staging environment before release:** exact frontend SHA, certified API/model SHAs, disposable PostgreSQL + migration set, safe SMTP/SMS OTP test adapters, signed/verified payment provider sandbox callbacks, encrypted private-media storage with retention and malware checks, certified institution rail catalog, and real synthetic role identities. The Vercel preview is **not** proof of this infrastructure. Gate D may be signed off only after each acceptance journey has linkable test output, screenshots and an evidence owner; no fake accounts or real-money funding are required.
+
+**Merge instructions only after Gate D PASS:** Merge API P0 repair PR #341 after real-model certification; merge the stacked UI changes in dependency order #169 → #171 → #172 → #173 (or reconcile into one reviewed integration PR against main preserving authorship and avoiding duplicate commits). Verify main post-merge exact SHAs and run staging again. Do **not** deploy by merging on its own; a separate production release gate and owner authorisation are mandatory.
+
+**Current release verdict: HOLD.** Do not rebuild/reimagine the approved masterpiece, do not mark declared file references as stored photo evidence, and do not waive real identity/payment tests because a component CI build is green.
