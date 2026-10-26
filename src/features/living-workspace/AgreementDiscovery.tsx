@@ -233,7 +233,7 @@ export function AgreementDiscovery({gateways,session,onSignIn,openAgreementId,on
               <p className="text-xs text-sand-600">No funding, quotation, release or payment can be authorised from this reader.</p>
               {onConnectMoney&&<button type="button" onClick={()=>{const id=verified.overview.agreementId;closeFull();onConnectMoney(id);}}
                 className="min-h-11 rounded-xl border border-forest-300 bg-cream-50 px-4 text-sm font-semibold text-forest-900" data-gate-d-connect-money>
-                Explore Agreement Money choices
+                {verified.money.status==='READY'?'Connect Money · check eligible rails':'Explore Agreement Money choices'}
               </button>}</div>}
             {tab==='History'&&<div className="space-y-3"><h3 className="font-semibold">Version history</h3>{verified.versionHistory.length?verified.versionHistory.map(v=><p key={v.versionId} className="rounded-lg border border-cream-200 p-3 text-sm">Version {v.versionNumber} · {safeDate(v.createdAt)||'Date unavailable'}{v.amendmentReason?' · '+v.amendmentReason:''}</p>):<p>No version history returned.</p>}
               <h3 className="font-semibold">Activity</h3>{verified.activity.length?verified.activity.map(a=><p key={a.id} className="text-sm">{a.activityType} · {safeDate(a.occurredAt)||'Date unavailable'}</p>):<p>No activity returned.</p>}</div>}
