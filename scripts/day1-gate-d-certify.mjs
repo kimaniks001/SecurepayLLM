@@ -83,7 +83,8 @@ source('D07','Review → authorised Save / Share / Connect Money in same Workspa
   /onConnectMoney=\{\(\)=>openTool\('Money'\)\}/.test(files.workspace),
   'Version-checked draft, creator-gated invitation and backend-ready Money tool are now connected. Provider execution, party confirmation and full same-shell settlement require real staging tests and remain separate authority.', ['src/features/living-workspace/Phase1LivingWorkspacePreview.tsx','src/features/living-workspace/AgreementDiscovery.tsx','src/features/living-workspace/AgreementInviteInsideWorkspace.tsx']);
 source('D08','Vision financial possibilities strictly separate from Agreement Money',
-  /<VisionFinancialPossibilities\/>/.test(files.workspace) &&
+  /data-gate-b-vision-inside-masterpiece/.test(files.workspace) &&
+  /<InlineVisionEditor key=\{editingDreamId\}/.test(files.workspace) &&
   /if\(context==='vision'\)return <VisionFinancialPossibilities\/>/.test(files.money) &&
   /groupedSettlementOptions\(options\)/.test(files.rails) &&
   /settlementFamily\(rail\)/.test(files.rails),
