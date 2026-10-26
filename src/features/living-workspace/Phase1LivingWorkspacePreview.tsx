@@ -2,6 +2,7 @@ import { InlineCommunityHub } from './InlineCommunityHub';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
+import { VisionFinancialPossibilities } from './VisionFinancialPossibilities';
 import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
 import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
@@ -684,6 +685,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <WorkspaceWelcome area={mode} onExample={example=>{
             if(example.tool)openTool(example.tool);
           }}/>
+          {mode==='vision' && <VisionFinancialPossibilities/>}
           {mode==='work' && !gateway && <p role="status" className="mx-auto mt-3 max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">KS001 is temporarily unavailable. No Agreement will be created or changed.</p>}
           {mode!=='work' && gateway && <div className="mx-auto mt-5 max-w-lg text-center">
             <p className="text-xs leading-5 text-sand-600">The tools are available here. Personalised KS001 conversation in this space needs an authorised connection.</p>
