@@ -865,6 +865,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     </div>}
     {!editingDreamId && !workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
+    {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
+      aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/50 p-3">
+      <section className="w-full max-w-md space-y-3 rounded-2xl border border-cream-200 bg-white p-5 shadow-2xl">
+        <h2 className="font-display text-2xl text-forest-900">Identity is not connected in this preview</h2>
+        <p className="text-sm leading-6 text-sand-700">The approved Workspace can be explored without creating a KS Number. Sign-in and verification require an authorised SecurePay staging connection. Nothing has been registered or sent.</p>
+        <button type="button" onClick={closeIdentity} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">Back to my work</button>
+      </section>
+    </div>}
     {signInOpen && workspaceGateways && <WorkspaceIdentityOverlay
       key={identityIntent} initialStage={identityIntent}
       auth={workspaceGateways.auth} session={session} identityStagingReady={identityStagingReady}
