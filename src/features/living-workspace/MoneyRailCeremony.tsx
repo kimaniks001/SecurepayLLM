@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, CircleHelp, Landmark, ShieldCheck, Smartphone } from 'lucide-react';
 import type { AgreementFundingOptionResponse } from '../../api/securepay/payment-intent';
+import { groupedSettlementOptions, settlementFamily, settlementFamilyTitle } from './settlementRailFamily';
 
 const examples:AgreementFundingOptionResponse[]=[
   {railCode:'SAMPLE_MPESA',displayName:'M-PESA',currency:'KES',minimumAmountMinor:null,maximumAmountMinor:null,quoteAvailable:false},
@@ -18,7 +19,7 @@ export function MoneyRailCeremony({
  const [chosen,setChosen]=useState<string|null>(null);
  const [alternatives,setAlternatives]=useState(false);
  useEffect(()=>{setChosen(null);setAlternatives(false);},[agreementTitle,sample]);
- const rails=sample?examples:options;
+ const rails=sample?examples:groupedSettlementOptions(options);
  const selected=rails.find(r=>r.railCode===chosen)||null;
  const visible=alternatives||!selected?rails:[selected];
  return <section aria-label="Choose the financial institution and payment rail" className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4" data-testid="money-rail-ceremony">
@@ -27,10 +28,13 @@ export function MoneyRailCeremony({
   {sample?<p className="rounded-lg bg-cream-50 p-2 text-xs text-sand-600">Practice only. These three rails are illustrations, not verified eligible options for this Agreement.</p>:
   rails.length===0?<p className="rounded-lg bg-cream-50 p-3 text-xs">SecurePay has not returned an eligible funding route for this Agreement. Payment cannot be initiated from this selection.</p>:null}
   <div className="space-y-2">
-   {visible.map(rail=>{
+   {visible.map((rail,index)=>{
     const isSelected=rail.railCode===chosen;
     const Icon=isMobile(rail.displayName)?Smartphone:Landmark;
-    return <button key={rail.railCode} type="button" aria-pressed={isSelected}
+    return <div key={rail.railCode}>
+      {(index===0||settlementFamily(rail)!==settlementFamily(visible[index-1]))&&
+        <p className="mb-2 mt-3 text-xs font-bold uppercase tracking-wide text-forest-800">{settlementFamilyTitle[settlementFamily(rail)]}</p>}
+      <button type="button" aria-pressed={isSelected}
       onClick={()=>{setChosen(rail.railCode);setAlternatives(false);}}
       className={'flex min-h-16 w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors '+(isSelected?'border-forest-500 bg-forest-50':'border-cream-200 hover:border-forest-300')}>
       <Icon size={20} className="mt-1 shrink-0 text-forest-700"/>
@@ -39,7 +43,8 @@ export function MoneyRailCeremony({
        <span className="block text-xs text-sand-600">{rail.currency} · {sample?'Example, not available to pay':rail.quoteAvailable?'Backend lists a quotation step':'No quotation available for this rail'}</span>
       </span>
       {isSelected&&<CheckCircle2 size={18} className="mt-1 shrink-0 text-forest-700"/>}
-    </button>;
+      </button>
+    </div>;
    })}
   </div>
   {chosen&&rails.length>1&&<button type="button" onClick={()=>setAlternatives(v=>!v)} className="min-h-10 text-sm font-semibold text-forest-700 underline underline-offset-4">{alternatives?'Return to your selection':'Compare '+(rails.length-1)+' other '+(rails.length===2?'option':'options')}</button>}
