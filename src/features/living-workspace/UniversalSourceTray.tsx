@@ -367,12 +367,6 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          {(tool==='Photos'||tool==='Documents')&&!isDemo&&serverSource&&uploadState==='confirmed'&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" onClick={()=>{
-            if(!pending||!serverSource)return;
-            setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:'SecurePay source: '+serverSource.sourceArtifactId,mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
-            setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
-            upload.current?.click();
-          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white">+ Send another {tool==='Photos'?'photo':'document'}</button>}
           <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
       </div>}
