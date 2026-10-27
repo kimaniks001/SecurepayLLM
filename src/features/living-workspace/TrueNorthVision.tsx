@@ -1,5 +1,5 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ArrowUp, BookOpen, Calculator, Check, ChevronDown, Compass, FileText, Image, MapPin, Plus, RotateCcw, Save, Sparkles } from 'lucide-react';
+import { ArrowUp, Calculator, Check, ChevronDown, Compass, FileText, Image, MapPin, Plus, Save, Sparkles } from 'lucide-react';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createVisionDreamController, type VisionDreamState } from '../visionboard/dreams/controller';
 import { ensureFreshSession } from '../../api/securepay/session';
@@ -192,8 +192,6 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
   const {draft,setDraft,send,messages,notice,busy,real,agentState,showCalculator,setShowCalculator,scenarios,dreamState,retry,retryDream,reconcileDream}=journey;
   const end=useRef<HTMLDivElement|null>(null);
   const [addOpen,setAddOpen]=useState(false);
-  const [optionsOpen,setOptionsOpen]=useState(false);
-  const [firstVisit,setFirstVisit]=useState(true);
   const pending=!!agentState?.pending;
   const busyNow=busy||!!agentState?.busy;
   const lastResponse=messages[messages.length-1]?.sender==='guide'?messages[messages.length-1].text:'';
