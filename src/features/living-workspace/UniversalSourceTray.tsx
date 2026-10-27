@@ -187,7 +187,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
       if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
-        setUploadMessage('SecurePay received the photo and is reading it…');
+        setUploadMessage('SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
@@ -200,10 +200,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       }
       setUploadState('confirmed');
       if(source.extractionStatus==='READY'||source.extractionStatus==='PARTIAL')
-        setUploadMessage('Photo processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
+        setUploadMessage((tool==='Photos'?'Photo':'Document')+' processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
       else if(source.extractionStatus==='FAILED')
-        setUploadMessage('SecurePay received the photo but could not process it. Keep the original and try a clearer image.');
-      else setUploadMessage('Photo received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review its source status.');
+        setUploadMessage('SecurePay received your '+(tool==='Photos'?'photo':'document')+' but could not read it. You can retry the same source, or choose another file.');
+      else setUploadMessage((tool==='Photos'?'Photo':'Document')+' received by SecurePay; understanding has not been confirmed yet. Review its source status.');
     }catch(error){
       if(isOutcomeUnknown(error)){
         setUploadState('unknown');
@@ -388,26 +388,27 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         <p className="text-xs text-sand-600">Only after you press Send will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
       {uploadState==='error'&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
       {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>}
-      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
+      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown'||serverSource.extractionStatus==='FAILED')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
       {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
         <p className="text-sm font-semibold">{['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Here’s what I found':serverSource.extractionStatus==='FAILED'?'Could not read this file':'Still reading your file'}</p>
         {serverSource.summary&&<p className="text-sm">{detailsOpen?serverSource.summary:serverSource.summary.slice(0,135)+(serverSource.summary.length>135?"…":"")}</p>}
+        {serverSource.extractionStatus==='FAILED'&&<p role="alert" className="text-xs text-amber-900">{serverSource.failureReason||'KS001 could not read this source. Nothing from it has been added to your work.'}</p>}
         {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
-          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing photo source…');
+          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
             const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
             if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
             setServerSource(retry);setUploadState('confirmed');
-            setUploadMessage(retry.extractionStatus==='FAILED'?'The photo is still unreadable. Try a clearer picture.':'SecurePay retried the same source. Review its updated processing status.');
+            setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or share the important details in text.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
-            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
+            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
-        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
+        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}
 
         {onContinueTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<>
           <p className="text-sm font-semibold">What next?</p>
