@@ -80,7 +80,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       <div ref={historyEnd} aria-hidden="true"/>
       {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
     </div>
-    {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
+    {state.turns.length>0&&!state.busy&&!state.pending&&!state.sourceContinuationPending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
@@ -97,7 +97,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
               return;
             }
             if(action.type==='focus'){document.getElementById('live-work-ks001-input')?.focus();return;}
-            if(state.busy||state.pending)return;
+            if(state.busy||state.pending||state.sourceContinuationPending)return;
             if(action.type==='local-day'){
               const date=new Date(); date.setDate(date.getDate()+action.days);
               const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
@@ -113,7 +113,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='time'?'What time?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
-          if(state.busy||state.pending)throw new Error('Previous turn not finished');
+          if(state.busy||state.pending||state.sourceContinuationPending)throw new Error('Resolve the pending KS001 source reply first');
           const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
           await controller.send(answer);
           const latest=controller.getSnapshot();
