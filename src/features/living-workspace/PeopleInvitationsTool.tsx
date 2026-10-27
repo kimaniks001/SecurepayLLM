@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { KsIdentitySelectionResult } from '../../api/securepay/agent/dto';
 type Purpose='agreement'|'circle'|'project'|'trust';
 const LABELS:Record<Purpose,string>={agreement:'Agreement',circle:'Circle',project:'Community project',trust:'Trust Project'};
-export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],localPreview=false,onLocalProposal}:{onPrepare:(text:string)=>Promise<void>;onCheckKs?:(ksNumber:string)=>Promise<KsIdentitySelectionResult>;agreementPeople?:string[];localPreview?:boolean;onLocalProposal?:(text:string)=>void}){
+export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],localPreview=false,onLocalProposal}:{onPrepare:(text:string)=>Promise<void>;onCheckKs?:(ksNumber:string)=>Promise<KsIdentitySelectionResult>;agreementPeople?:Array<string|{name:string;role?:string|null}>;localPreview?:boolean;onLocalProposal?:(text:string)=>void}){
   const [purpose,setPurpose]=useState<Purpose>('agreement');
   const [people,setPeople]=useState('');
   const [role,setRole]=useState('');
@@ -84,8 +84,16 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],lo
     </div>
     {purpose==='agreement'&&agreementPeople.length>0&&<div className="rounded-xl bg-cream-50 p-2">
       <p className="mb-2 text-xs text-sand-600">Already mentioned in your Agreement</p>
-      <div className="flex flex-wrap gap-2">{agreementPeople.slice(0,8).map((name,index)=><button type="button" key={index} onClick={()=>setPeople(previous=>[previous,name].filter(Boolean).join('\n'))}
-        className="rounded-full border border-cream-200 bg-white px-3 py-2 text-xs">{name}</button>)}</div>
+      <div className="flex flex-wrap gap-2">{agreementPeople.slice(0,8).map((person,index)=>{
+        const name=typeof person==='string'?person:person.name;
+        const proposedRole=typeof person==='string'?null:person.role;
+        return <button type="button" key={index} onClick={()=>{
+          setPeople(previous=>[previous,name].filter(Boolean).join('\n'));
+          if(proposedRole&&!role.trim())setRole(proposedRole);
+        }} className="rounded-full border border-cream-200 bg-white px-3 py-2 text-xs">
+          {name}{proposedRole?' · '+proposedRole:''}
+        </button>;
+      })}</div>
     </div>}
     <div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
       <p className="text-sm font-semibold">Add with KS Number</p>
