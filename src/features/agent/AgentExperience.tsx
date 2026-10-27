@@ -1443,8 +1443,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
   const retryHomeSource = () => {
     const pending = homePendingSource;
-    if (!pending) return;
-    setHomePendingSource({ ...pending, phase: 'reading', error: undefined });
+    if (!pending || pending.phase === 'uploading') return;
+    setHomePendingSource({ ...pending, phase: 'uploading', error: undefined });
     const conversationId = state.conversationId;
     const action = pending.sourceArtifactId && conversationId
       ? sourceController.retry(conversationId, pending.sourceArtifactId)
@@ -1733,15 +1733,39 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             draftKey={state.conversationId ?? 'new'}
             leading={<SourceMenu
               placement="above"
-              disabled={state.busy || sourcesState.phase === 'submitting' || sourcesState.phase === 'checking'}
+              disabled={state.busy || !!composerPendingSource || sourcesState.phase === 'submitting' || sourcesState.phase === 'uploading' || sourcesState.phase === 'checking'}
               onBringPlan={openBringPlan}
-              onPickDocument={file => { void sourceController.addUpload('DOCUMENT', file); }}
-              onPickPhoto={file => { void sourceController.addUpload('PHOTO', file); }}
+              onPickDocument={file => setComposerPendingSource({file, kind:'DOCUMENT'})}
+              onPickPhoto={file => setComposerPendingSource({file, kind:'PHOTO'})}
               onAddLink={() => openDeclared('link')}
               onAddPlace={() => openDeclared('place')}
                onAddDateTime={() => setDateTimeOpen(true)}
             />}
             status={<div className="space-y-3">
+              {/* A file is chosen locally first. Only Add to KS001 transmits it. */}
+              {composerPendingSource && <section aria-label="Selected source awaiting approval"
+                className="space-y-2 rounded-xl border border-cream-200 bg-white p-3" data-source-awaiting-add>
+                <p className="truncate text-sm font-medium text-forest-800">{composerPendingSource.file.name}</p>
+                {sourcesState.phase === 'uploading' || sourcesState.phase === 'checking'
+                  ? <UploadStatusBar stage={sourcesState.phase === 'checking' ? 'reading' : 'uploading'} fileName={composerPendingSource.file.name}/>
+                  : <p className="text-xs text-sand-600">Selected on this device · not shared with KS001.</p>}
+                {sourcesState.phase !== 'uploading' && sourcesState.phase !== 'checking' &&
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white"
+                      onClick={() => {
+                        const selected = composerPendingSource;
+                        void sourceController.addUpload(selected.kind, selected.file).then(result => {
+                          // A known source receipt belongs to the canonical list/card.
+                          // If no receipt can be confirmed, leave the chosen file here.
+                          if (result.ok || result.source?.sourceArtifactId) {
+                            setComposerPendingSource(current => current?.file === selected.file ? null : current);
+                          }
+                        });
+                      }}>Add to KS001</button>
+                    <button type="button" className="min-h-11 rounded-xl border border-cream-200 px-3 text-xs"
+                      onClick={() => setComposerPendingSource(null)}>Remove selection</button>
+                  </div>}
+              </section>}
               {/* Entry Perfection Phase 6 -- once SecurePay understands a coherent arrangement, the agreement leads. */}
               {continuityChoice && <div className="space-y-2">
                 <ContinuityChoice busy={continuityBusy || dreamClaimOpen || visionDreamState.phase === 'saving' || visionDreamState.phase === 'reconciling' || !!visionDreamState.pending}
