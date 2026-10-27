@@ -6,6 +6,7 @@ import jsQR from 'jsqr';
 import type { VisionDreamGateway } from '../../api/securepay/visiondreams';
 import type { VisionDreamDto } from '../../api/securepay/visiondreams/dto';
 import { isOutcomeUnknown, sourceIngestionErrorText } from '../sources/controller';
+import { UploadStatusBar } from '../sources/ui/UploadStatusBar';
 
 type Intake='Photos'|'Documents'|'Places';
 export type LocalSourceProposal={kind:Intake;text:string;filename?:string;mime?:string|null;size?:number|null;thumbnail?:string|null;snippet?:string|null};
@@ -96,7 +97,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const upload=useRef<HTMLInputElement|null>(null);
   const camera=useRef<HTMLInputElement|null>(null);
   const pendingFile=useRef<File|null>(null);
-  const [uploadState,setUploadState]=useState<'idle'|'uploading'|'confirmed'|'unknown'|'error'>('idle');
+  const [uploadState,setUploadState]=useState<'idle'|'uploading'|'reading'|'confirmed'|'unknown'|'error'>('idle');
   const [uploadMessage,setUploadMessage]=useState('');
   const [serverSource,setServerSource]=useState<AgentSourceArtifactDto|null>(null);
   const [taskBusy,setTaskBusy]=useState(false);
@@ -188,8 +189,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   }
 
   async function uploadToKs001(file:File|null=pendingFile.current){
-    if(!gateway || isDemo || !file || uploadState==='uploading' || uploadState==='unknown' || uploadState==='confirmed')return;
-    setUploadState('uploading');setUploadMessage('KS001 is reading your '+(tool==='Photos'?'photo':'document')+'…');
+    if(!gateway || isDemo || !file || uploadState==='uploading' || uploadState==='reading' || uploadState==='unknown' || uploadState==='confirmed')return;
+    setUploadState('uploading');setUploadMessage('Uploading your '+(tool==='Photos'?'photo':'document')+' to SecurePay…');
     try{
       const targetConversationId=conversationId ?? await onEnsureConversation?.();
       if(!targetConversationId)throw new Error('No KS001 conversation');
@@ -199,7 +200,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
       if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
-        setUploadMessage('SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
+        setUploadState('reading');setUploadMessage('Upload complete. SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
@@ -365,9 +366,9 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
         {tool==='Documents'&&!localSnippet&&<p className="text-xs text-sand-600">Selected locally. No document extraction has taken place.</p>}
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
-        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
+        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Uploading to SecurePay…':uploadState==='reading'?'SecurePay is reading…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
+          <button type="button" disabled={uploadState==='uploading'||uploadState==='reading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
       </div>}
     </>}
@@ -396,17 +397,17 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     </button>}
     {(tool==='Photos'||tool==='Documents')&&area==='vision'&&!isDemo&&!dreamsGateway&&<p className="text-xs text-sand-700">Sign in to save files in a Vision. To have KS001 understand a document, use My Work.</p>}
     {(tool==='Photos'||tool==='Documents')&&pending&&!isDemo&&<div className="space-y-2">
-      {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your {tool==='Photos'?'photo':'document'}…</p>}
+      {(uploadState==='uploading'||uploadState==='reading')&&<UploadStatusBar stage={uploadState} fileName={pending.filename}/> }
       {gateway&&!serverSource&&uploadState==='idle'&&
         <button type="button" disabled={!pendingFile.current} onClick={()=>void uploadToKs001()}
           className="min-h-11 w-full rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">
-          Send {tool==='Photos'?'photo':'document'} to KS001
+          Add {tool==='Photos'?'photo':'document'} to KS001
         </button>}
       {gateway&&!serverSource&&uploadState==='idle'&&
-        <p className="text-xs text-sand-600">Only after you press Send will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
-      {uploadState==='error'&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
+        <p className="text-xs text-sand-600">Only after you press Add to KS001 will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
+      {uploadState==='error'&&!serverSource&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
       {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>}
-      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown'||serverSource.extractionStatus==='FAILED')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
+      {uploadMessage&&(uploadState==='error'||uploadState==='unknown'||serverSource?.extractionStatus==='FAILED')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
       {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
