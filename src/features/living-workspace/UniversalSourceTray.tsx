@@ -119,6 +119,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   function receive(file:File|undefined) {
     if(!file)return;
+    // A newer selection supersedes any pending FileReader or older network result.
+    seq.current++;
     setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
     file=canonicalUploadFile(file);
     const photo=tool==='Photos';
@@ -190,11 +192,13 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   async function uploadToKs001(file:File|null=pendingFile.current){
     if(!gateway || isDemo || !file || uploadState==='uploading' || uploadState==='reading' || uploadState==='unknown' || uploadState==='confirmed')return;
+    const sequence=seq.current;
     setUploadState('uploading');setUploadMessage('Uploading your '+(tool==='Photos'?'photo':'document')+' to SecurePay…');
     try{
       const targetConversationId=conversationId ?? await onEnsureConversation?.();
       if(!targetConversationId)throw new Error('No KS001 conversation');
       let source=await gateway.uploadSource(targetConversationId,tool==='Photos'?'PHOTO':'DOCUMENT',file);
+      if(seq.current!==sequence)return;
       if(!source.sourceArtifactId || source.conversationId!==targetConversationId)
         throw new Error('Unrecognised source receipt');
       setServerSource(source);
@@ -203,8 +207,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         setUploadState('reading');setUploadMessage('Upload complete. SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
+          if(seq.current!==sequence)return;
           try{
             const latest=await gateway.getSource(targetConversationId,source.sourceArtifactId);
+            if(seq.current!==sequence)return;
             if(latest.sourceArtifactId!==source.sourceArtifactId || latest.conversationId!==targetConversationId)break;
             source=latest;setServerSource(source);
             if(!['RECEIVED','PROCESSING'].includes(source.extractionStatus))break;
@@ -218,6 +224,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         setUploadMessage('SecurePay received your '+(tool==='Photos'?'photo':'document')+' but could not read it. You can retry the same source, or choose another file.');
       else setUploadMessage((tool==='Photos'?'Photo':'Document')+' received by SecurePay; understanding has not been confirmed yet. Review its source status.');
     }catch(error){
+      if(seq.current!==sequence)return;
       if(isOutcomeUnknown(error)){
         setUploadState('unknown');
         setUploadMessage('SecurePay could not confirm this upload. It may still be processing. Check this conversation’s sources before retrying to avoid duplicates.');
@@ -388,7 +395,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
         {tool==='Documents'&&!localSnippet&&<p className="text-xs text-sand-600">Selected locally. No document extraction has taken place.</p>}
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
-        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Uploading to SecurePay…':uploadState==='reading'?'SecurePay is reading…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
+        <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Uploading to SecurePay…':uploadState==='reading'?'SecurePay is reading…':serverSource?(['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Processed · review the findings':'Received by SecurePay · not yet understood'):'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           <button type="button" disabled={uploadState==='uploading'||uploadState==='reading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
