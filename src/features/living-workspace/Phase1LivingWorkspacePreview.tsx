@@ -546,7 +546,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
                       .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
                       .map(term=>term.value).slice(0,6)
-                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn||uiOnlyPreview} onLocalProposal={uiOnlyPreview?addPreviewSource:undefined} gateway={mode==='work'&&!uiOnlyPreview?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn||uiOnlyPreview} onLocalProposal={uiOnlyPreview?addPreviewSource:undefined} gateway={mode==='work'&&!uiOnlyPreview?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined}
+                  visionConversationGateway={mode==='vision'&&signedIn&&!mockSignedIn?gateway:undefined} ensureSignedIn={async()=>{
                   if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
                   await ensureFreshSession(session,workspaceGateways.auth);
                   if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
@@ -609,7 +610,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       }
                       return gateway.selectKsIdentity(id,{ksNumber});
                     }:undefined}
-                    agreementPeople={formationState?.data?.conversationId===liveConversationId?formationState.data.who.map(p=>p.name):[]}
+                    agreementPeople={formationState?.data?.conversationId===liveConversationId
+                      ?formationState.data.who.filter(p=>p.name!=='Not named yet').map(p=>({name:p.name,role:p.role})):[]}
                     onPrepare={async text=>{
                       if(!liveController)throw new Error('KS001 unavailable');
                       setLiveStarted(true);setLiveWork(true);
@@ -877,6 +879,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
+          onOpenPeople={()=>openTool('People & Invitations')}
           onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
           onCorrectFact={async (label,previous,replacement,expectedVersion)=>{
             if(!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');
