@@ -18,10 +18,13 @@ test('signed-in and signed-out Home both receive the same visible source lifecyc
   assert.match(publicHome, /sourceStatusSlot=\{props\.sourceStatusSlot\}/);
 });
 
-test('Home upload remains visible until source ingestion has a terminal result', () => {
-  assert.match(agent, /setHome\(true\);[\s\S]{0,600}setHomePendingSource\(\{ file, kind, phase: 'reading' \}\)/);
+test('Home selection remains local until explicit Add to KS001, then displays real transfer/reading status', () => {
+  assert.match(agent, /setHomePendingSource\(\{ file, kind, phase: 'selected' \}\)/);
+  assert.match(agent, /const commitHomeSource = \(\) => \{/);
+  assert.match(agent, /sourceController\.addUpload\(pending\.kind, pending\.file\)/);
   assert.match(agent, /data-home-source-status=\{homePendingSource\.phase\}/);
-  assert.match(agent, /Reading…/);
+  assert.match(agent, /<UploadStatusBar stage=\{sourcesState\.phase === 'checking' \? 'reading' : 'uploading'\}/);
+  assert.match(agent, />Add to KS001<\/button>/);
   assert.match(agent, /Try again/);
   assert.match(agent, /Remove/);
   assert.doesNotMatch(agent, /const pickDocument = \(file: File\) => \{ requestFresh\(set => \{ setHome\(false\)/);
