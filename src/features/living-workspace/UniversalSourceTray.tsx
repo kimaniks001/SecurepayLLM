@@ -167,7 +167,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
       if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
-        setUploadMessage('SecurePay received the photo and is reading it…');
+        setUploadMessage('SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
@@ -385,7 +385,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             setServerSource(retry);setUploadState('confirmed');
             setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or describe its important details.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
-            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
+            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}
 
