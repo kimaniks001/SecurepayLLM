@@ -49,7 +49,9 @@ test('Gate 5B: approved language appears in real welcome and existing right-hand
   assert.match(guide,/One useful next step/);
   assert.match(guide,/onClick=\{onContinueToWork\}/);
   assert.match(guide,/Opening My Work does not transfer, publish, approve or pay/);
-  assert.match(shell,/mode!=='work' && <WorkspacePurposeGuide area=\{mode\} onContinueToWork=\{\(\)=>chooseMode\('work'\)\}/);
+  // Vision now uses the owner-approved living summary; the old purpose guide remains for Circle and Community.
+  assert.match(shell,/mode!=='work' && mode!=='vision' && <WorkspacePurposeGuide area=\{mode\}/);
+  assert.match(shell,/mode==='vision' && <TrueNorthVisionSummary/);
   assert.match(shell,/data-workspace-frozen-layout/);
   assert.match(shell,/data-workspace-shell/);
   assert.match(shell,/aria-label="Living result"/);
