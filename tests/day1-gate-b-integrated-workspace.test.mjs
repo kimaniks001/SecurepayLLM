@@ -35,7 +35,10 @@ test('Gate B: existing masterpiece shell hosts Dream and active Agreement; same 
 
 test('Gate B: My Work and Vision Money are distinct; no executable Vision rail',()=>{
  assert.match(shell,/context=\{mode==='vision'\?'vision':'work'\}/);
- assert.match(shell,/\['Photos','Documents','Places','Stores','Money'\]/);
+ // Vision keeps its everyday shelf small. Finance modelling now opens in the conversation,
+ // while the original Money capability remains separate and authorised in My Work.
+ assert.match(shell,/\['Photos','Documents','Places'\]\.includes\(tool\.name\)/);
+ assert.match(shell,/TrueNorthVisionChat/);
  assert.match(tool,/if\(context==='vision'\)return <VisionFinancialPossibilities\/>/);
  assert.match(tool,/doors\.filter\(item=>item.id==='my'\)/);
  assert.match(vision,/No live rates, banks, MMFs, SACCO offerings/);
