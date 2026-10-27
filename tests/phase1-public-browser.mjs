@@ -83,7 +83,8 @@ try{
   }
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'Vision'}).click();
   await page.getByRole('navigation',{name:'Workspace experience'}).getByRole('button',{name:'Vision'}).waitFor();
-  await page.getByRole('heading',{name:'Imagine what could be possible'}).waitFor();
+  await page.getByRole('heading',{name:'What are you imagining?'}).waitFor();
+  assert.equal(await page.locator('#vision-north-input').count(),1,'Vision must begin with a message composer, not mandatory media');
   assert.equal(await page.getByRole('heading',{name:'What would you like to get done?'}).count(),0);
   await page.screenshot({path:`${out}/${name}-vision.png`,fullPage:true});
   // Every area must use the same workspace navigation and preserve access to its Living Board.
