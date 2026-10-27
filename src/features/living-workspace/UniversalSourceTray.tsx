@@ -103,7 +103,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||
       file.type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     if(!allowed){setError(photo?'Choose a JPEG or PNG photo. Other formats cannot yet be safely read by KS001. Nothing was uploaded.':'Choose a supported document format. Nothing was uploaded.');return;}
-    if(file.size===0){setError('This file is empty. Choose another picture.');return;}
+    if(file.size===0){setError('This file is empty. Choose another file.');return;}
     if(file.size>MAX_BYTES){setError('Local preview supports files up to 2 MB. The original file has not been uploaded or altered.');return;}
     const sequence=seq.current;
     const prepare=(thumbnail:string|null)=>{
@@ -167,7 +167,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
       if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
-        setUploadMessage('SecurePay received the photo and is reading it…');
+        setUploadMessage('SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
@@ -180,10 +180,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       }
       setUploadState('confirmed');
       if(source.extractionStatus==='READY'||source.extractionStatus==='PARTIAL')
-        setUploadMessage('Photo processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
+        setUploadMessage((tool==='Photos'?'Photo':'Document')+' processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
       else if(source.extractionStatus==='FAILED')
-        setUploadMessage('SecurePay received the photo but could not process it. Keep the original and try a clearer image.');
-      else setUploadMessage('Photo received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review its source status.');
+        setUploadMessage('SecurePay received your '+(tool==='Photos'?'photo':'document')+' but could not process it. The source is not understood; you can retry reading or use another file.');
+      else setUploadMessage((tool==='Photos'?'Photo':'Document')+' received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review the source status.');
     }catch(error){
       if(isOutcomeUnknown(error)){
         setUploadState('unknown');
@@ -378,16 +378,16 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
-          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing photo source…');
+          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
             const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
             if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
             setServerSource(retry);setUploadState('confirmed');
-            setUploadMessage(retry.extractionStatus==='FAILED'?'The photo is still unreadable. Try a clearer picture.':'SecurePay retried the same source. Review its updated processing status.');
+            setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or describe its important details.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
-            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
+            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
-        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
+        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}
 
         {onContinueTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<>
           <p className="text-sm font-semibold">What next?</p>
