@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ArrowUp, BookOpen, Calculator, Check, ChevronDown, Compass, FileText, Image, MapPin, Plus, RotateCcw, Save, Sparkles } from 'lucide-react';
 import { createAgentController, deviceTimeZone, type AgentState } from '../agent/controller';
 import { createVisionDreamController, type VisionDreamState } from '../visionboard/dreams/controller';
@@ -259,8 +259,8 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
     </form>
   </div>;
 }
-export function TrueNorthVisionSummary({journey,signedIn,onSignIn,onOpenSaved,onGoToWork,children}:{
-  journey:VisionNorthJourney;signedIn:boolean;onSignIn:()=>void;onOpenSaved?:(id:string)=>void;onGoToWork:()=>void;children?:React.ReactNode;
+export function TrueNorthVisionSummary({journey,signedIn,onSignIn,onOpenSaved,children}:{
+  journey:VisionNorthJourney;signedIn:boolean;onSignIn:()=>void;onOpenSaved?:(id:string)=>void;children?:ReactNode;
 }){
   const {firstThought,moreThoughts,scenarios,dreamState,real,saveDreamNotes,savedNotice,busy,showCalculator,setShowCalculator}=journey;
   const dream=dreamState?.selected??null;
