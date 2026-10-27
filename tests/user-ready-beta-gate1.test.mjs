@@ -111,7 +111,7 @@ test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, 
   assert.match(agentSrc, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
   assert.match(agentSrc, /if \(showHome\) requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); add\(set\); \}\); else add\(currentSet\(\)\);/);
   assert.match(agentSrc, /requestFresh\(set => \{ setHome\(false\); void set\.controller\.resumeConversation\(conversationId\); \}\)/);
-  assert.match(agentSrc, /setHomePendingSource\(\{ file, kind, phase: 'reading' \}\)/, 'a Home file is visible before ingestion completes');
+  assert.match(agentSrc, /setHomePendingSource\(\{ file, kind, phase: 'selected' \}\)/, 'a Home file is visible before ingestion completes');
   assert.doesNotMatch(agentSrc, /Return to conversation/, 'the old implicit "return" link is replaced by an explicit Continue');
   assert.doesNotMatch(agentSrc, /onStart=\{text => void controller\.send/);
 });
