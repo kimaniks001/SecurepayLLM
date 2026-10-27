@@ -2,6 +2,7 @@ import { InlineCommunityHub } from './InlineCommunityHub';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
+import { useVisionNorthJourney, TrueNorthVisionChat, TrueNorthVisionSummary } from './TrueNorthVision';
 import { prepareDreamHandoff, type DreamHandoff } from '../visionboard/dreams/handoff';
 import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
@@ -86,6 +87,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   // The historical screenshot preview remains preserved at its original commit.
   const mockSignedIn = false;
   const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
+  const visionNorth=useVisionNorthJourney({signedIn,gateway,gateways:workspaceGateways,session});
   // Read-only Vercel preview: local interaction must never call the production-backed relay.
   // Signed-in users retain the existing authoritative controllers and permission gates.
   const uiOnlyPreview=!signedIn && (!gateway || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app')));
@@ -298,7 +300,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [shelfPinned,setShelfPinned] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(shelfPinned);
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places','Stores','Money'].includes(tool.name)
+    ? ['Photos','Documents','Places'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -766,6 +768,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
             session={session} onBack={()=>setOpenedAgreementId(null)}
             onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
+        {mode==='vision' && !editingDreamId && <TrueNorthVisionChat journey={visionNorth} onAdd={name=>openTool(name)}/>}
         {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId &&
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
             <InlineVisionEditor key={editingDreamId} id={editingDreamId} gateways={workspaceGateways}
@@ -798,7 +801,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             }}/>
         </div>}
        {!(mode==='community' && (!signedIn || workspaceGateways)) &&
-         !(mode==='vision' && signedIn && editingDreamId) &&
+         mode!=='vision' &&
          !(mode==='work' && openedAgreementId) &&
          !(mode==='work' && ((liveWork && gateway && !uiOnlyPreview) || uiOnlyPreview)) && <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <WorkspaceWelcome area={mode} onExample={example=>{
@@ -850,11 +853,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
           onConnectMoney={()=>openTool('Money')}
           onSignIn={()=>openIdentity('signin')}/>}
-        {mode!=='work' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode!=='work' && mode!=='vision' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
             gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
-        {signedIn && workspaceGateways && mode!=='work' && mode!=='community'
+        {mode==='vision' && <TrueNorthVisionSummary journey={visionNorth} signedIn={signedIn}
+            onSignIn={()=>openIdentity('signin')}
+            onOpenSaved={id=>{setEditingDreamId(id);setScreen('chat');}}>
+          {signedIn && workspaceGateways && <WorkspaceContinuityPanel area='vision' gateways={workspaceGateways}
+            session={session} onSignIn={()=>openIdentity('signin')} onResume={continueSavedConversation}
+            onEditDream={id=>{setEditingDreamId(id);setScreen('chat');}}/>}
+        </TrueNorthVisionSummary>}
+        {signedIn && workspaceGateways && mode!=='work' && mode!=='community' && mode!=='vision'
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={id=>{setEditingDreamId(id);setScreen('chat');}} onOpenCircleBoard={setWorkingCircleId}/>
@@ -891,7 +901,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={false}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
-        {!signedIn && mode!=='work' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
+        {!signedIn && mode!=='work' && mode!=='vision' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
           className="mt-5 min-h-11 rounded-lg text-left text-xs font-medium text-forest-800 underline underline-offset-4">
           Sign in to see your saved {mode==='vision'?'dreams':mode==='circle'?'Circles':'community activity'}
         </button>}
