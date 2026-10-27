@@ -23,7 +23,7 @@ export function lastQuestion(text: string): { before: string; question: string }
 function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: string | null }) {
   const result=lastQuestion(text);
   if(result)return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
-  const action=nextQuestion?.trim()?humanNextQuestion(nextQuestion):'';
+  const action=nextQuestion?.trim()?humanNextQuestion(nextQuestion ?? ''):'';
   if(!action)return <>{text}</>;
   const pos=text.lastIndexOf(action);
   if(pos>=0)return <><span>{text.slice(0,pos)}</span><strong className="font-semibold text-forest-900">{action}</strong><span>{text.slice(pos+action.length)}</span></>;
