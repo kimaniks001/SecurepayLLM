@@ -194,6 +194,7 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
   const end=useRef<HTMLDivElement|null>(null);
   const [addOpen,setAddOpen]=useState(false);
   const pending=!!agentState?.pending;
+  const showingGuided=!real||(agentState?.turns.length??0)===0;
   const busyNow=busy||!!agentState?.busy;
   const lastResponse=messages[messages.length-1]?.sender==='guide'?messages[messages.length-1].text:'';
   return <div data-true-north-vision-chat className="flex min-h-0 flex-1 flex-col">
@@ -213,9 +214,9 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
           className="min-h-10 max-w-full truncate rounded-full border border-forest-200 bg-white px-3 text-xs">{thought.text}</button>)}</div>
       </section>}
       {messages.length>0&&<div className="mx-auto max-w-2xl space-y-3">
-        <p className="mb-4 text-xs text-sand-600">{real?'Private KS001 Vision conversation':'Guided Vision preview · no live AI, no saved Dream'}</p>
+        <p className="mb-4 text-xs text-sand-600">{showingGuided?'Guided Vision preview · no live AI, no saved Dream':'Private KS001 Vision conversation'}</p>
         {messages.map((m,i)=><article key={i} className={(m.sender==='you'?'ml-auto bg-cream-100':'border border-cream-200 bg-white')+' max-w-[94%] rounded-2xl p-4 text-sm leading-7 text-forest-900'}>
-          <p className="mb-1 text-xs font-semibold text-sand-600">{m.sender==='you'?'You':real?'KS001':'Exploration prompt'}</p>
+          <p className="mb-1 text-xs font-semibold text-sand-600">{m.sender==='you'?'You':showingGuided?'Exploration prompt':'KS001'}</p>
           <p className="whitespace-pre-wrap">{m.text}</p>
         </article>)}
         {lastResponse&&<div className="flex flex-wrap gap-2">
