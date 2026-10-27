@@ -598,3 +598,58 @@ test('refreshAfterSourceIngestion degrades to a plain Trade Context refresh when
   assert.equal(controller.getSnapshot().turns.length, beforeTurns); // no fabricated entry
   assert.equal(controller.getSnapshot().context.status, 'ready'); // BUILD itself still refreshed
 });
+
+
+test('C6 selected Community source survives failed KS001 reply and retries with exactly the original action ID', async () => {
+  const selections = [];
+  const continuations = [];
+  const selected = { sourceType: 'COMMUNITY_POST', sourceId: 'community-1', sourceOwnerKsNumber: 'KS007' };
+  const gateway = {
+    selectCommercialSource: async (_conversation, body) => { selections.push(body); return selected; },
+    continueAfterSourceSelection: async (_conversation, actionId) => {
+      continuations.push(actionId);
+      if (continuations.length === 1) throw new api.ApiError('http', 'temporary error', 503);
+      return { ...response, message: 'I can help with this project. What is the first commitment?', replyId: 'reply-source-1' };
+    },
+  };
+  const { controller, calls } = setup(gateway);
+  const first = await controller.useCommunitySource({
+    sourceType: 'COMMUNITY_POST', sourceId: 'community-1', sourceOwnerKsNumber: 'KS007',
+  });
+  assert.equal(first.status, 'selected', 'the selection succeeded even when KS001 reply did not');
+  assert.equal(controller.getSnapshot().source.sourceId, 'community-1');
+  assert.equal(controller.getSnapshot().sourceContinuationPending.actionId, continuations[0]);
+  assert.equal(controller.getSnapshot().turns.length, 0);
+  assert.equal(selections.length, 1);
+  assert.equal(calls.some(x => Array.isArray(x) && x[0] === 'turn'), false);
+  await controller.send('This turn must remain blocked until resolved');
+  assert.equal(controller.getSnapshot().turns.length, 0);
+
+  await controller.retrySourceContinuation();
+  assert.deepEqual(continuations, [continuations[0], continuations[0]]);
+  assert.equal(controller.getSnapshot().sourceContinuationPending, null);
+  assert.equal(controller.getSnapshot().turns.length, 1);
+  assert.equal(controller.getSnapshot().turns[0].id, 'reply-source-1');
+  assert.equal(controller.getSnapshot().source.sourceId, 'community-1');
+  assert.equal(selections.length, 1, 'retry must not reselect a source');
+  await controller.retrySourceContinuation();
+  assert.equal(controller.getSnapshot().turns.length, 1);
+  assert.equal(continuations.length, 2);
+});
+
+test('C6 unidentifiable continuation reply cannot be presented as a durable completed reply', async () => {
+  const attempts = [];
+  const { controller } = setup({
+    selectCommercialSource: async () => ({ sourceType: 'COMMUNITY_POST', sourceId: 'story-2' }),
+    continueAfterSourceSelection: async (_id, actionId) => { attempts.push(actionId); return response; },
+  });
+  await controller.useCommunitySource({ sourceType: 'COMMUNITY_POST', sourceId: 'story-2', sourceOwnerKsNumber: 'KS008' });
+  assert.equal(controller.getSnapshot().turns.length, 0);
+  assert.ok(controller.getSnapshot().sourceContinuationPending, 'missing replyId is an unresolved continuation, not success');
+  controller.continueWithoutSourceReply();
+  assert.equal(controller.getSnapshot().sourceContinuationPending, null);
+  assert.equal(controller.getSnapshot().source.sourceId, 'story-2', 'source provenance remains');
+  await controller.send('I want to discuss the next step.');
+  assert.equal(controller.getSnapshot().turns.length, 2);
+  assert.equal(attempts.length, 1, 'skipping a reply never repeats the source action');
+});
