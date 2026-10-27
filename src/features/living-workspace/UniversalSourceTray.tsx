@@ -52,8 +52,24 @@ function suggestDocumentActions(source:AgentSourceArtifactDto):Array<{id:string;
  if(/contract|agreement|terms/.test(text))return [{id:'review',label:'Review terms'},{id:'contract',label:'Use in Agreement'},{id:'ask',label:'Ask KS001'}];
  return [{id:'summary',label:'Summarise'},{id:'contract',label:'Use in Agreement'},{id:'ask',label:'Ask KS001'}];
 }
-const MAX_BYTES=2_000_000;
+const MAX_DOCUMENT_BYTES=15*1024*1024;
+const MAX_PHOTO_BYTES=10*1024*1024;
+const MAX_TEXT_PREVIEW_BYTES=2_000_000;
 const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
+// Some phone/file providers omit MIME metadata. The server still validates bytes,
+// filename and declared type against its strict signature policy before accepting.
+const MIME_BY_EXTENSION:Record<string,string>={
+  jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',pdf:'application/pdf',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  txt:'text/plain',csv:'text/csv',
+};
+function canonicalUploadFile(file:File):File{
+  if(file.type&&file.type!=='application/octet-stream')return file;
+  const extension=file.name.split('.').pop()?.toLowerCase()||'';
+  const inferred=MIME_BY_EXTENSION[extension];
+  return inferred?new File([file],file.name,{type:inferred,lastModified:file.lastModified}):file;
+}
 const nextId=(()=>{let id=1;return()=>id++;})();
 
 /** User-approved photo/document transmission uses canonical KS001; selection stays local.
@@ -96,15 +112,19 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    file=canonicalUploadFile(file);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
       file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||
       file.type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     if(!allowed){setError(photo?'Choose a JPEG or PNG photo. Other formats cannot yet be safely read by KS001. Nothing was uploaded.':'Choose a supported document format. Nothing was uploaded.');return;}
-    if(file.size===0){setError('This file is empty. Choose another picture.');return;}
-    if(file.size>MAX_BYTES){setError('Local preview supports files up to 2 MB. The original file has not been uploaded or altered.');return;}
+    if(file.size===0){setError('This file is empty. Choose another file.');return;}
+    if(file.size>(photo?MAX_PHOTO_BYTES:MAX_DOCUMENT_BYTES)){
+      setError(photo?'Choose a photo up to 10 MB. Nothing was uploaded.':'Choose a document up to 15 MB. Nothing was uploaded.');
+      return;
+    }
     const sequence=seq.current;
     const prepare=(thumbnail:string|null)=>{
       if(seq.current!==sequence)return;
@@ -115,7 +135,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     };
     if(!photo){
       prepare(null);
-      if((file.type==='text/plain'||file.type==='text/csv')&&file.size<=MAX_BYTES){
+      if((file.type==='text/plain'||file.type==='text/csv')&&file.size<=MAX_TEXT_PREVIEW_BYTES){
         void file.text().then(text=>{if(seq.current===sequence)setLocalSnippet(text.slice(0,500));})
           .catch(()=>{if(seq.current===sequence)setError('Text preview unavailable. Original remains selected on this device.');});
       }
@@ -320,7 +340,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
       </div>}
-      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, DOCX, XLSX, TXT or CSV · up to 2 MB. Local preview reads only text/CSV; other formats need authorised processing.</p>}
+      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, DOCX, XLSX, TXT or CSV · up to 15 MB. Local preview reads only text/CSV; other formats need authorised processing.</p>}
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<details open><summary className="cursor-pointer text-xs font-semibold">Preview photo</summary><img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-72 w-full rounded-lg object-contain"/></details>}
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
@@ -328,12 +348,12 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          {(tool==='Photos'||tool==='Documents')&&!isDemo&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
-            if(!pending)return;
-            setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
+          {(tool==='Photos'||tool==='Documents')&&!isDemo&&serverSource&&uploadState==='confirmed'&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<button type="button" onClick={()=>{
+            if(!pending||!serverSource)return;
+            setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:'SecurePay source: '+serverSource.sourceArtifactId,mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
             setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
             upload.current?.click();
-          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">+ Add {tool==='Photos'?'photo':'document'}</button>}
+          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white">+ Send another {tool==='Photos'?'photo':'document'}</button>}
           <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
       </div>}
