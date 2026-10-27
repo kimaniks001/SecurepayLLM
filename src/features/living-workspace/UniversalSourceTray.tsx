@@ -228,6 +228,28 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     }
   }
 
+  async function checkReadingStatus(){
+    if(!gateway||!serverSource||!['RECEIVED','PROCESSING'].includes(serverSource.extractionStatus))return;
+    const original=serverSource;
+    setUploadState('reading');
+    try{
+      const latest=await gateway.getSource(original.conversationId,original.sourceArtifactId);
+      if(latest.sourceArtifactId!==original.sourceArtifactId || latest.conversationId!==original.conversationId)
+        throw new Error('Unexpected source');
+      setServerSource(latest);
+      setUploadState('confirmed');
+      if(latest.extractionStatus==='READY'||latest.extractionStatus==='PARTIAL')
+        setUploadMessage('SecurePay has finished reading this file. Please check its findings before using them.');
+      else if(latest.extractionStatus==='FAILED')
+        setUploadMessage('SecurePay received the file but could not understand it. Retry the source or share its important details in text.');
+      else
+        setUploadMessage('The upload is complete; SecurePay has not finished reading this source yet.');
+    }catch{
+      setUploadState('confirmed');
+      setUploadMessage('Could not check the reading status. The uploaded source remains available; try checking again.');
+    }
+  }
+
   async function openVisionChooser(){
     if(!dreamsGateway||!ensureSignedIn||!pendingFile.current){setVisionMessage('Sign in to save a file to your Vision.');setVisionPhase('error');return;}
     if(pendingFile.current.size>MAX_VISION_ASSET_BYTES||!VISION_ASSET_MIME.has(pendingFile.current.type)){
@@ -417,6 +439,12 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         {serverSource.extractionStatus==='FAILED'&&<p role="alert" className="text-xs text-amber-900">{serverSource.failureReason||'KS001 could not read this source. Nothing from it has been added to your work.'}</p>}
         {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
+        {['RECEIVED','PROCESSING'].includes(serverSource.extractionStatus)&&gateway&&
+          <button type="button" disabled={uploadState==='reading'||uploadState==='uploading'}
+            onClick={()=>void checkReadingStatus()}
+            className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm disabled:opacity-40">
+            Check reading status
+          </button>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
           setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
@@ -458,7 +486,8 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
               <button type="button" disabled={visionPhase==='saving'||!newVisionTitle.trim()} onClick={()=>void createVisionAndSave()}
                 className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-50">Create new Vision</button>
             </div>}
-            {visionMessage&&<p role="status" className="text-xs">{visionMessage}</p>}
+            {visionPhase==='saving'&&<UploadStatusBar stage="saving" fileName={pending?.filename}/>}
+            {visionMessage&&visionPhase!=='saving'&&<p role="status" className="text-xs">{visionMessage}</p>}
           </div>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
