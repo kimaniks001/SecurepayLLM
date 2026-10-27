@@ -51,7 +51,7 @@ export function useVisionNorthJourney({signedIn,gateway,gateways,session}:{
   const [savedNotice,setSavedNotice]=useState('');
   const counter=useRef(0);
   const real=!!signedIn&&!!agent&&!!dreams&&!!gateways;
-  const messages:Thought[]=real?(agentState?.turns??[]).map((turn,i)=>turn.sender==='user'
+  const messages:Thought[]=real&&(agentState?.turns.length??0)>0?(agentState?.turns??[]).map((turn,i)=>turn.sender==='user'
     ?{id:i+1,sender:'you',text:turn.text}
     :{id:i+1,sender:'guide',text:turn.response.message.text}):local;
   // The local preview is a guided interaction, not simulated live model intelligence.
@@ -115,6 +115,7 @@ export function useVisionNorthJourney({signedIn,gateway,gateways,session}:{
     finally{setBusy(false);}
   }
   return {real,agent,agentState,dreams,dreamState,notice,setNotice,draft,setDraft,busy,
+    earlierPreview:local.filter(m=>m.sender==='you'),
     send,messages,firstThought,moreThoughts,showCalculator,setShowCalculator,numbers,setNumbers,
     phaseShare,setPhaseShare,plan,scenarios,saveComparison,saveDreamNotes,savedNotice,
     retry:()=>agent?.retry(),retryDream:()=>dreams?.retry(),reconcileDream:()=>dreams?.reconcilePending()};
@@ -189,7 +190,7 @@ function ScenarioCalculator({journey}:{journey:VisionNorthJourney}){
 }
 
 export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;onAdd:(name:'Photos'|'Documents'|'Places')=>void}){
-  const {draft,setDraft,send,messages,notice,busy,real,agentState,showCalculator,setShowCalculator,scenarios,dreamState,retry,retryDream,reconcileDream}=journey;
+  const {draft,setDraft,send,messages,notice,busy,real,agentState,showCalculator,setShowCalculator,scenarios,dreamState,retry,retryDream,reconcileDream,earlierPreview}=journey;
   const end=useRef<HTMLDivElement|null>(null);
   const [addOpen,setAddOpen]=useState(false);
   const pending=!!agentState?.pending;
@@ -205,6 +206,12 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
           className="min-h-11 rounded-full border border-cream-200 bg-white px-4 text-left text-xs text-forest-800 hover:border-forest-300">{prompt}</button>)}</div>
         <button type="button" onClick={()=>setShowCalculator(true)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-[#f7faf5] px-4 text-sm font-semibold text-forest-800"><Calculator size={17}/> Explore a financial scenario</button>
       </div>}
+      {real&&earlierPreview.length>0&&(agentState?.turns.length??0)===0&&<section aria-label="Your earlier preview thoughts" className="mx-auto mb-4 max-w-2xl rounded-xl border border-forest-200 bg-[#f8faf6] p-3">
+        <p className="text-xs font-semibold">Your earlier ideas are still on this device</p>
+        <p className="mt-1 text-xs text-sand-700">They were not saved. Choose one to put back in your composer, then review and send it yourself.</p>
+        <div className="mt-2 flex flex-wrap gap-2">{earlierPreview.map(thought=><button type="button" key={thought.id} onClick={()=>setDraft(thought.text)}
+          className="min-h-10 max-w-full truncate rounded-full border border-forest-200 bg-white px-3 text-xs">{thought.text}</button>)}</div>
+      </section>}
       {messages.length>0&&<div className="mx-auto max-w-2xl space-y-3">
         <p className="mb-4 text-xs text-sand-600">{real?'Private KS001 Vision conversation':'Guided Vision preview · no live AI, no saved Dream'}</p>
         {messages.map((m,i)=><article key={i} className={(m.sender==='you'?'ml-auto bg-cream-100':'border border-cream-200 bg-white')+' max-w-[94%] rounded-2xl p-4 text-sm leading-7 text-forest-900'}>
