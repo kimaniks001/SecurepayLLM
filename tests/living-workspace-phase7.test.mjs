@@ -465,7 +465,9 @@ test('Structural S5: photo intake stays local in demo and sends through the cano
  assert.ok(intake.includes('reader.readAsDataURL(file)'));
  assert.ok(intake.includes('Selected locally · Unverified'));
  assert.ok(intake.includes('Earlier photos and local previews'));
- assert.ok(intake.includes('const MAX_BYTES=2_000_000'));
+ assert.ok(intake.includes('const MAX_DOCUMENT_BYTES=15*1024*1024'));
+ assert.ok(intake.includes('const MAX_PHOTO_BYTES=10*1024*1024'));
+ assert.ok(intake.includes('const MAX_VISION_ASSET_BYTES=2_097_152'));
  assert.ok(intake.includes('seq.current++'));
  assert.ok(intake.includes("gateway.uploadSource(targetConversationId,tool==='Photos'?'PHOTO':'DOCUMENT'"));
  assert.ok(intake.includes('isDemo'));

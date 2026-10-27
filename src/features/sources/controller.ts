@@ -33,6 +33,7 @@ export function sourceIngestionErrorText(error: unknown): string {
       case 'AGENT_INVALID_INPUT': return 'SecurePay couldn’t use this as it is. Check it and try again.';
       default: break;
     }
+    if (error.status === 413) return 'This file was rejected because it is larger than the upload service currently permits. Please choose a smaller file or paste the important text.';
     if (error.status === 429 || error.code === 'RATE_LIMIT_EXCEEDED') return 'SecurePay needs a short pause before taking more. Try again in a little while.';
     if (error.status === 401 || error.status === 403) return 'SecurePay couldn’t allow this just now.';
     if (isOutcomeUnknown(error)) return OUTCOME_UNKNOWN_TEXT;

@@ -52,14 +52,36 @@ function suggestDocumentActions(source:AgentSourceArtifactDto):Array<{id:string;
  if(/contract|agreement|terms/.test(text))return [{id:'review',label:'Review terms'},{id:'contract',label:'Use in Agreement'},{id:'ask',label:'Ask KS001'}];
  return [{id:'summary',label:'Summarise'},{id:'contract',label:'Use in Agreement'},{id:'ask',label:'Ask KS001'}];
 }
-const MAX_BYTES=2_000_000;
+const MAX_DOCUMENT_BYTES=15*1024*1024;
+const MAX_PHOTO_BYTES=10*1024*1024;
+const MAX_TEXT_PREVIEW_BYTES=2_000_000;
+const MAX_VISION_ASSET_BYTES=2_097_152; // Existing VisionDreamBoardService asset limit, independent of KS001 sources.
+const VISION_ASSET_MIME=new Set([
+  'image/jpeg','image/png','application/pdf','text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
 const PHOTO_MIME_TYPES=['image/jpeg','image/png'] as const; // Match canonical KS001 source ingestion.
+// Some phone/file providers omit MIME metadata. The server still validates bytes,
+// filename and declared type against its strict signature policy before accepting.
+const MIME_BY_EXTENSION:Record<string,string>={
+  jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',pdf:'application/pdf',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  txt:'text/plain',csv:'text/csv',
+};
+function canonicalUploadFile(file:File):File{
+  if(file.type&&file.type!=='application/octet-stream')return file;
+  const extension=file.name.split('.').pop()?.toLowerCase()||'';
+  const inferred=MIME_BY_EXTENSION[extension];
+  return inferred?new File([file],file.name,{type:inferred,lastModified:file.lastModified}):file;
+}
 const nextId=(()=>{let id=1;return()=>id++;})();
 
 /** User-approved photo/document transmission uses canonical KS001; selection stays local.
  * A processed source is not evidence accepted by an Agreement or Money authority.
  */
-export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,ensureSignedIn,agreementPlaces=[],onLocalProposal}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onLocalProposal?:(proposal:LocalSourceProposal)=>void;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
+export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onContinueTask,onEnsureConversation,dreamsGateway,visionConversationGateway,ensureSignedIn,agreementPlaces=[],onLocalProposal}:{tool:string;area:string;isDemo:boolean;gateway?:AgentGateway;conversationId?:string|null;dreamsGateway?:VisionDreamGateway;visionConversationGateway?:Pick<AgentGateway,'createConversation'>;ensureSignedIn?:()=>Promise<void>;onEnsureConversation?:()=>Promise<string>;agreementPlaces?:string[];onLocalProposal?:(proposal:LocalSourceProposal)=>void;onContinueTask?:(source:AgentSourceArtifactDto,task:string)=>Promise<void>}) {
   const supported=tool==='Photos'||tool==='Documents'||tool==='Places';
   const [items,setItems]=useState<LocalSource[]>([]);
   const [label,setLabel]=useState('');
@@ -96,15 +118,25 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   function receive(file:File|undefined) {
     if(!file)return;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    file=canonicalUploadFile(file);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
       file.type==='application/pdf'||file.type==='text/plain'||file.type==='text/csv'||
       file.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'||
       file.type==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     if(!allowed){setError(photo?'Choose a JPEG or PNG photo. Other formats cannot yet be safely read by KS001. Nothing was uploaded.':'Choose a supported document format. Nothing was uploaded.');return;}
-    if(file.size===0){setError('This file is empty. Choose another picture.');return;}
-    if(file.size>MAX_BYTES){setError('Local preview supports files up to 2 MB. The original file has not been uploaded or altered.');return;}
+    if(file.size===0){setError('This file is empty. Choose another file.');return;}
+    if(area==='vision'&&!isDemo&&!VISION_ASSET_MIME.has(file.type)){
+      setError('Vision does not accept this file type. Choose a JPEG, PNG, PDF, Word, Excel or TXT file, or use My Work to ask KS001 to read it.');
+      return;
+    }
+    const maxBytes=area==='vision'&&!isDemo?MAX_VISION_ASSET_BYTES:photo?MAX_PHOTO_BYTES:MAX_DOCUMENT_BYTES;
+    if(file.size>maxBytes){
+      setError(area==='vision'&&!isDemo?'Vision assets can be up to 2 MB. Choose a smaller file; nothing was uploaded.':
+        photo?'Choose a photo up to 10 MB. Nothing was uploaded.':'Choose a document up to 15 MB. Nothing was uploaded.');
+      return;
+    }
     const sequence=seq.current;
     const prepare=(thumbnail:string|null)=>{
       if(seq.current!==sequence)return;
@@ -115,7 +147,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     };
     if(!photo){
       prepare(null);
-      if((file.type==='text/plain'||file.type==='text/csv')&&file.size<=MAX_BYTES){
+      if((file.type==='text/plain'||file.type==='text/csv')&&file.size<=MAX_TEXT_PREVIEW_BYTES){
         void file.text().then(text=>{if(seq.current===sequence)setLocalSnippet(text.slice(0,500));})
           .catch(()=>{if(seq.current===sequence)setError('Text preview unavailable. Original remains selected on this device.');});
       }
@@ -167,7 +199,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setServerSource(source);
       // Authoritative results only. The backend may still be processing when the upload responds.
       if(['RECEIVED','PROCESSING'].includes(source.extractionStatus)){
-        setUploadMessage('SecurePay received the photo and is reading it…');
+        setUploadMessage('SecurePay received the '+(tool==='Photos'?'photo':'document')+' and is reading it…');
         for(let attempt=0;attempt<3;attempt++){
           await new Promise<void>(resolve=>setTimeout(resolve,1500*(attempt+1)));
           try{
@@ -180,10 +212,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       }
       setUploadState('confirmed');
       if(source.extractionStatus==='READY'||source.extractionStatus==='PARTIAL')
-        setUploadMessage('Photo processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
+        setUploadMessage((tool==='Photos'?'Photo':'Document')+' processed by SecurePay. Check the understanding and any uncertain details below before proceeding.');
       else if(source.extractionStatus==='FAILED')
-        setUploadMessage('SecurePay received the photo but could not process it. Keep the original and try a clearer image.');
-      else setUploadMessage('Photo received by SecurePay; understanding has not been confirmed yet. Reopen KS001 to review its source status.');
+        setUploadMessage('SecurePay received your '+(tool==='Photos'?'photo':'document')+' but could not read it. You can retry the same source, or choose another file.');
+      else setUploadMessage((tool==='Photos'?'Photo':'Document')+' received by SecurePay; understanding has not been confirmed yet. Review its source status.');
     }catch(error){
       if(isOutcomeUnknown(error)){
         setUploadState('unknown');
@@ -196,7 +228,11 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   }
 
   async function openVisionChooser(){
-    if(!dreamsGateway||!ensureSignedIn||!pendingFile.current){setVisionMessage('Sign in to save a photo to your Vision.');setVisionPhase('error');return;}
+    if(!dreamsGateway||!ensureSignedIn||!pendingFile.current){setVisionMessage('Sign in to save a file to your Vision.');setVisionPhase('error');return;}
+    if(pendingFile.current.size>MAX_VISION_ASSET_BYTES||!VISION_ASSET_MIME.has(pendingFile.current.type)){
+      setVisionChooser(true);setVisionPhase('error');setVisionMessage('This file cannot be saved to a Vision. Use a supported file up to 2 MB.');
+      return;
+    }
     setVisionChooser(true);setVisionPhase('loading');setVisionMessage('');
     try{
       await ensureSignedIn();
@@ -210,7 +246,10 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
 
   async function saveToVision(dreamId:string){
     if(!dreamsGateway||!pendingFile.current||!ensureSignedIn)return;
-    setVisionPhase('saving');setVisionMessage('Adding photo to your Vision…');
+    if(pendingFile.current.size>MAX_VISION_ASSET_BYTES||!VISION_ASSET_MIME.has(pendingFile.current.type)){
+      setVisionPhase('error');setVisionMessage('Choose a supported file up to 2 MB for Vision.');return;
+    }
+    setVisionPhase('saving');setVisionMessage('Saving your file to Vision…');
     try{
       await ensureSignedIn();
       const owned=await dreamsGateway.get(dreamId);
@@ -221,19 +260,19 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
       const result=await dreamsGateway.uploadAsset(dreamId,{fileName:file.name,mimeType:file.type,base64Content:btoa(binary),idempotencyKey:crypto.randomUUID()});
       if(result.dreamId!==dreamId||!result.assetId)throw new Error('Save not confirmed');
-      setVisionPhase('saved');setVisionMessage('Photo saved to '+owned.title+'. Open your Vision to place it on your board.');
+      setVisionPhase('saved');setVisionMessage('File saved to '+owned.title+'. Open your Vision to use this asset. It has not been read by KS001 or added to any Agreement.');
     }catch{
-      setVisionPhase('error');setVisionMessage('SecurePay could not confirm the photo was saved. Check your Vision before retrying.');
+      setVisionPhase('error');setVisionMessage('SecurePay could not confirm this file was saved. Check the chosen Vision before retrying to avoid a duplicate.');
     }
   }
 
   async function createVisionAndSave(){
-    if(!gateway||!dreamsGateway||!ensureSignedIn||!newVisionTitle.trim())return;
+    if(!visionConversationGateway||!dreamsGateway||!ensureSignedIn||!newVisionTitle.trim())return;
     setVisionPhase('saving');setVisionMessage('Creating your Vision…');
     try{
       await ensureSignedIn();
       // A Dream claims its own newly created conversation; never claim or modify the photo's Agreement conversation.
-      const created=await gateway.createConversation();
+      const created=await visionConversationGateway.createConversation();
       if(!created.conversationId)throw new Error('Conversation unavailable');
       const dream=await dreamsGateway.create({conversationId:created.conversationId,title:newVisionTitle.trim(),initialThought:'A new Vision inspired by an uploaded photo.'});
       await saveToVision(dream.dreamId);
@@ -320,7 +359,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
           <button type="button" onClick={()=>camera.current?.click()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cream-200 bg-white p-3 text-sm"><Camera size={18}/> Take a photo</button>
         </>}
       </div>}
-      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, DOCX, XLSX, TXT or CSV · up to 2 MB. Local preview reads only text/CSV; other formats need authorised processing.</p>}
+      {tool==='Documents'&&!pending&&<p className="text-xs text-sand-600">PDF, DOCX, XLSX, TXT or CSV · up to 15 MB. Local preview reads only text/CSV; other formats need authorised processing.</p>}
       {pending&&<div aria-label="Photo or document ready to add" className="rounded-xl border border-cream-200 bg-white p-2">
         {pending.thumbnail&&<details open><summary className="cursor-pointer text-xs font-semibold">Preview photo</summary><img src={pending.thumbnail} alt={'Preview of '+pending.filename} className="mx-auto max-h-72 w-full rounded-lg object-contain"/></details>}
         {tool==='Documents'&&localSnippet&&<details open><summary className="cursor-pointer text-xs font-semibold">Selected text preview</summary><pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-cream-50 p-2 text-xs">{localSnippet}</pre></details>}
@@ -328,12 +367,6 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         <p className="truncate text-xs font-semibold">{pending.filename}</p>
         <p className="mt-1 text-xs text-sand-600">{isDemo?'Local preview only':uploadState==='uploading'?'Sending to KS001…':serverSource?'Received by SecurePay':'Selected on this device · not shared'}</p>
         <div className="mt-1 flex flex-wrap gap-2">
-          {(tool==='Photos'||tool==='Documents')&&!isDemo&&<button type="button" disabled={uploadState==='uploading'} onClick={()=>{
-            if(!pending)return;
-            setItems(current=>[...current,{id:nextId(),kind:tool==='Photos'?'Photos':'Documents',filename:pending.filename,label:serverSource?'SecurePay source: '+serverSource.sourceArtifactId:'Local photo',mime:pending.mime,size:pending.size,thumbnail:pending.thumbnail}]);
-            setPending(null);pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);
-            upload.current?.click();
-          }} className="min-h-11 rounded-full bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">+ Add {tool==='Photos'?'photo':'document'}</button>}
           <button type="button" disabled={uploadState==='uploading'} onClick={()=>{upload.current?.click();}} className="min-h-11 rounded-full border border-cream-200 px-4 text-sm disabled:opacity-40">{tool==='Photos'?'Choose another photo':'Choose another document'}</button>
         </div>
       </div>}
@@ -356,7 +389,12 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       Add a note (optional)
       <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
     </label>}
-    {tool!=='Places'&&(isDemo||!gateway)&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
+    {tool!=='Places'&&(isDemo||(!gateway&&area!=='vision'))&&<button type="button" disabled={!pending} onClick={saveLocalPreview} className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Add {tool==='Photos'?'photo':'document'} to preview</button>}
+    {(tool==='Photos'||tool==='Documents')&&area==='vision'&&!isDemo&&pending&&dreamsGateway&&<button type="button" disabled={visionPhase==='loading'||visionPhase==='saving'} onClick={()=>void openVisionChooser()}
+      className="min-h-11 w-full rounded-xl bg-forest-800 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+      Save {tool==='Photos'?'photo':'document'} to Vision
+    </button>}
+    {(tool==='Photos'||tool==='Documents')&&area==='vision'&&!isDemo&&!dreamsGateway&&<p className="text-xs text-sand-700">Sign in to save files in a Vision. To have KS001 understand a document, use My Work.</p>}
     {(tool==='Photos'||tool==='Documents')&&pending&&!isDemo&&<div className="space-y-2">
       {uploadState==='uploading'&&<p role="status" className="text-sm font-medium">KS001 is reading your {tool==='Photos'?'photo':'document'}…</p>}
       {gateway&&!serverSource&&uploadState==='idle'&&
@@ -368,26 +406,27 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         <p className="text-xs text-sand-600">Only after you press Send will SecurePay receive this file for the current conversation. A source is not automatically an Agreement fact or accepted evidence.</p>}
       {uploadState==='error'&&<button type="button" onClick={()=>void uploadToKs001()} className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-sm">Try sending again</button>}
       {uploadState==='unknown'&&<p className="text-xs text-amber-900">Check this conversation's sources before trying again: the earlier request may already have reached SecurePay.</p>}
-      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
+      {uploadMessage&&(!serverSource||uploadState==='error'||uploadState==='unknown'||serverSource.extractionStatus==='FAILED')&&<p role="status" className="rounded-xl bg-cream-100 p-2 text-xs">{uploadMessage}</p>}
 
       {qrState&&<p role="status" className="text-xs">{qrState}</p>}
       {qrValue&&<div className="break-all rounded-lg border border-cream-200 p-3 text-xs"><strong>QR contains:</strong> {qrValue}<p>Unverified. No links or payments were opened.</p></div>}
       {serverSource&&<section aria-label="SecurePay source result" className="space-y-2 rounded-xl border border-cream-200 p-3">
         <p className="text-sm font-semibold">{['READY','PARTIAL'].includes(serverSource.extractionStatus)?'Here’s what I found':serverSource.extractionStatus==='FAILED'?'Could not read this file':'Still reading your file'}</p>
         {serverSource.summary&&<p className="text-sm">{detailsOpen?serverSource.summary:serverSource.summary.slice(0,135)+(serverSource.summary.length>135?"…":"")}</p>}
+        {serverSource.extractionStatus==='FAILED'&&<p role="alert" className="text-xs text-amber-900">{serverSource.failureReason||'KS001 could not read this source. Nothing from it has been added to your work.'}</p>}
         {detailsOpen&&serverSource.uncertainties?.length>0&&<div className="text-xs"><strong>Needs checking</strong><ul className="mt-1 list-disc pl-4">{serverSource.uncertainties.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
         {detailsOpen&&serverSource.acknowledgement&&<p className="text-xs text-sand-700">{serverSource.acknowledgement}</p>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
-          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing photo source…');
+          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
             const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
             if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
             setServerSource(retry);setUploadState('confirmed');
-            setUploadMessage(retry.extractionStatus==='FAILED'?'The photo is still unreadable. Try a clearer picture.':'SecurePay retried the same source. Review its updated processing status.');
+            setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or share the important details in text.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
-            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original photo source has not been removed.');
+            setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
-        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this photo</button>}
+        }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}
 
         {onContinueTask&&['READY','PARTIAL'].includes(serverSource.extractionStatus)&&<>
           <p className="text-sm font-semibold">What next?</p>
@@ -399,10 +438,16 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             </button>)}
           </div>
           {detailsOpen&&/(deliver|damage|inspect|disput|evidence)/i.test(serverSource.summary||'')&&<p className="text-xs text-sand-600">Using this as evidence? Camera location can help for future photos. Sharing location is optional; GPS alone is not proof.</p>}
+
+
+        </>}
+        <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)} className="min-h-9 text-xs font-semibold text-forest-800 underline">{detailsOpen?"Less details":"More details"}</button>
+        {detailsOpen&&<p className="text-xs text-sand-600">Source: {serverSource.sourceArtifactId}. Check uncertain facts before relying on them. This does not accept an Agreement, verify payment, or authorise Money.</p>}
+      </section>}
           {visionChooser&&<div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3" aria-label="Choose a Vision">
-            <p className="text-sm font-semibold">Add this photo to a Vision</p>
+            <p className="text-sm font-semibold">Save file to a Vision</p>
             {visionPhase==='loading'&&<p role="status" className="text-xs">Finding your Visions…</p>}
-            {visionPhase!=='loading'&&visionPhase!=='saved'&&<div className="space-y-2">
+            {visionPhase!=='loading'&&visionPhase!=='saved'&&visionPhase!=='error'&&<div className="space-y-2">
               {visions.map(dream=><button key={dream.dreamId} type="button" disabled={visionPhase==='saving'} onClick={()=>void saveToVision(dream.dreamId)}
                 className="min-h-11 w-full rounded-lg border border-cream-200 bg-white px-3 text-left text-sm disabled:opacity-50">{dream.title}</button>)}
               {visions.length===0&&<p className="text-xs text-sand-600">No existing Visions found. Start a new one below.</p>}
@@ -414,11 +459,6 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             </div>}
             {visionMessage&&<p role="status" className="text-xs">{visionMessage}</p>}
           </div>}
-
-        </>}
-        <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)} className="min-h-9 text-xs font-semibold text-forest-800 underline">{detailsOpen?"Less details":"More details"}</button>
-        {detailsOpen&&<p className="text-xs text-sand-600">Source: {serverSource.sourceArtifactId}. Check uncertain facts before relying on them. This does not accept an Agreement, verify payment, or authorise Money.</p>}
-      </section>}
     </div>}
     {confirmation&&<p role="status" className="rounded-xl border border-cream-200 bg-cream-100 p-3 text-sm font-medium text-forest-800">✓ {confirmation}</p>}
     {error&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs">{error}</p>}

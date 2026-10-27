@@ -544,7 +544,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                   ? [...formationState.data.what,...formationState.data.when,...formationState.data.conditions]
                       .filter(term=>/location|address|place|site|deliver|entrance|destination/i.test(term.label)&&term.value.trim())
                       .map(term=>term.value).slice(0,6)
-                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn||uiOnlyPreview} onLocalProposal={uiOnlyPreview?addPreviewSource:undefined} gateway={mode==='work'&&!uiOnlyPreview?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined} ensureSignedIn={async()=>{
+                  : []} tool={activeTool} area={mode} isDemo={mockSignedIn||uiOnlyPreview} onLocalProposal={uiOnlyPreview?addPreviewSource:undefined} gateway={mode==='work'&&!uiOnlyPreview?gateway:undefined} conversationId={mode==='work'?liveConversationId:null} dreamsGateway={signedIn&&!mockSignedIn?workspaceGateways?.dreams:undefined}
+                  visionConversationGateway={mode==='vision'&&signedIn&&!mockSignedIn?gateway:undefined} ensureSignedIn={async()=>{
                   if(!workspaceGateways||!signedIn||mockSignedIn)throw new Error('Sign in first');
                   await ensureFreshSession(session,workspaceGateways.auth);
                   if(session.getSnapshot().status!=='signed-in')throw new Error('Sign in again');
