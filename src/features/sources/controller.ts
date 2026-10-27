@@ -50,7 +50,7 @@ const FAILED_FALLBACK_TEXT = 'SecurePay couldn’t read this. Nothing from it ha
  * the controller is reconciling against the server by the SAME content (the server de-duplicates by digest) or by
  * artifact id. Never presented as failure.
  */
-export type SourcesPhase = 'idle' | 'listing' | 'list-ready' | 'submitting' | 'checking' | 'error';
+export type SourcesPhase = 'idle' | 'listing' | 'list-ready' | 'submitting' | 'uploading' | 'checking' | 'error';
 export interface SourcesState {
   phase: SourcesPhase;
   sources: AgentSourceArtifactView[];
@@ -176,9 +176,9 @@ export function createSourceController(
    * ONCE with the same content: the server de-duplicates by content digest (an already-read source comes back as it
    * is; one still being read is polled; one that failed is read again), so this can never add anything twice.
    */
-  async function run(call: (conversationId: string) => Promise<Parameters<typeof sourceArtifactView>[0]>, knownConversationId?: string): Promise<SourceActionResult> {
-    if (state.phase === 'submitting' || state.phase === 'checking') return { ok: false, error: 'SecurePay is still working on the previous step.', outcome: 'refused' };
-    update({ phase: 'submitting', error: null, errorSourceId: null });
+  async function run(call: (conversationId: string) => Promise<Parameters<typeof sourceArtifactView>[0]>, knownConversationId?: string, isFileUpload = false): Promise<SourceActionResult> {
+    if (state.phase === 'submitting' || state.phase === 'uploading' || state.phase === 'checking') return { ok: false, error: 'SecurePay is still working on the previous step.', outcome: 'refused' };
+    update({ phase: isFileUpload ? 'uploading' : 'submitting', error: null, errorSourceId: null });
     let conversationId: string;
     try {
       conversationId = knownConversationId ?? await ensureConversationId();
@@ -241,7 +241,7 @@ export function createSourceController(
 
     /** Section 6/19/20/65 -- a real upload; resolves only after SecurePay has really received and read (or failed) it. */
     async addUpload(sourceKind: 'DOCUMENT' | 'PHOTO', file: File, label?: string): Promise<SourceActionResult> {
-      return run(conversationId => gateway.uploadSource(conversationId, sourceKind, file, label));
+      return run(conversationId => gateway.uploadSource(conversationId, sourceKind, file, label), undefined, true);
     },
 
     /** Section 33 -- an explicit retry re-reads the SAME source as its next attempt; never a duplicate. */
