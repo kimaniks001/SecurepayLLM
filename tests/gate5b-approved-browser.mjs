@@ -84,8 +84,15 @@ try {
       const money=page.locator('[data-approved-gate5b-money-purpose]');
       await money.waitFor({state:'visible'});
       assert.match(await money.textContent(),/Money should follow the agreement/);
-      assert.equal(await page.getByRole('navigation',{name:'Money choices'}).count(),0,
-        'Approved Gate B: legacy Borrow/Invest/Protect categories must not appear as Agreement funding rails');
+      // The small My Money tab may exist; legacy Borrow/Invest/Protect
+      // offerings must not appear as executable funding rails for an Agreement.
+      const fundingChoices=page.getByRole('navigation',{name:'Money choices'});
+      if(await fundingChoices.count()){
+        assert.equal(await fundingChoices.getByRole('button',{name:'My Money'}).count(),1);
+        for(const forbidden of ['Borrow','Invest','Protect'])
+          assert.equal(await fundingChoices.getByRole('button',{name:forbidden,exact:true}).count(),0,
+            forbidden+' must not appear as Agreement funding authority');
+      }
       assert.match(await money.textContent(),/My Work.*Money settles and funds an Agreement/s);
       await page.screenshot({path:output+'/'+device+'-money-tool.png',fullPage:true});
       const dimensions=await page.evaluate(()=>({
