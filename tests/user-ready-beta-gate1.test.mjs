@@ -105,7 +105,7 @@ test('EP-CERT-013: start-new decision -- nothing open, clean start, or ask first
 
 test('EP-CERT-013: every Home entry (type, paste, document, photo, link, place, a saved build) goes through fresh-work routing -- never into the old conversation', () => {
   assert.match(agentSrc, /const startFromHome = \(text: string\): SendResult => \{[\s\S]{0,320}requestFresh\(set =>/);
-  assert.match(agentSrc, /const beginHomeUpload = \(kind: 'DOCUMENT' \| 'PHOTO', file: File\) => \{\s*requestFresh\(set =>/);
+  assert.match(agentSrc, /const beginHomeUpload = \(kind: 'DOCUMENT' \| 'PHOTO', file: File\) => \{\s*requestFresh\(\(\) =>/);
   assert.match(agentSrc, /const pickDocument = \(file: File\) => beginHomeUpload\('DOCUMENT', file\);/);
   assert.match(agentSrc, /const pickPhoto = \(file: File\) => beginHomeUpload\('PHOTO', file\);/);
   assert.match(agentSrc, /requestFresh\(set => \{ if \(signedIn\) setContinuityDismissed\(true\); setHome\(false\); submitPlan\(text, label, set\); \}\)/);
@@ -205,7 +205,7 @@ test('EP-CERT-015: a failed source offers Try again AND Remove (labelled), Start
   assert.match(text(html(api.SourceCard, { source: artifact(), busy: false, onRetry() {}, onRemove() {}, onStartFresh() {} })), /Start fresh/);
   for (const b of card.match(/<button[^>]*>/g)) assert.match(b, /min-h-11|h-11/, 'every recovery control is a 44px target');
   // Neither the composer nor adding another source is gated on a source error.
-  assert.match(agentSrc, /disabled=\{state\.busy \|\| sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'checking'\}/);
+  assert.match(agentSrc, /disabled=\{state\.busy \|\| !!composerPendingSource \|\| sourcesState\.phase === 'submitting' \|\| sourcesState\.phase === 'uploading' \|\| sourcesState\.phase === 'checking'\}/);
   assert.doesNotMatch(agentSrc, /disabled=\{[^}]*sourcesState\.phase === 'error'/);
 });
 
