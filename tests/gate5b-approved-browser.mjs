@@ -93,7 +93,8 @@ try {
           assert.equal(await fundingChoices.getByRole('button',{name:forbidden,exact:true}).count(),0,
             forbidden+' must not appear as Agreement funding authority');
       }
-      assert.match(await money.textContent(),/My Work.*Money settles and funds an Agreement/s);
+      assert.match(await money.textContent(),/My Money, Borrow, Invest and Protect help you consider relevant options/);
+      assert.match(await money.textContent(),/Money should follow the agreement/);
       await page.screenshot({path:output+'/'+device+'-money-tool.png',fullPage:true});
       const dimensions=await page.evaluate(()=>({
         scroll:document.documentElement.scrollWidth,
