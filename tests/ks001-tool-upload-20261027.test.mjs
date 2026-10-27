@@ -21,7 +21,7 @@ test('a new file cannot inherit a prior successful server source or fake additio
   assert.match(tray,/setPending\(null\).*pendingFile.current=null;setServerSource\(null\)/);
   assert.match(tray,/setUploadState\('idle'\).*setServerSource\(null\)/);
   assert.doesNotMatch(tray,/>\+ Add \{tool==='Photos'\?'photo':'document'\}<\/button>/);
-  assert.match(tray,/>\+ Send another \{tool==='Photos'\?'photo':'document'\}<\/button>/);
+  assert.match(tray,/\{tool==='Photos'\?'Choose another photo':'Choose another document'\}/);
   assert.match(tray,/gateway\.uploadSource\(targetConversationId,tool==='Photos'\?'PHOTO':'DOCUMENT',file\)/);
 });
 
