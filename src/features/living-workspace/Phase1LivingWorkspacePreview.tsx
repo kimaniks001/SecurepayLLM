@@ -903,7 +903,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         </div>}
         {!signedIn && mode!=='work' && mode!=='vision' && workspaceGateways && <button type="button" onClick={()=>setSignInOpen(true)}
           className="mt-5 min-h-11 rounded-lg text-left text-xs font-medium text-forest-800 underline underline-offset-4">
-          Sign in to see your saved {mode==='vision'?'dreams':mode==='circle'?'Circles':'community activity'}
+          Sign in to see your saved {mode==='circle'?'Circles':'community activity'}
         </button>}
 </div>
       </aside>
