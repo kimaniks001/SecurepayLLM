@@ -20,8 +20,8 @@ test('live SecurePay Check keeps People visible, proposed and actionable',()=>{
   assert.match(check,/onClick=\{onOpenPeople\}/);
   assert.match(workspace,/onOpenPeople=\{\(\)=>openTool\('People & Invitations'\)\}/);
   assert.match(check,/Identity not linked · participation not accepted/);
-  assert.match(check,/Identity linked · participation not accepted/);
-  assert.match(check,/not mean the person has joined or agreed/);
+  assert.match(check,/KS identity linked · participation not accepted/);
+  assert.match(check,/never means the person has joined or agreed/);
 });
 
 test('the existing authorised agreement invite remains a separate ceremony',()=>{
