@@ -73,6 +73,7 @@ import { createSavedBuildController } from '../savedbuild/controller';
 import { SavedBuildPanel, ContinueBuildingList } from '../savedbuild/SavedBuildPanel';
 import { createSourceController, type SourceController } from '../sources/controller';
 import { SourceMenu } from '../sources/ui/SourceMenu';
+import { UploadStatusBar } from '../sources/ui/UploadStatusBar';
 import { DateTimeTool } from '../living-workspace/DateTimeTool';
 import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/DeclaredSourcePanel';
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
@@ -241,11 +242,12 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   type HomePendingSource = {
     file: File;
     kind: 'DOCUMENT' | 'PHOTO';
-    phase: 'reading' | 'failed';
+    phase: 'selected' | 'uploading' | 'failed';
     error?: string;
     sourceArtifactId?: string;
   };
   const [homePendingSource, setHomePendingSource] = useState<HomePendingSource | null>(null);
+  const [composerPendingSource, setComposerPendingSource] = useState<{ file: File; kind: 'DOCUMENT' | 'PHOTO' } | null>(null);
   const [bringPlanOpen, setBringPlanOpen] = useState(false);
   // Entry Perfection Phase 2 -- the pasted text is kept until SecurePay has actually read it (never lost on failure).
   const [bringPlanDraft, setBringPlanDraft] = useState<{ text: string; label: string }>({ text: '', label: '' });
@@ -507,6 +509,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     setBringPlanDraft({ text: "", label: "" });
     setDeclaredOpen(null);
     setHomePendingSource(null);
+    setComposerPendingSource(null);
     setNotice(null);
     // User-Ready Beta Gate 1 -- nothing of the previous workspace's presentation state carries over either.
     setDetailsOpen(false);
@@ -1409,31 +1412,35 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   // ONE real conversation and updates state.conversationId, which is what naturally flips showHome to false
   // and lands the person in BUILD -- exactly the same real transition Document/Photo already produce.
   const beginHomeUpload = (kind: 'DOCUMENT' | 'PHOTO', file: File) => {
-    requestFresh(set => {
-      // A source chosen from Home is a NEW intention. Keep Home visible until SecurePay has a terminal
-      // source result, so the file can never appear to vanish behind navigation or stale continuity.
+    requestFresh(() => {
+      // Choosing a file is LOCAL. Give the person its name and size, and let
+      // them explicitly choose Add to KS001 before any bytes leave the device.
       setHome(true);
       if (signedIn) setContinuityDismissed(true);
       setIntakeError(null);
-      setHomePendingSource({ file, kind, phase: 'reading' });
-      void set.sourceController.addUpload(kind, file).then(outcome => {
-        if (outcome.ok) {
-          setHomePendingSource(null);
-          setHome(false);
-          return;
-        }
-        setHomePendingSource({
-          file,
-          kind,
-          phase: 'failed',
-          error: outcome.error,
-          sourceArtifactId: outcome.source?.sourceArtifactId,
-        });
-      });
+      setHomePendingSource({ file, kind, phase: 'selected' });
     });
   };
   const pickDocument = (file: File) => beginHomeUpload('DOCUMENT', file);
   const pickPhoto = (file: File) => beginHomeUpload('PHOTO', file);
+  const commitHomeSource = () => {
+    const pending = homePendingSource;
+    if (!pending || pending.phase === 'uploading') return;
+    setHomePendingSource({ ...pending, phase: 'uploading', error: undefined });
+    void sourceController.addUpload(pending.kind, pending.file).then(outcome => {
+      if (outcome.ok) {
+        setHomePendingSource(null);
+        setHome(false);
+        return;
+      }
+      setHomePendingSource({
+        ...pending,
+        phase: 'failed',
+        error: outcome.error,
+        sourceArtifactId: outcome.source?.sourceArtifactId,
+      });
+    });
+  };
   const retryHomeSource = () => {
     const pending = homePendingSource;
     if (!pending) return;
@@ -1485,27 +1492,29 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   };
 
   const sourceStatusSlot = homePendingSource ? (
-    <div
-      role={homePendingSource.phase === 'failed' ? 'alert' : 'status'}
+    <div role={homePendingSource.phase === 'failed' ? 'alert' : 'status'}
       className={`rounded-2xl border px-4 py-3 shadow-soft ${homePendingSource.phase === 'failed' ? 'border-ember-200 bg-ember-50/80' : 'border-forest-100 bg-white/85'}`}
-      data-home-source-status={homePendingSource.phase}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-[0.88rem] font-medium text-forest-900">{homePendingSource.file.name}</p>
-          <p className="mt-0.5 text-[0.76rem] text-sand-600">
-            {homePendingSource.phase === 'reading'
-              ? `Reading… · ${Math.max(1, Math.round(homePendingSource.file.size / 1024))} KB`
+      data-home-source-status={homePendingSource.phase}>
+      <p className="truncate text-[0.88rem] font-medium text-forest-900">{homePendingSource.file.name}</p>
+      {homePendingSource.phase === 'uploading' ? (
+        <div className="mt-2">
+          <UploadStatusBar stage={sourcesState.phase === 'checking' ? 'reading' : 'uploading'} fileName={homePendingSource.file.name}/>
+        </div>
+      ) : (
+        <>
+          <p className="mt-1 text-[0.76rem] text-sand-600">
+            {homePendingSource.phase === 'selected'
+              ? `Selected locally · ${Math.max(1, Math.round(homePendingSource.file.size / 1024))} KB · not uploaded`
               : homePendingSource.error}
           </p>
-        </div>
-        {homePendingSource.phase === 'reading'
-          ? <span className="shrink-0 text-[0.72rem] font-semibold text-forest-700">Please keep this page open</span>
-          : <div className="flex shrink-0 flex-wrap gap-2">
-              <button type="button" onClick={retryHomeSource} className="min-h-11 rounded-xl bg-forest-700 px-3 text-[0.78rem] font-semibold text-white">Try again</button>
-              <button type="button" onClick={removeHomeSource} className="min-h-11 px-2 text-[0.78rem] text-sand-700 underline">Remove</button>
-            </div>}
-      </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {homePendingSource.phase === 'selected'
+              ? <button type="button" onClick={commitHomeSource} className="min-h-11 rounded-xl bg-forest-700 px-3 text-[0.78rem] font-semibold text-white">Add to KS001</button>
+              : <button type="button" onClick={retryHomeSource} className="min-h-11 rounded-xl bg-forest-700 px-3 text-[0.78rem] font-semibold text-white">Try again</button>}
+            <button type="button" onClick={removeHomeSource} className="min-h-11 px-2 text-[0.78rem] text-sand-700 underline">Remove</button>
+          </div>
+        </>
+      )}
     </div>
   ) : null;
 
