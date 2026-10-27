@@ -23,22 +23,30 @@ try {
       const mobile=page.getByRole('navigation',{name:'Mobile workspace panels'});
 
       for(const [area,label,title] of [
-        ['vision','Vision','Imagine what could be possible'],
+        ['vision','Vision','What are you imagining?'],
         ['circle','Circle','Decide and work together'],
         ['community','Community',null]
       ]){
         if(area!=='vision')await nav.getByRole('button',{name:label,exact:true}).click();
         await page.locator('[data-workspace-frozen-layout][data-sp-area="'+area+'"]').waitFor();
         if(title)await page.getByRole('heading',{name:title}).waitFor({state:'attached'});
-        const guide=page.locator('[data-approved-gate5b-purpose="'+area+'"]');
+        const guide=area==='vision'?page.locator('[data-true-north-vision-summary]'):
+          page.locator('[data-approved-gate5b-purpose="'+area+'"]');
         await guide.waitFor({state:'attached'});
-        assert.equal(await guide.count(),1,'Only one source-of-truth purpose section per space');
+        assert.equal(await guide.count(),1,'Only one living summary/purpose section per space');
         const copy=await guide.textContent();
-        assert.match(copy,/Where you are/);
-        assert.match(copy,/Important boundary/);
-        assert.match(copy,/One useful next step/);
-        assert.match(copy,/Opening My Work does not transfer, publish, approve or pay/);
-        if(area==='vision')assert.match(copy,/private ideas|private|Privacy|owned/i);
+        if(area==='vision') {
+          assert.match(copy,/Your Vision/);
+          assert.match(copy,/Scenarios worth keeping/);
+          assert.match(copy,/No prices, returns, jobs, loans or local people are independently verified/);
+          assert.equal(await page.locator('[data-approved-gate5b-purpose="vision"]').count(),0,
+            'Old restrictive Vision purpose panel must not duplicate the new living summary');
+        } else {
+          assert.match(copy,/Where you are/);
+          assert.match(copy,/Important boundary/);
+          assert.match(copy,/One useful next step/);
+          assert.match(copy,/Opening My Work does not transfer, publish, approve or pay/);
+        }
         if(area==='circle')assert.match(copy,/formal vote|governance|member/i);
         if(area==='community')assert.match(copy,/Circle-only|Public Community/);
         assert.equal(await page.locator('[data-workspace-shell]').count(),1,'Original three-column shell must be intact');
@@ -50,18 +58,16 @@ try {
         await page.screenshot({path:output+'/'+device+'-'+area+'-summary.png',fullPage:true});
         if(width<768 && area!=='community') await mobile.getByRole('button',{name:'Chat'}).click();
       }
-      // Gate B supersedes the old mixed Money tabs: Vision alone explores financial possibilities.
+      // True North Vision uses an inline, assumption-only Scenario Calculator.
+      // The original Money tool stays in My Work; no finance authority is opened here.
       await nav.getByRole('button',{name:'Vision',exact:true}).click();
-      // Vision's financial possibilities live in the contextual Money tool, not a second page.
-      if(width>=1280) {
-        await page.getByRole('navigation',{name:'Workspace tool rail'}).getByRole('button',{name:'Money'}).click();
-      } else {
-        await mobile.getByRole('button',{name:'Tools'}).click();
-        await page.getByRole('navigation',{name:'Choose a tool'}).getByRole('button',{name:'Money',exact:true}).click();
-      }
-      await page.locator('[data-gate-b-financial-possibilities]').waitFor({state:'visible'});
-      await page.keyboard.press('Escape');
-      await page.locator('[data-tool-shelf]').waitFor({state:'detached'});
+      if(width<768)await mobile.getByRole('button',{name:'Chat'}).click();
+      await page.getByRole('button',{name:'Explore a financial scenario'}).click();
+      const calculator=page.locator('[data-vision-scenario-calculator]');
+      await calculator.waitFor({state:'visible'});
+      assert.match(await calculator.textContent(),/What could be possible/);
+      assert.match(await calculator.textContent(),/Funding gap today/);
+      await calculator.getByRole('button',{name:'Close'}).click();
       await nav.getByRole('button',{name:'Community',exact:true}).click();
       if(width<768)await mobile.getByRole('button',{name:'About Community'}).click();
       const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
