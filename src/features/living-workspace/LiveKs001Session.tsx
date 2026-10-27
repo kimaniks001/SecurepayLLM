@@ -20,10 +20,14 @@ export function lastQuestion(text: string): { before: string; question: string }
   const question=clean.slice(start).trim();
   return question.endsWith('?')?{before:clean.slice(0,start),question}:null;
 }
-function Ks001Reply({ text }: { text: string }) {
+function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: string | null }) {
   const result=lastQuestion(text);
-  if(!result)return <>{text}</>;
-  return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
+  if(result)return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
+  const action=nextQuestion?.trim()?humanNextQuestion(nextQuestion):'';
+  if(!action)return <>{text}</>;
+  const pos=text.lastIndexOf(action);
+  if(pos>=0)return <><span>{text.slice(0,pos)}</span><strong className="font-semibold text-forest-900">{action}</strong><span>{text.slice(pos+action.length)}</span></>;
+  return <><span>{text.trimEnd()}</span><strong className="mt-2 block font-semibold text-forest-900">{action}</strong></>;
 }
 
 /**
