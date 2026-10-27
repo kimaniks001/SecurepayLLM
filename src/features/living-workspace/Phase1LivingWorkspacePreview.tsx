@@ -607,7 +607,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
                       }
                       return gateway.selectKsIdentity(id,{ksNumber});
                     }:undefined}
-                    agreementPeople={formationState?.data?.conversationId===liveConversationId?formationState.data.who.map(p=>p.name):[]}
+                    agreementPeople={formationState?.data?.conversationId===liveConversationId
+                      ?formationState.data.who.filter(p=>p.name!=='Not named yet').map(p=>({name:p.name,role:p.role})):[]}
                     onPrepare={async text=>{
                       if(!liveController)throw new Error('KS001 unavailable');
                       setLiveStarted(true);setLiveWork(true);
@@ -867,6 +868,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           onAddToFact={openFactSourcePicker}
+          onOpenPeople={()=>openTool('People & Invitations')}
           onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
           onCorrectFact={async (label,previous,replacement,expectedVersion)=>{
             if(!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');

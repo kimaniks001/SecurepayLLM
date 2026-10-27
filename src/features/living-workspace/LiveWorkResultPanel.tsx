@@ -28,13 +28,15 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, examination, onReview }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
   onRefresh: () => void;
   onCorrectFact: (label:string, previous:string, replacement:string, expectedVersion:number)=>Promise<void>;
   onAddToFact: (label:string)=>void;
+  /** Opens the existing People tool, not a new participant or invitation authority. */
+  onOpenPeople?:()=>void;
   /** Opens the existing server-derived Agreement reader in the same Living Workspace. */
   onReview?: () => void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
@@ -150,6 +152,19 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
             {!compactAgreementFacts(formation).length&&<tr><td className="py-2 text-sm" colSpan={2}>Tell KS001 what you want to agree.</td></tr>}
           </tbody>
         </table>
+      </section>
+      <section aria-label="People and proposed roles" className="border-b border-cream-100 pb-3" data-true-north-people>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-forest-900">People</h3>
+          {onOpenPeople&&<button type="button" onClick={onOpenPeople} className="min-h-11 rounded-full border border-cream-200 px-3 text-xs font-semibold text-forest-800">Add / prepare</button>}
+        </div>
+        {formation.who.filter(person=>person.identity!=='MISSING').length>0
+          ?formation.who.filter(person=>person.identity!=='MISSING').slice(0,4).map(person=><div key={person.key} className="mt-2 text-sm">
+            <span className="font-semibold">{person.name}</span><span className="text-sand-700">{person.role?' · '+person.role:' · Role to establish'}</span>
+            <p className="text-xs text-sand-600">{person.linked?'KS identity linked · participation not accepted':'Identity not linked · participation not accepted'}</p>
+          </div>)
+          :<p className="mt-2 text-xs text-sand-700">People essential to this work can be added with their proposed roles.</p>}
+        <p className="mt-2 text-xs text-sand-600">A name or proposed duty never means the person has joined or agreed. Invitations require the existing authorised Agreement process.</p>
       </section>
       <section aria-label="What deserves attention" className="border-b border-cream-100 pb-3">
         <h3 className="text-sm font-semibold text-forest-900">What deserves attention</h3>
