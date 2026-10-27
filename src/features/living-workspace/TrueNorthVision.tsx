@@ -51,9 +51,9 @@ export function useVisionNorthJourney({signedIn,gateway,gateways,session}:{
   const [savedNotice,setSavedNotice]=useState('');
   const counter=useRef(0);
   const real=!!signedIn&&!!agent&&!!dreams&&!!gateways;
-  const messages:Thought[]=real?(agentState?.turns??[]).map(turn=>turn.sender==='user'
-    ?{id:++dummyIndex.v,sender:'you',text:turn.text}
-    :{id:++dummyIndex.v,sender:'guide',text:turn.response.message.text}):local;
+  const messages:Thought[]=real?(agentState?.turns??[]).map((turn,i)=>turn.sender==='user'
+    ?{id:i+1,sender:'you',text:turn.text}
+    :{id:i+1,sender:'guide',text:turn.response.message.text}):local;
   // The local preview is a guided interaction, not simulated live model intelligence.
   // We do not silently send any local text or scenario into a real account at sign-in.
   const firstThought=messages.find(m=>m.sender==='you')?.text??'';
@@ -119,8 +119,6 @@ export function useVisionNorthJourney({signedIn,gateway,gateways,session}:{
     phaseShare,setPhaseShare,plan,scenarios,saveComparison,saveDreamNotes,savedNotice,
     retry:()=>agent?.retry(),retryDream:()=>dreams?.retry(),reconcileDream:()=>dreams?.reconcilePending()};
 }
-// Render keys are not server identities; only used to keep this small read-only transcript stable.
-const dummyIndex={v:0};
 export type VisionNorthJourney=ReturnType<typeof useVisionNorthJourney>;
 
 function NumberField({label,value,onChange,min=0,max=100000000,step=1000,suffix}:{
