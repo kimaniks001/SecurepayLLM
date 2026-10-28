@@ -29,7 +29,7 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, onDiscussProjectFairTrade }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, onPrepareFairTradeDraft }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
@@ -42,7 +42,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   onReview?: () => void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
   selectedSource?: SelectedCommercialSourceDto | null;
-  onDiscussProjectFairTrade?: (draft:string)=>void;
+  onPrepareFairTradeDraft?: (draft:string)=>void;
 }) {
   const [expanded,setExpanded]=useState(false);
   const [customTitle,setCustomTitle]=useState('');
@@ -192,11 +192,11 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
           :project.basis==='examination'
             ?'from the current partial Fair Trade examination'
             :'a suggested starting point, not a finding'}.</p>
-        {onDiscussProjectFairTrade && <button type="button"
+        {onPrepareFairTradeDraft && <button type="button"
           disabled={busy||!conversationId}
           onClick={()=>{
             setProjectPromptError(null);
-            try {onDiscussProjectFairTrade(projectFairTradeDraft(project.nextQuestion));}
+            try {onPrepareFairTradeDraft(projectFairTradeDraft(project.nextQuestion));}
             catch(error){setProjectPromptError(error instanceof Error?error.message:'Could not prepare the KS001 message.');}
           }}
           className="min-h-11 rounded-lg bg-forest-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
