@@ -53,7 +53,9 @@ export function InlineCommunityMedia({gateway,items,onChange,limit=4}:{
     patch(item.key,{status:'uploading',error:null});
     try{
       const receipt=await gateway.media.upload(item.file,item.key);
-      if(receipt.sizeBytes!==item.file.size||receipt.contentType!==item.file.type)
+      // SecurePay re-encodes photographs to strip hidden GPS/EXIF metadata;
+      // a validated receipt may therefore have a different byte size.
+      if(receipt.sizeBytes<=0||receipt.sizeBytes>MAX_BYTES||receipt.contentType!==item.file.type)
         throw new Error('SecurePay returned a file receipt that does not match your selection.');
       patch(item.key,{status:'uploaded',receipt,error:null});
     }catch(error){
