@@ -3,8 +3,8 @@ import { ArrowUpRight, Compass, LockKeyhole, RefreshCw, ShieldCheck, Users } fro
 import type { SessionStore } from '../../api/securepay/session';
 import { ensureFreshSession } from '../../api/securepay/session';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
-import type { CircleResponse, CirclePendingInvitationView, CommunityServiceOpportunityDto } from '../../api/securepay/community/dto';
-import { matchCommunityCircles, matchCommunityOpportunities,
+import type { CircleResponse, CirclePendingInvitationView, CommunityServiceOpportunityDto, CommunityObjectResponse } from '../../api/securepay/community/dto';
+import { matchCommunityCircles, matchCommunityOpportunities, matchPublishedOpportunities,
   type CommunityDiscoveryChoice } from './communityCheckDiscovery';
 
 type Reading<T>={status:'idle'|'loading'|'ready'|'error';rows:T[]};
@@ -27,9 +27,10 @@ const sample:CircleResponse={
  * when this panel unmounts. Circle content is never fetched here.
  */
 export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSignIn,
-  onExploreCircle,onOpenCommunity}:{
+  onExploreCircle,onOpenCommunity,onOpenCommunityPost}:{
   gateways?:PreviewWorkspaceGateways;session:SessionStore;signedIn:boolean;previewOnly:boolean;
   onSignIn:()=>void;onExploreCircle:(circleId:string)=>void;onOpenCommunity:()=>void;
+  onOpenCommunityPost?:(postId:string)=>void;
 }) {
   const [expanded,setExpanded]=useState(false);
   const [choice,setChoice]=useState<CommunityDiscoveryChoice>(initial);
@@ -38,12 +39,13 @@ export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSig
   const [invitations,setInvitations]=useState<Reading<CirclePendingInvitationView>>(blank);
   const [mine,setMine]=useState<Reading<CircleResponse>>(blank);
   const [opportunities,setOpportunities]=useState<Reading<CommunityServiceOpportunityDto>>(blank);
+  const [publishedPosts,setPublishedPosts]=useState<Reading<CommunityObjectResponse>>(blank);
   const [revision,setRevision]=useState(0);
   const [previewNotice,setPreviewNotice]=useState<string|null>(null);
 
   useEffect(()=>{
     let alive=true;
-    setCircles(blank());setInvitations(blank());setMine(blank());setOpportunities(blank());
+    setCircles(blank());setInvitations(blank());setMine(blank());setOpportunities(blank());setPublishedPosts(blank());
     setMember('loading');
     if(previewOnly){setMember('not-member');return ()=>{alive=false;};}
     if(!signedIn||!gateways){setMember('not-member');return ()=>{alive=false;};}
@@ -65,6 +67,7 @@ export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSig
         fetchLane(setInvitations,()=>gateways.community.circles.myInvitations(25,0));
         fetchLane(setMine,()=>gateways.community.circles.mine(25,0));
         fetchLane(setOpportunities,()=>gateways.community.serviceOpportunities.list(25,0));
+        fetchLane(setPublishedPosts,()=>gateways.community.feed(50,0));
       }catch{if(alive)setMember('error');}
     })();
     return ()=>{alive=false;};
@@ -75,6 +78,7 @@ export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSig
     ()=>matchCommunityCircles(availableCircles,choice),[availableCircles,choice]);
   const opportunityMatches=useMemo(
     ()=>matchCommunityOpportunities(opportunities.rows,choice),[opportunities.rows,choice]);
+  const publishedMatches=useMemo(()=>matchPublishedOpportunities(publishedPosts.rows,choice),[publishedPosts.rows,choice]);
   const change=<K extends keyof CommunityDiscoveryChoice>(field:K,value:CommunityDiscoveryChoice[K])=>
     setChoice(current=>({...current,[field]:value}));
   const openCircle=(id:string)=>{
@@ -211,10 +215,25 @@ export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSig
         </div>
         {choice.purpose==='find-work'&&<div className="space-y-2">
           <p className="text-xs font-semibold text-forest-800">Community opportunities</p>
-          {opportunities.status==='loading'&&<p role="status" className="text-xs">Checking actual opportunities…</p>}
-          {opportunities.status==='error'&&<p role="alert" className="text-xs">Opportunities could not be verified.</p>}
-          {opportunities.status==='ready'&&opportunityMatches.length===0&&
+          {(opportunities.status==='loading'||publishedPosts.status==='loading')&&
+            <p role="status" className="text-xs">Checking actual opportunities…</p>}
+          {(opportunities.status==='error'||publishedPosts.status==='error')&&
+            <p role="alert" className="text-xs">Some opportunity sources could not be verified. Only confirmed records are shown.</p>}
+          {opportunities.status==='ready'&&publishedPosts.status==='ready'&&
+            opportunityMatches.length===0&&publishedMatches.length===0&&
             <p className="text-xs text-sand-600">No matching open opportunity confirmed in these results.</p>}
+          {publishedPosts.status==='ready'&&publishedMatches.slice(0,5).map(({post,reasons})=>
+            <div key={'post-'+post.id} className="rounded-lg border border-cream-200 bg-white p-3 space-y-1">
+              <p className="text-xs font-semibold">{post.title}</p>
+              <p className="line-clamp-4 whitespace-pre-wrap text-xs text-sand-700">{post.body}</p>
+              {post.locationLabel&&<p className="text-xs text-sand-600">Area: {post.locationLabel}</p>}
+              {reasons.map(reason=><p key={reason} className="text-xs text-forest-700">{reason}</p>)}
+              <p className="text-xs text-sand-600">Published proposal. Interest is not selection or acceptance; any proposed pay is not verified as funded.</p>
+              <button type="button" onClick={()=>onOpenCommunityPost?onOpenCommunityPost(post.id):onOpenCommunity()}
+                className="min-h-11 text-xs font-semibold text-forest-700 underline">
+                Read this invitation and express interest
+              </button>
+            </div>)}
           {opportunities.status==='ready'&&opportunityMatches.slice(0,3).map(({opportunity,reasons})=>
             <div key={opportunity.id} className="rounded-lg border border-cream-200 p-3 space-y-1">
               <p className="text-xs font-semibold">{opportunity.title}</p>
