@@ -350,6 +350,10 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     {filtered.projects.slice(0,limit).map(x=><Card key={x.id}
       label={'Community project · '+x.status.toLowerCase()} title={x.title}
       body={x.purpose} detail={x.locationLabel}/>)}
+    {filtered.contributions.filter(item=>item.contributionType==='PROJECT_OUTCOME'||item.contributionType==='BEFORE_AFTER')
+      .slice(0,limit).map(item=><Card key={'outcome-'+item.id}
+        label="Member-reported project outcome · not independently cost-verified"
+        title={item.title} body={item.body} detail="Public Community contribution · published with member consent"/>)}
     <button type="button" onClick={openParticipation} className="min-h-11 text-xs font-semibold text-forest-700 underline">
       Explore projects, evidence and contributions</button>
   </Panel>;

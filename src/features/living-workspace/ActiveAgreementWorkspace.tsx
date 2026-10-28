@@ -5,6 +5,7 @@ import type { NextActionDto, ObligationDto } from '../../api/securepay/agreement
 import type { AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
 import { MoneyRailCeremony } from './MoneyRailCeremony';
 import { AgreementWorkProgress } from './AgreementWorkProgress';
+import { ProjectOutcomeComposer } from './ProjectOutcomeComposer';
 import { AgreementMediaEvidenceTool } from './AgreementMediaEvidenceTool';
 import { describeMoneyTruth } from './executionTruth';
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
@@ -21,9 +22,10 @@ const empty=():Loaded=>({phase:'loading',detail:null,actions:null,obligations:nu
  * statements use the canonical API. Verified media is only available against
  * the isolated staging media gateway, never by an ordinary production relay.
  */
-export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,onAskKs001,onOpenMoney}:{
+export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,onAskKs001,onOpenMoney,onGoCommunity}:{
  agreementId:string;gateways:PreviewWorkspaceGateways;session:SessionStore;
  onBack:()=>void;onAskKs001:(reference:string)=>Promise<void>;onOpenMoney:(detail:AgreementDetailResponse,railCode?:string)=>void;
+ onGoCommunity:()=>void;
 }){
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const [record,setRecord]=useState<Loaded>(empty);
@@ -186,6 +188,8 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
       <section className="rounded-xl border border-cream-200 bg-white p-3"><h3 className="text-sm font-semibold">Evidence record</h3>
         <p className="mt-2 text-xs text-sand-700">{detail.documents.length?detail.documents.length+' recorded item(s). Open the full Agreement to inspect them.':'No evidence documents returned in this detail projection.'}</p></section>
     </div>
+    <ProjectOutcomeComposer key={agreementId} agreementId={agreementId} gateways={gateways}
+      session={session} onGoCommunity={onGoCommunity}/>
     <div className="flex gap-2 rounded-xl bg-cream-50 p-3 text-xs text-sand-700"><AlertCircle size={18} className="shrink-0"/> Media evidence is available only through the separately authorised isolated staging upload gateway. Uploads are not accepted evidence until explicitly submitted, reviewed and considered under the current Agreement version. Circle coordination and Money remain separate.</div>
   </div>}
  </section>;
