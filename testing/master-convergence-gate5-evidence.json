@@ -1,0 +1,43 @@
+{
+  "schema": "securepay-master-convergence-gate5-v1",
+  "environment": "ISOLATED_DISPOSABLE",
+  "financialExecutionDisabled": true,
+  "productionChanged": false,
+  "releaseApproved": false,
+  "uiSha": "",
+  "apiSha": "",
+  "note": "INTENTIONAL NO_GO. Do not insert credentials or live user data. Each gate requires independently checked real API/UI evidence on the same exact SHAs.",
+  "gates": {
+    "gate2": {
+      "environment": "DISPOSABLE_LOCAL_API",
+      "financialExecutionDisabled": true,
+      "productionChanged": false,
+      "uiSha": "",
+      "apiSha": "",
+      "journeys": {}
+    },
+    "gate3": {
+      "environment": "ISOLATED_DISPOSABLE",
+      "financialExecutionDisabled": true,
+      "productionChanged": false,
+      "uiSha": "",
+      "apiSha": "",
+      "checks": {}
+    },
+    "gate4": {
+      "environment": "ISOLATED_DISPOSABLE",
+      "financialExecutionDisabled": true,
+      "productionChanged": false,
+      "uiSha": "",
+      "apiSha": "",
+      "checks": {}
+    },
+    "trueNorthGate7": {
+      "environment": "ISOLATED_DISPOSABLE",
+      "financialExecutionDisabled": true,
+      "productionDeploymentApproved": false,
+      "checks": {}
+    }
+  },
+  "checks": {}
+}
