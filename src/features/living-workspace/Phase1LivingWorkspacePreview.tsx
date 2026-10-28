@@ -487,7 +487,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}
-             onContinueToWork={continueCircleToWork}/>
+             onContinueToWork={continueCircleToWork}
+             onOpenMyWork={()=>{setWorkingCircleId(null);chooseMode('work');}}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
       <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
