@@ -41,10 +41,11 @@ export function localApi(raw){
 }
 function assert(condition,message){if(!condition)throw Error(message);}
 const messageOf=(x)=>String(x?.message??'').trim();
-function hasMaterialQuestion(reply,formation,examination){
- const texts=[messageOf(reply),String(formation?.question?.text??''),
-   String(examination?.advisoryQuestion??'')].filter(Boolean);
- return texts.some(t=>t.includes('?'))&&texts.some(t=>t.length>=25);
+function hasMaterialQuestion(reply){
+ // KS001 must ask INSIDE its conversation, not only in the right-side check.
+ const spoken=messageOf(reply);
+ return spoken.length>=30&&spoken.includes('?')&&
+   spoken.split('?')[0].split(/\\s+/).length>=7;
 }
 async function apiRequest(base,method,path,token,body,fetchImpl){
  const headers={'Accept':'application/json'};
@@ -86,6 +87,10 @@ export async function runGate3Intelligence({
 }){
  const base=localApi(baseUrl);
  assert(sha.test(uiSha)&&sha.test(apiSha),'Exact candidate SHAs required');
+ assert(Array.isArray(scenariosToRun)&&scenariosToRun.length===scenarios.length&&
+   scenariosToRun.every((s,i)=>s.id===scenarios[i].id&&
+     s.initial===scenarios[i].initial&&s.followup===scenarios[i].followup),
+   'All three canonical scenarios must run; cherry-picked or skipped journeys cannot pass');
  const seenTokens=new Set(),outcomes=[];
  for(const scenario of scenariosToRun){
   const created=await apiRequest(base,'POST','/api/agent/conversations',null,null,fetchImpl);
@@ -107,7 +112,7 @@ export async function runGate3Intelligence({
   const initial=await turn(scenario.initial);
   const before=await readSnapshot(base,id,token,fetchImpl);
   assert(before.context.version>0,'First turn did not capture any canonical understanding');
-  assert(hasMaterialQuestion(initial,before.formation,before.fair),
+  assert(hasMaterialQuestion(initial),
     'KS001 stopped instead of asking a material next question');
   const words=[messageOf(initial).toLowerCase(),JSON.stringify(before.context).toLowerCase()].join(' ');
   assert(scenario.mustIncludeBefore.some(word=>words.includes(word)),
@@ -116,7 +121,7 @@ export async function runGate3Intelligence({
   const after=await readSnapshot(base,id,token,fetchImpl);
   assert(after.context.version>=before.context.version,
     'Continued conversation lost or replaced current understanding');
-  assert(hasMaterialQuestion(continued,after.formation,after.fair),
+  assert(hasMaterialQuestion(continued),
     'KS001 conversation stopped after a material follow-up');
   assert(after.context.version>before.context.version,
     'New material information did not update Trade Context on follow-up');
@@ -136,10 +141,10 @@ export async function runGate3Intelligence({
     principleCount:after.fair.principleCoverage.length,
     notQualified:true,moneyExecution:'NOT_ATTEMPTED'});
  }
- return {result:fetchImpl===fetch?'LIVE_PROVIDER_API_PASS':'SYNTHETIC_PROTOCOL_PASS',
+ return {result:fetchImpl===fetch?'LIVE_API_PROTOCOL_PASS_PROVIDER_NOT_ATTESTED':'SYNTHETIC_PROTOCOL_PASS',
   execution:fetchImpl===fetch?'NATIVE_LOOPBACK_HTTP':'INJECTED_TEST_TRANSPORT',
   uiSha,apiSha,conversations:outcomes,moneyExecution:'NOT_ATTEMPTED',
-  warning:'A successful provider and partial Fair Trade reading does not certify participant acceptance, source reading, funds or all Gate 2 journeys.'};
+  warning:'The runner cannot independently prove which LLM provider handled the HTTP request. Provider model/credential identity must be separately attested from redacted backend logs. It does not certify consent, source reading, funding or Gate 2 completion.'};
 }
 if(import.meta.url===pathToFileURL(process.argv[1]||'').href){
  if(process.env.GATE3_DISPOSABLE_ACK!=='YES')throw Error('Set GATE3_DISPOSABLE_ACK=YES only on disposable local API');
