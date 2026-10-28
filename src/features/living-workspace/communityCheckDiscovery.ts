@@ -1,5 +1,5 @@
 import type {
-  CircleResponse, CommunityServiceOpportunityDto,
+  CircleResponse, CommunityServiceOpportunityDto, CommunityObjectResponse,
 } from '../../api/securepay/community/dto';
 
 /**
@@ -77,4 +77,20 @@ export function matchCommunityOpportunities(
     }))
     .filter(result=>!hasWords || result.reasons.length>0)
     .sort((a,b)=>a.opportunity.title.localeCompare(b.opportunity.title));
+}
+
+/** A real published Community OPPORTUNITY or NEED is an open invitation to
+ * discuss a proposal. It is not an awarded, funded, vetted or accepted job.
+ * The API must grant access to the post; this selector only narrows returned
+ * public LIVE records, never fetches Circle-private posts. */
+export function matchPublishedOpportunities(
+  rows:readonly CommunityObjectResponse[],choice:CommunityDiscoveryChoice,
+):Array<{post:CommunityObjectResponse;reasons:string[]}> {
+  const hasWords=words(choice.interests).length>0||words(choice.skills).length>0;
+  return rows.filter(post=>post.circleId===null&&post.status==='ACTIVE'
+      && (post.objectType==='OPPORTUNITY'||post.objectType==='NEED')
+      && placeMatches(post.locationLabel,choice.area))
+    .map(post=>({post,reasons:reasons(choice.interests,choice.skills,[post.title,post.body])}))
+    .filter(result=>!hasWords||result.reasons.length>0)
+    .sort((a,b)=>(b.post.createdAt||'').localeCompare(a.post.createdAt||''));
 }
