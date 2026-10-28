@@ -13,7 +13,7 @@ const goodFair=(id,version)=>({
   })),
 });
 function adapter({blankReply=false,staleFair=false,allPositive=false,noContinuation=false,
-                 foreignReadsAllowed=false,reusedToken=false}={}){
+                 foreignReadsAllowed=false,reusedToken=false,noSpokenQuestion=false}={}){
  let created=0;
  const count=new Map();
  const fetchImpl=async(url,request)=>{
@@ -40,7 +40,9 @@ function adapter({blankReply=false,staleFair=false,allPositive=false,noContinuat
    const next=(count.get(i)||0)+1;
    count.set(i,next);
    return new Response(JSON.stringify({
-    message:blankReply?'':next===1
+    message:blankReply?'':noSpokenQuestion
+      ?'I have read your intention and retained what was proposed.'
+      :next===1
       ?'I understand your intention. What agreement details should we establish next?'
       :'I have kept the context. Who needs to agree to the next material condition?',
    }),{status:200});
@@ -102,4 +104,19 @@ test('Gate 3: scenarios include new intention, goods commercial basis, and work 
  assert.deepEqual(scenarios.map(x=>x.id),[
   'new_intention','unpriced_goods','project_paid_opportunity']);
  for(const x of scenarios)assert.ok(x.initial.length>20&&x.followup.length>35);
+});
+
+test('Gate 3: right-hand Fair Trade question cannot disguise an idle KS001 chat reply',async()=>{
+ await assert.rejects(
+   ()=>runGate3Intelligence({baseUrl:'http://127.0.0.1:8080',
+     uiSha:UI,apiSha:API,fetchImpl:adapter({noSpokenQuestion:true})}),
+   /stopped instead of asking a material next question/,
+ );
+});
+test('Gate 3: cherry-picked subset of scenarios never counts as certification',async()=>{
+ await assert.rejects(
+   ()=>runGate3Intelligence({baseUrl:'http://127.0.0.1:8080',
+     uiSha:UI,apiSha:API,fetchImpl:adapter(),scenariosToRun:scenarios.slice(0,1)}),
+   /All three canonical scenarios must run/,
+ );
 });
