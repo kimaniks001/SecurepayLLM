@@ -861,6 +861,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           gateways={workspaceGateways} session={session} signedIn={signedIn}
           previewOnly={!signedIn} onSignIn={()=>setSignInOpen(true)}
           onOpenCommunity={()=>{window.location.hash='#/community';}}
+          onOpenCommunityPost={objectId=>{
+            storeCommunityObjectEntry(objectId);
+            window.location.hash='#/community';
+          }}
           onExploreCircle={circleId=>{
             storeCircleEntry(circleId);
             window.location.hash='#/community';
