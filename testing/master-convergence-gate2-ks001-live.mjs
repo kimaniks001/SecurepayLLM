@@ -100,14 +100,31 @@ async function firstQuestion(api,request){
  const state=await request('GET','/api/agent/conversations/'+created.id+'/context',{accessToken:created.secret});
  assertion(state.conversationId===created.id,'Context is not from visitor conversation');
  assertion(state.version>=0,'No canonical context version was returned');
- return {conversationCreated:true,replyNonempty:true,nextQuestionPresent:true,contextRead:true};
+ return {conversationCreated:true,replyNonempty:true,nextQuestionPresent:true,contextRead:true,
+  _access:{conversationId:created.id,secret:created.secret}};
 }
 /** Source receipt may be READY, PARTIAL or a genuine FAILED. No invented facts.
  * The test insists that a successful bill reading is grounded in actual source
  * artifacts and that ambiguous terms remain questions rather than consent.
  */
-async function imageBillJourney(api,request,fixture){
+async function expectCrossConversationDenied(request,conversationId,foreignSecret){
+ try {
+   await request('GET','/api/agent/conversations/'+conversationId+'/context',
+     {accessToken:foreignSecret});
+ } catch(error) {
+   if(/returned HTTP (401|403|404)\b/.test(String(error)))return true;
+   throw Error('Cross-conversation check returned an unexpected response: '+String(error));
+ }
+ throw Error('Cross-conversation access unexpectedly succeeded; anonymity boundary broken');
+}
+async function imageBillJourney(api,request,fixture,previousAccess){
  const created=requireFresh(await request('POST','/api/agent/conversations'));
+ assertion(previousAccess&&previousAccess.conversationId!==created.id,
+   'Two independent disposable conversations are required');
+ assertion(previousAccess.secret!==created.secret,
+   'New conversation reused a previous anonymous possession secret');
+ const unrelatedDenied=await expectCrossConversationDenied(
+   request,created.id,previousAccess.secret);
  const bytes=readFileSync(fixture.billPath);
  assertion(bytes.byteLength>100&&bytes.byteLength<=10*1024*1024,'Disposable test image invalid or too large');
  const form=new FormData();
@@ -152,7 +169,7 @@ async function imageBillJourney(api,request,fixture){
  assertion(fair.status==='PARTIAL_ADVISORY','A reading cannot become a fairness certificate');
  assertion(fair.principleCoverage?.length===12,'No canonical twelve-lens coverage returned');
  return {
-   uploaded:true,sourceStatus:artifact.extractionStatus,sourceBackedCandidates:cited.length,
+   uploaded:true,unrelatedConversationDenied:unrelatedDenied,sourceStatus:artifact.extractionStatus,sourceBackedCandidates:cited.length,
    currentVersion:context.version,unsolvedSourceUncertainties:artifact.uncertainties?.length||0,
    fairness:'PARTIAL_ADVISORY_ONLY',payment:'NOT_ATTEMPTED',
  };
@@ -161,9 +178,13 @@ export async function runGate2FirstTwoJourneys(fixture,{fetchImpl=fetch}={}){
  const f=gate2LocalFixture(fixture);
  const request=(method,path,opts={})=>call(f.baseUrl,method,path,{...opts,fetchImpl});
  const first=await firstQuestion(f,request);
- const bill=await imageBillJourney(f,request,f);
- return {result:'LIVE_API_PASS',apiSha:f.apiSha,uiSha:f.uiSha,
-  journey1:first,journey2:bill,thirdPartyFunding:'NOT_ATTEMPTED',
+ const bill=await imageBillJourney(f,request,f,first._access);
+ const { _access: _privateAccess, ...publicFirst }=first;
+ const simulated=fetchImpl!==fetch;
+ return {result:simulated?'SYNTHETIC_PROTOCOL_PASS':'LIVE_API_PASS',
+  executionMode:simulated?'INJECTED_TEST_TRANSPORT':'NATIVE_LOOPBACK_HTTP',
+  apiSha:f.apiSha,uiSha:f.uiSha,
+  journey1:publicFirst,journey2:bill,thirdPartyFunding:'NOT_ATTEMPTED',
   caveat:'Does not certify an authorised SecureLink or any payment. Gate 2 Journeys 3–6 and authenticated browser still require real independent acceptance.',
  };
 }
