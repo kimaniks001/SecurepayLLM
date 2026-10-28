@@ -72,7 +72,7 @@ test('Gate 4: the existing Check reads version-bound server authority and prompt
   assert.match(panel,/Discuss this with KS001/);
   assert.match(panel,/Expressing interest is not selection/);
   assert.match(shell,/selectedSource=\{liveState\?\.source\?\?null\}/);
-  assert.match(shell,/onDiscussProjectFairTrade=\{message=>/);
+  assert.match(shell,/onPrepareFairTradeDraft=\{message=>/);
   assert.match(shell,/if\(readDraft\(liveConversationId\)\.trim\(\)\)/);
   assert.match(shell,/writeDraft\(liveConversationId,message\)/);
   assert.match(shell,/setDraftRevision\(value=>value\+1\)/);
