@@ -1,0 +1,10 @@
+{
+  "schema": "securepay-master-convergence-gate3-v1",
+  "environment": "ISOLATED_DISPOSABLE",
+  "productionChanged": false,
+  "financialExecutionDisabled": true,
+  "uiSha": "",
+  "apiSha": "",
+  "note": "Intentionally NO_GO. Live provider, private API Java and signed-in acceptance evidence absent.",
+  "checks": {}
+}
