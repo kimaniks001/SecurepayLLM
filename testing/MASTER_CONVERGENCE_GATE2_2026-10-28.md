@@ -76,7 +76,26 @@ The organiser chooses a real eligible public Community Project, records what hap
 
 ### 6. KS Number, activation, fees and financial protection
 
-Create a disposable identity, confirm its KS Number and account activation state. Inspect backend-authoritative pricing and charges against **owner-approved product rules**: KES 500 activation (KES 400 dispute reserve and KES 100 payout validation), KES 100/200 individual/business monthly plans, KES 20 collections, and 1% Secure Contracts above KES 20,000. **These are expected product rules, not observed runtime values**. Verify current backend Agreement/configuration rather than hardcoding fee assumptions. Test retries cannot create duplicate collections; PaymentReady, actual movement, release request and completed settlement must remain distinct. **Do not collect or release money in Gate 2.**
+Create a disposable identity, confirm its KS Number, and read the **backend-authored** activation promise, fee quotes and funding-component statuses. The combined API source currently declares `CommercialPricingConstants.PRICING_VERSION = phase31-v1.1-phase14-progressive`; the backend, not the frontend, must calculate and quote the actual fee.
+
+**Verify these current code-defined components in real read-only API responses (source presence is not an executed quote):**
+
+| Term | Source-defined candidate rule |
+|---|---|
+| For You initial funding | **KES 400** = KES 100 first monthly subscription + KES 100 returned settlement-verification transfer + KES 200 customer-owned Review Reserve |
+| Business initial funding | **KES 500** = KES 200 first monthly subscription + KES 100 returned settlement-verification transfer + KES 200 customer-owned Review Reserve |
+| Standalone activation fee | **None**; first subscription, returned verification and retained customer reserve are distinct accounting buckets |
+| Continuing subscriptions | KES 100/month For You; KES 200/month Business |
+| SecureLink up to KES 20,000 | KES 20 platform fee |
+| Above KES 20,000 to KES 1,000,000 | KES 20 + 1% **of the excess over KES 20,000**, capped at KES 2,000 (cap reached at KES 218,000) |
+| Above KES 1,000,000 to KES 5,000,000 | KES 2,000 + 0.2% **of the excess over KES 1,000,000**, capped at KES 10,000 |
+| Above KES 5,000,000 | No locked formula; API must refuse to invent a fee |
+| General contribution | KES 20 on successful collection; special welfare contribution KES 10 |
+| Dispute | KES 100 (a charge distinct from the customer-owned KES 200 Review Reserve) |
+
+**Source:** `services/commercial-rules/src/main/java/ke/securepay/commercial/policy/{CommercialPricingConstants,KeyContractFeePolicy,GroupContributionFeePolicy}.java` and `services/securepay-core/src/main/java/ke/securepay/core/subscription/activation/service/ActivationPromiseContent.java` at the exact combined API SHA. The older blanket wording “KES 500 activation = KES 400 dispute + KES 100 validation” and “1% of the full Secure Contract” is **not what the combined API implements** and must not be used as Gate 2 acceptance criteria.
+
+Use the existing server `GET /api/v1/pricing/platform-fee?qualifyingAmountMinor=...` for read-only platform-fee examples, and read actual activation/subscription funding status through authenticated subscription endpoints. Test prices at KES 20,000, 20,001, 100,000, 218,000, 1,000,000, 5,000,000 and above 5,000,000 with server response and rounding evidence. Use only disposable identities and read-only pricing operations; do not fund activation, collect contributions or release money in Gate 2. PaymentReady, transfer movement, release request and completed settlement must remain distinct.
 
 ## Local reviewer commands
 
@@ -97,7 +116,7 @@ Today the final evaluator should return **NO_GO** with exit status 1, because **
 
 ## Evidence reviewed so far
 
-- On Gate 2 UI testing branch: **12/12 focused protocol/acceptance tests PASS**, including synthetic harness checks (not real API operations).
+- On Gate 2 UI testing branch: focused synthetic protocol/acceptance tests passed; exact final count and SHA are recorded in PR #196. Synthetic tests do not provide real API evidence.
 - Full unified frontend suite, TypeScript, Vite build and lint are to be recorded against the **exact Gate 2 commit** in the PR description; do not copy an old branch result.
 - Prior unified Gate 1 candidate had 2,335 passing frontend tests; results do not establish authenticated backend execution.
 - Combined backend at Gate 1 commit `3cea1996` still needs working Java CI, database migrations and provider-authenticated tests. A mergeable PR and READY UI preview do not prove it starts.
