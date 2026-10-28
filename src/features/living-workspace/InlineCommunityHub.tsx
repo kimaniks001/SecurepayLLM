@@ -3,23 +3,26 @@ import { CalendarDays, Compass, GraduationCap, HandHeart, RefreshCw, Search, Use
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
 import type {
   ApprenticeshipProjectDto, CirclePendingInvitationView, CircleResponse, CommunityEventDto,
-  CommunityProjectDto, CommunityServiceOpportunityDto, CommunityObjectResponse, MembershipResponse,
+  CommunityProjectDto, CommunityServiceOpportunityDto, CommunityObjectResponse, MembershipResponse, ProjectContributionDto,
 } from '../../api/securepay/community/dto';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import { communityLiveOnly, communityOpenOpportunities, communityVisibleProjects, communityPublicEvents,
-  communityApprenticeships, discoverableCircles, invitedCircleCards, matchesCommunityText } from './communityDiscovery';
+  communityApprenticeships, communityLiveContributions, discoverableCircles, invitedCircleCards, matchesCommunityText } from './communityDiscovery';
+import { buildCommunityTimeline, type CommunityTimelineGroup } from './communityTimeline';
 
 type Page='home'|'live'|'circles'|'help'|'projects'|'events'|'learning';
-type Section='live'|'circles'|'invitations'|'help'|'projects'|'events'|'learning';
+type Section='live'|'contributions'|'circles'|'invitations'|'help'|'projects'|'events'|'learning';
 type Rows={
-  live:CommunityObjectResponse[];circles:CircleResponse[];invitations:CirclePendingInvitationView[];
+  live:CommunityObjectResponse[];contributions:ProjectContributionDto[];
+  circles:CircleResponse[];invitations:CirclePendingInvitationView[];
   help:CommunityServiceOpportunityDto[];projects:CommunityProjectDto[];
   events:CommunityEventDto[];learning:ApprenticeshipProjectDto[];
 };
 type RowState<T>={status:'idle'|'loading'|'ready'|'error';items:T[]};
 type Collections={ [K in Section]:RowState<Rows[K][number]> };
 const empty=():Collections=>({
-  live:{status:'idle',items:[]},circles:{status:'idle',items:[]},invitations:{status:'idle',items:[]},
+  live:{status:'idle',items:[]},contributions:{status:'idle',items:[]},
+  circles:{status:'idle',items:[]},invitations:{status:'idle',items:[]},
   help:{status:'idle',items:[]},projects:{status:'idle',items:[]},
   events:{status:'idle',items:[]},learning:{status:'idle',items:[]},
 });
@@ -36,6 +39,11 @@ const demonstration=():Collections=>({
       authorDisplayName:'Illustrative member',title:'What makes a delivery verifiable?',
       body:'A demonstration discussion about photographs, dates, locations and clear handover responsibilities.',
       locationLabel:'Sample · no real author'} as CommunityObjectResponse,
+  ]},
+  contributions:{status:'ready',items:[
+    {id:'sample-contribution-1',circleId:null,status:'ACTIVE',title:'What a repair taught our team',
+      body:'An illustrative lesson from neighbours learning together.',contributionType:'LESSON_LEARNED',
+      hasOrigin:false,createdAt:'2026-10-20T09:00:00+03:00'} as ProjectContributionDto,
   ]},
   circles:{status:'ready',items:[
     {id:'sample-circle-1',name:'Neighbourhood Garden Circle',purpose:'Plan a shared garden day and learn practical skills together.',
@@ -77,14 +85,19 @@ const demonstration=():Collections=>({
   ]},
 });
 const sections=[
-  {id:'home',label:'Discover',Icon:Compass},
-  {id:'live',label:'LIVE',Icon:MessageCircle},
+  {id:'home',label:'Community Live',Icon:Compass},
+  {id:'live',label:'Conversations',Icon:MessageCircle},
   {id:'circles',label:'Circles',Icon:Users},
   {id:'help',label:'Opportunities',Icon:HandHeart},
   {id:'projects',label:'Projects',Icon:HandHeart},
   {id:'events',label:'Events',Icon:CalendarDays},
   {id:'learning',label:'Learning',Icon:GraduationCap},
 ] as const;
+const timelineFilters: ReadonlyArray<{id:'all'|CommunityTimelineGroup;label:string}> = [
+  {id:'all',label:'All'}, {id:'stories',label:'Stories'},
+  {id:'projects',label:'Projects'}, {id:'opportunities',label:'Opportunities'},
+  {id:'learning',label:'Learning'}, {id:'events',label:'Events'},
+];
 const dateLabel=(value:string|null)=>{if(!value)return null;const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString('en-KE',{dateStyle:'medium',timeStyle:'short'}):null;};
 function Panel({title,detail,children}:{title:string;detail?:string;children:React.ReactNode}){
   return <section className="min-w-0 space-y-3 rounded-2xl border border-cream-200 bg-white p-4 shadow-[0_9px_22px_-20px_rgba(20,60,40,.35)]">
@@ -124,6 +137,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
   const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const [page,setPage]=useState<Page>('home');
   const [filter,setFilter]=useState('');
+  const [timelineFilter,setTimelineFilter]=useState<'all'|CommunityTimelineGroup>('all');
   const [membership,setMembership]=useState<{status:'loading'|'ready'|'error';value:MembershipResponse|null}>({status:'loading',value:null});
   const [records,setRecords]=useState<Collections>(()=>previewOnly?demonstration():empty());
   const [revision,setRevision]=useState(0);
@@ -171,6 +185,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
       });
     }
     load('live',()=>gateways.community.feed(25,0),communityLiveOnly);
+    load('contributions',()=>gateways.community.contributions.live(25,0),communityLiveContributions);
     load('projects',()=>gateways.community.projects.list(25,0),communityVisibleProjects);
     load('help',()=>gateways.community.serviceOpportunities.list(25,0),communityOpenOpportunities);
     load('events',()=>gateways.community.events.list(25,0),communityPublicEvents);
@@ -182,6 +197,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
 
   const filtered=useMemo(()=>({
     live:records.live.items.filter(x=>matchesCommunityText(filter,x.title,x.body,x.locationLabel)),
+    contributions:records.contributions.items.filter(x=>matchesCommunityText(filter,x.title,x.body)),
     help:records.help.items.filter(x=>matchesCommunityText(filter,x.title,x.description,x.locationLabel,...x.skillsNeeded)),
     projects:records.projects.items.filter(x=>matchesCommunityText(filter,x.title,x.purpose,x.locationLabel)),
     events:records.events.items.filter(x=>matchesCommunityText(filter,x.title,x.description,x.locationLabel)),
@@ -189,6 +205,10 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
     circles:records.circles.items.filter(x=>matchesCommunityText(filter,x.name,x.purpose,x.categoryLabel,x.locationLabel)),
     invitations:records.invitations.items.filter(x=>matchesCommunityText(filter,x.circleName,x.circlePurpose)),
   }),[records,filter]);
+  const timeline=useMemo(()=>buildCommunityTimeline({
+    live:filtered.live,contributions:filtered.contributions,help:filtered.help,
+    projects:filtered.projects,events:filtered.events,learning:filtered.learning,
+  }),[filtered]);
   const status=(key:Section)=>{
     const state=records[key].status;
     return state==='loading'?<p role="status" className="text-xs text-sand-600">Finding authorised {key}…</p>
@@ -208,6 +228,67 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
   const openLive=(id:string)=>{
     if(previewOnly){setPreviewDetail('This is a sample story. There is no actual author, discussion or published response.');return;}
     if(onOpenObject)onOpenObject(id);else onOpenFull();
+  };
+
+  const timelinePanel=()=>{
+    const streams:Section[]=['live','contributions','help','projects','events','learning'];
+    const pending=streams.some(key=>records[key].status==='loading');
+    const unavailable=streams.some(key=>records[key].status==='error');
+    const visible=timeline.filter(item=>timelineFilter==='all'||item.group===timelineFilter);
+    return <section data-community-live-timeline aria-label="Community Live timeline"
+      className="space-y-4">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">Community Live</p>
+        <h3 className="font-display text-2xl text-forest-900">Life is happening here.</h3>
+        <p className="text-sm leading-6 text-sand-700">Real stories, causes, opportunities,
+          projects and learning from people in our Community. See what matters to you.</p>
+      </div>
+      <div role="group" aria-label="Filter Community activity" className="flex gap-2 overflow-x-auto pb-1">
+        {timelineFilters.map(item=><button key={item.id} type="button"
+          aria-pressed={timelineFilter===item.id} onClick={()=>setTimelineFilter(item.id)}
+          className={`shrink-0 min-h-11 rounded-full px-3 text-xs font-semibold ${timelineFilter===item.id?'bg-forest-800 text-white':'border border-cream-200 bg-white text-forest-800'}`}>
+          {item.label}
+        </button>)}
+      </div>
+      {pending&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-xs text-sand-700">
+        Loading recent Community activity…</p>}
+      {unavailable&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-sand-700">
+        Some Community updates could not be verified. Only available, authorised records are shown.</p>}
+      {visible.length===0&&!pending&&<div className="rounded-2xl border border-cream-200 bg-white p-4">
+        <p className="text-sm font-semibold text-forest-800">No activity in this view yet.</p>
+        <p className="mt-1 text-xs text-sand-600">Explore other topics or ask Community how you can participate.</p>
+      </div>}
+      <ol className="space-y-0" data-community-timeline-items>
+        {visible.map(item=><li key={item.key} className="flex gap-3">
+          <div aria-hidden="true" className="flex w-6 shrink-0 flex-col items-center">
+            <span className="mt-4 h-3 w-3 rounded-full border-2 border-forest-600 bg-white"/>
+            <span className="my-1 w-px flex-1 bg-cream-200"/>
+          </div>
+          <article className="mb-3 min-w-0 flex-1 rounded-2xl border border-cream-200 bg-white p-4 shadow-[0_9px_22px_-20px_rgba(20,60,40,.35)]"
+            data-timeline-kind={item.kind}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-forest-700">{item.label}</span>
+              {dateLabel(item.createdAt)&&<time dateTime={item.createdAt??undefined}
+                className="text-xs text-sand-500">{dateLabel(item.createdAt)}</time>}
+            </div>
+            <h4 className="mt-2 break-words font-display text-lg text-forest-900">{item.title}</h4>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-sand-700">{item.description}</p>
+            {item.detail&&<p className="mt-2 text-xs text-sand-600">{item.detail}</p>}
+            {item.locationLabel&&<p className="mt-2 text-xs text-sand-600">{item.locationLabel}</p>}
+            <button type="button" onClick={()=>item.kind==='post'?openLive(item.sourceId):openParticipation()}
+              className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700 underline underline-offset-4">
+              {item.kind==='post'?'Read and respond':'Explore in Community'} <ArrowUpRight size={15} aria-hidden="true"/>
+            </button>
+          </article>
+        </li>)}
+      </ol>
+      <p className="text-xs text-sand-600">Recent records from the current authorised Community feeds.
+        This is not an exhaustive history or a ranking. Private Circle activity is excluded.</p>
+      <button type="button" onClick={openParticipation}
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-4 text-xs font-semibold text-white">
+        Open Community participation <ArrowUpRight size={15} aria-hidden="true"/>
+      </button>
+    </section>;
   };
 
   const livePanel=(limit=20)=><Panel title="LIVE · Stories and conversation"
@@ -338,28 +419,7 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
           <Icon size={15} aria-hidden="true"/> {label}
         </button>)}
       </div>
-      {page==='home'?<>
-        <Panel title="What is happening here?"
-          detail="A glimpse of real authorised activity, with no invented people, activity or participation.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(['live','help','projects','events'] as const).map(key=>{
-              const item=filtered[key][0];
-              const titles={live:'Conversations',help:'Ways to contribute',projects:'Shared projects',events:'Gatherings'};
-              return <button type="button" key={key} onClick={()=>setPage(key)}
-                className="min-h-28 rounded-xl border border-cream-200 bg-[#fbfcf8] p-4 text-left hover:border-forest-200">
-                <p className="text-xs font-semibold text-forest-700">{titles[key]}</p>
-                <p className="mt-2 break-words text-sm font-semibold text-forest-900">
-                  {item?.title??(records[key].status==='error'?'Temporarily unavailable':
-                    records[key].status==='loading'?'Checking SecurePay…':'Explore this space')}</p>
-                <p className="mt-1 text-xs text-sand-600">See actual {titles[key].toLowerCase()}</p>
-              </button>;
-            })}
-          </div>
-        </Panel>
-        {circlesPanel(2)}
-        {helpPanel(2)}
-        {livePanel(2)}
-      </>:page==='live'?livePanel():
+      {page==='home'?timelinePanel():page==='live'?livePanel():
         page==='circles'?circlesPanel():
         page==='help'?helpPanel():
         page==='projects'?projectPanel():
