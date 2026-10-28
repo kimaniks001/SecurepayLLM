@@ -771,7 +771,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
             session={session} onBack={()=>setOpenedAgreementId(null)}
-            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
+            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}
+            onGoCommunity={()=>{setOpenedAgreementId(null);chooseMode('community');}}/>}
         {mode==='vision' && !editingDreamId && <TrueNorthVisionChat journey={visionNorth} onAdd={name=>openTool(name)}/>}
         {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId &&
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
