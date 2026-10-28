@@ -1,12 +1,17 @@
 import type {
   ApprenticeshipProjectDto, CircleResponse, CommunityEventDto, CommunityObjectResponse,
-  CommunityProjectDto, CommunityServiceOpportunityDto, CirclePendingInvitationView,
+  CommunityProjectDto, CommunityServiceOpportunityDto, CirclePendingInvitationView, ProjectContributionDto,
 } from '../../api/securepay/community/dto';
 
 /** These are discovery-safe projections of records the current member is already
  * permitted to read. Never apply this filter in place of API authentication:
  * SecurePay remains the sole membership/content authority. */
 export function communityLiveOnly(rows:readonly CommunityObjectResponse[]):CommunityObjectResponse[] {
+  return rows.filter(row=>row.circleId===null && row.status==='ACTIVE');
+}
+/** Only records already exposed by the backend's consent-governed LIVE endpoint.
+ * A Circle-scoped contribution must never be reprojected into Community LIVE. */
+export function communityLiveContributions(rows:readonly ProjectContributionDto[]):ProjectContributionDto[] {
   return rows.filter(row=>row.circleId===null && row.status==='ACTIVE');
 }
 export function communityOpenOpportunities(rows:readonly CommunityServiceOpportunityDto[]):CommunityServiceOpportunityDto[] {

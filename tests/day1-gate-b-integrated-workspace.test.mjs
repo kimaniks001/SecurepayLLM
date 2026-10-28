@@ -72,7 +72,7 @@ test('Gate B: grouped rails preserve backend authority and never invent eligibil
  assert.match(money,/rail\.quoteAvailable/);
 });
 
-test('Gate B: task-first Agreement reads same identity and exact version; evidence not an upload',()=>{
+test('Gate B: task-first Agreement reads same identity, exact version, and staging-only media boundary',()=>{
  assert.match(active,/gateways\.agreements\.myNextActions\(agreementId\)/);
  assert.match(active,/gateways\.agreements\.detail\(agreementId\)/);
  assert.match(active,/gateways\.agreements\.obligations\(agreementId\)/);
@@ -82,7 +82,13 @@ test('Gate B: task-first Agreement reads same identity and exact version; eviden
  assert.match(active,/expectedObligationVersion:attempt\.stateVersion/);
  assert.match(active,/evidenceType:'TEXT_STATEMENT'/);
  assert.match(active,/setUncertain\(true\)/);
- assert.match(active,/No photo submitted here/);
+ assert.match(active,/gateways\.media&&/);
+ assert.match(active,/<AgreementMediaEvidenceTool/);
+ const mediaTool=read('src/features/living-workspace/AgreementMediaEvidenceTool.tsx');
+ assert.match(mediaTool,/uploadVerifiedMedia/);
+ assert.match(mediaTool,/submitVerifiedMediaEvidence/);
+ assert.match(mediaTool,/agreementEvidenceSubmitted!==false/);
+ assert.match(active,/isolated staging upload gateway/);
  assert.doesNotMatch(active,/uploadPhoto|uploadFile|uploadEvidence/);
  assert.match(shell,/writeDraft\(started\.conversationId/);
  assert.match(shell,/authorisedResumedConversation\(started\.conversationId/);
