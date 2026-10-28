@@ -12,6 +12,12 @@ const experience=source('src/features/community/CommunityExperience.tsx');
 const detail=source('src/components/CommunityObjectDetail.tsx');
 const hub=source('src/features/living-workspace/InlineCommunityHub.tsx');
 const shell=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const communityCheck=source('src/features/living-workspace/CommunityCheckPanel.tsx');
+const timelineSource=source('src/features/living-workspace/communityTimeline.ts');
+const discoverySource=source('src/features/living-workspace/communityCheckDiscovery.ts');
+const transpile=(source)=>ts.transpileModule(source,{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext},
+}).outputText;
 const transpiled=ts.transpileModule(helper,{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext},
 }).outputText;
@@ -95,4 +101,38 @@ test('Gate 3: project-head KS001 first step uses existing safe unsent-draft conv
   assert.match(shell,/writeDraft\(created\.conversationId,text\)/);
   assert.match(shell,/await liveController\.resumeConversation\(created\.conversationId\)/);
   assert.doesNotMatch(hub,/selectCommercialSource\(|fundAgreement\(|startPayment\(/);
+});
+
+test('Gate 3 completion: public opportunity posts appear as Opportunities, not Stories',async()=>{
+  const code=transpile(timelineSource);
+  const {buildCommunityTimeline}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+  const published={
+    id:'real-post',circleId:null,status:'ACTIVE',objectType:'OPPORTUNITY',
+    title:'Four paid water-tank assistants',body:'Proposed paid site work',
+    authorDisplayName:'Organiser',locationLabel:'Ruiru',
+    createdAt:'2026-10-28T07:00:00Z',
+  };
+  const privatePost={...published,id:'private',circleId:'a-private-circle'};
+  const removed={...published,id:'removed',status:'REMOVED'};
+  const result=buildCommunityTimeline({
+    live:[published,privatePost,removed],contributions:[],help:[],projects:[],events:[],learning:[],
+  });
+  assert.deepEqual(result.map(x=>[x.key,x.group]),[['post:real-post','opportunities']]);
+});
+test('Gate 3 completion: Community Check discovers only authorised public posted invitations',async()=>{
+  const code=transpile(discoverySource).replace(/^import.*$/gm,'');
+  const {matchPublishedOpportunities}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+  const base={id:'post-1',circleId:null,status:'ACTIVE',objectType:'OPPORTUNITY',
+    title:'Paid plumbing support',body:'A proposed paid role for water repairs',locationLabel:'Ruiru',
+    createdAt:'2026-10-28T07:00:00Z'};
+  const rows=[base,{...base,id:'private',circleId:'private-id'},
+    {...base,id:'removed',status:'REMOVED'}, {...base,id:'discussion',objectType:'DISCUSSION'},
+    {...base,id:'elsewhere',locationLabel:'Nakuru'}];
+  const choice={purpose:'find-work',interests:'water',skills:'plumbing',area:'Ruiru',availability:'unspecified'};
+  assert.deepEqual(matchPublishedOpportunities(rows,choice).map(x=>x.post.id),['post-1']);
+  assert.match(communityCheck,/gateways\.community\.feed\(50,0\)/);
+  assert.match(communityCheck,/Read this invitation and express interest/);
+  assert.match(shell,/onOpenCommunityPost=\{objectId=>\{/);
+  assert.match(shell,/storeCommunityObjectEntry\(objectId\)/);
+  assert.doesNotMatch(communityCheck,/automaticSelection|fundsVerified|autoJoinAgreement/);
 });
