@@ -9,6 +9,7 @@ import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 import { communityLiveOnly, communityOpenOpportunities, communityVisibleProjects, communityPublicEvents,
   communityApprenticeships, communityLiveContributions, discoverableCircles, invitedCircleCards, matchesCommunityText } from './communityDiscovery';
 import { buildCommunityTimeline, type CommunityTimelineGroup } from './communityTimeline';
+import { CommunityAttachmentView } from '../community/InlineCommunityMedia';
 
 type Page='home'|'live'|'circles'|'help'|'projects'|'events'|'learning';
 type Section='live'|'contributions'|'circles'|'invitations'|'help'|'projects'|'events'|'learning';
@@ -275,6 +276,14 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-sand-700">{item.description}</p>
             {item.detail&&<p className="mt-2 text-xs text-sand-600">{item.detail}</p>}
             {item.locationLabel&&<p className="mt-2 text-xs text-sand-600">{item.locationLabel}</p>}
+            {!previewOnly&&gateways&&item.kind==='contribution'&&records.contributions.items
+              .find(record=>record.id===item.sourceId)?.media
+              ?.filter(file=>file.storageReference.startsWith('community-media:'))
+              .map(file=><CommunityAttachmentView key={file.id} gateway={gateways.community}
+                id={file.storageReference.slice('community-media:'.length)}
+                filename={file.mediaType==='IMAGE'?'Community photo':'Community document'}
+                caption={file.caption}
+                mediaType={file.mediaType==='IMAGE'?'IMAGE':'DOCUMENT'}/>)}
             <button type="button" onClick={()=>item.kind==='post'?openLive(item.sourceId):openParticipation()}
               className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700 underline underline-offset-4">
               {item.kind==='post'?'Read and respond':'Explore in Community'} <ArrowUpRight size={15} aria-hidden="true"/>

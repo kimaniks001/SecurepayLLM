@@ -4,6 +4,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { CommunityHome } from '../../components/CommunityHome';
 import { CommunityObjectDetail } from '../../components/CommunityObjectDetail';
+import { InlineCommunityMedia, attachedCommunityMedia, CommunityAttachmentView, type CommunityMediaDraft } from './InlineCommunityMedia';
 import { CommunityCreatePanel } from '../../components/CommunityCreatePanel';
 import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
@@ -1022,6 +1023,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [reportReason, setReportReason] = useState<'SAFETY'|'HARASSMENT'|'SPAM'|'MISLEADING'|'PRIVACY'|'OTHER'>('OTHER');
   const [reportDetails, setReportDetails] = useState('');
   const [moderationBusy, setModerationBusy] = useState(false);
+  const [replyAttachments,setReplyAttachments]=useState<CommunityMediaDraft[]>([]);
+  const [replyMediaError,setReplyMediaError]=useState<string|null>(null);
+  useEffect(()=>{setReplyAttachments([]);setReplyMediaError(null);},[state.selectedObjectId]);
 
   const initialEntryId=useRef(initialCircleId??null);
   const initialObjectEntryId=useRef(initialObjectId??null);
@@ -1334,9 +1338,28 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         realReply={{
           body: state.replyDraft.body,
           submitting: state.replyDraft.submitting,
-          error: state.replyDraft.error,
+          error: replyMediaError??state.replyDraft.error,
           onBodyChange: value => controller.setReplyBody(value),
-          onSubmit: () => void controller.submitReply(),
+          mediaComposer: <InlineCommunityMedia gateway={communityGateway} items={replyAttachments}
+            onChange={next=>{setReplyAttachments(next);setReplyMediaError(null);}} limit={4}/>,
+          canSubmit: replyAttachments.every(item=>item.status==='uploaded'),
+          onSubmit: () => void (async()=>{
+            try {
+              const refs=attachedCommunityMedia(replyAttachments).map(({storageReference,caption})=>({storageReference,caption}));
+              const saved=await controller.submitReply(refs);
+              if(saved){setReplyAttachments([]);setReplyMediaError(null);}
+            } catch(error) {
+              setReplyMediaError(error instanceof Error?error.message:'Could not prepare your attachments.');
+            }
+          })(),
+        }}
+        renderReplyMedia={id=>{
+          const reply=state.objectReplies.status==='ready'
+            ?state.objectReplies.data.find(item=>item.id===id):null;
+          return reply?.media?.map(item=>
+            <CommunityAttachmentView key={item.id} gateway={communityGateway}
+              id={item.id} mediaType={item.mediaType}
+              filename={item.filename} caption={item.caption}/>)??null;
         }}
         onWithdrawReply={id => void controller.withdrawReply(id)}
       />

@@ -1,4 +1,5 @@
 import { ArrowLeft, MapPin, Clock, HandHelping, MessageCircle, Store, ArrowRight } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { CommunityObject, CommunityObjectType, StoreOffer } from '../types';
 
 const typeLabel: Record<CommunityObjectType, string> = {
@@ -50,7 +51,8 @@ interface CommunityObjectDetailProps {
    * Phase 6 (Community Life) Slice 2 -- the real, persistent reply composer. Present only for a
    * real, backend-persisted object; renders in addition to the existing responses list above.
    */
-  realReply?: { body: string; submitting: boolean; error: string | null; onBodyChange: (value: string) => void; onSubmit: () => void };
+  realReply?: { body: string; submitting: boolean; error: string | null; onBodyChange: (value: string) => void; onSubmit: () => void; mediaComposer?: ReactNode; canSubmit?: boolean };
+  renderReplyMedia?: (replyId: string) => ReactNode;
   /**
    * Phase 6 Slice 2 correction -- lets the author of a real reply withdraw their own, and no one
    * else's, using the response's own server-derived `canWithdraw` field directly (see
@@ -83,7 +85,7 @@ interface CommunityObjectDetailProps {
   onSaveToVision?: () => void;
 }
 
-export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder, onReport, onMuteAuthor, onSaveToVision }: CommunityObjectDetailProps) {
+export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, onViewOffer, onToTrade: _onToTrade, offer, onClose, realHelp, realReply, renderReplyMedia, onWithdrawReply, onUseThis, activeHelpResponders, onStartTradeWithResponder, onReport, onMuteAuthor, onSaveToVision }: CommunityObjectDetailProps) {
   const isStoreRef = object.objectType === 'store_offer_reference';
   const isNeedOrOpp = object.objectType === 'need' || object.objectType === 'opportunity';
 
@@ -182,6 +184,7 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                     <span className="text-[0.65rem] font-medium text-forest-600 bg-forest-50 rounded-full px-2 py-0.5 mb-1.5 inline-block">I can help</span>
                   )}
                   <p className="text-[0.825rem] text-forest-800 leading-relaxed">{resp.text}</p>
+                  {resp.kind !== 'i_can_help' && renderReplyMedia?.(resp.id)}
                   {onWithdrawReply && resp.canWithdraw && (
                     <button onClick={() => onWithdrawReply(resp.id)} className="mt-1.5 text-[0.7rem] text-sand-500 hover:text-forest-600">
                       Withdraw
@@ -313,10 +316,11 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
               placeholder="Say something helpful..."
               className="w-full rounded-xl border border-cream-200 bg-cream-50 px-3 py-2.5 text-[0.85rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300 resize-none"
             />
+            {realReply.mediaComposer}
             {realReply.error && <p role="alert" className="text-[0.75rem] text-red-600">{realReply.error}</p>}
             <button
               onClick={realReply.onSubmit}
-              disabled={realReply.submitting}
+              disabled={realReply.submitting || realReply.canSubmit === false}
               className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.825rem] font-medium py-2.5 hover:bg-forest-700 transition-colors disabled:opacity-60"
             >
               {realReply.submitting ? 'Sending…' : 'Send reply'}
