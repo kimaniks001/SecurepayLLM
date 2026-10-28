@@ -127,10 +127,11 @@ function Card({label,title,body,detail,onOpen,actionLabel='Explore this Circle'}
 /** Phase 6 is a connected discoverability surface for the existing Community
  * gateway. It has no parallel membership engine, Circle board, post controller,
  * volunteer registry or booking logic. Community authority stays server-side. */
-export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject,previewOnly=false,onSignIn}:{ 
+export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onOpenObject,onPlanWithKs001,previewOnly=false,onSignIn}:{ 
   gateways?:PreviewWorkspaceGateways;session:SessionStore;onOpenFull:()=>void;
   onOpenCircle?:(circleId:string)=>void;
   onOpenObject?:(objectId:string)=>void;
+  onPlanWithKs001?:(intention:string)=>Promise<void>;
   previewOnly?:boolean;
   onSignIn?:()=>void;
 }){
@@ -138,6 +139,8 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
   const [page,setPage]=useState<Page>('home');
   const [filter,setFilter]=useState('');
   const [timelineFilter,setTimelineFilter]=useState<'all'|CommunityTimelineGroup>('all');
+  const [ks001PlanningError,setKs001PlanningError]=useState<string|null>(null);
+  const [ks001PlanningBusy,setKs001PlanningBusy]=useState(false);
   const [membership,setMembership]=useState<{status:'loading'|'ready'|'error';value:MembershipResponse|null}>({status:'loading',value:null});
   const [records,setRecords]=useState<Collections>(()=>previewOnly?demonstration():empty());
   const [revision,setRevision]=useState(0);
@@ -220,6 +223,22 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
   const openCircle=(id:string)=>{
     if(previewOnly){setPreviewDetail('This is an illustrative Circle. No real membership, invitation or shared board has been opened.');return;}
     if(onOpenCircle)onOpenCircle(id);else onOpenFull();
+  };
+  const planWithKs001=async()=>{
+    if(previewOnly){setPreviewDetail('This is a sample. Real KS001 planning requires signed-in My Work.');return;}
+    if(!onPlanWithKs001||ks001PlanningBusy)return;
+    setKs001PlanningBusy(true);setKs001PlanningError(null);
+    try{
+      await onPlanWithKs001(
+        'I am organising a Community project and may invite people to paid work or to a voluntary cause. '+
+        'KS001, help me clarify the purpose, duties, number of people, timing, location, supervision, safety, '+
+        'proposed compensation if paid, lawful terms, selection process, and whether funding is independently verified. '+
+        'Examine the proposal against the canonical 12 Principles of Fair Trade and ask material missing questions. '+
+        'Do not claim any applicant has accepted, a SecureLink exists, or money is secured. '+
+        'I will decide what to publish and whom to invite after reviewing the proposal.'
+      );
+    }catch(error){setKs001PlanningError(error instanceof Error?error.message:'Could not open a verified KS001 conversation.');}
+    finally{setKs001PlanningBusy(false);}
   };
   const openParticipation=()=>{
     if(previewOnly){setPreviewDetail('Demonstration only. Real participation requires a SecurePay identity and explicit Trust Project membership.');return;}
@@ -429,6 +448,13 @@ export function InlineCommunityHub({gateways,session,onOpenFull,onOpenCircle,onO
         <p className="text-xs leading-5 text-sand-700">The existing Community is where you can share supported stories,
           propose useful knowledge, review evidence, report concerns and discover real human assistance.
           Unreviewed contributions never become official KS001 knowledge.</p>
+        {onPlanWithKs001&&<button type="button" disabled={ks001PlanningBusy}
+          onClick={()=>void planWithKs001()}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
+          {ks001PlanningBusy?'Opening KS001…':'Plan paid work or a cause with KS001'}
+          <ArrowUpRight size={16} aria-hidden="true"/>
+        </button>}
+        {ks001PlanningError&&<p role="alert" className="text-xs text-amber-900">{ks001PlanningError}</p>}
         <button type="button" onClick={openParticipation}
           className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-forest-800">
           Open Community participation <ArrowUpRight size={16} aria-hidden="true"/>

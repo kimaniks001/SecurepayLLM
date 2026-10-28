@@ -215,7 +215,7 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                         onClick={() => onStartTradeWithResponder(responder.canonicalKsNumber!)}
                         className="shrink-0 text-[0.75rem] font-medium text-forest-600 hover:text-forest-700 whitespace-nowrap"
                       >
-                        Start a trade with {label}
+                        Review with KS001: {label}
                       </button>
                     )}
                   </div>
@@ -251,6 +251,12 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                   I can help
                 </button>
               )}
+              {object.objectType==='opportunity'&&<p className="rounded-lg bg-cream-50 p-3 text-xs leading-5 text-sand-700">
+                Expressing interest does not select you, promise a wage, accept terms or create a SecureLink.
+                The organiser can review interested people, and each engagement requires its own authorised acceptance.
+                KS001 must examine the proposed work against the 12 Principles of Fair Trade;
+                funding is never established by this Community post.
+              </p>}
               {realHelp?.error && <p role="alert" className="text-[0.75rem] text-red-600">{realHelp.error}</p>}
               {!realReply && (
                 <button
@@ -267,7 +273,7 @@ export function CommunityObjectDetail({ object, onBack, onICanHelp, onDiscuss, o
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-forest-300 text-forest-700 text-[0.825rem] font-medium py-2.5 hover:bg-forest-50 transition-colors"
                 >
                   <ArrowRight className="w-4 h-4" />
-                  Use this
+                  {object.objectType==='opportunity'?'Examine this invitation with KS001':'Use this'}
                 </button>
               )}
             </>

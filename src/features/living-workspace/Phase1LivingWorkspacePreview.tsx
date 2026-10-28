@@ -792,6 +792,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
+            onPlanWithKs001={continueCircleToWork}
             onSignIn={()=>setSignInOpen(true)}
             onOpenFull={()=>{window.location.hash='#/community';}}
             onOpenCircle={circleId=>{
@@ -860,6 +861,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           gateways={workspaceGateways} session={session} signedIn={signedIn}
           previewOnly={!signedIn} onSignIn={()=>setSignInOpen(true)}
           onOpenCommunity={()=>{window.location.hash='#/community';}}
+          onOpenCommunityPost={objectId=>{
+            storeCommunityObjectEntry(objectId);
+            window.location.hash='#/community';
+          }}
           onExploreCircle={circleId=>{
             storeCircleEntry(circleId);
             window.location.hash='#/community';

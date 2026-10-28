@@ -1371,6 +1371,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-sand-600">{item.description}</p>
                 <div className="mt-2 text-xs text-sand-600">{item.locationLabel ?? 'Location not yet stated'}{item.skillsNeeded.length ? ` · Needs: ${item.skillsNeeded.join(', ')}` : ''}</div>
               </button>)}
+              <button type="button" onClick={()=>controller.openProjectInvitationComposer()}
+                className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-xs font-semibold text-forest-800">
+                Have a project? Invite people to paid work or a cause
+              </button>
             </section>
 
             <section aria-label="What I joined" className="space-y-2">
@@ -1429,7 +1433,14 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div><h2 className="font-display text-lg text-forest-800 font-medium">Projects & Activities</h2><p className="text-[0.8rem] text-sand-500">Start with an intention. Ask the Community for people and skills, then shape it into something real.</p></div>
-            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Declare intention</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={()=>controller.openProjectInvitationComposer()}
+                className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">
+                Invite people · Paid work or a cause
+              </button>
+              <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')}
+                className="min-h-11 text-xs font-medium text-forest-600">+ Declare intention</button>
+            </div>
           </div>
           {purposeCreate === 'service' && (
             <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">
