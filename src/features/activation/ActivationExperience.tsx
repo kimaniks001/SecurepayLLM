@@ -17,6 +17,7 @@ import type {
 } from '../../api/securepay/subscription';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { isCurrentActivationSession } from './sessionBoundary';
 
 const planLabel: Record<SubscriptionPlan, string> = { FOR_YOU: 'For You', BUSINESS: 'For Business' };
 
@@ -65,7 +66,7 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   // One immutable session snapshot is the scope of each async activation operation.
   // A sign-out, account swap or token rotation invalidates earlier responses.
   const activeSession = (identity: ReturnType<SessionStore['getSnapshot']>) =>
-    identity.status === 'signed-in' && session.getSnapshot() === identity;
+    isCurrentActivationSession(session, identity);
 
   const load = async () => {
     const identity = session.getSnapshot();
