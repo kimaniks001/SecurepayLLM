@@ -75,9 +75,9 @@ async function readSnapshot(base,id,token,fetchImpl){
  assert(Array.isArray(p)&&p.length===12,'Canonical 12-lens coverage missing');
  assert(new Set(p.map(z=>z.principleNumber)).size===12 &&
    p.every(z=>z.principleNumber>=1&&z.principleNumber<=12 &&
-     ['NOT_ASSESSED','NEEDS_CLARIFICATION','MATERIAL_CONCERN','EVIDENCE_SUPPORTED'].includes(z.state)),
+     ['NOT_ASSESSED','NOT_APPLICABLE','NO_MATERIAL_CONCERN_OBSERVED','NEEDS_CLARIFICATION','MATERIAL_CONCERN'].includes(z.state)),
    'Fair Trade states or numbers are invalid');
- assert(!p.every(z=>z.state==='EVIDENCE_SUPPORTED'),
+ assert(!p.every(z=>z.state==='NO_MATERIAL_CONCERN_OBSERVED'),
    'Twelve unexplained positive principle assessments were returned');
  return {context,formation,fair};
 }
