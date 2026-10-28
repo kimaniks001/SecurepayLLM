@@ -894,7 +894,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           selectedSource={liveState?.source??null}
-          onDiscussProjectFairTrade={message=>{
+          onPrepareFairTradeDraft={message=>{
             if(!liveConversationId || !liveController || liveBusy || livePending)
               throw new Error('Finish the current KS001 action before preparing another question.');
             // Never overwrite a person's existing unsent chat. This merely
