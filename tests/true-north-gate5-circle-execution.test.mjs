@@ -56,7 +56,7 @@ test('Gate 5: verified upload is NOT evidence until explicit second authorised c
   assert.match(media,/media\.uploadVerifiedMedia\(/);
   assert.match(media,/result\.status!=='VERIFIED_UPLOAD_ONLY'/);
   assert.match(media,/result\.agreementEvidenceSubmitted!==false/);
-  assert.match(media,/phase==='uploaded'/);
+  assert.match(media,/setPhase\('uploaded'\)/);
   assert.match(media,/media\.submitVerifiedMediaEvidence\(/);
   assert.match(media,/Retry same upload/);
   assert.match(media,/Retry same evidence submission/);
