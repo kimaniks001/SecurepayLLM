@@ -323,4 +323,7 @@ export interface FairTradeExaminationDto {
   hasMaterialConcern: boolean;
   advisoryQuestion: string | null;
   findings: { principleNumber: number; principleTitle: string; state: string; explanation: string; evidenceReferences: string[] }[];
+  /** Additive API field: exactly twelve canonical lens states, including NOT_ASSESSED.
+   * Older API versions may omit this; absence is NOT evidence of completion. */
+  principleCoverage?: { principleNumber: number; principleTitle: string; state: string }[];
 }
