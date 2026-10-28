@@ -1,4 +1,5 @@
 import { InlineCommunityHub } from './InlineCommunityHub';
+import { CommunityCheckPanel } from './CommunityCheckPanel';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
@@ -855,7 +856,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
           onConnectMoney={()=>openTool('Money')}
           onSignIn={()=>openIdentity('signin')}/>}
-        {mode!=='work' && mode!=='vision' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode==='community' && <CommunityCheckPanel
+          gateways={workspaceGateways} session={session} signedIn={signedIn}
+          previewOnly={!signedIn} onSignIn={()=>setSignInOpen(true)}
+          onOpenCommunity={()=>{window.location.hash='#/community';}}
+          onExploreCircle={circleId=>{
+            storeCircleEntry(circleId);
+            window.location.hash='#/community';
+          }}/>}
+        {mode!=='work' && mode!=='vision' && mode!=='community' &&
+          <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
             gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
@@ -911,7 +921,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
     {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
       aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
