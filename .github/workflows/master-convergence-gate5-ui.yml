@@ -1,0 +1,78 @@
+name: Master Convergence Gate 5 — unified UI and evidence gate
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "testing/master-convergence-gate5-*"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/master-convergence-gate5-ui.yml"
+  workflow_dispatch:
+    inputs:
+      api_sha:
+        description: "Exact 40-character combined API candidate SHA (never production)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: master-convergence-gate5-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-qualification:
+    name: Unified UI suite and fail-closed evidence-unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: New unified evidence evaluator tests
+        run: node --test tests/master-convergence-gate5-certification.test.mjs
+      - name: Complete frontend regression
+        run: npm run test:final-convergence
+      - name: Exact TypeScript and build
+        run: |
+          npm run typecheck
+          npm run build
+          npm run lint -- --quiet
+
+  manual-live-evidence:
+    name: Manual qualification — NO_GO until real API/person/rollback evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+    needs: source-qualification
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Evaluate prior real Gate 2/3/4/True North Gate 7 and operations
+        run: |
+          node testing/master-convergence-gate5-certification.mjs \
+            --evidence testing/master-convergence-gate5-evidence.json \
+            --ui-sha "${{ github.sha }}" \
+            --api-sha "${{ inputs.api_sha }}" > gate5-certification-result.json
+          cat gate5-certification-result.json
+      - name: Store review result, including expected NO_GO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-gate5-review-${{ github.sha }}
+          path: gate5-certification-result.json
+          if-no-files-found: warn
+          retention-days: 14
