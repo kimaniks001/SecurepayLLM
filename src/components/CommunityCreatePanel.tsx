@@ -1,4 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ProjectOpportunityEditor } from '../features/community/ProjectOpportunityEditor';
 import type { CommunityObjectType } from '../types';
 
 interface ComposeOption { value: CommunityObjectType; label: string }
@@ -38,6 +40,7 @@ export function CommunityCreatePanel({
   options, objectType, title, body, locationLabel, submitting, error,
   onSelectType, onTitleChange, onBodyChange, onLocationChange, onSubmit, onCancel,
 }: CommunityCreatePanelProps) {
+  const [opportunityReady,setOpportunityReady]=useState(false);
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50">
@@ -53,7 +56,7 @@ export function CommunityCreatePanel({
           {options.map(option => (
             <button
               key={option.value}
-              onClick={() => onSelectType(option.value)}
+              onClick={() => {setOpportunityReady(false);onBodyChange('');onSelectType(option.value);}}
               aria-pressed={objectType === option.value}
               className={`rounded-xl border px-3 py-2.5 text-left text-[0.8rem] font-medium transition-colors ${
                 objectType === option.value
@@ -78,7 +81,9 @@ export function CommunityCreatePanel({
                 className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
               />
             </div>
-            <div>
+            {objectType==='opportunity'
+              ? <ProjectOpportunityEditor onBodyChange={onBodyChange} onReadiness={setOpportunityReady}/>
+              : <div>
               <label className="block text-[0.72rem] font-medium text-sand-500 mb-1">{bodyPrompt[objectType]}</label>
               <textarea
                 value={body}
@@ -86,7 +91,7 @@ export function CommunityCreatePanel({
                 rows={4}
                 className="w-full rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
               />
-            </div>
+            </div>}
             <div>
               <label className="block text-[0.72rem] font-medium text-sand-500 mb-1">Where (optional)</label>
               <input
@@ -102,10 +107,10 @@ export function CommunityCreatePanel({
 
             <button
               onClick={onSubmit}
-              disabled={submitting}
+              disabled={submitting || (objectType==='opportunity'&&!opportunityReady)}
               className="w-full rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3 hover:bg-forest-700 transition-colors disabled:opacity-60"
             >
-              {submitting ? 'Sharing…' : 'Share with the community'}
+              {submitting ? 'Sharing…' : objectType==='opportunity'?'Publish proposed invitation':'Share with the community'}
             </button>
           </div>
         )}
