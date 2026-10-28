@@ -85,6 +85,16 @@ export interface CurrentPrinciplesResponse {
  * authenticated requester identity`, computed backend-side), present on every list/create/withdraw
  * response -- never inferred client-side, so ownership survives a page refresh.
  */
+/** Gate 1.1: a private upload receipt; the attachment becomes visible only when
+ * the creator explicitly publishes a Story or Reply linking this receipt. */
+export interface CommunityMediaReceipt {
+  id: string;
+  mediaType: 'IMAGE' | 'DOCUMENT';
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  caption: string | null;
+}
 export interface CommunityReplyResponse {
   id: string;
   objectId: string;
@@ -95,6 +105,7 @@ export interface CommunityReplyResponse {
   createdAt: string;
   withdrawnAt: string | null;
   canWithdraw: boolean;
+  media?: CommunityMediaReceipt[];
 }
 
 /**
