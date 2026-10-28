@@ -66,7 +66,9 @@ export function buildCommunityTimeline(input: CommunityTimelineInput): Community
   for (const x of input.live) {
     if (x.circleId !== null || x.status !== 'ACTIVE') continue;
     items.push({
-      key: 'post:' + x.id, kind: 'post', group: 'stories', sourceId: x.id,
+      key: 'post:' + x.id, kind: 'post',
+      group: x.objectType === 'OPPORTUNITY' || x.objectType === 'NEED' ? 'opportunities' : 'stories',
+      sourceId: x.id,
       label: labelPost(x.objectType) + ' · ' + (x.authorDisplayName || 'Community member'),
       title: x.title, description: x.body, locationLabel: x.locationLabel,
       createdAt: x.createdAt, detail: null,
