@@ -62,21 +62,32 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   const [authorityReadFailed, setAuthorityReadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // One immutable session snapshot is the scope of each async activation operation.
+  // A sign-out, account swap or token rotation invalidates earlier responses.
+  const activeSession = (identity: ReturnType<SessionStore['getSnapshot']>) =>
+    identity.status === 'signed-in' && session.getSnapshot() === identity;
+
   const load = async () => {
-    if (session.getSnapshot().status !== 'signed-in') return;
+    const identity = session.getSnapshot();
+    if (identity.status !== 'signed-in') return;
     setLoading(true);
     setAuthorityReadFailed(false);
     setError(null);
     try {
       const current = await gateway.myStatus();
+      if (!activeSession(identity)) return;
       setSubscription(current);
       try {
-        setAgreement(await gateway.activationAgreement());
+        const currentAgreement = await gateway.activationAgreement();
+        if (!activeSession(identity)) return;
+        setAgreement(currentAgreement);
       } catch (cause) {
+        if (!activeSession(identity)) return;
         if (cause instanceof ApiError && cause.status === 404) setAgreement(null);
         else throw cause;
       }
     } catch (cause) {
+      if (!activeSession(identity)) return;
       if (cause instanceof ApiError && cause.status === 404) {
         setSubscription(null);
         setAgreement(null);
@@ -89,21 +100,25 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
         setError(errorText(cause));
       }
     } finally {
-      setLoading(false);
+      if (activeSession(identity)) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Identity may change signed-in → signed-in. Clearing all account-scoped
+    // state prevents the previous person's funding, billing or error display
+    // from carrying into the next account while the new authority is read.
+    setSubscription(null);
+    setAgreement(null);
     setBilling(null);
+    setFunding(null);
+    setError(null);
+    setLoading(false);
+    setAuthorityReadFailed(false);
     if (sessionState.status === 'signed-in') void load();
-    else {
-      setSubscription(null);
-      setAgreement(null);
-      setAuthorityReadFailed(false);
-    }
-    // Session transitions are the authority boundary. Gateway/controller identities are stable.
+    // Every changed session snapshot, not just its signed-in/out status.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionState.status]);
+  }, [sessionState]);
 
   const selectPlan = async (plan: SubscriptionPlan) => {
     if (loading || authorityReadFailed) return;
