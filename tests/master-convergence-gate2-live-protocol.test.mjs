@@ -14,7 +14,7 @@ const file=join(tmpdir(),'gate2-disposable-bill-'+randomUUID()+'.jpg');
 writeFileSync(file,Buffer.alloc(300,1)); // only a synthetic transport fixture; NOT an actual photograph.
 const base=()=>({
  baseUrl:'http://127.0.0.1:8080',uiSha:'a'.repeat(40),apiSha:'b'.repeat(40),
- billPath:file,billMime:'image/jpeg',billSeller:'Test Hardware Limited',billAmount:'8400',billCurrency:'KES',
+ billPath:file,billMime:'image/jpeg',billSeller:'Test Hardware Limited',billItems:['Cement'],billAmount:'8400',billCurrency:'KES',
 });
 const json=(value,status=200)=>new Response(JSON.stringify(value),{
  status,headers:{'Content-Type':'application/json'},
@@ -61,12 +61,12 @@ function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
    assert.equal(request.body.get('sourceKind'),'PHOTO');
    assert.ok(request.body.get('file'));
    return json({conversationId:wrongSource?one:two,sourceArtifactId:src,extractionStatus:sourceState,
-    summary:'Invoice from Test Hardware Limited, total KES 8400',uncertainties:['delivery date unknown']},201);
+    summary:'Invoice from Test Hardware Limited, Cement, total KES 8400',uncertainties:['delivery date unknown']},201);
   }
   if(path===`/api/agent/conversations/${two}/context`)
    return json({conversationId:two,version:4,entities:[{
      id:'id-1',name:'Test Hardware Limited',source:{sourceArtifactId:src,sourceKind:'PHOTO'},
-     attributes:{amount:'KES 8400'},
+     attributes:{amount:'KES 8400',items:'Cement'},
    }],relationships:[]});
   if(path===`/api/agent/conversations/${two}/agreement-formation`)
    return json({conversationId:two,version:4,reviewable:false,question:{ask:true,text:'When will delivery happen?'}});
