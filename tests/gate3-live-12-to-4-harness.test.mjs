@@ -13,7 +13,7 @@ test('Gate 3 real-harness safety: only local disposable endpoints and 13 separat
   assert.throws(()=>checkGate3Fixture({...fixture(),baseUrl:'https://securepay.ke'}),/loopback/);
   assert.throws(()=>checkGate3Fixture({...fixture(),baseUrl:'https://127.0.0.1:8080'}),/loopback/);
   assert.throws(()=>checkGate3Fixture({...fixture(),applicants:applicants.slice(0,11)}),/Exactly 12/);
-  assert.throws(()=>checkGate3Fixture({...fixture(),selectedKsNumbers:[ks(21),ks(21),ks(27),ks(30)]}),/four KS Numbers/);
+  assert.throws(()=>checkGate3Fixture({...fixture(),selectedKsNumbers:[ks(21),ks(21),ks(27),ks(30)]}),/distinct applicant/);
   assert.throws(()=>checkGate3Fixture({...fixture(),applicants:applicants.map(a=>({...a,token:'identical-token'}))}),/distinct/);
 });
 test('Gate 3 real-harness protocol: 12 signals → 4 invitations → four independent joins and confirmations',async()=>{
