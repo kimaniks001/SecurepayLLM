@@ -126,3 +126,47 @@ Today the final evaluator should return **NO_GO** with exit status 1, because **
 **Gate 2 can be marked COMPLETE only when all six journeys run against one exact real isolated API/UI pair, with independent identity/privacy/consent assertions and a verified full backend test suite.**
 
 Until then: **test infrastructure and frontend qualification are progressing; real journey certification remains NO-GO.** Keep Gate 2 code in drafts, production unchanged and financial execution disabled.
+
+
+## Gate 2 completion attempt — 28 October 2026
+
+**Actual conclusion: NOT COMPLETE.** Source-level tests and test infrastructure are working; a genuine six-journey, identity-scoped API execution is not yet possible in this session.
+
+**Verified against actual combined API source** (`feature/master-convergence-gate2-api-20261028` at `3cea1996`):
+- `AgentController` supports real anonymous conversation creation, one-time possession secret, `POST /turns`, `GET /context`, owner-scoped formation access and canonical turn idempotency.
+- `AgentSourceController` explicitly requires `sourceKind`, `label`, `file` multipart fields, returns a conversation-scoped source artifact and offers `GET /sources/{sourceArtifactId}`. Source STATUS is a receipt, not a model reading. The live protocol matches these exact routes.
+- `AgentFairTradeExaminationController` returns the twelve canonical principle states and `PARTIAL_ADVISORY`, never a fairness certificate.
+- `PlatformFeeController` exposes **GET only** `/api/v1/pricing/platform-fee?qualifyingAmountMinor=...`, which returns `platformFeeMinor`, `band`, `pricingVersion` and explicit other financial projection fields. The read-only Gate 2 fee probe requires the current `phase31-v1.1-phase14-progressive` version.
+- Source-reading provider is a **separate configuration** from KS001 conversational generation: `SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER=openai`, with `OPENAI_API_KEY` or the backend's own approved key configuration. Do not expose secrets or silently use a stub for real acceptance.
+
+**Added hardening:**
+- First two-journey test now requires two DIFFERENT anonymous conversation secrets and a real cross-conversation access denial; seller/items/currency/amount must be backed by a real source rather than invented from the upload receipt.
+- Injecting any `fetchImpl` for unit tests reports **`SYNTHETIC_PROTOCOL_PASS`**, never `LIVE_API_PASS`. The CLI uses native loopback fetch only.
+- `testing/master-convergence-gate2-fee-probe.mjs` verifies in read-only mode at KES 20k, 20,001, 100k, 218k, 1m, 5m and rejects values above 5m. No payment endpoint is called.
+- At the latest executed UI commit `a1305b44eac44fe5ae9fbd914e83ea6ff5fe2f4d`, **17/17 focused tests passed**, full frontend **2,352/2,352** passed, TypeScript, Vite build and lint passed (39 lint warnings, zero errors). This is only frontend/synthetic evidence.
+
+**Infrastructure blocker reproduced:** GitHub Actions combined API run `40670648773` returned `startup_failure` with **zero jobs**; GitHub refused a rerun (`403: This workflow run cannot be retried`). The available isolated Vercel sandbox cannot clone the private API repository and has no Java runtime, so no legitimate API tests or provider-backed conversations were run. Do not record a Java test failure or a Java PASS. A private repository runner with Java 21 and a disposable PostgreSQL database is required.
+
+**Paul's mandatory next command sequence** (run from a machine with actual private API access and **no production credentials**):
+
+```bash
+# API branch: feature/master-convergence-gate2-api-20261028
+git rev-parse HEAD
+java -version
+./gradlew :services:agreement:test :services:securepay-core:test
+./gradlew :services:securepay-core:integrationTest
+# Start this exact API with a disposable Postgres instance and isolated provider credentials.
+
+# UI branch: feature/master-convergence-gate2-ui-20261028
+git rev-parse HEAD
+GATE2_DISPOSABLE_ACK=YES GATE2_FIXTURE=/safe/non-sensitive-gate2.json \
+  node testing/master-convergence-gate2-ks001-live.mjs
+GATE2_DISPOSABLE_ACK=YES GATE2_API_URL=http://127.0.0.1:8080 \
+  node testing/master-convergence-gate2-fee-probe.mjs
+
+# Then execute the existing 13-identity 12-to-4 acceptance runner and
+# Journeys 4-6 against the SAME API SHA and matching UI SHA.
+# Record exact CI run links, identity scope, timeouts and review evidence.
+```
+
+**No automated/manual production deployment, activation charge, bank transfer, acceptance for another person, or release is permitted.** Gate 2 stays **NO-GO** until all six real journeys and API/DB/provider tests have genuine receipts.
