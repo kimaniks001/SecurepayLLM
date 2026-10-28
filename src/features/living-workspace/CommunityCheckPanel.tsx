@@ -200,7 +200,7 @@ export function CommunityCheckPanel({gateways,session,signedIn,previewOnly,onSig
               <p className="text-xs leading-5 text-sand-700">{circle.purpose}</p>
               {circle.locationLabel&&<p className="text-xs text-sand-600">Area described: {circle.locationLabel}</p>}
               {reasons.map(reason=><p key={reason} className="text-xs text-forest-700">{reason}</p>)}
-              <p className="text-xs text-sand-600">{circle.membershipMode.replaceAll('_',' ').toLowerCase()} · No membership assumed</p>
+              <p className="text-xs text-sand-600">{circle.membershipMode.replace(/_/g,' ').toLowerCase()} · No membership assumed</p>
               <button type="button" onClick={()=>openCircle(circle.id)}
                 className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-forest-700 underline">
                 Explore this Circle <ArrowUpRight size={14}/>
