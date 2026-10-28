@@ -33,7 +33,7 @@ try {
     const tab=page.getByRole('tab',{name:'Projects',exact:true});
     await tab.click();
     await page.getByText('Community rainwater storage idea').waitFor();
-    await page.getByRole('tab',{name:'All',exact:true}).click();
+    await page.getByRole('tab',{name:'Community Live',exact:true}).click();
     await page.getByText('People make progress together').waitFor();
     assert.deepEqual(writes,[],'Sample experience must not execute API writes');
     assert.deepEqual(errors,[],'Browser page errors');
