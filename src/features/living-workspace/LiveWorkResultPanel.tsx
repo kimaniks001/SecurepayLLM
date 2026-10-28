@@ -209,6 +209,26 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
         {fairTrade ? <div className="mt-3 space-y-3">
           <p className="text-xs leading-5 text-sand-700">Findings from SecurePay for this conversation and exact Trade Context version {fairTrade.tradeContextVersion}. A partial examination is never a clearance.</p>
           <p className="text-xs text-sand-600">Principles source: SecurePay {fairTrade.principleSetVersion}</p>
+          {fairTrade.principleCoverage?.length===12
+            ? <details aria-label="Coverage of twelve Fair Trade principles" data-gate4-12-lens-coverage
+                className="rounded-xl border border-cream-200 bg-white p-3">
+                <summary className="cursor-pointer text-xs font-semibold text-forest-800">
+                  See all 12 principles · evidence status, not approval
+                </summary>
+                <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-sand-700">
+                  {fairTrade.principleCoverage.map(lens=><li key={lens.principleNumber}>
+                    <span className="font-semibold">{lens.principleTitle}</span>
+                    <span className="ml-2">{lens.state==='NOT_ASSESSED'?'Not assessed':
+                      lens.state==='NEEDS_CLARIFICATION'?'Needs clarification':
+                      lens.state==='MATERIAL_CONCERN'?'Material concern':
+                      lens.state==='NOT_APPLICABLE'?'Not applicable (evidence-based)':
+                      lens.state==='NO_MATERIAL_CONCERN_OBSERVED'?'No material concern observed in available evidence':
+                      'Assessment status unavailable'}</span>
+                  </li>)}
+                </ol>
+                <p className="mt-2 text-xs text-sand-600">These are the API's version-bound observations. No row grants approval, consent or Money authority.</p>
+              </details>
+            : <p className="text-xs text-sand-600">Complete twelve-principle coverage is not available from this API response. No unshown principle is treated as assessed.</p>}
           {fairTrade.findings.map((finding,i)=><div key={finding.principleNumber+'-'+i} className="border-t border-cream-100 pt-2">
             <p className="text-sm font-semibold">{finding.principleTitle} · {finding.state==='MATERIAL_CONCERN'?'Material concern':'Needs clarification'}</p>
             <p className="mt-1 text-xs leading-5 text-sand-700">{finding.explanation}</p>
