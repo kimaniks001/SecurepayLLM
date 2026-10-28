@@ -1,0 +1,10 @@
+{
+  "schema": "securepay-master-convergence-gate2-v1",
+  "environment": "DISPOSABLE_LOCAL_API",
+  "financialExecutionDisabled": true,
+  "productionChanged": false,
+  "uiSha": "",
+  "apiSha": "",
+  "note": "Intentionally NO_GO. Never insert credentials or mark a synthetic run as live.",
+  "journeys": {}
+}
