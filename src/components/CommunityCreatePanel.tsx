@@ -56,7 +56,7 @@ export function CommunityCreatePanel({
           {options.map(option => (
             <button
               key={option.value}
-              onClick={() => {setOpportunityReady(false);onBodyChange('');onSelectType(option.value);}}
+              onClick={() => {if(objectType!==option.value){setOpportunityReady(false);onBodyChange('');onSelectType(option.value);}}}
               aria-pressed={objectType === option.value}
               className={`rounded-xl border px-3 py-2.5 text-left text-[0.8rem] font-medium transition-colors ${
                 objectType === option.value
