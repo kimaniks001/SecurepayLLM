@@ -9,7 +9,7 @@ import {gate2LocalFixture,runGate2FirstTwoJourneys} from '../testing/master-conv
 const one='11111111-2222-4333-8444-555555555555';
 const two='22222222-2222-4333-8444-555555555555';
 const src='33333333-2222-4333-8444-555555555555';
-const token='A'.repeat(50);
+const tokenOne='A'.repeat(50),tokenTwo='B'.repeat(50);
 const file=join(tmpdir(),'gate2-disposable-bill-'+randomUUID()+'.jpg');
 writeFileSync(file,Buffer.alloc(300,1)); // only a synthetic transport fixture; NOT an actual photograph.
 const base=()=>({
@@ -42,9 +42,14 @@ function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
   if(path==='/api/agent/conversations'&&method==='POST'){
    created++;
    return json({conversationId:created===1?one:two,createdAt:new Date().toISOString(),contextVersion:0,
-    conversationAccessSecret:token,anonymousExpiresAt:new Date(Date.now()+3600_000).toISOString()},201);
+    conversationAccessSecret:created===1?tokenOne:tokenTwo,anonymousExpiresAt:new Date(Date.now()+3600_000).toISOString()},201);
   }
-  assert.equal(request.headers['X-SecurePay-Conversation-Token'],token);
+  if(path.startsWith('/api/agent/conversations/'+one+'/')&&
+     request.headers['X-SecurePay-Conversation-Token']!==tokenOne)
+     return json({error:'not found'},404);
+  if(path.startsWith('/api/agent/conversations/'+two+'/')&&
+     request.headers['X-SecurePay-Conversation-Token']!==tokenTwo)
+     return json({error:'not found'},404);
   if(path===`/api/agent/conversations/${one}/turns`){
    const payload=JSON.parse(request.body);
    assert.match(payload.message,/trip to Nakuru/);
@@ -80,7 +85,9 @@ function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
 test('Gate 2: synthetic protocol validates two real-style conversations, anonymous possession, source grounding and fairness boundary',async()=>{
  const {transport,calls}=fakeApi();
  const result=await runGate2FirstTwoJourneys(base(),{fetchImpl:transport});
- assert.equal(result.result,'LIVE_API_PASS'); // only synthetic adapter, never live evidence.
+ assert.equal(result.result,'SYNTHETIC_PROTOCOL_PASS'); // injected adapter may never call itself live.
+ assert.equal(result.executionMode,'INJECTED_TEST_TRANSPORT');
+ assert.equal(result.journey2.unrelatedConversationDenied,true);
  assert.equal(result.journey1.nextQuestionPresent,true);
  assert.equal(result.journey2.sourceBackedCandidates,1);
  assert.equal(result.journey2.fairness,'PARTIAL_ADVISORY_ONLY');
