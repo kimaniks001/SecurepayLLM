@@ -31,7 +31,7 @@ test('Gate 2: transport cannot be pointed to staging, production, cloud URL or U
  assert.throws(()=>gate2LocalFixture({...base(),billPath:'./customer-invoice.jpg'}),/absolute/);
  assert.throws(()=>gate2LocalFixture({...base(),billMime:'application/pdf'}),/JPEG or PNG/);
 });
-function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
+function fakeApi({sourceState='READY',badFirst=false,wrongSource=false,reusedToken=false,wrongSeller=false}={}){
  const calls=[];
  let created=0;
  const transport=async(url,request)=>{
@@ -42,7 +42,7 @@ function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
   if(path==='/api/agent/conversations'&&method==='POST'){
    created++;
    return json({conversationId:created===1?one:two,createdAt:new Date().toISOString(),contextVersion:0,
-    conversationAccessSecret:created===1?tokenOne:tokenTwo,anonymousExpiresAt:new Date(Date.now()+3600_000).toISOString()},201);
+    conversationAccessSecret:created===1||reusedToken?tokenOne:tokenTwo,anonymousExpiresAt:new Date(Date.now()+3600_000).toISOString()},201);
   }
   if(path.startsWith('/api/agent/conversations/'+one+'/')&&
      request.headers['X-SecurePay-Conversation-Token']!==tokenOne)
@@ -66,11 +66,12 @@ function fakeApi({sourceState='READY',badFirst=false,wrongSource=false}={}){
    assert.equal(request.body.get('sourceKind'),'PHOTO');
    assert.ok(request.body.get('file'));
    return json({conversationId:wrongSource?one:two,sourceArtifactId:src,extractionStatus:sourceState,
-    summary:'Invoice from Test Hardware Limited, Cement, total KES 8400',uncertainties:['delivery date unknown']},201);
+    summary:wrongSeller?'Invoice from UNKNOWN, Cement, total KES 8400':
+      'Invoice from Test Hardware Limited, Cement, total KES 8400',uncertainties:['delivery date unknown']},201);
   }
   if(path===`/api/agent/conversations/${two}/context`)
    return json({conversationId:two,version:4,entities:[{
-     id:'id-1',name:'Test Hardware Limited',source:{sourceArtifactId:src,sourceKind:'PHOTO'},
+     id:'id-1',name:wrongSeller?'UNKNOWN':'Test Hardware Limited',source:{sourceArtifactId:src,sourceKind:'PHOTO'},
      attributes:{amount:'KES 8400',items:'Cement'},
    }],relationships:[]});
   if(path===`/api/agent/conversations/${two}/agreement-formation`)
@@ -104,3 +105,18 @@ test('Gate 2: first-turn correction regression and wrong-conversation media rece
  await assert.rejects(()=>runGate2FirstTwoJourneys(base(),{fetchImpl:fakeApi({wrongSource:true}).transport}),/conversation-bound/);
 });
 process.on('exit',()=>{try{unlinkSync(file);}catch{}});
+
+test('Gate 2: distinct anonymous possession tokens are mandatory, not reused per tab',async()=>{
+ const {transport}=fakeApi({reusedToken:true});
+ await assert.rejects(
+   ()=>runGate2FirstTwoJourneys(base(),{fetchImpl:transport}),
+   /reused a previous anonymous possession secret/,
+ );
+});
+test('Gate 2: the test may not fabricate a seller when the reader did not find one',async()=>{
+ const {transport}=fakeApi({wrongSeller:true});
+ await assert.rejects(
+   ()=>runGate2FirstTwoJourneys(base(),{fetchImpl:transport}),
+   /Expected test seller was not discoverable/,
+ );
+});
