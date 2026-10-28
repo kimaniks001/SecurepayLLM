@@ -792,6 +792,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
+            onPlanWithKs001={continueCircleToWork}
             onSignIn={()=>setSignInOpen(true)}
             onOpenFull={()=>{window.location.hash='#/community';}}
             onOpenCircle={circleId=>{
