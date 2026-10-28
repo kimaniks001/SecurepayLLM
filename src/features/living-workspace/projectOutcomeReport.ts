@@ -19,7 +19,7 @@ export const projectIsPublic=(p:CommunityProjectDto,agreementId:string)=>
   && (p.agreementId===null||p.agreementId===agreementId);
 
 const clean=(x:string)=>x.trim().replace(/\s+/g,' ');
-const privatePattern=/(?:\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b)|(?:\b(?:\+?254|0)(?:[\s-]?\d){9}\b)|(?:\bKS[\s-]?\d{3,}\b)|(?:https?:\/\/\S*\/(?:agreement|invitations?|evidence|private|token)\b)/i;
+const privatePattern=/(?:\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b)|(?:\b(?:\+?254|0)(?:[\s-]?\d){9}\b)|(?:\bKS[\s-]?\d{3,}\b)|(?:https?:\/\/\S*\/(?:agreements?|invitations?|evidence|private|token)\b)/i;
 function minor(amount:string):bigint|null {
   const x=amount.trim().replace(/,/g,'');
   if(!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(x))return null;
