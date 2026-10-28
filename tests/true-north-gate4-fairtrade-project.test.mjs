@@ -79,3 +79,14 @@ test('Gate 4: the existing Check reads version-bound server authority and prompt
   assert.match(gateway,/readFairTradeExamination:/);
   assert.doesNotMatch(panel,/\bapproveFairTrade\(|\bcertifyAgreement\(|\bchargeCustomer\(/);
 });
+
+test('Gate 4: twelve-lens coverage is server-owned, optional for older APIs and never a green score',()=>{
+  const dto=source('src/api/securepay/agent/dto.ts');
+  assert.match(dto,/principleCoverage\?:/);
+  assert.match(panel,/data-gate4-12-lens-coverage/);
+  assert.match(panel,/fairTrade\.principleCoverage\?\.length===12/);
+  assert.match(panel,/Not assessed/);
+  assert.match(panel,/No material concern observed in available evidence/);
+  assert.match(panel,/No unshown principle is treated as assessed/);
+  assert.doesNotMatch(panel,/allTwelvePassed|principleScore|fairnessCertificate/);
+});
