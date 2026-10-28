@@ -45,7 +45,7 @@ function hasMaterialQuestion(reply){
  // KS001 must ask INSIDE its conversation, not only in the right-side check.
  const spoken=messageOf(reply);
  return spoken.length>=30&&spoken.includes('?')&&
-   spoken.split('?')[0].split(/\\s+/).length>=7;
+   spoken.split('?')[0].split(/\s+/).length>=7;
 }
 async function apiRequest(base,method,path,token,body,fetchImpl){
  const headers={'Accept':'application/json'};
