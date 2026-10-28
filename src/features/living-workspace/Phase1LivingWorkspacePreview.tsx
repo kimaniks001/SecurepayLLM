@@ -893,6 +893,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           : mode==='work' && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
+          selectedSource={liveState?.source??null}
+          onDiscussProjectFairTrade={message=>{
+            if(!liveConversationId || !liveController || liveBusy || livePending)
+              throw new Error('Finish the current KS001 action before preparing another question.');
+            // Never overwrite a person's existing unsent chat. This merely
+            // prepares a visible draft in the SAME authorised conversation.
+            if(readDraft(liveConversationId).trim())
+              throw new Error('Your current message is unsent. Finish or clear it before preparing this question.');
+            writeDraft(liveConversationId,message);
+            setDraftRevision(value=>value+1);
+            setScreen('chat');
+          }}
           onAddToFact={openFactSourcePicker}
           onOpenPeople={()=>openTool('People & Invitations')}
           onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
