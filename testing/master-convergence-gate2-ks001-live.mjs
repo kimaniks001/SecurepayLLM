@@ -16,6 +16,7 @@
  *  "billPath":"/absolute/path/to/disposable-invoice.jpg",
  *  "billMime":"image/jpeg",
  *  "billSeller":"Test Hardware Limited",
+ *  "billItems":["Cement","Sand"],
  *  "billAmount":"8400",
  *  "billCurrency":"KES"
  * }
@@ -48,6 +49,8 @@ export function gate2LocalFixture(value){
   requireTrue(typeof value.billSeller==='string'&&value.billSeller.length>=3,'Test bill must specify the expected seller');
   requireTrue(/^\d+(?:\.\d\d?)?$/.test(String(value.billAmount||'')),'Expected invoice amount must be a decimal');
   requireTrue(value.billCurrency==='KES','This fixture must use an explicit KES amount');
+  requireTrue(Array.isArray(value.billItems)&&value.billItems.length>0&&value.billItems.every(x=>typeof x==='string'&&x.trim().length>=3),
+    'Test invoice must list at least one real disposable line item for source grounding');
   return {...value,baseUrl:endpoint.origin};
 }
 function assertion(value,message){requireTrue(value,message);}
@@ -134,6 +137,10 @@ async function imageBillJourney(api,request,fixture){
  const searchable=asText([artifact.summary,JSON.stringify(cited)]);
  assertion(searchable.includes(fixture.billSeller.toLowerCase()),
    'Expected test seller was not discoverable; require human correction rather than guessing');
+ for(const item of fixture.billItems)assertion(searchable.includes(item.toLowerCase()),
+   'Expected bill item '+item+' not grounded by source reading; do not invent items');
+ assertion(searchable.includes(fixture.billCurrency.toLowerCase()),
+   'Currency was not grounded by test source; do not invent it');
  const amountDigits=fixture.billAmount.replace(/\.00$/,'');
  assertion(searchable.replace(/,/g,'').includes(amountDigits),
    'Expected test bill total was not discoverable; do not invent pricing');
