@@ -14,7 +14,7 @@ test('Gate 2 pricing: fee probe rejects cloud, production, HTTPS, credentials, a
  }
  assert.equal(ensureLoopback('http://127.0.0.1:8080'),'http://127.0.0.1:8080');
 });
-test('Gate 2 pricing: exact progressive fee examples survive through a read-only API contract',async()=>{
+test('Gate 6 pricing: exact owner marginal fees survive through a read-only API contract',async()=>{
  let requests=0;
  const mock=async(url,options)=>{
   requests++;
@@ -33,11 +33,11 @@ test('Gate 2 pricing: exact progressive fee examples survive through a read-only
  const r=await runFeeProbe('http://127.0.0.1:8080',{fetchImpl:mock});
  assert.equal(r.result,'SYNTHETIC_FEE_PROTOCOL_PASS');
  assert.equal(r.transport,'INJECTED_TEST_TRANSPORT');
- assert.equal(r.checked.length,6);
- assert.equal(requests,7);
+ assert.equal(r.checked.length,8);
+ assert.equal(requests,9);
  assert.equal(r.moneyExecution,'NOT_ATTEMPTED');
 });
-test('Gate 2 pricing: wrong cap, band, pricing version and above-ceiling success all fail closed',async()=>{
+test('Gate 6 pricing: wrong fee, band, version and above-eligibility success fail closed',async()=>{
  for(const malformed of ['fee','band','version','above']){
   const mock=async(url)=>{
    const v=Number(new URL(url).searchParams.get('qualifyingAmountMinor'));
