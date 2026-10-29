@@ -8,26 +8,26 @@ This final UI release candidate is based on the complete integrated Gate 5 UI
 three-column Living Workspace, KS001, source/media status, Community, Circle,
 Agreements, security/identity and Money read-only flows.
 
-Its companion Gate 6 API candidate is API PR #378, starting at
-`ef041b3cd8a7f1ecbc02cbb2df1cee01ed288db5`. **Do not use the
-previous Gate 5 API SHA as if it contained the owner-approved pricing fix.**
-Any new preservation patches and test corrections must be committed to the
-respective branches, and the final paired SHA receipts must then be recaptured.
+**Owner's Gate 6 test-scope decision — 29 October 2026:** The new fee
+structure is deferred to a later update. This tester run uses the unchanged
+integrated Gate 5 API source at
+`45b616786a357834a7ef69d2cf394e3a98f4382a`,
+tracked separately in **SecurePayAPI PR #380**. The newer tariff work remains
+preserved in **API PR #378** for a subsequent release; it must not be merged
+or deployed as part of this test. Record the exact UI/API test SHAs and verify
+all C6 preservation patches in the release manifest before any deployment.
+Do not represent source pairing as certified runtime compatibility.
 
 The old stacked draft PRs are source ancestry, not separate commits to merge
 again. This is a candidate for **one final UI PR to main**, subject to evidence.
 
-## Commercial rules for testing
-- A contract at or below KES 20,000 has a KES 20 SecurePay fee.
-- Above KES 20,000 the fee is KES 20 plus 1% of only the excess.
-- The API is the only authoritative calculator; the UI must consume its
-  version-bound price, payee and fee-bearer disclosures. No local copy of a
-  different capped or 0.2% schedule is allowed.
-- Existing KES 5m automatic-quote limit remains fail-closed independently
-  of this tariff.
-- Historical accepted quotes must never silently be repriced.
-- Subscriptions, Review Reserves, verification, contribution fees and
-  payment-provider charges remain separately represented.
+## Commercial rules for this test run
+- **Do not introduce the new 1% marginal tariff or new pricing version.**
+- Keep existing Gate 5 fees and pricing behavior unchanged.
+- Fees are not a success criterion for this non-financial tester run.
+- API remains authoritative for any read-only quote; no local UI calculation.
+- Do not activate collection, funding, releases, settlement or payouts.
+- Historical accepted Agreement terms must never be changed silently.
 
 ## Required real non-financial acceptance
 
@@ -66,7 +66,7 @@ again. This is a candidate for **one final UI PR to main**, subject to evidence.
   no activation collection, real settlement, release, bank rails or payouts.
 
 ## Release rule
-Until all mandatory actual full-stack, privacy, provider, pricing and owner
+Until all mandatory actual full-stack, privacy, provider, financial-execution isolation and owner
 approval evidence is present, this PR remains DRAFT/NO-GO. Do not merge,
 deploy into production, weaken authentication or claim that a Vercel READY
 preview means that the complete product is ready.
