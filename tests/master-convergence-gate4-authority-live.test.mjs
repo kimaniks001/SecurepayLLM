@@ -63,7 +63,7 @@ test('Gate 4 read-only synthetic protocol isolates two identities and checks act
  const result=await runGate4Authority(fixture(),{fetchImpl:mock.handler});
  assert.equal(result.result,'SYNTHETIC_PROTOCOL_PASS');
  assert.equal(result.accounts.length,2);
- assert.equal(result.pricingBands,6);
+ assert.equal(result.pricingBands,8);
  assert.equal(result.aboveCeilingRefused,true);
  assert.equal(result.moneyExecution,'NOT_ATTEMPTED');
  assert.equal(mock.calls.every(c=>c.method==='GET'),true);
