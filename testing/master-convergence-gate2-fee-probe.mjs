@@ -1,5 +1,5 @@
 /**
- * Gate 2 — deterministic, READ-ONLY commercial pricing acceptance.
+ * Gate 6 on Gate 2 harness — owner-approved READ-ONLY contract fee acceptance.
  *
  * GATE2_DISPOSABLE_ACK=YES GATE2_API_URL=http://127.0.0.1:8080 \
  *   node testing/master-convergence-gate2-fee-probe.mjs
@@ -10,14 +10,16 @@
  * A synthetic fetch adapter can test the script, but is NOT live API evidence.
  */
 import {pathToFileURL} from 'node:url';
-export const CURRENT_VERSION='phase31-v1.1-phase14-progressive';
+export const CURRENT_VERSION='phase31-v1.2-owner-marginal-20261029';
 export const examples=Object.freeze([
  {kes:20_000,minor:2_000_000,feeMinor:2_000,band:1},
  {kes:20_001,minor:2_000_100,feeMinor:2_001,band:2},
  {kes:100_000,minor:10_000_000,feeMinor:82_000,band:2},
  {kes:218_000,minor:21_800_000,feeMinor:200_000,band:2},
- {kes:1_000_000,minor:100_000_000,feeMinor:200_000,band:2},
- {kes:5_000_000,minor:500_000_000,feeMinor:1_000_000,band:3},
+ {kes:500_000,minor:50_000_000,feeMinor:482_000,band:2},
+ {kes:1_000_000,minor:100_000_000,feeMinor:982_000,band:2},
+ {kes:2_000_000,minor:200_000_000,feeMinor:1_982_000,band:2},
+ {kes:5_000_000,minor:500_000_000,feeMinor:4_982_000,band:2},
 ]);
 export function ensureLoopback(base){
  let u;
