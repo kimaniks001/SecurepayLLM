@@ -4,7 +4,7 @@
 ## Candidate references, not a claimed deployed pair
 - Gate 5 UI PR #199: `fa195d4eefb593c96602ec0f5264f08957968059`.
 - Gate 5 API PR #376: `45b616786a357834a7ef69d2cf394e3a98f4382a`.
-- Gate 6 API development: `release/gate6-owner-commercial-and-tester-cert-20261029`, including intentionally **red** owner contract-tariff acceptance test.
+- Gate 6 API development: `release/gate6-owner-commercial-and-tester-cert-20261029`, including owner tariff source correction and acceptance tests, all **not yet Java-certified**.
 - Exact Gate 6 heads will change as fixes are added. Every human acceptance receipt, provider session, database test and preview must identify both **final** SHAs.
 - The current C6 live candidate and its preservation patches must be compared against Paul's `manifest.json`. No manifest has been independently inspected as part of this branch. Never drop production auth, scrolling, JSON intake, source retry, or owner-approved Living Workspace changes.
 
@@ -13,8 +13,8 @@ Keep one Living Workspace, one canonical KS001/orchestration and Agreement engin
 
 ### Owner approved commercial facts
 - KES 20 for contracts at/below KES 20,000; **plus 1% only of the excess** for any higher-value contract in the supported risk band.
-- Gate 5 source is wrong for values such as KES 500,000, KES 1,000,000 and KES 5,000,000 because it uses old caps. API's new Gate 6 regression currently fails on purpose until the correction is integrated and the old quote projection/test cases are updated.
-- The contract's supported principal-value ceiling above KES 5m is an independent safety limit and remains a separate owner decision.
+- Gate 5 source is wrong for values such as KES 500,000, KES 1,000,000 and KES 5,000,000 because it uses old caps. Gate 6 API source now corrects the fee calculation and backend quote projection, and known dependent Java and frontend probe tests are updated; CI and live API acceptance must still prove it.
+- The supported principal-value ceiling above KES 5m is a separate safety limit; Gate 6 preserves refusal above it until a further owner risk decision.
 - Personal KES 100/month, Business KES 200/month, activation funding KES 400/500 (first month + returned KES 100 verification + customer-owned KES 200 reserve), welfare KES 10 and general KES 20: don't relabel the entire funding total as earned revenue.
 - Keep provider rail charges, applicable taxes, customer principal, Review Reserves, and qualifying Plug/Builder rewards in separate financial classifications. The tax/legal/CBK partner matrix remains a **live-money** gate, not a reason to misrepresent simulation as a transfer.
 
