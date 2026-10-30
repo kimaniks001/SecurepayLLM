@@ -21,10 +21,12 @@ jobs:
       CI: 'true'
       NODE_OPTIONS: '--max-old-space-size=3072'
     steps:
-      - name: Exact PR source checkout
+      - name: Exact PR source checkout and locked historical fixtures
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
       - name: Node.js 20
         uses: actions/setup-node@v4
         with:
