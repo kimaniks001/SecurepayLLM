@@ -17,6 +17,7 @@ import type {
 } from '../../api/securepay/subscription';
 import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
+import { isCurrentActivationSession } from './sessionBoundary';
 
 const planLabel: Record<SubscriptionPlan, string> = { FOR_YOU: 'For You', BUSINESS: 'For Business' };
 
@@ -62,21 +63,32 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
   const [authorityReadFailed, setAuthorityReadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // One immutable session snapshot is the scope of each async activation operation.
+  // A sign-out, account swap or token rotation invalidates earlier responses.
+  const activeSession = (identity: ReturnType<SessionStore['getSnapshot']>) =>
+    isCurrentActivationSession(session, identity);
+
   const load = async () => {
-    if (session.getSnapshot().status !== 'signed-in') return;
+    const identity = session.getSnapshot();
+    if (identity.status !== 'signed-in') return;
     setLoading(true);
     setAuthorityReadFailed(false);
     setError(null);
     try {
       const current = await gateway.myStatus();
+      if (!activeSession(identity)) return;
       setSubscription(current);
       try {
-        setAgreement(await gateway.activationAgreement());
+        const currentAgreement = await gateway.activationAgreement();
+        if (!activeSession(identity)) return;
+        setAgreement(currentAgreement);
       } catch (cause) {
+        if (!activeSession(identity)) return;
         if (cause instanceof ApiError && cause.status === 404) setAgreement(null);
         else throw cause;
       }
     } catch (cause) {
+      if (!activeSession(identity)) return;
       if (cause instanceof ApiError && cause.status === 404) {
         setSubscription(null);
         setAgreement(null);
@@ -89,120 +101,123 @@ export function ActivationExperience({ gateway, auth, session, onLeave }: {
         setError(errorText(cause));
       }
     } finally {
-      setLoading(false);
+      if (activeSession(identity)) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Identity may change signed-in → signed-in. Clearing all account-scoped
+    // state prevents the previous person's funding, billing or error display
+    // from carrying into the next account while the new authority is read.
+    setSubscription(null);
+    setAgreement(null);
     setBilling(null);
+    setFunding(null);
+    setError(null);
+    setLoading(false);
+    setAuthorityReadFailed(false);
     if (sessionState.status === 'signed-in') void load();
-    else {
-      setSubscription(null);
-      setAgreement(null);
-      setAuthorityReadFailed(false);
-    }
-    // Session transitions are the authority boundary. Gateway/controller identities are stable.
+    // Every changed session snapshot, not just its signed-in/out status.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionState.status]);
+  }, [sessionState]);
 
-  const selectPlan = async (plan: SubscriptionPlan) => {
-    if (loading || authorityReadFailed) return;
+  // Every activation command stays bound to the identity that initiated it.
+  // An account swap invalidates pending callbacks, including chained requests.
+  const withActivationSession = async (
+    work: (stillCurrent: () => boolean) => Promise<void>,
+    allowRecoveryRead = false,
+  ) => {
+    const identity = session.getSnapshot();
+    if (loading || (!allowRecoveryRead && authorityReadFailed)
+        || identity.status !== 'signed-in' || identity !== sessionState) return;
+    const stillCurrent = () => activeSession(identity);
     setLoading(true);
     setError(null);
-    try {
-      const selected = await gateway.selectPlan(plan);
-      setSubscription(selected);
-      setAgreement(await gateway.establishActivationAgreement());
-    } catch (cause) {
-      setError(errorText(cause));
-    } finally {
-      setLoading(false);
-    }
+    try { await work(stillCurrent); }
+    catch (cause) { if (stillCurrent()) setError(errorText(cause)); }
+    finally { if (stillCurrent()) setLoading(false); }
   };
 
-  const establishAgreement = async () => {
-    if (loading || authorityReadFailed) return;
-    setLoading(true);
-    setError(null);
-    try { setAgreement(await gateway.establishActivationAgreement()); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
+  const selectPlan = async (plan: SubscriptionPlan) => withActivationSession(async stillCurrent => {
+    const selected = await gateway.selectPlan(plan);
+    if (!stillCurrent()) return;
+    setSubscription(selected);
+    const created = await gateway.establishActivationAgreement();
+    if (stillCurrent()) setAgreement(created);
+  });
+
+  const establishAgreement = async () => withActivationSession(async stillCurrent => {
+    const created = await gateway.establishActivationAgreement();
+    if (stillCurrent()) setAgreement(created);
+  });
 
   const confirmAgreement = async () => {
-    if (loading || authorityReadFailed || !agreement || agreement.confirmed) return;
-    setLoading(true);
-    setError(null);
-    try { setAgreement(await gateway.confirmActivationAgreement()); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
+    if (!agreement || agreement.confirmed) return;
+    await withActivationSession(async stillCurrent => {
+      const confirmed = await gateway.confirmActivationAgreement();
+      if (stillCurrent()) setAgreement(confirmed);
+    });
   };
 
   const prepareBilling = async () => {
-    if (loading || authorityReadFailed || !agreement?.confirmed) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setBilling(await gateway.prepareCurrentBillingCycle());
-      setFunding(await gateway.activationFundingStatus());
-    }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
+    if (!agreement?.confirmed) return;
+    await withActivationSession(async stillCurrent => {
+      const nextCycle = await gateway.prepareCurrentBillingCycle();
+      if (!stillCurrent()) return;
+      setBilling(nextCycle);
+      const status = await gateway.activationFundingStatus();
+      if (stillCurrent()) setFunding(status);
+    });
   };
 
-  const refreshFunding = async () => {
-    if (loading) return;
-    setLoading(true);
-    setError(null);
-    try { setFunding(await gateway.activationFundingStatus()); }
-    catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
+  const refreshFunding = async () => withActivationSession(async stillCurrent => {
+    const status = await gateway.activationFundingStatus();
+    if (stillCurrent()) setFunding(status);
+  }, true);
 
-  // Backend-authorized next funding action only -- this UI never infers completion or advances a
-  // step the backend has not itself confirmed. Every action re-reads live status afterward.
-  const runFundingAction = async (action: ActivationFundingNextAction) => {
-    if (loading) return;
-    setLoading(true);
-    setError(null);
-    try {
+  // Financial actions are NEVER replayed just because the UI is uncertain.
+  // Refresh the backend-authorised next action immediately before mutating.
+  const runFundingAction = async (action: ActivationFundingNextAction) =>
+    withActivationSession(async stillCurrent => {
+      const latest = await gateway.activationFundingStatus();
+      if (!stillCurrent()) return;
+      setFunding(latest);
+      if (latest.nextAction !== action || latest.financiallyEnabled) {
+        setError('SecurePay funding status changed. Review the current step before continuing.');
+        return;
+      }
       switch (action) {
         case 'PREPARE_VERIFICATION_FUNDING':
-        case 'RETRY_VERIFICATION_FUNDING':
-          // Backend-authorized: RETRY_VERIFICATION_FUNDING means the prior funding attempt
-          // terminally failed -- calling the same prepare action opens a genuinely fresh,
-          // attempt-scoped payment intent (see ActivationFundingOrchestrationService); it never
-          // replays or double-charges the failed one.
-          setFunding(await gateway.prepareVerificationFunding());
+        case 'RETRY_VERIFICATION_FUNDING': {
+          const next = await gateway.prepareVerificationFunding();
+          if (stillCurrent()) setFunding(next);
           break;
+        }
         case 'INITIATE_VERIFICATION_TRANSFER':
-        case 'RETRY_VERIFICATION_TRANSFER':
-          // Backend-authorized: RETRY_VERIFICATION_TRANSFER means the customer's KES 100 is
-          // already confirmed and only the rail transfer failed -- this reuses that same
-          // confirmed funding and opens a fresh transfer attempt only; it never creates another
-          // payment intent.
+        case 'RETRY_VERIFICATION_TRANSFER': {
+          // The backend must also enforce idempotency and existing confirmed funding.
           await gateway.initiateVerificationTransfer();
-          setFunding(await gateway.activationFundingStatus());
+          if (!stillCurrent()) return;
+          const status = await gateway.activationFundingStatus();
+          if (stillCurrent()) setFunding(status);
           break;
-        case 'PREPARE_RESERVE_FUNDING':
-          setFunding(await gateway.prepareReserveFunding());
+        }
+        case 'PREPARE_RESERVE_FUNDING': {
+          const next = await gateway.prepareReserveFunding();
+          if (stillCurrent()) setFunding(next);
           break;
-        case 'ESTABLISH_REVIEW_RESERVE':
-          setFunding(await gateway.establishReviewReserve());
+        }
+        case 'ESTABLISH_REVIEW_RESERVE': {
+          const next = await gateway.establishReviewReserve();
+          if (stillCurrent()) setFunding(next);
           break;
+        }
         default:
-          // PAY_VERIFICATION_INTENT / PAY_RESERVE_INTENT / REGISTER_SETTLEMENT_DESTINATION /
-          // RETRY_FAILED_COMPONENT / AWAIT_VERIFICATION_RECONCILIATION / NONE_ACTIVATION_COMPLETE
-          // are not this UI's own action to perform -- re-reading live status is the only safe
-          // thing to do. AWAIT_VERIFICATION_RECONCILIATION in particular (programme-controller
-          // final narrow correction, Blocker 1) has no legitimate mutation at all: the transfer
-          // is either still in flight or already succeeded and only its ledger reconciliation is
-          // pending, so this screen must never offer to send it again.
-          setFunding(await gateway.activationFundingStatus());
+          // Unhandled actions remain read-only: payment, settlement registration,
+          // reconciliation and completion require their separate authorities.
+          break;
       }
-    } catch (cause) { setError(errorText(cause)); }
-    finally { setLoading(false); }
-  };
+    });
 
   if (sessionState.status !== 'signed-in') {
     const data = secureAuthView(identityState);

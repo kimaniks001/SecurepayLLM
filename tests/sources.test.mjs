@@ -224,3 +224,49 @@ test('removing a source-derived candidate refreshes the real Trade Context immed
   // The source card itself marks REMOVED.
   assert.equal(sourceController.getSnapshot().sources[0].extractionStatus, 'REMOVED');
 });
+
+
+test('upload phase is separate from server-side reading and never reports transfer completion before receipt', async () => {
+  let acceptUpload;
+  let acceptRead;
+  const uploadPromise = new Promise(resolve => { acceptUpload = resolve; });
+  const readPromise = new Promise(resolve => { acceptRead = resolve; });
+  const gateway = {
+    createPastedTextSource: async () => artifactDto(),
+    uploadSource: async () => uploadPromise,
+    listSources: async () => ({ sources: [] }),
+    getSource: async () => readPromise,
+    retrySource: async () => artifactDto(),
+    removeSource: async () => artifactDto({ extractionStatus: 'REMOVED' }),
+  };
+  const ctrl = api.createSourceController(gateway, async () => 'c1', undefined, {sleep: async () => {},pollScheduleMs: [1]});
+  const file = new File(['photo'], 'delivery.png', { type: 'image/png' });
+  const sent = ctrl.addUpload('PHOTO', file);
+  assert.equal(ctrl.getSnapshot().phase, 'uploading', 'file bytes have not yet been acknowledged by backend');
+  acceptUpload(artifactDto({sourceKind:'PHOTO',originalName:'delivery.png',extractionStatus:'PROCESSING'}));
+  // Give settle() a microtask to process the acknowledged receipt.
+  for(let i=0;i<10 && ctrl.getSnapshot().phase!=='checking';i++)await Promise.resolve();
+  assert.equal(ctrl.getSnapshot().phase, 'checking', 'upload is received; server is still reading it');
+  assert.equal(ctrl.getSnapshot().sources[0].extractionStatus, 'PROCESSING');
+  acceptRead(artifactDto({sourceKind:'PHOTO',originalName:'delivery.png',extractionStatus:'READY',summary:'Recognised delivery photo'}));
+  const result=await sent;
+  assert.equal(result.ok, true);
+  assert.equal(result.source.extractionStatus, 'READY');
+  assert.equal(ctrl.getSnapshot().phase, 'list-ready');
+});
+
+test('an uploaded file that fails to read remains a failed source, not a successful understanding', async () => {
+  const gateway={
+    createPastedTextSource: async()=>artifactDto(),
+    uploadSource: async()=>artifactDto({sourceKind:'DOCUMENT',extractionStatus:'FAILED',failureReason:'Reader unavailable'}),
+    listSources: async()=>({sources:[]}),
+    getSource: async()=>{throw new Error('should not poll a terminal failure');},
+    retrySource: async()=>artifactDto(), removeSource: async()=>artifactDto(),
+  };
+  const ctrl=api.createSourceController(gateway,async()=> 'c1');
+  const result=await ctrl.addUpload('DOCUMENT',new File(['%PDF'],'terms.pdf',{type:'application/pdf'}));
+  assert.equal(result.ok,false);
+  assert.equal(result.outcome,'failed');
+  assert.equal(ctrl.getSnapshot().phase,'error');
+  assert.equal(ctrl.getSnapshot().sources[0].extractionStatus,'FAILED');
+});

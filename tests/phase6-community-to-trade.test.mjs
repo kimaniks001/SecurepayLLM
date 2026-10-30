@@ -293,7 +293,7 @@ test('CommunityObjectDetail renders every ACTIVE responder distinctly with their
   assert.match(contents, /activeHelpResponders\?:/);
   assert.match(contents, /onStartTradeWithResponder\?:/);
   assert.match(contents, /People who can help/);
-  assert.match(contents, /Start a trade with \{label\}/);
+  assert.match(contents, /Review with KS001: \{label\}/);
   // The old single generic action's actual button text is gone (a doctrine comment above may still
   // name it in prose, explaining what this replaced -- that is documentation, not UI).
   assert.doesNotMatch(contents, />\s*Start trade with helper\s*</);

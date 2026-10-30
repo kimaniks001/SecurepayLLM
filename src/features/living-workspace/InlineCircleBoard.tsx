@@ -23,9 +23,10 @@ function freshKey() {
  * set of Circle membership, governance or Agreement decisions. Both Circle
  * identity and ACTIVE membership must be confirmed before loading private posts.
  */
-export function InlineCircleBoard({ id, gateways, session, onBack, onContinueToWork }: {
+export function InlineCircleBoard({ id, gateways, session, onBack, onContinueToWork, onOpenMyWork }: {
   id:string; gateways:PreviewWorkspaceGateways; session:SessionStore; onBack:()=>void;
   onContinueToWork:(text:string)=>Promise<void>;
+  onOpenMyWork:()=>void;
 }) {
   const [scope,setScope]=useState<{circle:CircleResponse; member:CircleMembershipResponse}|null>(null);
   const [objects,setObjects]=useState<CommunityObjectResponse[]>([]);
@@ -89,6 +90,14 @@ export function InlineCircleBoard({ id, gateways, session, onBack, onContinueToW
       <button type="button" className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm" onClick={onBack}>Back to my Circles</button>
     </div>
     <p className="text-xs text-sand-600">Only active members and owners see the shared board. Circle notes and quick responses never accept Agreements or move Money.</p>
+    {scope&&<div data-gate5-circle-execution className="rounded-xl border border-cream-200 bg-white p-3 space-y-2">
+      <p className="text-sm font-semibold text-forest-900">Coordinate here · execute in your Agreement</p>
+      <p className="text-xs leading-5 text-sand-700">Use this Circle for checkpoints, requests and quick responses. For assigned work, evidence, beneficiary review and Money, open your own authorised Agreement in My Work. The Circle does not disclose anyone else’s private Agreement.</p>
+      <button type="button" onClick={onOpenMyWork}
+        className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">
+        Open My Work · Agreements
+      </button>
+    </div>}
     {loading && <p role="status" className="rounded-xl bg-cream-100 p-4 text-sm">Checking membership and private Circle work…</p>}
     {error && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">{error}</p>}
     {scope && <div className="space-y-3">

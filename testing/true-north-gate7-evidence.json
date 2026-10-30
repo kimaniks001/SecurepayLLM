@@ -1,0 +1,8 @@
+{
+  "schema": "true-north-gate7-v1",
+  "environment": "ISOLATED_DISPOSABLE",
+  "financialExecutionDisabled": true,
+  "productionDeploymentApproved": false,
+  "note": "No live acceptance receipts are attached. All release gates remain blocked until verified exact-SHA CI runs and human sign-off. Do not add credentials to this file.",
+  "checks": {}
+}

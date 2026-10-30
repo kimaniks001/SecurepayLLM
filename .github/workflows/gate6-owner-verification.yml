@@ -1,0 +1,51 @@
+name: Gate 6 Owner — UI verification (no deploy)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate6-owner-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-verification:
+    name: Node 20 TypeScript, unit tests and production bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      CI: 'true'
+      NODE_OPTIONS: '--max-old-space-size=3072'
+    steps:
+      - name: Exact PR source checkout and locked historical fixtures
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Record exact source
+        run: git rev-parse HEAD
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify TypeScript
+        run: npm run typecheck
+      - name: Run full sequential UI regression
+        run: node --test --test-concurrency=1 tests/*.test.mjs
+      - name: Verify lint errors
+        run: npm run lint -- --quiet
+      - name: Build production bundle
+        run: npm run build
+      - name: Verify build output
+        run: test -f dist/index.html
+
+# This checks frontend source only; it does NOT deploy or qualify real
+# KS001/provider responses, multi-user flows, bank rails or staging.

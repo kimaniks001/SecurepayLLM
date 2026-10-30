@@ -4,6 +4,10 @@ import type { AgreementDetailResponse } from '../../api/securepay/agreements/dto
 import type { NextActionDto, ObligationDto } from '../../api/securepay/agreements';
 import type { AgreementMoneySnapshotResponse } from '../../api/securepay/money-snapshot';
 import { MoneyRailCeremony } from './MoneyRailCeremony';
+import { AgreementWorkProgress } from './AgreementWorkProgress';
+import { ProjectOutcomeComposer } from './ProjectOutcomeComposer';
+import { AgreementMediaEvidenceTool } from './AgreementMediaEvidenceTool';
+import { describeMoneyTruth } from './executionTruth';
 import { ensureFreshSession, type SessionStore } from '../../api/securepay/session';
 import type { PreviewWorkspaceGateways } from './previewWorkspaceGateways';
 
@@ -14,12 +18,14 @@ type Loaded={
 const empty=():Loaded=>({phase:'loading',detail:null,actions:null,obligations:null});
 /**
  * One task-first pane inside the approved three-column shell.
- * Backend owns participant next actions and actual evidence status. Evidence here is strictly
- * TEXT_STATEMENT; the current Agreement API cannot upload files or GPS-tagged photos.
+ * Backend owns participant next actions and actual evidence status. Written
+ * statements use the canonical API. Verified media is only available against
+ * the isolated staging media gateway, never by an ordinary production relay.
  */
-export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,onAskKs001,onOpenMoney}:{
+export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,onAskKs001,onOpenMoney,onGoCommunity}:{
  agreementId:string;gateways:PreviewWorkspaceGateways;session:SessionStore;
  onBack:()=>void;onAskKs001:(reference:string)=>Promise<void>;onOpenMoney:(detail:AgreementDetailResponse,railCode?:string)=>void;
+ onGoCommunity:()=>void;
 }){
  const identity=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
  const [record,setRecord]=useState<Loaded>(empty);
@@ -130,9 +136,21 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
             className="mt-2 min-h-11 rounded-lg border border-forest-200 px-3 text-xs font-semibold">Add written evidence & caption</button>}
       </article>)}</div>}
     </div>
+    {detail.currentVersion?.versionId&&<AgreementWorkProgress
+      key={agreementId+':'+detail.currentVersion.versionId}
+      agreementId={agreementId} versionId={detail.currentVersion.versionId}
+      obligations={record.obligations??[]} actions={actions}
+      gateways={gateways} session={session}/>}
     {selectedAction&&!uncertain&&<section aria-label="Written evidence and caption" className="space-y-3 rounded-2xl border border-forest-200 bg-white p-4" data-gate-b-evidence>
       <h3 className="text-base font-semibold">Written evidence & caption</h3>
       <p className="text-xs text-sand-700">This is a first written statement for the exact obligation and Agreement version. Replacing earlier evidence requires a separate reference to that specific evidence record, available through the authorised Progress journey. No photo or file is uploaded, and this does not mean beneficiary acceptance or completion.</p>
+      {validEvidence&&obligation&&detail.currentVersion&&gateways.media&&
+        <AgreementMediaEvidenceTool
+          key={agreementId+':'+detail.currentVersion.versionId+':'+obligation.id+':'+obligation.stateVersion}
+          agreementId={agreementId} versionId={detail.currentVersion.versionId}
+          obligation={obligation} media={gateways.media}
+          gateways={gateways} session={session}
+          onSubmitted={()=>{setSelectedAction(null);setNotice('Verified photo/document evidence submitted to SecurePay for beneficiary review. No completion or payment was claimed.');setVersion(x=>x+1);}}/>}
       {validEvidence?<><label className="block text-xs font-semibold">Describe the evidence
         <textarea rows={4} maxLength={2000} value={caption} onChange={e=>setCaption(e.target.value)}
           className="mt-2 w-full rounded-xl border border-cream-200 p-3 text-sm" placeholder="What happened, where, when, and what can the other party verify?"/></label>
@@ -152,6 +170,13 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
     {moneyState==='loading'&&<p role="status" className="rounded-xl bg-cream-50 p-3 text-xs">Checking real Agreement-version Money and eligible rails…</p>}
     {moneyState==='error'&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">Money options are not verified for the current Agreement version. No rail can be selected here; refresh or use the authorised Money journey.</p>}
     {moneyState==='ready'&&moneySnapshot&&<div data-gate-b-work-money-chooser>
+      <div data-gate5-money-truth role="status" className="mb-3 rounded-xl border border-cream-200 bg-white p-3 space-y-1">
+        <p className="text-xs font-semibold text-forest-900">{describeMoneyTruth(moneySnapshot).title}</p>
+        <p className="text-xs leading-5 text-sand-700">{describeMoneyTruth(moneySnapshot).detail}</p>
+        <p className="text-xs text-sand-600">PaymentReady: {moneySnapshot.paymentReady.state}
+          · Movement: {moneySnapshot.movement.state}
+          · Release request authority: {moneySnapshot.releaseRequest.authorityGranted?'Server says granted; separate action still required':'Not granted'}</p>
+      </div>
       <MoneyRailCeremony agreementTitle={detail.overview.title} options={moneySnapshot.fundingOptions}
         sample={false} quoteAllowed={moneySnapshot.feeQuoteRequestsPermitted}
         onProceed={railCode=>onOpenMoney(detail,railCode)}/>
@@ -163,7 +188,9 @@ export function ActiveAgreementWorkspace({agreementId,gateways,session,onBack,on
       <section className="rounded-xl border border-cream-200 bg-white p-3"><h3 className="text-sm font-semibold">Evidence record</h3>
         <p className="mt-2 text-xs text-sand-700">{detail.documents.length?detail.documents.length+' recorded item(s). Open the full Agreement to inspect them.':'No evidence documents returned in this detail projection.'}</p></section>
     </div>
-    <div className="flex gap-2 rounded-xl bg-cream-50 p-3 text-xs text-sand-700"><AlertCircle size={18} className="shrink-0"/> Photos and location-bearing files require the canonical evidence upload and verification API, which is not supplied by this Agreement gateway. No photo submitted here is represented as accepted or saved.</div>
+    <ProjectOutcomeComposer key={agreementId} agreementId={agreementId} gateways={gateways}
+      session={session} onGoCommunity={onGoCommunity}/>
+    <div className="flex gap-2 rounded-xl bg-cream-50 p-3 text-xs text-sand-700"><AlertCircle size={18} className="shrink-0"/> Media evidence is available only through the separately authorised isolated staging upload gateway. Uploads are not accepted evidence until explicitly submitted, reviewed and considered under the current Agreement version. Circle coordination and Money remain separate.</div>
   </div>}
  </section>;
 }

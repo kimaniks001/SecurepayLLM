@@ -27,5 +27,5 @@ test('True North: document failures and retries are not described as photographs
   assert.match(intake, /but could not read it/);
   assert.match(intake, /Nothing from it has been added to your work/);
   assert.match(intake, /sourceArtifactId/);
-  assert.match(intake, /Only after you press Send will SecurePay receive this file/);
+  assert.match(intake, /Only after you press Add to KS001 will SecurePay receive this file/);
 });

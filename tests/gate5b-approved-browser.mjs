@@ -31,6 +31,7 @@ try {
         await page.locator('[data-workspace-frozen-layout][data-sp-area="'+area+'"]').waitFor();
         if(title)await page.getByRole('heading',{name:title}).waitFor({state:'attached'});
         const guide=area==='vision'?page.locator('[data-true-north-vision-summary]'):
+          area==='community'?page.locator('[data-community-check]'):
           page.locator('[data-approved-gate5b-purpose="'+area+'"]');
         await guide.waitFor({state:'attached'});
         assert.equal(await guide.count(),1,'Only one living summary/purpose section per space');
@@ -41,6 +42,9 @@ try {
           assert.match(copy,/No prices, returns, jobs, loans or local people are independently verified/);
           assert.equal(await page.locator('[data-approved-gate5b-purpose="vision"]').count(),0,
             'Old restrictive Vision purpose panel must not duplicate the new living summary');
+        } else if(area==='community') {
+          assert.match(copy,/Where can I contribute/);
+          assert.match(copy,/Discover people doing useful things/);
         } else {
           assert.match(copy,/Where you are/);
           assert.match(copy,/Important boundary/);
@@ -48,11 +52,11 @@ try {
           assert.match(copy,/Opening My Work does not transfer, publish, approve or pay/);
         }
         if(area==='circle')assert.match(copy,/formal vote|governance|member/i);
-        if(area==='community')assert.match(copy,/Circle-only|Public Community/);
+        if(area==='community')assert.match(copy,/Community Check|Where can I contribute/);
         assert.equal(await page.locator('[data-workspace-shell]').count(),1,'Original three-column shell must be intact');
         if(width<768) {
           await page.screenshot({path:output+'/'+device+'-'+area+'-chat.png',fullPage:true});
-          await mobile.getByRole('button',{name:'About '+label}).click();
+          await mobile.getByRole('button',{name:area==='community'?'Community Check':'About '+label}).click();
           await guide.waitFor({state:'visible'});
         } else await guide.waitFor({state:'visible'});
         await page.screenshot({path:output+'/'+device+'-'+area+'-summary.png',fullPage:true});
@@ -69,9 +73,9 @@ try {
       assert.match(await calculator.textContent(),/Funding gap today/);
       await calculator.getByRole('button',{name:'Close'}).click();
       await nav.getByRole('button',{name:'Community',exact:true}).click();
-      if(width<768)await mobile.getByRole('button',{name:'About Community'}).click();
-      const action=page.locator('[data-approved-gate5b-purpose="community"]').getByRole('button',{name:'Open My Work'});
-      await action.click();
+      if(width<768)await mobile.getByRole('button',{name:'Community Check'}).click();
+      await page.locator('[data-community-check]').waitFor({state:'visible'});
+      await nav.getByRole('button',{name:'My Work',exact:true}).click();
       await page.locator('[data-workspace-frozen-layout][data-sp-area="work"]').waitFor();
       assert.equal(await page.locator('[data-approved-gate5b-purpose]').count(),0,
         'Purpose copy never becomes a fake Agreement record in My Work');

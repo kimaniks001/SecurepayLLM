@@ -17,12 +17,12 @@ const router=src('src/RuntimeApp.tsx');
 const entry=src('src/features/experience/entryIntent.ts');
 
 // These are source and interface CONTRACT tests, NOT real end-to-end browser certification.
-test('Phase1: selecting a photo or document is local until explicit Send',()=>{
+test('Phase1: selecting a photo or document is local until explicit Add to KS001',()=>{
   assert.doesNotMatch(source,/if\(gateway && !isDemo && tool!=='Places'\) void uploadToKs001\(file\)/);
   assert.match(source,/Selection and preview stay local/);
-  assert.match(source,/Send \{tool==='Photos'\?'photo':'document'\} to KS001/);
+  assert.match(source,/Add \{tool==='Photos'\?'photo':'document'\} to KS001/);
   assert.match(source,/onClick=\{\(\)=>void uploadToKs001\(\)\}/);
-  assert.match(source,/if\(!gateway \|\| isDemo \|\| !file \|\| uploadState==='uploading' \|\| uploadState==='unknown' \|\| uploadState==='confirmed'\)return/);
+  assert.match(source,/if\(!gateway \|\| isDemo \|\| !file \|\| uploadState==='uploading' \|\| uploadState==='reading' \|\| uploadState==='unknown' \|\| uploadState==='confirmed'\)return/);
   assert.match(source,/gateway\.uploadSource\(targetConversationId,tool==='Photos'\?'PHOTO':'DOCUMENT',file\)/);
   assert.match(source,/source\.conversationId!==targetConversationId/);
   assert.match(source,/A source is not automatically an Agreement fact or accepted evidence/);

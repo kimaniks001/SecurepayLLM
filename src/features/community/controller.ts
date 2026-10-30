@@ -622,6 +622,11 @@ export function createCommunityController(
     backToHome() { update({ view: 'home', selectedObjectId: null, selectedRealObject: null }); },
 
     openComposer() { update({ view: 'compose', draft: { ...emptyDraft, idempotencyKey: newIdempotencyKey('community-create') } }); },
+    /** Gate 3: one ordinary Community OPPORTUNITY post, not a new hiring or Agreement engine. */
+    openProjectInvitationComposer() {
+      update({ view: 'compose', draft: { ...emptyDraft, objectType: 'opportunity',
+        idempotencyKey: newIdempotencyKey('community-project-invitation') } });
+    },
     cancelComposer() { update({ view: 'home', draft: { ...emptyDraft } }); },
     setComposeType(objectType: CommunityObjectType) { update({ draft: { ...state.draft, objectType, error: null } }); },
     setComposeField(field: 'title' | 'body' | 'locationLabel', value: string) {
@@ -642,10 +647,25 @@ export function createCommunityController(
         const created = await community.create(
           backendType, title.trim(), body.trim(), locationLabel.trim() || null, idempotencyKey);
         upsertFeedObject(created);
-        update({
-          view: 'home', draft: { ...emptyDraft }, notice: 'Shared with the community.',
-          ownObjectIds: new Set([...state.ownObjectIds, created.id]),
-        });
+        if (objectType === 'opportunity') {
+          // Open the actual persisted source for deliberate KS001 examination.
+          // Publishing a post is not creating a SecureLink or selecting candidates.
+          update({
+            view:'object', draft:{...emptyDraft}, selectedObjectId:created.id,
+            selectedRealObject:created,
+            objectReplies:{status:'idle'}, objectHelp:{status:'idle'},
+            replyDraft:{...emptyReplyDraft,idempotencyKey:newIdempotencyKey('community-reply')},
+            helpIntentKey:newIdempotencyKey('community-help'),helpError:null,
+            ownObjectIds:new Set([...state.ownObjectIds,created.id]),
+            notice:'Invitation published as a proposal. Review it with KS001 before making commercial commitments.',
+          });
+          await loadObjectConversation(created.id);
+        } else {
+          update({
+            view: 'home', draft: { ...emptyDraft }, notice: 'Shared with the community.',
+            ownObjectIds: new Set([...state.ownObjectIds, created.id]),
+          });
+        }
       } catch (error) {
         update({ draft: { ...state.draft, submitting: false, error: errorText(error) } });
       }
@@ -728,17 +748,19 @@ export function createCommunityController(
     // ─── Conversation & Help (Slice 2) ─────────────────────────
 
     setReplyBody(value: string) { update({ replyDraft: { ...state.replyDraft, body: value, error: null } }); },
-    async submitReply() {
-      if (!state.selectedObjectId) return;
+    async submitReply(media: Array<{storageReference:string;caption:string|null}> = []): Promise<boolean> {
+      if (!state.selectedObjectId) return false;
       const body = state.replyDraft.body.trim();
-      if (!body) { update({ replyDraft: { ...state.replyDraft, error: 'Say something first.' } }); return; }
+      if (!body) { update({ replyDraft: { ...state.replyDraft, error: 'Say something first.' } }); return false; }
       update({ replyDraft: { ...state.replyDraft, submitting: true, error: null } });
       try {
-        await community.replies.create(state.selectedObjectId, body, state.replyDraft.idempotencyKey);
+        await community.replies.create(state.selectedObjectId, body, state.replyDraft.idempotencyKey,media);
         update({ replyDraft: { ...emptyReplyDraft, idempotencyKey: newIdempotencyKey('community-reply') } });
         await loadObjectConversation(state.selectedObjectId);
+        return true;
       } catch (error) {
         update({ replyDraft: { ...state.replyDraft, submitting: false, error: errorText(error) } });
+        return false;
       }
     },
     async withdrawReply(replyId: string) {

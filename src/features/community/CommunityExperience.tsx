@@ -4,6 +4,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { NavBar } from '../../components/NavBar';
 import { CommunityHome } from '../../components/CommunityHome';
 import { CommunityObjectDetail } from '../../components/CommunityObjectDetail';
+import { InlineCommunityMedia, attachedCommunityMedia, CommunityAttachmentView, type CommunityMediaDraft } from './InlineCommunityMedia';
 import { CommunityCreatePanel } from '../../components/CommunityCreatePanel';
 import { ErrorStateCard } from '../../components/ErrorState';
 import { StatusNotice } from '../../components/dna/StatusNotice';
@@ -1022,6 +1023,9 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
   const [reportReason, setReportReason] = useState<'SAFETY'|'HARASSMENT'|'SPAM'|'MISLEADING'|'PRIVACY'|'OTHER'>('OTHER');
   const [reportDetails, setReportDetails] = useState('');
   const [moderationBusy, setModerationBusy] = useState(false);
+  const [replyAttachments,setReplyAttachments]=useState<CommunityMediaDraft[]>([]);
+  const [replyMediaError,setReplyMediaError]=useState<string|null>(null);
+  useEffect(()=>{setReplyAttachments([]);setReplyMediaError(null);},[state.selectedObjectId]);
 
   const initialEntryId=useRef(initialCircleId??null);
   const initialObjectEntryId=useRef(initialObjectId??null);
@@ -1334,9 +1338,28 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         realReply={{
           body: state.replyDraft.body,
           submitting: state.replyDraft.submitting,
-          error: state.replyDraft.error,
+          error: replyMediaError??state.replyDraft.error,
           onBodyChange: value => controller.setReplyBody(value),
-          onSubmit: () => void controller.submitReply(),
+          mediaComposer: <InlineCommunityMedia gateway={communityGateway} items={replyAttachments}
+            onChange={next=>{setReplyAttachments(next);setReplyMediaError(null);}} limit={4}/>,
+          canSubmit: replyAttachments.every(item=>item.status==='uploaded'),
+          onSubmit: () => void (async()=>{
+            try {
+              const refs=attachedCommunityMedia(replyAttachments).map(({storageReference,caption})=>({storageReference,caption}));
+              const saved=await controller.submitReply(refs);
+              if(saved){setReplyAttachments([]);setReplyMediaError(null);}
+            } catch(error) {
+              setReplyMediaError(error instanceof Error?error.message:'Could not prepare your attachments.');
+            }
+          })(),
+        }}
+        renderReplyMedia={id=>{
+          const reply=state.objectReplies.status==='ready'
+            ?state.objectReplies.data.find(item=>item.id===id):null;
+          return reply?.media?.map(item=>
+            <CommunityAttachmentView key={item.id} gateway={communityGateway}
+              id={item.id} mediaType={item.mediaType}
+              filename={item.filename} caption={item.caption}/>)??null;
         }}
         onWithdrawReply={id => void controller.withdrawReply(id)}
       />
@@ -1371,6 +1394,10 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-sand-600">{item.description}</p>
                 <div className="mt-2 text-xs text-sand-600">{item.locationLabel ?? 'Location not yet stated'}{item.skillsNeeded.length ? ` · Needs: ${item.skillsNeeded.join(', ')}` : ''}</div>
               </button>)}
+              <button type="button" onClick={()=>controller.openProjectInvitationComposer()}
+                className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-xs font-semibold text-forest-800">
+                Have a project? Invite people to paid work or a cause
+              </button>
             </section>
 
             <section aria-label="What I joined" className="space-y-2">
@@ -1429,7 +1456,14 @@ export function CommunityExperience({ gateway, communityGateway, discoveryGatewa
         <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto px-4 md:px-6 py-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div><h2 className="font-display text-lg text-forest-800 font-medium">Projects & Activities</h2><p className="text-[0.8rem] text-sand-500">Start with an intention. Ask the Community for people and skills, then shape it into something real.</p></div>
-            <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')} className="text-[0.75rem] font-medium text-forest-600">+ Declare intention</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={()=>controller.openProjectInvitationComposer()}
+                className="min-h-11 rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white">
+                Invite people · Paid work or a cause
+              </button>
+              <button onClick={() => setPurposeCreate(purposeCreate === 'service' ? null : 'service')}
+                className="min-h-11 text-xs font-medium text-forest-600">+ Declare intention</button>
+            </div>
           </div>
           {purposeCreate === 'service' && (
             <div className="rounded-2xl border border-cream-200 bg-white px-4 py-4 space-y-2">

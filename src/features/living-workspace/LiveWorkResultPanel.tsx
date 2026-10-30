@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SignatureAgreementTitle } from '../brand/SignatureAgreementTitle';
-import type { FairTradeExaminationDto } from '../../api/securepay/agent/dto';
+import type { FairTradeExaminationDto, SelectedCommercialSourceDto } from '../../api/securepay/agent/dto';
+import { projectFairTradeGuidance, projectFairTradeDraft } from './projectFairTradeGuidance';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
 import { compactAgreementFacts, livingFactStatus, humanNextQuestion } from './livingLanguage';
@@ -28,7 +29,7 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, onPrepareFairTradeDraft }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
@@ -40,6 +41,8 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   /** Opens the existing server-derived Agreement reader in the same Living Workspace. */
   onReview?: () => void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
+  selectedSource?: SelectedCommercialSourceDto | null;
+  onPrepareFairTradeDraft?: (draft:string)=>void;
 }) {
   const [expanded,setExpanded]=useState(false);
   const [customTitle,setCustomTitle]=useState('');
@@ -50,12 +53,14 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   const [factError,setFactError]=useState<string|null>(null);
   const [editingVersion,setEditingVersion]=useState<number|null>(null);
   const [useFreeText,setUseFreeText]=useState(false);
-  useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);setEditingFact(null);setFactDraft('');setFactError(null);},[conversationId]);
+  const [projectPromptError,setProjectPromptError]=useState<string|null>(null);
+  useEffect(()=>{setCustomTitle('');setEditingTitle(false);setExpanded(false);setEditingFact(null);setFactDraft('');setFactError(null);setProjectPromptError(null);},[conversationId]);
   // A failed/stale load cannot continue presenting the previously cached
   // Agreement as the current truth. The error panel below explains how to retry.
   const formation = state?.status === 'ready' && !state.error && state.data?.conversationId === conversationId ? state.data : null;
   const fairTrade = formation && examination.status==='ready' && examination.data?.conversationId === conversationId && examination.data.tradeContextVersion === formation.version ? examination.data : null;
   const indicators = formation ? workspaceReadinessIndicators(formation, examination) : null;
+  const project = projectFairTradeGuidance(selectedSource ?? null, formation, fairTrade);
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
@@ -173,11 +178,57 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
           : <p className="mt-2 text-sm leading-6 text-sand-700">{formation.question?.text || (formation.readingSources.length?'Some supporting sources are still being read.':'No material concern has been confirmed in this draft view. This does not mean the trade has been fully examined.')}</p>}
         {formation.openPoints.length>2&&<p className="mt-1 text-xs text-sand-600">{formation.openPoints.length-2} further matters available in the detailed draft.</p>}
       </section>
+      {project && <section data-true-north-gate4-project-check
+        aria-label="Project Fair Trade discussion" className="rounded-xl border border-cream-200 bg-[#f7f9f5] p-4 space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">KS001 · Project Fair Trade</p>
+        <h3 className="break-words text-sm font-semibold text-forest-900">{project.title}</h3>
+        <p className="text-xs leading-5 text-sand-700">{project.observations}</p>
+        <p className="text-xs leading-5 text-sand-700">{project.funding}</p>
+        <p className="text-xs leading-5 text-sand-700">Expressing interest is not selection. Selecting a person is not Agreement invitation or acceptance. Fair terms, safety and lawful conditions still deserve examination.</p>
+        <p className="text-xs font-semibold text-forest-800">One question to discuss</p>
+        <p className="text-sm leading-6 text-forest-900">{project.nextQuestion}</p>
+        <p className="text-xs leading-5 text-sand-600">The question is {project.basis==='formation'
+          ?'from the current Agreement formation'
+          :project.basis==='examination'
+            ?'from the current partial Fair Trade examination'
+            :'a suggested starting point, not a finding'}.</p>
+        {onPrepareFairTradeDraft && <button type="button"
+          disabled={busy||!conversationId}
+          onClick={()=>{
+            setProjectPromptError(null);
+            try {onPrepareFairTradeDraft(projectFairTradeDraft(project.nextQuestion));}
+            catch(error){setProjectPromptError(error instanceof Error?error.message:'Could not prepare the KS001 message.');}
+          }}
+          className="min-h-11 rounded-lg bg-forest-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
+          Discuss this with KS001
+        </button>}
+        {projectPromptError&&<p role="alert" className="text-xs text-amber-900">{projectPromptError}</p>}
+      </section>}
       <details className="border-b border-cream-100 pb-3" aria-label="Fair Trade examination" data-phase2-fairtrade>
         <summary className="cursor-pointer text-sm font-semibold text-forest-900">Fair Trade <span className="font-normal text-sand-600">· {fairTrade?'Partial examination':'Awaiting examination'}</span></summary>
         {fairTrade ? <div className="mt-3 space-y-3">
           <p className="text-xs leading-5 text-sand-700">Findings from SecurePay for this conversation and exact Trade Context version {fairTrade.tradeContextVersion}. A partial examination is never a clearance.</p>
           <p className="text-xs text-sand-600">Principles source: SecurePay {fairTrade.principleSetVersion}</p>
+          {fairTrade.principleCoverage?.length===12
+            ? <details aria-label="Coverage of twelve Fair Trade principles" data-gate4-12-lens-coverage
+                className="rounded-xl border border-cream-200 bg-white p-3">
+                <summary className="cursor-pointer text-xs font-semibold text-forest-800">
+                  See all 12 principles · evidence status, not approval
+                </summary>
+                <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs text-sand-700">
+                  {fairTrade.principleCoverage.map(lens=><li key={lens.principleNumber}>
+                    <span className="font-semibold">{lens.principleTitle}</span>
+                    <span className="ml-2">{lens.state==='NOT_ASSESSED'?'Not assessed':
+                      lens.state==='NEEDS_CLARIFICATION'?'Needs clarification':
+                      lens.state==='MATERIAL_CONCERN'?'Material concern':
+                      lens.state==='NOT_APPLICABLE'?'Not applicable (evidence-based)':
+                      lens.state==='NO_MATERIAL_CONCERN_OBSERVED'?'No material concern observed in available evidence':
+                      'Assessment status unavailable'}</span>
+                  </li>)}
+                </ol>
+                <p className="mt-2 text-xs text-sand-600">These are the API's version-bound observations. No row grants approval, consent or Money authority.</p>
+              </details>
+            : <p className="text-xs text-sand-600">Complete twelve-principle coverage is not available from this API response. No unshown principle is treated as assessed.</p>}
           {fairTrade.findings.map((finding,i)=><div key={finding.principleNumber+'-'+i} className="border-t border-cream-100 pt-2">
             <p className="text-sm font-semibold">{finding.principleTitle} · {finding.state==='MATERIAL_CONCERN'?'Material concern':'Needs clarification'}</p>
             <p className="mt-1 text-xs leading-5 text-sand-700">{finding.explanation}</p>

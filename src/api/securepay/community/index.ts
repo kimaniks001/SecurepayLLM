@@ -6,7 +6,7 @@ import type {
   CommunityEventDto, CommunityProjectDto, CommunityServiceOpportunityDto, CommunityMutedMemberDto, CommunityObjectReportDto, CommunityReportReason, CommunityReportStatus,
   CommunityTransitionIntentDto, CommunityVisionTransitionDto, CommunityKnowledgeCandidateDto,
   CommunityHelpResponseView, CommunityObjectResponse, CommunityReplyResponse,
-  FairTradePrincipleResponse, MembershipResponse,
+  FairTradePrincipleResponse, MembershipResponse, CommunityMediaReceipt,
   CreateProjectContributionInput, ProjectContributionDto, ProjectContributionInterestDto,
   ProjectContributionInterestIntent, CommunityImpactViewDto,
   TrustProjectPathwayDiscoveryInput, TrustProjectPathwayDiscoveryResultDto,
@@ -29,6 +29,21 @@ export function createCommunityGateway(http: HttpClient) {
   const obj = (id: string) => `/api/v1/community/objects/${segment(id)}`;
   const circle = (id: string) => `/api/v1/community/circles/${segment(id)}`;
   return {
+    /** Gate 1.1: Community-only uploads; never import a private KS001/evidence URL. */
+    media: {
+      upload: (file: File, key: string): Promise<CommunityMediaReceipt> => {
+        const payload = new FormData();
+        payload.append('file', file, file.name);
+        return http.request<CommunityMediaReceipt>('/api/v1/community/media', {
+          method: 'POST', body: payload, auth: 'required', headers: {'Idempotency-Key': key},
+          timeoutMs: 30000,
+        });
+      },
+      content: (id: string) => http.request<Blob>(
+        `/api/v1/community/media/${segment(id)}/content`,
+        {auth:'required',responseKind:'blob'},
+      ),
+    },
     create: (objectType: string, title: string, body: string, locationLabel: string | null, idempotencyKey: string) =>
       http.request<CommunityObjectResponse>('/api/v1/community/objects', {
         method: 'POST',
@@ -108,9 +123,10 @@ export function createCommunityGateway(http: HttpClient) {
 
     // Conversation & Help (Slice 2)
     replies: {
-      create: (objectId: string, body: string, idempotencyKey: string) =>
+      create: (objectId: string, body: string, idempotencyKey: string,
+          media: Array<{storageReference:string;caption:string|null}> = []) =>
         http.request<CommunityReplyResponse>(`${obj(objectId)}/replies`, {
-          method: 'POST', body: { body }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
+          method: 'POST', body: { body, media }, auth: 'required', headers: { 'Idempotency-Key': idempotencyKey },
         }),
       list: (objectId: string, limit = 50, offset = 0) =>
         http.request<CommunityReplyResponse[]>(`${obj(objectId)}/replies?limit=${limit}&offset=${offset}`, { auth: 'required' }),

@@ -17,8 +17,8 @@ test('final usability: a narrow phone can navigate all four places without widen
   assert.match(browser,/Horizontal overflow at/);
 });
 test('final usability: summary tab truthfully names the current area, not always My Work', () => {
-  assert.match(shell,/mode==='work'\?'Your Work':'About '\+areaLabels\[mode\]/);
-  assert.match(browser,/mobile\.getByRole\('button',\{name:'About '\+label\}\)/);
+  assert.match(shell,/mode==='work'\?'Your Work':mode==='community'\?'Community Check':'About '\+areaLabels\[mode\]/);
+  assert.match(browser,/area==='community'\?'Community Check':'About '\+label/);
   assert.match(guide,/onClick=\{onContinueToWork\}/);
   assert.match(guide,/Opening My Work does not transfer, publish, approve or pay/);
 });

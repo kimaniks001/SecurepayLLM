@@ -1,0 +1,10 @@
+{
+  "schema": "securepay-master-convergence-gate4-v1",
+  "environment": "ISOLATED_DISPOSABLE",
+  "productionChanged": false,
+  "financialExecutionDisabled": true,
+  "uiSha": "",
+  "apiSha": "",
+  "note": "Default NO_GO. No real two-account, Java/Postgres, Money safeguards or signed-in mobile certification yet.",
+  "checks": {}
+}

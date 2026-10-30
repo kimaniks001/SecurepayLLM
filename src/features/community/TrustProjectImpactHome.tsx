@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { InlineCommunityMedia, attachedCommunityMedia, CommunityAttachmentView, type CommunityMediaDraft } from './InlineCommunityMedia';
 import type { CommunityGateway } from '../../api/securepay/community';
 import { TrustProjectCapabilityPanel } from './TrustProjectCapabilityPanel';
 import type {
@@ -47,6 +48,8 @@ export function TrustProjectImpactHome({
   const [title,setTitle]=useState('');
   const [body,setBody]=useState('');
   const [submitting,setSubmitting]=useState(false);
+  const [attachments,setAttachments]=useState<CommunityMediaDraft[]>([]);
+  const publishKey=useRef<string|null>(null);
   const [interestNotice,setInterestNotice]=useState<string|null>(null);
   const [assets,setAssets]=useState('');
   const [destination,setDestination]=useState('');
@@ -92,6 +95,8 @@ export function TrustProjectImpactHome({
     if(!storyProjectId||!safeShareConfirmed||!title.trim()||!body.trim()) return;
     setSubmitting(true); setError(null);
     try {
+      const media=attachedCommunityMedia(attachments);
+      if(!publishKey.current) publishKey.current=crypto.randomUUID();
       const created=await gateway.contributions.create({
         storeBusinessKsNumber:null,
         circleId:null,
@@ -101,11 +106,12 @@ export function TrustProjectImpactHome({
         originType:'COMMUNITY_PROJECT',
         originObjectId:storyProjectId,
         explicitSafeShare:true,
-        idempotencyKey:globalThis.crypto?.randomUUID?.() ?? `contribution-${Date.now()}`,
-        media:[],
+        idempotencyKey:publishKey.current,
+        media,
       });
       setContributions(items=>[created,...items]);
-      setTitle(''); setBody(''); setType('EXPERIENCE'); setSafeShareConfirmed(false); setComposerOpen(false);
+      setTitle(''); setBody(''); setType('EXPERIENCE'); setSafeShareConfirmed(false);
+      setAttachments([]); publishKey.current=null; setComposerOpen(false);
     } catch(e) { setError(e instanceof Error ? e.message : 'Contribution could not be published.'); }
     finally { setSubmitting(false); }
   };
@@ -182,11 +188,14 @@ export function TrustProjectImpactHome({
         </select>
         <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Give this moment a clear title" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
         <textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} placeholder="What happened? What did people see, learn, change or struggle with?" className="w-full rounded-xl border border-cream-200 px-3 py-2 text-[0.82rem]" />
+        <InlineCommunityMedia gateway={gateway} items={attachments} onChange={next=>{
+          setAttachments(next);publishKey.current=null;
+        }} limit={8}/>
         <label className="flex items-start gap-2 rounded-xl border border-cream-200 bg-white px-3 py-2.5 text-[0.72rem] text-sand-600">
           <input type="checkbox" checked={safeShareConfirmed} onChange={e=>setSafeShareConfirmed(e.target.checked)} className="mt-0.5" />
           <span>I am choosing to share this Project story with Community. Private Agreement and payment details must stay out of the post.</span>
         </label>
-        <button disabled={submitting||!storyProjectId||!safeShareConfirmed||!title.trim()||!body.trim()} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Add to this Project story'}</button>
+        <button disabled={submitting||!storyProjectId||!safeShareConfirmed||!title.trim()||!body.trim()||attachments.some(x=>x.status!=='uploaded')} onClick={()=>void submitContribution()} className="w-full rounded-xl bg-forest-600 text-cream-50 py-2.5 text-[0.8rem] font-medium disabled:opacity-50">{submitting?'Publishing…':'Add to this Project story'}</button>
         <p className="text-[0.68rem] text-sand-500">This story is linked to the Project, not to private Agreement or payment data.</p>
       </div>}
     </div>
@@ -200,7 +209,13 @@ export function TrustProjectImpactHome({
         <div className="flex items-center justify-between gap-3"><span className="text-[0.66rem] uppercase tracking-wide text-sand-500">{item.contributionType.replace(/_/g, ' ')}</span><span className="text-[0.68rem] text-sand-400">{item.authorKind==='STORE'?'Store':'Member'}</span></div>
         <h3 className="font-display text-[1rem] text-forest-800 mt-1">{item.title}</h3>
         <p className="text-[0.8rem] text-sand-700 mt-1.5 whitespace-pre-line">{item.body}</p>
-        {item.media.length>0 && <p className="text-[0.68rem] text-sand-500 mt-2">{item.media.length} media item{item.media.length===1?'':'s'}</p>}
+        {item.media.filter(file=>file.storageReference.startsWith('community-media:')).map(file=>
+          <CommunityAttachmentView key={file.id} gateway={gateway}
+            id={file.storageReference.slice('community-media:'.length)}
+            filename={file.mediaType==='IMAGE'?'Community photo':'Community document'}
+            caption={file.caption} mediaType={file.mediaType==='IMAGE'?'IMAGE':'DOCUMENT'}/>)}
+        {item.media.some(file=>!file.storageReference.startsWith('community-media:'))&&
+          <p className="text-xs text-sand-600">Some earlier attachments need a verified viewer.</p>}
         <div className="mt-3 flex flex-wrap gap-2">{interestLabels.map(([intent,label])=>
           <button key={intent} onClick={()=>void express(item.id,intent,label)} className="rounded-full border border-cream-200 px-3 py-1.5 text-[0.7rem] text-forest-600 hover:border-forest-300">{label}</button>)}
           <button onClick={()=>void addToVision(item.id)} className="rounded-full border border-forest-200 px-3 py-1.5 text-[0.7rem] text-forest-700">Add to Vision</button>

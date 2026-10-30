@@ -1,4 +1,5 @@
 import { InlineCommunityHub } from './InlineCommunityHub';
+import { CommunityCheckPanel } from './CommunityCheckPanel';
 import { UniversalSourceTray, type LocalSourceProposal } from './UniversalSourceTray';
 import { DateTimeTool } from './DateTimeTool';
 import { InlineVisionEditor } from './InlineVisionEditor';
@@ -486,7 +487,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
             gateways={workspaceGateways} session={session} onBack={backToWorkspace}
-             onContinueToWork={continueCircleToWork}/>
+             onContinueToWork={continueCircleToWork}
+             onOpenMyWork={()=>{setWorkingCircleId(null);chooseMode('work');}}/>
         </div>
       : <div className="mx-auto flex max-w-[1550px] min-h-0 gap-3 px-3 py-3 sm:px-5 sm:py-5 md:h-[calc(100dvh-170px)] md:overflow-hidden" data-workspace-shell>
       <nav aria-label="Workspace tool rail" data-tool-rail className="hidden w-[62px] shrink-0 flex-col items-center gap-1 rounded-2xl border border-cream-200 bg-white/95 p-1.5 shadow-sm xl:flex">
@@ -769,7 +771,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <ActiveAgreementWorkspace key={openedAgreementId} agreementId={openedAgreementId} gateways={workspaceGateways}
             session={session} onBack={()=>setOpenedAgreementId(null)}
-            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}/>}
+            onAskKs001={askKs001FromAgreement} onOpenMoney={openActiveAgreementMoney}
+            onGoCommunity={()=>{setOpenedAgreementId(null);chooseMode('community');}}/>}
         {mode==='vision' && !editingDreamId && <TrueNorthVisionChat journey={visionNorth} onAdd={name=>openTool(name)}/>}
         {signedIn && !mockSignedIn && workspaceGateways && mode==='vision' && editingDreamId &&
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5" data-gate-b-vision-inside-masterpiece>
@@ -791,6 +794,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
+            onPlanWithKs001={continueCircleToWork}
             onSignIn={()=>setSignInOpen(true)}
             onOpenFull={()=>{window.location.hash='#/community';}}
             onOpenCircle={circleId=>{
@@ -855,7 +859,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
           onConnectMoney={()=>openTool('Money')}
           onSignIn={()=>openIdentity('signin')}/>}
-        {mode!=='work' && mode!=='vision' && <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode==='community' && <CommunityCheckPanel
+          gateways={workspaceGateways} session={session} signedIn={signedIn}
+          previewOnly={!signedIn} onSignIn={()=>setSignInOpen(true)}
+          onOpenCommunity={()=>{window.location.hash='#/community';}}
+          onOpenCommunityPost={objectId=>{
+            storeCommunityObjectEntry(objectId);
+            window.location.hash='#/community';
+          }}
+          onExploreCircle={circleId=>{
+            storeCircleEntry(circleId);
+            window.location.hash='#/community';
+          }}/>}
+        {mode!=='work' && mode!=='vision' && mode!=='community' &&
+          <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
             gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
@@ -878,6 +895,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           : mode==='work' && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
+          selectedSource={liveState?.source??null}
+          onPrepareFairTradeDraft={message=>{
+            if(!liveConversationId || !liveController || liveBusy || livePending)
+              throw new Error('Finish the current KS001 action before preparing another question.');
+            // Never overwrite a person's existing unsent chat. This merely
+            // prepares a visible draft in the SAME authorised conversation.
+            if(readDraft(liveConversationId).trim())
+              throw new Error('Your current message is unsent. Finish or clear it before preparing this question.');
+            writeDraft(liveConversationId,message);
+            setDraftRevision(value=>value+1);
+            setScreen('chat');
+          }}
           onAddToFact={openFactSourcePicker}
           onOpenPeople={()=>openTool('People & Invitations')}
           onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
@@ -911,7 +940,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
     {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
       aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
