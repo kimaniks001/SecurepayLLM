@@ -65,6 +65,12 @@ export interface AgentState {
    */
   communitySourceSelectionFailure: { fact: CommunitySourceFact; error: string; actionId: string } | null;
   /**
+   * C6: source selection succeeded, but its separate KS001 assistant
+   * continuation is not confirmed. Keep the ORIGINAL action ID for idempotent
+   * replay; never mislabel this as a failed Store/Community selection.
+   */
+  sourceContinuationPending: { actionId: string; error: string } | null;
+  /**
    * KS001 Upgrade Phase 1 final integration fix -- DISCOVERY OFFERED: every real, server-verified entity
    * id KS001 has offered to help find so far this session (via a DISCOVERY_OFFER response component).
    * Session-local presentation state ONLY, never DISCOVERY INVITED -- the person's own explicit
@@ -214,7 +220,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
    * never discarded: it runs as soon as the controller is idle again. Reads only; writes are never queued.
    */
   let reconcileDeferred = false;
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], outcomeUnknown: false };
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, sourceContinuationPending: null, offeredDiscoveryEntityIds: [], outcomeUnknown: false };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => {
     state = { ...state, ...patch };
@@ -369,7 +375,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, sourceContinuationPending: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       let turns: Turn[] = [];
       try {
         const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
@@ -381,12 +387,25 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       await readContext();
     },
     async send(text: string) {
-      if (state.busy || state.pending || !text.trim()) return;
+      if (state.busy || state.pending || state.sourceContinuationPending || !text.trim()) return;
       const clientTurnId = id();
       update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: text.trim() }] });
       await run({ kind: 'turn', body: withZone({ message: text.trim(), clientTurnId }) });
     },
     async retry() { if (!state.busy && state.pending) await run(state.pending); },
+    async retrySourceContinuation() {
+      const waiting = state.sourceContinuationPending;
+      if (!waiting || state.busy || state.pending) return;
+      update({ busy: true });
+      try { await continueAfterSourceSelection(waiting.actionId); }
+      finally { update({ busy: false }); }
+    },
+    continueWithoutSourceReply() {
+      if (state.busy || state.pending) return;
+      // Selection/provenance already succeeded; this only dismisses a missing
+      // assistant reply, without deleting the source or creating a human turn.
+      update({ sourceContinuationPending: null, error: null });
+    },
     /**
      * Phase 1 Interaction Instruments. An instrument finishes by saying ONE ordinary sentence to
      * the real Agent -- exactly the authority of the person typing it. It appears in the
@@ -403,7 +422,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async sendStatement(text: string): Promise<{ ok: true; context: ContextView | null } | { ok: false; error: string }> {
       const statement = text.trim();
-      if (state.busy || state.pending || !statement) return { ok: false, error: 'SecurePay is still working on the previous step.' };
+      if (state.busy || state.pending || state.sourceContinuationPending || !statement) return { ok: false, error: 'Finish or skip the pending KS001 source reply first.' };
       const clientTurnId = id();
       update({ turns: [...state.turns, { id: clientTurnId, sender: 'user', text: statement }] });
       const ok = await run({ kind: 'turn', body: withZone({ message: statement, clientTurnId }) });
@@ -649,14 +668,28 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
    * a duplicate distinct one. Best-effort: if this quiet continuation fails, the source is already
    * genuinely selected regardless, and the person can simply start describing the trade themselves.
    */
-  async function continueAfterSourceSelection(actionId: string): Promise<void> {
-    if (!state.conversationId) return;
+  async function continueAfterSourceSelection(actionId: string): Promise<boolean> {
+    if (!state.conversationId) return false;
     try {
       const response = agentResponseView(await gateway.continueAfterSourceSelection(state.conversationId, actionId));
-      update({ turns: [...state.turns, { id: id(), sender: 'agent', response }] });
+      // The C6 backend now returns the EXACT persisted replyId also used in
+      // /history. Never use a fresh local id here: retries must deduplicate.
+      if (!response.replyId) throw new Error('Source reply has no durable identity');
+      const turns = state.turns.some(turn => turn.id === response.replyId)
+        ? state.turns
+        : [...state.turns, { id: response.replyId, sender: 'agent' as const, response }];
+      update({ turns, sourceContinuationPending: null, error: null });
       await readContext();
+      return true;
     } catch {
-      // Best-effort only -- see this function's own doctrine above.
+      update({
+        sourceContinuationPending: {
+          actionId,
+          error: 'The source was linked, but KS001’s reply was not confirmed. Retry it safely or continue without that reply.',
+        },
+        error: null,
+      });
+      return false;
     }
   }
 

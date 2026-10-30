@@ -52,7 +52,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
   const historyEnd=useRef<HTMLDivElement|null>(null);
   const lastTurn=state.turns[state.turns.length-1]?.id;
   useEffect(()=>{historyEnd.current?.scrollIntoView({block:'end',behavior:'smooth'});},[lastTurn]);
-  const canSend = !state.busy && !state.pending && !!draft.trim();
+  const canSend = !state.busy && !state.pending && !state.sourceContinuationPending && !!draft.trim();
   return <section aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
       {state.turns.length===0 && !state.conversationId && !draft.trim() && <WorkspaceWelcome area="work" onExample={value=>{
@@ -69,11 +69,18 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         {turn.sender==='user'?turn.text:<Ks001Reply text={turn.response.message.text} nextQuestion={turn.id===lastTurn&&!state.busy&&!state.pending?nextQuestion:null}/>}
       </div>)}
       {state.busy && <p role="status" className="text-sm text-sand-700">KS001 is working on your message…</p>}
-      {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
+      {state.sourceContinuationPending && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+        <p className="text-sm">{state.sourceContinuationPending.error}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" disabled={state.busy} onClick={()=>void controller.retrySourceContinuation()} className="min-h-11 rounded-lg border border-amber-400 bg-white px-3 text-xs font-medium disabled:opacity-50">Retry KS001 reply</button>
+          <button type="button" disabled={state.busy} onClick={()=>controller.continueWithoutSourceReply()} className="min-h-11 rounded-lg px-3 text-xs font-medium underline disabled:opacity-50">Continue without that reply</button>
+        </div>
+      </div>}
+      {state.error && !state.sourceContinuationPending && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       <div ref={historyEnd} aria-hidden="true"/>
       {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
     </div>
-    {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
+    {state.turns.length>0&&!state.busy&&!state.pending&&!state.sourceContinuationPending&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
@@ -90,7 +97,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
               return;
             }
             if(action.type==='focus'){document.getElementById('live-work-ks001-input')?.focus();return;}
-            if(state.busy||state.pending)return;
+            if(state.busy||state.pending||state.sourceContinuationPending)return;
             if(action.type==='local-day'){
               const date=new Date(); date.setDate(date.getDate()+action.days);
               const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
@@ -106,7 +113,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='time'?'What time?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
-          if(state.busy||state.pending)throw new Error('Previous turn not finished');
+          if(state.busy||state.pending||state.sourceContinuationPending)throw new Error('Resolve the pending KS001 source reply first');
           const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
           await controller.send(answer);
           const latest=controller.getSnapshot();
@@ -115,7 +122,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         }}/>
     </div>}
     <form className="shrink-0 flex gap-2 border-t border-cream-200 bg-white p-3" onSubmit={e=>{
-      e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending)return;
+      e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending||state.sourceContinuationPending)return;
       void (async()=>{await controller.send(next);const current=controller.getSnapshot();
         if(!current.error&&!current.pending){
           setDraft(text=>text.trim()===next?'':text);
@@ -124,7 +131,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       })();
     }}>
       <label htmlFor="live-work-ks001-input" className="sr-only">Message live KS001</label>
-      <input id="live-work-ks001-input" value={draft} onChange={e=>{setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
+      <input id="live-work-ks001-input" value={draft} onChange={e=>{setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending||!!state.sourceContinuationPending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
       <button type="submit" disabled={!canSend} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-50">Send</button>
     </form>
   </section>;

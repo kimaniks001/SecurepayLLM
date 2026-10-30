@@ -23,9 +23,11 @@ function communitySelectionDto(overrides = {}) {
     originatingKsNumber: null, selectedAt: '2026-09-25T00:00:00Z', ...overrides,
   };
 }
-function agentResponseFixture(text) {
+function agentResponseFixture(text, replyId = 'reply-fixture-1') {
+  // C6: the real API replies with the canonical persisted assistant reply ID.
+  // An older reply without this ID must be treated as unconfirmed by the UI.
   return {
-    protocolVersion: '1', message: text, contextUpdates: [], components: [],
+    protocolVersion: '1', message: text, replyId, contextUpdates: [], components: [],
     contextualPanel: null, suggestedActions: [],
   };
 }
@@ -155,7 +157,7 @@ test('a second "Use this" mid-conversation calls the continuation again -- a bou
   const gateway = {
     createConversation: async () => ({ conversationId: 'c1' }),
     selectCommercialSource: async () => communitySelectionDto(),
-    continueAfterSourceSelection: async (id, actionId) => { continuationCalls.push(actionId); return agentResponseFixture('ok'); },
+    continueAfterSourceSelection: async (id, actionId) => { continuationCalls.push(actionId); return agentResponseFixture('ok', 'reply-' + actionId); },
     readContext: async id => ({ conversationId: id, version: 1, entities: [], relationships: [] }),
   };
   const controller = api.agentController.createAgentController(gateway);
