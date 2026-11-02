@@ -9,6 +9,7 @@ import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { WorkspaceIdentityOverlay } from './WorkspaceIdentityOverlay';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
+import { beginNewWork, returnToSavedWork, type WorkNavigationServices } from './workNavigation';
 import { AgreementDiscovery } from './AgreementDiscovery';
 import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
 import { SelectedWorkspaceRecord } from './SelectedWorkspaceRecord';
@@ -178,6 +179,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [liveController] = useState(() => gateway ? createAgentController(gateway, undefined, { timeZone: deviceTimeZone }) : null);
   const [returnError,setReturnError] = useState<string|null>(null);
   const [draftRevision,setDraftRevision]=useState(0);
+  const [showSavedWork,setShowSavedWork]=useState(false);
+  const [workActionBusy,setWorkActionBusy]=useState(false);
+  const workActionLock=useRef(false);
   useEffect(()=>{
     const moneyHint=consumeWorkspaceMoneyReturn();
     const fromKs001=consumeLivingWorkspaceEntry();
@@ -379,13 +383,39 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       storeKs001ConversationReturn(snapshot.conversationId);
     return true;
   };
+  const workServices=():WorkNavigationServices=>{
+    if(!signedIn || !gateway || !liveController || !workspaceGateways)
+      throw new Error('Sign in to save and switch your SecurePay work.');
+    return {
+      gateway, controller:liveController,
+      ensureIdentity:()=>ensureFreshSession(session,workspaceGateways.auth),
+      unsentDraft:readDraft,
+    };
+  };
+  const startNewWork=async()=>{
+    if(workActionLock.current)return;
+    workActionLock.current=true;setWorkActionBusy(true);setReturnError(null);
+    try {
+      await beginNewWork(workServices());
+      setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
+      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setDraftRevision(n=>n+1);
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not save and start new work.');
+    }finally{workActionLock.current=false;setWorkActionBusy(false);}
+  };
   const continueSavedConversation = async(conversationId:string)=>{
-    if(!liveController)throw new Error('KS001 conversation service is not available');
-    if(liveController.getSnapshot().busy || liveController.getSnapshot().pending) {
-      throw new Error('Finish the current KS001 turn before switching conversations');
-    }
-    chooseMode('work');setLiveStarted(true);setLiveWork(true);
-    await liveController.resumeConversation(conversationId);
+    if(workActionLock.current)throw new Error('A work change is already in progress.');
+    workActionLock.current=true;setWorkActionBusy(true);setReturnError(null);
+    try{
+      await returnToSavedWork(workServices(),conversationId);
+      chooseMode('work');setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
+      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setDraftRevision(n=>n+1);
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not restore that conversation.');
+      throw error;
+    }finally{workActionLock.current=false;setWorkActionBusy(false);}
   };
   const askKs001FromAgreement = async(reference:string)=>{
     if(!signedIn || !gateway || !liveController)throw new Error('Sign in to ask KS001.');
@@ -479,6 +509,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               <button type="button" onClick={()=>openIdentity('signup')} data-gate-d-get-ks-number
                 className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">Get KS Number</button></>
             : signedIn ? <span className="rounded-full bg-[#eaf2e9] px-3 py-2 text-xs font-medium text-forest-800">Your SecurePay workspace</span> : null}
+          {mode==='work' && signedIn && gateway && workspaceGateways &&
+            <button type="button" data-day4-new-work disabled={workActionBusy} onClick={()=>void startNewWork()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white disabled:opacity-50">
+              <Plus size={16} aria-hidden="true"/>{workActionBusy?'Saving work…':'New Work'}
+            </button>}
           <a className="inline-flex min-h-11 items-center gap-2 text-sm underline" href="#/" onClick={event=>{if(!returnToKs001())event.preventDefault();}}><ArrowLeft size={15}/> SecurePay</a>
         </div>
       </div>
@@ -739,7 +774,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       </>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
+            onClick={()=>{setShowSavedWork(true);setScreen('result');}}
+            className="inline-flex min-h-11 items-center rounded-xl border border-cream-200 px-3 text-sm font-semibold disabled:opacity-50">Saved Work</button>}
+          {mode==='work' && <button type="button" data-day4-mobile-agreement onClick={()=>{setShowSavedWork(false);setScreen('result');}}
+            className="inline-flex min-h-11 items-center rounded-xl bg-cream-100 px-3 text-sm font-semibold md:hidden">Agreement</button>}
+          {(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!openedAgreementId && !createdAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
@@ -873,6 +913,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           }}/>}
         {mode!=='work' && mode!=='vision' && mode!=='community' &&
           <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
+        {mode==='work' && showSavedWork && signedIn && workspaceGateways &&
+          <div className="mt-3" data-day4-saved-work-list><WorkspaceContinuityPanel area="work"
+            gateways={workspaceGateways} showEstablishedAgreements={false} session={session}
+            onSignIn={()=>openIdentity('signin')} onResume={continueSavedConversation}/></div>}
         {mode==='work' && openedAgreementId && signedIn && workspaceGateways &&
           <SelectedWorkspaceRecord key={openedAgreementId} area="work" id={openedAgreementId}
             gateways={workspaceGateways} session={session} onClose={()=>setOpenedAgreementId(null)}/>}
@@ -892,7 +936,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
-          : mode==='work' && !openedAgreementId && liveWork?<LiveWorkResultPanel
+          : mode==='work' && !showSavedWork && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           selectedSource={liveState?.source??null}
@@ -924,12 +968,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work' && !openedAgreementId
+        />:mode==='work' && !showSavedWork && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
           : null}
-        {mode==='work' && signedIn && !liveConversationId && <div className="mt-4">
+        {mode==='work' && signedIn && !showSavedWork && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={false}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
@@ -940,7 +984,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 </div>
       </aside>
     </div>}
-    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Your Work':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():setScreen(id)} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
+    {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Agreement':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():(id==='result'&&setShowSavedWork(false),setScreen(id))} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
     {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
       aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
