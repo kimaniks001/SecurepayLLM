@@ -1989,3 +1989,19 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## Day 4 Living Workspace continuity repair — 2 November 2026
+
+Owner-observed issues: a mobile tester could not find the Agreement view; two testers could not initiate a second Agreement without signing out; a developing Agreement did not appear in the formal My Agreements list.
+
+| Experience | Classification | Implementation / outstanding certification |
+| --- | --- | --- |
+| Mobile Chat / Agreement navigation | FRONTEND_COMPOSITION_ONLY | The existing bottom panel explicitly says **Agreement** in My Work and the conversation toolbar provides an Agreement action on small screens. The same canonical right-hand Check remains the reader; no new Agreement state is fabricated. |
+| New Work without sign-out | REAL_API_WIRED | Reuses the canonical createConversation endpoint, but first requires confirmed saveBuild of any existing conversation, and blocks while a turn is pending or unsent composer text exists. Failure stays with the current conversation, with a recoverable error. An empty new server conversation is not a formal Agreement. |
+| Saved-work switch while another conversation is active | REAL_API_WIRED | Existing WorkspaceContinuityPanel and server-owner-scoped savedBuilds/resumeSavedBuild are now reachable while an active conversation is open. Identity, conversation context and saved pointers remain server authoritative; the client does not copy prior Trade Context into a new conversation. |
+| Formal My Agreements | REAL_API_WIRED | The existing AgreementDiscovery remains the canonical list, separate from KS001 saved conversation builds. **Saved** does not mean signed or accepted. |
+| Protected Vercel staging save-before-switch | HUMAN_DOCTRINE_BLOCKER | The existing preview-agent relay rejects POST /api/agent/conversations/:id/saved-build; the Gate 3 write allowlist intentionally forbids expanding privileged staging writes. Do not claim this path certified until a separately reviewed, isolated staging transport explicitly permits the existing authenticated backend operation, without opening production writes. |
+| Day 4 real-device certification | HUMAN_DOCTRINE_BLOCKER | Source/test additions are not evidence of a successful authenticated owner journey; verify iOS/Android mobile breakpoints, refresh and resumption, unsent drafts, cross-account isolation, and no Money side effects in isolated staging before any release decision. |
+
+This repair intentionally leaves SecurePayAPI, the preview proxy allowlists, production deployment and financial execution unchanged.
