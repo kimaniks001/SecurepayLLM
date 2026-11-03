@@ -1,3 +1,14 @@
+/**
+ * Gate 4: self-scoped pointer to a buyer's genuine SAVED KS001 work.
+ * A pointer is not a conversation token or Agreement authority.
+ */
+export interface SavedStoreEnquiryWorkDto {
+  enquiryId: string;
+  conversationId: string;
+  savedBuildId: string;
+  savedAt: string;
+}
+
 // Day 5 Gate 2: user-consented customer->merchant connections.
 // None of these statuses is an order, accepted quotation or Agreement.
 export interface StoreFavouriteDto {
