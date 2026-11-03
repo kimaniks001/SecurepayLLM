@@ -33,7 +33,7 @@ export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAd
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-lg text-forest-800 font-medium">{store.name}</h1>
+                <h1 className="font-display text-lg text-forest-800 font-medium">{digitalAddress?.storeName ?? store.name}</h1>
                 {store.verified && <BadgeCheck className="w-4 h-4 text-forest-500" />}
               </div>
               <div className="text-[0.78rem] text-sand-500 mt-0.5">Operated by {store.operator}</div>
