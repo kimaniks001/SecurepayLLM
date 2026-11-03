@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "uiSha": "0000000000000000000000000000000000000000",
+    "apiSha": "0000000000000000000000000000000000000000",
+    "stagingUrl": ""
+  },
+  "safety": {
+    "isolatedDatabase": false,
+    "productionUnchanged": false,
+    "financialExecutionDisabled": false,
+    "rollbackAvailable": false,
+    "productionCredentialsNotReused": false
+  },
+  "checks": {
+    "gate1.public_store_offer": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate1.store_deep_link": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate1.gps_privacy": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate2.real_buyer_enquiry": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate2.seller_inbox_reply": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate2.duplicate_enquiry_replay": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate3.source_and_offer_provenance": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate3.original_quantity_terms_retain": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate3.changed_offer_fail_closed": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate3.canonical_agreement_review": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.customer_saved_work_other_phone": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.seller_reply_draft_other_phone": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.concurrent_draft_version_409": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.in_app_notifications": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.locked_phone_delivery": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.business_representative_delivery": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.identity_change_isolation": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate4.foreground_resume": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.full_java_compile": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.sequential_flyway_postgresql": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.junit_doctrine_integration": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.frontend_typecheck_build_lint": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.frontend_full_regression": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.two_real_ks_identities": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.ios_android_browser": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.day4_work_continuity_preserved": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.fault_injection_retry_rollback": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.financial_execution_disabled": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    },
+    "gate5.production_unmodified": {
+      "status": "NOT_RUN",
+      "evidenceRef": "",
+      "observedAt": null,
+      "uiSha": null,
+      "apiSha": null
+    }
+  }
+}
