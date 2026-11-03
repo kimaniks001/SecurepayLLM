@@ -28,3 +28,15 @@ export function parseDigitalStoreAddressRoute(hash: string): string | null {
   const match = /^#\/s\/([a-z0-9][a-z0-9-]{1,46}[a-z0-9])$/.exec(hash);
   return match ? match[1] : null;
 }
+
+/**
+ * Gate 4: notification deep-link to an actual self-scoped enquiry. No token,
+ * contact details or secret travels in the URL. The role is only a display
+ * hint; server-side authentication and (Business) representation decide reads.
+ */
+export function parseStoreEnquiryRoute(hash: string): { enquiryId: string; audience: 'buyer' | 'trader' } | null {
+  const match = /^#\/store\/enquiry\/([0-9a-f-]{36})\/(buyer|trader)$/.exec(hash);
+  if (!match || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(match[1]))
+    return null;
+  return { enquiryId: match[1], audience: match[2] as 'buyer' | 'trader' };
+}
