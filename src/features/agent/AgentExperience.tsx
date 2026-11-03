@@ -1067,18 +1067,34 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
             setNotice('Sign in as the buyer to reopen Saved Work.');
             return;
           }
-          // The Store endpoint verified a saved pointer, not permission to read
-          // it. The Living Workspace must independently recheck the current
-          // session against the same canonical saved conversation.
-          if (state.conversationId && readDraft(state.conversationId).trim()) {
-            window.alert('Finish or copy your unsent KS001 message before reopening other work.');
+          if (state.busy || state.pending) {
+            setNotice('Finish or retry the current KS001 action before reopening other work.');
             return;
           }
-          if (state.conversationId && meaningfulWork && unsavedWork
-              && !window.confirm('This conversation has unsaved work. Return to your saved Store enquiry without saving these changes?'))
+          // This route carries only a server-owned pointer. It is NOT a read
+          // capability, and must not silently discard a different conversation.
+          if (readDraft(state.conversationId ?? undefined).trim()) {
+            setNotice('Send or clear your unsent KS001 message before switching work.');
             return;
-          storeLivingWorkspaceEntry(conversationId);
-          window.location.hash = '#/preview/living-workspace/work';
+          }
+          const previousId = state.conversationId;
+          void (async () => {
+            if (previousId && previousId !== conversationId) {
+              // Day 4 doctrine: preserve previous work before opening another.
+              // If claim/save fails, stay here and keep the original context.
+              const saved = await gateway.saveBuild(previousId);
+              if (saved.conversationId !== previousId || !saved.savedBuildId)
+                throw new Error('SecurePay did not confirm your previous work was saved.');
+            }
+            if (session.getSnapshot().status !== 'signed-in')
+              throw new Error('Sign in again before opening saved work.');
+            // The receiving approved Living Workspace independently rechecks
+            // conversation ownership and re-reads source, enquiry and history.
+            storeLivingWorkspaceEntry(conversationId);
+            window.location.hash = '#/preview/living-workspace/work';
+          })().catch(() => {
+            setNotice('SecurePay could not confirm your previous work was saved. Your current work remains here; retry after checking Saved Work.');
+          });
         }}
         onUseOffer={fact => {
           // Do not destroy private, unsent words from an unrelated ongoing KS001
