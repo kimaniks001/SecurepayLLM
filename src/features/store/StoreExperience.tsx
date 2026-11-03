@@ -25,6 +25,7 @@ import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 import { DigitalStoreSetup } from './DigitalStoreSetup';
+import type { PublicDigitalStoreAddress } from '../../api/securepay/store/dto';
 import { parseDigitalStoreAddressRoute } from './route';
 import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 
@@ -64,6 +65,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
+  const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
@@ -90,9 +92,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
     else if (addressSlug) {
       void gateway.publicDigitalAddress(addressSlug).then(result => {
-        // Only a server-confirmed public slug may resolve to a Store KS.
+        setPublicDigitalAddress(result);
         void controller.openStore(result.canonicalKsNumber);
-      }).catch(() => { void controller.openStore(''); });
+      }).catch(() => { setPublicDigitalAddress(null); void controller.openStore(''); });
     }
     else {
       const first = consumeFirstStoreOffer();
@@ -102,6 +104,26 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A customer may follow several merchant links in the same tab. Re-read each
+  // address; never carry one seller's pin or identity into another Store.
+  useEffect(() => {
+    const onStoreAddressChange = () => {
+      const slug = parseDigitalStoreAddressRoute(window.location.hash);
+      if (!slug) return;
+      setPublicDigitalAddress(null);
+      void gateway.publicDigitalAddress(slug).then(result => {
+        if (parseDigitalStoreAddressRoute(window.location.hash) !== slug) return;
+        setPublicDigitalAddress(result);
+        void controller.openStore(result.canonicalKsNumber);
+      }).catch(() => {
+        if (parseDigitalStoreAddressRoute(window.location.hash) === slug)
+          void controller.openStore('');
+      });
+    };
+    window.addEventListener('hashchange', onStoreAddressChange);
+    return () => window.removeEventListener('hashchange', onStoreAddressChange);
+  }, [gateway, controller]);
 
   // Debounced live search: the locked StoreHome box has no submit button. The initial empty-query
   // search already runs via controller.enter() above (or the direct-offer-link openOffer() call), so a
@@ -337,7 +359,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } else if (state.view === 'profile') {
     if (state.selectedStore.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedStore.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
-    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} />;
+    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} digitalAddress={publicDigitalAddress} />;
   } else if (state.view === 'offer' || state.view === 'toAgreement') {
     if (state.selectedOffer.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedOffer.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedOffer.status !== 'ready') body = <LoadingNotice text="Loading this offer…" />;
