@@ -21,7 +21,9 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
   focusedEnquiryId?: string | null;
 }) {
   const scopeRef = useRef(sessionEpoch);
+  const businessScopeRef = useRef(businessKs);
   scopeRef.current = sessionEpoch;
+  businessScopeRef.current = businessKs;
   const [items, setItems] = useState<StoreEnquiryDto[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,16 +42,16 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
       const result = businessKs
         ? await gateway.businessStoreEnquiries(businessKs)
         : await gateway.myStoreEnquiries();
-      if (active() && scopeRef.current === expectedScope) setItems(result);
+      if (active() && scopeRef.current === expectedScope && businessScopeRef.current === businessKs) setItems(result);
     } catch {
-      if (active() && scopeRef.current === expectedScope) {
+      if (active() && scopeRef.current === expectedScope && businessScopeRef.current === businessKs) {
         // Fail closed: don't keep showing a former representative's private
         // enquiries after a permission or session error.
         setItems([]);
         setError('Could not read this Store’s enquiries. Check your permissions and refresh.');
       }
     } finally {
-      if (active() && scopeRef.current === expectedScope) setLoading(false);
+      if (active() && scopeRef.current === expectedScope && businessScopeRef.current === businessKs) setLoading(false);
     }
   }
 
@@ -87,17 +89,17 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
       const draft = businessKs
         ? await gateway.businessEnquiryDraft(businessKs, item.id)
         : await gateway.personalEnquiryDraft(item.id);
-      if (scopeRef.current !== expectedScope) return;
+      if ((scopeRef.current !== expectedScope || businessScopeRef.current !== businessKs)) return;
       setMessages(current => ({ ...current, [item.id]: draft.message }));
       setVersions(current => ({ ...current, [item.id]: draft.version }));
       setSavedText(current => ({ ...current, [item.id]: draft.message }));
       setEditingId(item.id);
       setNotice(draft.version > 0 ? 'Your saved Store reply draft was restored.' : 'Your reply is not sent until you choose Reply or Decline.');
     } catch {
-      if (scopeRef.current === expectedScope)
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs)
         setError('Could not confirm your private reply draft. Do not type over an unverified saved version.');
     } finally {
-      if (scopeRef.current === expectedScope) setBusy(false);
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs) setBusy(false);
     }
   }
 
@@ -111,15 +113,15 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
       const saved = businessKs
         ? await gateway.saveBusinessEnquiryDraft(businessKs, item.id, request)
         : await gateway.savePersonalEnquiryDraft(item.id, request);
-      if (scopeRef.current !== expectedScope) return;
+      if ((scopeRef.current !== expectedScope || businessScopeRef.current !== businessKs)) return;
       setVersions(current => ({ ...current, [item.id]: saved.version }));
       setSavedText(current => ({ ...current, [item.id]: saved.message }));
       setNotice('Reply draft saved privately. You can reopen it from another device.');
     } catch {
-      if (scopeRef.current === expectedScope)
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs)
         setError('Draft was NOT confirmed saved. Another device may have a newer version. Keep your words here and reload before overwriting.');
     } finally {
-      if (scopeRef.current === expectedScope) setBusy(false);
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs) setBusy(false);
     }
   }
 
@@ -135,13 +137,13 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
       const latest = businessKs
         ? await gateway.businessEnquiryDraft(businessKs, item.id)
         : await gateway.personalEnquiryDraft(item.id);
-      if (scopeRef.current !== expectedScope) return;
+      if ((scopeRef.current !== expectedScope || businessScopeRef.current !== businessKs)) return;
       if (versions[item.id] !== latest.version)
         throw new Error('Reply draft changed on another device');
       const result = businessKs
         ? await gateway.respondBusinessStoreEnquiry(businessKs, item.id, { status, message: text })
         : await gateway.respondStoreEnquiry(item.id, { status, message: text });
-      if (scopeRef.current !== expectedScope) return;
+      if ((scopeRef.current !== expectedScope || businessScopeRef.current !== businessKs)) return;
       setItems(current => current.map(x => x.id === result.id ? result : x));
       setMessages(current => ({ ...current, [item.id]: '' }));
       setEditingId(null);
@@ -149,10 +151,10 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
         ? 'Your decline is recorded and the customer can read it.'
         : 'Your reply is recorded and the customer can read it. This does not accept an Agreement.');
     } catch {
-      if (scopeRef.current === expectedScope)
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs)
         setError('Response not confirmed, or a newer draft exists. Refresh and compare before retrying. Do not assume it was sent.');
     } finally {
-      if (scopeRef.current === expectedScope) setBusy(false);
+      if (scopeRef.current === expectedScope && businessScopeRef.current === businessKs) setBusy(false);
     }
   }
 
