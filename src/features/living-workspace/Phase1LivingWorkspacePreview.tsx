@@ -182,6 +182,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [showSavedWork,setShowSavedWork]=useState(false);
   const [workActionBusy,setWorkActionBusy]=useState(false);
   const workActionLock=useRef(false);
+  // Opening composer text has no conversationId yet and cannot live in keyed drafts.
+  const openingComposerText=useRef('');
   useEffect(()=>{
     const moneyHint=consumeWorkspaceMoneyReturn();
     const fromKs001=consumeLivingWorkspaceEntry();
@@ -328,6 +330,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
+    if(workActionLock.current)return;
     setPhase4Journey(null);
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
@@ -345,12 +348,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setQuickAssistSeed(id==='solomon'?'I have goods at my shop and need someone to deliver them nearby.':id==='stays'?'I need a short stay near tomorrow’s meeting and transport to get there.':'');
   }
   function openToolPicker() {
+    if(workActionLock.current)return;
     setSupportingFact(null);
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
     setToolSelected(false);
     setToolsOpen(true);
   }
   function openFactSourcePicker(label: string) {
+    if(workActionLock.current)return;
     if (!liveConversationId || !label.trim()) return;
     setSupportingFact({label,conversationId:liveConversationId});
     if (!toolsOpen) previousScreen.current = screen==='tools'?'chat':screen;
@@ -390,6 +395,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       gateway, controller:liveController,
       ensureIdentity:()=>ensureFreshSession(session,workspaceGateways.auth),
       unsentDraft:readDraft,
+      hasUnsentComposer:()=>!!openingComposerText.current.trim(),
     };
   };
   const startNewWork=async()=>{
@@ -777,15 +783,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
             onClick={()=>{setShowSavedWork(true);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl border border-cream-200 px-3 text-sm font-semibold disabled:opacity-50">Saved Work</button>}
-          {mode==='work' && <button type="button" data-day4-mobile-agreement onClick={()=>{setShowSavedWork(false);setScreen('result');}}
+          {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowSavedWork(false);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl bg-cream-100 px-3 text-sm font-semibold md:hidden">Agreement</button>}
           {(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} navigationLocked={workActionBusy} onUnsentDraftChange={text=>{openingComposerText.current=text;}} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!openedAgreementId && !createdAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
               formation={formationState.data} changes={formationState.changes}
-              busy={liveBusy||livePending} checking={formationState.checking} error={formationState.error}
+              busy={liveBusy||livePending||workActionBusy} checking={formationState.checking} error={formationState.error}
               onBack={()=>setDraftReviewOpen(false)}
               onCheck={pointId=>{if(liveConversationId)void formationController.check(liveConversationId,pointId);}}
               onCorrect={text=>submitCorrection(liveController,text)}
@@ -937,11 +943,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
           : mode==='work' && !showSavedWork && !openedAgreementId && liveWork?<LiveWorkResultPanel
-          state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
+          state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending || workActionBusy}
           examination={examination}
           selectedSource={liveState?.source??null}
           onPrepareFairTradeDraft={message=>{
-            if(!liveConversationId || !liveController || liveBusy || livePending)
+            if(workActionLock.current || !liveConversationId || !liveController || liveBusy || livePending)
               throw new Error('Finish the current KS001 action before preparing another question.');
             // Never overwrite a person's existing unsent chat. This merely
             // prepares a visible draft in the SAME authorised conversation.
@@ -953,9 +959,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           }}
           onAddToFact={openFactSourcePicker}
           onOpenPeople={()=>openTool('People & Invitations')}
-          onReview={()=>{if(formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
+          onReview={()=>{if(!workActionLock.current && formationState?.status==='ready' && !formationState.error && formationState.data?.conversationId===liveConversationId && formationState.data.reviewable && !liveBusy && !livePending){setDraftReviewOpen(true);setScreen('chat');}}}
           onCorrectFact={async (label,previous,replacement,expectedVersion)=>{
-            if(!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');
+            if(workActionLock.current||!liveController||!liveConversationId||liveBusy||livePending||!formationController)throw new Error('KS001 is not ready');
             // Re-read authoritative context immediately before proposing. A changed version is a
             // material conflict, NOT permission to overwrite someone else's latest correction.
             await formationController.load(liveConversationId);
@@ -967,7 +973,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               throw new Error('Correction outcome not yet confirmed');
             await formationController.load(liveConversationId);
           }}
-          onRefresh={() => { if (formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
+          onRefresh={() => { if (!workActionLock.current && formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
         />:mode==='work' && !showSavedWork && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
