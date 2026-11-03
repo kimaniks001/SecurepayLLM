@@ -93,6 +93,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     else if (addressSlug) {
       void gateway.publicDigitalAddress(addressSlug).then(result => {
         setPublicDigitalAddress(result);
+        if (result.slug !== addressSlug && parseDigitalStoreAddressRoute(window.location.hash) === addressSlug)
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => { setPublicDigitalAddress(null); void controller.openStore(''); });
     }
@@ -115,6 +117,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       void gateway.publicDigitalAddress(slug).then(result => {
         if (parseDigitalStoreAddressRoute(window.location.hash) !== slug) return;
         setPublicDigitalAddress(result);
+        if (result.slug !== slug)
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => {
         if (parseDigitalStoreAddressRoute(window.location.hash) === slug)
