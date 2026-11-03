@@ -26,7 +26,7 @@ import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 import { DigitalStoreSetup } from './DigitalStoreSetup';
 import type { PublicDigitalStoreAddress, StoreEnquiryDto } from '../../api/securepay/store/dto';
-import { parseDigitalStoreAddressRoute } from './route';
+import { parseDigitalStoreAddressRoute, parseStoreEnquiryRoute } from './route';
 import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 import { StoreConnectionsHome } from './StoreConnectionsHome';
 import { StoreCustomerConnections, emptyStoreCustomerDraft, type StoreCustomerDraft } from './StoreCustomerConnections';
@@ -76,6 +76,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
+  const [focusedEnquiry, setFocusedEnquiry] = useState(() =>
+    typeof window === 'undefined' ? null : parseStoreEnquiryRoute(window.location.hash));
   const continueEnquiryWithKs001 = (enquiry: StoreEnquiryDto) => {
     // The enquiry is a server-recorded buyer action. Carry ONLY canonical
     // pointers; KS001's backend revalidates owner, buyer, price, published state
@@ -122,7 +124,18 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
 
   useEffect(() => {
     const addressSlug = typeof window !== 'undefined' ? parseDigitalStoreAddressRoute(window.location.hash) : null;
-    if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
+    const enquiryRoute = typeof window !== 'undefined' ? parseStoreEnquiryRoute(window.location.hash) : null;
+    if (enquiryRoute) {
+      setFocusedEnquiry(enquiryRoute);
+      if (enquiryRoute.audience === 'trader' && session.getSnapshot().status === 'signed-in')
+        void openManageChooser();
+      else {
+        void controller.enter();
+        if (session.getSnapshot().status !== 'signed-in')
+          setSignInGate(enquiryRoute.audience === 'trader' ? 'manage' : 'connect');
+      }
+    }
+    else if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
     else if (addressSlug) {
       void gateway.publicDigitalAddress(addressSlug).then(result => {
         setPublicDigitalAddress(result);
@@ -416,7 +429,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork}/>} 
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
       />
     );
   } else if (state.view === 'profile') {
@@ -520,7 +533,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
-        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch}/>}
+        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
         digitalStoreSetup={<DigitalStoreSetup
           gateway={gateway}
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
