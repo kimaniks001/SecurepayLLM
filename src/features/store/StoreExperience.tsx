@@ -26,7 +26,7 @@ import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 import { DigitalStoreSetup } from './DigitalStoreSetup';
 import type { PublicDigitalStoreAddress, StoreEnquiryDto } from '../../api/securepay/store/dto';
-import { parseDigitalStoreAddressRoute } from './route';
+import { parseDigitalStoreAddressRoute, parseStoreEnquiryRoute } from './route';
 import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 import { StoreConnectionsHome } from './StoreConnectionsHome';
 import { StoreCustomerConnections, emptyStoreCustomerDraft, type StoreCustomerDraft } from './StoreCustomerConnections';
@@ -35,7 +35,7 @@ import { StoreEnquiryInbox } from './StoreEnquiryInbox';
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress' | 'publicDigitalAddressForKs'
   | 'myFavourites' | 'saveFavourite' | 'removeFavourite' | 'createStoreEnquiry'
   | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
-  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry'>;
+  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -52,13 +52,14 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onNavigate, onOpenBusinessVision, onAskKs001 }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001 }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
   onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string; enquiryId?: string }) => void;
+  onResumeSavedWork: (conversationId: string) => void;
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
@@ -75,6 +76,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
+  const [focusedEnquiry, setFocusedEnquiry] = useState(() =>
+    typeof window === 'undefined' ? null : parseStoreEnquiryRoute(window.location.hash));
   const continueEnquiryWithKs001 = (enquiry: StoreEnquiryDto) => {
     // The enquiry is a server-recorded buyer action. Carry ONLY canonical
     // pointers; KS001's backend revalidates owner, buyer, price, published state
@@ -121,7 +124,18 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
 
   useEffect(() => {
     const addressSlug = typeof window !== 'undefined' ? parseDigitalStoreAddressRoute(window.location.hash) : null;
-    if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
+    const enquiryRoute = typeof window !== 'undefined' ? parseStoreEnquiryRoute(window.location.hash) : null;
+    if (enquiryRoute) {
+      setFocusedEnquiry(enquiryRoute);
+      if (enquiryRoute.audience === 'trader' && session.getSnapshot().status === 'signed-in')
+        void openManageChooser();
+      else {
+        void controller.enter();
+        if (session.getSnapshot().status !== 'signed-in')
+          setSignInGate(enquiryRoute.audience === 'trader' ? 'manage' : 'connect');
+      }
+    }
+    else if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
     else if (addressSlug) {
       void gateway.publicDigitalAddress(addressSlug).then(result => {
         setPublicDigitalAddress(result);
@@ -415,7 +429,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001}/>}
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
       />
     );
   } else if (state.view === 'profile') {
@@ -519,7 +533,18 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
-        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch}/>}
+        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
+        agreementProgress={<section aria-label="Agreement progress" className="rounded-2xl border border-cream-200 bg-white p-4">
+          <h3 className="font-display text-lg text-forest-900">Where an enquiry becomes work</h3>
+          <p className="mt-1 text-xs leading-5 text-sand-600">
+            A reply is only a reply. When KS001 and the participants establish an Agreement,
+            its reviews, responsibilities and progress belong in the existing Agreements workspace.
+          </p>
+          <button type="button" onClick={() => onNavigate('agreements')}
+            className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-xs font-medium text-forest-800">
+            Open my Agreements
+          </button>
+        </section>}
         digitalStoreSetup={<DigitalStoreSetup
           gateway={gateway}
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}

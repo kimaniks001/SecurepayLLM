@@ -48,7 +48,8 @@ const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_A
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability', 'myDigitalAddress', 'saveMyDigitalAddress', 'businessDigitalAddress', 'saveBusinessDigitalAddress', 'updateBusinessProfile',
   'myFavourites', 'saveFavourite', 'removeFavourite', 'createStoreEnquiry',
   'myCustomerEnquiries', 'myStoreEnquiries', 'businessStoreEnquiries',
-  'respondStoreEnquiry', 'respondBusinessStoreEnquiry'], session, api.auth) : undefined;
+  'respondStoreEnquiry', 'respondBusinessStoreEnquiry', 'savedWorkForEnquiry',
+  'personalEnquiryDraft', 'savePersonalEnquiryDraft', 'businessEnquiryDraft', 'saveBusinessEnquiryDraft'], session, api.auth) : undefined;
 const fulfilmentNeedsGateway = api ? withSessionRefresh(api.fulfilmentNeeds, ['fromVision', 'fromAgreementObligation', 'get', 'matches', 'routes', 'miniAgreementReview', 'shareToCommunity'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;
 const communityGateway = api ? withSessionRefresh(api.community, ['create', 'feed', 'mine', 'get', 'close'], session, api.auth) : undefined;
@@ -195,6 +196,7 @@ function useDirectSurfaceRoute(): AppView | null {
     if (typeof window === 'undefined') return null;
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
     if (window.location.hash === '#/store/open') return 'store';
+    if (/^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)) return 'store';
     if (/^#\/s\/[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(window.location.hash)) return 'store';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';

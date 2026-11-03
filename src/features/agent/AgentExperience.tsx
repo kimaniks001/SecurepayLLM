@@ -1062,6 +1062,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         } : null}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
+        onResumeSavedWork={conversationId => {
+          if (session.getSnapshot().status !== 'signed-in') {
+            setNotice('Sign in as the buyer to reopen Saved Work.');
+            return;
+          }
+          // The Store endpoint verified a saved pointer, not permission to read
+          // it. The Living Workspace must independently recheck the current
+          // session against the same canonical saved conversation.
+          if (state.conversationId && readDraft(state.conversationId).trim()) {
+            window.alert('Finish or copy your unsent KS001 message before reopening other work.');
+            return;
+          }
+          if (state.conversationId && meaningfulWork && unsavedWork
+              && !window.confirm('This conversation has unsaved work. Return to your saved Store enquiry without saving these changes?'))
+            return;
+          storeLivingWorkspaceEntry(conversationId);
+          window.location.hash = '#/preview/living-workspace/work';
+        }}
         onUseOffer={fact => {
           // Do not destroy private, unsent words from an unrelated ongoing KS001
           // conversation when a Store customer begins a NEW Agreement intention.
@@ -1073,7 +1091,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           setStore(false);
           setHome(false);
           const proceed = (set: WorkSet) => {
-            void set.controller.useOffer(fact).then(result => {
+            void set.controller.useOffer(fact).then(async result => {
               if (!fact.enquiryId || result.status !== 'selected' || session.getSnapshot().status !== 'signed-in')
                 return;
               const selected = set.controller.getSnapshot();
@@ -1081,13 +1099,19 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   || selected.enquiryContext?.offerId !== fact.sourceId
                   || selected.enquiryContext?.sellerKsNumber !== fact.sourceOwnerKsNumber)
                 return; // No verified buyer-owned proposal = no advertised handoff.
+              // Before switching screens, claim and SAVE this exact KS001
+              // conversation using the already-authoritative Saved Build
+              // service. Cross-device recovery is real only after the
+              // signed-in buyer owns the saved conversation server-side.
+              // Failure leaves the current KS001 conversation intact.
+              await gateway.saveBuild(selected.conversationId);
               // Enter the approved Living Workspace, which MUST re-authorise and
               // re-read this same canonical conversation before showing details.
               // This one-shot tab-memory hint grants no identity or Agreement rights.
               storeLivingWorkspaceEntry(selected.conversationId);
               window.location.hash = '#/preview/living-workspace/work';
             }).catch(() => {
-              setNotice('SecurePay could not confirm the Store enquiry handoff. Review your KS001 source before retrying.');
+              setNotice('Your Store enquiry is still here, but SecurePay could not confirm it was saved for another device. Use Save Work before leaving, then try opening the Living Workspace.');
             });
           };
           if (fact.enquiryId) requestFresh(proceed);

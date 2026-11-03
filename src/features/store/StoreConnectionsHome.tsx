@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Copy, Heart, MessageCircle, RefreshCcw, Store } from 'lucide-react';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { StoreEnquiryDto, StoreFavouriteDto } from '../../api/securepay/store/dto';
 
-type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries'>;
+type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries' | 'savedWorkForEnquiry'>;
 
 /**
  * Customer-to-trader discovery loop.
  * For traders who are NOT registered, this creates only shareable invitation
  * COPY on the resident's device: no ghost Store, unsolicited SMS, or "sent" status.
  */
-export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContinueWithKs001 }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object; onContinueWithKs001: (enquiry: StoreEnquiryDto) => void }) {
+export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContinueWithKs001, onResumeSavedWork, focusedEnquiryId = null }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object; onContinueWithKs001: (enquiry: StoreEnquiryDto) => void; onResumeSavedWork: (conversationId: string) => void; focusedEnquiryId?: string | null }) {
   const [favourites, setFavourites] = useState<StoreFavouriteDto[]>([]);
+  const sessionEpochRef = useRef(sessionEpoch);
+  sessionEpochRef.current = sessionEpoch;
   const [enquiries, setEnquiries] = useState<StoreEnquiryDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [readError, setReadError] = useState('');
@@ -19,16 +21,19 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
   const [traderName, setTraderName] = useState('');
   const [inviteNote, setInviteNote] = useState('');
   const [copyNotice, setCopyNotice] = useState('');
+  const [resumingEnquiry, setResumingEnquiry] = useState<string | null>(null);
+  const [resumeNotice, setResumeNotice] = useState('');
 
   async function refresh(active = () => true) {
     if (!signedIn) return;
+    const expectedEpoch = sessionEpoch;
     setLoading(true); setReadError('');
     try {
       const [f, e] = await Promise.all([gateway.myFavourites(), gateway.myCustomerEnquiries()]);
-      if (active()) { setFavourites(f); setEnquiries(e); }
+      if (active() && sessionEpochRef.current === expectedEpoch) { setFavourites(f); setEnquiries(e); }
     } catch {
-      if (active()) setReadError('Could not check your favourite Stores and enquiries.');
-    } finally { if (active()) setLoading(false); }
+      if (active() && sessionEpochRef.current === expectedEpoch) setReadError('Could not check your favourite Stores and enquiries.');
+    } finally { if (active() && sessionEpochRef.current === expectedEpoch) setLoading(false); }
   }
 
   useEffect(() => {
@@ -37,6 +42,56 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
     if (!signedIn) return;
     void refresh(() => active);
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, gateway, sessionEpoch]);
+
+  async function resumeExistingWork(enquiryId: string) {
+    if (!signedIn || resumingEnquiry) return;
+    const expectedEpoch = sessionEpoch;
+    setResumingEnquiry(enquiryId);
+    setResumeNotice('');
+    try {
+      const saved = await gateway.savedWorkForEnquiry(enquiryId);
+      if (saved.enquiryId !== enquiryId || !saved.conversationId || !saved.savedBuildId)
+        throw new Error('Saved Work did not match this enquiry');
+      // The receiving Living Workspace must re-authorise the canonical
+      // saved conversation; this pointer grants nothing itself.
+      if (sessionEpochRef.current !== expectedEpoch) return;
+      onResumeSavedWork(saved.conversationId);
+    } catch {
+      if (sessionEpochRef.current === expectedEpoch)
+        setResumeNotice('SecurePay could not confirm saved KS001 work for this enquiry. Start it with KS001 or open Saved Work. No second conversation was created.');
+    } finally { if (sessionEpochRef.current === expectedEpoch) setResumingEnquiry(null); }
+  }
+
+  const focused = enquiries.find(e => e.id === focusedEnquiryId);
+  const visibleEnquiries = focused
+    ? [focused, ...enquiries.filter(e => e.id !== focusedEnquiryId).slice(0, 4)]
+    : enquiries.slice(0, 5);
+
+  useEffect(() => {
+    if (!focusedEnquiryId || !focused || typeof document === 'undefined') return;
+    document.getElementById('store-enquiry-' + focusedEnquiryId)?.scrollIntoView({ block: 'center' });
+  }, [focusedEnquiryId, focused]);
+
+  // Foreground refresh: the real Store ledger remains authoritative.
+  // This is NOT background push or a claim that a mobile OS delivered an alert.
+  useEffect(() => {
+    if (!signedIn) return;
+    let active = true;
+    const refreshWhenVisible = () => {
+      if (active && document.visibilityState === 'visible')
+        void refresh(() => active);
+    };
+    const timer = window.setInterval(refreshWhenVisible, 45_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, gateway, sessionEpoch]);
 
@@ -116,10 +171,13 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
             </a>)}
           </div>
           <h3 className="text-sm font-medium text-forest-800">My recent enquiries</h3>
+          {focusedEnquiryId && !loading && !readError && !focused &&
+            <p role="status" className="text-xs text-sand-600">This specific enquiry is not available to your signed-in account. No private details have been shown.</p>}
+          {resumeNotice && <p role="status" className="rounded-lg bg-cream-50 p-3 text-xs text-sand-700">{resumeNotice}</p>}
           {!loading && !readError && enquiries.length === 0 && <p className="text-xs text-sand-500">You haven't sent any Store enquiries yet.</p>}
           <div className="space-y-2">
-            {enquiries.slice(0,5).map(enquiry => <div key={enquiry.id}
-              className="rounded-xl border border-cream-200 px-3 py-3 text-xs text-forest-800">
+            {visibleEnquiries.map(enquiry => <div key={enquiry.id} id={'store-enquiry-' + enquiry.id}
+              className={`rounded-xl border px-3 py-3 text-xs text-forest-800 ${focusedEnquiryId === enquiry.id ? 'border-forest-500 bg-forest-50' : 'border-cream-200'}`}>
               <a href={`#/store/${encodeURIComponent(enquiry.sellerKsNumber)}/offer/${encodeURIComponent(enquiry.offerId)}`}
                 className="font-medium underline">{enquiry.storeName} · {enquiry.offerTitle}</a>
               <span className="ml-2 font-semibold">{enquiry.status}</span>
@@ -129,6 +187,11 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
                 onClick={() => onContinueWithKs001(enquiry)}>
                 Continue enquiry with KS001
               </button>}
+              <button type="button" disabled={Boolean(resumingEnquiry)}
+                onClick={() => void resumeExistingWork(enquiry.id)}
+                className="ml-2 mt-2 min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+                {resumingEnquiry === enquiry.id ? 'Checking Saved Work…' : 'Resume saved KS001 work'}
+              </button>
             </div>)}
           </div>
         </div>
