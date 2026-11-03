@@ -18,7 +18,7 @@ test('Gate 2: buyer and merchant operations are authenticated, public discovery 
     'myCustomerEnquiries','myStoreEnquiries','businessStoreEnquiries',
     'respondStoreEnquiry','respondBusinessStoreEnquiry',
   ]) {
-    assert.match(gateway, new RegExp(name + '.*auth: \\'required\\''));
+    assert.match(gateway, new RegExp(name + ".*auth: 'required'"));
     assert.match(runtime, new RegExp('\\b' + name + '\\b'));
   }
   assert.match(gateway, /publicDigitalAddressForKs:.*auth: 'none'/);
