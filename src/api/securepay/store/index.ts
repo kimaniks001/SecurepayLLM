@@ -3,6 +3,7 @@ import type {
   BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
   DigitalStoreAddress, SaveDigitalStoreAddress, PublicDigitalStoreAddress,
+  StoreFavouriteDto, StoreEnquiryDto, CreateStoreEnquiryRequest, RespondToStoreEnquiryRequest,
 } from './dto';
 
 /**
@@ -26,6 +27,15 @@ export function createStoreGateway(http: HttpClient) {
   };
   return {
     myProfile: () => http.request<StoreProfileResponse>('/api/v1/store/me/profile', { auth: 'required' }),
+    myFavourites: () => http.request<StoreFavouriteDto[]>('/api/v1/store/me/favourites', { auth: 'required' }),
+    saveFavourite: (ks: string) => http.request<void>(`/api/v1/store/me/favourites/${segment(ks)}`, { method: 'POST', auth: 'required' }),
+    removeFavourite: (ks: string) => http.request<void>(`/api/v1/store/me/favourites/${segment(ks)}`, { method: 'DELETE', auth: 'required' }),
+    createStoreEnquiry: (body: CreateStoreEnquiryRequest) => http.request<StoreEnquiryDto>('/api/v1/store/me/enquiries', { method: 'POST', body, auth: 'required' }),
+    myCustomerEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/my-enquiries', { auth: 'required' }),
+    myStoreEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/enquiries/inbox', { auth: 'required' }),
+    businessStoreEnquiries: (ks: string) => http.request<StoreEnquiryDto[]>(`${businessStore(ks)}/enquiries`, { auth: 'required' }),
+    respondStoreEnquiry: (id: string, body: RespondToStoreEnquiryRequest) => http.request<StoreEnquiryDto>(`/api/v1/store/me/enquiries/${segment(id)}/response`, { method: 'PUT', body, auth: 'required' }),
+    respondBusinessStoreEnquiry: (ks: string, id: string, body: RespondToStoreEnquiryRequest) => http.request<StoreEnquiryDto>(`${businessStore(ks)}/enquiries/${segment(id)}/response`, { method: 'PUT', body, auth: 'required' }),
     myDigitalAddress: () => http.request<DigitalStoreAddress>('/api/v1/store/me/digital-address', { auth: 'required' }),
     saveMyDigitalAddress: (body: SaveDigitalStoreAddress) => http.request<DigitalStoreAddress>('/api/v1/store/me/digital-address', { method: 'PUT', body, auth: 'required' }),
     businessDigitalAddress: (ks: string) => http.request<DigitalStoreAddress>(`${businessStore(ks)}/digital-address`, { auth: 'required' }),
