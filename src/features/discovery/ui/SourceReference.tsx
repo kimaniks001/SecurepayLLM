@@ -42,11 +42,13 @@ export function SourceReference({ source, action }: { source: SourceView; action
 }
 
 /** The calm, recoverable state when linking a chosen listing to the conversation did not work. */
-export function SourceFailureNote({ busy, error, onRetry, onContinueWithout }: { busy: boolean; error: string; onRetry: () => void; onContinueWithout: () => void }) {
+export function SourceFailureNote({ busy, error, onRetry, onContinueWithout, enquiry = false }: { busy: boolean; error: string; onRetry: () => void; onContinueWithout: () => void; enquiry?: boolean }) {
   return <div role="alert" className="rounded-2xl border border-ember-200 bg-ember-50 px-4 py-3 text-[0.88rem] text-sand-800">
     <p className="font-medium">We couldn’t link this listing to your conversation.</p>
     <p className="mt-0.5 text-sand-700">{error}</p>
-    <p className="mt-1.5 text-[0.82rem] text-sand-600">You can try again. Or carry on without it — the conversation then won’t be attributed to this listing, though its price stays as a suggestion you can review.</p>
+    <p className="mt-1.5 text-[0.82rem] text-sand-600">{enquiry
+      ? 'You can try the exact same enquiry again. Or continue without it: KS001 will not treat the unlinked enquiry, quantity or seller reply as verified context.'
+      : 'You can try again. Or carry on without it — the conversation then won’t be attributed to this listing, though its price stays as a suggestion you can review.'}</p>
     <div className="mt-1 flex flex-wrap gap-x-4">
       <button type="button" disabled={busy} onClick={onRetry} className="min-h-11 text-forest-700 underline decoration-cream-400 underline-offset-4 disabled:opacity-40">Try again</button>
       <button type="button" disabled={busy} onClick={onContinueWithout} className="min-h-11 text-sand-600 underline decoration-cream-400 underline-offset-4 disabled:opacity-40">Continue without this listing</button>
