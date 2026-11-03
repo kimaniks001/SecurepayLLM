@@ -18,13 +18,14 @@ export const emptyStoreCustomerDraft: StoreCustomerDraft = {
 };
 
 /** Live, self-scoped engagement on a particular trader's public Store. */
-export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers, signedIn,
+export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers, signedIn, sessionEpoch,
   draft, setDraft, onRequestSignIn }: {
   gateway: Gateway;
   sellerKs: string;
   storeName: string;
   offers: StoreOffer[];
   signedIn: boolean;
+  sessionEpoch: object;
   draft: StoreCustomerDraft;
   setDraft: (update: (draft: StoreCustomerDraft) => StoreCustomerDraft) => void;
   onRequestSignIn: () => void;
@@ -41,7 +42,7 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
 
   useEffect(() => {
     let active = true;
-    setFavourite(false);
+    setFavourite(false); setConfirmed(null); setUnknown(false); setNotice(''); setError('');
     if (!signedIn) return;
     setCheckingFavourite(true);
     void gateway.myFavourites().then(favourites => {
@@ -49,7 +50,7 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
     }).catch(() => { if (active) setError('Could not check your saved Stores.'); })
       .finally(() => { if (active) setCheckingFavourite(false); });
     return () => { active = false; };
-  }, [gateway, sellerKs, signedIn]);
+  }, [gateway, sellerKs, signedIn, sessionEpoch]);
 
   async function toggleFavourite() {
     if (!signedIn) { onRequestSignIn(); return; }
