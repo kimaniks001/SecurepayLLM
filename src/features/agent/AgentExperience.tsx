@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -320,6 +320,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (issuedKsNumber) return; // The owner must first acknowledge their server-issued KS Number.
     if (!signedIn || !(signInRoute.active || signInRoute.signingUp)) return;
     const intent = signInRoute.close();
+    // A trader who came here from an offer-first Store signup returns to
+    // that private draft, not an unrelated SecurePay Home. Nothing auto-publishes.
+    if (hasFirstStoreOffer()) { navigateTo('store'); return; }
     if (intent) navigateTo(intent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, signInRoute.active, signInRoute.signingUp, issuedKsNumber]);
