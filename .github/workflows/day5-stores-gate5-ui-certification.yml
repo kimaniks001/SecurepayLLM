@@ -1,0 +1,84 @@
+name: Day 5 Digital Stores Gate 5 — isolated UI source certification
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/day5-stores-gate5-certify.mjs"
+      - "testing/day5-stores-gate5-evidence.json"
+      - "docs/operations/DAY5_GATE5_CERTIFICATION.md"
+      - ".github/workflows/day5-stores-gate5-ui-certification.yml"
+  workflow_dispatch:
+    inputs:
+      api_sha:
+        description: "Exact 40-character API Gate 5 staging candidate SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: day5-store-g5-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui-source:
+    name: Node 22 — Gates 1–5 / Day 4 / full UI regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Source regressions for combined Store, KS001 and Day 4
+        run: |
+          node --test \
+            tests/day4-work-navigation.test.mjs \
+            tests/day5-gate1-digital-stores.test.mjs \
+            tests/day5-gate2-store-connections.test.mjs \
+            tests/day5-gate3-store-agreement.test.mjs \
+            tests/day5-gate4-store-continuity.test.mjs \
+            tests/day5-stores-gate5-certification.test.mjs
+      - name: Full frontend regression
+        run: npm run test:final-convergence
+      - name: TypeScript / lint / production build
+        run: |
+          npm run typecheck
+          npm run lint -- --quiet
+          npm run build
+
+  staging-evidence:
+    name: Manual staging proof — NO_GO until real phone, DB and rollback evidence
+    if: github.event_name == 'workflow_dispatch'
+    needs: ui-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Evaluate owner-facing full Gate 5 manifest without deploying
+        run: |
+          node scripts/day5-stores-gate5-certify.mjs \
+            --evidence testing/day5-stores-gate5-evidence.json \
+            --ui-sha "${{ github.sha }}" \
+            --api-sha "${{ inputs.api_sha }}" > day5-store-gate5-verdict.json
+      - name: Keep NO_GO evidence for owner review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: day5-stores-gate5-ui-${{ github.sha }}
+          path: day5-store-gate5-verdict.json
+          if-no-files-found: warn
+          retention-days: 14

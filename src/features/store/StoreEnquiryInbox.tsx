@@ -141,8 +141,8 @@ export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch, focusedEn
       if (versions[item.id] !== latest.version)
         throw new Error('Reply draft changed on another device');
       const result = businessKs
-        ? await gateway.respondBusinessStoreEnquiry(businessKs, item.id, { status, message: text })
-        : await gateway.respondStoreEnquiry(item.id, { status, message: text });
+        ? await gateway.respondBusinessStoreEnquiry(businessKs, item.id, { status, message: text, expectedDraftVersion: latest.version })
+        : await gateway.respondStoreEnquiry(item.id, { status, message: text, expectedDraftVersion: latest.version });
       if ((scopeRef.current !== expectedScope || businessScopeRef.current !== businessKs)) return;
       setItems(current => current.map(x => x.id === result.id ? result : x));
       setMessages(current => ({ ...current, [item.id]: '' }));

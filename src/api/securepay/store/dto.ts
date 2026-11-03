@@ -57,6 +57,8 @@ export interface CreateStoreEnquiryRequest {
 export interface RespondToStoreEnquiryRequest {
   status: 'REPLIED' | 'DECLINED';
   message: string;
+  /** Exact server-saved reply draft revision (zero if no draft). */
+  expectedDraftVersion?: number;
 }
 
 // Digital Store address is an alias of the same canonical KS identity, not a new account.
