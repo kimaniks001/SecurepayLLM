@@ -2,6 +2,7 @@
 // Owner reads include private GPS. Public reads NEVER contain private GPS or accuracy.
 export interface DigitalStoreAddress {
   slug: string;
+  storeName: string;
   serviceArea: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -14,6 +15,7 @@ export interface DigitalStoreAddress {
 export type SaveDigitalStoreAddress = Omit<DigitalStoreAddress, 'updatedAt'>;
 export interface PublicDigitalStoreAddress {
   slug: string;
+  storeName: string;
   requestedSlug: string;
   canonicalKsNumber: string;
   serviceArea: string | null;
