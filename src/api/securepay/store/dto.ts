@@ -10,6 +10,7 @@ export interface StoreFavouriteDto {
 
 export interface StoreEnquiryDto {
   id: string;
+  clientRequestId: string;
   offerId: string;
   offerTitle: string;
   storeName: string;
