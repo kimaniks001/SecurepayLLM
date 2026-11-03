@@ -24,8 +24,10 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
+import { DigitalStoreSetup } from './DigitalStoreSetup';
+import { parseDigitalStoreAddressRoute } from './route';
 
-type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -83,7 +85,14 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } | null>(null);
 
   useEffect(() => {
+    const addressSlug = typeof window !== 'undefined' ? parseDigitalStoreAddressRoute(window.location.hash) : null;
     if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
+    else if (addressSlug) {
+      void gateway.publicDigitalAddress(addressSlug).then(result => {
+        // Only a server-confirmed public slug may resolve to a Store KS.
+        void controller.openStore(result.canonicalKsNumber);
+      }).catch(() => { void controller.openStore(''); });
+    }
     else void controller.enter();
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -390,6 +399,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
+        digitalStoreSetup={<DigitalStoreSetup
+          gateway={gateway}
+          businessKsNumber={state.managedBusiness?.ksNumber ?? null}
+          publishedCount={state.mine.data.raw.filter(offer => offer.published).length}
+          onProfileSaved={() => { void controller.refreshMine(); }}
+        />}
       />
     );
   } else {
