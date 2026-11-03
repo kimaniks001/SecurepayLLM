@@ -128,6 +128,10 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // title/price. Read exactly once, at Agreement-handoff progression, never here.
     selectCommercialSource: (id: string, body: SelectCommercialSourceRequest) =>
       http.request<SelectedCommercialSourceDto>(`${conversation(id)}/commercial-source`, { method: 'POST', body, auth: 'optional' }),
+    currentCommercialSource: (id: string) =>
+      http.request<SelectedCommercialSourceDto | null>(`${conversation(id)}/commercial-source`, {
+        auth: 'optional',
+      }),
     // Separate authenticated buyer link: the server checks BOTH conversation
     // access and the already-selected STORE_LISTING pointer against this enquiry.
     bindStoreEnquiryContext: (id: string, enquiryId: string) =>
