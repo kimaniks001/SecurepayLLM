@@ -1,4 +1,5 @@
 import type { AppView } from '../../types';
+import type { OfferDraftFields } from '../../components/OfferBuilderView';
 
 let pendingView: AppView | null = null;
 let pendingKs001Message: string | null = null;
@@ -144,4 +145,24 @@ export function authorisedResumedConversation(
 ): boolean {
   return !!expectedId && state.conversationId === expectedId
       && state.context.status === 'ready' && state.context.data !== null && state.context.data !== undefined;
+}
+
+/**
+ * One-shot, tab-memory only handoff for a trader who describes an offer before
+ * obtaining a KS Number. No cookie, URL, localStorage or server write.
+ * The user must review and explicitly submit the draft AFTER signing in.
+ * This is intentionally lost if the tab is fully closed.
+ */
+let firstStoreOffer: OfferDraftFields | null = null;
+
+export function holdFirstStoreOffer(draft: OfferDraftFields): void {
+  firstStoreOffer = { ...draft, mediaRefs: [...draft.mediaRefs], published: false };
+}
+export function hasFirstStoreOffer(): boolean {
+  return firstStoreOffer !== null;
+}
+export function consumeFirstStoreOffer(): OfferDraftFields | null {
+  const draft = firstStoreOffer;
+  firstStoreOffer = null;
+  return draft ? { ...draft, mediaRefs: [...draft.mediaRefs] } : null;
 }
