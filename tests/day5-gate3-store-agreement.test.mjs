@@ -45,6 +45,9 @@ test('Gate 3: ONLY canonical authenticated source selection binds the buyer enqu
 test('Gate 3: resumed conversation re-reads server-owned source and buyer enquiry', () => {
   assert.match(controller, /await gateway.currentCommercialSource\(conversationId\)/);
   assert.match(controller, /await gateway.readStoreEnquiryContext\(conversationId\)/);
+  assert.match(controller, /await gateway.readStoreEnquiryContext\(requestedId\)/);
+  assert.match(controller, /current.offerId === state.source\?\.sourceId/);
+  assert.match(controller, /enquiryContext: null/);
   assert.match(controller, /detail.offerId === selected.sourceId/);
   assert.match(controller, /detail.sellerKsNumber === selected.sourceOwnerKsNumber/);
   assert.match(controller, /enquiryContext: null/);
