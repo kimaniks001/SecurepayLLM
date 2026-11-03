@@ -1831,7 +1831,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
-              {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error}
+              {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error} enquiry={Boolean(state.offerSelectionFailure.fact.enquiryId)}
                 onRetry={() => void controller.retryOfferSelection()} onContinueWithout={() => void controller.continueOfferWithoutSource()} />}
               {/* Phase 6 Slice 4 (Community → Trade) -- the SAME failed-selection discipline for a
                   Community "Use this": never silent, held until an explicit retry/continue. */}
