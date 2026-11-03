@@ -195,6 +195,7 @@ function useDirectSurfaceRoute(): AppView | null {
     if (typeof window === 'undefined') return null;
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
     if (window.location.hash === '#/store/open') return 'store';
+    if (/^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)) return 'store';
     if (/^#\/s\/[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(window.location.hash)) return 'store';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
