@@ -60,7 +60,20 @@ export function actionFor(notification: NotificationEvent, onOpenAgreement: (agr
     return { label: 'Review Agreement', run: () => onOpenAgreement(agreementId) };
   }
   if (actionKey === 'OPEN_CIRCLE') return { label: 'Open Circle', run: () => onNavigate('community') };
-  if (actionKey === 'OPEN_STORE') return { label: 'Open Store', run: () => onNavigate('store') };
+  if (actionKey === 'OPEN_STORE') {
+    // Only the canonical Store producer's exact event namespace may suggest
+    // an enquiry route. Another event carrying OPEN_STORE stays generic.
+    // The URL is NOT a grant; the Store's buyer/merchant endpoint re-checks.
+    const ref = notification.actionObjectReference ?? '';
+    const match = /^store-enquiry:([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(ref);
+    if (match && notification.eventKey === 'store.enquiry.received:' + match[1]) {
+      return { label: 'Review Store enquiry', run: () => { window.location.hash = '#/store/enquiry/' + match[1] + '/trader'; } };
+    }
+    if (match && notification.eventKey === 'store.enquiry.responded:' + match[1]) {
+      return { label: 'Read trader response', run: () => { window.location.hash = '#/store/enquiry/' + match[1] + '/buyer'; } };
+    }
+    return { label: 'Open Store', run: () => onNavigate('store') };
+  }
   if (actionKey === 'OPEN_MASTER_REQUEST' || actionKey === 'OPEN_PLUG_TASK') {
     return { label: actionKey === 'OPEN_MASTER_REQUEST' ? 'Open Master request' : 'Open Plug work', run: () => onNavigate('ecosystem') };
   }
