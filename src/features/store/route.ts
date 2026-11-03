@@ -18,3 +18,13 @@ export function parseStoreOfferRoute(hash: string): { canonicalKsNumber: string;
     return null;
   }
 }
+
+/**
+ * A Digital Store address is a public, human-readable alias.
+ * Never infer owner KS or grant Agreement authority from the URL: the server
+ * resolves the slug against reserved historical aliases and active published Stores.
+ */
+export function parseDigitalStoreAddressRoute(hash: string): string | null {
+  const match = /^#\/stores\/([a-z0-9][a-z0-9-]{1,46}[a-z0-9])$/.exec(hash);
+  return match ? match[1] : null;
+}

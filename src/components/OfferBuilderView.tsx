@@ -20,6 +20,7 @@ interface OfferBuilderViewProps {
   busy: boolean;
   error: string | null;
   isEditing: boolean;
+  inWorkspace?: boolean;
   onChange: (patch: Partial<OfferDraftFields>) => void;
   onBack: () => void;
   onSubmit: () => void;
@@ -33,7 +34,7 @@ interface OfferBuilderViewProps {
  * trader-reviewed fields instead: only what the trader themselves typed is ever sent to the real Store
  * API, and nothing is saved until they explicitly review and submit.
  */
-export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEditing, onChange, onBack, onSubmit }: OfferBuilderViewProps) {
+export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEditing, inWorkspace = false, onChange, onBack, onSubmit }: OfferBuilderViewProps) {
   const [showReview, setShowReview] = useState(false);
   const [newRef, setNewRef] = useState('');
   const addRef = () => { const value = newRef.trim(); if (value) { onChange({ mediaRefs: [...draft.mediaRefs, value] }); setNewRef(''); } };
@@ -55,16 +56,16 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
         <h1 className="font-display text-lg text-forest-800 font-medium leading-tight">{isEditing ? 'Edit offer' : 'Create an offer'}</h1>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className={`flex-1 flex overflow-hidden ${inWorkspace ? 'flex-col' : ''}`}>
         {/* Left: explicit fields */}
-        <div className="flex-1 md:flex-[1.3] overflow-y-auto scrollbar-thin px-4 py-4 space-y-4">
+        <div className="min-w-0 flex-1 md:flex-[1.3] overflow-y-auto scrollbar-thin px-4 py-4 space-y-4">
           <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in space-y-3">
             <div className="flex items-center gap-2 mb-1">
               <Info className="w-4 h-4 text-forest-500" />
               <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Describe your offer</span>
             </div>
             <p className="text-[0.78rem] text-sand-600">
-              SecurePay does not yet auto-structure offers from free text. Fill in the fields below yourself, then review before publishing.
+              Describe what you offer, then review it before saving. New offers stay private until you choose to publish. An unfinished new offer is kept in this tab for up to 24 hours.
             </p>
 
             <div className="flex gap-2">
@@ -186,7 +187,7 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
         </div>
 
         {/* Right: Offer Taking Shape */}
-        <div className="hidden md:flex md:flex-[1] flex-col border-l border-cream-200/60 bg-cream-100/50 overflow-y-auto scrollbar-thin px-4 py-4">
+        <div className={`hidden md:flex md:flex-[1] min-w-0 flex-col ${inWorkspace ? 'border-t' : 'border-l'} border-cream-200/60 bg-cream-100/50 overflow-y-auto scrollbar-thin px-4 py-4`}>
           <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offer taking shape</div>
           <div className="rounded-2xl border border-cream-200 bg-white px-4 py-3 mb-3">
             <div className="font-display text-[0.95rem] text-forest-800 font-medium mb-2">{draft.title || 'Untitled offer'}</div>
@@ -204,8 +205,8 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
                 <span className="text-forest-800 text-right">{availabilityStateLabel[draft.availabilityState]}</span>
               </div>
               <div className="flex items-baseline justify-between text-[0.78rem]">
-                <span className="text-sand-500">Status</span>
-                <span className="text-forest-800 text-right">{draft.published ? 'Published' : 'Draft'}</span>
+                <span className="text-sand-500">After saving</span>
+                <span className="text-forest-800 text-right">{draft.published ? 'Publish on save' : 'Private on save'}</span>
               </div>
             </div>
           </div>
@@ -225,10 +226,10 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
             </div>
             <div className="space-y-3 mb-4 text-[0.825rem]">
               <div className="flex items-baseline justify-between"><span className="text-sand-600">Title</span><span className="text-forest-800 text-right">{draft.title}</span></div>
-              <div className="flex items-baseline justify-between"><span className="text-sand-600">Kind</span><span className="text-forest-800 text-right">{draft.kind === 'PRODUCT' ? 'Product' : 'Service'}</span></div>
+              <div className="flex items-baseline justify-between"><span className="text-sand-600">Kind</span><span className="text-forest-800 text-right">{draft.kind === 'PRODUCT' ? 'Product' : draft.kind === 'CAPACITY' ? 'Capacity' : 'Service'}</span></div>
               <div className="flex items-baseline justify-between"><span className="text-sand-600">Price</span><span className="text-forest-800 text-right">{draft.priceMinor === null ? 'Not listed' : `KES ${(draft.priceMinor / 100).toLocaleString()}`}</span></div>
               <div className="flex items-baseline justify-between"><span className="text-sand-600">Availability</span><span className="text-forest-800 text-right">{availabilityStateLabel[draft.availabilityState]}</span></div>
-              <div className="flex items-baseline justify-between"><span className="text-sand-600">Visibility</span><span className="text-forest-800 text-right">{draft.published ? 'Published' : 'Draft'}</span></div>
+              <div className="flex items-baseline justify-between"><span className="text-sand-600">Visibility</span><span className="text-forest-800 text-right">{draft.published ? 'Publish on save' : 'Private on save'}</span></div>
             </div>
             <button
               onClick={() => { setShowReview(false); onSubmit(); }}

@@ -12,7 +12,7 @@ export function availabilityOptionsFor(kind: OfferKind): AvailabilityState[] {
 
 export const emptyOfferDraft: OfferDraftFields = {
   kind: 'SERVICE', title: '', description: '', priceMinor: null, quantityAvailable: null,
-  availabilityState: 'NEEDS_CONFIRMATION', published: true, mediaRefs: [],
+  availabilityState: 'NEEDS_CONFIRMATION', published: false, mediaRefs: [],
 };
 
 /**

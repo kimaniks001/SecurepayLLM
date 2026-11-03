@@ -27,6 +27,7 @@ interface StoreManagementHomeProps {
   onOpenRouteOffer?: (providerKsNumber: string, offerId: string) => void;
   onReviewRoute?: (needId: string, route: SupplyRouteDto) => void;
   onAskKs001?: () => void;
+  digitalStoreSetup?: React.ReactNode;
   opportunityInspection?: {
     needId: string;
     loading: boolean;
@@ -36,7 +37,7 @@ interface StoreManagementHomeProps {
   } | null;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, onAskKs001, opportunityInspection }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, onAskKs001, opportunityInspection, digitalStoreSetup }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -69,6 +70,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 space-y-5">
+        {digitalStoreSetup}
         <section aria-label="What people can find" className="sp-section px-4 py-4 md:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -431,6 +433,11 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
                 <div key={offer.id} className="rounded-xl border border-cream-200 bg-cream-50/50 px-4 py-3">
                   <div className="text-[0.875rem] font-medium text-sand-600">{offer.title}</div>
                   <div className="text-[0.72rem] text-sand-400">Draft · not published</div>
+                  {onEditOffer && (
+                    <button onClick={() => onEditOffer(offer.id)} className="mt-2 min-h-11 rounded-lg border border-cream-200 px-3 text-sm font-medium text-forest-700">
+                      Edit draft
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,4 +1,6 @@
 import type { AppView } from '../../types';
+import type { OfferDraftFields } from '../../components/OfferBuilderView';
+import { firstOfferDraftStore } from '../store/firstOfferDraft';
 
 let pendingView: AppView | null = null;
 let pendingKs001Message: string | null = null;
@@ -145,3 +147,8 @@ export function authorisedResumedConversation(
   return !!expectedId && state.conversationId === expectedId
       && state.context.status === 'ready' && state.context.data !== null && state.context.data !== undefined;
 }
+
+/** Gate 1 private first-offer continuity; restored text requires explicit review and submission. */
+export function holdFirstStoreOffer(draft: OfferDraftFields): void { firstOfferDraftStore.remember(draft); }
+export function hasFirstStoreOffer(): boolean { return firstOfferDraftStore.read() !== null; }
+export function consumeFirstStoreOffer(): OfferDraftFields | null { return firstOfferDraftStore.read(); }

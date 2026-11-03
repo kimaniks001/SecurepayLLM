@@ -45,7 +45,7 @@ const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'revie
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
-const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
+const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability', 'myDigitalAddress', 'saveMyDigitalAddress', 'businessDigitalAddress', 'saveBusinessDigitalAddress', 'updateBusinessProfile'], session, api.auth) : undefined;
 const fulfilmentNeedsGateway = api ? withSessionRefresh(api.fulfilmentNeeds, ['fromVision', 'fromAgreementObligation', 'get', 'matches', 'routes', 'miniAgreementReview', 'shareToCommunity'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;
 const communityGateway = api ? withSessionRefresh(api.community, ['create', 'feed', 'mine', 'get', 'close'], session, api.auth) : undefined;
@@ -206,6 +206,7 @@ function useDirectSurfaceRoute(): AppView | null {
   const parse = (): AppView | null => {
     if (typeof window === 'undefined') return null;
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
+    if (/^#\/stores\/[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(window.location.hash)) return 'store';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
     return null;

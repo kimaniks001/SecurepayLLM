@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -318,6 +318,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     if (issuedKsNumber) return; // The owner must first acknowledge their server-issued KS Number.
     if (!signedIn || !(signInRoute.active || signInRoute.signingUp)) return;
     const intent = signInRoute.close();
+    // A trader who came here from an offer-first Store signup returns to
+    // that private draft, not an unrelated SecurePay Home. Nothing auto-publishes.
+    if (hasFirstStoreOffer()) { navigateTo('store'); return; }
     if (intent) navigateTo(intent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, signInRoute.active, signInRoute.signingUp, issuedKsNumber]);
@@ -1004,7 +1007,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return <div className="min-h-dvh flex flex-col bg-cream-100" data-gate-c-one-time-welcome>
       <NavBar view="signed-in" onNavigate={view=>{leaveIssuance();navigateTo(view);}}/>
       <SignupIssuedWelcome ksNumber={issuedKsNumber}
-        onContinue={()=>{const intent=leaveIssuance();if(intent)navigateTo(intent);}}
+        onContinue={()=>{const intent=leaveIssuance();if(hasFirstStoreOffer())navigateTo('store');else if(intent)navigateTo(intent);}}
         onVision={()=>{leaveIssuance();navigateTo('vision-board');}}
         onJoin={()=>{leaveIssuance();joinRoute.open();}}
         onBusiness={()=>{leaveIssuance();navigateTo('business');}}

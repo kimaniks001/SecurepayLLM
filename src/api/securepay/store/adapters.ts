@@ -52,7 +52,7 @@ function availabilityText(state: AvailabilityState): string {
 }
 
 function formatPrice(minor: number | null, currency: string): { price: string; priceType: StoreOffer['priceType'] } {
-  if (minor === null) return { price: 'Price not listed', priceType: 'unlisted' };
+  if (minor == null) return { price: 'Price not listed', priceType: 'unlisted' };
   const amount = minor / 100;
   const formatted = Number.isInteger(amount)
     ? amount.toLocaleString('en-US')
@@ -77,8 +77,8 @@ function asOfDate(isoTimestamp: string): string {
 function validatePublicOfferView(offer: unknown): asserts offer is PublicOfferView {
   if (!isRecord(offer) || typeof offer.id !== 'string' || typeof offer.kind !== 'string' || typeof offer.title !== 'string'
     || typeof offer.currency !== 'string' || typeof offer.availabilityState !== 'string' || typeof offer.updatedAt !== 'string'
-    || !isStringArray(offer.mediaRefs) || (offer.priceMinor !== null && typeof offer.priceMinor !== 'number')
-    || (offer.description !== null && typeof offer.description !== 'string')) {
+    || !isStringArray(offer.mediaRefs) || (offer.priceMinor != null && typeof offer.priceMinor !== 'number')
+    || (offer.description != null && typeof offer.description !== 'string')) {
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Store offer.');
   }
 }
@@ -118,7 +118,7 @@ function publicOfferToStoreOffer(view: PublicOfferView, canonicalKsNumber: strin
   validatePublicOfferView(view);
   assertKnownOfferKind(view.kind);
   assertKnownAvailabilityState(view.availabilityState);
-  const { price, priceType } = formatPrice(view.priceMinor, view.currency);
+  const { price, priceType } = formatPrice(view.priceMinor ?? null, view.currency);
   return {
     id: view.id,
     storeId: canonicalKsNumber,
@@ -150,7 +150,7 @@ function publicOfferToStoreOffer(view: PublicOfferView, canonicalKsNumber: strin
 
 function validateStoreView(dto: unknown): asserts dto is PublicStoreView {
   if (!isRecord(dto) || typeof dto.canonicalKsNumber !== 'string' || typeof dto.displayName !== 'string'
-    || typeof dto.identityType !== 'string' || typeof dto.status !== 'string' || !isRecord(dto.profile) || !Array.isArray(dto.offers)) {
+    || typeof dto.identityType !== 'string' || typeof dto.status !== 'string' || (dto.profile != null && !isRecord(dto.profile)) || !Array.isArray(dto.offers)) {
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Store.');
   }
 }
@@ -163,15 +163,15 @@ export function storeIdentityView(dto: PublicStoreView): StoreIdentity {
     name: dto.displayName,
     operator: dto.displayName, // backend has no separate legal-operator field; same real name in both slots
     businessIdentity: `${dto.identityType} KS identity — ${dto.canonicalKsNumber}`,
-    serviceAreas: profile.locationLabel ? [profile.locationLabel] : [],
+    serviceAreas: profile?.locationLabel ? [profile?.locationLabel] : [],
     verified: false, // no verification field in the backend Store contract; never claim true
-    description: profile.about ?? profile.tagline ?? undefined,
+    description: profile?.about ?? profile?.tagline ?? undefined,
   };
 }
 
 export function storeOffersView(dto: PublicStoreView, trustedMediaOrigin: string | null): StoreOffer[] {
   validateStoreView(dto);
-  return dto.offers.map(offer => publicOfferToStoreOffer(offer, dto.canonicalKsNumber, dto.displayName, buildStoreOfferUrl(dto.canonicalKsNumber, offer.id), trustedMediaOrigin, dto.profile.locationLabel));
+  return dto.offers.map(offer => publicOfferToStoreOffer(offer, dto.canonicalKsNumber, dto.displayName, buildStoreOfferUrl(dto.canonicalKsNumber, offer.id), trustedMediaOrigin, dto.profile?.locationLabel ?? null));
 }
 
 export function publicOfferDetailView(dto: PublicOfferDetailView, trustedMediaOrigin: string | null): { store: StoreIdentity; offer: StoreOffer } {
@@ -179,7 +179,7 @@ export function publicOfferDetailView(dto: PublicOfferDetailView, trustedMediaOr
     throw new ApiError('invalid-response', 'SecurePay returned an unreadable Offer.');
   }
   const store = storeIdentityView({ canonicalKsNumber: dto.canonicalKsNumber, displayName: dto.displayName, identityType: dto.identityType, status: dto.status, profile: dto.profile, offers: [] });
-  const offer = publicOfferToStoreOffer(dto.offer, dto.canonicalKsNumber, dto.displayName, buildStoreOfferUrl(dto.canonicalKsNumber, dto.offer.id), trustedMediaOrigin, dto.profile.locationLabel);
+  const offer = publicOfferToStoreOffer(dto.offer, dto.canonicalKsNumber, dto.displayName, buildStoreOfferUrl(dto.canonicalKsNumber, dto.offer.id), trustedMediaOrigin, dto.profile?.locationLabel ?? null);
   return { store, offer };
 }
 
