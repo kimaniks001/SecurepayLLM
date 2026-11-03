@@ -44,7 +44,7 @@ export interface AgentState {
   // progression so the person can see "started from X" -- never Agreement/CONFIRMED truth.
   source: SelectedCommercialSourceDto | null;
   /** Server-owned buyer enquiry proposal linked to this exact Store source; never agreed terms. */
-  enquiryContext: SelectedStoreEnquiryContextDto | null;
+  enquiryContext?: SelectedStoreEnquiryContextDto | null;
   /**
    * Final Phase 4 Economy Turn 3 (Section 5) -- a Store "Use this" whose `selectCommercialSource`
    * call failed. Held here, untouched, until an explicit `retryOfferSelection` or
