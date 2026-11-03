@@ -5,6 +5,7 @@ import type {
   DigitalStoreAddress, SaveDigitalStoreAddress, PublicDigitalStoreAddress,
   StoreFavouriteDto, StoreEnquiryDto, CreateStoreEnquiryRequest, RespondToStoreEnquiryRequest,
   SavedStoreEnquiryWorkDto,
+  StoreReplyDraftDto, SaveStoreReplyDraftRequest,
 } from './dto';
 
 /**
@@ -35,6 +36,18 @@ export function createStoreGateway(http: HttpClient) {
     myCustomerEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/my-enquiries', { auth: 'required' }),
     savedWorkForEnquiry: (id: string) =>
       http.request<SavedStoreEnquiryWorkDto>(`/api/v1/store/me/enquiries/${segment(id)}/saved-work`, { auth: 'required' }),
+    personalEnquiryDraft: (id: string) =>
+      http.request<StoreReplyDraftDto>(`/api/v1/store/me/enquiries/${segment(id)}/draft`, { auth: 'required' }),
+    savePersonalEnquiryDraft: (id: string, body: SaveStoreReplyDraftRequest) =>
+      http.request<StoreReplyDraftDto>(`/api/v1/store/me/enquiries/${segment(id)}/draft`, {
+        method: 'PUT', body, auth: 'required',
+      }),
+    businessEnquiryDraft: (ks: string, id: string) =>
+      http.request<StoreReplyDraftDto>(`${businessStore(ks)}/enquiries/${segment(id)}/draft`, { auth: 'required' }),
+    saveBusinessEnquiryDraft: (ks: string, id: string, body: SaveStoreReplyDraftRequest) =>
+      http.request<StoreReplyDraftDto>(`${businessStore(ks)}/enquiries/${segment(id)}/draft`, {
+        method: 'PUT', body, auth: 'required',
+      }),
     myStoreEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/enquiries/inbox', { auth: 'required' }),
     businessStoreEnquiries: (ks: string) => http.request<StoreEnquiryDto[]>(`${businessStore(ks)}/enquiries`, { auth: 'required' }),
     respondStoreEnquiry: (id: string, body: RespondToStoreEnquiryRequest) => http.request<StoreEnquiryDto>(`/api/v1/store/me/enquiries/${segment(id)}/response`, { method: 'PUT', body, auth: 'required' }),
