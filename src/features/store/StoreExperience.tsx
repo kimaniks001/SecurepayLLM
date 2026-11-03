@@ -26,6 +26,7 @@ import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 import { DigitalStoreSetup } from './DigitalStoreSetup';
 import { parseDigitalStoreAddressRoute } from './route';
+import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress'>;
 
@@ -93,7 +94,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => { void controller.openStore(''); });
     }
-    else void controller.enter();
+    else {
+      const first = consumeFirstStoreOffer();
+      if (first) controller.restoreFirstOffer(first);
+      else void controller.enter();
+    }
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -123,7 +128,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       setSignInGate(null);
       setIdentityController(createIdentityController(auth, session));
       if (gate === 'manage') void openManageChooser();
-      else controller.openBuilder(null);
+      // The first offer remains in the builder. Never auto-publish on identity completion.
     }
   }, [signInGate, identityState.phase, controller, auth, session]);
 
@@ -224,7 +229,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   };
 
   const requireAuth = (gate: 'manage' | 'create') => {
-    if (session.getSnapshot().status === 'signed-in') { if (gate === 'manage') void openManageChooser(); else controller.openBuilder(null); return; }
+    if (gate === 'create') {
+      // Do not ask for credentials before someone understands what they sell.
+      controller.openBuilder(null);
+      return;
+    }
+    if (session.getSnapshot().status === 'signed-in') { void openManageChooser(); return; }
     setSignInGate(gate);
   };
 
@@ -284,6 +294,20 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
               else if (value === 'cancel_auth') { setSignInGate(null); identityController.reset(); }
             }}
           />
+          {signInGate === 'create' && (
+            <div className="mt-4 max-w-md w-full rounded-xl border border-forest-200 bg-white p-4">
+              <p className="text-sm text-forest-800">Your first offer is still a private draft. A KS Number is required before publishing.</p>
+              <button type="button" className="mt-3 min-h-11 text-sm font-medium text-forest-700 underline"
+                onClick={() => {
+                  holdFirstStoreOffer(state.draft);
+                  setSignInGate(null);
+                  // Existing generic signup remains identity-only. It cannot publish the draft.
+                  window.location.hash = '#/sign-up';
+                }}>Get my KS Number</button>
+              <button type="button" className="ml-4 min-h-11 text-sm text-sand-600 underline"
+                onClick={() => setSignInGate(null)}>Review my offer first</button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -417,7 +441,13 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         isEditing={!!state.editingOfferId}
         onChange={patch => controller.setDraft(patch)}
         onBack={() => controller.backFromBuilder()}
-        onSubmit={() => void controller.submitDraft()}
+        onSubmit={() => {
+          if (session.getSnapshot().status !== 'signed-in') {
+            setSignInGate('create');
+            return;
+          }
+          void controller.submitDraft();
+        }}
       />
     );
   }
