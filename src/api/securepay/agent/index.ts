@@ -1,5 +1,6 @@
 import { ApiError, segment, type HttpClient, type RequestOptions } from '../http';
 import { CONVERSATION_TOKEN_HEADER, conversationAccess, type ConversationAccessStore } from './continuity';
+import type { SelectedStoreEnquiryContextDto } from './dto';
 import type { AdoptFactRequest, AgentAgreementAccessGrantDto, AgentAgreementWorkspaceAskDto, AgentResponseDto, AgentSourceArtifactDto, AgentSourceArtifactListDto, AgreementReviewResponseDto, ContinueHandoffRequest, ConversationDto, ConversationHistoryResponseDto, CreatedConversationDto, CreateLinkSourceRequest, CreatePastedTextSourceRequest, CreatePlaceSourceRequest, ExternalFactRequest, HandoffDto, KsIdentitySelectionRequest, KsIdentitySelectionResult, SavedBuildDto, SelectCommercialSourceRequest, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TradeContextDto, AgreementFormationDto, FairTradeExaminationDto, TurnRequest } from './dto';
 /**
  * Public Experience Convergence Phase 3 (Slice 3A) -- the gateway is the ONE place the anonymous
@@ -127,6 +128,16 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // title/price. Read exactly once, at Agreement-handoff progression, never here.
     selectCommercialSource: (id: string, body: SelectCommercialSourceRequest) =>
       http.request<SelectedCommercialSourceDto>(`${conversation(id)}/commercial-source`, { method: 'POST', body, auth: 'optional' }),
+    // Separate authenticated buyer link: the server checks BOTH conversation
+    // access and the already-selected STORE_LISTING pointer against this enquiry.
+    bindStoreEnquiryContext: (id: string, enquiryId: string) =>
+      http.request<SelectedStoreEnquiryContextDto>(`${conversation(id)}/store-enquiry-context`, {
+        method: 'POST', body: { enquiryId }, auth: 'required',
+      }),
+    readStoreEnquiryContext: (id: string) =>
+      http.request<SelectedStoreEnquiryContextDto>(`${conversation(id)}/store-enquiry-context`, {
+        auth: 'required',
+      }),
     // Phase 6 Slice 4 final pre-merge correction -- "the human explicitly selected this source;
     // compose the next KS001 response." Never submits a conversational turn -- the backend records
     // only KS001's own reply, never a fabricated human message carrying the source's own words.
