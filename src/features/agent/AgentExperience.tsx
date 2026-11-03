@@ -1078,8 +1078,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                 return;
               const selected = set.controller.getSnapshot();
               if (!selected.conversationId || selected.enquiryContext?.enquiryId !== fact.enquiryId
-                  || selected.enquiryContext.offerId !== fact.sourceId
-                  || selected.enquiryContext.sellerKsNumber !== fact.sourceOwnerKsNumber)
+                  || selected.enquiryContext?.offerId !== fact.sourceId
+                  || selected.enquiryContext?.sellerKsNumber !== fact.sourceOwnerKsNumber)
                 return; // No verified buyer-owned proposal = no advertised handoff.
               // Enter the approved Living Workspace, which MUST re-authorise and
               // re-read this same canonical conversation before showing details.
