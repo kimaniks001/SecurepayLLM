@@ -10,7 +10,7 @@ type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries'>;
  * For traders who are NOT registered, this creates only shareable invitation
  * COPY on the resident's device: no ghost Store, unsolicited SMS, or "sent" status.
  */
-export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object }) {
+export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContinueWithKs001 }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object; onContinueWithKs001: (enquiry: StoreEnquiryDto) => void }) {
   const [favourites, setFavourites] = useState<StoreFavouriteDto[]>([]);
   const [enquiries, setEnquiries] = useState<StoreEnquiryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,13 +118,18 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch }: { gate
           <h3 className="text-sm font-medium text-forest-800">My recent enquiries</h3>
           {!loading && !readError && enquiries.length === 0 && <p className="text-xs text-sand-500">You haven't sent any Store enquiries yet.</p>}
           <div className="space-y-2">
-            {enquiries.slice(0,5).map(enquiry => <a key={enquiry.id}
-              href={`#/store/${encodeURIComponent(enquiry.sellerKsNumber)}/offer/${encodeURIComponent(enquiry.offerId)}`}
-              className="block rounded-xl border border-cream-200 px-3 py-3 text-xs text-forest-800">
-              <span className="font-medium">{enquiry.storeName} · {enquiry.offerTitle}</span>
+            {enquiries.slice(0,5).map(enquiry => <div key={enquiry.id}
+              className="rounded-xl border border-cream-200 px-3 py-3 text-xs text-forest-800">
+              <a href={`#/store/${encodeURIComponent(enquiry.sellerKsNumber)}/offer/${encodeURIComponent(enquiry.offerId)}`}
+                className="font-medium underline">{enquiry.storeName} · {enquiry.offerTitle}</a>
               <span className="ml-2 font-semibold">{enquiry.status}</span>
               {enquiry.sellerReply && <p className="mt-1 text-sand-700">Trader: {enquiry.sellerReply}</p>}
-            </a>)}
+              {enquiry.status !== 'DECLINED' && <button type="button"
+                className="mt-2 min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs text-forest-800"
+                onClick={() => onContinueWithKs001(enquiry)}>
+                Continue enquiry with KS001
+              </button>}
+            </div>)}
           </div>
         </div>
       )}
