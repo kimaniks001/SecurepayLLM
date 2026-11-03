@@ -253,6 +253,14 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
           Save Store appearance
         </button>
       </div>
+      <section aria-label="Store subscription" className="rounded-xl border border-cream-200 p-4 space-y-2">
+        <h3 className="font-medium text-forest-800">Your trading relationship</h3>
+        <p className="text-sm text-sand-700">For You — KES 100/month · For Business — KES 200/month.</p>
+        <p className="text-xs text-sand-600">Choose the relationship that matches your KS authority. Store creation, KS registration, subscription selection and confirmed activation are separate steps. No fee is charged on this screen.</p>
+        <a href="#/activate" className="inline-flex min-h-11 items-center rounded-xl border border-forest-200 px-4 text-sm font-medium text-forest-800">
+          Review SecurePay subscription and activation
+        </a>
+      </section>
       <div className="rounded-xl bg-cream-50 p-4 space-y-2">
         <h3 className="font-medium text-forest-800 flex items-center gap-2"><Check size={17}/> Your Store link</h3>
         {savedAddress && <p className="break-all font-mono text-xs text-forest-700">{shareUrl}</p>}
