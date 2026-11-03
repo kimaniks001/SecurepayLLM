@@ -41,6 +41,7 @@ export function createStoreGateway(http: HttpClient) {
     businessDigitalAddress: (ks: string) => http.request<DigitalStoreAddress>(`${businessStore(ks)}/digital-address`, { auth: 'required' }),
     saveBusinessDigitalAddress: (ks: string, body: SaveDigitalStoreAddress) => http.request<DigitalStoreAddress>(`${businessStore(ks)}/digital-address`, { method: 'PUT', body, auth: 'required' }),
     publicDigitalAddress: (slug: string) => http.request<PublicDigitalStoreAddress>(`/api/v1/stores/address/${segment(slug)}`, { auth: 'none' }),
+    publicDigitalAddressForKs: (ks: string) => http.request<PublicDigitalStoreAddress>(`/api/v1/stores/${segment(ks)}/digital-address`, { auth: 'none' }),
     businessProfile: (businessKsNumber: string) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { auth: 'required' }),
     updateBusinessProfile: (businessKsNumber: string, body: UpdateStoreProfileRequest) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { method: 'PUT', body, auth: 'required' }),
     businessOffers: (businessKsNumber: string) => http.request<StoreOfferResponse[]>(`${businessStore(businessKsNumber)}/offers`, { auth: 'required' }),
