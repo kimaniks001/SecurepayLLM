@@ -7,7 +7,7 @@ import { SignupForm } from '../join/JoinExperience';
 import { SignupIssuedWelcome } from '../join/SignupIssuedWelcome';
 
 type AuthStage = 'signin' | 'signup' | 'welcome';
-type AuthMethods = Pick<AuthGateway,'signIn'|'completeOtp'|'resendOtp'|'signupStart'|'signupResend'|'signupVerify'>;
+type AuthMethods = Pick<AuthGateway,'signIn'|'completePasswordOnly'|'completeOtp'|'resendOtp'|'signupStart'|'signupResend'|'signupVerify'>;
 
 /**
  * Identity within the existing Living Workspace, NOT a separate app or chat.

@@ -39,14 +39,18 @@ function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: strin
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0 }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0, onDraftChange }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number; onDraftChange?:(text:string)=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
+  const draftObserver=useRef(onDraftChange);
+  draftObserver.current=onDraftChange;
+  const changeDraft=(value:string)=>{setDraft(value);draftObserver.current?.(value);};
   // Review handoffs only populate the existing conversation's unsent composer.
   // Rehydrate whenever the authorised conversation or the explicit handoff
   // revision changes; do NOT submit a message on behalf of the human.
   useEffect(()=>{
-    setDraft(readDraft(state.conversationId??undefined));
+    const restored=readDraft(state.conversationId??undefined);
+    setDraft(restored);draftObserver.current?.(restored);
   },[state.conversationId,draftRevision]);
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
   const historyEnd=useRef<HTMLDivElement|null>(null);
@@ -54,13 +58,13 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
   useEffect(()=>{historyEnd.current?.scrollIntoView({block:'end',behavior:'smooth'});},[lastTurn]);
   const canSend = !state.busy && !state.pending && !state.sourceContinuationPending && !!draft.trim();
   return <section aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto md:overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
       {state.turns.length===0 && !state.conversationId && !draft.trim() && <WorkspaceWelcome area="work" onExample={value=>{
-        if(value.prompt)setDraft(existing=>{
-          const next=existing.trim()?existing:value.prompt;
+        if(value.prompt){
+          const next=draft.trim()?draft:value.prompt;
           writeDraft(state.conversationId??undefined,next);
-          return next;
-        });
+          changeDraft(next);
+        }
         document.getElementById('live-work-ks001-input')?.focus();
       }}/>}
       {state.turns.length>0 && opening && <span className="sr-only">{opening}</span>}
@@ -125,13 +129,13 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending||state.sourceContinuationPending)return;
       void (async()=>{await controller.send(next);const current=controller.getSnapshot();
         if(!current.error&&!current.pending){
-          setDraft(text=>text.trim()===next?'':text);
+          if(draft.trim()===next)changeDraft('');
           if(draft.trim()===next)writeDraft(state.conversationId??undefined,'');
         }
       })();
     }}>
       <label htmlFor="live-work-ks001-input" className="sr-only">Message live KS001</label>
-      <input id="live-work-ks001-input" value={draft} onChange={e=>{setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending||!!state.sourceContinuationPending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
+      <input id="live-work-ks001-input" value={draft} onChange={e=>{changeDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending||!!state.sourceContinuationPending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
       <button type="submit" disabled={!canSend} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-50">Send</button>
     </form>
   </section>;

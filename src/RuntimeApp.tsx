@@ -71,6 +71,21 @@ const businessFxApplicationGateway = api ? withSessionRefresh(api.businessFxAppl
 const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list', 'get', 'update', 'archive', 'restore', 'addAgreement', 'removeAgreement', 'agreements', 'summary', 'calendar'], session, api.auth) : undefined;
 const visionBoardGateway = api ? withSessionRefresh(api.visionBoard, ['shelves', 'items', 'get', 'create', 'update', 'lock', 'unlock', 'supersede', 'generateQuotation', 'generateInvoice', 'generateReceipt'], session, api.auth) : undefined;
 const visionDreamGateway = api ? withSessionRefresh(api.visionDreams, ['create', 'mine', 'get', 'update'], session, api.auth) : undefined;
+// Production workspace uses the real SecurePay API gateways.
+// The same-origin preview relay remains exclusive to Vercel preview hosts.
+const productionWorkspaceGateways = api && agentGateway && agreementGateway && storeGateway &&
+  communityGateway && financialPartnerGateway && moneySnapshotGateway && visionDreamGateway
+  ? {
+      auth: api.auth,
+      agent: agentGateway,
+      dreams: visionDreamGateway,
+      community: communityGateway,
+      agreements: agreementGateway,
+      stores: storeGateway,
+      financialPartners: financialPartnerGateway,
+      moneySnapshot: moneySnapshotGateway,
+    } as ReturnType<typeof createPreviewWorkspaceGateways>
+  : undefined;
 const settingsGateway = api ? withSessionRefresh(api.settings, ['get', 'update'], session, api.auth) : undefined;
 const notificationsGateway = api ? withSessionRefresh(api.notifications, ['list', 'get', 'markRead', 'resolve', 'getPreferences', 'updatePreferences'], session, api.auth) : undefined;
 const businessGateway = api ? withSessionRefresh(api.business, ['activate', 'get', 'members', 'inviteMember', 'acceptInvitation', 'removeMember'], session, api.auth) : undefined;
@@ -326,7 +341,7 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+  return (hostname.endsWith('.vercel.app') || ['securepay.ke','www.securepay.ke'].includes(hostname)) && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
@@ -357,12 +372,13 @@ export default function RuntimeApp() {
   catch { return <Unavailable />; }
   // Never send an OTP/signup write via a preview pointed at production.
   // In-memory identity flows are enabled only against an explicitly named SecurePay staging origin.
-  const identityStagingReady = !!api && (() => {
+  const isProductionWorkspace = typeof window !== 'undefined' && ['securepay.ke','www.securepay.ke'].includes(window.location.hostname) && api?.baseUrl === 'https://securepay.ke';
+  const identityStagingReady = isProductionWorkspace || (!!api && (() => {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
-  })();
+  })());
   if (phase1Preview) return <Phase1LivingWorkspacePreview
-    gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
+    gateway={isProductionWorkspace ? agentGateway : previewAgentGateway} workspaceGateways={isProductionWorkspace ? productionWorkspaceGateways : previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;

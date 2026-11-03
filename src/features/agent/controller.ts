@@ -355,6 +355,28 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       return { ok: false, stale: false, error: errorText(error) };
     } finally { update({ busy: false }); }
   }
+  // Hold the same busy boundary across identity, save, create, history and context.
+  // Only the scoped resume callback may switch while this operation owns the lock.
+  async function resumeForNavigation(conversationId: string) {
+      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, sourceContinuationPending: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      let turns: Turn[] = [];
+      try {
+        const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
+        turns = entries.map(entry => entry.sender === 'HUMAN'
+          ? { id: entry.id, sender: 'user' as const, text: entry.text }
+          : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
+      } catch { /* presentation-only; Trade Context (read below) remains the canonical understanding */ }
+      update({ turns });
+      await readContext();
+  }
+  async function withNavigationLock<T>(operation: (resume: (id: string) => Promise<void>) => Promise<T>): Promise<T> {
+    if (state.busy || state.pending || state.sourceContinuationPending) {
+      throw new Error('Finish or retry the current KS001 action before switching work.');
+    }
+    update({ busy: true });
+    try { return await operation(resumeForNavigation); }
+    finally { update({ busy: false }); }
+  }
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
@@ -373,18 +395,10 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * read failure never blocks resume -- it degrades to an empty transcript (today's prior behaviour),
      * never a fatal resume error, since the transcript is presentation only.
      */
+    withNavigationLock,
     async resumeConversation(conversationId: string) {
-      if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, sourceContinuationPending: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
-      let turns: Turn[] = [];
-      try {
-        const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
-        turns = entries.map(entry => entry.sender === 'HUMAN'
-          ? { id: entry.id, sender: 'user' as const, text: entry.text }
-          : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
-      } catch { /* presentation-only; Trade Context (read below) remains the canonical understanding */ }
-      update({ turns });
-      await readContext();
+      if (state.busy || state.pending || state.sourceContinuationPending) return;
+      await withNavigationLock(resume => resume(conversationId));
     },
     async send(text: string) {
       if (state.busy || state.pending || state.sourceContinuationPending || !text.trim()) return;

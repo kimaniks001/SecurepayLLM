@@ -14,7 +14,7 @@ import { secureAuthView } from '../identity/view';
  * and the session, nothing else.
  */
 export function SignInExperience({ auth, session, onSignedIn, onCancel, onRecover, onGetKsNumber }: {
-  auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp'>;
+  auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'completePasswordOnly' | 'resendOtp'>;
   session: Pick<SessionStore, 'setTokens'>;
   /** Called once SecurePay has confirmed the person and the session is established. */
   onSignedIn: () => void;

@@ -1989,3 +1989,17 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## Production integration 2026-10-26
+REAL_API_WIRED: exact upstream 1e46da0 plus preserved production workspace/auth gateways and KS002–KS020 password-only authentication. New inline draft review supersedes the old reload link. Private media remains disabled. API target 4d3cc40 plus preserved password-only and JSON-input fixes.
+
+## True North production integration — 2026-10-27
+REAL_API_WIRED: pinned ee3e80b UI and 63db5d5 API, retaining password-only KS002–KS020, JSON input and production gateway patches. Mobile scroll chaining retained in My Work and applied to new Vision transcript. Isolated document/photo intake returns receipts but understanding fails without Anthropic source credentials; not certified for document reading. Private Agreement evidence media and live payment providers remain disabled.
+
+
+## Day 4 C6 UI backport — 3 November 2026
+FRONTEND_COMPOSITION_ONLY: explicit mobile Agreement navigation.
+REAL_API_WIRED: New Work saves the current authenticated build before creating a conversation; Saved Work remains available during chat. Existing ownership checks and API contracts retained.
+Confirmed technical correction: opening draft is observed directly before a server conversation exists. Controller busy lock covers identity/save/create/resume/history/context, preventing concurrent turns and duplicate switches; release in finally permits recovery.
+Release scope: C6 UI plus bounded PR202 navigation changes; existing authentication routing, Agreement review, source continuation and mobile scroll patches retained. No API, database or financial activation changes. Actual-device and full Gate6 certification remain separate.

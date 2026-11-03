@@ -18,7 +18,7 @@ const initial: IdentityState = { phase: 'credentials', busy: false, ksNumber: ''
  * Owns identity/session authority only: real KSNumber/password/OTP against SecurePay auth.
  * Never decodes tokens and never touches handoff, Agreement, or Money state.
  */
-export function createIdentityController(auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp'>, session: Pick<SessionStore, 'setTokens'>) {
+export function createIdentityController(auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'completePasswordOnly' | 'resendOtp'>, session: Pick<SessionStore, 'setTokens'>) {
   let state: IdentityState = { ...initial };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<IdentityState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -33,6 +33,12 @@ export function createIdentityController(auth: Pick<AuthGateway, 'signIn' | 'com
       update({ busy: true, error: null });
       try {
         const pending = await auth.signIn({ ksNumber: state.ksNumber.trim(), password: state.password });
+        if (pending.otpRequired === false) {
+          const tokens = await auth.completePasswordOnly(pending.challengeToken);
+          session.setTokens(tokens);
+          update({ ...initial, phase: 'signed-in' });
+          return;
+        }
         update({ phase: 'otp', busy: false, challengeToken: pending.challengeToken, password: '', otp: '', error: null });
       } catch (error) {
         update({ busy: false, error: errorText(error) });

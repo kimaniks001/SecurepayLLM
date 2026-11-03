@@ -40,7 +40,7 @@ export function JoinExperience({
     membership: Pick<CommunityGateway['membership'], 'me' | 'join'>
       & Partial<Pick<CommunityGateway['membership'], 'business' | 'joinBusiness' | 'organization' | 'joinOrganization'>>;
   };
-  auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp' | 'signupStart' | 'signupResend' | 'signupVerify'>;
+  auth: Pick<AuthGateway, 'signIn' | 'completePasswordOnly' | 'completeOtp' | 'resendOtp' | 'signupStart' | 'signupResend' | 'signupVerify'>;
   session: Pick<SessionStore, 'setTokens'>;
   signedIn: boolean;
   interest: JoinInterest | null;
@@ -353,7 +353,7 @@ export function SignupForm({ auth, session, context, onUseExisting, onBack, onIs
 }
 
 function JoinSignIn({ auth, session, onBack, onHelp }: {
-  auth: Pick<AuthGateway, 'signIn' | 'completeOtp' | 'resendOtp'>;
+  auth: Pick<AuthGateway, 'signIn' | 'completePasswordOnly' | 'completeOtp' | 'resendOtp'>;
   session: Pick<SessionStore, 'setTokens'>;
   onBack: () => void;
   onHelp: () => void;
