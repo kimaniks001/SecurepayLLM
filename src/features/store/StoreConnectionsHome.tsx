@@ -47,6 +47,7 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
 
   async function resumeExistingWork(enquiryId: string) {
     if (!signedIn || resumingEnquiry) return;
+    const expectedEpoch = sessionEpoch;
     setResumingEnquiry(enquiryId);
     setResumeNotice('');
     try {
@@ -55,10 +56,12 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
         throw new Error('Saved Work did not match this enquiry');
       // The receiving Living Workspace must re-authorise the canonical
       // saved conversation; this pointer grants nothing itself.
+      if (sessionEpochRef.current !== expectedEpoch) return;
       onResumeSavedWork(saved.conversationId);
     } catch {
-      setResumeNotice('SecurePay could not confirm saved KS001 work for this enquiry. Start it with KS001 or open Saved Work. No second conversation was created.');
-    } finally { setResumingEnquiry(null); }
+      if (sessionEpochRef.current === expectedEpoch)
+        setResumeNotice('SecurePay could not confirm saved KS001 work for this enquiry. Start it with KS001 or open Saved Work. No second conversation was created.');
+    } finally { if (sessionEpochRef.current === expectedEpoch) setResumingEnquiry(null); }
   }
 
   const focused = enquiries.find(e => e.id === focusedEnquiryId);
