@@ -2,6 +2,7 @@ import { segment, type HttpClient } from '../http';
 import type {
   BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
+  DigitalStoreAddress, SaveDigitalStoreAddress, PublicDigitalStoreAddress,
 } from './dto';
 
 /**
@@ -25,6 +26,11 @@ export function createStoreGateway(http: HttpClient) {
   };
   return {
     myProfile: () => http.request<StoreProfileResponse>('/api/v1/store/me/profile', { auth: 'required' }),
+    myDigitalAddress: () => http.request<DigitalStoreAddress>('/api/v1/store/me/digital-address', { auth: 'required' }),
+    saveMyDigitalAddress: (body: SaveDigitalStoreAddress) => http.request<DigitalStoreAddress>('/api/v1/store/me/digital-address', { method: 'PUT', body, auth: 'required' }),
+    businessDigitalAddress: (ks: string) => http.request<DigitalStoreAddress>(`${businessStore(ks)}/digital-address`, { auth: 'required' }),
+    saveBusinessDigitalAddress: (ks: string, body: SaveDigitalStoreAddress) => http.request<DigitalStoreAddress>(`${businessStore(ks)}/digital-address`, { method: 'PUT', body, auth: 'required' }),
+    publicDigitalAddress: (slug: string) => http.request<PublicDigitalStoreAddress>(`/api/v1/stores/address/${segment(slug)}`, { auth: 'none' }),
     businessProfile: (businessKsNumber: string) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { auth: 'required' }),
     updateBusinessProfile: (businessKsNumber: string, body: UpdateStoreProfileRequest) => http.request<BusinessStoreProfileResponse>(`${businessStore(businessKsNumber)}/profile`, { method: 'PUT', body, auth: 'required' }),
     businessOffers: (businessKsNumber: string) => http.request<StoreOfferResponse[]>(`${businessStore(businessKsNumber)}/offers`, { auth: 'required' }),

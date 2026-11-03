@@ -24,8 +24,12 @@ import { createIdentityController } from '../identity/controller';
 import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
+import { DigitalStoreSetup } from './DigitalStoreSetup';
+import type { PublicDigitalStoreAddress } from '../../api/securepay/store/dto';
+import { parseDigitalStoreAddressRoute } from './route';
+import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 
-type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -61,6 +65,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
+  const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
@@ -83,11 +88,46 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } | null>(null);
 
   useEffect(() => {
+    const addressSlug = typeof window !== 'undefined' ? parseDigitalStoreAddressRoute(window.location.hash) : null;
     if (initialOfferRoute) { setShowFullOffer(false); void controller.openOffer(initialOfferRoute.canonicalKsNumber, initialOfferRoute.offerId); }
-    else void controller.enter();
+    else if (addressSlug) {
+      void gateway.publicDigitalAddress(addressSlug).then(result => {
+        setPublicDigitalAddress(result);
+        if (result.slug !== addressSlug && parseDigitalStoreAddressRoute(window.location.hash) === addressSlug)
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
+        void controller.openStore(result.canonicalKsNumber);
+      }).catch(() => { setPublicDigitalAddress(null); void controller.openStore(''); });
+    }
+    else {
+      const first = consumeFirstStoreOffer();
+      if (first) controller.restoreFirstOffer(first);
+      else void controller.enter();
+    }
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A customer may follow several merchant links in the same tab. Re-read each
+  // address; never carry one seller's pin or identity into another Store.
+  useEffect(() => {
+    const onStoreAddressChange = () => {
+      const slug = parseDigitalStoreAddressRoute(window.location.hash);
+      if (!slug) return;
+      setPublicDigitalAddress(null);
+      void gateway.publicDigitalAddress(slug).then(result => {
+        if (parseDigitalStoreAddressRoute(window.location.hash) !== slug) return;
+        setPublicDigitalAddress(result);
+        if (result.slug !== slug)
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
+        void controller.openStore(result.canonicalKsNumber);
+      }).catch(() => {
+        if (parseDigitalStoreAddressRoute(window.location.hash) === slug)
+          void controller.openStore('');
+      });
+    };
+    window.addEventListener('hashchange', onStoreAddressChange);
+    return () => window.removeEventListener('hashchange', onStoreAddressChange);
+  }, [gateway, controller]);
 
   // Debounced live search: the locked StoreHome box has no submit button. The initial empty-query
   // search already runs via controller.enter() above (or the direct-offer-link openOffer() call), so a
@@ -114,7 +154,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       setSignInGate(null);
       setIdentityController(createIdentityController(auth, session));
       if (gate === 'manage') void openManageChooser();
-      else controller.openBuilder(null);
+      // The first offer remains in the builder. Never auto-publish on identity completion.
     }
   }, [signInGate, identityState.phase, controller, auth, session]);
 
@@ -215,7 +255,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   };
 
   const requireAuth = (gate: 'manage' | 'create') => {
-    if (session.getSnapshot().status === 'signed-in') { if (gate === 'manage') void openManageChooser(); else controller.openBuilder(null); return; }
+    if (gate === 'create') {
+      // Do not ask for credentials before someone understands what they sell.
+      controller.openBuilder(null);
+      return;
+    }
+    if (session.getSnapshot().status === 'signed-in') { void openManageChooser(); return; }
     setSignInGate(gate);
   };
 
@@ -275,6 +320,20 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
               else if (value === 'cancel_auth') { setSignInGate(null); identityController.reset(); }
             }}
           />
+          {signInGate === 'create' && (
+            <div className="mt-4 max-w-md w-full rounded-xl border border-forest-200 bg-white p-4">
+              <p className="text-sm text-forest-800">Your first offer is still a private draft. A KS Number is required before publishing.</p>
+              <button type="button" className="mt-3 min-h-11 text-sm font-medium text-forest-700 underline"
+                onClick={() => {
+                  holdFirstStoreOffer(state.draft);
+                  setSignInGate(null);
+                  // Existing generic signup remains identity-only. It cannot publish the draft.
+                  window.location.hash = '#/sign-up';
+                }}>Get my KS Number</button>
+              <button type="button" className="ml-4 min-h-11 text-sm text-sand-600 underline"
+                onClick={() => setSignInGate(null)}>Review my offer first</button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -304,7 +363,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } else if (state.view === 'profile') {
     if (state.selectedStore.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedStore.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
-    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} />;
+    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} digitalAddress={publicDigitalAddress} />;
   } else if (state.view === 'offer' || state.view === 'toAgreement') {
     if (state.selectedOffer.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedOffer.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedOffer.status !== 'ready') body = <LoadingNotice text="Loading this offer…" />;
@@ -390,6 +449,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
+        digitalStoreSetup={<DigitalStoreSetup
+          gateway={gateway}
+          businessKsNumber={state.managedBusiness?.ksNumber ?? null}
+          publishedCount={state.mine.data.raw.filter(offer => offer.published).length}
+          onProfileSaved={() => { void controller.refreshMine(); }}
+        />}
       />
     );
   } else {
@@ -402,7 +467,13 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         isEditing={!!state.editingOfferId}
         onChange={patch => controller.setDraft(patch)}
         onBack={() => controller.backFromBuilder()}
-        onSubmit={() => void controller.submitDraft()}
+        onSubmit={() => {
+          if (session.getSnapshot().status !== 'signed-in') {
+            setSignInGate('create');
+            return;
+          }
+          void controller.submitDraft();
+        }}
       />
     );
   }

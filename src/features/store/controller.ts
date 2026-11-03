@@ -154,6 +154,11 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
     },
     /** From the builder: back to Manage if it's already loaded, otherwise Home (reached via "Create an offer" before any Manage load). */
     backFromBuilder() { update({ view: state.mine.status === 'ready' ? 'manage' : 'home' }); },
+    // A first-time seller may compose an offer before registering. Restoring
+    // only an unsubmitted draft cannot create or publish an offer.
+    restoreFirstOffer(draft: OfferDraftFields) {
+      update({ view: 'builder', editingOfferId: null, draft: { ...draft, mediaRefs: [...draft.mediaRefs], published: false }, draftError: null });
+    },
     setDraft(patch: Partial<OfferDraftFields>) { if (!state.draftBusy) update({ draft: { ...state.draft, ...patch } }); },
 
     async submitDraft() {

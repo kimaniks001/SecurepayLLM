@@ -324,6 +324,24 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [supportingFact, setSupportingFact] = useState<{label:string;conversationId:string}|null>(null);
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
+    // Digital Stores is a full commercial destination, not a photo-sized tool.
+    // Special-purpose Quick Assist Store searches may still use the smaller picker.
+    if (name === 'Stores' && !request) {
+      if (!mayLeaveDream()) return;
+      const snapshot = liveController?.getSnapshot();
+      if (snapshot?.busy || snapshot?.pending || (liveStarted && liveWork && !snapshot?.conversationId)) {
+        window.alert('Finish or save your current KS001 work before opening Digital Stores.');
+        return;
+      }
+      if (snapshot?.conversationId && readDraft(snapshot.conversationId).trim()) {
+        window.alert('You have unsent KS001 text. Send or clear it before opening Digital Stores.');
+        return;
+      }
+      if (signedIn && liveWork && snapshot?.conversationId)
+        storeKs001ConversationReturn(snapshot.conversationId);
+      window.location.hash = '#/store';
+      return;
+    }
     setPhase4Journey(null);
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
