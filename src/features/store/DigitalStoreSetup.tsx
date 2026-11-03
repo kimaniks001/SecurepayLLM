@@ -9,7 +9,7 @@ type Gateway = Pick<StoreGateway,
   'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress'>;
 
 const emptyAddress: SaveDigitalStoreAddress = {
-  slug: '', serviceArea: '', latitude: null, longitude: null,
+  slug: '', storeName: '', serviceArea: '', latitude: null, longitude: null,
   accuracyMeters: null, capturedAt: null, locationProvenance: null, publicPin: false,
 };
 
@@ -63,7 +63,7 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
       if (a.status === 'fulfilled') {
         setSavedAddress(a.value);
         setAddress({
-          slug: a.value.slug, serviceArea: a.value.serviceArea,
+          slug: a.value.slug, storeName: a.value.storeName, serviceArea: a.value.serviceArea,
           latitude: a.value.latitude, longitude: a.value.longitude,
           accuracyMeters: a.value.accuracyMeters, capturedAt: a.value.capturedAt,
           locationProvenance: a.value.locationProvenance, publicPin: a.value.publicPin,
@@ -108,6 +108,7 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
     setError(''); setNotice('');
     const slug = slugFrom(address.slug);
     if (!/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(slug)) { setError('Use a Store address of 3–48 letters, numbers or hyphens.'); return; }
+    if (!address.storeName.trim() || address.storeName.length > 120) { setError('Give your Store a name (up to 120 characters).'); return; }
     if ((address.latitude === null) !== (address.longitude === null)) {
       setError('Provide both latitude and longitude, or leave both blank.'); return;
     }
@@ -118,7 +119,7 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
     if (address.publicPin && address.latitude === null) { setError('Capture or enter a pin before making it public.'); return; }
     setBusy(true);
     try {
-      const request = { ...address, slug, serviceArea: address.serviceArea?.trim() || null,
+      const request = { ...address, slug, storeName: address.storeName.trim(), serviceArea: address.serviceArea?.trim() || null,
         locationProvenance: address.latitude === null ? null : address.locationProvenance ?? 'MANUAL' };
       const response = businessKsNumber
         ? await gateway.saveBusinessDigitalAddress(businessKsNumber, request)
@@ -170,6 +171,11 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3">
           <h3 className="font-medium text-forest-800 flex items-center gap-2"><Globe size={16}/> Digital address</h3>
+          <label className="block text-sm">Store name
+            <input value={address.storeName} maxLength={120}
+              onChange={e => setAddress(a => ({ ...a, storeName: e.target.value }))}
+              placeholder="Kamaki Builders Mart" className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 px-3 text-sm" />
+          </label>
           <label className="block text-sm">Store address
             <div className="mt-1 flex items-center rounded-lg border border-cream-200 overflow-hidden">
               <span className="px-2 py-3 bg-cream-100 text-xs text-sand-600 whitespace-nowrap">securepay.ke/s/</span>
