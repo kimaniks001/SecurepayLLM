@@ -4,6 +4,7 @@ import type {
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
   DigitalStoreAddress, SaveDigitalStoreAddress, PublicDigitalStoreAddress,
   StoreFavouriteDto, StoreEnquiryDto, CreateStoreEnquiryRequest, RespondToStoreEnquiryRequest,
+  SavedStoreEnquiryWorkDto,
 } from './dto';
 
 /**
@@ -32,6 +33,8 @@ export function createStoreGateway(http: HttpClient) {
     removeFavourite: (ks: string) => http.request<void>(`/api/v1/store/me/favourites/${segment(ks)}`, { method: 'DELETE', auth: 'required' }),
     createStoreEnquiry: (body: CreateStoreEnquiryRequest) => http.request<StoreEnquiryDto>('/api/v1/store/me/enquiries', { method: 'POST', body, auth: 'required' }),
     myCustomerEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/my-enquiries', { auth: 'required' }),
+    savedWorkForEnquiry: (id: string) =>
+      http.request<SavedStoreEnquiryWorkDto>(`/api/v1/store/me/enquiries/${segment(id)}/saved-work`, { auth: 'required' }),
     myStoreEnquiries: () => http.request<StoreEnquiryDto[]>('/api/v1/store/me/enquiries/inbox', { auth: 'required' }),
     businessStoreEnquiries: (ks: string) => http.request<StoreEnquiryDto[]>(`${businessStore(ks)}/enquiries`, { auth: 'required' }),
     respondStoreEnquiry: (id: string, body: RespondToStoreEnquiryRequest) => http.request<StoreEnquiryDto>(`/api/v1/store/me/enquiries/${segment(id)}/response`, { method: 'PUT', body, auth: 'required' }),
