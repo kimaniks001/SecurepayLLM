@@ -1062,6 +1062,24 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         } : null}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
+        onResumeSavedWork={conversationId => {
+          if (session.getSnapshot().status !== 'signed-in') {
+            setNotice('Sign in as the buyer to reopen Saved Work.');
+            return;
+          }
+          // The Store endpoint verified a saved pointer, not permission to read
+          // it. The Living Workspace must independently recheck the current
+          // session against the same canonical saved conversation.
+          if (state.conversationId && readDraft(state.conversationId).trim()) {
+            window.alert('Finish or copy your unsent KS001 message before reopening other work.');
+            return;
+          }
+          if (state.conversationId && meaningfulWork && unsavedWork
+              && !window.confirm('This conversation has unsaved work. Return to your saved Store enquiry without saving these changes?'))
+            return;
+          storeLivingWorkspaceEntry(conversationId);
+          window.location.hash = '#/preview/living-workspace/work';
+        }}
         onUseOffer={fact => {
           // Do not destroy private, unsent words from an unrelated ongoing KS001
           // conversation when a Store customer begins a NEW Agreement intention.
