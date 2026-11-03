@@ -69,13 +69,11 @@ jobs:
         with:
           node-version: "22"
       - name: Evaluate owner-facing full Gate 5 manifest without deploying
-        continue-on-error: true
         run: |
           node scripts/day5-stores-gate5-certify.mjs \
             --evidence testing/day5-stores-gate5-evidence.json \
             --ui-sha "${{ github.sha }}" \
             --api-sha "${{ inputs.api_sha }}" > day5-store-gate5-verdict.json
-          cat day5-store-gate5-verdict.json
       - name: Keep NO_GO evidence for owner review
         if: always()
         uses: actions/upload-artifact@v4
