@@ -15,6 +15,8 @@ export interface WorkNavigationServices {
   controller: Pick<AgentController, 'getSnapshot' | 'resumeConversation'>;
   ensureIdentity: () => Promise<void>;
   unsentDraft: (conversationId: string) => string;
+  /** Also catches opening composer text typed before a server conversation ID exists. */
+  hasUnsentComposer?: () => boolean;
 }
 
 function currentWork(services: WorkNavigationServices) {
@@ -28,10 +30,12 @@ function currentWork(services: WorkNavigationServices) {
 export async function preserveCurrentWork(services: WorkNavigationServices, nextId?: string): Promise<boolean> {
   const state = currentWork(services);
   const previousId = state.conversationId;
-  if (!previousId || previousId === nextId) return false;
-  if (services.unsentDraft(previousId).trim()) {
+  // An opening message may exist only inside the React composer, before KS001
+  // allocates a conversation ID. That text must never be discarded by New Work.
+  if (services.hasUnsentComposer?.() || (previousId && services.unsentDraft(previousId).trim())) {
     throw new Error('Your KS001 message is not sent. Send or clear it before changing work.');
   }
+  if (!previousId || previousId === nextId) return false;
   await services.ensureIdentity();
   const saved = await services.gateway.saveBuild(previousId);
   if (saved.conversationId !== previousId || !saved.savedBuildId) {
