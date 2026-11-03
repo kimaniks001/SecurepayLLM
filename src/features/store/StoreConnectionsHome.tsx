@@ -10,7 +10,7 @@ type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries'>;
  * For traders who are NOT registered, this creates only shareable invitation
  * COPY on the resident's device: no ghost Store, unsolicited SMS, or "sent" status.
  */
-export function StoreConnectionsHome({ gateway, signedIn }: { gateway: Gateway; signedIn: boolean }) {
+export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object }) {
   const [favourites, setFavourites] = useState<StoreFavouriteDto[]>([]);
   const [enquiries, setEnquiries] = useState<StoreEnquiryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,11 +33,12 @@ export function StoreConnectionsHome({ gateway, signedIn }: { gateway: Gateway; 
 
   useEffect(() => {
     let active = true;
-    if (!signedIn) { setFavourites([]); setEnquiries([]); return; }
+    setFavourites([]); setEnquiries([]);
+    if (!signedIn) return;
     void refresh(() => active);
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedIn, gateway]);
+  }, [signedIn, gateway, sessionEpoch]);
 
   const inviteUrl = typeof window !== 'undefined'
     ? window.location.origin + window.location.pathname + '#/store/open'
