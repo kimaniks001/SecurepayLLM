@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Heart, Send, RefreshCcw } from 'lucide-react';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { StoreEnquiryDto } from '../../api/securepay/store/dto';
+import { ApiError } from '../../api/securepay/http';
 import type { StoreOffer } from '../../types';
 
 type Gateway = Pick<StoreGateway, 'myFavourites' | 'saveFavourite' | 'removeFavourite'
@@ -81,11 +82,22 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
       setConfirmed(result); setUnknown(false);
       setNotice('Your enquiry is recorded for this trader. It is not an order or accepted Agreement.');
       setDraft(() => emptyStoreCustomerDraft);
-    } catch {
-      // The POST might have committed before a network failure. Do not mint a
-      // second key or re-send automatically; let the buyer reconcile explicitly.
-      setUnknown(true);
-      setError('SecurePay could not confirm the outcome. Check your enquiries or retry the SAME request.');
+    } catch (failure) {
+      const outcomeUnknown = !(failure instanceof ApiError)
+        || failure.kind === 'network' || failure.kind === 'timeout'
+        || (failure.status ?? 0) >= 500;
+      if (outcomeUnknown) {
+        // A network interruption may occur AFTER the server committed.
+        // The buyer must reconcile/retry using the SAME request key.
+        setUnknown(true);
+        setError('SecurePay could not confirm the outcome. Check your enquiries or retry the SAME request.');
+      } else {
+        // A definite 4xx rejection permits revising the proposal; don't trap
+        // the customer behind an unknown-outcome retry when nothing was saved.
+        setUnknown(false);
+        setDraft(previous => ({ ...previous, clientRequestId: null }));
+        setError('The trader or offer cannot accept this request as written. Review availability, quantity and terms before trying again.');
+      }
     } finally { setBusy(false); }
   }
 
