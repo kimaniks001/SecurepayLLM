@@ -41,7 +41,7 @@ if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.
   try { previewWorkspaceGateways = createPreviewWorkspaceGateways(api.baseUrl, session.getAccessToken); }
   catch { /* Fail closed if the approved upstream cannot be resolved. */ }
 }
-const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
+const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'bindStoreEnquiryContext', 'readStoreEnquiryContext', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
