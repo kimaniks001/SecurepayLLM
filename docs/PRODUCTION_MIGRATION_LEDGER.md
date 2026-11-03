@@ -2005,3 +2005,15 @@ Owner-observed issues: a mobile tester could not find the Agreement view; two te
 | Day 4 real-device certification | HUMAN_DOCTRINE_BLOCKER | Source/test additions are not evidence of a successful authenticated owner journey; verify iOS/Android mobile breakpoints, refresh and resumption, unsent drafts, cross-account isolation, and no Money side effects in isolated staging before any release decision. |
 
 This repair intentionally leaves SecurePayAPI, the preview proxy allowlists, production deployment and financial execution unchanged.
+
+### Day 4 deployment report and upstream review follow-up — 3 November 2026
+
+The owner supplied a C6 production-backport report stating that the three Day 4 navigation changes went live on `securepay.ke` at 08:35 EAT on 3 November 2026. Reported environment checks: 65 focused tests, TypeScript, build, lint (36 warnings; 0 errors), authenticated Chromium/Firefox sandbox journeys, and mobile-sized Chromium checks. Reported preservation: C6 backend/database/proxy unchanged, financial providers disabled and previous frontend retained for rollback. **This is operator-reported evidence, not an independent upstream certification result.**
+
+Two review corrections now implemented on the PR branch:
+- **Unsent initial composer:** when the user types a first message before `conversationId` exists, the child composer reports its live unsent text to the Living Workspace. Save/new/resume checks reject switching without clearing or submitting this text.
+- **Work-transition lock:** New Work/resume holds a navigation lock during save/create/resume/history/context operations. KS001 input, send, retry, suggested actions and mini-answer submission are inactive during the transition; secondary formation actions respect the busy state. The lock releases in the success/failure `finally` path.
+
+Corresponding new regression tests cover both initial-message no-ID and successful empty-composer startup. The deployed backport patch and full report remain *server-local* at `/home/deploy/securepay/releases/ui-day4-20261103/` and are not retrievable from this GitHub checkout, so full diff identity with the deployed bytes is **unverified**. Before merging, compare the exact backport and prevent overwriting C6 preservation patches.
+
+Other blockers remain unchanged: returning-user MFA OTP provider, physical Android/iOS, unresolved seller-role extraction, repeated money wording, SecureLink participant prerequisites, isolated end-to-end Gate 6 and broader GitHub CI. A Vercel READY preview alone is not release certification.
