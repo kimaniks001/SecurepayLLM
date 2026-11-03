@@ -19,7 +19,7 @@ export const emptyStoreCustomerDraft: StoreCustomerDraft = {
 };
 
 /** Live, self-scoped engagement on a particular trader's public Store. */
-export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers, signedIn, sessionEpoch,
+export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers, signedIn, sessionEpoch, onContinueWithKs001,
   draft, setDraft, onRequestSignIn }: {
   gateway: Gateway;
   sellerKs: string;
@@ -27,6 +27,7 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
   offers: StoreOffer[];
   signedIn: boolean;
   sessionEpoch: object;
+  onContinueWithKs001: (enquiry: StoreEnquiryDto) => void;
   draft: StoreCustomerDraft;
   setDraft: (update: (draft: StoreCustomerDraft) => StoreCustomerDraft) => void;
   onRequestSignIn: () => void;
@@ -140,6 +141,13 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
       {confirmed && <div className="rounded-xl border border-forest-200 bg-white p-3 text-sm text-forest-800">
         <strong>Enquiry recorded</strong> · {confirmed.status} · {confirmed.offerTitle}
         {confirmed.sellerReply && <p className="mt-1 text-xs">Trader's response: {confirmed.sellerReply}</p>}
+        {confirmed.status !== 'DECLINED' && (
+          <button type="button" onClick={() => onContinueWithKs001(confirmed)}
+            className="mt-3 min-h-11 rounded-xl bg-forest-800 px-4 text-xs font-medium text-white">
+            Continue this enquiry with KS001
+          </button>
+        )}
+        <p className="mt-2 text-xs text-sand-600">Your selected offer and proposed enquiry will be checked by SecurePay. Nothing is agreed, booked or funded yet.</p>
       </div>}
       {published.length > 0 ? (
         <div className="space-y-3">
