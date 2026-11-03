@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Heart, MessageSquareText, Send, RefreshCcw } from 'lucide-react';
+import { Heart, Send, RefreshCcw } from 'lucide-react';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { StoreEnquiryDto } from '../../api/securepay/store/dto';
 import type { StoreOffer } from '../../types';
@@ -93,10 +93,10 @@ export function StoreCustomerConnections({ gateway, sellerKs, storeName, offers,
     setBusy(true); setError('');
     try {
       const enquiries = await gateway.myCustomerEnquiries();
-      const exact = enquiries.find(e => e.sellerKsNumber === sellerKs
-        && e.offerId === selectedId
-        && e.customerMessage === draft.message.trim()
-        && e.requestedQuantity === Number(draft.quantity));
+      // Never infer identity from matching text: only the exact idempotency
+      // key proves which interrupted POST the caller is trying to recover.
+      const exact = enquiries.find(e => e.clientRequestId === draft.clientRequestId
+        && e.sellerKsNumber === sellerKs && e.offerId === selectedId);
       if (exact) {
         setConfirmed(exact); setUnknown(false);
         setDraft(() => emptyStoreCustomerDraft);
