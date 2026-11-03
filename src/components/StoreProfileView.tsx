@@ -1,5 +1,6 @@
 import { ArrowLeft, Store, MapPin, BadgeCheck } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
+import type { PublicDigitalStoreAddress } from '../api/securepay/store/dto';
 import { ResultCard } from '../features/discovery/ui/ResultCard';
 import { resultFromStoreOffer } from '../features/discovery/result';
 
@@ -8,9 +9,10 @@ interface StoreProfileViewProps {
   offers: StoreOffer[];
   onBack: () => void;
   onOpenOffer: (id: string) => void;
+  digitalAddress?: PublicDigitalStoreAddress | null;
 }
 
-export function StoreProfileView({ store, offers, onBack, onOpenOffer }: StoreProfileViewProps) {
+export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAddress }: StoreProfileViewProps) {
   const publishedOffers = offers.filter((o) => o.lifecycle === 'published' || o.lifecycle === 'unavailable');
 
   return (
@@ -45,6 +47,19 @@ export function StoreProfileView({ store, offers, onBack, onOpenOffer }: StorePr
             <MapPin className="w-3.5 h-3.5 text-sand-400" />
             {store.serviceAreas.join(' · ')}
           </div>
+          {digitalAddress && (
+            <div className="mt-3 space-y-1 rounded-xl bg-cream-50 p-3 text-xs text-sand-700">
+              <p className="font-medium text-forest-800">Digital Store · {digitalAddress.slug}</p>
+              {digitalAddress.serviceArea && <p>Serves {digitalAddress.serviceArea}</p>}
+              {digitalAddress.publicPin && digitalAddress.latitude !== null && digitalAddress.longitude !== null
+                ? <a className="inline-flex min-h-10 items-center gap-1 text-forest-700 underline"
+                    target="_blank" rel="noopener noreferrer"
+                    href={`https://www.google.com/maps/search/?api=1&query=${digitalAddress.latitude}%2C${digitalAddress.longitude}`}>
+                    <MapPin size={14}/> View owner's public Store pin
+                  </a>
+                : <p>Exact location not published by this Store.</p>}
+            </div>
+          )}
         </div>
 
         {/* Offers */}
