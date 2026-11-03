@@ -238,11 +238,36 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
   }
   async function readContext() {
     if (!state.conversationId) return;
+    const requestedId = state.conversationId;
     update({ context: { status: 'loading', data: state.context.data, error: null } });
     try {
-      const data = tradeContextView(await gateway.readContext(state.conversationId));
+      const data = tradeContextView(await gateway.readContext(requestedId));
+      if (state.conversationId !== requestedId) return;
       update({ context: { status: 'ready', data, error: null } });
-    } catch (error) { update({ context: { status: 'error', data: null, error: errorText(error) } }); }
+      // A trader can withdraw or alter an offer while the buyer is talking.
+      // Never continue displaying a formerly valid enquiry as if still current:
+      // re-read the self-scoped buyer proposal after each canonical context read.
+      // Ordinary KS001 conversations incur no new request.
+      const linkedEnquiryId = state.enquiryContext?.enquiryId;
+      if (linkedEnquiryId && gateway.readStoreEnquiryContext) {
+        try {
+          const current = await gateway.readStoreEnquiryContext(requestedId);
+          if (state.conversationId === requestedId
+              && state.enquiryContext?.enquiryId === linkedEnquiryId) {
+            update({ enquiryContext: current.enquiryId === linkedEnquiryId
+              && current.offerId === state.source?.sourceId
+              && current.sellerKsNumber === state.source?.sourceOwnerKsNumber
+                ? current : null });
+          }
+        } catch {
+          if (state.conversationId === requestedId && state.enquiryContext?.enquiryId === linkedEnquiryId)
+            update({ enquiryContext: null });
+        }
+      }
+    } catch (error) {
+      if (state.conversationId === requestedId)
+        update({ context: { status: 'error', data: null, error: errorText(error) }, enquiryContext: null });
+    }
   }
   async function run(pending: Pending): Promise<boolean> {
     const contextBefore = state.context;
