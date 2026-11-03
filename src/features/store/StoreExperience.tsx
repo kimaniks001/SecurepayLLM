@@ -534,6 +534,17 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
         enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
+        agreementProgress={<section aria-label="Agreement progress" className="rounded-2xl border border-cream-200 bg-white p-4">
+          <h3 className="font-display text-lg text-forest-900">Where an enquiry becomes work</h3>
+          <p className="mt-1 text-xs leading-5 text-sand-600">
+            A reply is only a reply. When KS001 and the participants establish an Agreement,
+            its reviews, responsibilities and progress belong in the existing Agreements workspace.
+          </p>
+          <button type="button" onClick={() => onNavigate('agreements')}
+            className="mt-3 min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-xs font-medium text-forest-800">
+            Open my Agreements
+          </button>
+        </section>}
         digitalStoreSetup={<DigitalStoreSetup
           gateway={gateway}
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
