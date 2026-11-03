@@ -1,3 +1,29 @@
+// Digital Store address is an alias of the same canonical KS identity, not a new account.
+// Owner reads include private GPS. Public reads NEVER contain private GPS or accuracy.
+export interface DigitalStoreAddress {
+  slug: string;
+  storeName: string;
+  serviceArea: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMeters: number | null;
+  capturedAt: string | null;
+  locationProvenance: 'DEVICE' | 'MAP_SELECTED' | 'MANUAL' | null;
+  publicPin: boolean;
+  updatedAt: string;
+}
+export type SaveDigitalStoreAddress = Omit<DigitalStoreAddress, 'updatedAt'>;
+export interface PublicDigitalStoreAddress {
+  slug: string;
+  storeName: string;
+  requestedSlug: string;
+  canonicalKsNumber: string;
+  serviceArea: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  publicPin: boolean;
+}
+
 // Verified against kimaniks001/SecurePayAPI feat/securepay-phase9-store-platform @ 69424c1f83173b71f7cf99d20d964786aef78aa3
 // (StoreController.java, PublicStoreController.java, StoreService.java). The OpenAPI file
 // contracts/openapi/market-store-v1.yaml is stale relative to this source (missing /stores/search,
@@ -93,7 +119,7 @@ export interface PublicStoreView {
   displayName: string;
   identityType: string;
   status: string;
-  profile: PublicStoreProfileView;
+  profile?: PublicStoreProfileView | null;
   offers: PublicOfferView[];
 }
 
@@ -102,7 +128,7 @@ export interface PublicOfferDetailView {
   displayName: string;
   identityType: string;
   status: string;
-  profile: PublicStoreProfileView;
+  profile?: PublicStoreProfileView | null;
   offer: PublicOfferView;
 }
 

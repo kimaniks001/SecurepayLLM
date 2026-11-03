@@ -1,6 +1,7 @@
+import { firstOfferDraftStore } from './firstOfferDraft';
 import { ApiError, type RemoteState } from '../../api/securepay/http';
 import { businessOfferView, businessStoreIdentityView, publicOfferDetailView, myOfferView, myStoreIdentityView, searchResultsView, storeIdentityView, storeOffersView, type StoreSearchResult } from '../../api/securepay/store/adapters';
-import type { BusinessStoreOpportunityResponse, StoreOfferResponse, UpsertStoreOfferRequest } from '../../api/securepay/store/dto';
+import type { BusinessStoreOpportunityResponse, PublicStoreProfileView, StoreOfferResponse, UpsertStoreOfferRequest } from '../../api/securepay/store/dto';
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
 import { emptyOfferDraft, mergeSearchResults, searchRequests, type StoreManageGateway, type StoreReadGateway } from './view';
@@ -21,7 +22,7 @@ function asApiError(error: unknown): ApiError {
 }
 
 export type StoreView = 'home' | 'profile' | 'offer' | 'toAgreement' | 'manage' | 'builder';
-export interface StoreLoad { store: StoreIdentity; offers: StoreOffer[] }
+export interface StoreLoad { store: StoreIdentity; offers: StoreOffer[]; presentation?: PublicStoreProfileView | null }
 // priceMinor is carried alongside the Bolt-facing `offer` view model (which only has the formatted
 // display string) because "Use this" needs the raw numeric amount to seed a real external fact.
 export interface OfferLoad { store: StoreIdentity; offer: StoreOffer; priceMinor: number | null }
@@ -29,7 +30,7 @@ export interface MyStoreLoad { profile: StoreIdentity; offers: StoreOffer[]; raw
 function draftFromOffer(dto: StoreOfferResponse): OfferDraftFields {
   return {
     kind: dto.kind, title: dto.title, description: dto.description ?? '',
-    priceMinor: dto.priceMinor, quantityAvailable: dto.quantityAvailable,
+    priceMinor: dto.priceMinor ?? null, quantityAvailable: dto.quantityAvailable ?? null,
     availabilityState: dto.availabilityState, published: dto.published, mediaRefs: dto.mediaRefs,
   };
 }
@@ -63,6 +64,7 @@ type Gateway = StoreReadGateway & StoreManageGateway;
  */
 export function createStoreController(gateway: Gateway, trustedMediaOrigin: string | null = null) {
   let state: StoreState = { ...initial };
+  let storeReadSequence = 0;
   const listeners = new Set<() => void>();
   const update = (patch: Partial<StoreState>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
 
@@ -110,13 +112,20 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
     setQuery(query: string) { update({ query }); },
     async submitSearch() { await runSearch(state.query); },
 
+    beginStoreNavigation() {
+      storeReadSequence++;
+      update({ view: 'profile', selectedStore: { status: 'loading' } });
+    },
+
     async openStore(canonicalKsNumber: string) {
+      const sequence = ++storeReadSequence;
       update({ view: 'profile', selectedStore: { status: 'loading' } });
       try {
         const dto = await gateway.store(canonicalKsNumber);
-        update({ selectedStore: { status: 'ready', data: { store: storeIdentityView(dto), offers: storeOffersView(dto, trustedMediaOrigin) } } });
+        if (sequence !== storeReadSequence) return;
+        update({ selectedStore: { status: 'ready', data: { store: storeIdentityView(dto), offers: storeOffersView(dto, trustedMediaOrigin), presentation: dto.profile } } });
       } catch (error) {
-        update({ selectedStore: { status: 'error', error: asApiError(error) } });
+        if (sequence === storeReadSequence) update({ selectedStore: { status: 'error', error: asApiError(error) } });
       }
     },
 
@@ -125,7 +134,7 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
       try {
         const dto = await gateway.offer(canonicalKsNumber, offerId);
         const { store, offer } = publicOfferDetailView(dto, trustedMediaOrigin);
-        update({ selectedOffer: { status: 'ready', data: { store, offer, priceMinor: dto.offer.priceMinor } } });
+        update({ selectedOffer: { status: 'ready', data: { store, offer, priceMinor: dto.offer.priceMinor ?? null } } });
       } catch (error) {
         update({ selectedOffer: { status: 'error', error: asApiError(error) } });
       }
@@ -154,7 +163,16 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
     },
     /** From the builder: back to Manage if it's already loaded, otherwise Home (reached via "Create an offer" before any Manage load). */
     backFromBuilder() { update({ view: state.mine.status === 'ready' ? 'manage' : 'home' }); },
-    setDraft(patch: Partial<OfferDraftFields>) { if (!state.draftBusy) update({ draft: { ...state.draft, ...patch } }); },
+    // A first-time seller may compose an offer before registering. Restoring
+    // only an unsubmitted draft cannot create or publish an offer.
+    restoreFirstOffer(draft: OfferDraftFields) {
+      update({ view: 'builder', editingOfferId: null, draft: { ...draft, mediaRefs: [...draft.mediaRefs], published: false }, draftError: null });
+    },
+    setDraft(patch: Partial<OfferDraftFields>) {
+      if (state.draftBusy) return;
+      update({ draft: { ...state.draft, ...patch } });
+      if (!state.editingOfferId) firstOfferDraftStore.remember(state.draft);
+    },
 
     async submitDraft() {
       if (state.draftBusy || !state.draft.title.trim()) return;
@@ -172,6 +190,7 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
           if (state.editingOfferId) await gateway.updateOffer(state.editingOfferId, body);
           else await gateway.createOffer(body);
         }
+        firstOfferDraftStore.clear();
         update({ draftBusy: false, view: 'manage', editingOfferId: null, draft: emptyOfferDraft });
         await loadMine();
       } catch (error) {

@@ -65,7 +65,9 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
- const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal)||!initialServiceQuery);
+ // Day 5 real-commerce gate: a live Store entry must never silently start inside a
+ // fictional marketplace. Local-only preview explicitly opts into the sample world.
+ const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal));
  const [storeRelations,setStoreRelations]=useState<StoreHumanRelation[]>([]);
  const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
  const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
@@ -147,7 +149,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
     'Listed price: '+price(offer.priceMinor,offer.currency)+'.',
     'Reported availability: '+titleCase(offer.availabilityState)+'.',
     offer.description?'Description: '+offer.description.slice(0,180)+'.':'',
-    record.profile.locationLabel?'Store location label: '+record.profile.locationLabel.slice(0,100)+'.':'',
+    record.profile?.locationLabel?'Store location label: '+record.profile?.locationLabel.slice(0,100)+'.':'',
     'Keep the source reference with this work. Ask whether I want to compare it, request a quotation or propose it in my draft Agreement.',
     'Do not order, reserve, contact the seller, commit Agreement terms or move money without further authorised action.',
    ].filter(Boolean).join('\n');
@@ -167,7 +169,7 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
     if(record.canonicalKsNumber!==ownerKs||record.offer.id!==offerId)throw new Error('Offer source mismatch');
     setPlanLines(current=>addStoreBuyingLine(current,{
       key:'real:'+ownerKs+':'+offerId,
-      storeName:record.displayName,storeKsNumber:ownerKs,originPlace:record.profile.locationLabel,offerId,
+      storeName:record.displayName,storeKsNumber:ownerKs,originPlace:record.profile?.locationLabel ?? null,offerId,
       title:record.offer.title,kind:record.offer.kind as StoreBuyingLine['kind'],
       priceLabel:price(record.offer.priceMinor,record.offer.currency),currency:record.offer.currency,
     }));
@@ -273,8 +275,8 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
      {currentOffer&&<div className="space-y-3">
        <button className="inline-flex min-h-10 items-center gap-1 text-xs" onClick={()=>setSelectedStore(initial(null))}><ArrowLeft size={14}/> All offers</button>
        <div className="rounded-xl border border-cream-200 p-3"><p className="text-lg font-semibold">{currentOffer.displayName}</p>
-         {currentOffer.profile.tagline&&<p className="text-xs text-sand-600">{currentOffer.profile.tagline}</p>}
-         {currentOffer.profile.locationLabel&&<p className="mt-2 flex items-center gap-1 text-xs text-sand-600"><MapPin size={13}/>{currentOffer.profile.locationLabel}</p>}
+         {currentOffer.profile?.tagline&&<p className="text-xs text-sand-600">{currentOffer.profile?.tagline}</p>}
+         {currentOffer.profile?.locationLabel&&<p className="mt-2 flex items-center gap-1 text-xs text-sand-600"><MapPin size={13}/>{currentOffer.profile?.locationLabel}</p>}
        </div>
        <div className="grid grid-cols-2 gap-2">{currentOffer.offers.map(offer=><article key={offer.id} className="space-y-2 rounded-xl border border-cream-200 p-2">
          <OfferPhoto refs={offer.mediaRefs} title={offer.title}/>

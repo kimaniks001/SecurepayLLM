@@ -2003,3 +2003,16 @@ FRONTEND_COMPOSITION_ONLY: explicit mobile Agreement navigation.
 REAL_API_WIRED: New Work saves the current authenticated build before creating a conversation; Saved Work remains available during chat. Existing ownership checks and API contracts retained.
 Confirmed technical correction: opening draft is observed directly before a server conversation exists. Controller busy lock covers identity/save/create/resume/history/context, preventing concurrent turns and duplicate switches; release in finally permits recovery.
 Release scope: C6 UI plus bounded PR202 navigation changes; existing authentication routing, Agreement review, source continuation and mobile scroll patches retained. No API, database or financial activation changes. Actual-device and full Gate6 certification remain separate.
+
+
+## Digital Stores Gate 1 integration — 2026-11-03
+Classification: Current architectural decision; validation evidence is in the staging Gate 1 report.
+
+- REAL_API_WIRED: full Store entry, personal/represented Business ownership, Digital Store name/address/aliases, explicit location capture and public-pin consent, Store appearance, three offer kinds, explicit publication and confirmed public-link sharing. API PR 384; UI PR 204 followed by stacked PR 205, on preserved C6/Day 4 sources.
+- FRONTEND_COMPOSITION_ONLY: unsubmitted first-offer continuity uses a whitelisted sessionStorage record in the same tab for at most 24 hours. This is a deliberate extension of the prior memory-only draft rule to meet refresh/signup continuity. No credentials, coordinates, owner IDs, permissions or publication authority persist. Recovered offers are always private; successful API save clears the record. Auth sessions remain memory-only.
+- REAL_API_WIRED: draft review/edit action; stale public Store response suppression; manual pin clears device provenance and prior consent; share enabled only after public address read succeeds.
+- REAL_API_AVAILABLE_NOT_WIRED: Store tagline is retained by appearance reads/writes; the current setup form exposes headline, about, location, preset and theme.
+- FUTURE IMPLEMENTATION REQUIREMENT: Store covers, galleries and photo uploads have no Store-owned secure media authorization/resolution contract. Existing Agreement evidence media is private and participant-scoped; it must not be exposed as public Store imagery. Gate 1 does not add external image storage. Existing same-origin media-reference restrictions remain intact.
+- Confirmed technical fact: For You KES 100 and Business KES 200 per month match SubscriptionPlan. Store publication is not gated by subscription funding in this backend; registration, plan selection, activation and publication remain distinct states. No financial provider enabled.
+
+- FRONTEND_COMPOSITION_ONLY: Store discovery, management and the offer editor use the Living Workspace three-column arrangement (navigation, Store work, SecurePay Check). Mobile panels keep the editor mounted while switching to facts/tools. Check facts come from Store API reads; editing/publication selections remain explicitly unsaved. The editor preview describes the requested next save rather than claiming publication. Direct public Store links retain the trader-first storefront. The existing identity and ownership screens are unchanged.

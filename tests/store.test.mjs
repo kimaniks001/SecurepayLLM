@@ -544,5 +544,28 @@ test('O2. OfferBuilderView is intentionally NOT byte-identical to Bolt: the mock
   // multi-turn Q&A (stillToClarify/handleAgentSubmit/currentReply) with canned replies — none of that
   // fake-intelligence machinery may remain; explicit fields only.
   assert.doesNotMatch(contents, /stillToClarify|handleAgentSubmit|currentReply|lower\.includes/);
-  assert.match(contents, /does not yet auto-structure offers from free text/);
+  assert.match(contents, /Describe what you offer/);
+  assert.match(contents, /private/);
+});
+
+test('switching Store addresses discards an older in-flight public Store response', async () => {
+  let finishOld;
+  const controller = api.createStoreController(fullGateway({store: ks => ks === 'KS101'
+    ? new Promise(resolve => {finishOld = resolve;})
+    : Promise.resolve(publicStoreView({canonicalKsNumber: ks, displayName: 'Second trader'}))}));
+  const old = controller.openStore('KS101');
+  controller.beginStoreNavigation();
+  await controller.openStore('KS102');
+  finishOld(publicStoreView({canonicalKsNumber:'KS101',displayName:'First trader'}));
+  await old;
+  assert.equal(controller.getSnapshot().selectedStore.data.store.id,'KS102');
+});
+
+
+test('public API may omit a nullable price, description and optional Store profile', () => {
+  const offer=publicOfferView();delete offer.priceMinor;delete offer.description;
+  const store=publicStoreView({offers:[offer]});delete store.profile;
+  assert.equal(api.storeIdentityView(store).id,store.canonicalKsNumber);
+  const view=api.storeOffersView(store,null)[0];assert.equal(view.price,'Price not listed');assert.equal(view.description,'');
+  assert.throws(()=>api.storeOffersView({...store,offers:[{...offer,priceMinor:'free'}]},null),/unreadable/);
 });

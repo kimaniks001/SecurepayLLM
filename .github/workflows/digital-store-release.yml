@@ -1,0 +1,36 @@
+name: Digital Store release verification
+on:
+  pull_request:
+    branches: [release/c6-preserved-20261103]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  store-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Focused Store and preserved continuity regressions
+        run: >-
+          node --test --test-concurrency=1
+          tests/day5-real-store-default.test.mjs tests/day5-gate1-digital-stores.test.mjs
+          tests/digital-store-draft.test.mjs tests/store.test.mjs tests/store-completion-phase1.test.mjs
+          tests/day4-work-navigation.test.mjs tests/sources.test.mjs
+          tests/day1-gate-d-verified-media.test.mjs tests/phase6-convergence.test.mjs
+      - run: npm run build
+        env:
+          VITE_SECUREPAY_MODE: real
+          VITE_SECUREPAY_API_BASE_URL: https://securepay.ke
+          VITE_SECUREPAY_MEDIA_EVIDENCE_STAGING_ENABLED: 'false'
