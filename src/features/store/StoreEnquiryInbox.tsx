@@ -7,9 +7,10 @@ type Gateway = Pick<StoreGateway, 'myStoreEnquiries' | 'businessStoreEnquiries'
   | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry'>;
 
 /** Actual seller-side Inbox: never invented activity/notifications. */
-export function StoreEnquiryInbox({ gateway, businessKs }: {
+export function StoreEnquiryInbox({ gateway, businessKs, sessionEpoch }: {
   gateway: Gateway;
   businessKs: string | null;
+  sessionEpoch: object;
 }) {
   const [items, setItems] = useState<StoreEnquiryDto[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,11 +31,12 @@ export function StoreEnquiryInbox({ gateway, businessKs }: {
   }
   useEffect(() => {
     let active = true;
+    setItems([]); setMessages({}); setNotice('');
     void load(() => active);
     return () => { active = false; };
     // Must follow selected owner/Business representation only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gateway, businessKs]);
+  }, [gateway, businessKs, sessionEpoch]);
 
   async function respond(item: StoreEnquiryDto, status: 'REPLIED' | 'DECLINED') {
     const text = (messages[item.id] ?? '').trim();
