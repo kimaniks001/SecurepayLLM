@@ -57,7 +57,7 @@ import { createHandoffController } from '../handoff/controller';
 import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
 import { ContinuityChoice } from './ContinuityChoice';
-import { clearComposerDrafts } from '../conversation/drafts';
+import { clearComposerDrafts, readDraft } from '../conversation/drafts';
 import type { SendResult } from '../conversation/ConversationSurface';
 import { conversationTitle, hasMeaningfulWork, isUnsaved, routeInput, startNewDecision } from '../entry/lifecycle';
 import { StartFreshDialog } from '../entry/StartFreshDialog';
@@ -89,6 +89,7 @@ import { setDetailTabHint } from '../support/tabHint';
 import { openMoneyFor } from '../money/handoff';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { StoreExperience } from '../store/StoreExperience';
+import { StoreEnquiryCheck } from '../store/StoreEnquiryCheck';
 import { CommunityExperience } from '../community/CommunityExperience';
 import { CircleExperience } from '../circle/CircleExperience';
 import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
@@ -1061,7 +1062,37 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         } : null}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
-        onUseOffer={fact => { setStoreReturnContext(null); setStore(false); setHome(false); void controller.useOffer(fact); }}
+        onUseOffer={fact => {
+          // Do not destroy private, unsent words from an unrelated ongoing KS001
+          // conversation when a Store customer begins a NEW Agreement intention.
+          if (fact.enquiryId && state.conversationId && readDraft(state.conversationId).trim()) {
+            window.alert('Finish or copy the unsent KS001 message in your current work before starting this Store enquiry.');
+            return;
+          }
+          setStoreReturnContext(null);
+          setStore(false);
+          setHome(false);
+          const proceed = (set: WorkSet) => {
+            void set.controller.useOffer(fact).then(result => {
+              if (!fact.enquiryId || result.status !== 'selected' || session.getSnapshot().status !== 'signed-in')
+                return;
+              const selected = set.controller.getSnapshot();
+              if (!selected.conversationId || selected.enquiryContext?.enquiryId !== fact.enquiryId
+                  || selected.enquiryContext?.offerId !== fact.sourceId
+                  || selected.enquiryContext?.sellerKsNumber !== fact.sourceOwnerKsNumber)
+                return; // No verified buyer-owned proposal = no advertised handoff.
+              // Enter the approved Living Workspace, which MUST re-authorise and
+              // re-read this same canonical conversation before showing details.
+              // This one-shot tab-memory hint grants no identity or Agreement rights.
+              storeLivingWorkspaceEntry(selected.conversationId);
+              window.location.hash = '#/preview/living-workspace/work';
+            }).catch(() => {
+              setNotice('SecurePay could not confirm the Store enquiry handoff. Review your KS001 source before retrying.');
+            });
+          };
+          if (fact.enquiryId) requestFresh(proceed);
+          else proceed(currentSet()); // Keep existing ordinary Store "Use this" behaviour.
+        }}
         onOpenBusinessVision={businessKsNumber => {
           setStore(false);
           setVisionLibrary(true);
@@ -1830,7 +1861,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
               {/* Final Phase 4 Economy Turn 3 (Section 5) -- a failed Store "Use this" is never
                   silent: the person must explicitly retry or continue without the source before
                   anything from the offer reaches the conversation. */}
-              {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error}
+              {state.offerSelectionFailure && discoveryState.phase !== 'source-failed' && <SourceFailureNote busy={state.busy} error={state.offerSelectionFailure.error} enquiry={Boolean(state.offerSelectionFailure.fact.enquiryId)}
                 onRetry={() => void controller.retryOfferSelection()} onContinueWithout={() => void controller.continueOfferWithoutSource()} />}
               {/* Phase 6 Slice 4 (Community → Trade) -- the SAME failed-selection discipline for a
                   Community "Use this": never silent, held until an explicit retry/continue. */}
@@ -1846,7 +1877,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   ownerKs: state.source.sourceOwnerKsNumber,
                   capturedPriceMinor: state.source.capturedPriceMinor,
                   capturedCurrency: state.source.capturedCurrency,
-                }} />
+                }} action={
+                  state.enquiryContext
+                  && state.source.sourceType === 'STORE_LISTING'
+                  && state.enquiryContext.offerId === state.source.sourceId
+                  && state.enquiryContext.sellerKsNumber === state.source.sourceOwnerKsNumber
+                    ? <StoreEnquiryCheck context={state.enquiryContext}/>
+                    : undefined
+                } />
               )}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 min-h-11 text-forest-700 underline disabled:opacity-40">{state.busy && state.outcomeUnknown ? 'Checking…' : retryLabel(state.pending, state.outcomeUnknown)}</button>

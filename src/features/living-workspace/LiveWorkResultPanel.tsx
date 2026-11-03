@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SignatureAgreementTitle } from '../brand/SignatureAgreementTitle';
-import type { FairTradeExaminationDto, SelectedCommercialSourceDto } from '../../api/securepay/agent/dto';
+import type { FairTradeExaminationDto, SelectedCommercialSourceDto, SelectedStoreEnquiryContextDto } from '../../api/securepay/agent/dto';
+import { StoreEnquiryCheck } from '../store/StoreEnquiryCheck';
 import { projectFairTradeGuidance, projectFairTradeDraft } from './projectFairTradeGuidance';
 import type { FormationState } from '../formation/controller';
 import type { FormationTerm } from '../formation/view';
@@ -29,7 +30,7 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, onPrepareFairTradeDraft }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, enquiryContext, onPrepareFairTradeDraft }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
@@ -42,6 +43,7 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   onReview?: () => void;
   examination: { status:'idle'|'loading'|'ready'|'unavailable'; data:FairTradeExaminationDto|null };
   selectedSource?: SelectedCommercialSourceDto | null;
+  enquiryContext?: SelectedStoreEnquiryContextDto | null;
   onPrepareFairTradeDraft?: (draft:string)=>void;
 }) {
   const [expanded,setExpanded]=useState(false);
@@ -83,6 +85,11 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
         <span className="block text-sand-700">{item.value}</span>
       </div>)}
     </div>}
+    {conversationId && selectedSource?.sourceType === 'STORE_LISTING'
+      && enquiryContext?.conversationId === conversationId
+      && enquiryContext?.offerId === selectedSource.sourceId
+      && enquiryContext?.sellerKsNumber === selectedSource.sourceOwnerKsNumber &&
+      <StoreEnquiryCheck context={enquiryContext} />}
     {!conversationId && <div className="rounded-xl bg-cream-100 p-4 text-sm">Tell KS001 what you want to do. The Agreement will start appearing here as SecurePay understands it.</div>}
     {conversationId && busy && <p role="status" className="text-xs text-sand-600">KS001 is updating its understanding…</p>}
     {conversationId && state?.status==='loading' && <p role="status" className="text-xs text-sand-600">Reading the current Agreement from SecurePay…</p>}

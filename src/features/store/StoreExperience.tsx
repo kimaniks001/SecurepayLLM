@@ -25,7 +25,7 @@ import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 import { DigitalStoreSetup } from './DigitalStoreSetup';
-import type { PublicDigitalStoreAddress } from '../../api/securepay/store/dto';
+import type { PublicDigitalStoreAddress, StoreEnquiryDto } from '../../api/securepay/store/dto';
 import { parseDigitalStoreAddressRoute } from './route';
 import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
 import { StoreConnectionsHome } from './StoreConnectionsHome';
@@ -58,7 +58,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   returnContext?: { label: string; onReturn: () => void } | null;
   /** The only origin a mediaRef may be loaded from as an <img> src — see adapters.ts `media()`. */
   trustedMediaOrigin: string | null;
-  onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string }) => void;
+  onUseOffer: (payload: { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string; enquiryId?: string }) => void;
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
@@ -75,6 +75,19 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
+  const continueEnquiryWithKs001 = (enquiry: StoreEnquiryDto) => {
+    // The enquiry is a server-recorded buyer action. Carry ONLY canonical
+    // pointers; KS001's backend revalidates owner, buyer, price, published state
+    // and status before exposing proposal context. Never calculate a total or
+    // treat a seller reply as acceptance.
+    if (enquiry.status === 'DECLINED' || !enquiry.id || !enquiry.offerId || !enquiry.sellerKsNumber) return;
+    onUseOffer({
+      sourceId: enquiry.offerId, sourceOwnerKsNumber: enquiry.sellerKsNumber,
+      enquiryId: enquiry.id,
+      sourceDescription: 'Your enquiry at ' + enquiry.storeName + ' about ' + enquiry.offerTitle,
+    });
+  };
+
   const previousStoreSession = useRef(sessionEpoch);
   useEffect(() => {
     // Unsent customer messages must not follow a former authenticated identity.
@@ -402,7 +415,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch}/>}
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001}/>}
       />
     );
   } else if (state.view === 'profile') {
@@ -415,6 +428,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             gateway={gateway} sellerKs={state.selectedStore.data.store.id}
             storeName={publicDigitalAddress.storeName} offers={state.selectedStore.data.offers}
             signedIn={storeSignedIn} sessionEpoch={sessionEpoch}
+            onContinueWithKs001={continueEnquiryWithKs001}
             draft={customerDraft} setDraft={setCustomerDraft}
             onRequestSignIn={() => setSignInGate('connect')}
           />

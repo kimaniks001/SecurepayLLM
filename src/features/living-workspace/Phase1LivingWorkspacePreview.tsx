@@ -914,6 +914,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending}
           examination={examination}
           selectedSource={liveState?.source??null}
+          enquiryContext={liveState?.enquiryContext??null}
           onPrepareFairTradeDraft={message=>{
             if(!liveConversationId || !liveController || liveBusy || livePending)
               throw new Error('Finish the current KS001 action before preparing another question.');

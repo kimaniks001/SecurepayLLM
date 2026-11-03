@@ -1,3 +1,20 @@
+/**
+ * Day 5 Gate 3: an actual buyer-owned enquiry can add ONLY bounded proposal
+ * context to an already server-selected STORE_LISTING source. This DTO is NOT
+ * a confirmed Agreement fact, seller acceptance or payment instruction.
+ */
+export interface SelectedStoreEnquiryContextDto {
+  conversationId: string;
+  enquiryId: string;
+  sellerKsNumber: string;
+  offerId: string;
+  requestedQuantity: number;
+  customerMessage: string;
+  enquiryStatus: 'REQUESTED' | 'REPLIED' | 'DECLINED';
+  sellerReply: string | null;
+  selectedAt: string;
+}
+
 // AgentApiModels / AgentAgreementHandoffApiModels and agent.protocol at backend SHA in the audit.
 export interface ConversationDto { conversationId: string; createdAt: string; contextVersion: number }
 /**
