@@ -3,14 +3,14 @@ import { Copy, Heart, MessageCircle, RefreshCcw, Store } from 'lucide-react';
 import type { StoreGateway } from '../../api/securepay/store';
 import type { StoreEnquiryDto, StoreFavouriteDto } from '../../api/securepay/store/dto';
 
-type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries'>;
+type Gateway = Pick<StoreGateway, 'myFavourites' | 'myCustomerEnquiries' | 'savedWorkForEnquiry'>;
 
 /**
  * Customer-to-trader discovery loop.
  * For traders who are NOT registered, this creates only shareable invitation
  * COPY on the resident's device: no ghost Store, unsolicited SMS, or "sent" status.
  */
-export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContinueWithKs001 }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object; onContinueWithKs001: (enquiry: StoreEnquiryDto) => void }) {
+export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContinueWithKs001, onResumeSavedWork }: { gateway: Gateway; signedIn: boolean; sessionEpoch: object; onContinueWithKs001: (enquiry: StoreEnquiryDto) => void; onResumeSavedWork: (conversationId: string) => void }) {
   const [favourites, setFavourites] = useState<StoreFavouriteDto[]>([]);
   const [enquiries, setEnquiries] = useState<StoreEnquiryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -19,6 +19,8 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
   const [traderName, setTraderName] = useState('');
   const [inviteNote, setInviteNote] = useState('');
   const [copyNotice, setCopyNotice] = useState('');
+  const [resumingEnquiry, setResumingEnquiry] = useState<string | null>(null);
+  const [resumeNotice, setResumeNotice] = useState('');
 
   async function refresh(active = () => true) {
     if (!signedIn) return;
@@ -39,6 +41,22 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, gateway, sessionEpoch]);
+
+  async function resumeExistingWork(enquiryId: string) {
+    if (!signedIn || resumingEnquiry) return;
+    setResumingEnquiry(enquiryId);
+    setResumeNotice('');
+    try {
+      const saved = await gateway.savedWorkForEnquiry(enquiryId);
+      if (saved.enquiryId !== enquiryId || !saved.conversationId || !saved.savedBuildId)
+        throw new Error('Saved Work did not match this enquiry');
+      // The receiving Living Workspace must re-authorise the canonical
+      // saved conversation; this pointer grants nothing itself.
+      onResumeSavedWork(saved.conversationId);
+    } catch {
+      setResumeNotice('SecurePay could not confirm saved KS001 work for this enquiry. Start it with KS001 or open Saved Work. No second conversation was created.');
+    } finally { setResumingEnquiry(null); }
+  }
 
   const inviteUrl = typeof window !== 'undefined'
     ? window.location.origin + window.location.pathname + '#/store/open'
@@ -116,6 +134,7 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
             </a>)}
           </div>
           <h3 className="text-sm font-medium text-forest-800">My recent enquiries</h3>
+          {resumeNotice && <p role="status" className="rounded-lg bg-cream-50 p-3 text-xs text-sand-700">{resumeNotice}</p>}
           {!loading && !readError && enquiries.length === 0 && <p className="text-xs text-sand-500">You haven't sent any Store enquiries yet.</p>}
           <div className="space-y-2">
             {enquiries.slice(0,5).map(enquiry => <div key={enquiry.id}
@@ -129,6 +148,11 @@ export function StoreConnectionsHome({ gateway, signedIn, sessionEpoch, onContin
                 onClick={() => onContinueWithKs001(enquiry)}>
                 Continue enquiry with KS001
               </button>}
+              <button type="button" disabled={Boolean(resumingEnquiry)}
+                onClick={() => void resumeExistingWork(enquiry.id)}
+                className="ml-2 mt-2 min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+                {resumingEnquiry === enquiry.id ? 'Checking Saved Work…' : 'Resume saved KS001 work'}
+              </button>
             </div>)}
           </div>
         </div>
