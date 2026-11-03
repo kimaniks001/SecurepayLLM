@@ -152,8 +152,9 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
   async function copyStore() {
     if (!shareReady) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setNotice('Your live Digital Store address is copied. It opens directly into your Store.');
+      const announcement = `I'm here now! Visit ${savedAddress?.storeName ?? 'my business'} at my digital Store: ${shareUrl}\nBrowse my offers and contact me directly through my Store.`;
+      await navigator.clipboard.writeText(announcement);
+      setNotice('Your Store announcement is copied. You decide who receives it; no message has been sent.');
     } catch {
       setNotice('Copy the address shown below. Your browser did not allow automatic copying.');
     }

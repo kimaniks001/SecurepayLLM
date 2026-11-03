@@ -20,6 +20,7 @@ interface StoreHomeProps {
   onJourneyNavigate?: (view: AppView) => void;
   onAskKs001?: () => void;
   contextLabel?: string | null;
+  connectionsPanel?: React.ReactNode;
 }
 
 /**
@@ -30,7 +31,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
@@ -51,6 +52,8 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             </button>
           </div>
         </section>
+
+        {connectionsPanel && <div className="mb-4">{connectionsPanel}</div>}
 
         {/* Search */}
         <div className="relative mb-3">

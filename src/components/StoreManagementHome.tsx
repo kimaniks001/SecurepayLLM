@@ -28,6 +28,7 @@ interface StoreManagementHomeProps {
   onReviewRoute?: (needId: string, route: SupplyRouteDto) => void;
   onAskKs001?: () => void;
   digitalStoreSetup?: React.ReactNode;
+  enquiryInbox?: React.ReactNode;
   opportunityInspection?: {
     needId: string;
     loading: boolean;
@@ -37,7 +38,7 @@ interface StoreManagementHomeProps {
   } | null;
 }
 
-export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, onAskKs001, opportunityInspection, digitalStoreSetup }: StoreManagementHomeProps) {
+export function StoreManagementHome({ store, offers, activity, enquiries, onBack, onCreateOffer, onEditOffer, onConfirmAvailability, businessMode = false, opportunities = [], onOpenGrow, onOpenMoney, plugAvailability, plugAvailabilityBusy = false, plugAvailabilityError, plugMissions = [], onTogglePlugAvailability, onInspectOpportunity, onOpenRouteOffer, onReviewRoute, onAskKs001, opportunityInspection, digitalStoreSetup, enquiryInbox }: StoreManagementHomeProps) {
   const published = offers.filter((o) => o.lifecycle === 'published');
   const drafts = offers.filter((o) => o.lifecycle === 'draft');
   const unavailable = offers.filter((o) => o.lifecycle === 'unavailable');
@@ -71,6 +72,7 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 space-y-5">
         {digitalStoreSetup}
+        {enquiryInbox}
         <section aria-label="What people can find" className="sp-section px-4 py-4 md:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>

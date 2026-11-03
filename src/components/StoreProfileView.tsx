@@ -10,9 +10,10 @@ interface StoreProfileViewProps {
   onBack: () => void;
   onOpenOffer: (id: string) => void;
   digitalAddress?: PublicDigitalStoreAddress | null;
+  connectionPanel?: React.ReactNode;
 }
 
-export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAddress }: StoreProfileViewProps) {
+export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAddress, connectionPanel }: StoreProfileViewProps) {
   const publishedOffers = offers.filter((o) => o.lifecycle === 'published' || o.lifecycle === 'unavailable');
 
   return (
@@ -61,6 +62,8 @@ export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAd
             </div>
           )}
         </div>
+
+        {connectionPanel}
 
         {/* Offers */}
         <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offers from this store</div>

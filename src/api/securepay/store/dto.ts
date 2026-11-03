@@ -1,3 +1,41 @@
+// Day 5 Gate 2: user-consented customer->merchant connections.
+// None of these statuses is an order, accepted quotation or Agreement.
+export interface StoreFavouriteDto {
+  canonicalKsNumber: string;
+  slug: string;
+  storeName: string;
+  serviceArea: string | null;
+  createdAt: string;
+}
+
+export interface StoreEnquiryDto {
+  id: string;
+  clientRequestId: string;
+  offerId: string;
+  offerTitle: string;
+  storeName: string;
+  sellerKsNumber: string;
+  buyerKsNumber: string;
+  offeredPriceMinorSnapshot: number | null;
+  requestedQuantity: number;
+  customerMessage: string;
+  status: 'REQUESTED' | 'REPLIED' | 'DECLINED';
+  sellerReply: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CreateStoreEnquiryRequest {
+  canonicalKsNumber: string;
+  offerId: string;
+  clientRequestId: string;
+  quantity: number;
+  message: string;
+}
+export interface RespondToStoreEnquiryRequest {
+  status: 'REPLIED' | 'DECLINED';
+  message: string;
+}
+
 // Digital Store address is an alias of the same canonical KS identity, not a new account.
 // Owner reads include private GPS. Public reads NEVER contain private GPS or accuracy.
 export interface DigitalStoreAddress {
