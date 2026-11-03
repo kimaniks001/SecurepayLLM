@@ -10,8 +10,9 @@ const bundle = await build({
 const navigation = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 
 const shell = readFileSync(new URL('../src/features/living-workspace/Phase1LivingWorkspacePreview.tsx', import.meta.url), 'utf8');
+const live = readFileSync(new URL('../src/features/living-workspace/LiveKs001Session.tsx', import.meta.url), 'utf8');
 
-function setup({ id = 'c1', draft = '', failSave = false, rejectNewRead = false } = {}) {
+function setup({ id = 'c1', draft = '', openingDraft = '', failSave = false, rejectNewRead = false } = {}) {
   const calls = [];
   let state = { conversationId: id, busy: false, pending: null, turns: [], context: { status: 'ready', data: {} } };
   const services = {
@@ -33,6 +34,7 @@ function setup({ id = 'c1', draft = '', failSave = false, rejectNewRead = false 
     },
     ensureIdentity: async () => { calls.push(['identity']); },
     unsentDraft: () => draft,
+    hasUnsentComposer: () => !!openingDraft.trim(),
   };
   return { services, calls, snapshot: () => state, setState: next => { state = next; } };
 }
@@ -57,6 +59,24 @@ test('Day 4: unsent composer text blocks switching without a silent data loss', 
   const { services, calls } = setup({ draft: 'A message I have not sent' });
   await assert.rejects(() => navigation.beginNewWork(services), /not sent/);
   assert.deepEqual(calls, []);
+});
+
+test('Day 4: unsent opening text is protected before the first server conversation exists', async () => {
+  const { services, calls, snapshot } = setup({ id: null, openingDraft: 'Please prepare an Agreement' });
+  await assert.rejects(() => navigation.beginNewWork(services), /not sent/);
+  assert.equal(snapshot().conversationId, null);
+  assert.deepEqual(calls, []);
+  await assert.rejects(() => navigation.returnToSavedWork(services, 'older-saved-work'), /not sent/);
+  assert.deepEqual(calls, []);
+});
+
+test('Day 4: empty opening composer can start a fresh server conversation', async () => {
+  const { services, calls, snapshot } = setup({ id: null });
+  const result = await navigation.beginNewWork(services);
+  assert.equal(result.previousSaved, false);
+  assert.equal(result.conversationId, 'c2');
+  assert.equal(snapshot().conversationId, 'c2');
+  assert.ok(!calls.some(c => c[0] === 'save'));
 });
 
 test('Day 4: active or unresolved KS001 turns cannot be switched', async () => {
@@ -94,4 +114,10 @@ test('Day 4: Living Workspace retains the approved master shell and exposes acce
   assert.match(shell, /data-day4-saved-work-list/);
   assert.match(shell, /mode==='work'\?'Agreement'/);
   assert.match(shell, /onResume=\{continueSavedConversation\}/);
+  assert.match(shell, /hasUnsentComposer:/);
+  assert.match(shell, /navigationLocked=\{workActionBusy\}/);
+  assert.match(shell, /onUnsentDraftChange=/);
+  assert.match(live, /disabled=\{navigationLocked\|\|state\.busy\|\|!!state\.pending\}/);
+  assert.match(live, /navigationLocked\|\|!next/);
+  assert.match(live, /navigationLocked\|\|state\.busy\|\|state\.pending/);
 });
