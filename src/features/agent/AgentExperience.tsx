@@ -89,6 +89,7 @@ import { setDetailTabHint } from '../support/tabHint';
 import { openMoneyFor } from '../money/handoff';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
 import { StoreExperience } from '../store/StoreExperience';
+import { StoreEnquiryCheck } from '../store/StoreEnquiryCheck';
 import { CommunityExperience } from '../community/CommunityExperience';
 import { CircleExperience } from '../circle/CircleExperience';
 import { EcosystemExperience } from '../ecosystem/EcosystemExperience';
@@ -1846,7 +1847,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
                   ownerKs: state.source.sourceOwnerKsNumber,
                   capturedPriceMinor: state.source.capturedPriceMinor,
                   capturedCurrency: state.source.capturedCurrency,
-                }} />
+                }} action={
+                  state.enquiryContext
+                  && state.source.sourceType === 'STORE_LISTING'
+                  && state.enquiryContext.offerId === state.source.sourceId
+                  && state.enquiryContext.sellerKsNumber === state.source.sourceOwnerKsNumber
+                    ? <StoreEnquiryCheck context={state.enquiryContext}/>
+                    : undefined
+                } />
               )}
               {state.error && instrumentState.active === null && <StatusNotice tone="warning">{state.error}
                 <button disabled={state.busy} onClick={() => void controller.retry()} className="block mt-2 min-h-11 text-forest-700 underline disabled:opacity-40">{state.busy && state.outcomeUnknown ? 'Checking…' : retryLabel(state.pending, state.outcomeUnknown)}</button>
