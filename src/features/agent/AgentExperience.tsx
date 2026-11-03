@@ -57,7 +57,7 @@ import { createHandoffController } from '../handoff/controller';
 import { createFormationController } from '../formation/controller';
 import { AgreementShaping } from '../formation/AgreementShaping';
 import { ContinuityChoice } from './ContinuityChoice';
-import { clearComposerDrafts } from '../conversation/drafts';
+import { clearComposerDrafts, readDraft } from '../conversation/drafts';
 import type { SendResult } from '../conversation/ConversationSurface';
 import { conversationTitle, hasMeaningfulWork, isUnsaved, routeInput, startNewDecision } from '../entry/lifecycle';
 import { StartFreshDialog } from '../entry/StartFreshDialog';
@@ -1062,7 +1062,37 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         } : null}
         trustedMediaOrigin={trustedMediaOrigin}
         onNavigate={navigateTo}
-        onUseOffer={fact => { setStoreReturnContext(null); setStore(false); setHome(false); void controller.useOffer(fact); }}
+        onUseOffer={fact => {
+          // Do not destroy private, unsent words from an unrelated ongoing KS001
+          // conversation when a Store customer begins a NEW Agreement intention.
+          if (fact.enquiryId && state.conversationId && readDraft(state.conversationId).trim()) {
+            window.alert('Finish or copy the unsent KS001 message in your current work before starting this Store enquiry.');
+            return;
+          }
+          setStoreReturnContext(null);
+          setStore(false);
+          setHome(false);
+          const proceed = (set: WorkSet) => {
+            void set.controller.useOffer(fact).then(result => {
+              if (!fact.enquiryId || result.status !== 'selected' || session.getSnapshot().status !== 'signed-in')
+                return;
+              const selected = set.controller.getSnapshot();
+              if (!selected.conversationId || selected.enquiryContext?.enquiryId !== fact.enquiryId
+                  || selected.enquiryContext.offerId !== fact.sourceId
+                  || selected.enquiryContext.sellerKsNumber !== fact.sourceOwnerKsNumber)
+                return; // No verified buyer-owned proposal = no advertised handoff.
+              // Enter the approved Living Workspace, which MUST re-authorise and
+              // re-read this same canonical conversation before showing details.
+              // This one-shot tab-memory hint grants no identity or Agreement rights.
+              storeLivingWorkspaceEntry(selected.conversationId);
+              window.location.hash = '#/preview/living-workspace/work';
+            }).catch(() => {
+              setNotice('SecurePay could not confirm the Store enquiry handoff. Review your KS001 source before retrying.');
+            });
+          };
+          if (fact.enquiryId) requestFresh(proceed);
+          else proceed(currentSet()); // Keep existing ordinary Store "Use this" behaviour.
+        }}
         onOpenBusinessVision={businessKsNumber => {
           setStore(false);
           setVisionLibrary(true);
