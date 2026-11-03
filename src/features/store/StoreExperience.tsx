@@ -75,6 +75,16 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
+  const previousStoreSession = useRef(sessionEpoch);
+  useEffect(() => {
+    // Unsent customer messages must not follow a former authenticated identity.
+    // A guest signing in keeps their own draft; any transition away from an
+    // authenticated session clears pending private enquiry content.
+    if (previousStoreSession.current !== sessionEpoch
+        && previousStoreSession.current.status === 'signed-in')
+      setCustomerDraft(emptyStoreCustomerDraft);
+    previousStoreSession.current = sessionEpoch;
+  }, [sessionEpoch]);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
