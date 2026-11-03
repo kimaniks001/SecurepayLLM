@@ -65,7 +65,9 @@ export function StoresTool({onContinue,agreementNeeds=[],gateways,signedIn=false
  const [offerPrice,setOfferPrice]=useState('');
  const [offerBusy,setOfferBusy]=useState(false);
  const [revision,setRevision]=useState(0);
- const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal)||!initialServiceQuery);
+ // Day 5 real-commerce gate: a live Store entry must never silently start inside a
+ // fictional marketplace. Local-only preview explicitly opts into the sample world.
+ const [showSamples,setShowSamples]=useState(Boolean(onLocalProposal));
  const [storeRelations,setStoreRelations]=useState<StoreHumanRelation[]>([]);
  const [planLines,setPlanLines]=useState<StoreBuyingLine[]>([]);
  const [planDraft,setPlanDraft]=useState({...emptyStoreBuyingPlan});
