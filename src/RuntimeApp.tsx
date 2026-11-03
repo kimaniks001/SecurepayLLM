@@ -48,7 +48,8 @@ const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_A
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability', 'myDigitalAddress', 'saveMyDigitalAddress', 'businessDigitalAddress', 'saveBusinessDigitalAddress', 'updateBusinessProfile',
   'myFavourites', 'saveFavourite', 'removeFavourite', 'createStoreEnquiry',
   'myCustomerEnquiries', 'myStoreEnquiries', 'businessStoreEnquiries',
-  'respondStoreEnquiry', 'respondBusinessStoreEnquiry'], session, api.auth) : undefined;
+  'respondStoreEnquiry', 'respondBusinessStoreEnquiry', 'savedWorkForEnquiry',
+  'personalEnquiryDraft', 'savePersonalEnquiryDraft', 'businessEnquiryDraft', 'saveBusinessEnquiryDraft'], session, api.auth) : undefined;
 const fulfilmentNeedsGateway = api ? withSessionRefresh(api.fulfilmentNeeds, ['fromVision', 'fromAgreementObligation', 'get', 'matches', 'routes', 'miniAgreementReview', 'shareToCommunity'], session, api.auth) : undefined;
 const circleGateway = api ? withSessionRefresh(api.circle, ['me'], session, api.auth) : undefined;
 const communityGateway = api ? withSessionRefresh(api.community, ['create', 'feed', 'mine', 'get', 'close'], session, api.auth) : undefined;
