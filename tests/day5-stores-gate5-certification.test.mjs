@@ -90,6 +90,21 @@ test('Day 4 continuity and Gate 3 Store source remain simultaneously wired in ma
   assert.ok(src.includes('enquiryContext={liveState?.enquiryContext??null}'));
 });
 
+test('switching to a saved Store enquiry first preserves current KS001 conversation', () => {
+  const agent = readFileSync(new URL(
+    '../src/features/agent/AgentExperience.tsx', import.meta.url), 'utf8');
+  const handlerStart = agent.indexOf('onResumeSavedWork={conversationId =>');
+  const handlerEnd = agent.indexOf('onUseOffer={fact =>', handlerStart);
+  assert.ok(handlerStart > 0 && handlerEnd > handlerStart);
+  const handler = agent.slice(handlerStart, handlerEnd);
+  assert.ok(handler.includes('readDraft(state.conversationId ?? undefined)'));
+  assert.ok(handler.includes('const saved = await gateway.saveBuild(previousId)'));
+  assert.ok(handler.includes('saved.conversationId !== previousId'));
+  assert.ok(handler.indexOf('await gateway.saveBuild(previousId)')
+    < handler.indexOf('storeLivingWorkspaceEntry(conversationId)'));
+  assert.ok(handler.includes('Your current work remains here'));
+});
+
 test('reply precondition checked at backend atomically and carried by UI', () => {
   const apiNote = readFileSync(new URL(
     '../docs/operations/DAY5_GATE5_CERTIFICATION.md', import.meta.url), 'utf8');
