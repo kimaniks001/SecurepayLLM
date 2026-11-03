@@ -28,8 +28,14 @@ import { DigitalStoreSetup } from './DigitalStoreSetup';
 import type { PublicDigitalStoreAddress } from '../../api/securepay/store/dto';
 import { parseDigitalStoreAddressRoute } from './route';
 import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entryIntent';
+import { StoreConnectionsHome } from './StoreConnectionsHome';
+import { StoreCustomerConnections, emptyStoreCustomerDraft, type StoreCustomerDraft } from './StoreCustomerConnections';
+import { StoreEnquiryInbox } from './StoreEnquiryInbox';
 
-type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress' | 'publicDigitalAddressForKs'
+  | 'myFavourites' | 'saveFavourite' | 'removeFavourite' | 'createStoreEnquiry'
+  | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
+  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -62,10 +68,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
-  const [signInGate, setSignInGate] = useState<'manage' | 'create' | null>(null);
+  const [signInGate, setSignInGate] = useState<'manage' | 'create' | 'connect' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
+  const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
   const [manageChoiceBusy, setManageChoiceBusy] = useState(false);
   const [manageChoiceError, setManageChoiceError] = useState<string | null>(null);
@@ -98,7 +105,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => { setPublicDigitalAddress(null); void controller.openStore(''); });
     }
-    else {
+    else if (typeof window !== 'undefined' && window.location.hash === '#/store/open') {
+      // A resident's invitation takes the trader straight to THEIR first offer.
+      // It does not create an account or a public Store without their own action.
+      controller.openBuilder(null);
+    } else {
       const first = consumeFirstStoreOffer();
       if (first) controller.restoreFirstOffer(first);
       else void controller.enter();
@@ -111,6 +122,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   // address; never carry one seller's pin or identity into another Store.
   useEffect(() => {
     const onStoreAddressChange = () => {
+      if (window.location.hash === '#/store/open') {
+        setPublicDigitalAddress(null);
+        controller.openBuilder(null);
+        return;
+      }
       const slug = parseDigitalStoreAddressRoute(window.location.hash);
       if (!slug) return;
       setPublicDigitalAddress(null);
@@ -128,6 +144,22 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     window.addEventListener('hashchange', onStoreAddressChange);
     return () => window.removeEventListener('hashchange', onStoreAddressChange);
   }, [gateway, controller]);
+
+  // Public Store search also opens Stores by canonical KS, not only by /s/ links.
+  // Resolve the same server-owned privacy-safe Store address for either entrance.
+  const selectedSellerKs = state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : null;
+  useEffect(() => {
+    if (!selectedSellerKs) return;
+    let active = true;
+    setCustomerDraft(emptyStoreCustomerDraft);
+    setPublicDigitalAddress(current => current?.canonicalKsNumber === selectedSellerKs ? current : null);
+    void gateway.publicDigitalAddressForKs(selectedSellerKs).then(found => {
+      if (active) setPublicDigitalAddress(found);
+    }).catch(() => {
+      if (active) setPublicDigitalAddress(null);
+    });
+    return () => { active = false; };
+  }, [selectedSellerKs, gateway]);
 
   // Debounced live search: the locked StoreHome box has no submit button. The initial empty-query
   // search already runs via controller.enter() above (or the direct-offer-link openOffer() call), so a
@@ -358,12 +390,24 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={session.getSnapshot().status === 'signed-in'}/>}
       />
     );
   } else if (state.view === 'profile') {
     if (state.selectedStore.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedStore.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
-    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }} digitalAddress={publicDigitalAddress} />;
+    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
+      digitalAddress={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id ? publicDigitalAddress : null}
+      connectionPanel={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id
+        ? <StoreCustomerConnections
+            gateway={gateway} sellerKs={state.selectedStore.data.store.id}
+            storeName={publicDigitalAddress.storeName} offers={state.selectedStore.data.offers}
+            signedIn={session.getSnapshot().status === 'signed-in'}
+            draft={customerDraft} setDraft={setCustomerDraft}
+            onRequestSignIn={() => setSignInGate('connect')}
+          />
+        : <p className="mb-4 text-xs text-sand-600">This Store has not yet confirmed a shareable digital address for direct customer connections.</p>}
+    />;
   } else if (state.view === 'offer' || state.view === 'toAgreement') {
     if (state.selectedOffer.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedOffer.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedOffer.status !== 'ready') body = <LoadingNotice text="Loading this offer…" />;
@@ -449,6 +493,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
+        enquiryInbox={<StoreEnquiryInbox gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null}/>}
         digitalStoreSetup={<DigitalStoreSetup
           gateway={gateway}
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
