@@ -8,7 +8,7 @@ export type ContextView = ReturnType<typeof tradeContextView>;
 export type ResponseView = ReturnType<typeof agentResponseView>;
 export type Turn = { id: string; sender: 'user'; text: string } | { id: string; sender: 'agent'; response: ResponseView };
 type Pending = { kind: 'turn'; body: TurnRequest } | { kind: 'adopt'; body: AdoptFactRequest } | { kind: 'external-amount'; body: ExternalFactRequest & { amount: string; currency?: string } };
-export type OfferFact = { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string };
+export type OfferFact = { amount?: string; currency?: string; sourceDescription: string; sourceId?: string; sourceOwnerKsNumber?: string; /** Only for the original buyer's own recorded enquiry; backend must verify it. */ enquiryId?: string };
 /**
  * Phase 6 Slice 4 (Community → Trade) -- "Use this" from a real Community NEED/OPPORTUNITY/
  * WORK_STORY/QUESTION/DISCUSSION object. `sourceType` is derived by the CALLER from the object's own
@@ -50,7 +50,7 @@ export interface AgentState {
    * is never submitted while this is set, so a failed source selection can never silently become a
    * DIRECT trade that still looks like it came from the Store.
    */
-  offerSelectionFailure: { fact: OfferFact; error: string } | null;
+  offerSelectionFailure: { fact: OfferFact; error: string; actionId?: string } | null;
   /**
    * Phase 6 Slice 4 -- the SAME "held until explicit retry/continue" discipline as
    * `offerSelectionFailure`, for a Community "Use this" whose `selectCommercialSource` call failed.
@@ -202,7 +202,7 @@ export function deviceTimeZone(): string | undefined {
 const defaultSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const DEFAULT_TURN_RECONCILE_SCHEDULE_MS = [1000, 3000, 6000, 12000, 25000];
 
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'> & Partial<Pick<AgentGateway, 'bindStoreEnquiryContext'>>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
   const sleep = options.sleep ?? defaultSleep;
   const turnReconcileSchedule = options.turnReconcileScheduleMs ?? DEFAULT_TURN_RECONCILE_SCHEDULE_MS;
   const withZone = (body: TurnRequest): TurnRequest => {
@@ -517,14 +517,16 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async useOffer(fact: OfferFact): Promise<SourceSelectionResult> {
       if (state.busy || state.pending) return { status: 'busy' };
-      return attemptOfferSelection(fact);
+      // An enquiry is ONE explicit buyer action. Its idempotency id is retained
+      // by retryOfferSelection; never mint a new id on a dropped response.
+      return attemptOfferSelection(fact, fact.enquiryId ? id() : undefined);
     },
     /** Section 5 -- re-attempts the exact same "Use this" the person already chose. */
     async retryOfferSelection(): Promise<SourceSelectionResult> {
       const failure = state.offerSelectionFailure;
       if (state.busy || state.pending) return { status: 'busy' };
       if (!failure) return { status: 'no-source' };
-      return attemptOfferSelection(failure.fact);
+      return attemptOfferSelection(failure.fact, failure.actionId);
     },
     /**
      * Section 5 -- the explicit, visible choice to proceed without the Store source: clears any
@@ -579,22 +581,52 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     },
   };
 
-  async function attemptOfferSelection(fact: OfferFact): Promise<SourceSelectionResult> {
+  async function attemptOfferSelection(fact: OfferFact, actionId?: string): Promise<SourceSelectionResult> {
+    if (fact.enquiryId && (!fact.sourceId || !fact.sourceOwnerKsNumber || !actionId)) {
+      const error = 'The enquiry needs its original Store offer and a fresh explicit choice.';
+      update({ offerSelectionFailure: { fact, error, actionId } });
+      return { status: 'failed', error };
+    }
+    if (fact.enquiryId && !gateway.bindStoreEnquiryContext) {
+      const error = 'The current SecurePay service cannot yet carry this enquiry into KS001.';
+      update({ offerSelectionFailure: { fact, error, actionId } });
+      return { status: 'failed', error };
+    }
     update({ offerSelectionFailure: null });
-    if (!(fact.sourceId && fact.sourceOwnerKsNumber)) { await submitOfferFact(fact); return { status: 'no-source' }; }
+    if (!(fact.sourceId && fact.sourceOwnerKsNumber)) {
+      await submitOfferFact(fact);
+      return { status: 'no-source' };
+    }
+    // A customer enquiry is never an accepted quotation. Ignore ANY caller
+    // amount rather than converting unit/listed price into a fake trade total.
     let selection: SelectedCommercialSourceDto;
     try {
       const conversationId = await ensureConversationId();
       selection = await gateway.selectCommercialSource(conversationId, {
-        sourceType: 'STORE_LISTING', sourceId: fact.sourceId, sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+        sourceType: 'STORE_LISTING', sourceId: fact.sourceId,
+        sourceOwnerKsNumber: fact.sourceOwnerKsNumber,
+        ...(actionId ? { sourceSelectionActionId: actionId } : {}),
       });
+      if (fact.enquiryId) {
+        // Server independently checks buyer ownership + enquiry status +
+        // selected Store source + current published offer and price.
+        await gateway.bindStoreEnquiryContext!(conversationId, fact.enquiryId);
+      }
     } catch (error) {
       const message = sourceErrorText(error);
-      update({ offerSelectionFailure: { fact, error: message } });
+      update({ offerSelectionFailure: { fact, error: message, actionId } });
       return { status: 'failed', error: message };
     }
     update({ source: selection });
-    // Only AFTER the source is really selected may the offer's price become a candidate fact.
+    if (fact.enquiryId) {
+      // No fabricated human utterance, adopted fact, total or agreement.
+      // KS001 sees the bounded server-side proposal as selected-source context
+      // and asks the next material question. The SAME actionId also protects
+      // continuation replays if the response is interrupted.
+      await continueAfterSourceSelection(actionId!);
+      return { status: 'selected', source: selection, amount: 'none' };
+    }
+    // Existing non-enquiry Store "Use this" path is preserved exactly.
     const amount = fact.amount ? ((await submitOfferFact(fact)) ? 'submitted' : 'failed') : (await submitOfferFact(fact), 'none');
     return { status: 'selected', source: selection, amount };
   }
