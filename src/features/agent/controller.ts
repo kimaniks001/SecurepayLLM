@@ -1,6 +1,6 @@
 import type { AgentGateway } from '../../api/securepay/agent';
 import { agentResponseView, conversationHistoryView, tradeContextView } from '../../api/securepay/agent/adapters';
-import type { AdoptFactRequest, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
+import type { AdoptFactRequest, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, SelectedStoreEnquiryContextDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 import type { MessageResponse } from '../../types';
 
@@ -43,6 +43,8 @@ export interface AgentState {
   // currently proceeding from, if any (e.g. a selected Store offer). Provenance only, shown before
   // progression so the person can see "started from X" -- never Agreement/CONFIRMED truth.
   source: SelectedCommercialSourceDto | null;
+  /** Server-owned buyer enquiry proposal linked to this exact Store source; never agreed terms. */
+  enquiryContext: SelectedStoreEnquiryContextDto | null;
   /**
    * Final Phase 4 Economy Turn 3 (Section 5) -- a Store "Use this" whose `selectCommercialSource`
    * call failed. Held here, untouched, until an explicit `retryOfferSelection` or
@@ -202,7 +204,7 @@ export function deviceTimeZone(): string | undefined {
 const defaultSleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const DEFAULT_TURN_RECONCILE_SCHEDULE_MS = [1000, 3000, 6000, 12000, 25000];
 
-export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'> & Partial<Pick<AgentGateway, 'bindStoreEnquiryContext'>>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
+export function createAgentController(gateway: Pick<AgentGateway, 'createConversation' | 'submitTurn' | 'readContext' | 'conversationHistory' | 'adoptFact' | 'submitAmount' | 'selectCommercialSource' | 'continueAfterSourceSelection' | 'submitStructuredInput' | 'selectKsIdentity'> & Partial<Pick<AgentGateway, 'bindStoreEnquiryContext' | 'readStoreEnquiryContext' | 'currentCommercialSource'>>, id = () => crypto.randomUUID(), options: AgentControllerOptions = {}) {
   const sleep = options.sleep ?? defaultSleep;
   const turnReconcileSchedule = options.turnReconcileScheduleMs ?? DEFAULT_TURN_RECONCILE_SCHEDULE_MS;
   const withZone = (body: TurnRequest): TurnRequest => {
@@ -214,7 +216,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
    * never discarded: it runs as soon as the controller is idle again. Reads only; writes are never queued.
    */
   let reconcileDeferred = false;
-  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], outcomeUnknown: false };
+  let state: AgentState = { conversationId: null, turns: [], busy: false, pending: null, error: null, context: { status: 'idle', data: null, error: null }, source: null, enquiryContext: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], outcomeUnknown: false };
   const listeners = new Set<() => void>();
   const update = (patch: Partial<AgentState>) => {
     state = { ...state, ...patch };
@@ -369,7 +371,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
+      update({ conversationId, turns: [], error: null, pending: null, source: null, enquiryContext: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       let turns: Turn[] = [];
       try {
         const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
@@ -379,6 +381,27 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       } catch { /* presentation-only; Trade Context (read below) remains the canonical understanding */ }
       update({ turns });
       await readContext();
+      // The selected Store and enquiry were persisted server-side. Re-open
+      // them by this SAME authorised conversation on resume, never by a URL
+      // hint or local draft. A failure shows no positive source status.
+      if (state.conversationId === conversationId && state.context.status === 'ready'
+          && gateway.currentCommercialSource) {
+        try {
+          const selected = await gateway.currentCommercialSource(conversationId);
+          if (selected?.sourceType && state.conversationId === conversationId) {
+            update({ source: selected });
+            if (selected.sourceType === 'STORE_LISTING' && gateway.readStoreEnquiryContext) {
+              try {
+                const detail = await gateway.readStoreEnquiryContext(conversationId);
+                if (state.conversationId === conversationId
+                    && detail.offerId === selected.sourceId
+                    && detail.sellerKsNumber === selected.sourceOwnerKsNumber)
+                  update({ enquiryContext: detail });
+              } catch { /* no linked enquiry or not authorised: do not infer one */ }
+            }
+          }
+        } catch { /* prior source selection is not confirmed; fail closed */ }
+      }
     },
     async send(text: string) {
       if (state.busy || state.pending || !text.trim()) return;
@@ -537,7 +560,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       const failure = state.offerSelectionFailure;
       if (state.busy || state.pending) return 'busy';
       if (!failure) return 'nothing';
-      update({ offerSelectionFailure: null, source: null });
+      update({ offerSelectionFailure: null, source: null, enquiryContext: null });
       await submitOfferFact(failure.fact);
       return 'continued';
     },
@@ -592,7 +615,7 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       update({ offerSelectionFailure: { fact, error, actionId } });
       return { status: 'failed', error };
     }
-    update({ offerSelectionFailure: null });
+    update({ offerSelectionFailure: null, enquiryContext: null });
     if (!(fact.sourceId && fact.sourceOwnerKsNumber)) {
       await submitOfferFact(fact);
       return { status: 'no-source' };
@@ -610,7 +633,11 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       if (fact.enquiryId) {
         // Server independently checks buyer ownership + enquiry status +
         // selected Store source + current published offer and price.
-        await gateway.bindStoreEnquiryContext!(conversationId, fact.enquiryId);
+        const linked = await gateway.bindStoreEnquiryContext!(conversationId, fact.enquiryId);
+        if (linked.offerId !== fact.sourceId || linked.sellerKsNumber !== fact.sourceOwnerKsNumber
+            || linked.enquiryId !== fact.enquiryId)
+          throw new Error('SecurePay did not confirm the exact selected Store enquiry');
+        update({ enquiryContext: linked });
       }
     } catch (error) {
       const message = sourceErrorText(error);
