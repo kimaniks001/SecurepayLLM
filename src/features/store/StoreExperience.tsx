@@ -68,6 +68,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [identityController, setIdentityController] = useState(() => createIdentityController(auth, session));
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
+  const sessionEpoch = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const storeSignedIn = sessionEpoch.status === 'signed-in';
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | 'connect' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
@@ -390,7 +392,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={session.getSnapshot().status === 'signed-in'}/>}
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch}/>}
       />
     );
   } else if (state.view === 'profile') {
@@ -399,10 +401,10 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
       digitalAddress={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id ? publicDigitalAddress : null}
       connectionPanel={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id
-        ? <StoreCustomerConnections
+        ? <StoreCustomerConnections key={state.selectedStore.data.store.id}
             gateway={gateway} sellerKs={state.selectedStore.data.store.id}
             storeName={publicDigitalAddress.storeName} offers={state.selectedStore.data.offers}
-            signedIn={session.getSnapshot().status === 'signed-in'}
+            signedIn={storeSignedIn} sessionEpoch={sessionEpoch}
             draft={customerDraft} setDraft={setCustomerDraft}
             onRequestSignIn={() => setSignInGate('connect')}
           />
@@ -493,7 +495,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
-        enquiryInbox={<StoreEnquiryInbox gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null}/>}
+        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch}/>}
         digitalStoreSetup={<DigitalStoreSetup
           gateway={gateway}
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
