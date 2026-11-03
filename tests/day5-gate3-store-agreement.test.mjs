@@ -13,6 +13,8 @@ const dto = src('src/api/securepay/agent/dto.ts');
 const agent = src('src/features/agent/AgentExperience.tsx');
 const review = src('src/features/store/StoreEnquiryCheck.tsx');
 const runtime = src('src/RuntimeApp.tsx');
+const masterpiece = src('src/features/living-workspace/LiveWorkResultPanel.tsx');
+const livingWorkspace = src('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 
 test('Gate 3: buyer explicitly opens recorded, non-declined enquiry with canonical Store identifiers', () => {
   assert.match(buyer, /onContinueWithKs001\(confirmed\)/);
@@ -51,6 +53,12 @@ test('Gate 3: resumed conversation re-reads server-owned source and buyer enquir
 
 test('Gate 3: the SecurePay Check is proposal-only and keeps existing Agreement authority', () => {
   assert.match(agent, /<StoreEnquiryCheck context=\{state.enquiryContext\}/);
+  assert.match(masterpiece, /<StoreEnquiryCheck context=\{enquiryContext\}/);
+  assert.match(masterpiece, /SecurePay Check · My Work/);
+  assert.match(livingWorkspace, /enquiryContext=\{liveState\?\.enquiryContext\?\?null\}/);
+  assert.match(agent, /requestFresh\(proceed\)/);
+  assert.match(agent, /storeLivingWorkspaceEntry\(selected.conversationId\)/);
+  assert.match(agent, /readDraft\(state.conversationId\)/);
   assert.match(agent, /<SourceReference source=\{\{/);
   assert.match(review, /proposed, not agreed/);
   assert.match(review, /Nothing is agreed, booked or funded|No stock or money is committed/);
@@ -66,6 +74,8 @@ test('Gate 3: updated TS modules parse (full typecheck and staging remain mandat
     'src/features/store/StoreConnectionsHome.tsx',
     'src/features/store/StoreCustomerConnections.tsx',
     'src/features/store/StoreEnquiryCheck.tsx',
+    'src/features/living-workspace/LiveWorkResultPanel.tsx',
+    'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx',
     'src/features/discovery/ui/SourceReference.tsx',
     'src/api/securepay/agent/index.ts',
     'src/api/securepay/agent/dto.ts',
