@@ -645,7 +645,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       setStoreHandoffError(error instanceof Error?error.message:'Could not safely leave this work.');
     }
   };
-  const verifyStoreExit = async()=>{await preserveCurrentWork(workServices());};
+
   const closeIdentity=()=>{
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
