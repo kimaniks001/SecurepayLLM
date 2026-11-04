@@ -319,6 +319,63 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                         )}
                       </div>
                     )}
+                    {state.whatsappConsent.data?.optedIn && (
+                      <div className="mt-3 pt-3 border-t border-cream-100 space-y-2">
+                        <p className="text-[0.78rem] font-medium text-forest-800">Verified delivery phone</p>
+                        <p className="text-[0.75rem] text-sand-500">
+                          To enable future WhatsApp messages, re-enter the exact phone number you previously
+                          verified with SecurePay. SecurePay encrypts it; your full number never appears in this inbox.
+                        </p>
+                        {state.whatsappRecipient.status === 'loading' && (
+                          <p role="status" className="text-[0.75rem] text-sand-500">Checking secure phone binding…</p>
+                        )}
+                        {state.whatsappRecipient.status === 'error' && (
+                          <StatusNotice tone="warning" icon={false}>The recipient vault is not available on this server.</StatusNotice>
+                        )}
+                        {state.whatsappRecipient.data?.state === 'UNAVAILABLE' && (
+                          <p className="text-[0.75rem] text-sand-500">
+                            Secure recipient storage is disabled for this test environment. No messages will be sent.
+                          </p>
+                        )}
+                        {state.whatsappRecipient.data?.state === 'VERIFY_AND_CONSENT' && (
+                          <p className="text-[0.75rem] text-sand-500">
+                            Your existing verified phone and current consent are required before binding.
+                          </p>
+                        )}
+                        {state.whatsappRecipient.data?.bound && (
+                          <>
+                            <p className="text-[0.8rem] text-forest-700">
+                              Contact encrypted and bound: {state.whatsappRecipient.data.maskedPhone ?? 'verified phone'}
+                            </p>
+                            <Button onClick={() => void controller.unbindWhatsAppRecipient()}
+                              disabled={state.whatsappRecipientBusy} className="w-full py-2.5">
+                              {state.whatsappRecipientBusy ? 'Removing…' : 'Remove stored WhatsApp phone'}
+                            </Button>
+                          </>
+                        )}
+                        {state.whatsappRecipient.data?.state === 'NOT_BOUND' && (
+                          <>
+                            <label className="block text-[0.75rem] text-sand-600">
+                              Your already verified phone
+                              <input type="tel" autoComplete="tel" inputMode="tel"
+                                value={state.recipientPhoneDraft}
+                                onChange={event => controller.setRecipientPhoneDraft(event.target.value)}
+                                placeholder="+254 7XX XXX XXX"
+                                className="mt-1 w-full rounded-lg border border-cream-200 px-3 py-2"
+                              />
+                            </label>
+                            <Button onClick={() => void controller.bindVerifiedWhatsAppRecipient()}
+                              disabled={state.whatsappRecipientBusy || !state.recipientPhoneDraft.trim()}
+                              className="w-full py-2.5">
+                              {state.whatsappRecipientBusy ? 'Protecting…' : 'Encrypt my verified WhatsApp phone'}
+                            </Button>
+                          </>
+                        )}
+                        {state.whatsappRecipientError && (
+                          <StatusNotice tone="warning" icon={false}>{state.whatsappRecipientError}</StatusNotice>
+                        )}
+                      </div>
+                    )}
                     {state.whatsappConsentError && (
                       <StatusNotice tone="warning" icon={false}>{state.whatsappConsentError}</StatusNotice>
                     )}

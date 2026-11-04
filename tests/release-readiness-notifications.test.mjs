@@ -30,6 +30,17 @@ test('WhatsApp consent is explicit and self-scoped, separate from general channe
   assert.match(experience, /Real WhatsApp delivery is not yet enabled/);
 });
 
+test('encrypted verified WhatsApp recipient is bound only through self-scoped API',()=> {
+  assert.match(gateway, /getWhatsAppRecipient/);
+  assert.match(gateway, /bindWhatsAppRecipient/);
+  assert.match(gateway, /unbindWhatsAppRecipient/);
+  assert.match(gateway, /\/api\/v1\/notifications\/me\/whatsapp-recipient/);
+  assert.match(experience, /Encrypt my verified WhatsApp phone/);
+  assert.match(experience, /Remove stored WhatsApp phone/);
+  assert.match(experience, /Secure recipient storage is disabled/);
+  assert.doesNotMatch(gateway, /localStorage|sessionStorage/);
+});
+
 test('security cannot be shown as an ordinary mute toggle',()=>{
   assert.match(experience,/Security/);
   assert.match(experience,/Always on/);
