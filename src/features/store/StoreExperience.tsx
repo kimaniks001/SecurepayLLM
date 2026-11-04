@@ -35,7 +35,9 @@ import { StoreEnquiryInbox } from './StoreEnquiryInbox';
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress' | 'publicDigitalAddressForKs'
   | 'myFavourites' | 'saveFavourite' | 'removeFavourite' | 'createStoreEnquiry'
   | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
-  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'>;
+  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'
+  | 'personalEnquiryDraft' | 'savePersonalEnquiryDraft'
+  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -52,7 +54,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001 }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -63,6 +65,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
+  /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
+  embedded?: boolean;
 }) {
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
@@ -341,8 +345,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
 
   if (manageChoices !== null) {
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 space-y-4">
           <button onClick={() => setManageChoices(null)} className="text-sm text-forest-700">← Store</button>
           <div>
@@ -371,8 +375,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (signInGate) {
     const authData = secureAuthView(identityState);
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="flex-1 flex items-center justify-center p-6">
           <SecureAuthCard
             data={authData}
@@ -415,6 +419,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (state.view === 'home') {
     body = (
       <StoreHome
+        embedded={embedded}
         onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={() => {}}
         onManageStore={() => requireAuth('manage')}
@@ -577,8 +582,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (miniAgreementReview) {
     const route = miniAgreementReview.route;
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6">
           {miniAgreementReview.loading && <LoadingNotice text="Preparing the Agreement review…" />}
           {miniAgreementReview.error && (
@@ -612,6 +617,15 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     );
   }
 
+  // Only the public/direct-link experience owns the standalone header.
+  // An authenticated Living Workspace supplies the ONE Tool Shelf, ONE KS001
+  // conversation and ONE authoritative Agreement/SecurePay Check instead.
+  if (embedded) {
+    return <section data-store-embedded-body aria-label="Digital Store workspace"
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-cream-50">
+      {body}
+    </section>;
+  }
   return (
     <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={navBarView} onNavigate={handleNavigate} />
