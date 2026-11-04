@@ -10,6 +10,7 @@ const home = source('src/components/StoreHome.tsx');
 const runtime = source('src/RuntimeApp.tsx');
 const agent = source('src/features/agent/AgentExperience.tsx');
 const intent = source('src/features/experience/entryIntent.ts');
+const review = source('src/features/store/StoreMasterpieceLayoutReview.tsx');
 
 test('P0: authenticated Store is mounted inside the ONE actual Living Workspace shell', () => {
   assert.match(living, /data-workspace-frozen-layout/);
@@ -20,6 +21,20 @@ test('P0: authenticated Store is mounted inside the ONE actual Living Workspace 
   assert.match(living, /aria-label="Workspace tool rail"/);
   assert.match(living, /storeEverOpened/);
   assert.match(living, /aria-hidden=\{!storeOpen\}/);
+});
+
+test('P0: preview Store has an explicit route, reused Store component and NO fake backend', () => {
+  assert.match(runtime, /(?:work\|vision\|circle\|community\|store)/);
+  assert.match(living, /isStoreLayoutReviewRoute/);
+  assert.match(living, /#\/preview\/living-workspace\/store/);
+  assert.match(living, /<StoreMasterpieceLayoutReview/);
+  assert.match(living, /!signedIn \|\| !storeIntegration/);
+  assert.match(review, /<StoreHome/);
+  assert.match(review, /embedded/);
+  assert.match(review, /data-p0-layout-review-only/);
+  assert.match(review, /no live Store backend/);
+  assert.match(review, /Nothing was published, sent or changed/);
+  assert.doesNotMatch(review, /createStoreGateway|fetch\(|createOffer\(/);
 });
 
 test('P0: opening or closing Store never navigates to a second application shell', () => {
@@ -112,6 +127,7 @@ test('P0: modified TS/TSX modules must parse, complete typecheck/build still req
     'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx',
     'src/features/store/StoreExperience.tsx',
     'src/components/StoreHome.tsx',
+    'src/features/store/StoreMasterpieceLayoutReview.tsx',
   ];
   for (const path of paths) {
     const result = ts.transpileModule(source(path), {
