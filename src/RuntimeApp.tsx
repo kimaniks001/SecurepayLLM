@@ -1,7 +1,7 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
@@ -335,15 +335,27 @@ function useMoneySessionRoute(): string | null {
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
   return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
 }
+/**
+ * A signed-in #/store is a tool route INSIDE the canonical Living Workspace.
+ * A public #/s/{slug}, public offer link or signed-out Store stays a standalone
+ * trader-owned/public surface, never a member's private KS001 workspace.
+ */
+export function isAuthenticatedStoreWorkspaceEntry(hash: string, status: string): boolean {
+  return status === 'signed-in' && /^#\/store\/?$/.test(hash);
+}
 export default function RuntimeApp() {
-  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
+  const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const matchingWorkspace = () => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
-      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
+      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname) ||
+      isAuthenticatedStoreWorkspaceEntry(window.location.hash,session.getSnapshot().status));
+  const [phase1Preview, setPhase1Preview] = useState(matchingWorkspace);
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
+    const syncPreview = () => setPhase1Preview(matchingWorkspace());
+    syncPreview();
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
-  }, []);
+  }, [sessionState.status]);
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
   const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
@@ -368,8 +380,24 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  // Production's actual Living Workspace must use the SAME authenticated
+  // real API clients as the rest of SecurePay. The Vercel preview retains its
+  // explicit safe relay and may not silently write to a production API.
+  const onPreviewHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+  const liveWorkspaceGateways = !onPreviewHost && api && agentGateway && visionDreamGateway &&
+    communityGateway && agreementGateway && storeGateway && financialPartnerGateway && moneySnapshotGateway
+    ? { auth: api.auth, agent: agentGateway, dreams: visionDreamGateway,
+        community: communityGateway, agreements: agreementGateway, stores: storeGateway,
+        financialPartners: financialPartnerGateway, moneySnapshot: moneySnapshotGateway, media: null }
+    : undefined;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
-    gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
+    gateway={onPreviewHost ? previewAgentGateway : agentGateway}
+    workspaceGateways={onPreviewHost ? previewWorkspaceGateways : liveWorkspaceGateways}
+    storeIntegration={api && storeGateway && businessGateway && marketNetworkGateway
+      && (!onPreviewHost || identityStagingReady)
+      ? { gateway: storeGateway, businessGateway, marketNetworkGateway,
+          fulfilmentNeedsGateway, auth: api.auth, trustedMediaOrigin }
+      : undefined}
     identityStagingReady={identityStagingReady} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
