@@ -339,7 +339,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const [storeReviewRoute, setStoreReviewRoute] = useState(isStoreLayoutReviewRoute);
   const initialStoreOpen = () => isStoreLayoutReviewRoute() ||
     (typeof window !== 'undefined'
-      && /^#\/store\/?$/.test(window.location.hash)
+      && (/^#\/store\/?$/.test(window.location.hash) ||
+        /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
   const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
@@ -360,7 +361,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     const onHash = () => {
       const reviewing = isStoreLayoutReviewRoute();
       setStoreReviewRoute(reviewing);
-      if (reviewing || (signedIn && /^#\/store\/?$/.test(window.location.hash))) {
+      if (reviewing || (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
+          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)))) {
         setStoreOpen(true);setStoreEverOpened(true);return;
       }
       if (!signedIn) {
