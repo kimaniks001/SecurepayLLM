@@ -89,6 +89,9 @@ test('P0: previously approved other-area source offers and Business KS are not l
 test('P0: refreshing an access token cannot erase a buyer\'s unfinished Store enquiry', () => {
   assert.match(store, /sessionEpoch\.status === 'signed-out'/);
   assert.doesNotMatch(store, /previousStoreSession\.current !== sessionEpoch/);
+  assert.match(store, /previousSessionStatus\.current !== sessionEpoch\.status/);
+  assert.match(store, /sessionEpoch=\{privateStoreSessionEpoch\.current\}/);
+  assert.doesNotMatch(store, /sessionEpoch=\{sessionEpoch\}/);
 });
 
 test('P0: Day 4 New Work, Saved Work and mobile navigation are preserved', () => {
