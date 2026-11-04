@@ -75,6 +75,15 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const sessionEpoch = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const storeSignedIn = sessionEpoch.status === 'signed-in';
+  // Access-token renewal must not re-key a trader's unsent reply draft or a
+  // buyer's unfinished enquiry. Only an ACTUAL sign-in/out transition creates
+  // a new privacy epoch for the child inbox/history components.
+  const previousSessionStatus = useRef(sessionEpoch.status);
+  const privateStoreSessionEpoch = useRef<object>({});
+  if(previousSessionStatus.current !== sessionEpoch.status) {
+    previousSessionStatus.current = sessionEpoch.status;
+    privateStoreSessionEpoch.current = {};
+  }
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | 'connect' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
@@ -436,7 +445,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={privateStoreSessionEpoch.current} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
       />
     );
   } else if (state.view === 'profile') {
@@ -448,7 +457,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         ? <StoreCustomerConnections key={state.selectedStore.data.store.id}
             gateway={gateway} sellerKs={state.selectedStore.data.store.id}
             storeName={publicDigitalAddress.storeName} offers={state.selectedStore.data.offers}
-            signedIn={storeSignedIn} sessionEpoch={sessionEpoch}
+            signedIn={storeSignedIn} sessionEpoch={privateStoreSessionEpoch.current}
             onContinueWithKs001={continueEnquiryWithKs001}
             draft={customerDraft} setDraft={setCustomerDraft}
             onRequestSignIn={() => setSignInGate('connect')}
@@ -540,7 +549,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
-        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
+        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={privateStoreSessionEpoch.current} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
         agreementProgress={<section aria-label="Agreement progress" className="rounded-2xl border border-cream-200 bg-white p-4">
           <h3 className="font-display text-lg text-forest-900">Where an enquiry becomes work</h3>
           <p className="mt-1 text-xs leading-5 text-sand-600">
