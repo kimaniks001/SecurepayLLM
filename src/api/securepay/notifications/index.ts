@@ -104,6 +104,15 @@ export interface NotificationQuietHours {
   zoneId: string | null;
 }
 
+/** WhatsApp consent is separate from the channel preference and never enables a provider by itself. */
+export interface WhatsAppConsentStatus {
+  state: 'INELIGIBLE' | 'VERIFY_PHONE' | 'NOT_OPTED_IN' | 'RECONSENT_REQUIRED' | 'OPTED_IN';
+  optedIn: boolean;
+  verifiedPhoneMasked: string | null;
+  disclosureVersion: string;
+  consentedAt: string | null;
+}
+
 export interface ListNotificationsParams {
   category?: NotificationCategory;
   unreadOnly?: boolean;
@@ -129,6 +138,13 @@ export function createNotificationsGateway(http: HttpClient) {
     getPreferences: () => http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { auth: 'required' }),
     updatePreferences: (body: UpdateNotificationPreferencesRequest) =>
       http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { method: 'PUT', body, auth: 'required' }),
+    getWhatsAppConsent: () => http.request<WhatsAppConsentStatus>(
+      '/api/v1/notifications/me/whatsapp-consent', { auth: 'required' }),
+    optInWhatsApp: (disclosureVersion: string) => http.request<WhatsAppConsentStatus>(
+      '/api/v1/notifications/me/whatsapp-consent',
+      { method: 'POST', body: { accepted: true, disclosureVersion }, auth: 'required' }),
+    optOutWhatsApp: () => http.request<WhatsAppConsentStatus>(
+      '/api/v1/notifications/me/whatsapp-consent', { method: 'DELETE', auth: 'required' }),
     getQuietHours: () =>
       http.request<NotificationQuietHours>('/api/v1/notifications/me/quiet-hours', { auth: 'required' }),
     updateQuietHours: (body: NotificationQuietHours) =>
