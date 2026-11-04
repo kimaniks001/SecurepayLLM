@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, storeWorkspaceOfferEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -734,6 +734,30 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
    * Public Experience Convergence Phase 2 -- a signed-out person asking for a private area is taken to the
    * public Sign in route (never a dead-end notice), then on to that area once SecurePay confirms them.
    */
+
+  /**
+   * A Store offer chosen from Vision/Community/Agreement enters the SAME
+   * signed-in masterpiece instead of mounting the old separate Store shell.
+   * Source IDs are hints only; StoreExperience must re-read the public offer.
+   * Existing KS001 work is saved before the view is allowed to change.
+   */
+  const enterWorkspaceStoreOffer=(canonicalKsNumber:string,offerId:string)=>{
+    const existing=controller.getSnapshot();
+    if(existing.busy || existing.pending || readDraft(existing.conversationId??undefined).trim()){
+      setNotice('Finish your unsent or pending KS001 work before opening another Store offer.');
+      return;
+    }
+    void (async()=>{
+      if(existing.conversationId){
+        const saved=await gateway.saveBuild(existing.conversationId);
+        if(saved.conversationId!==existing.conversationId || !saved.savedBuildId)
+          throw new Error('Your current KS001 conversation was not saved.');
+        storeLivingWorkspaceEntry(existing.conversationId);
+      }
+      storeWorkspaceOfferEntry(canonicalKsNumber,offerId);
+      window.location.hash='#/store';
+    })().catch(()=>setNotice('SecurePay could not preserve your current work; the Store was not opened.'));
+  };
   const requestSignIn = (intent: AppView) => { setHome(true); signInRoute.open(intent); };
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
@@ -1187,6 +1211,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           });
         }}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
           setCommunity(false);
           setStoreReturnContext({ kind: 'community' });
           setStoreOfferRoute({ canonicalKsNumber, offerId });
@@ -1270,6 +1295,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
           setVisionLibrary(false);
           setStoreReturnContext({ kind: 'vision' });
           setStoreOfferRoute({ canonicalKsNumber, offerId });
@@ -1346,6 +1372,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         setStore(true);
       }}
       onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+        if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
         const agreementId = workspaceAgreementId;
         setWorkspace(false);
         setStoreReturnContext({ kind: 'agreement', agreementId: agreementId ?? undefined });
