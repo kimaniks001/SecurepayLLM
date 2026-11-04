@@ -168,3 +168,13 @@ export function consumeFirstStoreOffer(): OfferDraftFields | null {
 }
 
 let pendingWorkspaceStoreOffer: { canonicalKsNumber:string; offerId:string } | null = null;
+/** One-shot IDs only: the current Store API must re-authorise and re-read. */
+export function storeWorkspaceOfferEntry(canonicalKsNumber:string, offerId:string):void {
+  if (!canonicalKsNumber.trim() || !offerId.trim()) throw new Error('A Store seller and offer are required');
+  pendingWorkspaceStoreOffer={canonicalKsNumber:canonicalKsNumber.trim(),offerId:offerId.trim()};
+}
+export function consumeWorkspaceStoreOfferEntry(): {canonicalKsNumber:string;offerId:string} | null {
+  const value=pendingWorkspaceStoreOffer;
+  pendingWorkspaceStoreOffer=null;
+  return value;
+}
