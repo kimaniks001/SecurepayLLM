@@ -15,6 +15,8 @@ interface StoreHomeProps {
   onStartConversation: () => void;
   offers: StoreOffer[];
   stores: StoreIdentity[];
+  /** Distinct REAL published sellers found in the Store search response. */
+  storeLinks?: { ksNumber: string; displayName: string; locationLabel: string | null }[];
   query: string;
   onQueryChange: (query: string) => void;
   searchStatus?: 'idle' | 'loading' | 'ready' | 'error';
@@ -33,7 +35,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, embedded = false }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, embedded = false }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className={embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
@@ -71,7 +73,20 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         <p className="mb-5 text-xs leading-5 text-sand-600">Search uses SecurePay’s real Store filters and published offers. Opening an offer lets you inspect it; it does not buy, agree or move money.</p>
 
-        {/* Stores */}
+        {/* Real published sellers; the backend searches offers, not all registered
+            businesses. Do not fabricate a Store directory from demo fixtures. */}
+        {storeLinks.length > 0 && <div className="mb-5">
+          <div className="mb-2 text-[0.7rem] font-medium uppercase tracking-wide text-sand-600">Stores with published offers</div>
+          <div className="flex flex-wrap gap-2">
+            {storeLinks.map(seller => <button key={seller.ksNumber} type="button"
+              onClick={() => onOpenStore(seller.ksNumber)}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-2 text-left hover:border-forest-300">
+              <span className="block text-sm font-medium text-forest-800">{seller.displayName}</span>
+              {seller.locationLabel && <span className="text-xs text-sand-600">{seller.locationLabel}</span>}
+            </button>)}
+          </div>
+        </div>}
+        {/* Legacy fixture-only StoreIdentity list, for the separate fixture app. */}
         {stores.length > 0 && (
           <div className="mb-5">
             <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Stores</div>
