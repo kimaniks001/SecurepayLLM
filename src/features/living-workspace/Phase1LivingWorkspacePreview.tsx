@@ -341,6 +341,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const closeEmbeddedStore = (target?: Screen) => {
     setStoreOpen(false);setStoreHandoffError(null);
     setScreen(target ?? storeReturnScreen.current);
+    // Store is closed IN this workspace; do not leave a stale #/store URL
+    // that would reopen the Store on the next refresh/back action.
+    if(typeof window!=='undefined' && /^#\/store\/?$/.test(window.location.hash))
+      window.history.replaceState(null,'',window.location.pathname+window.location.search+'#/preview/living-workspace/work');
   };
   useEffect(() => {
     if (!signedIn) { setStoreOpen(false);setStoreEverOpened(false);setStoreHandoffError(null);return; }
