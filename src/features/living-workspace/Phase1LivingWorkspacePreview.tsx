@@ -1060,7 +1060,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             onOpenBusinessVision={businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
               // invent a new Store-owned Vision or silently change Business KS.
-              closeEmbeddedStore('chat');chooseMode('vision');
+              storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
             }}
           />
         </div>
