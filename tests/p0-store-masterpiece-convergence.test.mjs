@@ -16,6 +16,13 @@ const storeRoutes = source('src/features/store/route.ts');
 const storeSetup = source('src/features/store/DigitalStoreSetup.tsx');
 const storeHome = source('src/components/StoreHome.tsx');
 
+test('P0: Store Agreements opens existing real participant-scoped Agreement hub, not a dummy panel', () => {
+  assert.match(living, /data-store-canonical-agreements/);
+  assert.match(living, /setShowAgreementHub\(true\)/);
+  assert.match(living, /showEstablishedAgreements=\{true\}/);
+  assert.match(living, /Back to SecurePay Check/);
+});
+
 test('P0: authenticated Store is mounted inside the ONE actual Living Workspace shell', () => {
   assert.match(living, /data-workspace-frozen-layout/);
   assert.match(living, /data-masterpiece-digital-store/);
