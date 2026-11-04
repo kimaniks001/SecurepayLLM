@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, storeWorkspaceOfferEntry, consumeBusinessVisionEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -199,6 +199,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   publicShell: PublicShellBridge;
 }) {
   const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalBusinessVisionOwner] = useState(consumeBusinessVisionEntry);
   const [externalDreamId,setExternalDreamId] = useState(() => consumeDreamEntry());
   const [externalCircleId,setExternalCircleId] = useState(() => consumeCircleEntry());
   const [externalCommunityObjectId,setExternalCommunityObjectId]=useState(()=>consumeCommunityObjectEntry());
@@ -380,7 +381,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemEntry, setEcosystemEntry] = useState<'help' | 'plug' | 'master'>('help');
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
-  const [visionLibrary, setVisionLibrary] = useState(false);
+  const [visionLibrary, setVisionLibrary] = useState(Boolean(externalBusinessVisionOwner));
+  useEffect(()=>{
+    if(externalBusinessVisionOwner && signedIn)
+      void visionBoardController.loadForOwner(externalBusinessVisionOwner);
+  },[externalBusinessVisionOwner,signedIn,visionBoardController]);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Human Experience Phase 2 — the canonical Home may show ONE authoritative thing that needs
   // the person. These reads never create business truth; they only compose existing Agreement/Review/
@@ -734,6 +739,30 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
    * Public Experience Convergence Phase 2 -- a signed-out person asking for a private area is taken to the
    * public Sign in route (never a dead-end notice), then on to that area once SecurePay confirms them.
    */
+
+  /**
+   * A Store offer chosen from Vision/Community/Agreement enters the SAME
+   * signed-in masterpiece instead of mounting the old separate Store shell.
+   * Source IDs are hints only; StoreExperience must re-read the public offer.
+   * Existing KS001 work is saved before the view is allowed to change.
+   */
+  const enterWorkspaceStoreOffer=(canonicalKsNumber:string,offerId:string)=>{
+    const existing=controller.getSnapshot();
+    if(existing.busy || existing.pending || readDraft(existing.conversationId??undefined).trim()){
+      setNotice('Finish your unsent or pending KS001 work before opening another Store offer.');
+      return;
+    }
+    void (async()=>{
+      if(existing.conversationId){
+        const saved=await gateway.saveBuild(existing.conversationId);
+        if(saved.conversationId!==existing.conversationId || !saved.savedBuildId)
+          throw new Error('Your current KS001 conversation was not saved.');
+        storeLivingWorkspaceEntry(existing.conversationId);
+      }
+      storeWorkspaceOfferEntry(canonicalKsNumber,offerId);
+      window.location.hash='#/store';
+    })().catch(()=>setNotice('SecurePay could not preserve your current work; the Store was not opened.'));
+  };
   const requestSignIn = (intent: AppView) => { setHome(true); signInRoute.open(intent); };
   /** Shared by the top NavBar, WorkspaceExperience's own NavBar, StoreExperience's own NavBar, and
    * CommunityExperience/CircleExperience/EcosystemExperience's own NavBars — one navigation-out policy. */
@@ -748,7 +777,31 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // for clarity, redundantly but harmlessly. See docs/PHASE5_LIFE_BUSINESS_WORLD.md sections G/K.
     recoveryController.reset();
     developerController.clearSensitiveTransientState();
-    if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
+    if (view === 'store') {
+      if (signedIn) {
+        // P0: the Store entry must not replace the signed-in KS001 masterpiece
+        // with a second Store application shell. Save any current canonical
+        // work first, then enter the same authorised conversation in My Work.
+        const existing=controller.getSnapshot();
+        if (existing.busy || existing.pending || readDraft(existing.conversationId??undefined).trim()) {
+          setNotice('Finish or clear your unsent KS001 message before switching into Digital Stores.');
+          return;
+        }
+        void (async()=>{
+          if(existing.conversationId){
+            const saved=await gateway.saveBuild(existing.conversationId);
+            if(saved.conversationId!==existing.conversationId || !saved.savedBuildId)
+              throw new Error('SecurePay did not confirm your current work was saved.');
+            storeLivingWorkspaceEntry(existing.conversationId);
+          }
+          window.location.hash='#/store';
+        })().catch(()=>setNotice('Your current KS001 work could not be saved. You have not left this conversation.'));
+        return;
+      }
+      setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null);
+      setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
+      setProjects(false); setVisionBoard(false); setStore(true); return;
+    }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystemEntry('help'); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
@@ -1163,6 +1216,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
           });
         }}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
           setCommunity(false);
           setStoreReturnContext({ kind: 'community' });
           setStoreOfferRoute({ canonicalKsNumber, offerId });
@@ -1246,6 +1300,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         defaultOwnerKsNumber={visionBoardController.getSnapshot().ownerKsNumber}
         onNavigate={navigateTo}
         onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+          if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
           setVisionLibrary(false);
           setStoreReturnContext({ kind: 'vision' });
           setStoreOfferRoute({ canonicalKsNumber, offerId });
@@ -1322,6 +1377,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
         setStore(true);
       }}
       onOpenStoreOffer={(canonicalKsNumber, offerId) => {
+        if(signedIn){enterWorkspaceStoreOffer(canonicalKsNumber,offerId);return;}
         const agreementId = workspaceAgreementId;
         setWorkspace(false);
         setStoreReturnContext({ kind: 'agreement', agreementId: agreementId ?? undefined });

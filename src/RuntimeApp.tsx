@@ -1,7 +1,8 @@
+import { isOwnerTestingOrigin, isOwnerTestingWorkspaceEntry } from './features/experience/ownerTestingOrigin';
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
@@ -14,7 +15,8 @@ import { InvitationInboxExperience } from './features/invitation-inbox/Invitatio
 import { SecureLinkExperience } from './features/securelink/SecureLinkExperience';
 import { createInvitationInboxController } from './features/invitation-inbox/controller';
 import { parseInvitationRoute, parseMyInvitationRoute } from './features/recipient/route';
-import { parseStoreOfferRoute } from './features/store/route';
+import { parseLegacySharedShortLink, parseStoreOfferRoute } from './features/store/route';
+import { SharedShortLinkResolver } from './features/store/SharedShortLinkResolver';
 import { TrustProjectWelcome } from './features/trust/TrustProjectWelcome';
 import { parseTrustProjectDoor, type TrustProjectDoorRoute } from './features/trust/route';
 import { createSecurePayApi } from './api/securepay';
@@ -197,7 +199,7 @@ function useDirectSurfaceRoute(): AppView | null {
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
     if (window.location.hash === '#/store/open') return 'store';
     if (/^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)) return 'store';
-    if (/^#\/s\/[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(window.location.hash)) return 'store';
+    if (/^#\/(?:shop|s)\/[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(window.location.hash)) return 'store';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
     return null;
@@ -333,17 +335,42 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+  // Isolated staging must default to the APPROVED Living Workspace, not the
+  // retired AgentExperience homepage. Never change the production securepay.ke
+  // root route implicitly; production rollout requires separate owner approval.
+  const host=hostname.toLowerCase();
+  const isPreview=host.endsWith('.vercel.app');
+  const isIsolatedStaging=host.endsWith('.securepay.ke')
+    && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
+  return (isPreview || isIsolatedStaging)
+    && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+}
+/**
+ * A signed-in #/store is a tool route INSIDE the canonical Living Workspace.
+ * A public #/s/{slug}, public offer link or signed-out Store stays a standalone
+ * trader-owned/public surface, never a member's private KS001 workspace.
+ */
+export function isAuthenticatedStoreWorkspaceEntry(hash: string, status: string): boolean {
+  return status === 'signed-in' &&
+    (/^#\/store\/?$/.test(hash) ||
+      /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(hash));
 }
 export default function RuntimeApp() {
-  const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
-    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
-      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
+  const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const ownerTestingReady = typeof window !== 'undefined' && !!api &&
+    isOwnerTestingOrigin(api.baseUrl, window.location.origin, import.meta.env.VITE_SECUREPAY_OWNER_TESTING_ORIGIN);
+  const matchingWorkspace = () => typeof window !== 'undefined' &&
+    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community|store))?\/?$/.test(window.location.hash) ||
+      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname) ||
+      (ownerTestingReady && isOwnerTestingWorkspaceEntry(window.location.hash)) ||
+      isAuthenticatedStoreWorkspaceEntry(window.location.hash,session.getSnapshot().status));
+  const [phase1Preview, setPhase1Preview] = useState(matchingWorkspace);
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
+    const syncPreview = () => setPhase1Preview(matchingWorkspace());
+    syncPreview();
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
-  }, []);
+  }, [sessionState.status]);
   const [invitationToken, clearInvitationToken] = useInvitationToken();
   const [myInvitationId, clearMyInvitationId] = useMyInvitationRoute();
   const [invitationInboxRoute, clearInvitationInboxRoute] = useInvitationInboxRoute();
@@ -355,6 +382,7 @@ export default function RuntimeApp() {
   const [moneyRoute, clearMoneyRoute] = useMoneyRoute();
   const [skillsRoute, clearSkillsRoute] = useSkillsRoute();
   const directSurfaceRoute = useDirectSurfaceRoute();
+  const sharedShortLink = typeof window !== 'undefined' ? parseLegacySharedShortLink(window.location.hash) : null;
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
@@ -364,12 +392,28 @@ export default function RuntimeApp() {
   catch { return <Unavailable />; }
   // Never send an OTP/signup write via a preview pointed at production.
   // In-memory identity flows are enabled only against an explicitly named SecurePay staging origin.
-  const identityStagingReady = !!api && (() => {
+  const identityStagingReady = ownerTestingReady || (!!api && (() => {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
-  })();
+  })());
+  // Production's actual Living Workspace must use the SAME authenticated
+  // real API clients as the rest of SecurePay. The Vercel preview retains its
+  // explicit safe relay and may not silently write to a production API.
+  const onPreviewHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+  const liveWorkspaceGateways = !onPreviewHost && api && agentGateway && visionDreamGateway &&
+    communityGateway && agreementGateway && storeGateway && financialPartnerGateway && moneySnapshotGateway
+    ? { auth: api.auth, agent: agentGateway, dreams: visionDreamGateway,
+        community: communityGateway, agreements: agreementGateway, stores: storeGateway,
+        financialPartners: financialPartnerGateway, moneySnapshot: moneySnapshotGateway, media: null }
+    : undefined;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
-    gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
+    gateway={onPreviewHost ? previewAgentGateway : agentGateway}
+    workspaceGateways={onPreviewHost ? previewWorkspaceGateways : liveWorkspaceGateways}
+    storeIntegration={api && storeGateway && businessGateway && marketNetworkGateway
+      && (!onPreviewHost || identityStagingReady)
+      ? { gateway: storeGateway, businessGateway, marketNetworkGateway,
+          fulfilmentNeedsGateway, auth: api.auth, trustedMediaOrigin }
+      : undefined}
     identityStagingReady={identityStagingReady} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
@@ -397,6 +441,15 @@ export default function RuntimeApp() {
         />
       : <Unavailable />;
   }
+  // Old #/s/{slug} aliases collide: they were legitimately used by BOTH
+  // public Digital Stores and pre-existing Agreement SecureLinks. Do not let
+  // SecureLink's pathname/hash parser steal a published Store (or vice versa).
+  // Resolve both existing public authority endpoints, then choose a distinct
+  // #/shop or #/securelink URL. Both-found requires explicit visitor choice.
+  if (sharedShortLink) return api && storeGateway && agreementGateway
+    ? <SharedShortLinkResolver key={sharedShortLink} slug={sharedShortLink}
+        store={storeGateway} agreement={agreementGateway} />
+    : <Unavailable />;
   if (secureLinkSlug) {
     return api && agreementGateway
       ? <SecureLinkExperience key={secureLinkSlug} slug={secureLinkSlug} gateway={agreementGateway} auth={api.auth} session={session} onLeave={clearSecureLinkSlug} />

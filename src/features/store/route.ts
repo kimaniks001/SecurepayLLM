@@ -24,7 +24,13 @@ export function parseStoreOfferRoute(hash: string): { canonicalKsNumber: string;
  * Never infer owner KS or grant Agreement authority from the URL: the server
  * resolves the slug against reserved historical aliases and active published Stores.
  */
+/** New, unambiguous public Store URL. The old #/s/ alias is resolved by
+ * the shared short-link router because #/s/ also belongs to SecureLinks. */
 export function parseDigitalStoreAddressRoute(hash: string): string | null {
+  const match = /^#\/(?:shop|s)\/([a-z0-9][a-z0-9-]{1,46}[a-z0-9])$/.exec(hash);
+  return match ? match[1] : null;
+}
+export function parseLegacySharedShortLink(hash: string): string | null {
   const match = /^#\/s\/([a-z0-9][a-z0-9-]{1,46}[a-z0-9])$/.exec(hash);
   return match ? match[1] : null;
 }

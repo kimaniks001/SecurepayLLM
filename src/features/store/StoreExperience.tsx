@@ -35,7 +35,9 @@ import { StoreEnquiryInbox } from './StoreEnquiryInbox';
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress' | 'publicDigitalAddressForKs'
   | 'myFavourites' | 'saveFavourite' | 'removeFavourite' | 'createStoreEnquiry'
   | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
-  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'>;
+  | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'
+  | 'personalEnquiryDraft' | 'savePersonalEnquiryDraft'
+  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -52,7 +54,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001 }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -63,6 +65,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
+  /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
+  embedded?: boolean;
 }) {
   const navPadding = useAppNavPadding(); // Public Experience Convergence Phase 2: no bottom-nav room in the public shell
   const [controller] = useState(() => createStoreController(gateway, trustedMediaOrigin));
@@ -71,6 +75,15 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const identityState = useSyncExternalStore(identityController.subscribe, identityController.getSnapshot);
   const sessionEpoch = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const storeSignedIn = sessionEpoch.status === 'signed-in';
+  // Access-token renewal must not re-key a trader's unsent reply draft or a
+  // buyer's unfinished enquiry. Only an ACTUAL sign-in/out transition creates
+  // a new privacy epoch for the child inbox/history components.
+  const previousSessionStatus = useRef(sessionEpoch.status);
+  const privateStoreSessionEpoch = useRef<object>({});
+  if(previousSessionStatus.current !== sessionEpoch.status) {
+    previousSessionStatus.current = sessionEpoch.status;
+    privateStoreSessionEpoch.current = {};
+  }
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | 'connect' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
@@ -96,8 +109,10 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // Unsent customer messages must not follow a former authenticated identity.
     // A guest signing in keeps their own draft; any transition away from an
     // authenticated session clears pending private enquiry content.
-    if (previousStoreSession.current !== sessionEpoch
-        && previousStoreSession.current.status === 'signed-in')
+    // Normal token refresh reissues the same account's tokens and MUST NOT
+    // delete an unsent Store enquiry. An actual sign-out clears private work.
+    if (previousStoreSession.current.status === 'signed-in'
+        && sessionEpoch.status === 'signed-out')
       setCustomerDraft(emptyStoreCustomerDraft);
     previousStoreSession.current = sessionEpoch;
   }, [sessionEpoch]);
@@ -140,7 +155,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       void gateway.publicDigitalAddress(addressSlug).then(result => {
         setPublicDigitalAddress(result);
         if (result.slug !== addressSlug && parseDigitalStoreAddressRoute(window.location.hash) === addressSlug)
-          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/shop/' + result.slug);
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => { setPublicDigitalAddress(null); void controller.openStore(''); });
     }
@@ -173,7 +188,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         if (parseDigitalStoreAddressRoute(window.location.hash) !== slug) return;
         setPublicDigitalAddress(result);
         if (result.slug !== slug)
-          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/s/' + result.slug);
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/shop/' + result.slug);
         void controller.openStore(result.canonicalKsNumber);
       }).catch(() => {
         if (parseDigitalStoreAddressRoute(window.location.hash) === slug)
@@ -341,8 +356,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
 
   if (manageChoices !== null) {
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6 space-y-4">
           <button onClick={() => setManageChoices(null)} className="text-sm text-forest-700">← Store</button>
           <div>
@@ -371,8 +386,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (signInGate) {
     const authData = secureAuthView(identityState);
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="flex-1 flex items-center justify-center p-6">
           <SecureAuthCard
             data={authData}
@@ -415,13 +430,19 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (state.view === 'home') {
     body = (
       <StoreHome
+        embedded={embedded}
         onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
-        onOpenStore={() => {}}
+        onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
         onCreateOffer={() => requireAuth('create')}
         onStartConversation={() => onNavigate('signed-in')}
         offers={state.search.status === 'ready' ? state.search.data.map(r => r.offer) : []}
         stores={[]}
+        storeLinks={state.search.status === 'ready'
+          ? Array.from(new Map(state.search.data.map(result => [result.canonicalKsNumber,
+              { ksNumber: result.canonicalKsNumber, displayName: result.displayName,
+                locationLabel: result.locationLabel }])).values()).slice(0, 12)
+          : []}
         query={state.query}
         onQueryChange={q => controller.setQuery(q)}
         searchStatus={state.search.status === 'idle' ? 'idle' : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
@@ -429,7 +450,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onJourneyNavigate={onNavigate}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m browsing the SecurePay Store. Based on what I am looking for here, what real SecurePay products, services or capabilities could help me choose, compare or move toward an Agreement? Only suggest things SecurePay can actually verify.') : undefined}
         contextLabel={returnContext?.label ?? null}
-        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={sessionEpoch} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
+        connectionsPanel={<StoreConnectionsHome gateway={gateway} signedIn={storeSignedIn} sessionEpoch={privateStoreSessionEpoch.current} onContinueWithKs001={continueEnquiryWithKs001} onResumeSavedWork={onResumeSavedWork} focusedEnquiryId={focusedEnquiry?.audience === 'buyer' ? focusedEnquiry.enquiryId : null}/>} 
       />
     );
   } else if (state.view === 'profile') {
@@ -441,7 +462,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         ? <StoreCustomerConnections key={state.selectedStore.data.store.id}
             gateway={gateway} sellerKs={state.selectedStore.data.store.id}
             storeName={publicDigitalAddress.storeName} offers={state.selectedStore.data.offers}
-            signedIn={storeSignedIn} sessionEpoch={sessionEpoch}
+            signedIn={storeSignedIn} sessionEpoch={privateStoreSessionEpoch.current}
             onContinueWithKs001={continueEnquiryWithKs001}
             draft={customerDraft} setDraft={setCustomerDraft}
             onRequestSignIn={() => setSignInGate('connect')}
@@ -533,7 +554,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onReviewRoute={fulfilmentNeedsGateway ? (needId, route) => void reviewRouteForAgreement(needId, route) : undefined}
         onAskKs001={onAskKs001 ? () => onAskKs001('I’m in my Store. Looking at my offers, fulfilment opportunities and current Store work, what real SecurePay products, services or capabilities could help me now? Only suggest things SecurePay can actually verify, and tell me why each one fits.') : undefined}
         opportunityInspection={opportunityInspection}
-        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={sessionEpoch} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
+        enquiryInbox={<StoreEnquiryInbox key={state.managedBusiness?.ksNumber ?? 'personal'} gateway={gateway} businessKs={state.managedBusiness?.ksNumber ?? null} sessionEpoch={privateStoreSessionEpoch.current} focusedEnquiryId={focusedEnquiry?.audience === 'trader' ? focusedEnquiry.enquiryId : null}/>}
         agreementProgress={<section aria-label="Agreement progress" className="rounded-2xl border border-cream-200 bg-white p-4">
           <h3 className="font-display text-lg text-forest-900">Where an enquiry becomes work</h3>
           <p className="mt-1 text-xs leading-5 text-sand-600">
@@ -577,8 +598,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   if (miniAgreementReview) {
     const route = miniAgreementReview.route;
     return (
-      <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
-        <NavBar view={navBarView} onNavigate={handleNavigate} />
+      <div className={embedded ? 'min-h-0 flex-1 overflow-y-auto bg-cream-50' : `min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
+        {!embedded && <NavBar view={navBarView} onNavigate={handleNavigate} />}
         <div className="max-w-2xl w-full mx-auto px-4 md:px-6 py-6">
           {miniAgreementReview.loading && <LoadingNotice text="Preparing the Agreement review…" />}
           {miniAgreementReview.error && (
@@ -612,6 +633,15 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     );
   }
 
+  // Only the public/direct-link experience owns the standalone header.
+  // An authenticated Living Workspace supplies the ONE Tool Shelf, ONE KS001
+  // conversation and ONE authoritative Agreement/SecurePay Check instead.
+  if (embedded) {
+    return <section data-store-embedded-body aria-label="Digital Store workspace"
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-cream-50">
+      {body}
+    </section>;
+  }
   return (
     <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={navBarView} onNavigate={handleNavigate} />

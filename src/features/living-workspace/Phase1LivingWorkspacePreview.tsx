@@ -9,7 +9,7 @@ import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { WorkspaceIdentityOverlay } from './WorkspaceIdentityOverlay';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
-import { beginNewWork, returnToSavedWork, type WorkNavigationServices } from './workNavigation';
+import { beginNewWork, preserveCurrentWork, returnToSavedWork, type WorkNavigationServices } from './workNavigation';
 import { AgreementDiscovery } from './AgreementDiscovery';
 import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
 import { SelectedWorkspaceRecord } from './SelectedWorkspaceRecord';
@@ -33,10 +33,13 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
+import { StoreExperience } from '../store/StoreExperience';
+import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
+import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, storeBusinessVisionEntry, consumeWorkspaceStoreOfferEntry, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
@@ -68,9 +71,15 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false }: {
+/** Exact Gate 1–5 Store implementation; no second Store/Agreement engine. */
+type EmbeddedStoreIntegration = Pick<Parameters<typeof StoreExperience>[0],
+  'gateway' | 'businessGateway' | 'marketNetworkGateway' | 'fulfilmentNeedsGateway'
+  | 'auth' | 'trustedMediaOrigin'>;
+
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, storeIntegration, session, identityStagingReady=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
+  storeIntegration?: EmbeddedStoreIntegration;
   session: SessionStore;
   /** Identity write operations must be backed by isolated, configured staging. */
   identityStagingReady?: boolean;
@@ -180,6 +189,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const [returnError,setReturnError] = useState<string|null>(null);
   const [draftRevision,setDraftRevision]=useState(0);
   const [showSavedWork,setShowSavedWork]=useState(false);
+  const [showAgreementHub,setShowAgreementHub]=useState(false);
   const [workActionBusy,setWorkActionBusy]=useState(false);
   const workActionLock=useRef(false);
   // Opening composer text has no conversationId yet and cannot live in keyed drafts.
@@ -318,6 +328,52 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
+  // This panel is a CHILD of the approved Living Workspace. Keep it mounted
+  // when closed so a trader does not lose an unfinished offer draft by talking
+  // to KS001. Signing out unmounts it and clears private Store state.
+  const [initialEmbeddedStoreOffer] = useState(consumeWorkspaceStoreOfferEntry);
+  // This URL is an explicitly labelled, safe layout REVIEW, not a backend
+  // activation or a mock merchant account. Only Vercel preview hosts allow it.
+  const isStoreLayoutReviewRoute = () => typeof window !== 'undefined'
+    && window.location.hostname.endsWith('.vercel.app')
+    && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash);
+  const [storeReviewRoute, setStoreReviewRoute] = useState(isStoreLayoutReviewRoute);
+  const initialStoreOpen = () => isStoreLayoutReviewRoute() ||
+    (typeof window !== 'undefined'
+      && (/^#\/store\/?$/.test(window.location.hash) ||
+        /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
+      && session.getSnapshot().status === 'signed-in');
+  const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
+  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
+  const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
+  const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
+  const storeTransitionLock = useRef(false);
+  const storeReturnScreen = useRef<Screen>('chat');
+  const closeEmbeddedStore = (target?: Screen) => {
+    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);
+    setScreen(target ?? storeReturnScreen.current);
+    // Close without unmounting the parent's KS001 controller or restoring a
+    // stale Store URL on refresh (including the explicit visual-review route).
+    if(typeof window!=='undefined' &&
+        (/^#\/store\/?$/.test(window.location.hash) || isStoreLayoutReviewRoute()))
+      window.history.replaceState(null,'',window.location.pathname+window.location.search+'#/preview/living-workspace/work');
+  };
+  useEffect(() => {
+    const onHash = () => {
+      const reviewing = isStoreLayoutReviewRoute();
+      setStoreReviewRoute(reviewing);
+      if (reviewing || (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
+          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)))) {
+        setStoreOpen(true);setStoreEverOpened(true);return;
+      }
+      if (!signedIn) {
+        setStoreOpen(false);setStoreEverOpened(false);setStoreHandoffError(null);
+      }
+    };
+    onHash();
+    window.addEventListener('hashchange',onHash);
+    return () => window.removeEventListener('hashchange',onHash);
+  }, [signedIn]);
   const [toolSelected, setToolSelected] = useState(false);
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
@@ -331,22 +387,24 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
     if(workActionLock.current)return;
-    // Digital Stores is a full commercial destination, not a photo-sized tool.
-    // Special-purpose Quick Assist Store searches may still use the smaller picker.
-    if (name === 'Stores' && !request) {
+    // P0 masterpiece convergence: the REAL Store is an in-workspace tool.
+    // Merely opening it never switches or replaces the KS001 controller and
+    // never discards unsent chat, attachments or the right Agreement panel.
+    if (name === 'Stores' && !request && !signedIn &&
+        typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+      // Show the ACTUAL parent layout with the reused StoreHome inside it.
+      // No private account, fake publication or production-backed writes.
+      storeReturnScreen.current = screen;
+      setStoreReviewRoute(true);setStoreEverOpened(true);setStoreOpen(true);
+      setStoreHandoffError(null);setToolsOpen(false);setToolSelected(false);
+      window.location.hash = '#/preview/living-workspace/store';
+      return;
+    }
+    if (name === 'Stores' && !request && signedIn && storeIntegration) {
       if (!mayLeaveDream()) return;
-      const snapshot = liveController?.getSnapshot();
-      if (snapshot?.busy || snapshot?.pending || (liveStarted && liveWork && !snapshot?.conversationId)) {
-        window.alert('Finish or save your current KS001 work before opening Digital Stores.');
-        return;
-      }
-      if (snapshot?.conversationId && readDraft(snapshot.conversationId).trim()) {
-        window.alert('You have unsent KS001 text. Send or clear it before opening Digital Stores.');
-        return;
-      }
-      if (signedIn && liveWork && snapshot?.conversationId)
-        storeKs001ConversationReturn(snapshot.conversationId);
-      window.location.hash = '#/store';
+      storeReturnScreen.current = screen;
+      setStoreEverOpened(true);setStoreOpen(true);setStoreHandoffError(null);
+      setToolsOpen(false);setToolSelected(false);
       return;
     }
     setPhase4Journey(null);
@@ -422,7 +480,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     try {
       await beginNewWork(workServices());
       setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
-      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setShowSavedWork(false);setShowAgreementHub(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
       setDraftRevision(n=>n+1);
     }catch(error){
       setReturnError(error instanceof Error?error.message:'Could not save and start new work.');
@@ -434,7 +492,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     try{
       await returnToSavedWork(workServices(),conversationId);
       chooseMode('work');setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
-      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setShowSavedWork(false);setShowAgreementHub(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
       setDraftRevision(n=>n+1);
     }catch(error){
       setReturnError(error instanceof Error?error.message:'Could not restore that conversation.');
@@ -512,6 +570,115 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
   };
+  /**
+   * Gate 3 stays on the ONE canonical KS001 controller already mounted behind
+   * this Store panel. Existing material work is SAVED before a new intention
+   * begins; unsent composer text and in-flight turns stop the transition.
+   */
+  const continueEmbeddedOffer = async(fact:OfferFact)=>{
+    if(storeTransitionLock.current)return;
+    storeTransitionLock.current=true;setStoreHandoffBusy(true);setStoreHandoffError(null);
+    try{
+      if(!signedIn || !gateway || !liveController || !storeIntegration)
+        throw new Error('Sign in to connect this Store offer to KS001.');
+      const current=liveController.getSnapshot();
+      if(current.busy || current.pending || workActionLock.current)
+        throw new Error('Finish the current KS001 action before selecting this offer.');
+      if(openingComposerText.current.trim() || readDraft(current.conversationId??undefined).trim())
+        throw new Error('Your KS001 composer contains unsent words. Send or clear them first; nothing was lost.');
+      if(!fact.sourceId || !fact.sourceOwnerKsNumber)
+        throw new Error('The Store offer has no verified seller or offer identifier.');
+      // A Store source must never silently overwrite an unrelated Agreement.
+      if(current.conversationId && (current.turns.length>0 || current.source ||
+          (current.context.data?.entities.length??0)>0 ||
+          (current.context.data?.relationships.length??0)>0)){
+        if(!window.confirm('Start a new KS001 discussion for this Store offer? SecurePay will save your existing conversation first.'))
+          return;
+        await beginNewWork(workServices());
+      }
+      // The backend re-reads Store ownership/version and any buyer-owned
+      // enquiry before this controller can select the commercial source.
+      const result=await liveController.useOffer(fact);
+      if(result.status==='busy')
+        throw new Error('KS001 is processing another action. Retry safely.');
+      if(result.status==='failed')
+        throw new Error(result.error);
+      if(result.status!=='selected')
+        throw new Error('SecurePay did not verify the commercial Store source.');
+      if(result.amount==='failed')
+        throw new Error('The Store source was verified, but the proposed amount was not confirmed. Check KS001 before retrying; no Agreement was accepted.');
+      const verified=liveController.getSnapshot();
+      if(verified.source?.sourceType!=='STORE_LISTING' ||
+          verified.source.sourceId!==fact.sourceId ||
+          verified.source.sourceOwnerKsNumber!==fact.sourceOwnerKsNumber)
+        throw new Error('The selected source does not match the offer you chose.');
+      if(fact.enquiryId && (verified.enquiryContext?.enquiryId!==fact.enquiryId ||
+          verified.enquiryContext.offerId!==fact.sourceId ||
+          verified.enquiryContext.sellerKsNumber!==fact.sourceOwnerKsNumber))
+        throw new Error('The buyer enquiry was not verified for this offer.');
+      setLiveStarted(true);setLiveWork(true);
+      if(mode!=='work')chooseMode('work');
+      closeEmbeddedStore('chat');
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'SecurePay could not confirm the Store source.');
+    }finally{
+      storeTransitionLock.current=false;setStoreHandoffBusy(false);
+    }
+  };
+  /** A Store question is placed into the SAME composer, never auto-sent. */
+  const prepareEmbeddedStoreQuestion=async(text:string)=>{
+    if(!signedIn || !gateway || !liveController)
+      throw new Error('Sign in and open My Work to ask KS001 about a Store.');
+    if(liveBusy || livePending || workActionLock.current)
+      throw new Error('Finish the current KS001 action before asking about the Store.');
+    const current=liveController.getSnapshot();
+    if(openingComposerText.current.trim() || readDraft(current.conversationId??undefined).trim())
+      throw new Error('Your existing KS001 message is unsent. Finish it before preparing another question.');
+    let id=current.conversationId;
+    if(!id){
+      const created=await gateway.createConversation();
+      if(!created?.conversationId)throw new Error('No KS001 conversation was created.');
+      await liveController.resumeConversation(created.conversationId);
+      if(!authorisedResumedConversation(created.conversationId,liveController.getSnapshot()))
+        throw new Error('KS001 has not confirmed access to this conversation.');
+      id=created.conversationId;
+    }
+    writeDraft(id,text);
+    setDraftRevision(n=>n+1);setLiveStarted(true);setLiveWork(true);
+    if(mode!=='work')chooseMode('work');
+    closeEmbeddedStore('chat');
+  };
+  /** The original Day 4 save/resume path protects work during Store switching. */
+  const resumeEmbeddedStoreWork=async(conversationId:string)=>{
+    try{
+      await continueSavedConversation(conversationId);
+      closeEmbeddedStore('chat');
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'Saved Work could not be verified.');
+    }
+  };
+  const leaveEmbeddedStoreFor=async(view:import('../../types').AppView)=>{
+    if(view==='signed-in'){closeEmbeddedStore('chat');return;}
+    if(view==='agreements'){closeEmbeddedStore('result');setShowSavedWork(false);setShowAgreementHub(true);return;}
+    if(view==='money'){
+      storeWorkspaceMoneyReturn(liveConversationId);closeEmbeddedStore('chat');
+      window.location.hash='#/money';return;
+    }
+    if(view==='store')return;
+    try{
+      // Explicit cross-destination requests still preserve the current work
+      // before any app-level navigation; Store tool itself never navigates.
+      if(signedIn && gateway && liveController)
+        await preserveCurrentWork(workServices());
+      closeEmbeddedStore('chat');
+      if(liveConversationId)storeKs001ConversationReturn(liveConversationId);
+      storeEntryView(view);
+      window.location.hash='#/';
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'Could not safely leave this work.');
+    }
+  };
+
   const closeIdentity=()=>{
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
@@ -799,9 +966,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
-            onClick={()=>{setShowSavedWork(true);setScreen('result');}}
+            onClick={()=>{setShowAgreementHub(false);setShowSavedWork(true);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl border border-cream-200 px-3 text-sm font-semibold disabled:opacity-50">Saved Work</button>}
-          {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowSavedWork(false);setScreen('result');}}
+          {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowAgreementHub(false);setShowSavedWork(false);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl bg-cream-100 px-3 text-sm font-semibold md:hidden">Agreement</button>}
           {(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} navigationLocked={workActionBusy} onUnsentDraftChange={text=>{openingComposerText.current=text;}} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
@@ -884,7 +1051,57 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           </div>}
         </div>}
       </section>
-      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
+      {/* One real Store tool body INSIDE the masterpiece. Keep it mounted while
+          closed so unsent offer edits remain in its existing StoreController.
+          Public trader Shops continue to use their dedicated public route. */}
+      {((signedIn && !!storeIntegration) || storeReviewRoute) && storeEverOpened && <section
+        data-masterpiece-digital-store
+        aria-label="Digital Stores inside Living Workspace"
+        aria-hidden={!storeOpen}
+        className={`${storeOpen?'flex':'hidden'} fixed inset-0 z-[60] min-h-0 min-w-0 flex-col overflow-hidden bg-white md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm`}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
+          <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">My Work · Tool</p>
+            <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" onClick={()=>closeEmbeddedStore('chat')}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Chat · KS001
+            </button>
+            <button type="button" onClick={()=>closeEmbeddedStore('result')}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Agreement
+            </button>
+            <button type="button" aria-label="Close Digital Stores and return to my work"
+              disabled={storeHandoffBusy} onClick={()=>closeEmbeddedStore()}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-cream-100 disabled:opacity-50">
+              <X size={18} />
+            </button>
+          </div>
+        </header>
+        {storeHandoffBusy && <p role="status" className="shrink-0 bg-cream-50 px-4 py-2 text-xs text-forest-800">Verifying your Store source with KS001. No Agreement has been accepted.</p>}
+        {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
+          {storeReviewRoute && (!signedIn || !storeIntegration)
+            ? <StoreMasterpieceLayoutReview />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session}
+            initialOfferRoute={initialEmbeddedStoreOffer}
+            onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
+            onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
+            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
+              setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
+            });}}
+            onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
+            onOpenBusinessVision={async businessKsNumber=>{
+              // Existing authenticated Vision remains a workspace area. Do not
+              // invent a new Store-owned Vision or silently change Business KS.
+              if(openingComposerText.current.trim() || readDraft(liveConversationId??undefined).trim()) {setStoreHandoffError('Send or clear your unsent KS001 message first.');return;} try{await preserveCurrentWork(workServices());}catch{setStoreHandoffError('Current KS001 work could not be saved.');return;} storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
+            }}
+          />}
+        </div>
+      </section>}
+      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[28%] lg:max-w-[390px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
           <section data-gate-d-authorised-anonymous-conversation-claim
@@ -937,7 +1154,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
           }}/>}
         {mode!=='work' && mode!=='vision' && mode!=='community' &&
           <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
-        {mode==='work' && showSavedWork && signedIn && workspaceGateways &&
+        {mode==='work' && showAgreementHub && signedIn && workspaceGateways && <section data-store-canonical-agreements className="space-y-2">
+          <button type="button" className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs" onClick={()=>setShowAgreementHub(false)}>Back to SecurePay Check</button>
+          <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={true}
+            session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+        </section>}
+        {mode==='work' && showSavedWork && !showAgreementHub && signedIn && workspaceGateways &&
           <div className="mt-3" data-day4-saved-work-list><WorkspaceContinuityPanel area="work"
             gateways={workspaceGateways} showEstablishedAgreements={false} session={session}
             onSignIn={()=>openIdentity('signin')} onResume={continueSavedConversation}/></div>}
@@ -960,7 +1182,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
-          : mode==='work' && !showSavedWork && !openedAgreementId && liveWork?<LiveWorkResultPanel
+          : mode==='work' && !showSavedWork && !showAgreementHub && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending || workActionBusy}
           examination={examination}
           selectedSource={liveState?.source??null}
@@ -993,12 +1215,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
             await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (!workActionLock.current && formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work' && !showSavedWork && !openedAgreementId
+        />:mode==='work' && !showSavedWork && !showAgreementHub && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
           : null}
-        {mode==='work' && signedIn && !showSavedWork && !liveConversationId && <div className="mt-4">
+        {mode==='work' && signedIn && !showSavedWork && !showAgreementHub && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={false}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}

@@ -46,7 +46,8 @@ jobs:
             tests/day5-gate2-store-connections.test.mjs \
             tests/day5-gate3-store-agreement.test.mjs \
             tests/day5-gate4-store-continuity.test.mjs \
-            tests/day5-stores-gate5-certification.test.mjs
+            tests/day5-stores-gate5-certification.test.mjs \
+            tests/p0-store-masterpiece-convergence.test.mjs
       - name: Full frontend regression
         run: npm run test:final-convergence
       - name: TypeScript / lint / production build

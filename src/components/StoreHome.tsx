@@ -6,6 +6,8 @@ import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 import type { AppView } from '../types';
 
 interface StoreHomeProps {
+  /** The Living Workspace already owns KS001, Tools and SecurePay Check. */
+  embedded?: boolean;
   onOpenOffer: (id: string) => void;
   onOpenStore: (id: string) => void;
   onManageStore: () => void;
@@ -13,6 +15,8 @@ interface StoreHomeProps {
   onStartConversation: () => void;
   offers: StoreOffer[];
   stores: StoreIdentity[];
+  /** Distinct REAL published sellers found in the Store search response. */
+  storeLinks?: { ksNumber: string; displayName: string; locationLabel: string | null }[];
   query: string;
   onQueryChange: (query: string) => void;
   searchStatus?: 'idle' | 'loading' | 'ready' | 'error';
@@ -31,17 +35,17 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, embedded = false }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
-        <section className="sp-hero mb-4 px-5 py-5 md:px-7 md:py-6">
+      <div className={embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
+        <section className={embedded ? 'mb-4 rounded-2xl border border-cream-200 bg-white px-4 py-4' : 'sp-hero mb-4 px-5 py-5 md:px-7 md:py-6'}>
           <div className="sp-kicker">{contextLabel ? `For ${contextLabel}` : 'Store'}</div>
-          <h1 className="sp-display mt-2 text-3xl text-forest-900 md:text-4xl">{contextLabel ? `Find what ${contextLabel} needs` : 'What are you looking for?'}</h1>
+          <h1 className={embedded ? 'sp-type-display mt-1 text-xl text-forest-900' : 'sp-display mt-2 text-3xl text-forest-900 md:text-4xl'}>{embedded ? 'Find a real Store or offer' : contextLabel ? `Find what ${contextLabel} needs` : 'What are you looking for?'}</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-sand-600">{contextLabel
             ? `Keep ${contextLabel} in mind while you inspect real SecurePay offers. Opening an offer does not buy, agree or move money.`
             : 'Find real offers published on SecurePay. Preview first, choose only when ready, and let Agreement handle the commitment.'}</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2" aria-label="Store modes">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Store modes">
             <div className="rounded-xl border border-forest-200 bg-forest-50 px-4 py-3">
               <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-forest-700">Find</div>
               <div className="mt-1 text-sm text-forest-900">Search offers and Stores</div>
@@ -69,7 +73,20 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         <p className="mb-5 text-xs leading-5 text-sand-600">Search uses SecurePay’s real Store filters and published offers. Opening an offer lets you inspect it; it does not buy, agree or move money.</p>
 
-        {/* Stores */}
+        {/* Real published sellers; the backend searches offers, not all registered
+            businesses. Do not fabricate a Store directory from demo fixtures. */}
+        {storeLinks.length > 0 && <div className="mb-5">
+          <div className="mb-2 text-[0.7rem] font-medium uppercase tracking-wide text-sand-600">Stores with published offers</div>
+          <div className="flex flex-wrap gap-2">
+            {storeLinks.map(seller => <button key={seller.ksNumber} type="button"
+              onClick={() => onOpenStore(seller.ksNumber)}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-2 text-left hover:border-forest-300">
+              <span className="block text-sm font-medium text-forest-800">{seller.displayName}</span>
+              {seller.locationLabel && <span className="text-xs text-sand-600">{seller.locationLabel}</span>}
+            </button>)}
+          </div>
+        </div>}
+        {/* Legacy fixture-only StoreIdentity list, for the separate fixture app. */}
         {stores.length > 0 && (
           <div className="mb-5">
             <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Stores</div>
