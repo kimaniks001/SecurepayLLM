@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, WhatsAppConsentStatus, NotificationsGateway } from '../../api/securepay/notifications';
+import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, WhatsAppConsentStatus, WhatsAppRecipientStatus, NotificationsGateway } from '../../api/securepay/notifications';
 import { errorText } from '../agent/controller';
 
 export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data: T | null; error: string | null };
@@ -25,6 +25,10 @@ export interface NotificationsState {
   whatsappConsent: Loadable<WhatsAppConsentStatus>;
   whatsappConsentBusy: boolean;
   whatsappConsentError: string | null;
+  whatsappRecipient: Loadable<WhatsAppRecipientStatus>;
+  whatsappRecipientBusy: boolean;
+  whatsappRecipientError: string | null;
+  recipientPhoneDraft: string;
   quietHours: Loadable<NotificationQuietHours>;
   quietHoursDraft: NotificationQuietHours | null;
   quietHoursSaving: boolean;
@@ -40,7 +44,7 @@ const PAGE_SIZE = 20;
  * used as-is, matching this project's existing doctrine for `nextActions` (see
  * tests/phase6-convergence.test.mjs test E).
  */
-export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'> & Partial<Pick<NotificationsGateway, 'getWhatsAppConsent' | 'optInWhatsApp' | 'optOutWhatsApp'>>) {
+export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'> & Partial<Pick<NotificationsGateway, 'getWhatsAppConsent' | 'optInWhatsApp' | 'optOutWhatsApp' | 'getWhatsAppRecipient' | 'bindWhatsAppRecipient' | 'unbindWhatsAppRecipient'>>) {
   let state: NotificationsState = {
     inbox: idle(),
     categoryFilter: null,
@@ -56,6 +60,10 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     whatsappConsent: idle(),
     whatsappConsentBusy: false,
     whatsappConsentError: null,
+    whatsappRecipient: idle(),
+    whatsappRecipientBusy: false,
+    whatsappRecipientError: null,
+    recipientPhoneDraft: '',
     quietHours: idle(),
     quietHoursDraft: null,
     quietHoursSaving: false,
@@ -138,11 +146,15 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
         quietHours: { status: 'loading', data: null, error: null },
         whatsappConsent: { status: 'loading', data: null, error: null },
         whatsappConsentError: null,
+        whatsappRecipient: { status: 'loading', data: null, error: null },
+        whatsappRecipientError: null,
+        recipientPhoneDraft: '',
       });
-      const [preferencesResult, quietResult, consentResult] = await Promise.allSettled([
+      const [preferencesResult, quietResult, consentResult, recipientResult] = await Promise.allSettled([
         gateway.getPreferences(),
         gateway.getQuietHours(),
         gateway.getWhatsAppConsent ? gateway.getWhatsAppConsent() : Promise.reject(new Error('WhatsApp consent API is not available')),
+        gateway.getWhatsAppRecipient ? gateway.getWhatsAppRecipient() : Promise.reject(new Error('WhatsApp recipient API is not available')),
       ]);
       if (preferencesResult.status === 'fulfilled') {
         update({ preferences: { status: 'ready', data: preferencesResult.value, error: null }, preferencesDraft: preferencesResult.value });
@@ -153,6 +165,11 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
         update({ whatsappConsent: { status: 'ready', data: consentResult.value, error: null } });
       } else {
         update({ whatsappConsent: { status: 'error', data: null, error: errorText(consentResult.reason) } });
+      }
+      if (recipientResult.status === 'fulfilled') {
+        update({ whatsappRecipient: { status: 'ready', data: recipientResult.value, error: null } });
+      } else {
+        update({ whatsappRecipient: { status: 'error', data: null, error: errorText(recipientResult.reason) } });
       }
       if (quietResult.status === 'fulfilled') {
         update({ quietHours: { status: 'ready', data: quietResult.value, error: null }, quietHoursDraft: quietResult.value });
@@ -166,7 +183,12 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       update({ whatsappConsentBusy: true, whatsappConsentError: null });
       try {
         const result = await gateway.optInWhatsApp('WA_TRANSACTIONAL_V1');
-        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null } });
+        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null },
+          recipientPhoneDraft: '', whatsappRecipient: { status: 'idle', data: null, error: null } });
+        if (gateway.getWhatsAppRecipient) {
+          const recipient = await gateway.getWhatsAppRecipient();
+          update({ whatsappRecipient: { status: 'ready', data: recipient, error: null } });
+        }
       } catch (error) {
         update({ whatsappConsentBusy: false, whatsappConsentError: errorText(error) });
       }
@@ -180,6 +202,45 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
         update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null } });
       } catch (error) {
         update({ whatsappConsentBusy: false, whatsappConsentError: errorText(error) });
+      }
+    },
+
+    setRecipientPhoneDraft(phone: string) {
+      // Ephemeral input only; never save the raw number in browser storage.
+      update({ recipientPhoneDraft: phone.slice(0, 40), whatsappRecipientError: null });
+    },
+
+    async bindVerifiedWhatsAppRecipient() {
+      if (!gateway.bindWhatsAppRecipient || state.whatsappRecipientBusy
+          || !state.whatsappConsent.data?.optedIn) return;
+      const phone = state.recipientPhoneDraft;
+      if (!phone.trim()) {
+        update({ whatsappRecipientError: 'Enter the phone you already verified with SecurePay.' });
+        return;
+      }
+      update({ whatsappRecipientBusy: true, whatsappRecipientError: null });
+      try {
+        const result = await gateway.bindWhatsAppRecipient(phone);
+        update({ whatsappRecipientBusy: false,
+          whatsappRecipient: { status: 'ready', data: result, error: null },
+          recipientPhoneDraft: '' });
+      } catch (error) {
+        // Do not echo phone in the error state or saved notification.
+        update({ whatsappRecipientBusy: false,
+          whatsappRecipientError: 'SecurePay could not bind this verified phone. Check your consent and try again.' });
+      }
+    },
+
+    async unbindWhatsAppRecipient() {
+      if (!gateway.unbindWhatsAppRecipient || state.whatsappRecipientBusy) return;
+      update({ whatsappRecipientBusy: true, whatsappRecipientError: null });
+      try {
+        const result = await gateway.unbindWhatsAppRecipient();
+        update({ whatsappRecipientBusy: false,
+          whatsappRecipient: { status: 'ready', data: result, error: null },
+          recipientPhoneDraft: '' });
+      } catch {
+        update({ whatsappRecipientBusy: false, whatsappRecipientError: 'Unable to remove the WhatsApp recipient binding.' });
       }
     },
 
