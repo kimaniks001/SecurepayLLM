@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useRef } from 'react';
-import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, storeWorkspaceOfferEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
+import { consumeAgreementEntry, consumeEntryView, consumeKs001EntryMessage, consumeDreamEntry, consumeCircleEntry, consumeCommunityObjectEntry, consumeKs001ConversationReturn, storeLivingWorkspaceEntry, storeWorkspaceOfferEntry, consumeBusinessVisionEntry, authorisedResumedConversation, hasFirstStoreOffer } from '../experience/entryIntent';
 import { Plus } from 'lucide-react';
 import { SignedOutHome } from '../../components/SignedOutHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -199,6 +199,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   publicShell: PublicShellBridge;
 }) {
   const [externalEntryView] = useState(() => consumeEntryView());
+  const [externalBusinessVisionOwner] = useState(consumeBusinessVisionEntry);
   const [externalDreamId,setExternalDreamId] = useState(() => consumeDreamEntry());
   const [externalCircleId,setExternalCircleId] = useState(() => consumeCircleEntry());
   const [externalCommunityObjectId,setExternalCommunityObjectId]=useState(()=>consumeCommunityObjectEntry());
@@ -380,7 +381,11 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   const [ecosystemEntry, setEcosystemEntry] = useState<'help' | 'plug' | 'master'>('help');
   const [projects, setProjects] = useState(false);
   const [visionBoard, setVisionBoard] = useState(externalEntryView === 'vision-board');
-  const [visionLibrary, setVisionLibrary] = useState(false);
+  const [visionLibrary, setVisionLibrary] = useState(Boolean(externalBusinessVisionOwner));
+  useEffect(()=>{
+    if(externalBusinessVisionOwner && signedIn)
+      void visionBoardController.loadForOwner(externalBusinessVisionOwner);
+  },[externalBusinessVisionOwner,signedIn,visionBoardController]);
   const [dreamHandoffError, setDreamHandoffError] = useState<string | null>(null);
   // Human Experience Phase 2 — the canonical Home may show ONE authoritative thing that needs
   // the person. These reads never create business truth; they only compose existing Agreement/Review/
