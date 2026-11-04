@@ -113,6 +113,13 @@ export interface WhatsAppConsentStatus {
   consentedAt: string | null;
 }
 
+/** Never returns an unmasked phone. Raw digits are accepted only by a self-scoped PUT. */
+export interface WhatsAppRecipientStatus {
+  state: 'UNAVAILABLE' | 'VERIFY_AND_CONSENT' | 'NOT_BOUND' | 'BOUND';
+  bound: boolean;
+  maskedPhone: string | null;
+}
+
 export interface ListNotificationsParams {
   category?: NotificationCategory;
   unreadOnly?: boolean;
@@ -138,6 +145,13 @@ export function createNotificationsGateway(http: HttpClient) {
     getPreferences: () => http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { auth: 'required' }),
     updatePreferences: (body: UpdateNotificationPreferencesRequest) =>
       http.request<NotificationPreferences>('/api/v1/notifications/me/preferences', { method: 'PUT', body, auth: 'required' }),
+    getWhatsAppRecipient: () => http.request<WhatsAppRecipientStatus>(
+      '/api/v1/notifications/me/whatsapp-recipient', { auth: 'required' }),
+    bindWhatsAppRecipient: (phone: string) => http.request<WhatsAppRecipientStatus>(
+      '/api/v1/notifications/me/whatsapp-recipient',
+      { method: 'PUT', body: { phone }, auth: 'required' }),
+    unbindWhatsAppRecipient: () => http.request<WhatsAppRecipientStatus>(
+      '/api/v1/notifications/me/whatsapp-recipient', { method: 'DELETE', auth: 'required' }),
     getWhatsAppConsent: () => http.request<WhatsAppConsentStatus>(
       '/api/v1/notifications/me/whatsapp-consent', { auth: 'required' }),
     optInWhatsApp: (disclosureVersion: string) => http.request<WhatsAppConsentStatus>(
