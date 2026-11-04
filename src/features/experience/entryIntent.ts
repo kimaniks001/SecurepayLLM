@@ -167,6 +167,22 @@ export function consumeFirstStoreOffer(): OfferDraftFields | null {
   return draft ? { ...draft, mediaRefs: [...draft.mediaRefs] } : null;
 }
 
+/**
+ * A Business trader's Store Vision must retain the Business KS owner scoping.
+ * The existing VisionBoardController rechecks this identity; there is no new
+ * Store-specific Vision engine or fake personal Vision fallback.
+ */
+let pendingStoreBusinessVisionOwner: string | null = null;
+export function storeBusinessVisionEntry(businessKsNumber:string):void {
+  if(!businessKsNumber.trim())throw new Error('A Business KS is required');
+  pendingStoreBusinessVisionOwner=businessKsNumber.trim();
+}
+export function consumeBusinessVisionEntry():string|null {
+  const id=pendingStoreBusinessVisionOwner;
+  pendingStoreBusinessVisionOwner=null;
+  return id;
+}
+
 let pendingWorkspaceStoreOffer: { canonicalKsNumber:string; offerId:string } | null = null;
 /** One-shot IDs only: the current Store API must re-authorise and re-read. */
 export function storeWorkspaceOfferEntry(canonicalKsNumber:string, offerId:string):void {
