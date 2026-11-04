@@ -574,6 +574,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         throw new Error(result.error);
       if(result.status!=='selected')
         throw new Error('SecurePay did not verify the commercial Store source.');
+      if(result.amount==='failed')
+        throw new Error('The Store source was verified, but the proposed amount was not confirmed. Check KS001 before retrying; no Agreement was accepted.');
       const verified=liveController.getSnapshot();
       if(verified.source?.sourceType!=='STORE_LISTING' ||
           verified.source.sourceId!==fact.sourceId ||
