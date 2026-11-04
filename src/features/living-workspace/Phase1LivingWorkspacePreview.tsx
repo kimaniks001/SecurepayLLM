@@ -9,7 +9,7 @@ import { readDraft, writeDraft } from '../conversation/drafts';
 import { InlineCircleBoard } from './InlineCircleBoard';
 import { WorkspaceIdentityOverlay } from './WorkspaceIdentityOverlay';
 import { WorkspaceContinuityPanel, type WorkspaceArea } from './WorkspaceContinuityPanel';
-import { beginNewWork, returnToSavedWork, type WorkNavigationServices } from './workNavigation';
+import { beginNewWork, preserveCurrentWork, returnToSavedWork, type WorkNavigationServices } from './workNavigation';
 import { AgreementDiscovery } from './AgreementDiscovery';
 import { ActiveAgreementWorkspace } from './ActiveAgreementWorkspace';
 import { SelectedWorkspaceRecord } from './SelectedWorkspaceRecord';
@@ -38,7 +38,7 @@ import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
@@ -537,6 +537,112 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       throw new Error('An unsent message already exists in the new conversation.');
     writeDraft(created.conversationId,text);
     chooseMode('work');setDraftRevision(value=>value+1);setLiveStarted(true);setLiveWork(true);
+  };
+  /**
+   * Gate 3 stays on the ONE canonical KS001 controller already mounted behind
+   * this Store panel. Existing material work is SAVED before a new intention
+   * begins; unsent composer text and in-flight turns stop the transition.
+   */
+  const continueEmbeddedOffer = async(fact:OfferFact)=>{
+    if(storeTransitionLock.current)return;
+    storeTransitionLock.current=true;setStoreHandoffBusy(true);setStoreHandoffError(null);
+    try{
+      if(!signedIn || !gateway || !liveController || !storeIntegration)
+        throw new Error('Sign in to connect this Store offer to KS001.');
+      const current=liveController.getSnapshot();
+      if(current.busy || current.pending || workActionLock.current)
+        throw new Error('Finish the current KS001 action before selecting this offer.');
+      if(openingComposerText.current.trim() || readDraft(current.conversationId??undefined).trim())
+        throw new Error('Your KS001 composer contains unsent words. Send or clear them first; nothing was lost.');
+      if(!fact.sourceId || !fact.sourceOwnerKsNumber)
+        throw new Error('The Store offer has no verified seller or offer identifier.');
+      // A Store source must never silently overwrite an unrelated Agreement.
+      if(current.conversationId && (current.turns.length>0 || current.source ||
+          (current.context.data?.entities.length??0)>0 ||
+          (current.context.data?.relationships.length??0)>0)){
+        if(!window.confirm('Start a new KS001 discussion for this Store offer? SecurePay will save your existing conversation first.'))
+          return;
+        await beginNewWork(workServices());
+      }
+      // The backend re-reads Store ownership/version and any buyer-owned
+      // enquiry before this controller can select the commercial source.
+      const result=await liveController.useOffer(fact);
+      if(result.status==='busy')
+        throw new Error('KS001 is processing another action. Retry safely.');
+      if(result.status==='failed')
+        throw new Error(result.error);
+      if(result.status!=='selected')
+        throw new Error('SecurePay did not verify the commercial Store source.');
+      const verified=liveController.getSnapshot();
+      if(verified.source?.sourceType!=='STORE_LISTING' ||
+          verified.source.sourceId!==fact.sourceId ||
+          verified.source.sourceOwnerKsNumber!==fact.sourceOwnerKsNumber)
+        throw new Error('The selected source does not match the offer you chose.');
+      if(fact.enquiryId && (verified.enquiryContext?.enquiryId!==fact.enquiryId ||
+          verified.enquiryContext.offerId!==fact.sourceId ||
+          verified.enquiryContext.sellerKsNumber!==fact.sourceOwnerKsNumber))
+        throw new Error('The buyer enquiry was not verified for this offer.');
+      setLiveStarted(true);setLiveWork(true);
+      if(mode!=='work')chooseMode('work');
+      closeEmbeddedStore('chat');
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'SecurePay could not confirm the Store source.');
+    }finally{
+      storeTransitionLock.current=false;setStoreHandoffBusy(false);
+    }
+  };
+  /** A Store question is placed into the SAME composer, never auto-sent. */
+  const prepareEmbeddedStoreQuestion=async(text:string)=>{
+    if(!signedIn || !gateway || !liveController)
+      throw new Error('Sign in and open My Work to ask KS001 about a Store.');
+    if(liveBusy || livePending || workActionLock.current)
+      throw new Error('Finish the current KS001 action before asking about the Store.');
+    const current=liveController.getSnapshot();
+    if(openingComposerText.current.trim() || readDraft(current.conversationId??undefined).trim())
+      throw new Error('Your existing KS001 message is unsent. Finish it before preparing another question.');
+    let id=current.conversationId;
+    if(!id){
+      const created=await gateway.createConversation();
+      if(!created?.conversationId)throw new Error('No KS001 conversation was created.');
+      await liveController.resumeConversation(created.conversationId);
+      if(!authorisedResumedConversation(created.conversationId,liveController.getSnapshot()))
+        throw new Error('KS001 has not confirmed access to this conversation.');
+      id=created.conversationId;
+    }
+    writeDraft(id,text);
+    setDraftRevision(n=>n+1);setLiveStarted(true);setLiveWork(true);
+    if(mode!=='work')chooseMode('work');
+    closeEmbeddedStore('chat');
+  };
+  /** The original Day 4 save/resume path protects work during Store switching. */
+  const resumeEmbeddedStoreWork=async(conversationId:string)=>{
+    try{
+      await continueSavedConversation(conversationId);
+      closeEmbeddedStore('chat');
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'Saved Work could not be verified.');
+    }
+  };
+  const leaveEmbeddedStoreFor=async(view:import('../../types').AppView)=>{
+    if(view==='signed-in'){closeEmbeddedStore('chat');return;}
+    if(view==='agreements'){closeEmbeddedStore('result');setShowSavedWork(false);return;}
+    if(view==='money'){
+      storeWorkspaceMoneyReturn(liveConversationId);closeEmbeddedStore('chat');
+      window.location.hash='#/money';return;
+    }
+    if(view==='store')return;
+    try{
+      // Explicit cross-destination requests still preserve the current work
+      // before any app-level navigation; Store tool itself never navigates.
+      if(signedIn && gateway && liveController)
+        await preserveCurrentWork(workServices());
+      closeEmbeddedStore('chat');
+      if(liveConversationId)storeKs001ConversationReturn(liveConversationId);
+      storeEntryView(view);
+      window.location.hash='#/';
+    }catch(error){
+      setStoreHandoffError(error instanceof Error?error.message:'Could not safely leave this work.');
+    }
   };
   const closeIdentity=()=>{
     setSignInOpen(false);
