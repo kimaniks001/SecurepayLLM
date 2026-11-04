@@ -350,7 +350,9 @@ export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
  * trader-owned/public surface, never a member's private KS001 workspace.
  */
 export function isAuthenticatedStoreWorkspaceEntry(hash: string, status: string): boolean {
-  return status === 'signed-in' && /^#\/store\/?$/.test(hash);
+  return status === 'signed-in' &&
+    (/^#\/store\/?$/.test(hash) ||
+      /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(hash));
 }
 export default function RuntimeApp() {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
