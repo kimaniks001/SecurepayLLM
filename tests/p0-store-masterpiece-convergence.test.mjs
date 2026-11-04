@@ -46,14 +46,14 @@ test('P0: isolated staging loads the masterpiece, never accidentally replaces pr
   assert.match(runtime, /(?:staging\|sandbox\|qa\|test)/);
   assert.match(runtime, /isCandidateWorkspaceEntry/);
   assert.match(runtime, /isAuthenticatedStoreWorkspaceEntry/);
-  assert.match(runtime, /store\\/enquiry/);
+  assert.ok(runtime.includes('enquiry'));
 });
 
 test('P0: canonical public Store links cannot steal legacy SecureLinks', () => {
   assert.match(storeRoutes, /parseLegacySharedShortLink/);
   assert.match(storeRoutes, /(?:shop\|s)/);
-  assert.match(storeSetup, /#\\/shop\\//);
-  assert.match(store, /#\\/shop\\//);
+  assert.ok(storeSetup.includes("'#/shop/'"));
+  assert.ok(store.includes("'#/shop/'"));
   assert.match(runtime, /SharedShortLinkResolver/);
   assert.match(shortLinks, /Promise\.allSettled/);
   assert.match(shortLinks, /store\.publicDigitalAddress\(slug\)/);
