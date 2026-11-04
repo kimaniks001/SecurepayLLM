@@ -1057,7 +1057,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
             });}}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
-            onOpenBusinessVision={_businessKsNumber=>{
+            onOpenBusinessVision={businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
               // invent a new Store-owned Vision or silently change Business KS.
               closeEmbeddedStore('chat');chooseMode('vision');
