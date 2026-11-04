@@ -11,6 +11,10 @@ const runtime = source('src/RuntimeApp.tsx');
 const agent = source('src/features/agent/AgentExperience.tsx');
 const intent = source('src/features/experience/entryIntent.ts');
 const review = source('src/features/store/StoreMasterpieceLayoutReview.tsx');
+const shortLinks = source('src/features/store/SharedShortLinkResolver.tsx');
+const storeRoutes = source('src/features/store/route.ts');
+const storeSetup = source('src/features/store/DigitalStoreSetup.tsx');
+const storeHome = source('src/components/StoreHome.tsx');
 
 test('P0: authenticated Store is mounted inside the ONE actual Living Workspace shell', () => {
   assert.match(living, /data-workspace-frozen-layout/);
@@ -35,6 +39,35 @@ test('P0: preview Store has an explicit route, reused Store component and NO fak
   assert.match(review, /no live Store backend/);
   assert.match(review, /Nothing was published, sent or changed/);
   assert.doesNotMatch(review, /createStoreGateway|fetch\(|createOffer\(/);
+});
+
+test('P0: isolated staging loads the masterpiece, never accidentally replaces production homepage', () => {
+  assert.match(runtime, /isIsolatedStaging/);
+  assert.match(runtime, /(?:staging\|sandbox\|qa\|test)/);
+  assert.match(runtime, /isCandidateWorkspaceEntry/);
+  assert.match(runtime, /isAuthenticatedStoreWorkspaceEntry/);
+  assert.match(runtime, /store\\/enquiry/);
+});
+
+test('P0: canonical public Store links cannot steal legacy SecureLinks', () => {
+  assert.match(storeRoutes, /parseLegacySharedShortLink/);
+  assert.match(storeRoutes, /(?:shop\|s)/);
+  assert.match(storeSetup, /#\\/shop\\//);
+  assert.match(store, /#\\/shop\\//);
+  assert.match(runtime, /SharedShortLinkResolver/);
+  assert.match(shortLinks, /Promise\.allSettled/);
+  assert.match(shortLinks, /store\.publicDigitalAddress\(slug\)/);
+  assert.match(shortLinks, /agreement\.viewSecureLink\(slug\)/);
+  assert.match(shortLinks, /setResolution\('both'\)/);
+  assert.match(shortLinks, /setResolution\('uncertain'\)/);
+  assert.match(shortLinks, /choose\('securelink'\)/);
+});
+
+test('P0: search exposes only real published Store identities; no dead seller button', () => {
+  assert.match(store, /onOpenStore=\{id => \{ void controller\.openStore\(id\); \}\}/);
+  assert.match(store, /storeLinks=\{state\.search\.status === 'ready'/);
+  assert.match(storeHome, /Stores with published offers/);
+  assert.match(storeHome, /onOpenStore\(seller\.ksNumber\)/);
 });
 
 test('P0: opening or closing Store never navigates to a second application shell', () => {
@@ -127,6 +160,9 @@ test('P0: modified TS/TSX modules must parse, complete typecheck/build still req
     'src/features/living-workspace/Phase1LivingWorkspacePreview.tsx',
     'src/features/store/StoreExperience.tsx',
     'src/components/StoreHome.tsx',
+    'src/features/store/SharedShortLinkResolver.tsx',
+    'src/features/store/route.ts',
+    'src/features/store/DigitalStoreSetup.tsx',
     'src/features/store/StoreMasterpieceLayoutReview.tsx',
   ];
   for (const path of paths) {
