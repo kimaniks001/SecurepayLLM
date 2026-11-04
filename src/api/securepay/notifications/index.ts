@@ -79,7 +79,8 @@ export interface NotificationPreferences {
   reviewsCategoryEnabled: boolean;
   securityCategoryEnabled: boolean;
   communityCategoryEnabled: boolean;
-  storesCategoryEnabled: boolean;
+  /** Optional during paired API rollout; absent means the backend predates Stores preferences. */
+  storesCategoryEnabled?: boolean;
   supportCategoryEnabled: boolean;
   saved: boolean;
 }
