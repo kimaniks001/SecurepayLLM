@@ -166,3 +166,5 @@ export function consumeFirstStoreOffer(): OfferDraftFields | null {
   firstStoreOffer = null;
   return draft ? { ...draft, mediaRefs: [...draft.mediaRefs] } : null;
 }
+
+let pendingWorkspaceStoreOffer: { canonicalKsNumber:string; offerId:string } | null = null;
