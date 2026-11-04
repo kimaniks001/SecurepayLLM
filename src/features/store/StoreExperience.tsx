@@ -100,8 +100,10 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // Unsent customer messages must not follow a former authenticated identity.
     // A guest signing in keeps their own draft; any transition away from an
     // authenticated session clears pending private enquiry content.
-    if (previousStoreSession.current !== sessionEpoch
-        && previousStoreSession.current.status === 'signed-in')
+    // Normal token refresh reissues the same account's tokens and MUST NOT
+    // delete an unsent Store enquiry. An actual sign-out clears private work.
+    if (previousStoreSession.current.status === 'signed-in'
+        && sessionEpoch.status === 'signed-out')
       setCustomerDraft(emptyStoreCustomerDraft);
     previousStoreSession.current = sessionEpoch;
   }, [sessionEpoch]);
