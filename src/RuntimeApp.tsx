@@ -346,7 +346,7 @@ export function isAuthenticatedStoreWorkspaceEntry(hash: string, status: string)
 export default function RuntimeApp() {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   const matchingWorkspace = () => typeof window !== 'undefined' &&
-    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
+    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community|store))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname) ||
       isAuthenticatedStoreWorkspaceEntry(window.location.hash,session.getSnapshot().status));
   const [phase1Preview, setPhase1Preview] = useState(matchingWorkspace);
