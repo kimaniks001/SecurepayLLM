@@ -146,7 +146,7 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
   }
 
   const shareUrl = savedAddress && typeof window !== 'undefined'
-    ? window.location.origin + window.location.pathname + '#/s/' + encodeURIComponent(savedAddress.slug)
+    ? window.location.origin + window.location.pathname + '#/shop/' + encodeURIComponent(savedAddress.slug)
     : '';
   const shareReady = Boolean(savedAddress && publishedCount > 0);
   async function copyStore() {
