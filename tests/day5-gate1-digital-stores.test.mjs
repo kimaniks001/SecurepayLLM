@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 
 const file = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const experience = file('src/features/store/StoreExperience.tsx');
@@ -13,9 +14,13 @@ const entry = file('src/features/experience/entryIntent.ts');
 const agent = file('src/features/agent/AgentExperience.tsx');
 const controller = file('src/features/store/controller.ts');
 const manage = file('src/components/StoreManagementHome.tsx');
+const routes = await import('data:text/javascript;base64,' + Buffer.from(ts.transpileModule(route, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText).toString('base64'));
 
 test('Gate 1: direct merchant Store address resolves through public API without automatic signup', () => {
-  assert.match(runtime, /#\\\/s\\\//);
+  assert.equal(routes.parseDigitalStoreAddressRoute('#/shop/trader-store'), 'trader-store');
+  assert.equal(routes.parseLegacySharedShortLink('#/s/trader-store'), 'trader-store');
+  assert.equal(routes.parseLegacySharedShortLink('#/shop/trader-store'), null);
+  assert.match(runtime, /SharedShortLinkResolver/);
   assert.match(route, /parseDigitalStoreAddressRoute/);
   assert.match(experience, /gateway\.publicDigitalAddress\(addressSlug\)/);
   assert.match(experience, /controller\.openStore\(result\.canonicalKsNumber\)/);
@@ -42,7 +47,7 @@ test('Gate 1: full Store workspace manages presentation and share only after pub
   assert.match(setup, /updateBusinessProfile/);
   assert.match(setup, /updateMyProfile/);
   assert.match(setup, /const shareReady = Boolean\(savedAddress && publishedCount > 0\)/);
-  assert.match(setup, /#\/s\//);
+  assert.match(setup, /#\/shop\//);
   assert.match(setup, /I.m here now/);
 });
 

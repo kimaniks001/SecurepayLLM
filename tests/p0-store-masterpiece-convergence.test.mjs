@@ -182,3 +182,22 @@ test('P0: modified TS/TSX modules must parse, complete typecheck/build still req
     assert.equal(errors.length,0,path+': '+errors.map(x=>ts.flattenDiagnosticMessageText(x.messageText,' ')).join(' | '));
   }
 });
+
+const ownerOriginSource = source('src/features/experience/ownerTestingOrigin.ts');
+const ownerOrigin = await import('data:text/javascript;base64,' + Buffer.from(ts.transpileModule(ownerOriginSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText).toString('base64'));
+test('P0: temporary owner staging requires explicit HTTPS same-origin configuration and cannot enable production', () => {
+  const origin = 'https://owner-test.trycloudflare.com';
+  assert.equal(ownerOrigin.isOwnerTestingOrigin(origin, origin, origin), true);
+  for (const [api, page, approved] of [
+    [origin, origin, undefined], ['https://securepay.ke', origin, origin],
+    ['https://securepay.ke', 'https://securepay.ke', 'https://securepay.ke'],
+    [origin, 'https://preview.vercel.app', origin],
+    ['http://owner-test.trycloudflare.com', origin, origin],
+    [origin + '/api', origin, origin], [origin, origin, origin + '?enabled=true'],
+    ['https://owner-test.trycloudflare.com.evil.invalid', origin, origin],
+  ]) assert.equal(ownerOrigin.isOwnerTestingOrigin(api, page, approved), false);
+  assert.equal(ownerOrigin.isOwnerTestingWorkspaceEntry(''), true);
+  assert.equal(ownerOrigin.isOwnerTestingWorkspaceEntry('#/sign-in'), true);
+  for (const hash of ['#/shop/trader-store', '#/s/existing-link', '#/invitation/token', '#/money'])
+    assert.equal(ownerOrigin.isOwnerTestingWorkspaceEntry(hash), false);
+});

@@ -2017,3 +2017,8 @@ Two review corrections now implemented on the PR branch:
 Corresponding new regression tests cover both initial-message no-ID and successful empty-composer startup. The deployed backport patch and full report remain *server-local* at `/home/deploy/securepay/releases/ui-day4-20261103/` and are not retrievable from this GitHub checkout, so full diff identity with the deployed bytes is **unverified**. Before merging, compare the exact backport and prevent overwriting C6 preservation patches.
 
 Other blockers remain unchanged: returning-user MFA OTP provider, physical Android/iOS, unresolved seller-role extraction, repeated money wording, SecureLink participant prerequisites, isolated end-to-end Gate 6 and broader GitHub CI. A Vercel READY preview alone is not release certification.
+
+
+### Owner-testing staging correction — 4 November 2026
+
+FRONTEND_COMPOSITION_ONLY: The approved embedded Store/KS001 layout is retained. An explicitly configured temporary HTTPS testing origin can enable its same-origin isolated API using `VITE_SECUREPAY_OWNER_TESTING_ORIGIN`; no production or cross-origin target is accepted. A securepay.ke staging hostname retains the existing path. The canonical public Store URL is `#/shop/`; the old Gate 1 tests now execute the route parser and retain legacy `#/s/` resolver checks. No identity, Agreement or Money authority changes.

@@ -1,3 +1,4 @@
+import { isOwnerTestingOrigin, isOwnerTestingWorkspaceEntry } from './features/experience/ownerTestingOrigin';
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
@@ -356,9 +357,12 @@ export function isAuthenticatedStoreWorkspaceEntry(hash: string, status: string)
 }
 export default function RuntimeApp() {
   const sessionState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const ownerTestingReady = typeof window !== 'undefined' && !!api &&
+    isOwnerTestingOrigin(api.baseUrl, window.location.origin, import.meta.env.VITE_SECUREPAY_OWNER_TESTING_ORIGIN);
   const matchingWorkspace = () => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community|store))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname) ||
+      (ownerTestingReady && isOwnerTestingWorkspaceEntry(window.location.hash)) ||
       isAuthenticatedStoreWorkspaceEntry(window.location.hash,session.getSnapshot().status));
   const [phase1Preview, setPhase1Preview] = useState(matchingWorkspace);
   useEffect(() => {
@@ -388,10 +392,10 @@ export default function RuntimeApp() {
   catch { return <Unavailable />; }
   // Never send an OTP/signup write via a preview pointed at production.
   // In-memory identity flows are enabled only against an explicitly named SecurePay staging origin.
-  const identityStagingReady = !!api && (() => {
+  const identityStagingReady = ownerTestingReady || (!!api && (() => {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
-  })();
+  })());
   // Production's actual Living Workspace must use the SAME authenticated
   // real API clients as the rest of SecurePay. The Vercel preview retains its
   // explicit safe relay and may not silently write to a production API.
