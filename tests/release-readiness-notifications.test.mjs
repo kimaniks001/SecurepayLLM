@@ -20,6 +20,16 @@ test('Store enquiries have an independent category and preference, separate from
   assert.match(experience, /label="Stores"/);
 });
 
+test('WhatsApp consent is explicit and self-scoped, separate from general channel preference',()=> {
+  assert.match(gateway, /getWhatsAppConsent/);
+  assert.match(gateway, /optInWhatsApp/);
+  assert.match(gateway, /optOutWhatsApp/);
+  assert.match(gateway, /\/api\/v1\/notifications\/me\/whatsapp-consent/);
+  assert.match(experience, /I agree to transactional WhatsApp updates/);
+  assert.match(experience, /Withdraw WhatsApp consent/);
+  assert.match(experience, /Real WhatsApp delivery is not yet enabled/);
+});
+
 test('security cannot be shown as an ordinary mute toggle',()=>{
   assert.match(experience,/Security/);
   assert.match(experience,/Always on/);
