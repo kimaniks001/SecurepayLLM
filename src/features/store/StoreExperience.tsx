@@ -432,12 +432,17 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       <StoreHome
         embedded={embedded}
         onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
-        onOpenStore={() => {}}
+        onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
         onCreateOffer={() => requireAuth('create')}
         onStartConversation={() => onNavigate('signed-in')}
         offers={state.search.status === 'ready' ? state.search.data.map(r => r.offer) : []}
         stores={[]}
+        storeLinks={state.search.status === 'ready'
+          ? Array.from(new Map(state.search.data.map(result => [result.canonicalKsNumber,
+              { ksNumber: result.canonicalKsNumber, displayName: result.displayName,
+                locationLabel: result.locationLabel }])).values()).slice(0, 12)
+          : []}
         query={state.query}
         onQueryChange={q => controller.setQuery(q)}
         searchStatus={state.search.status === 'idle' ? 'idle' : state.search.status === 'loading' ? 'loading' : state.search.status === 'error' ? 'error' : 'ready'}
