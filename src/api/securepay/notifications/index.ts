@@ -13,7 +13,7 @@ import type { HttpClient } from '../http';
  * gateway's DTOs are named `NotificationEvent`/`NotificationPreferences` to match the real backend
  * model classes and avoid colliding with that existing type.
  */
-export type NotificationCategory = 'AGREEMENTS' | 'MONEY' | 'REVIEWS' | 'SECURITY' | 'COMMUNITY' | 'SUPPORT';
+export type NotificationCategory = 'AGREEMENTS' | 'MONEY' | 'REVIEWS' | 'SECURITY' | 'COMMUNITY' | 'STORES' | 'SUPPORT';
 export type NotificationPriority = 'NORMAL' | 'HIGH';
 export type NotificationPurpose = 'KNOW' | 'DECIDE' | 'DO' | 'REMEMBER';
 export type NotificationImportance = 'CRITICAL' | 'ACTION_REQUIRED' | 'IMPORTANT' | 'FYI' | 'OPTIONAL';
@@ -79,6 +79,7 @@ export interface NotificationPreferences {
   reviewsCategoryEnabled: boolean;
   securityCategoryEnabled: boolean;
   communityCategoryEnabled: boolean;
+  storesCategoryEnabled: boolean;
   supportCategoryEnabled: boolean;
   saved: boolean;
 }
