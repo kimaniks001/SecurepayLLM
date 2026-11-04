@@ -38,7 +38,7 @@ import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, consumeWorkspaceStoreOfferEntry, authorisedResumedConversation } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
@@ -329,6 +329,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // This panel is a CHILD of the approved Living Workspace. Keep it mounted
   // when closed so a trader does not lose an unfinished offer draft by talking
   // to KS001. Signing out unmounts it and clears private Store state.
+  const [initialEmbeddedStoreOffer] = useState(consumeWorkspaceStoreOfferEntry);
   const initialStoreOpen = () => typeof window !== 'undefined'
     && /^#\/store\/?$/.test(window.location.hash) && session.getSnapshot().status === 'signed-in';
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
@@ -1049,6 +1050,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
           <StoreExperience {...storeIntegration} embedded session={session}
+            initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
             onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
