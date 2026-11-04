@@ -1016,7 +1016,54 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           </div>}
         </div>}
       </section>
-      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex md:w-[35%] lg:max-w-[460px]`}>
+      {/* One real Store tool body INSIDE the masterpiece. Keep it mounted while
+          closed so unsent offer edits remain in its existing StoreController.
+          Public trader Shops continue to use their dedicated public route. */}
+      {signedIn && storeIntegration && storeEverOpened && <section
+        data-masterpiece-digital-store
+        aria-label="Digital Stores inside Living Workspace"
+        aria-hidden={!storeOpen}
+        className={`${storeOpen?'flex':'hidden'} fixed inset-0 z-[60] min-h-0 min-w-0 flex-col overflow-hidden bg-white md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm`}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
+          <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">My Work · Tool</p>
+            <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" onClick={()=>closeEmbeddedStore('chat')}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Chat · KS001
+            </button>
+            <button type="button" onClick={()=>closeEmbeddedStore('result')}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Agreement
+            </button>
+            <button type="button" aria-label="Close Digital Stores and return to my work"
+              disabled={storeHandoffBusy} onClick={()=>closeEmbeddedStore()}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-cream-100 disabled:opacity-50">
+              <X size={18} />
+            </button>
+          </div>
+        </header>
+        {storeHandoffBusy && <p role="status" className="shrink-0 bg-cream-50 px-4 py-2 text-xs text-forest-800">Verifying your Store source with KS001. No Agreement has been accepted.</p>}
+        {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
+          <StoreExperience {...storeIntegration} embedded session={session}
+            onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
+            onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
+            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
+              setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
+            });}}
+            onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
+            onOpenBusinessVision={_businessKsNumber=>{
+              // Existing authenticated Vision remains a workspace area. Do not
+              // invent a new Store-owned Vision or silently change Business KS.
+              closeEmbeddedStore('chat');chooseMode('vision');
+            }}
+          />
+        </div>
+      </section>}
+      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[28%] lg:max-w-[390px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
           <section data-gate-d-authorised-anonymous-conversation-claim
