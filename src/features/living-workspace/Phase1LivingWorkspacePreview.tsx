@@ -34,6 +34,7 @@ import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
+import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -330,8 +331,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // when closed so a trader does not lose an unfinished offer draft by talking
   // to KS001. Signing out unmounts it and clears private Store state.
   const [initialEmbeddedStoreOffer] = useState(consumeWorkspaceStoreOfferEntry);
-  const initialStoreOpen = () => typeof window !== 'undefined'
-    && /^#\/store\/?$/.test(window.location.hash) && session.getSnapshot().status === 'signed-in';
+  // This URL is an explicitly labelled, safe layout REVIEW, not a backend
+  // activation or a mock merchant account. Only Vercel preview hosts allow it.
+  const isStoreLayoutReviewRoute = () => typeof window !== 'undefined'
+    && window.location.hostname.endsWith('.vercel.app')
+    && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash);
+  const [storeReviewRoute, setStoreReviewRoute] = useState(isStoreLayoutReviewRoute);
+  const initialStoreOpen = () => isStoreLayoutReviewRoute() ||
+    (typeof window !== 'undefined'
+      && /^#\/store\/?$/.test(window.location.hash)
+      && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
   const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
   const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
@@ -339,18 +348,23 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const storeTransitionLock = useRef(false);
   const storeReturnScreen = useRef<Screen>('chat');
   const closeEmbeddedStore = (target?: Screen) => {
-    setStoreOpen(false);setStoreHandoffError(null);
+    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);
     setScreen(target ?? storeReturnScreen.current);
-    // Store is closed IN this workspace; do not leave a stale #/store URL
-    // that would reopen the Store on the next refresh/back action.
-    if(typeof window!=='undefined' && /^#\/store\/?$/.test(window.location.hash))
+    // Close without unmounting the parent's KS001 controller or restoring a
+    // stale Store URL on refresh (including the explicit visual-review route).
+    if(typeof window!=='undefined' &&
+        (/^#\/store\/?$/.test(window.location.hash) || isStoreLayoutReviewRoute()))
       window.history.replaceState(null,'',window.location.pathname+window.location.search+'#/preview/living-workspace/work');
   };
   useEffect(() => {
-    if (!signedIn) { setStoreOpen(false);setStoreEverOpened(false);setStoreHandoffError(null);return; }
     const onHash = () => {
-      if (/^#\/store\/?$/.test(window.location.hash)) {
-        setStoreOpen(true);setStoreEverOpened(true);
+      const reviewing = isStoreLayoutReviewRoute();
+      setStoreReviewRoute(reviewing);
+      if (reviewing || (signedIn && /^#\/store\/?$/.test(window.location.hash))) {
+        setStoreOpen(true);setStoreEverOpened(true);return;
+      }
+      if (!signedIn) {
+        setStoreOpen(false);setStoreEverOpened(false);setStoreHandoffError(null);
       }
     };
     onHash();
@@ -373,6 +387,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     // P0 masterpiece convergence: the REAL Store is an in-workspace tool.
     // Merely opening it never switches or replaces the KS001 controller and
     // never discards unsent chat, attachments or the right Agreement panel.
+    if (name === 'Stores' && !request && !signedIn &&
+        typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+      // Show the ACTUAL parent layout with the reused StoreHome inside it.
+      // No private account, fake publication or production-backed writes.
+      storeReturnScreen.current = screen;
+      setStoreReviewRoute(true);setStoreEverOpened(true);setStoreOpen(true);
+      setStoreHandoffError(null);setToolsOpen(false);setToolSelected(false);
+      window.location.hash = '#/preview/living-workspace/store';
+      return;
+    }
     if (name === 'Stores' && !request && signedIn && storeIntegration) {
       if (!mayLeaveDream()) return;
       storeReturnScreen.current = screen;
@@ -1027,7 +1051,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       {/* One real Store tool body INSIDE the masterpiece. Keep it mounted while
           closed so unsent offer edits remain in its existing StoreController.
           Public trader Shops continue to use their dedicated public route. */}
-      {signedIn && storeIntegration && storeEverOpened && <section
+      {((signedIn && !!storeIntegration) || storeReviewRoute) && storeEverOpened && <section
         data-masterpiece-digital-store
         aria-label="Digital Stores inside Living Workspace"
         aria-hidden={!storeOpen}
@@ -1056,7 +1080,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffBusy && <p role="status" className="shrink-0 bg-cream-50 px-4 py-2 text-xs text-forest-800">Verifying your Store source with KS001. No Agreement has been accepted.</p>}
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
-          <StoreExperience {...storeIntegration} embedded session={session}
+          {storeReviewRoute && (!signedIn || !storeIntegration)
+            ? <StoreMasterpieceLayoutReview />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
@@ -1069,7 +1095,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               // invent a new Store-owned Vision or silently change Business KS.
               if(openingComposerText.current.trim() || readDraft(liveConversationId??undefined).trim()) {setStoreHandoffError('Send or clear your unsent KS001 message first.');return;} try{await preserveCurrentWork(workServices());}catch{setStoreHandoffError('Current KS001 work could not be saved.');return;} storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
             }}
-          />
+          />}
         </div>
       </section>}
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[28%] lg:max-w-[390px]':'md:w-[35%] lg:max-w-[460px]'}`}>
