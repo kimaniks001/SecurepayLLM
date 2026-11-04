@@ -1,4 +1,4 @@
-import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, NotificationsGateway } from '../../api/securepay/notifications';
+import type { NotificationCategory, NotificationEvent, NotificationPreferences, NotificationQuietHours, WhatsAppConsentStatus, NotificationsGateway } from '../../api/securepay/notifications';
 import { errorText } from '../agent/controller';
 
 export type Loadable<T> = { status: 'idle' | 'loading' | 'ready' | 'error'; data: T | null; error: string | null };
@@ -22,6 +22,9 @@ export interface NotificationsState {
   preferencesSaving: boolean;
   preferencesSaveError: string | null;
   preferencesJustSaved: boolean;
+  whatsappConsent: Loadable<WhatsAppConsentStatus>;
+  whatsappConsentBusy: boolean;
+  whatsappConsentError: string | null;
   quietHours: Loadable<NotificationQuietHours>;
   quietHoursDraft: NotificationQuietHours | null;
   quietHoursSaving: boolean;
@@ -37,7 +40,7 @@ const PAGE_SIZE = 20;
  * used as-is, matching this project's existing doctrine for `nextActions` (see
  * tests/phase6-convergence.test.mjs test E).
  */
-export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'>) {
+export function createNotificationsController(gateway: Pick<NotificationsGateway, 'list' | 'markRead' | 'resolve' | 'getPreferences' | 'updatePreferences' | 'getQuietHours' | 'updateQuietHours'> & Partial<Pick<NotificationsGateway, 'getWhatsAppConsent' | 'optInWhatsApp' | 'optOutWhatsApp'>>) {
   let state: NotificationsState = {
     inbox: idle(),
     categoryFilter: null,
@@ -50,6 +53,9 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
     preferencesSaving: false,
     preferencesSaveError: null,
     preferencesJustSaved: false,
+    whatsappConsent: idle(),
+    whatsappConsentBusy: false,
+    whatsappConsentError: null,
     quietHours: idle(),
     quietHoursDraft: null,
     quietHoursSaving: false,
@@ -130,20 +136,50 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       update({
         preferences: { status: 'loading', data: null, error: null },
         quietHours: { status: 'loading', data: null, error: null },
+        whatsappConsent: { status: 'loading', data: null, error: null },
+        whatsappConsentError: null,
       });
-      const [preferencesResult, quietResult] = await Promise.allSettled([
+      const [preferencesResult, quietResult, consentResult] = await Promise.allSettled([
         gateway.getPreferences(),
         gateway.getQuietHours(),
+        gateway.getWhatsAppConsent ? gateway.getWhatsAppConsent() : Promise.reject(new Error('WhatsApp consent API is not available')),
       ]);
       if (preferencesResult.status === 'fulfilled') {
         update({ preferences: { status: 'ready', data: preferencesResult.value, error: null }, preferencesDraft: preferencesResult.value });
       } else {
         update({ preferences: { status: 'error', data: null, error: errorText(preferencesResult.reason) } });
       }
+      if (consentResult.status === 'fulfilled') {
+        update({ whatsappConsent: { status: 'ready', data: consentResult.value, error: null } });
+      } else {
+        update({ whatsappConsent: { status: 'error', data: null, error: errorText(consentResult.reason) } });
+      }
       if (quietResult.status === 'fulfilled') {
         update({ quietHours: { status: 'ready', data: quietResult.value, error: null }, quietHoursDraft: quietResult.value });
       } else {
         update({ quietHours: { status: 'error', data: null, error: errorText(quietResult.reason) } });
+      }
+    },
+
+    async optInWhatsApp() {
+      if (!gateway.optInWhatsApp || state.whatsappConsentBusy || state.whatsappConsent.status !== 'ready') return;
+      update({ whatsappConsentBusy: true, whatsappConsentError: null });
+      try {
+        const result = await gateway.optInWhatsApp('WA_TRANSACTIONAL_V1');
+        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null } });
+      } catch (error) {
+        update({ whatsappConsentBusy: false, whatsappConsentError: errorText(error) });
+      }
+    },
+
+    async optOutWhatsApp() {
+      if (!gateway.optOutWhatsApp || state.whatsappConsentBusy || state.whatsappConsent.status !== 'ready') return;
+      update({ whatsappConsentBusy: true, whatsappConsentError: null });
+      try {
+        const result = await gateway.optOutWhatsApp();
+        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null } });
+      } catch (error) {
+        update({ whatsappConsentBusy: false, whatsappConsentError: errorText(error) });
       }
     },
 
