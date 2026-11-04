@@ -267,6 +267,64 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   </SurfaceBody>
                 </Surface>
 
+                {/* WhatsApp permission is a separate, explicit act by the verified human. */}
+                <Surface>
+                  <SurfaceBody>
+                    <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">WhatsApp consent</div>
+                    <p className="text-[0.75rem] text-sand-500 mb-2">
+                      Channel preferences do not give SecurePay permission to message you.
+                      Real WhatsApp delivery is not yet enabled in this testing build.
+                    </p>
+                    {state.whatsappConsent.status === 'loading' && (
+                      <p role="status" className="text-[0.78rem] text-sand-500">Checking your verified contact…</p>
+                    )}
+                    {state.whatsappConsent.status === 'error' && (
+                      <StatusNotice tone="warning" icon={false}>WhatsApp consent is not available on this server. No messages will be sent.</StatusNotice>
+                    )}
+                    {state.whatsappConsent.data && (
+                      <div className="space-y-2">
+                        <p className="text-[0.78rem] text-forest-800">
+                          {state.whatsappConsent.data.verifiedPhoneMasked
+                            ? `Verified phone: ${state.whatsappConsent.data.verifiedPhoneMasked}`
+                            : 'No verified phone available for WhatsApp'}
+                        </p>
+                        {state.whatsappConsent.data.state === 'VERIFY_PHONE' && (
+                          <p className="text-[0.78rem] text-sand-600">Verify your personal phone in SecurePay before consenting to WhatsApp updates.</p>
+                        )}
+                        {state.whatsappConsent.data.state === 'INELIGIBLE' && (
+                          <p className="text-[0.78rem] text-sand-600">Only a signed-in, active individual may consent. A Business KS cannot consent for a representative.</p>
+                        )}
+                        {state.whatsappConsent.data.state === 'RECONSENT_REQUIRED' && (
+                          <p className="text-[0.78rem] text-sand-600">Your verified contact or consent terms changed. Please review and consent again.</p>
+                        )}
+                        {state.whatsappConsent.data.optedIn ? (
+                          <>
+                            <p className="text-[0.78rem] text-forest-700">Transactional WhatsApp consent recorded. Delivery is not active yet.</p>
+                            <Button onClick={() => void controller.optOutWhatsApp()} disabled={state.whatsappConsentBusy} className="w-full py-2.5">
+                              {state.whatsappConsentBusy ? 'Saving…' : 'Withdraw WhatsApp consent'}
+                            </Button>
+                          </>
+                        ) : (state.whatsappConsent.data.state === 'NOT_OPTED_IN'
+                              || state.whatsappConsent.data.state === 'RECONSENT_REQUIRED') && (
+                          <>
+                            <p className="text-[0.78rem] text-sand-600">
+                              I agree to receive SecurePay transactional updates on WhatsApp at my verified phone.
+                              These may include Store enquiries and Agreement attention, not promotional messages.
+                              I can opt out at any time in SecurePay notification settings.
+                            </p>
+                            <Button onClick={() => void controller.optInWhatsApp()} disabled={state.whatsappConsentBusy} className="w-full py-2.5">
+                              {state.whatsappConsentBusy ? 'Saving…' : 'I agree to transactional WhatsApp updates'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {state.whatsappConsentError && (
+                      <StatusNotice tone="warning" icon={false}>{state.whatsappConsentError}</StatusNotice>
+                    )}
+                  </SurfaceBody>
+                </Surface>
+
                 <Surface>
                   <SurfaceBody>
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Categories</div>
