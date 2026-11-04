@@ -16,6 +16,7 @@ const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   REVIEWS: 'Reviews',
   SECURITY: 'Security',
   COMMUNITY: 'Community',
+  STORES: 'Stores',
   SUPPORT: 'Support',
 };
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as NotificationCategory[];
@@ -259,7 +260,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                       all three at once.
                     </p>
                     <div className="divide-y divide-cream-100">
-                      <Toggle label="WhatsApp" hint="Preferred channel." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
+                      <Toggle label="WhatsApp" hint="Preference only; sending also requires verified WhatsApp consent and a configured provider." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
                       <Toggle label="SMS" hint="Used if WhatsApp is off or unavailable." checked={state.preferencesDraft.smsEnabled} onChange={v => controller.setPreferencesDraft({ smsEnabled: v })} />
                       <Toggle label="Email" hint="Used if WhatsApp and SMS are both off." checked={state.preferencesDraft.emailEnabled} onChange={v => controller.setPreferencesDraft({ emailEnabled: v })} />
                     </div>
@@ -282,6 +283,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                         <span className="text-[0.72rem] font-medium text-forest-600">Always on</span>
                       </div>
                       <Toggle label="Community" checked={state.preferencesDraft.communityCategoryEnabled} onChange={v => controller.setPreferencesDraft({ communityCategoryEnabled: v })} />
+                      <Toggle label="Stores" hint="Enquiries and replies about your Store; separate from Community activity." checked={state.preferencesDraft.storesCategoryEnabled ?? true} onChange={v => controller.setPreferencesDraft({ storesCategoryEnabled: v })} />
                       <Toggle label="Support" checked={state.preferencesDraft.supportCategoryEnabled} onChange={v => controller.setPreferencesDraft({ supportCategoryEnabled: v })} />
                     </div>
                   </SurfaceBody>
