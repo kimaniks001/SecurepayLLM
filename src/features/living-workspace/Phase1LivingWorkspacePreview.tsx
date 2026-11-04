@@ -33,6 +33,8 @@ import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
 import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
+import { StoreExperience } from '../store/StoreExperience';
+import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
@@ -68,9 +70,15 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false }: {
+/** Exact Gate 1–5 Store implementation; no second Store/Agreement engine. */
+type EmbeddedStoreIntegration = Pick<Parameters<typeof StoreExperience>[0],
+  'gateway' | 'businessGateway' | 'marketNetworkGateway' | 'fulfilmentNeedsGateway'
+  | 'auth' | 'trustedMediaOrigin'>;
+
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, storeIntegration, session, identityStagingReady=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
+  storeIntegration?: EmbeddedStoreIntegration;
   session: SessionStore;
   /** Identity write operations must be backed by isolated, configured staging. */
   identityStagingReady?: boolean;
@@ -318,6 +326,32 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   };
   const previousScreen = useRef<Screen>('chat');
   const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
+  // This panel is a CHILD of the approved Living Workspace. Keep it mounted
+  // when closed so a trader does not lose an unfinished offer draft by talking
+  // to KS001. Signing out unmounts it and clears private Store state.
+  const initialStoreOpen = () => typeof window !== 'undefined'
+    && /^#\/store\/?$/.test(window.location.hash) && session.getSnapshot().status === 'signed-in';
+  const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
+  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
+  const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
+  const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
+  const storeTransitionLock = useRef(false);
+  const storeReturnScreen = useRef<Screen>('chat');
+  const closeEmbeddedStore = (target?: Screen) => {
+    setStoreOpen(false);setStoreHandoffError(null);
+    setScreen(target ?? storeReturnScreen.current);
+  };
+  useEffect(() => {
+    if (!signedIn) { setStoreOpen(false);setStoreEverOpened(false);setStoreHandoffError(null);return; }
+    const onHash = () => {
+      if (/^#\/store\/?$/.test(window.location.hash)) {
+        setStoreOpen(true);setStoreEverOpened(true);
+      }
+    };
+    onHash();
+    window.addEventListener('hashchange',onHash);
+    return () => window.removeEventListener('hashchange',onHash);
+  }, [signedIn]);
   const [toolSelected, setToolSelected] = useState(false);
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
@@ -331,22 +365,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
   const tool = tools.find(t => t.name === activeTool) ?? tools[0];
   function openTool(name: (typeof tools)[number]['name'], request = '') {
     if(workActionLock.current)return;
-    // Digital Stores is a full commercial destination, not a photo-sized tool.
-    // Special-purpose Quick Assist Store searches may still use the smaller picker.
-    if (name === 'Stores' && !request) {
+    // P0 masterpiece convergence: the REAL Store is an in-workspace tool.
+    // Merely opening it never switches or replaces the KS001 controller and
+    // never discards unsent chat, attachments or the right Agreement panel.
+    if (name === 'Stores' && !request && signedIn && storeIntegration) {
       if (!mayLeaveDream()) return;
-      const snapshot = liveController?.getSnapshot();
-      if (snapshot?.busy || snapshot?.pending || (liveStarted && liveWork && !snapshot?.conversationId)) {
-        window.alert('Finish or save your current KS001 work before opening Digital Stores.');
-        return;
-      }
-      if (snapshot?.conversationId && readDraft(snapshot.conversationId).trim()) {
-        window.alert('You have unsent KS001 text. Send or clear it before opening Digital Stores.');
-        return;
-      }
-      if (signedIn && liveWork && snapshot?.conversationId)
-        storeKs001ConversationReturn(snapshot.conversationId);
-      window.location.hash = '#/store';
+      storeReturnScreen.current = screen;
+      setStoreEverOpened(true);setStoreOpen(true);setStoreHandoffError(null);
+      setToolsOpen(false);setToolSelected(false);
       return;
     }
     setPhase4Journey(null);
