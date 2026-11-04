@@ -184,7 +184,7 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       try {
         const result = await gateway.optInWhatsApp('WA_TRANSACTIONAL_V1');
         update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null },
-          recipientPhoneDraft: '', whatsappRecipient: { status: 'idle', data: null, error: null } });
+          recipientPhoneDraft: '' });
         if (gateway.getWhatsAppRecipient) {
           const recipient = await gateway.getWhatsAppRecipient();
           update({ whatsappRecipient: { status: 'ready', data: recipient, error: null } });
@@ -199,7 +199,8 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
       update({ whatsappConsentBusy: true, whatsappConsentError: null });
       try {
         const result = await gateway.optOutWhatsApp();
-        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null } });
+        update({ whatsappConsentBusy: false, whatsappConsent: { status: 'ready', data: result, error: null },
+          whatsappRecipient: { status: 'idle', data: null, error: null }, recipientPhoneDraft: '' });
       } catch (error) {
         update({ whatsappConsentBusy: false, whatsappConsentError: errorText(error) });
       }
