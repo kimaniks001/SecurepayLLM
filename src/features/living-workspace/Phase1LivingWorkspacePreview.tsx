@@ -1061,7 +1061,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             onOpenBusinessVision={async businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
               // invent a new Store-owned Vision or silently change Business KS.
-              if(readDraft(liveConversationId??undefined).trim()) {setStoreHandoffError('Send or clear your unsent KS001 message first.');return;} storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
+              if(readDraft(liveConversationId??undefined).trim()) {setStoreHandoffError('Send or clear your unsent KS001 message first.');return;} try{await preserveCurrentWork(workServices());}catch{setStoreHandoffError('Current KS001 work could not be saved.');return;} storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
             }}
           />
         </div>
