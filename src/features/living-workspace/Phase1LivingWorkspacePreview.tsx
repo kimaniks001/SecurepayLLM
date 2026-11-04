@@ -189,6 +189,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const [returnError,setReturnError] = useState<string|null>(null);
   const [draftRevision,setDraftRevision]=useState(0);
   const [showSavedWork,setShowSavedWork]=useState(false);
+  const [showAgreementHub,setShowAgreementHub]=useState(false);
   const [workActionBusy,setWorkActionBusy]=useState(false);
   const workActionLock=useRef(false);
   // Opening composer text has no conversationId yet and cannot live in keyed drafts.
@@ -479,7 +480,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     try {
       await beginNewWork(workServices());
       setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
-      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setShowSavedWork(false);setShowAgreementHub(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
       setDraftRevision(n=>n+1);
     }catch(error){
       setReturnError(error instanceof Error?error.message:'Could not save and start new work.');
@@ -491,7 +492,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     try{
       await returnToSavedWork(workServices(),conversationId);
       chooseMode('work');setOpenedAgreementId(null);setCreatedAgreementId(null);setDraftReviewOpen(false);
-      setShowSavedWork(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
+      setShowSavedWork(false);setShowAgreementHub(false);setLiveStarted(true);setLiveWork(true);setScreen('chat');
       setDraftRevision(n=>n+1);
     }catch(error){
       setReturnError(error instanceof Error?error.message:'Could not restore that conversation.');
@@ -658,7 +659,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   };
   const leaveEmbeddedStoreFor=async(view:import('../../types').AppView)=>{
     if(view==='signed-in'){closeEmbeddedStore('chat');return;}
-    if(view==='agreements'){closeEmbeddedStore('result');setShowSavedWork(false);return;}
+    if(view==='agreements'){closeEmbeddedStore('result');setShowSavedWork(false);setShowAgreementHub(true);return;}
     if(view==='money'){
       storeWorkspaceMoneyReturn(liveConversationId);closeEmbeddedStore('chat');
       window.location.hash='#/money';return;
@@ -965,9 +966,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
       <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
-            onClick={()=>{setShowSavedWork(true);setScreen('result');}}
+            onClick={()=>{setShowAgreementHub(false);setShowSavedWork(true);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl border border-cream-200 px-3 text-sm font-semibold disabled:opacity-50">Saved Work</button>}
-          {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowSavedWork(false);setScreen('result');}}
+          {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowAgreementHub(false);setShowSavedWork(false);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl bg-cream-100 px-3 text-sm font-semibold md:hidden">Agreement</button>}
           {(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
         {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} navigationLocked={workActionBusy} onUnsentDraftChange={text=>{openingComposerText.current=text;}} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
@@ -1153,7 +1154,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           }}/>}
         {mode!=='work' && mode!=='vision' && mode!=='community' &&
           <WorkspacePurposeGuide area={mode} onContinueToWork={()=>chooseMode('work')}/>}
-        {mode==='work' && showSavedWork && signedIn && workspaceGateways &&
+        {mode==='work' && showAgreementHub && signedIn && workspaceGateways && <section data-store-canonical-agreements className="space-y-2">
+          <button type="button" className="min-h-11 rounded-lg border border-cream-200 px-3 text-xs" onClick={()=>setShowAgreementHub(false)}>Back to SecurePay Check</button>
+          <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={true}
+            session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
+        </section>}
+        {mode==='work' && showSavedWork && !showAgreementHub && signedIn && workspaceGateways &&
           <div className="mt-3" data-day4-saved-work-list><WorkspaceContinuityPanel area="work"
             gateways={workspaceGateways} showEstablishedAgreements={false} session={session}
             onSignIn={()=>openIdentity('signin')} onResume={continueSavedConversation}/></div>}
@@ -1176,7 +1182,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
                  setPreviewNotes(notes=>notes.filter(n=>n.id!==id));}}/>
-          : mode==='work' && !showSavedWork && !openedAgreementId && liveWork?<LiveWorkResultPanel
+          : mode==='work' && !showSavedWork && !showAgreementHub && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending || workActionBusy}
           examination={examination}
           selectedSource={liveState?.source??null}
@@ -1209,12 +1215,12 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             await formationController.load(liveConversationId);
           }}
           onRefresh={() => { if (!workActionLock.current && formationController && liveConversationId && !liveBusy && !livePending) void formationController.load(liveConversationId); }}
-        />:mode==='work' && !showSavedWork && !openedAgreementId
+        />:mode==='work' && !showSavedWork && !showAgreementHub && !openedAgreementId
           ? <div className="rounded-xl border border-forest-100 bg-cream-50 p-4 text-sm">
               Your Agreement will appear here when KS001 has confirmed the conversation.
             </div>
           : null}
-        {mode==='work' && signedIn && !showSavedWork && !liveConversationId && <div className="mt-4">
+        {mode==='work' && signedIn && !showSavedWork && !showAgreementHub && !liveConversationId && <div className="mt-4">
           <WorkspaceContinuityPanel area="work" gateways={workspaceGateways} showEstablishedAgreements={false}
             session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}/>
         </div>}
