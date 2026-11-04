@@ -1058,7 +1058,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
             });}}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
-            onOpenBusinessVision={businessKsNumber=>{
+            onOpenBusinessVision={async businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
               // invent a new Store-owned Vision or silently change Business KS.
               if(readDraft(liveConversationId??undefined).trim()) {setStoreHandoffError('Send or clear your unsent KS001 message first.');return;} storeBusinessVisionEntry(businessKsNumber); closeEmbeddedStore('chat'); window.location.hash='#/business-vision';
