@@ -748,7 +748,31 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     // for clarity, redundantly but harmlessly. See docs/PHASE5_LIFE_BUSINESS_WORLD.md sections G/K.
     recoveryController.reset();
     developerController.clearSensitiveTransientState();
-    if (view === 'store') { setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null); setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setStore(true); return; }
+    if (view === 'store') {
+      if (signedIn) {
+        // P0: the Store entry must not replace the signed-in KS001 masterpiece
+        // with a second Store application shell. Save any current canonical
+        // work first, then enter the same authorised conversation in My Work.
+        const existing=controller.getSnapshot();
+        if (existing.busy || existing.pending || readDraft(existing.conversationId??undefined).trim()) {
+          setNotice('Finish or clear your unsent KS001 message before switching into Digital Stores.');
+          return;
+        }
+        void (async()=>{
+          if(existing.conversationId){
+            const saved=await gateway.saveBuild(existing.conversationId);
+            if(saved.conversationId!==existing.conversationId || !saved.savedBuildId)
+              throw new Error('SecurePay did not confirm your current work was saved.');
+            storeLivingWorkspaceEntry(existing.conversationId);
+          }
+          window.location.hash='#/store';
+        })().catch(()=>setNotice('Your current KS001 work could not be saved. You have not left this conversation.'));
+        return;
+      }
+      setWorkspace(false); setStoreReturnContext(null); setWorkspaceAgreementId(null);
+      setCommunity(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null);
+      setProjects(false); setVisionBoard(false); setStore(true); return;
+    }
     if (view === 'community') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCircle(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCommunity(true); return; }
     if (view === 'circle') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setEcosystem(false); setEcosystemAgreementId(null); setProjects(false); setVisionBoard(false); setCircle(true); return; }
     if (view === 'ecosystem') { setWorkspace(false); setWorkspaceAgreementId(null); setStore(false); setCommunity(false); setCircle(false); setEcosystemAgreementId(null); setEcosystemEntry('help'); setProjects(false); setVisionBoard(false); setEcosystem(true); return; }
