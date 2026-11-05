@@ -72,7 +72,11 @@
     host.appendChild(root);
     var current = enabled[0];
     var visible = enabled.slice();
-    var agent = global.SecurePayGuestAgent && global.SecurePayGuestAgent.create({siteId:siteId, apiBaseUrl:options.apiBaseUrl || ''});
+    var agent = null;
+    try {
+      if(global.SecurePayGuestAgent) agent = global.SecurePayGuestAgent.create({siteId:siteId, apiBaseUrl:options.apiBaseUrl || ''});
+    } catch (_) { /* invalid staging configuration must not break host website */ }
+    var prompts = Array.isArray(options.suggestedPrompts) ? options.suggestedPrompts.filter(function(p){return typeof p==='string' && p.trim().length>0 && p.length<=160;}).slice(0,3) : [];
     var chatDraft = '';
     var chatChecking = false, chatChecked = false, chatBusy = false, chatLocalError = '';
     
@@ -129,6 +133,13 @@
         history.setAttribute('role','log');
         history.setAttribute('aria-label','KS001 conversation');
         if(!state.entries.length && !state.pending)history.appendChild(element('div','note','What would you like help with? Replies come from the real SecurePay service.'));
+        if(!state.entries.length && !state.pending && prompts.length){
+          var suggestions=element('div','row');
+          prompts.forEach(function(p){
+            suggestions.appendChild(button(p,function(){chatDraft=p;render();}));
+          });
+          body.appendChild(suggestions);
+        }
         state.entries.forEach(function(entry){
           if(entry.sender!=='HUMAN' && entry.sender!=='KS001')return;
           history.appendChild(element('div',entry.sender==='HUMAN'?'bubble human':'bubble',entry.text));
