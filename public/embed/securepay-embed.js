@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
-  // SecurePay Embed SDK, Phase 1: presentation only. No auth, data, AI or financial calls.
-  var VERSION = '0.3.0';
+  // SecurePay Embed SDK: site-scoped guest KS001 and read-only canonical Agreement review. No money.
+  var VERSION = '0.4.0';
   var VALID_TOOLS = ['ask', 'contract', 'securelink', 'work', 'vision'];
   var instances = new WeakMap();
   function element(tag, className, label) {
@@ -46,7 +46,12 @@
       '.bubble.human{background:#d6ebe0;margin-left:18px}',
       '.composer{display:flex;gap:6px;align-items:stretch;margin-top:10px}',
       'textarea{width:100%;min-width:0;resize:vertical;min-height:55px;border:1px solid #d2ded0;padding:9px;border-radius:8px;font:13px Arial}',
-      '.action:disabled{opacity:.4;cursor:not-allowed}'
+      '.action:disabled{opacity:.4;cursor:not-allowed}',
+      '.term{border-bottom:1px solid #ebf2e9;padding:6px 0}',
+      '.term-label{font-size:11px;color:#68796d}',
+      '.term-value{font-size:13px;color:#183f2d;white-space:pre-wrap;overflow-wrap:anywhere}',
+      '.subsection{font:700 12px Arial;margin:13px 0 6px}',
+      '.alert{background:#fff4e3;border-radius:8px;padding:10px;font-size:12px;color:#745123;margin:8px 0}'
     ].join('');
     shadow.appendChild(style);
     var launch = element('button', 'launcher', '✦  KS001 · Ask for help');
@@ -82,6 +87,7 @@
     var prompts = Array.isArray(options.suggestedPrompts) ? options.suggestedPrompts.filter(function(p){return typeof p==='string' && p.trim().length>0 && p.length<=160;}).slice(0,3) : [];
     var chatDraft = '';
     var chatChecking = false, chatChecked = false, chatBusy = false, chatLocalError = '';
+    var reviewBusy=false, reviewLocalError='';
     
     function openPanel(on) {
       panel.hidden=!on;launch.setAttribute('aria-expanded',String(on));
@@ -178,6 +184,125 @@
       link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
       body.appendChild(link);
     }
+
+    function line(label,value){
+      var n=element('div','term');
+      n.appendChild(element('div','term-label',String(label||'')));
+      n.appendChild(element('div','term-value',String(value||'Not yet specified').slice(0,750)));
+      body.appendChild(n);
+    }
+    function terms(heading,entries){
+      if(!Array.isArray(entries)||!entries.length)return;
+      body.appendChild(element('div','subsection',heading));
+      entries.slice(0,12).forEach(function(t){
+        if(t&&typeof t==='object')line(t.label||t.key||heading,t.value||t.name||t.text||t.role||'Still to decide');
+      });
+    }
+    function goAsk(preset){
+      if(preset && typeof preset==='string')chatDraft=preset.slice(0,1200);
+      current='ask';render();void prepareChat();
+    }
+    async function fetchReview(){
+      if(!agent||reviewBusy)return;
+      reviewBusy=true;reviewLocalError='';render();
+      try {
+        var zone=undefined;
+        try{zone=Intl.DateTimeFormat().resolvedOptions().timeZone;}catch(_){}
+        await agent.reviewAgreement(zone);
+      } catch(_){reviewLocalError='The review is not available yet.';}
+      finally{reviewBusy=false;render();}
+    }
+    async function prepareReview(){
+      if(!agent||reviewBusy)return;
+      reviewBusy=true;reviewLocalError='';render();
+      try {await agent.prepareAgreementReview();}
+      catch(e){reviewLocalError=e&&e.message?String(e.message):'Review preparation was not accepted.';}
+      finally{reviewBusy=false;render();}
+    }
+    function renderAgreement(){
+      body.appendChild(element('div','brand','Review what we are agreeing'));
+      body.appendChild(element('p','minor','The canonical SecurePay understanding, not a signed Agreement or a payment request.'));
+      var state=agent?agent.snapshot():null;
+      if(!state||!state.ready){
+        body.appendChild(element('div','note','Agreement review needs the approved SecurePay staging service.'));
+        return;
+      }
+      if(!state.conversationId){
+        body.appendChild(element('div','note','Start by describing the work to KS001. Your agreement will grow from that conversation.'));
+        body.appendChild(button('Ask KS001',function(){goAsk();}));
+        return;
+      }
+      if(state.pending) {
+        body.appendChild(element('div','alert','Your previous message needs confirmation first. Open KS001 to retry it.'));
+        body.appendChild(button('Return to KS001',function(){goAsk();}));
+        return;
+      }
+      if(!state.agreement){
+        if(state.agreementError)body.appendChild(element('div','alert',state.agreementError));
+        var load=button(reviewBusy?'Reading…':'Read current Agreement',function(){void fetchReview();});
+        load.disabled=reviewBusy;
+        body.appendChild(load);
+        return;
+      }
+      var v=state.agreement;
+      body.appendChild(element('div','note',v.summary||'There is not enough information to describe an arrangement yet.'));
+      body.appendChild(element('div','minor','Agreement stage: '+v.stage+' · Version '+v.version));
+      if(v.origin && v.origin.title){
+        line('Original source',v.origin.title);
+        if(v.origin.priceChanged)body.appendChild(element('div','alert','The original offer price has changed. Review it again before continuing.'));
+      }
+      terms('What is being done',v.what);
+      terms('People and roles',v.who);
+      terms('Money',v.money);
+      terms('When',v.when);
+      if(Array.isArray(v.responsibilities) && v.responsibilities.length){
+        body.appendChild(element('div','subsection','Responsibilities'));
+        v.responsibilities.slice(0,8).forEach(function(group){
+          if(!group)return;
+          body.appendChild(element('div','term-label',String(group.party||'Responsibilities')));
+          (Array.isArray(group.duties)?group.duties:[]).slice(0,8).forEach(function(t){
+            line(t.label||t.key||'Duty',t.value||'Still to decide');
+          });
+        });
+      }
+      terms('Conditions',v.conditions);terms('Not included',v.notIncluded);
+      if(Array.isArray(v.openPoints)&&v.openPoints.length) {
+        body.appendChild(element('div','subsection','Still to resolve'));
+        v.openPoints.slice(0,15).forEach(function(p){
+          body.appendChild(element('div','alert',String(p.text||'Unresolved point').slice(0,650)));
+        });
+      }
+      if(v.question&&v.question.ask&&v.question.text){
+        body.appendChild(element('div','subsection','Next question'));
+        body.appendChild(element('div','note',String(v.question.text).slice(0,450)));
+        body.appendChild(button('Answer in KS001',function(){goAsk(v.question.text);}));
+      }
+      if(state.agreementError)body.appendChild(element('div','alert',state.agreementError));
+      if(state.preparedReview) {
+        body.appendChild(element('div','note','Review preparation recorded by SecurePay. It is NOT signed, sent or funded. The full website continuation remains a separate secure handoff step.'));
+        body.appendChild(element('div','minor','Preparation status: '+String(state.preparedReview.status).slice(0,60)));
+      } else if(v.reviewable) {
+        var b=button(reviewBusy?'Preparing…':state.reviewPending?'Retry same review request':'Prepare Agreement review',function(){void prepareReview();});
+        b.disabled=reviewBusy;body.appendChild(b);
+        body.appendChild(element('div','minor','This captures the exact current version for later authenticated review. It does not make a contract.'));
+      } else {
+        body.appendChild(element('div','alert',v.reviewBlockedReason||'There are outstanding questions. Continue the KS001 conversation first.'));
+      }
+      body.appendChild(button('Refresh agreement understanding',function(){void fetchReview();}));
+    }
+    function renderSecureLink(){
+      body.appendChild(element('div','brand','SecureLink'));
+      var state=agent?agent.snapshot():null;
+      if(state&&state.preparedReview)body.appendChild(element('div','note','You have prepared a review. Before a SecureLink can be issued, your identity and the proposed Agreement must be reviewed and authorised on SecurePay.'));
+      else body.appendChild(element('div','note','First develop your request with KS001, then review the emerging Agreement. A SecureLink is issued only through the authorised SecurePay flow.'));
+      body.appendChild(button('Review my proposed Agreement',function(){current='contract';render();}));
+      body.appendChild(element('div','minor','No anonymous SecureLink creation, invitation, signing or payment action is available inside this pilot.'));
+      var link=element('a','','Visit full SecurePay');
+      link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
+      body.appendChild(link);
+      body.appendChild(element('div','minor','Opening the website does not yet transfer this conversation. Secure work continuity is Phase 5.'));
+    }
+
     function button(label, click, className) {
       var b=element('button',className||'action',label);b.type='button';b.addEventListener('click',click);return b;
     }
@@ -190,6 +315,10 @@
       });
       if (current==='ask') {
         renderChat();
+      } else if (current==='contract') {
+        renderAgreement();
+      } else if (current==='securelink') {
+        renderSecureLink();
       } else if (current==='settings') {
         body.appendChild(element('div','brand','Widget settings (this browser only)'));
         enabled.forEach(function(key){
