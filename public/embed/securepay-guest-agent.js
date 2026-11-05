@@ -61,6 +61,7 @@
     }
     function errorMessage(error) {
       if (error && error.code === 429) return 'The Store-sponsored KS001 allowance is used. You can still send a normal enquiry to the trader.';
+      if (error && error.code === 409) return 'That KS001 request is still processing. Please retry the same message shortly.';
       if (error && error.code === 404) return 'This conversation is no longer available. Start a new conversation.';
       return 'The SecurePay conversation could not be confirmed. Your message was not discarded; retry uses the same request.';
     }
