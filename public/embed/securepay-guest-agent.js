@@ -8,8 +8,11 @@
     if (!raw) return '';
     var url = new URL(raw);
     var local = url.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(url.hostname);
-    if ((url.protocol !== 'https:' && !local) || url.username || url.password ||
-        url.pathname !== '/' || url.search || url.hash) throw new Error('SecurePay API must be an HTTPS origin');
+    var official = url.hostname === 'securepay.ke' || url.hostname.endsWith('.securepay.ke');
+    if ((!official && !local) || (url.protocol !== 'https:' && !local) ||
+        url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+      throw new Error('SecurePay API must use a verified SecurePay HTTPS origin');
+    }
     return url.origin;
   }
   function create(options) {
