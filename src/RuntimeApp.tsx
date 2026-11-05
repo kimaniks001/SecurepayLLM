@@ -1,6 +1,8 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { EmbedTransferReceiveExperience } from './features/embed/EmbedTransferReceiveExperience';
+import { storeLivingWorkspaceEntry, storeEmbedOriginReturnHint } from './features/experience/entryIntent';
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -214,6 +216,17 @@ function useDirectSurfaceRoute(): AppView | null {
 }
 
 /** Money operations is a first-class, non-secret route for support/ops roles -- read-only, gated server-side by REGULATED_PARTNER_READ. */
+function useEmbedTransferRoute(): [boolean,()=>void] {
+  const matches=()=>typeof window!=='undefined' && /^#\/?embed\/continue\/?$/.test(window.location.hash);
+  const [active,setActive]=useState(matches);
+  useEffect(()=>{
+    const onChange=()=>setActive(matches());
+    window.addEventListener('hashchange',onChange);
+    return ()=>window.removeEventListener('hashchange',onChange);
+  },[]);
+  return [active,()=>{window.location.hash='';setActive(false);}];
+}
+
 function useMoneyOperationsRoute(): [boolean, () => void] {
   const matches = () => typeof window !== 'undefined' && /^#\/?money-operations\/?$/.test(window.location.hash);
   const [active, setActive] = useState(matches);
@@ -381,6 +394,7 @@ export default function RuntimeApp() {
   const directSurfaceRoute = useDirectSurfaceRoute();
   const sharedShortLink = typeof window !== 'undefined' ? parseLegacySharedShortLink(window.location.hash) : null;
   const [moneyOperationsRoute, clearMoneyOperationsRoute] = useMoneyOperationsRoute();
+  const [embedTransferRoute, clearEmbedTransferRoute] = useEmbedTransferRoute();
   const [secureLinkSlug, clearSecureLinkSlug] = useSecureLinkRoute();
   const moneySessionToken = useMoneySessionRoute();
   const [trustProjectDoor, clearTrustProjectDoor] = useTrustProjectDoor();
@@ -403,6 +417,25 @@ export default function RuntimeApp() {
         community: communityGateway, agreements: agreementGateway, stores: storeGateway,
         financialPartners: financialPartnerGateway, moneySnapshot: moneySnapshotGateway, media: null }
     : undefined;
+  // Separate first-party SecurePay receiver. The transfer is NOT a login route,
+  // anonymous Agreement authority or a new workspace implementation.
+  if(embedTransferRoute) {
+    return api && api.embedTransfer && identityStagingReady
+      ? <EmbedTransferReceiveExperience
+          gateway={withSessionRefresh(api.embedTransfer,['claim'],session,api.auth)}
+          auth={api.auth} session={session} stagingReady={identityStagingReady}
+          onCancel={clearEmbedTransferRoute}
+          onClaimed={result=>{
+            storeLivingWorkspaceEntry(result.conversationId);
+            storeEmbedOriginReturnHint({
+              siteId:result.siteId,returnOrigin:result.returnOrigin,
+              returnReference:result.returnReference,
+              purpose:result.purpose
+            });
+            window.location.hash='#/preview/living-workspace/work';
+          }} />
+      : <Unavailable />;
+  }
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={onPreviewHost ? previewAgentGateway : agentGateway}
     workspaceGateways={onPreviewHost ? previewWorkspaceGateways : liveWorkspaceGateways}
