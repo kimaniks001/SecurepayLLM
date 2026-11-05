@@ -242,6 +242,7 @@
           } else if(event.data.type==='securepay.embed.transfer.claimed' &&
               transferred && nonce && event.data.nonce===nonce &&
               event.data.siteId===transfer.siteId &&
+              (event.data.returnReference||null)===(metadata.returnReference||null) &&
               event.data.status==='SECUREPAY_WORK_SAVED') {
             finish(true,'Your existing KS001 work was saved in SecurePay. You can return to Estate.ke whenever you wish.');
           }
