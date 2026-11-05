@@ -7,6 +7,8 @@ import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
 import type { SettingsController } from './controller';
+import type { EmbedOwnerGateway } from '../../api/securepay/embed';
+import { EmbedOwnerSettings } from '../embed/EmbedOwnerSettings';
 import { useSyncExternalStore } from 'react';
 
 function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -38,9 +40,10 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
  * were already loaded. Marketing opt-in and profile visibility have no such colliding second control
  * surface, so they stay.
  */
-export function SettingsExperience({ controller, onNavigate }: {
+export function SettingsExperience({ controller, onNavigate, embedOwnerGateway }: {
   controller: SettingsController;
   onNavigate: (view: AppView) => void;
+  embedOwnerGateway?: EmbedOwnerGateway;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
 
@@ -97,6 +100,7 @@ export function SettingsExperience({ controller, onNavigate }: {
             </Button>
           </>
         )}
+        {embedOwnerGateway && <EmbedOwnerSettings gateway={embedOwnerGateway} />}
       </div>
     </div>
   );
