@@ -39,7 +39,7 @@ import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
 import { openMoneyFor, setMoneyRailPreference } from '../money/handoff';
-import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, storeBusinessVisionEntry, consumeWorkspaceStoreOfferEntry, authorisedResumedConversation } from '../experience/entryIntent';
+import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, storeWorkspaceMoneyReturn, consumeWorkspaceMoneyReturn, consumeLivingWorkspaceEntry, storeKs001ConversationReturn, storeEntryView, storeBusinessVisionEntry, consumeWorkspaceStoreOfferEntry, authorisedResumedConversation, consumeEmbedOriginReturnHint } from '../experience/entryIntent';
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
@@ -98,6 +98,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // The historical screenshot preview remains preserved at its original commit.
   const mockSignedIn = false;
   const signedIn=useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot).status==='signed-in';
+  const [embedOriginHint] = useState(consumeEmbedOriginReturnHint);
   const visionNorth=useVisionNorthJourney({signedIn,gateway,gateways:workspaceGateways,session});
   // Read-only Vercel preview: local interaction must never call the production-backed relay.
   // Signed-in users retain the existing authoritative controllers and permission gates.
@@ -709,6 +710,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </div>
       </div>
     </header>
+    {signedIn && embedOriginHint && <div className="mx-auto flex max-w-[1550px] flex-wrap items-center justify-between gap-2 border-b border-cream-200 bg-[#f3f7ef] px-4 py-2 text-xs text-forest-800" data-embed-return-context>
+      <span>Saved in SecurePay · started at {new URL(embedOriginHint.returnOrigin).hostname}
+        {embedOriginHint.returnReference ? ' · Request '+embedOriginHint.returnReference : ''}
+        {embedOriginHint.purpose!=='UNSPECIFIED' ? ' · '+(embedOriginHint.purpose==='HOME'?'My Home':'My Work') : ''}.
+        Estate source details remain unverified until Estate.ke authorises them.</span>
+      <a href={embedOriginHint.returnOrigin+'/'}
+        className="font-semibold underline" rel="noopener noreferrer">Return to Estate.ke</a>
+    </div>}
     {signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
           <InlineCircleBoard key={workingCircleId} id={workingCircleId}
