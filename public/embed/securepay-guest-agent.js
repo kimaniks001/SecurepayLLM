@@ -1,6 +1,6 @@
 (function (global) {
   'use strict';
-  // Phase 2: a bounded client for the EXISTING SecurePay guest Agent API.
+  // Phase 4: the existing site-bound guest Agent API and canonical Agreement review.
   // This is not an estate identity or a delegated login. Do not put private estate data in turns.
   var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   var TOKEN = /^[A-Za-z0-9_-]{43,256}$/;
@@ -23,12 +23,14 @@
     var route = '/api/v1/public/embed/installations/' + encodeURIComponent(siteId) + '/conversations';
     var key = 'securepay.embed.guest.v3:' + siteId;
     var pendingKey = key + '.pending';
+    var reviewKey = key + '.review-action';
     var storage = null;
     try { storage = global.sessionStorage || null; } catch (_) { /* private-mode fallback */ }
     var memory = null;
     var record = null;
     var entries = [];
     var pending = null;
+    var formation = null, formationError = '', prepared = null, reviewPending = null;
     var status = api ? 'unchecked' : 'unconfigured';
     var lastError = '';
     var lastChecked = false;
@@ -36,6 +38,30 @@
       return !!v && v.apiOrigin === api && UUID.test(v.conversationId) &&
         TOKEN.test(v.secret) && Number.isFinite(Date.parse(v.anonymousExpiresAt)) &&
         Date.parse(v.anonymousExpiresAt) > Date.now();
+    }
+    function clearReviewPending() {
+      reviewPending = null;
+      try { storage && storage.removeItem(reviewKey); } catch (_) {}
+    }
+    function keepReviewPending() {
+      try {
+        if(storage && record && reviewPending) storage.setItem(reviewKey,JSON.stringify({
+          apiOrigin:api,conversationId:record.conversationId,
+          anonymousExpiresAt:record.anonymousExpiresAt,
+          actionId:reviewPending.actionId,version:reviewPending.version
+        }));
+      } catch (_) {}
+    }
+    function restoreReviewPending() {
+      if(!record || !storage)return;
+      try {
+        var saved=JSON.parse(storage.getItem(reviewKey)||'null');
+        if(saved && saved.apiOrigin===api && saved.conversationId===record.conversationId &&
+           saved.anonymousExpiresAt===record.anonymousExpiresAt && UUID.test(saved.actionId) &&
+           Number.isSafeInteger(saved.version) && saved.version>=0) {
+          reviewPending={actionId:saved.actionId,version:saved.version};
+        } else storage.removeItem(reviewKey);
+      } catch (_) {try{storage.removeItem(reviewKey);}catch (_) {}}
     }
     function clearPending() {
       pending = null;
@@ -66,8 +92,8 @@
       } catch (_) { try {storage.removeItem(pendingKey);} catch (_) {} }
     }
     function clear() {
-      record = null; memory = null;
-      clearPending();
+      record = null; memory = null; formation = null; prepared = null; formationError = '';
+      clearPending(); clearReviewPending();
       try { storage && storage.removeItem(key); } catch (_) {}
     }
     function restore() {
@@ -75,7 +101,7 @@
       if (storage) {
         try { raw = JSON.parse(storage.getItem(key) || 'null'); } catch (_) { raw = null; }
       }
-      if (valid(raw)) { record = raw; recoverPending(); return; }
+      if (valid(raw)) { record = raw; recoverPending(); restoreReviewPending(); return; }
       clear();
     }
     function save(v) {
@@ -87,6 +113,8 @@
       return {status:status, error:lastError, ready:status === 'ready',
         conversationId:record ? record.conversationId : null,
         entries:entries.map(function(e){return {sender:e.sender,text:e.text};}),
+        agreement:formation, agreementError:formationError,
+        preparedReview:prepared, reviewPending:!!reviewPending,
         pending:pending ? {message:pending.message} : null};
     }
     function errorMessage(error) {
@@ -180,6 +208,7 @@
         entries.push({sender:'HUMAN',text:pending.message});
         entries.push({sender:'KS001',text:answer.message.slice(0,4000)});
         entries = entries.slice(-40);
+        formation=null; prepared=null; formationError=''; clearReviewPending();
         clearPending(); lastError = '';
         return snapshot();
       } catch (error) {
@@ -199,11 +228,97 @@
       persistPending();
       return attempt();
     }
+
+    /**
+     * Read-only, canonical Agreement Formation. Nothing here signs, funds, issues a
+     * SecureLink or claims that a counterparty agreed. Same site + possession checks.
+     */
+    async function reviewAgreement(timeZone) {
+      if(status!=='ready'||!record||pending)throw new Error('Complete your current KS001 message first.');
+      var query=typeof timeZone==='string' && timeZone.length<=64
+        ? '?timeZone='+encodeURIComponent(timeZone) : '';
+      try {
+        var response=await request(route+'/'+record.conversationId+'/agreement-formation'+query,
+          'GET',undefined,true,15000);
+        if(!response||response.conversationId!==record.conversationId||
+            !Number.isSafeInteger(response.version)||response.version<0||
+            typeof response.summary!=='string'||typeof response.stage!=='string'||
+            !Array.isArray(response.openPoints))throw new Error('Invalid canonical agreement review');
+        formation={
+          conversationId:response.conversationId,version:response.version,
+          digest:typeof response.digest==='string'?response.digest:'',
+          stage:response.stage,reviewable:response.reviewable===true,
+          confirmable:response.confirmable===true,
+          summary:response.summary.slice(0,2000),
+          what:Array.isArray(response.what)?response.what.slice(0,12):[],
+          who:Array.isArray(response.who)?response.who.slice(0,12):[],
+          money:Array.isArray(response.money)?response.money.slice(0,12):[],
+          when:Array.isArray(response.when)?response.when.slice(0,12):[],
+          responsibilities:Array.isArray(response.responsibilities)?response.responsibilities.slice(0,10):[],
+          conditions:Array.isArray(response.conditions)?response.conditions.slice(0,10):[],
+          notIncluded:Array.isArray(response.notIncluded)?response.notIncluded.slice(0,10):[],
+          origin:response.origin||null,
+          openPoints:response.openPoints.slice(0,30),
+          question:response.question||null,
+          reviewBlockedReason:typeof response.reviewBlockedReason==='string'?response.reviewBlockedReason:'',
+          confirmationBlockedReason:typeof response.confirmationBlockedReason==='string'?response.confirmationBlockedReason:''
+        };
+        formationError='';
+        if(prepared && prepared.tradeContextVersion!==formation.version)prepared=null;
+        return snapshot();
+      } catch (err) {
+        if(err && err.code===404) {clear();entries=[];}
+        formationError='Could not load the current Agreement review. Nothing has been signed or sent.';
+        return snapshot();
+      }
+    }
+    async function prepareAgreementReview() {
+      if(status!=='ready'||!record||pending)throw new Error('Complete your current KS001 message first.');
+      if(!formation||!formation.reviewable)throw new Error('KS001 needs more information before Agreement review.');
+      if(!global.crypto||typeof global.crypto.randomUUID!=='function')
+        throw new Error('Secure random IDs unavailable');
+      if(!reviewPending) {
+        reviewPending={actionId:global.crypto.randomUUID(),version:formation.version};
+        keepReviewPending();
+      }
+      try {
+        var response=await request(route+'/'+record.conversationId+'/agreement-handoff',
+          'POST',{clientActionId:reviewPending.actionId,
+            expectedTradeContextVersion:reviewPending.version},true,20000);
+        if(!response||!UUID.test(response.handoffId)||
+            response.conversationId!==record.conversationId||
+            response.tradeContextVersion!==reviewPending.version)
+          throw new Error('Invalid SecurePay review handoff');
+        prepared={
+          handoffId:response.handoffId,
+          status:String(response.status||'PREPARED'),
+          tradeContextVersion:response.tradeContextVersion,
+          mustResolve:Array.isArray(response.mustResolve)?response.mustResolve.slice(0,20):[],
+          stillToDecide:Array.isArray(response.stillToDecide)?response.stillToDecide.slice(0,20):[],
+          expiresAt:response.expiresAt||null
+        };
+        formationError='';
+        clearReviewPending();
+        return snapshot();
+      } catch (err) {
+        if(err && err.code===404) {clear();entries=[];return snapshot();}
+        if(err && err.code===409) {
+          // The reviewed version may have changed. Do not silently retry a stale review.
+          clearReviewPending();formation=null;
+          formationError='The agreement changed. Refresh its review before preparing it again.';
+        } else {
+          formationError='Review preparation was not confirmed. Retry the SAME action; no Agreement or SecureLink has been issued.';
+        }
+        return snapshot();
+      }
+    }
+
     return Object.freeze({
       snapshot:snapshot, connect:connect, history:history, send:send,
+      reviewAgreement:reviewAgreement, prepareAgreementReview:prepareAgreementReview,
       retry:function(){return attempt();},
       reset:function(){clear();entries=[];lastError='';return snapshot();}
     });
   }
-  global.SecurePayGuestAgent = Object.freeze({version:'0.3.0',create:create});
+  global.SecurePayGuestAgent = Object.freeze({version:'0.4.0',create:create});
 })(window);
