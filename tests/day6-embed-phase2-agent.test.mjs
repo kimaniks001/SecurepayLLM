@@ -114,3 +114,9 @@ test('unconfigured client cannot call network',async()=>{
   assert.equal((await client.connect()).status,'unconfigured');
   assert.equal(calls,0);
 });
+
+test('rejects unrelated API domains even when a host supplies them',()=>{
+  const win={};
+  vm.runInNewContext(source,{window:win,URL,Date});
+  assert.throws(()=>win.SecurePayGuestAgent.create({siteId:site,apiBaseUrl:'https://unrelated.example'}),/verified SecurePay/);
+});
