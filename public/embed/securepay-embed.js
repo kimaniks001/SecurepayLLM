@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
   // SecurePay Embed SDK: site-scoped guest KS001 and read-only canonical Agreement review. No money.
-  var VERSION = '0.4.0';
+  var VERSION = '0.5.0';
   var VALID_TOOLS = ['ask', 'contract', 'securelink', 'work', 'vision'];
   var instances = new WeakMap();
   function element(tag, className, label) {
@@ -88,6 +88,7 @@
     var chatDraft = '';
     var chatChecking = false, chatChecked = false, chatBusy = false, chatLocalError = '';
     var reviewBusy=false, reviewLocalError='';
+    var transferBusy=false, transferSucceeded=false, transferNotice='';
     
     function openPanel(on) {
       panel.hidden=!on;launch.setAttribute('aria-expanded',String(on));
@@ -174,15 +175,99 @@
         }
         var sub=element('div','minor','Guest work can resume in this browser tab until its access token expires. Transfer to the full website is reserved for Phase 5.');
         sub.style.marginTop='9px';body.appendChild(sub);
+        transferButton();
         body.appendChild(button('Start new guest conversation',function(){
           if(chatBusy)return;
           agent.reset();chatDraft='';render();
         }));
       }
       if(chatLocalError)body.appendChild(element('div','notice',chatLocalError));
+      if(transferNotice)body.appendChild(element('div','note',transferNotice));
       var link=element('a','','Open the full SecurePay Workspace');
       link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
       body.appendChild(link);
+    }
+
+
+    /**
+     * Exact-origin popup handshake: the ticket and possession token NEVER go
+     * through a URL, form, log, parent DOM, clipboard or third-party origin.
+     * A browser-internal message proof is only a TRANSPORT; the server checks
+     * registered site, original guest token, expiry and signed-in KS identity.
+     */
+    async function startFullWebsiteTransfer() {
+      if(transferBusy||!agent||!agent.snapshot().conversationId)return;
+      if(typeof global.open!=='function'){
+        transferNotice='This browser cannot open a secure continuation window.';render();return;
+      }
+      // Open synchronously from the user's click to avoid ordinary popup blockers.
+      var popup=global.open('about:blank','_blank');
+      if(!popup){transferNotice='Allow a SecurePay popup, then try again.';render();return;}
+      transferBusy=true;transferNotice='Preparing a secure transfer…';render();
+      var listener=null,timer=null;
+      try {
+        var metadata={};
+        try {if(typeof options.getReturnContext==='function')metadata=options.getReturnContext()||{};}
+        catch (_) {metadata={};}
+        var transfer=await agent.createWorkTransfer(metadata);
+        var matchedOrigin=transfer.receiverOrigin;
+        var transferred=false,nonce=null;
+        function finish(success,notice) {
+          if(listener)global.removeEventListener('message',listener);
+          if(timer&&global.clearTimeout)global.clearTimeout(timer);
+          transferBusy=false;transferSucceeded=!!success;
+          transferNotice=notice;render();
+          if(success){
+            // Its token is retired by the server; never keep using this guest session.
+            agent.reset();
+            try{if(typeof options.onTransferClaimed==='function')
+              options.onTransferClaimed({siteId:transfer.siteId,returnReference:metadata.returnReference||null});
+            }catch(_){}
+          }
+        }
+        listener=function(event) {
+          if(event.source!==popup||event.origin!==matchedOrigin||!event.data||typeof event.data!=='object')return;
+          if(event.data.type==='securepay.embed.transfer.ready' &&
+              typeof event.data.nonce==='string' &&
+              /^[0-9a-f-]{36}$/i.test(event.data.nonce) && !transferred &&
+              Date.now()<Date.parse(transfer.expiresAt)) {
+            nonce=event.data.nonce;
+            popup.postMessage({
+              type:'securepay.embed.transfer.offer',nonce:nonce,
+              ticket:transfer.ticket,guestToken:transfer.guestToken,
+              siteId:transfer.siteId,conversationId:transfer.conversationId,
+              expiresAt:transfer.expiresAt,receiverOrigin:matchedOrigin
+            },matchedOrigin);
+            transferred=true;
+          } else if(event.data.type==='securepay.embed.transfer.claimed' &&
+              transferred && nonce && event.data.nonce===nonce &&
+              event.data.siteId===transfer.siteId &&
+              event.data.status==='SECUREPAY_WORK_SAVED') {
+            finish(true,'Your existing KS001 work was saved in SecurePay. You can return to Estate.ke whenever you wish.');
+          }
+        };
+        global.addEventListener('message',listener);
+        if(global.setTimeout) timer=global.setTimeout(function(){
+          finish(false,'The secure transfer window expired. Start another transfer if needed.');
+        },Math.max(1000,Date.parse(transfer.expiresAt)-Date.now()+1000));
+        popup.location.replace(matchedOrigin+'/#/embed/continue');
+        transferNotice='Complete sign-in and approve the transfer in the SecurePay window.';
+        render();
+      } catch (_) {
+        transferBusy=false;
+        transferNotice='SecurePay could not prepare the transfer. Your Estate conversation has not been lost.';
+        try{popup.close();}catch(_){}
+        if(listener)global.removeEventListener('message',listener);
+        if(timer&&global.clearTimeout)global.clearTimeout(timer);
+        render();
+      }
+    }
+    function transferButton() {
+      if(!agent||!agent.snapshot().conversationId||transferSucceeded)return;
+      var result=button(transferBusy?'Continuing…':'Continue in SecurePay',function(){void startFullWebsiteTransfer();});
+      result.disabled=transferBusy;
+      body.appendChild(result);
+      body.appendChild(element('div','minor','A SecurePay sign-in and your explicit approval are required. No ticket or private conversation goes in the website address.'));
     }
 
     function line(label,value){
@@ -288,6 +373,7 @@
       } else {
         body.appendChild(element('div','alert',v.reviewBlockedReason||'There are outstanding questions. Continue the KS001 conversation first.'));
       }
+      transferButton();
       body.appendChild(button('Refresh agreement understanding',function(){void fetchReview();}));
     }
     function renderSecureLink(){
@@ -296,6 +382,7 @@
       if(state&&state.preparedReview)body.appendChild(element('div','note','You have prepared a review. Before a SecureLink can be issued, your identity and the proposed Agreement must be reviewed and authorised on SecurePay.'));
       else body.appendChild(element('div','note','First develop your request with KS001, then review the emerging Agreement. A SecureLink is issued only through the authorised SecurePay flow.'));
       body.appendChild(button('Review my proposed Agreement',function(){current='contract';render();}));
+      transferButton();
       body.appendChild(element('div','minor','No anonymous SecureLink creation, invitation, signing or payment action is available inside this pilot.'));
       var link=element('a','','Visit full SecurePay');
       link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
@@ -358,6 +445,7 @@
         link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
         body.appendChild(link);
       }
+      if(transferNotice && current!=='ask')body.appendChild(element('div','note',transferNotice));
       footer.replaceChildren();
       footer.appendChild(button('⚙ Settings',function(){current='settings';render();}));
       footer.appendChild(button('↗ Invite',function(){current='invite';render();}));
