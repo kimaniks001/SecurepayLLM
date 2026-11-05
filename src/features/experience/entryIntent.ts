@@ -194,3 +194,33 @@ export function consumeWorkspaceStoreOfferEntry(): {canonicalKsNumber:string;off
   pendingWorkspaceStoreOffer=null;
   return value;
 }
+
+
+/**
+ * Day 6 Phase 5 — post-claim, informational Estate-origin return hint.
+ * A successful server claim creates a saved build and retires the guest token.
+ * This hint is stored ONLY in current-tab memory, never a URL/storage cookie.
+ * It conveys NO Agreement, estate household, signature, funding or identity authority.
+ */
+export interface EmbedOriginReturnHint {
+  siteId: string;
+  returnOrigin: string;
+  returnReference: string | null;
+  purpose: 'HOME'|'WORK'|'UNSPECIFIED';
+}
+let embedOriginReturnHint: EmbedOriginReturnHint | null = null;
+export function storeEmbedOriginReturnHint(hint:EmbedOriginReturnHint):void {
+  const origin=new URL(hint.returnOrigin);
+  if(origin.protocol!=='https:'||origin.pathname!=='/'||origin.search||origin.hash)
+    throw new Error('Unsafe return origin');
+  if(!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(hint.siteId))
+    throw new Error('Invalid installation');
+  if(hint.returnReference && !/^[A-Za-z0-9_-]{3,64}$/.test(hint.returnReference))
+    throw new Error('Invalid return reference');
+  embedOriginReturnHint={...hint,returnOrigin:origin.origin};
+}
+export function consumeEmbedOriginReturnHint():EmbedOriginReturnHint|null {
+  const value=embedOriginReturnHint;
+  embedOriginReturnHint=null;
+  return value;
+}
