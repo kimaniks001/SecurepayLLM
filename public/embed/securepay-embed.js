@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
   // SecurePay Embed SDK, Phase 1: presentation only. No auth, data, AI or financial calls.
-  var VERSION = '0.1.0';
+  var VERSION = '0.2.0';
   var VALID_TOOLS = ['ask', 'contract', 'securelink', 'work', 'vision'];
   var instances = new WeakMap();
   function element(tag, className, label) {
@@ -40,7 +40,13 @@
       '.caption{margin-top:9px;font-size:11px;color:#697b6e;text-align:center}',
       '.x{border:0;background:transparent;color:#173d2c;font:700 20px Arial;cursor:pointer}',
       'a{color:#195d3b;text-decoration:underline;font-weight:700}.setting{display:flex;gap:9px;align-items:center;margin:8px 0}',
-      'input{accent-color:#1a7d48}.notice{font-size:12px;margin-top:10px;color:#855d22}'
+      'input{accent-color:#1a7d48}.notice{font-size:12px;margin-top:10px;color:#855d22}',
+      '.chat{min-height:100px;max-height:220px;overflow-y:auto;display:grid;gap:8px;margin:12px 0}',
+      '.bubble{background:#edf5ed;border-radius:12px;padding:10px;font:13px/1.5 Arial;white-space:pre-wrap;overflow-wrap:anywhere}',
+      '.bubble.human{background:#d6ebe0;margin-left:18px}',
+      '.composer{display:flex;gap:6px;align-items:stretch;margin-top:10px}',
+      'textarea{width:100%;min-width:0;resize:vertical;min-height:55px;border:1px solid #d2ded0;padding:9px;border-radius:8px;font:13px Arial}',
+      '.action:disabled{opacity:.4;cursor:not-allowed}'
     ].join('');
     shadow.appendChild(style);
     var launch = element('button', 'launcher', '✦  KS001 · Ask for help');
@@ -66,7 +72,98 @@
     host.appendChild(root);
     var current = enabled[0];
     var visible = enabled.slice();
-    function openPanel(on) { panel.hidden=!on;launch.setAttribute('aria-expanded',String(on)); }
+    var agent = global.SecurePayGuestAgent && global.SecurePayGuestAgent.create({siteId:siteId, apiBaseUrl:options.apiBaseUrl || ''});
+    var chatDraft = '';
+    var chatChecking = false, chatChecked = false, chatBusy = false, chatLocalError = '';
+    
+    function openPanel(on) {
+      panel.hidden=!on;launch.setAttribute('aria-expanded',String(on));
+      if(on && current==='ask') void prepareChat();
+    }
+    async function prepareChat(force) {
+      if(!agent || chatChecking || (chatChecked && !force))return;
+      chatChecking=true;chatChecked=false;chatLocalError='';
+      if(current==='ask' && !panel.hidden)render();
+      try { await agent.connect(); } catch (_) { chatLocalError='SecurePay guest connection failed.'; }
+      finally {
+        chatChecking=false;chatChecked=true;
+        if(current==='ask' && !panel.hidden)render();
+      }
+    }
+    async function sendChat() {
+      if(!agent||chatBusy||!chatDraft.trim())return;
+      var original=chatDraft.trim();
+      chatBusy=true;chatLocalError='';render();
+      try {
+        var zone=undefined;
+        try {zone=Intl.DateTimeFormat().resolvedOptions().timeZone;} catch (_) {}
+        await agent.send(original,zone);
+        var state=agent.snapshot();
+        if(!state.pending && !state.error)chatDraft='';
+      } catch (_) { chatLocalError='SecurePay did not accept the message.'; }
+      finally {chatBusy=false;render();}
+    }
+    async function retryChat() {
+      if(!agent||chatBusy)return;
+      chatBusy=true;chatLocalError='';render();
+      try {await agent.retry();}catch(_){chatLocalError='Retry could not be confirmed.';}
+      finally{chatBusy=false;render();}
+    }
+    function renderChat() {
+      // General public KS001 only; estate private records and identity mapping are not accessible.
+      body.appendChild(element('p','minor','General SecurePay assistance. No private estate records are connected.'));
+      var state=agent ? agent.snapshot() : {status:'unavailable',ready:false,entries:[],error:'Guest client unavailable'};
+      if(chatChecking)body.appendChild(element('div','note','Checking approved SecurePay staging connection…'));
+      if(!state.ready){
+        var reason=state.status==='unconfigured'?'No approved SecurePay staging API has been configured.':
+          state.status==='disabled'?'This website is not enabled for the guest KS001 pilot.':
+          state.status==='checking'?'Connecting to SecurePay…':
+          'SecurePay guest assistant is currently unavailable.';
+        body.appendChild(element('div','note',reason));
+        if(state.status==='unavailable'||state.status==='disabled'){
+          body.appendChild(button('Recheck connection',function(){void prepareChat(true);}));
+        }
+      }
+      if(state.ready){
+        var history=element('div','chat');
+        history.setAttribute('role','log');
+        history.setAttribute('aria-label','KS001 conversation');
+        if(!state.entries.length && !state.pending)history.appendChild(element('div','note','What would you like help with? Replies come from the real SecurePay service.'));
+        state.entries.forEach(function(entry){
+          if(entry.sender!=='HUMAN' && entry.sender!=='KS001')return;
+          history.appendChild(element('div',entry.sender==='HUMAN'?'bubble human':'bubble',entry.text));
+        });
+        if(state.pending)history.appendChild(element('div','note','Last message awaiting confirmation: '+state.pending.message));
+        body.appendChild(history);
+        if(state.error)body.appendChild(element('div','notice',state.error));
+        if(state.pending){
+          var retry=button('Retry the same message',function(){void retryChat();});
+          retry.disabled=chatBusy;body.appendChild(retry);
+        } else {
+          var form=element('form','composer');
+          var input=element('textarea');
+          input.setAttribute('aria-label','Message KS001');
+          input.maxLength=1200;input.value=chatDraft;
+          input.placeholder='Describe what you need…';
+          input.addEventListener('input',function(){chatDraft=input.value;});
+          var send=button('Send',function(){void sendChat();});
+          send.disabled=chatBusy;
+          form.appendChild(input);form.appendChild(send);
+          form.addEventListener('submit',function(ev){ev.preventDefault();void sendChat();});
+          body.appendChild(form);
+        }
+        var sub=element('div','minor','Guest work can resume in this browser tab until its access token expires. Transfer to the full website is reserved for Phase 5.');
+        sub.style.marginTop='9px';body.appendChild(sub);
+        body.appendChild(button('Start new guest conversation',function(){
+          if(chatBusy)return;
+          agent.reset();chatDraft='';render();
+        }));
+      }
+      if(chatLocalError)body.appendChild(element('div','notice',chatLocalError));
+      var link=element('a','','Open the full SecurePay Workspace');
+      link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
+      body.appendChild(link);
+    }
     function button(label, click, className) {
       var b=element('button',className||'action',label);b.type='button';b.addEventListener('click',click);return b;
     }
@@ -74,10 +171,12 @@
     function render() {
       nav.replaceChildren();body.replaceChildren();msg('');
       visible.forEach(function(key) {
-        var tab=button(labels[key],function(){current=key;render();},'tab');
+        var tab=button(labels[key],function(){current=key;render();if(key==='ask')void prepareChat();},'tab');
         tab.setAttribute('aria-pressed',String(current===key));nav.appendChild(tab);
       });
-      if (current==='settings') {
+      if (current==='ask') {
+        renderChat();
+      } else if (current==='settings') {
         body.appendChild(element('div','brand','Widget settings (this browser only)'));
         enabled.forEach(function(key){
           var line=element('label','setting');var input=element('input');input.type='checkbox';
