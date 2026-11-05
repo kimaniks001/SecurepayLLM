@@ -313,12 +313,47 @@
       }
     }
 
+
+    /**
+     * Guest proves possession to SecurePay and receives a 5-minute one-use server
+     * ticket. Both this ticket and the guest possession token move ONLY through
+     * an exact-origin browser postMessage to the SecurePay staging receiver.
+     */
+    async function createWorkTransfer(context) {
+      if(status!=='ready'||!lastChecked||!record||pending)
+        throw new Error('Finish or confirm the current KS001 conversation first.');
+      context=context&&typeof context==='object'?context:{};
+      var ref=typeof context.returnReference==='string'&&
+        /^[A-Za-z0-9_-]{3,64}$/.test(context.returnReference)?context.returnReference:null;
+      var purpose=['HOME','WORK'].includes(context.purpose)?context.purpose:'UNSPECIFIED';
+      var result=await request(route+'/'+record.conversationId+'/transfers','POST',
+        {returnReference:ref,purpose:purpose},true,15000);
+      if(!result||!(/^[A-Za-z0-9_-]{43}$/.test(result.ticket||'')))
+        throw new Error('SecurePay returned an invalid transfer ticket');
+      var receiver;
+      try { receiver=new URL(result.receiverOrigin); }
+      catch (_) { throw new Error('SecurePay receiver is unavailable'); }
+      var hostname=receiver.hostname.toLowerCase();
+      var approved=hostname.endsWith('.securepay.ke')&&
+        /^(?:staging|sandbox|qa|test)\./.test(hostname);
+      if(!approved||receiver.protocol!=='https:'||receiver.pathname!=='/'||
+        receiver.search||receiver.hash||receiver.username||receiver.password)
+        throw new Error('Unapproved SecurePay receiving website');
+      if(!Number.isFinite(Date.parse(result.expiresAt))||
+         Date.parse(result.expiresAt)<=Date.now())
+        throw new Error('SecurePay transfer ticket has expired');
+      return {ticket:result.ticket,receiverOrigin:receiver.origin,
+        conversationId:record.conversationId,siteId:siteId,
+        guestToken:record.secret,expiresAt:result.expiresAt};
+    }
+
     return Object.freeze({
       snapshot:snapshot, connect:connect, history:history, send:send,
       reviewAgreement:reviewAgreement, prepareAgreementReview:prepareAgreementReview,
+      createWorkTransfer:createWorkTransfer,
       retry:function(){return attempt();},
       reset:function(){clear();entries=[];lastError='';return snapshot();}
     });
   }
-  global.SecurePayGuestAgent = Object.freeze({version:'0.4.0',create:create});
+  global.SecurePayGuestAgent = Object.freeze({version:'0.5.0',create:create});
 })(window);
