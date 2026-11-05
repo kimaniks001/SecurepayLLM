@@ -20,7 +20,8 @@
     var siteId = String(options.siteId || '');
     if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(siteId)) throw new Error('Invalid SecurePay site');
     var api = origin(options.apiBaseUrl || '');
-    var key = 'securepay.embed.guest.v2:' + siteId;
+    var route = '/api/v1/public/embed/installations/' + encodeURIComponent(siteId) + '/conversations';
+    var key = 'securepay.embed.guest.v3:' + siteId;
     var storage = null;
     try { storage = global.sessionStorage || null; } catch (_) { /* private-mode fallback */ }
     var memory = null;
@@ -59,7 +60,7 @@
         pending:pending ? {message:pending.message} : null};
     }
     function errorMessage(error) {
-      if (error && error.code === 429) return 'This assistant is receiving too many requests. Please try later or contact the estate.';
+      if (error && error.code === 429) return 'The Store-sponsored KS001 allowance is used. You can still send a normal enquiry to the trader.';
       if (error && error.code === 404) return 'This conversation is no longer available. Start a new conversation.';
       return 'The SecurePay conversation could not be confirmed. Your message was not discarded; retry uses the same request.';
     }
@@ -92,7 +93,7 @@
       status = 'checking'; lastError = '';
       try {
         var manifest = await request('/api/v1/public/embed/installations/' + encodeURIComponent(siteId), 'GET');
-        if (!manifest || manifest.schemaVersion !== 'securepay-embed-guest-v2' ||
+        if (!manifest || manifest.schemaVersion !== 'securepay-embed-guest-v3' ||
             manifest.siteId !== siteId || manifest.guestChatAvailable !== true ||
             !manifest.enabledOperations || manifest.enabledOperations.ask !== true ||
             manifest.authenticatedOperationsAvailable !== false) {
@@ -114,7 +115,7 @@
     async function history() {
       if (!record || status !== 'ready') return snapshot();
       try {
-        var result = await request('/api/agent/conversations/' + record.conversationId + '/history?limit=20','GET',undefined,true,15000);
+        var result = await request(route + '/' + record.conversationId + '/history?limit=20','GET',undefined,true,15000);
         if (!result || !Array.isArray(result.entries)) throw new Error('Invalid history');
         entries = result.entries.filter(function(e){return e && (e.sender === 'HUMAN' || e.sender === 'KS001') && typeof e.text === 'string';})
           .slice(-40).map(function(e){return {sender:e.sender,text:e.text.slice(0,2000)};});
@@ -127,7 +128,7 @@
     }
     async function ensureConversation() {
       if (record) return;
-      var created = await request('/api/agent/conversations','POST',{},false,15000);
+      var created = await request(route,'POST',{},false,15000);
       if (!created || !created.conversationId) throw new Error('SecurePay did not create a conversation');
       save({
         apiOrigin:api,
@@ -140,7 +141,7 @@
       if (!pending || status !== 'ready') return snapshot();
       try {
         await ensureConversation();
-        var answer = await request('/api/agent/conversations/' + record.conversationId + '/turns',
+        var answer = await request(route + '/' + record.conversationId + '/turns',
           'POST', {message:pending.message,clientTurnId:pending.clientTurnId,
             clientTimeZone:pending.timeZone}, true, 45000);
         if (!answer || typeof answer.message !== 'string') throw new Error('SecurePay returned an invalid response');
@@ -171,5 +172,5 @@
       reset:function(){clear();entries=[];pending=null;lastError='';return snapshot();}
     });
   }
-  global.SecurePayGuestAgent = Object.freeze({version:'0.2.0',create:create});
+  global.SecurePayGuestAgent = Object.freeze({version:'0.3.0',create:create});
 })(window);
