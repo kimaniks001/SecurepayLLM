@@ -9,7 +9,7 @@ const client = readFileSync(new URL('../public/embed/securepay-guest-agent.js', 
 test('portable embed keeps host isolation, no identity or money authority and explicit real guest-client dependency', () => {
   const context = {window:{}};
   vm.runInNewContext(shell,context);
-  assert.equal(context.window.SecurePayEmbed.version,'0.2.0');
+  assert.equal(context.window.SecurePayEmbed.version,'0.3.0');
   assert.equal(typeof context.window.SecurePayEmbed.mount,'function');
   assert.doesNotMatch(shell,/fetch\s*\(|XMLHttpRequest|localStorage|postMessage\s*\(/);
   assert.match(shell,/attachShadow/);
