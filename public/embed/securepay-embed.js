@@ -68,6 +68,9 @@
     var body = element('div','body');panel.appendChild(body);
     var notice = element('div','notice');notice.setAttribute('role','status');panel.appendChild(notice);
     panel.appendChild(element('div','caption','Powered by SecurePay'));
+    var footer = element('div','row');
+    footer.style.marginTop='10px';
+    panel.insertBefore(footer,notice);
     shadow.appendChild(panel);shadow.appendChild(launch);
     host.appendChild(root);
     var current = enabled[0];
@@ -226,13 +229,9 @@
         link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
         body.appendChild(link);
       }
-      var footer=element('div','row');
-      footer.style.marginTop='10px';
+      footer.replaceChildren();
       footer.appendChild(button('⚙ Settings',function(){current='settings';render();}));
       footer.appendChild(button('↗ Invite',function(){current='invite';render();}));
-      panel.insertBefore(footer,notice);
-      // A single footer is retained on each render.
-      Array.from(panel.querySelectorAll('.row')).filter(function(node){return node!==nav && node!==footer;}).forEach(function(node){node.remove();});
     }
     launch.addEventListener('click',function(){openPanel(panel.hidden);});
     close.addEventListener('click',function(){openPanel(false);});
