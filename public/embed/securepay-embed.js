@@ -60,7 +60,7 @@
     var header = element('div', 'head');
     var heading = element('div');
     heading.appendChild(element('div','brand','KS001 · '+title));
-    heading.appendChild(element('div','minor','SecurePay embedded tools · Foundation preview'));
+    heading.appendChild(element('div','minor','SecurePay embedded tools · Guest pilot'));
     var close = element('button','x','×');
     close.type='button';close.setAttribute('aria-label','Close SecurePay tools');
     header.appendChild(heading);header.appendChild(close);panel.appendChild(header);
