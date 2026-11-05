@@ -120,3 +120,36 @@ test('rejects unrelated API domains even when a host supplies them',()=>{
   vm.runInNewContext(source,{window:win,URL,Date});
   assert.throws(()=>win.SecurePayGuestAgent.create({siteId:site,apiBaseUrl:'https://unrelated.example'}),/verified SecurePay/);
 });
+
+
+test('refresh after an uncertain metered turn preserves the original reservation ID',async()=>{
+  const storage=makeStorage();
+  const attempts=[];
+  let first=true;
+  const upstream=async(url,options)=>{
+    if(url.endsWith('/installations/'+site))return good(manifest);
+    if(url.endsWith('/installations/'+site+'/conversations'))return good(created);
+    if(url.endsWith('/turns')){
+      attempts.push(JSON.parse(options.body));
+      if(first){first=false;throw Error('network outcome unknown');}
+      return good({message:'The same metered turn is confirmed.'});
+    }
+    if(url.includes('/history?limit=20'))return good({entries:[]});
+    throw Error('Unexpected '+url);
+  };
+  const initial=setup(upstream,storage);
+  await initial.connect();
+  const uncertain=await initial.send('Please organise my plumbing request');
+  assert.equal(uncertain.pending.message,'Please organise my plumbing request');
+  assert.equal(storage.dump().length,2,'only tab-scoped conversation and pending turn records');
+  const afterRefresh=setup(upstream,storage);
+  const state=await afterRefresh.connect();
+  assert.equal(state.pending.message,'Please organise my plumbing request');
+  const completed=await afterRefresh.retry();
+  assert.equal(completed.pending,null);
+  assert.equal(completed.entries[1].text,'The same metered turn is confirmed.');
+  assert.equal(attempts.length,2);
+  assert.equal(attempts[0].clientTurnId,attempts[1].clientTurnId);
+  assert.equal(attempts[0].message,attempts[1].message);
+  assert.equal(storage.dump().length,1,'pending reservation removed after confirmation');
+});
