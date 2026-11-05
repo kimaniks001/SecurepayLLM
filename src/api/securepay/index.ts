@@ -31,6 +31,7 @@ import { createProjectGateway } from './projects';
 import { createVisionBoardGateway } from './visionboard';
 import { createVisionDreamGateway } from './visiondreams';
 import { createSettingsGateway } from './settings';
+import { createEmbedOwnerGateway } from './embed';
 import { createNotificationsGateway } from './notifications';
 import { createBusinessGateway } from './business';
 import { createOrganizationGateway } from './organization';
@@ -60,6 +61,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     visionBoard: createVisionBoardGateway(http),
     visionDreams: createVisionDreamGateway(http),
     settings: createSettingsGateway(http),
+    embedOwner: createEmbedOwnerGateway(http),
     notifications: createNotificationsGateway(http),
     business: createBusinessGateway(http),
     organization: createOrganizationGateway(http),

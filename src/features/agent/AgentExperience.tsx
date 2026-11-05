@@ -108,6 +108,7 @@ import { createAccountController } from '../account/controller';
 import { SettingsExperience } from '../settings/SettingsExperience';
 import { createSettingsController } from '../settings/controller';
 import type { SettingsGateway } from '../../api/securepay/settings';
+import type { EmbedOwnerGateway } from '../../api/securepay/embed';
 import type { SubscriptionGateway } from '../../api/securepay/subscription';
 import { NotificationsExperience } from '../notifications/NotificationsExperience';
 import { createNotificationsController } from '../notifications/controller';
@@ -180,7 +181,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, embedOwnerGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -188,7 +189,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   visionDreamGateway: VisionDreamGateway;
-  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  settingsGateway: SettingsGateway; embedOwnerGateway?: EmbedOwnerGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
@@ -1316,7 +1317,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }
 
   if (settingsView && sessionState.status === 'signed-in') {
-    return <SettingsExperience controller={settingsController} onNavigate={navigateTo} />;
+    return <SettingsExperience controller={settingsController} onNavigate={navigateTo} embedOwnerGateway={embedOwnerGateway} />;
   }
 
   if (businessView && sessionState.status === 'signed-in') {

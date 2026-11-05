@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
   // SecurePay Embed SDK, Phase 1: presentation only. No auth, data, AI or financial calls.
-  var VERSION = '0.2.0';
+  var VERSION = '0.3.0';
   var VALID_TOOLS = ['ask', 'contract', 'securelink', 'work', 'vision'];
   var instances = new WeakMap();
   function element(tag, className, label) {
@@ -60,7 +60,7 @@
     var header = element('div', 'head');
     var heading = element('div');
     heading.appendChild(element('div','brand','KS001 · '+title));
-    heading.appendChild(element('div','minor','SecurePay embedded tools · Guest pilot'));
+    heading.appendChild(element('div','minor','SecurePay embedded tools · Metered guest pilot'));
     var close = element('button','x','×');
     close.type='button';close.setAttribute('aria-label','Close SecurePay tools');
     header.appendChild(heading);header.appendChild(close);panel.appendChild(header);
@@ -203,7 +203,7 @@
           });
           line.appendChild(input);line.appendChild(element('span','',labels[key]));body.appendChild(line);
         });
-        body.appendChild(element('div','note','These are presentation settings only. Store budgets, owner permissions and saved preferences require the secure backend in later phases.'));
+        body.appendChild(element('div','note','These are personal display preferences for this widget. Only the signed-in SecurePay owner can change the installation’s server-enforced AI budget in SecurePay Settings. Visitors cannot change those limits.'));
       } else if (current==='invite') {
         body.appendChild(element('div','brand','Invite someone to SecurePay'));
         body.appendChild(element('p','minor','Invite a trader to add their Store, or a community to explore SecurePay.'));

@@ -30,7 +30,7 @@ function setup(fetcher, storage=makeStorage()) {
   return fakeWindow.SecurePayGuestAgent.create({siteId:site,apiBaseUrl:origin});
 }
 const good = v => ({ok:true,json:async()=>v});
-const manifest = {schemaVersion:'securepay-embed-guest-v2',siteId:site,
+const manifest = {schemaVersion:'securepay-embed-guest-v3',siteId:site,
   guestChatAvailable:true,authenticatedOperationsAvailable:false,enabledOperations:{ask:true}};
 const created = {conversationId:uuid,conversationAccessSecret:secret,
   anonymousExpiresAt:new Date(Date.now()+3600000).toISOString()};
@@ -42,7 +42,7 @@ test('real backend flow retains possession token and retries same clientTurnId w
   const client=setup(async (url,options)=>{
     seen.push({url,options});
     if(url.endsWith('/installations/'+site))return good(manifest);
-    if(url.endsWith('/api/agent/conversations'))return good(created);
+    if(url.endsWith('/installations/'+site+'/conversations'))return good(created);
     if(url.endsWith('/turns')) {
       turnAttempts++;
       if(turnAttempts===1) throw Error('network uncertain');
@@ -62,7 +62,7 @@ test('real backend flow retains possession token and retries same clientTurnId w
   assert.equal(JSON.parse(attempts[0].options.body).clientTurnId,JSON.parse(attempts[1].options.body).clientTurnId);
   assert.equal(attempts[0].options.headers['X-SecurePay-Conversation-Token'],secret);
   assert.equal(attempts[0].options.credentials,'omit');
-  assert.equal(seen.filter(x=>x.url.endsWith('/api/agent/conversations')).length,1);
+  assert.equal(seen.filter(x=>x.url.endsWith('/installations/'+site+'/conversations')).length,1);
   assert.equal(storage.dump().length,1);
   assert.ok(!storage.dump()[0].includes('I need an electrician'));
 });
@@ -72,7 +72,7 @@ test('same-tab reload resumes server history, never re-invents AI responses',asy
   let historyReads=0;
   const api=async(url,options)=>{
     if(url.endsWith('/installations/'+site))return good(manifest);
-    if(url.endsWith('/api/agent/conversations'))return good(created);
+    if(url.endsWith('/installations/'+site+'/conversations'))return good(created);
     if(url.endsWith('/turns'))return good({message:'Backend says yes.'});
     if(url.includes('/history?limit=20')){
       historyReads++;
@@ -119,4 +119,37 @@ test('rejects unrelated API domains even when a host supplies them',()=>{
   const win={};
   vm.runInNewContext(source,{window:win,URL,Date});
   assert.throws(()=>win.SecurePayGuestAgent.create({siteId:site,apiBaseUrl:'https://unrelated.example'}),/verified SecurePay/);
+});
+
+
+test('refresh after an uncertain metered turn preserves the original reservation ID',async()=>{
+  const storage=makeStorage();
+  const attempts=[];
+  let first=true;
+  const upstream=async(url,options)=>{
+    if(url.endsWith('/installations/'+site))return good(manifest);
+    if(url.endsWith('/installations/'+site+'/conversations'))return good(created);
+    if(url.endsWith('/turns')){
+      attempts.push(JSON.parse(options.body));
+      if(first){first=false;throw Error('network outcome unknown');}
+      return good({message:'The same metered turn is confirmed.'});
+    }
+    if(url.includes('/history?limit=20'))return good({entries:[]});
+    throw Error('Unexpected '+url);
+  };
+  const initial=setup(upstream,storage);
+  await initial.connect();
+  const uncertain=await initial.send('Please organise my plumbing request');
+  assert.equal(uncertain.pending.message,'Please organise my plumbing request');
+  assert.equal(storage.dump().length,2,'only tab-scoped conversation and pending turn records');
+  const afterRefresh=setup(upstream,storage);
+  const state=await afterRefresh.connect();
+  assert.equal(state.pending.message,'Please organise my plumbing request');
+  const completed=await afterRefresh.retry();
+  assert.equal(completed.pending,null);
+  assert.equal(completed.entries[1].text,'The same metered turn is confirmed.');
+  assert.equal(attempts.length,2);
+  assert.equal(attempts[0].clientTurnId,attempts[1].clientTurnId);
+  assert.equal(attempts[0].message,attempts[1].message);
+  assert.equal(storage.dump().length,1,'pending reservation removed after confirmation');
 });
