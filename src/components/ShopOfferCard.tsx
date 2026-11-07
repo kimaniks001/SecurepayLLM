@@ -38,11 +38,12 @@ export function ShopOfferCover({offer,large=false}:{offer:StoreOffer;large?:bool
   </div>;
 }
 
-export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,selectedCounts}:{
+export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,selectedCounts}:{
   offer:StoreOffer;
   onOpen:()=>void;
   onOpenStore:()=>void;
   onCollect?:(offer:StoreOffer,destination:StoreDestination)=>void;
+  onQuickKs001?:(offer:StoreOffer)=>void;
   selectedCounts?:{vision:number;agreement:number};
 }) {
   const [quickOpen,setQuickOpen]=useState(false);
@@ -88,6 +89,8 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,selectedCounts
         <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
           className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40"><Plus size={14}/> Agreement</button>
       </div>
+      <button type="button" disabled={!onQuickKs001||!canUseForAgreement} onClick={()=>{onQuickKs001?.(offer);setQuickOpen(false);}}
+        className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-forest-200 bg-white px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"><Plus size={14}/> Add to KS001 question</button>
       <button type="button" onClick={onOpen} className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ArrowUpRight size={14}/> Open full item details</button>
       {photo && <button type="button" onClick={()=>setImageOpen(true)} className="mt-1 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ImageIcon size={14}/> View full image</button>}
       <p className="mt-1 text-[0.65rem] text-sand-500">Adding keeps you shopping; it does not book or pay.</p>
