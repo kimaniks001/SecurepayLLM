@@ -124,6 +124,15 @@ test('shop remains visible while both real and example modes update the right-ha
  assert.match(demo,/draftPreview=\{selectionDraft\}/);
 });
 
+test('the original SecurePay Check right panel retains a selection summary after leaving the full shop',()=>{
+ assert.match(parent,/data-store-selection-parent-summary/);
+ assert.match(parent,/onSelectionChange=\{setStoreSelected\}/);
+ assert.match(parent,/storeSelectedTotals\.byDestination\[destination\]/);
+ assert.match(parent,/formatListedMoney\(minor,currency\)/);
+ assert.match(parent,/if\(previousStoreOwnerSignedIn\.current && !signedIn\)setStoreSelected\(\[\]\)/);
+ assert.match(parent,/not a provider quote, saved Vision Dream, binding Agreement or payment/);
+});
+
 test('real KS001 and Vision stage only unsent drafts with consent, never auto accept or lose existing text',()=>{
  assert.match(parent,/const stageStoreVision=async/);
  assert.match(parent,/visionNorth\.setDraft\(text\)/);
