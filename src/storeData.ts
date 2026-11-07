@@ -23,6 +23,15 @@ export const demoStores: StoreIdentity[] = [
     description: 'Professional interior and exterior painting for residential and commercial properties.',
   },
   {
+    id: 'store-ruiru-shoes',
+    name: 'Ruiru Steps Footwear',
+    operator: 'Example footwear trader',
+    businessIdentity: 'Example Store only — no real KS Number or verification',
+    serviceAreas: ['Ruiru', 'Kiambu'],
+    verified: false,
+    description: 'Illustrative Digital Store for comfortable everyday footwear. Demonstrates size, colour, collection and delivery questions, not a real registered seller.',
+  },
+  {
     id: 'store-daniel',
     name: 'Daniel\'s Tech Store',
     operator: 'Daniel Mwangi',
@@ -50,6 +59,39 @@ function makeSecureLink(id: string, label: string): SecureLink {
 // ─── Demo offers ───────────────────
 
 export const demoOffers: StoreOffer[] = [
+  {
+    id: 'offer-shoes',
+    storeId: 'store-ruiru-shoes',
+    storeName: 'Ruiru Steps Footwear',
+    title: 'Everyday Leather Sneakers',
+    description: 'Example pair of comfortable everyday sneakers for walking and casual wear. Choose your preferred size (EU 39–45) and colour before checking actual stock with the trader.',
+    offerType: 'product',
+    priceType: 'fixed',
+    price: 'KES 4,200',
+    priceUnit: 'per pair',
+    currency: 'KES',
+    scope: {
+      included: ['One pair of sneakers in a confirmed size and colour'],
+      excluded: ['Delivery outside Ruiru', 'Additional accessories'],
+    },
+    media: [],
+    serviceArea: 'Ruiru, Kiambu',
+    availability: 'Seller must confirm size and colour',
+    timing: 'Collection or delivery to be confirmed',
+    conditions: ['Confirm shoe size and preferred colour', 'Confirm condition and availability', 'Agree on delivery or collection and any separate fee'],
+    documents: [],
+    milestoneSeeds: [],
+    obligationSeeds: [
+      { responsibleParty: 'Illustrative footwear trader', action: 'Present the agreed size, colour and condition for inspection', condition: 'Customer confirms the pair matches the agreed description' },
+      { responsibleParty: 'Customer', action: 'Specify size, colour and preferred collection or delivery', condition: 'Trader confirms availability and any delivery charge' },
+    ],
+    customizationAllowed: true,
+    secureLink: makeSecureLink('example-shoes', 'Everyday Leather Sneakers'),
+    lifecycle: 'published',
+    version: 'v1',
+    isExternalReference: false,
+    isDemoState: true,
+  },
   {
     id: 'offer-cctv',
     storeId: 'store-keyman',
