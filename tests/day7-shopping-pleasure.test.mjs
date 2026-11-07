@@ -16,7 +16,7 @@ test('shopping leads with good discovery, not tool machinery or signup friction'
  assert.match(shelf,/Explore the shelves/);
  assert.ok(shelf.indexOf('Explore the shelves')<shelf.indexOf('Stores with published offers'));
  assert.match(shelf,/ShopOfferCard/);
- assert.match(shelf,/onOpenStore=\{\(\) => onOpenStore\(offer.storeId\)\}/);
+ assert.match(shelf,/onOpenStore=\{\(\) => \{setQuickOfferId\(null\);onOpenStore\(offer.storeId\);\}\}/);
  assert.match(shelf,/onCreateOffer/);
  assert.match(shelf,/onManageStore/);
 });
