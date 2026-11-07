@@ -483,14 +483,14 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         selection={selection}
         onCollect={collect}
         onQuickKs001={offer=>{void quickAsk(offer);}}
-        selectionPanel={<StoreCollectionPanel
+        selectionPanel={shoppingWide || !embedded ? <StoreCollectionPanel
           items={selection}
           onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
           onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
           onContinue={destination=>{void stageCollection(destination);}}
           notice={collectionNotice}
           busy={collectionBusy}
-        />}
+        /> : undefined}
         onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
