@@ -94,6 +94,8 @@ export interface UpdateNotificationPreferencesRequest {
   reviewsCategoryEnabled: boolean;
   securityCategoryEnabled: boolean;
   communityCategoryEnabled: boolean;
+  /** Optional until the backend supports Store notification preferences. */
+  storesCategoryEnabled?: boolean;
   supportCategoryEnabled: boolean;
 }
 
