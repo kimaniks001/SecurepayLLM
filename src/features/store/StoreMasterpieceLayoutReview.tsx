@@ -5,7 +5,7 @@ import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
