@@ -34,7 +34,7 @@ test('P0: authenticated Store is mounted inside the ONE actual Living Workspace 
   assert.match(living, /aria-hidden=\{!storeOpen\}/);
 });
 
-test('P0: preview Store has an explicit route, reused Store component and NO fake backend', () => {
+test('P0: preview Store has an explicit route, reused Store component, labelled examples and NO fake backend', () => {
   assert.match(runtime, /(?:work\|vision\|circle\|community\|store)/);
   assert.match(living, /isStoreLayoutReviewRoute/);
   assert.match(living, /#\/preview\/living-workspace\/store/);
@@ -43,8 +43,8 @@ test('P0: preview Store has an explicit route, reused Store component and NO fak
   assert.match(review, /<StoreHome/);
   assert.match(review, /embedded/);
   assert.match(review, /data-p0-layout-review-only/);
-  assert.match(review, /no live Store backend/);
-  assert.match(review, /Nothing was published, sent or changed/);
+  assert.match(review, /Not live trader listings/);
+  assert.match(review, /No real Store created, no offer published/);
   assert.doesNotMatch(review, /createStoreGateway|fetch\(|createOffer\(/);
 });
 
@@ -104,7 +104,7 @@ test('P0: Store uses its existing full-feature controllers but no duplicate NavB
   assert.match(store, /<StoreProfileView/);
   assert.match(store, /<OfferToTradeHandoff/);
   assert.match(home, /embedded = false/);
-  assert.match(home, /Find a real Store or offer/);
+  assert.match(home, /Good things\. Good people\. Clear agreements/);
 });
 
 test('P0: canonical Store-to-KS001 source, new work and Agreement remain authoritative', () => {

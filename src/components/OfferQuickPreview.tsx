@@ -39,7 +39,7 @@ export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', source
           <div className="sp-section px-4 py-4">
             <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Is it available?</div>
             <div className="mt-1 text-sm font-medium text-forest-900">{offer.availability}</div>
-            <p className="mt-1 text-xs text-sand-500">{unavailable ? 'This offer cannot be used right now.' : 'This is the Store’s current published availability state.'}</p>
+            <p className="mt-1 text-xs text-sand-500">{unavailable ? 'This offer cannot be used right now.' : 'Seller-listed availability. Confirm with the trader before agreeing.'}</p>
           </div>
           <div className="sp-section px-4 py-4 sm:col-span-2">
             <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-500">Where?</div>
@@ -52,14 +52,14 @@ export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', source
           {unavailable ? (
             <p className="mt-2 text-sm text-sand-600">This offer is currently unavailable. You can still inspect the Store, ask KS001, or read the full offer.</p>
           ) : (
-            <p className="mt-2 text-sm text-sand-600">Choose this offer only when you want SecurePay to carry its real Store facts into the trade-shaping flow. No Agreement or payment is created by previewing it.</p>
+            <p className="mt-2 text-sm text-sand-600">Interested? Ask KS001 what matters, visit the trader's shop or work out the agreement details. Viewing an offer never reserves or pays for it.</p>
           )}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {!unavailable && <button type="button" onClick={onUseThis} className="sp-primary-action min-h-11 px-5 text-sm font-semibold">Use this</button>}
-            <button type="button" onClick={onAskKs001} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">
-              <MessageCircle className="h-4 w-4" /> Ask KS001
+            <button type="button" onClick={onAskKs001} className="sp-primary-action inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold">
+              <MessageCircle className="h-4 w-4" /> Ask KS001 about this
             </button>
-            <button type="button" onClick={onOpenStore} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm font-medium text-forest-700">Open Store</button>
+            <button type="button" onClick={onOpenStore} className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-medium text-forest-700">Visit this shop</button>
+            {!unavailable && <button type="button" onClick={onUseThis} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 text-sm font-medium text-forest-700">Work out an agreement</button>}
             <button type="button" onClick={onOpenFull} className="min-h-11 rounded-xl px-4 text-sm font-medium text-sand-600 underline">See full offer</button>
           </div>
         </section>
