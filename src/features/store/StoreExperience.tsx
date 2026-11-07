@@ -576,6 +576,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onBack={() => setShowFullOffer(false)}
             onInterested={() => onNavigate('signed-in')}
             onUseThis={() => controller.useThis()}
+            onCollect={collect}
             onAskSecurePay={() => {
               if(state.selectedOffer.status !== 'ready') return;
               if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
@@ -595,6 +596,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           backLabel={returnContext ? `Back to ${returnContext.label}` : 'Results'}
           sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
+          onCollect={collect}
           onAskKs001={() => {
               if(state.selectedOffer.status !== 'ready') return;
               if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
