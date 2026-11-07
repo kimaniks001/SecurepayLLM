@@ -60,7 +60,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, shoppingWide = false, embedded = false }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, onSelectionChange, shoppingWide = false, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -72,6 +72,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
   onStageSelections?: (message: string, destination: StoreDestination) => Promise<void>;
+  onSelectionChange?: (items: SelectionItem[]) => void;
   shoppingWide?: boolean;
   /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
   embedded?: boolean;
@@ -119,7 +120,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const collect=(offer:import('../../types').StoreOffer,destination:StoreDestination)=>{
     try{
       const next=collectOffer(selectionRef.current,offer,destination,false);
-      selectionRef.current=next;setSelection(next);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'your agreement list')+'. Keep browsing.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
@@ -128,7 +129,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     setCollectionBusy(true);setCollectionNotice('');
     try{
       const next=collectOffer(selectionRef.current,offer,'agreement',false);
-      selectionRef.current=next;setSelection(next);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       const question=selectionToKs001([itemFromOffer(offer,'agreement',false)],'agreement');
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
@@ -160,7 +161,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // delete an unsent Store enquiry. An actual sign-out clears private work.
     if (previousStoreSession.current.status === 'signed-in'
         && sessionEpoch.status === 'signed-out')
-      {setCustomerDraft(emptyStoreCustomerDraft);selectionRef.current=[];setSelection([]);setCollectionNotice('');}
+      {setCustomerDraft(emptyStoreCustomerDraft);selectionRef.current=[];setSelection([]);onSelectionChange?.([]);setCollectionNotice('');}
     previousStoreSession.current = sessionEpoch;
   }, [sessionEpoch]);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
@@ -484,8 +485,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onQuickKs001={offer=>{void quickAsk(offer);}}
         selectionPanel={<StoreCollectionPanel
           items={selection}
-          onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);}}
-          onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);}}
+          onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
+          onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
           onContinue={destination=>{void stageCollection(destination);}}
           notice={collectionNotice}
           busy={collectionBusy}
