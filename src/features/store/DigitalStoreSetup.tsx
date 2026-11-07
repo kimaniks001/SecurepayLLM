@@ -237,7 +237,7 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
           </label>
           <label className="text-xs">Store style
             <select value={profile.storefrontPreset ?? 'SIGNATURE'} onChange={e => setProfile(p=>({...p,storefrontPreset:e.target.value as StorefrontPreset}))}
-              className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 px-3 text-sm">{presets.map(v=><option key={v} value={v}>{v.replaceAll('_',' ')}</option>)}</select>
+              className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 px-3 text-sm">{presets.map(v=><option key={v} value={v}>{v.replace(/_/g,' ')}</option>)}</select>
           </label>
           <label className="text-xs">Store colours
             <select value={profile.storefrontTheme ?? 'FOREST'} onChange={e => setProfile(p=>({...p,storefrontTheme:e.target.value as StorefrontTheme}))}

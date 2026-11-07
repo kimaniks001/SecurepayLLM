@@ -1,6 +1,6 @@
 (function (global) {
   'use strict';
-  // SecurePay Embed SDK: site-scoped guest KS001 and read-only canonical Agreement review. No money.
+  // SecurePay Embed SDK: registered, site-scoped guest KS001 and read-only Agreement review. No money.
   var VERSION = '0.5.0';
   var VALID_TOOLS = ['ask', 'contract', 'securelink', 'work', 'vision'];
   var instances = new WeakMap();
@@ -125,7 +125,7 @@
     }
     function renderChat() {
       // General public KS001 only; estate private records and identity mapping are not accessible.
-      body.appendChild(element('p','minor','General SecurePay assistance. No private estate records are connected.'));
+      body.appendChild(element('p','minor','General SecurePay assistance. No private host records or account data are connected.'));
       var state=agent ? agent.snapshot() : {status:'unavailable',ready:false,entries:[],error:'Guest client unavailable'};
       if(chatChecking)body.appendChild(element('div','note','Checking approved SecurePay staging connection…'));
       if(!state.ready){
@@ -173,7 +173,7 @@
           form.addEventListener('submit',function(ev){ev.preventDefault();void sendChat();});
           body.appendChild(form);
         }
-        var sub=element('div','minor','Guest work can resume in this browser tab until its access token expires. Transfer to the full website is reserved for Phase 5.');
+        var sub=element('div','minor','This same guest conversation can continue in SecurePay after you sign in or get your KS Number and approve the transfer.');
         sub.style.marginTop='9px';body.appendChild(sub);
         transferButton();
         body.appendChild(button('Start new guest conversation',function(){
@@ -244,7 +244,7 @@
               event.data.siteId===transfer.siteId &&
               (event.data.returnReference||null)===(metadata.returnReference||null) &&
               event.data.status==='SECUREPAY_WORK_SAVED') {
-            finish(true,'Your existing KS001 work was saved in SecurePay. You can return to Estate.ke whenever you wish.');
+            finish(true,'Your existing KS001 conversation was saved in SecurePay. Your original page remains open, so you can return to it whenever you wish.');
           }
         };
         global.addEventListener('message',listener);
@@ -252,11 +252,11 @@
           finish(false,'The secure transfer window expired. Start another transfer if needed.');
         },Math.max(1000,Date.parse(transfer.expiresAt)-Date.now()+1000));
         popup.location.replace(matchedOrigin+'/#/embed/continue');
-        transferNotice='Complete sign-in and approve the transfer in the SecurePay window.';
+        transferNotice='Sign in or get your KS Number, then approve saving this same conversation in the SecurePay window.';
         render();
       } catch (_) {
         transferBusy=false;
-        transferNotice='SecurePay could not prepare the transfer. Your Estate conversation has not been lost.';
+        transferNotice='SecurePay could not prepare the transfer. Your conversation stays in this original tab.';
         try{popup.close();}catch(_){}
         if(listener)global.removeEventListener('message',listener);
         if(timer&&global.clearTimeout)global.clearTimeout(timer);
@@ -388,7 +388,7 @@
       var link=element('a','','Visit full SecurePay');
       link.href='https://securepay.ke/';link.target='_blank';link.rel='noopener noreferrer';
       body.appendChild(link);
-      body.appendChild(element('div','minor','Opening the website does not yet transfer this conversation. Secure work continuity is Phase 5.'));
+      body.appendChild(element('div','minor','Opening the website alone does not transfer your conversation. Choose Continue in SecurePay when ready.'));
     }
 
     function button(label, click, className) {

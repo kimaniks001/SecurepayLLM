@@ -714,9 +714,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       <span>Saved in SecurePay · started at {new URL(embedOriginHint.returnOrigin).hostname}
         {embedOriginHint.returnReference ? ' · Request '+embedOriginHint.returnReference : ''}
         {embedOriginHint.purpose!=='UNSPECIFIED' ? ' · '+(embedOriginHint.purpose==='HOME'?'My Home':'My Work') : ''}.
-        Estate source details remain unverified until Estate.ke authorises them.</span>
+        Information from the original service remains unverified until that service confirms it.
+        Your original task should still be open in the other browser tab.</span>
       <a href={embedOriginHint.returnOrigin+'/'}
-        className="font-semibold underline" rel="noopener noreferrer">Return to Estate.ke</a>
+        className="font-semibold underline" rel="noopener noreferrer">Open {new URL(embedOriginHint.returnOrigin).hostname} home</a>
     </div>}
     {signedIn && !mockSignedIn && workspaceGateways && mode==='circle' && workingCircleId
       ? <div className="mx-auto w-full max-w-[1550px] px-3 py-5 sm:px-5">
