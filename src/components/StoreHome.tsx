@@ -1,5 +1,6 @@
 import { Search, ShoppingBag, Store, Plus, MessageCircle, Package, Wrench, ChevronRight } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
+import type { SelectionItem, StoreDestination } from '../features/store/shopSelection.mjs';
 import { ShopOfferCard } from './ShopOfferCard';
 import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 import type { AppView } from '../types';
@@ -24,6 +25,11 @@ interface StoreHomeProps {
   onAskKs001?: () => void;
   contextLabel?: string | null;
   connectionsPanel?: React.ReactNode;
+  /** Optional quick collecting without changing Store route or KS001 controller. */
+  onCollect?: (offer: StoreOffer, destination: StoreDestination) => void;
+  selection?: SelectionItem[];
+  selectionPanel?: React.ReactNode;
+  shoppingWide?: boolean;
 }
 
 /**
@@ -34,10 +40,12 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, embedded = false }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, onCollect, selection = [], selectionPanel, shoppingWide = false, embedded = false }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
-      <div className={embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
+      <div className={shoppingWide && selectionPanel ? 'mx-auto w-full max-w-[1530px] px-3 py-4 sm:px-5' : embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
+        <div className={shoppingWide && selectionPanel ? 'grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(275px,340px)]' : 'min-w-0'}>
+          <div className="min-w-0">
         <section aria-label="Digital Store entrance" className={embedded ? 'mb-3 rounded-2xl border border-cream-200 bg-white px-4 py-3 sm:px-5' : 'sp-hero mb-3 px-5 py-4 md:px-7 md:py-5'}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="sp-kicker">{contextLabel ? `Finding things for ${contextLabel}` : 'Digital Stores · Goods and services'}</span>
@@ -123,7 +131,14 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-label="Published Store offers">
               {offers.map((offer: StoreOffer) => (
-                <ShopOfferCard key={offer.id} offer={offer} onOpen={() => onOpenOffer(offer.id)} onOpenStore={() => onOpenStore(offer.storeId)} />
+                <ShopOfferCard key={offer.id} offer={offer}
+                  onOpen={() => onOpenOffer(offer.id)}
+                  onOpenStore={() => onOpenStore(offer.storeId)}
+                  onCollect={onCollect}
+                  selectedCounts={{
+                    vision:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='vision')?.quantity||0,
+                    agreement:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='agreement')?.quantity||0,
+                  }}/>
               ))}
             </div>
           )}
@@ -207,6 +222,9 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           </span>
           <p className="text-[0.72rem] text-sand-600 mt-0.5">Describe what you need and SecurePay will search for matching offers</p>
         </button>
+          </div>
+          {selectionPanel && <div className="min-w-0" data-store-selection-right>{selectionPanel}</div>}
+        </div>
       </div>
     </div>
   );
