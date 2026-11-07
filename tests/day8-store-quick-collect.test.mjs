@@ -96,12 +96,12 @@ test('selection-to-KS001 is a reviewable, bounded, non-binding human request',()
 
 test('the product card previews on hover or explicit tap and lets users opt into a full page/image',()=>{
  assert.match(card,/data-shop-hover-preview/);
- assert.match(card,/group-hover:block/);
- assert.match(card,/group-focus-within:block/);
+ assert.match(card,/group-hover\/visual:block/);
+ assert.match(card,/group-focus-within\/visual:block/);
  assert.match(card,/aria-expanded=\{quickOpen\}/);
- assert.match(card,/Add to KS001 question/);
- assert.match(card,/Open full item details/);
- assert.match(card,/View full image/);
+ assert.match(card,/onQuickKs001\?\.\(offer\)/);
+ assert.match(card,/Open full details for/);
+ assert.match(card,/View larger image of/);
  assert.match(card,/onCollect\?\.\(offer,destination\)/);
  assert.doesNotMatch(card,/window\.location/);
 });
