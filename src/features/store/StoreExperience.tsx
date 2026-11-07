@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
+import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
 import { OfferQuickPreview } from '../../components/OfferQuickPreview';
@@ -505,7 +506,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onInterested={() => onNavigate('signed-in')}
             onUseThis={() => controller.useThis()}
             onAskSecurePay={() => onAskKs001
-              ? onAskKs001(`I’m looking at the Store offer “${state.selectedOffer.status === 'ready' ? state.selectedOffer.data.offer.title : ''}”. Help me understand or compare this offer using only Store facts SecurePay can verify. Do not create an Agreement, choose the provider for me, or make payment claims.`)
+              ? onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer))
               : onNavigate('signed-in')}
             onShare={() => setShowShareSheet(true)}
             onViewStore={id => void controller.openStore(id)}
@@ -522,7 +523,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
           onAskKs001={() => onAskKs001
-            ? onAskKs001(`I’m looking at the Store offer “${state.selectedOffer.status === 'ready' ? state.selectedOffer.data.offer.title : ''}”. Help me understand whether it fits what I need using only Store facts SecurePay can verify. Do not create an Agreement, select the provider automatically, or move money.`)
+            ? onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer))
             : onNavigate('signed-in')}
           onOpenStore={() => void controller.openStore(state.selectedOffer.status === 'ready' ? state.selectedOffer.data.store.id : '')}
           onOpenFull={() => setShowFullOffer(true)}
