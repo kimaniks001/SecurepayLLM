@@ -1,19 +1,24 @@
 import { ArrowLeft, Store, MapPin, BadgeCheck } from 'lucide-react';
+import { useState } from 'react';
+import { ShopOfferCard } from './ShopOfferCard';
+import type { SelectionItem, StoreDestination } from '../features/store/shopSelection.mjs';
 import type { StoreIdentity, StoreOffer } from '../types';
 import type { PublicDigitalStoreAddress } from '../api/securepay/store/dto';
-import { ResultCard } from '../features/discovery/ui/ResultCard';
-import { resultFromStoreOffer } from '../features/discovery/result';
 
 interface StoreProfileViewProps {
   store: StoreIdentity;
   offers: StoreOffer[];
   onBack: () => void;
   onOpenOffer: (id: string) => void;
+  onCollect?: (offer:StoreOffer,destination:StoreDestination)=>void;
+  onQuickKs001?: (offer:StoreOffer)=>void;
+  selection?: SelectionItem[];
   digitalAddress?: PublicDigitalStoreAddress | null;
   connectionPanel?: React.ReactNode;
 }
 
-export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAddress, connectionPanel }: StoreProfileViewProps) {
+export function StoreProfileView({ store, offers, onBack, onOpenOffer, onCollect, onQuickKs001, selection=[], digitalAddress, connectionPanel }: StoreProfileViewProps) {
+  const [quickOfferId,setQuickOfferId]=useState<string|null>(null);
   const publishedOffers = offers.filter((o) => o.lifecycle === 'published' || o.lifecycle === 'unavailable');
 
   return (
@@ -67,10 +72,20 @@ export function StoreProfileView({ store, offers, onBack, onOpenOffer, digitalAd
 
         {/* Offers */}
         <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-2">Offers from this store</div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {publishedOffers.map((offer) => (
-            <ResultCard key={offer.id} offer={resultFromStoreOffer(offer)} onOpen={() => onOpenOffer(offer.id)} />
-          ))}
+        <div data-shop-profile-collect className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {publishedOffers.map(offer=><ShopOfferCard key={offer.id} offer={offer}
+            onOpen={()=>{setQuickOfferId(null);onOpenOffer(offer.id);}}
+            onOpenStore={()=>setQuickOfferId(null)}
+            onCollect={onCollect}
+            onQuickKs001={onQuickKs001}
+            quickOpen={quickOfferId===offer.id}
+            onToggleQuick={()=>setQuickOfferId(current=>current===offer.id?null:offer.id)}
+            onCloseQuick={()=>setQuickOfferId(null)}
+            selectedCounts={{
+              vision:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='vision')?.quantity||0,
+              agreement:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='agreement')?.quantity||0,
+            }}/>
+          )}
         </div>
 
         {publishedOffers.length === 0 && (
