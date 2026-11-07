@@ -54,7 +54,7 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
     onCollect?.(offer,destination);
     setQuickOpen(false);
   };
-  return <article data-shop-quick-card className="group relative min-w-0 overflow-visible rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:border-forest-200 hover:shadow-md">
+  return <article data-shop-quick-card className="group relative min-w-0 overflow-visible rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:z-30 hover:border-forest-200 hover:shadow-md focus-within:z-30">
     <div className="overflow-hidden rounded-t-2xl">
       <button type="button" onClick={()=>photo?setImageOpen(true):setQuickOpen(true)} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
         className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
