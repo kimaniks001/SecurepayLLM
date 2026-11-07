@@ -69,7 +69,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     try{
       const next=collectOffer(selectionRef.current,offer,'agreement',true);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
+      setSelectionDraft(selectionToKs001(next,'agreement'));
       setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
       onOpenKs001Preview?.();
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
