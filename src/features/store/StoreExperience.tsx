@@ -96,6 +96,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [selection,setSelection]=useState<SelectionItem[]>([]);
+  const selectionRef=useRef<SelectionItem[]>([]);
   const [collectionNotice,setCollectionNotice]=useState('');
   const [collectionBusy,setCollectionBusy]=useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
@@ -117,7 +118,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
 
   const collect=(offer:import('../../types').StoreOffer,destination:StoreDestination)=>{
     try{
-      setSelection(current=>collectOffer(current,offer,destination,false));
+      const next=collectOffer(selectionRef.current,offer,destination,false);
+      selectionRef.current=next;setSelection(next);
       setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'your agreement list')+'. Keep browsing.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
@@ -125,7 +127,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if(collectionBusy)return;
     setCollectionBusy(true);setCollectionNotice('');
     try{
-      const text=selectionToKs001(selection,destination);
+      const text=selectionToKs001(selectionRef.current,destination);
       if(onStageSelections)await onStageSelections(text,destination);
       else if(destination==='agreement' && onAskKs001)onAskKs001(text);
       else throw new Error('This Store is not connected to a safe '+(destination==='vision'?'Vision':'KS001')+' handoff. Your selection remains here.');
@@ -144,7 +146,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // delete an unsent Store enquiry. An actual sign-out clears private work.
     if (previousStoreSession.current.status === 'signed-in'
         && sessionEpoch.status === 'signed-out')
-      {setCustomerDraft(emptyStoreCustomerDraft);setSelection([]);setCollectionNotice('');}
+      {setCustomerDraft(emptyStoreCustomerDraft);selectionRef.current=[];setSelection([]);setCollectionNotice('');}
     previousStoreSession.current = sessionEpoch;
   }, [sessionEpoch]);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
@@ -467,8 +469,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onCollect={collect}
         selectionPanel={<StoreCollectionPanel
           items={selection}
-          onQuantity={(key,value)=>setSelection(current=>updateSelectedQuantity(current,key,value))}
-          onRemove={key=>setSelection(current=>removeSelected(current,key))}
+          onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);}}
+          onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);}}
           onContinue={destination=>{void stageCollection(destination);}}
           notice={collectionNotice}
           busy={collectionBusy}
