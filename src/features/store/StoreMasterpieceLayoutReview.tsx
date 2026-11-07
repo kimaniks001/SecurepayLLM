@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
@@ -34,7 +34,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[]}) {
   const [page,setPage] = useState<Page>('shop');
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -51,6 +51,9 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   const [prepared,setPrepared] = useState(false);
   const [selection,setSelection] = useState<SelectionItem[]>([]);
   const selectionRef=useRef<SelectionItem[]>([]);
+  useEffect(()=>{
+    if(workspaceSelection && workspaceSelection!==selectionRef.current){selectionRef.current=workspaceSelection;setSelection(workspaceSelection);setSelectionDraft('');}
+  },[workspaceSelection]);
   const [collectionNotice,setCollectionNotice] = useState('');
   const [selectionDraft,setSelectionDraft] = useState('');
   const collect=(offer:StoreOffer,destination:StoreDestination)=>{
