@@ -3,7 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
@@ -122,6 +122,20 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       selectionRef.current=next;setSelection(next);
       setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'your agreement list')+'. Keep browsing.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
+  };
+  const quickAsk=async(offer:import('../../types').StoreOffer)=>{
+    if(collectionBusy)return;
+    setCollectionBusy(true);setCollectionNotice('');
+    try{
+      const next=collectOffer(selectionRef.current,offer,'agreement',false);
+      selectionRef.current=next;setSelection(next);
+      const question=selectionToKs001([itemFromOffer(offer,'agreement',false)],'agreement');
+      if(onStageSelections)await onStageSelections(question,'agreement');
+      else if(onAskKs001)onAskKs001(question);
+      else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
+      setCollectionNotice('This offer is ready in the KS001 composer for your review. Nothing was automatically sent or agreed.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001. Your selection is still here.');}
+    finally{setCollectionBusy(false);}
   };
   const stageCollection=async(destination:StoreDestination)=>{
     if(collectionBusy)return;
@@ -467,6 +481,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         shoppingWide={shoppingWide}
         selection={selection}
         onCollect={collect}
+        onQuickKs001={offer=>{void quickAsk(offer);}}
         selectionPanel={<StoreCollectionPanel
           items={selection}
           onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);}}
