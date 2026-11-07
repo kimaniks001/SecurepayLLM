@@ -225,9 +225,12 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
           <p className="text-[0.72rem] text-sand-600 mt-0.5">Describe what you need and SecurePay will search for matching offers</p>
         </button>
           </div>
-          {selectionPanel && <div className="min-w-0" data-store-selection-right>{selectionPanel}</div>}
+          {selectionPanel && <div id="store-selection-right" className="min-w-0" data-store-selection-right>{selectionPanel}</div>}
         </div>
       </div>
+      {selectionPanel && selection.length>0 && <button type="button" onClick={()=>document.getElementById('store-selection-right')?.scrollIntoView({behavior:'smooth',block:'start'})}
+        className={`fixed bottom-4 right-4 z-30 min-h-11 rounded-full bg-forest-800 px-4 text-xs font-semibold text-white shadow-xl ${shoppingWide?'lg:hidden':''}`}
+        aria-label={'Review '+selection.length+' selected offers'}>Review {selection.length} selected →</button>}
     </div>
   );
 }
