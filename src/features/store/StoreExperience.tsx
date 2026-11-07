@@ -108,6 +108,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     }
   },[workspaceSelection]);
   const [collectionBusy,setCollectionBusy]=useState(false);
+  const offerOriginRef=useRef<'shelf'|'seller'>('shelf');
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
   const [focusedEnquiry, setFocusedEnquiry] = useState(() =>
@@ -505,7 +506,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onCollect={collect}
         onQuickKs001={offer=>{void quickAsk(offer);}}
         selectionPanel={shoppingWide || !embedded ? basketPane : undefined}
-        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
+        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { offerOriginRef.current='shelf';setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
         onCreateOffer={() => requireAuth('create')}
@@ -532,7 +533,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
     else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers}
       onCollect={collect} onQuickKs001={offer=>{void quickAsk(offer);}} selection={selection}
-      onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
+      onBack={() => controller.backToHome()} onOpenOffer={id => { offerOriginRef.current='seller';setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
       digitalAddress={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id ? publicDigitalAddress : null}
       connectionPanel={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id
         ? <StoreCustomerConnections key={state.selectedStore.data.store.id}
@@ -594,7 +595,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       body = (
         <OfferQuickPreview
           offer={state.selectedOffer.data.offer}
-          onBack={() => returnContext ? returnContext.onReturn() : controller.backToHome()}
+          onBack={() => returnContext ? returnContext.onReturn() : offerOriginRef.current==='seller' ? controller.backToStore() : controller.backToHome()}
           backLabel={returnContext ? `Back to ${returnContext.label}` : 'Results'}
           sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
