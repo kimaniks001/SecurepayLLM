@@ -3,7 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
@@ -495,6 +495,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           items={selection}
           onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
           onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
+          onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
           onContinue={destination=>{void stageCollection(destination);}}
           notice={collectionNotice}
           busy={collectionBusy}
