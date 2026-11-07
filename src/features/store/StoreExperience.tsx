@@ -571,6 +571,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
           publishedCount={state.mine.data.raw.filter(offer => offer.published).length}
           onProfileSaved={() => { void controller.refreshMine(); }}
+          onCommunityProviderContinue={onAskKs001 ? serviceTypes => onAskKs001(
+            'I have explicitly registered my interest in serving my community through ' +
+            serviceTypes.map(type => type === 'SHORTSTAYS' ? 'ShortStays' : type === 'MY_RIDE' ? 'My Ride' : 'Storage').join(', ') +
+            ' during my Digital Store setup. Help me prepare the relevant service-specific provider onboarding. ' +
+            'This is an application only; do not claim I am verified, publish an offer, accept bookings or agreements, or activate any financial action.'
+          ) : undefined}
         />}
       />
     );
