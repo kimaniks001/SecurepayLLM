@@ -356,13 +356,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // Shop in focus by default; the original three-panel shell stays mounted underneath.
   // The customer can switch to the compact workspace view without losing a draft.
   const [storeFocus, setStoreFocus] = useState(true);
+  // During shopping KS001 stays mounted but is visually tucked away until asked for.
+  // This is a view choice only, never a second conversation or identity.
+  const [storeAssistantOpen, setStoreAssistantOpen] = useState(false);
   const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
   const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
   const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
   const storeTransitionLock = useRef(false);
   const storeReturnScreen = useRef<Screen>('chat');
   const closeEmbeddedStore = (target?: Screen) => {
-    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);setStoreFocus(true);
+    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);setStoreFocus(true);setStoreAssistantOpen(false);
     setScreen(target ?? storeReturnScreen.current);
     // Close without unmounting the parent's KS001 controller or restoring a
     // stale Store URL on refresh (including the explicit visual-review route).
@@ -987,8 +990,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </aside>
       </>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
-      <section aria-label="KS001 conversation" className={`${screen==='chat'||toolsOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 rounded-2xl border border-cream-200 bg-white md:flex`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{areaLabels[mode]} · {persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
+      <section aria-label="KS001 conversation" aria-hidden={storeOpen&&!storeAssistantOpen}
+        data-store-ks001-compact-assist={storeOpen ? (storeAssistantOpen?'open':'closed') : undefined}
+        className={`${storeOpen
+          ? (storeAssistantOpen
+              ? 'fixed inset-x-3 bottom-3 top-3 z-[90] flex shadow-2xl sm:inset-x-auto sm:left-5 sm:w-[390px] md:bottom-4 md:left-24 md:top-[100px]'
+              : 'hidden')
+          : (screen==='chat'||toolsOpen?'flex md:flex':'hidden md:flex')} sp-brand-conversation min-w-0 ${storeOpen?'min-h-0':'min-h-[70dvh] flex-1 md:min-h-0'} flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white`}>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{storeOpen?'Your shopping assistant':areaLabels[mode]+' · '+persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">
+          {storeOpen && <button type="button" onClick={()=>setStoreAssistantOpen(false)}
+            className="min-h-10 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"
+            aria-label="Hide KS001 and keep shopping">Back to shop</button>}{mode==='work' && signedIn && workspaceGateways && <button type="button" data-day4-saved-work disabled={workActionBusy}
             onClick={()=>{setShowAgreementHub(false);setShowSavedWork(true);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl border border-cream-200 px-3 text-sm font-semibold disabled:opacity-50">Saved Work</button>}
           {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowAgreementHub(false);setShowSavedWork(false);setScreen('result');}}
@@ -1081,7 +1094,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         data-masterpiece-digital-store
         aria-label="Digital Stores inside Living Workspace"
         aria-hidden={!storeOpen}
-        className={`${storeOpen?'flex':'hidden'} min-h-0 min-w-0 flex-col overflow-hidden bg-white ${storeFocus ? 'fixed inset-0 z-[60] md:fixed md:inset-x-5 md:top-[96px] md:bottom-4 md:z-[75] md:w-auto md:max-w-none md:rounded-2xl md:border md:border-cream-200 md:shadow-2xl' : 'fixed inset-0 z-[60] md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm'}`}>
+        className={`${storeOpen?'flex':'hidden'} min-h-0 min-w-0 flex-col overflow-hidden bg-white ${storeFocus ? 'fixed inset-0 z-[60] md:fixed md:inset-x-5 md:top-[96px] md:bottom-4 md:z-[75] md:w-auto md:max-w-none md:rounded-2xl md:border md:border-cream-200 md:shadow-2xl' : 'fixed inset-0 z-[60] md:static md:inset-auto md:z-auto md:flex-1 md:rounded-2xl md:border md:border-cream-200 md:shadow-sm'}`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
           <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">Digital Store · Shop & Sell</p>
             <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
@@ -1090,10 +1103,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               className="hidden min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800 md:inline-flex">
               {storeFocus ? <><Minimize2 size={14}/> Workspace view</> : <><Maximize2 size={14}/> Full shop</>}
             </button>
-            <button type="button" onClick={()=>closeEmbeddedStore('chat')}
-              disabled={storeHandoffBusy}
-              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
-              Chat · KS001
+            <button type="button" onClick={()=>setStoreAssistantOpen(open=>!open)}
+              disabled={storeHandoffBusy} aria-expanded={storeAssistantOpen} data-store-ks001-trigger
+              className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800 disabled:opacity-50">
+              {storeAssistantOpen?'Hide KS001':'Ask KS001'}
             </button>
             <button type="button" onClick={()=>{chooseMode('vision');closeEmbeddedStore('chat');}}
               disabled={storeHandoffBusy}
@@ -1137,7 +1150,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           />}
         </div>
       </section>}
-      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[28%] lg:max-w-[390px]':'md:w-[35%] lg:max-w-[460px]'}`}>
+      <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[32%] lg:max-w-[440px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
         {storeSelected.length>0 && (mode==='work'||mode==='vision') && <section
           data-store-selection-parent-summary
