@@ -138,7 +138,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     try{
       const next=collectOffer(selectionRef.current,offer,'agreement',false);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      const question=selectionToKs001([itemFromOffer(offer,'agreement',false)],'agreement');
+      const question=selectionToKs001(next,'agreement');
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
       else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
