@@ -26,7 +26,7 @@ test('specialist agreement is explicitly given, never prechecked, and required b
  assert.match(component,/I agree to apply as a special community provider/);
  assert.match(component,/policyVersion = 'community-special-provider-v1'/);
  assert.match(component,/\{services:withdraw\?\[\]:selected,agree:!withdraw,policyVersion:withdraw\?null:policyVersion\}/);
- assert.doesNotMatch(component,/automatic approval|verified provider badge/i);
+ assert.doesNotMatch(component,/setVerifiedProvider|status:\\s*'VERIFIED'|createProviderApproval/i);
 });
 
 test('only authenticated Store or represented Business endpoints record a consent, not public browsing',()=>{
