@@ -37,7 +37,9 @@ type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | '
   | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
   | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'
   | 'personalEnquiryDraft' | 'savePersonalEnquiryDraft'
-  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'>;
+  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'
+  | 'myCommunityProviderInterest' | 'saveMyCommunityProviderInterest'
+  | 'businessCommunityProviderInterest' | 'saveBusinessCommunityProviderInterest'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -571,6 +573,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           businessKsNumber={state.managedBusiness?.ksNumber ?? null}
           publishedCount={state.mine.data.raw.filter(offer => offer.published).length}
           onProfileSaved={() => { void controller.refreshMine(); }}
+          onCommunityProviderContinue={onAskKs001 ? serviceTypes => onAskKs001(
+            'I have explicitly registered my interest in serving my community through ' +
+            serviceTypes.map(type => type === 'SHORTSTAYS' ? 'ShortStays' : type === 'MY_RIDE' ? 'My Ride' : 'Storage').join(', ') +
+            ' during my Digital Store setup. Help me prepare the relevant service-specific provider onboarding. ' +
+            'This is an application only; do not claim I am verified, publish an offer, accept bookings or agreements, or activate any financial action.'
+          ) : undefined}
         />}
       />
     );

@@ -295,3 +295,22 @@ export interface BusinessStoreOpportunityResponse {
   poolable: boolean;
   matchedOffers: BusinessStoreOpportunityMatchedOffer[];
 }
+
+/** Voluntary Digital Store recruitment for specialist community services.
+ * INTERESTED is an application only, never a verified provider entitlement.
+ * Kept separate from basic KS signup, Store offers and monetary activation.
+ */
+export type CommunityProviderService = 'SHORTSTAYS' | 'MY_RIDE' | 'STORAGE';
+export type CommunityProviderInterestStatus = 'INTERESTED' | 'WITHDRAWN';
+export interface CommunityProviderInterestDto {
+  serviceType: CommunityProviderService;
+  status: CommunityProviderInterestStatus;
+  consentPolicyVersion: string;
+  consentedAt: string;
+  withdrawnAt: string | null;
+}
+export interface SaveCommunityProviderInterestRequest {
+  services: CommunityProviderService[];
+  agree: boolean;
+  policyVersion: string | null;
+}

@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { Check, Copy, MapPin, Navigation, ShieldCheck, Store, Globe, Save } from 'lucide-react';
 import { ApiError } from '../../api/securepay/http';
 import type { StoreGateway } from '../../api/securepay/store';
+import type { CommunityProviderService } from '../../api/securepay/store/dto';
+import { CommunityProviderInterestStep } from './CommunityProviderInterestStep';
 import type { DigitalStoreAddress, SaveDigitalStoreAddress, UpdateStoreProfileRequest, StorefrontPreset, StorefrontTheme } from '../../api/securepay/store/dto';
 
 type Gateway = Pick<StoreGateway,
   'myProfile' | 'businessProfile' | 'updateMyProfile' | 'updateBusinessProfile' |
-  'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress'>;
+  'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' |
+  'myCommunityProviderInterest' | 'saveMyCommunityProviderInterest' | 'businessCommunityProviderInterest' | 'saveBusinessCommunityProviderInterest'>;
 
 const emptyAddress: SaveDigitalStoreAddress = {
   slug: '', storeName: '', serviceArea: '', latitude: null, longitude: null,
@@ -20,11 +23,12 @@ const slugFrom = (value: string) => value.toLowerCase().trim().normalize('NFKD')
 const presets: StorefrontPreset[] = ['SIGNATURE','MERCHANT','SERVICE_PRO','BOUTIQUE','BUILDER','COMMUNITY','CREATOR'];
 const themes: StorefrontTheme[] = ['FOREST','SUNSET','MIDNIGHT','EARTH','OCEAN','MONOCHROME'];
 
-export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, onProfileSaved }: {
+export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, onProfileSaved, onCommunityProviderContinue }: {
   gateway: Gateway;
   businessKsNumber: string | null;
   publishedCount: number;
   onProfileSaved?: () => void;
+  onCommunityProviderContinue?: (services: CommunityProviderService[]) => void;
 }) {
   const [address, setAddress] = useState<SaveDigitalStoreAddress>(emptyAddress);
   const [savedAddress, setSavedAddress] = useState<DigitalStoreAddress | null>(null);
@@ -254,6 +258,12 @@ export function DigitalStoreSetup({ gateway, businessKsNumber, publishedCount, o
           Save Store appearance
         </button>
       </div>
+      <CommunityProviderInterestStep
+        gateway={gateway}
+        businessKsNumber={businessKsNumber}
+        storeAddressReady={Boolean(savedAddress)}
+        onContinueWithKs001={onCommunityProviderContinue}
+      />
       <section aria-label="Store subscription" className="rounded-xl border border-cream-200 p-4 space-y-2">
         <h3 className="font-medium text-forest-800">Your trading relationship</h3>
         <p className="text-sm text-sand-700">For You — KES 100/month · For Business — KES 200/month.</p>
