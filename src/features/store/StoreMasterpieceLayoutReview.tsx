@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
@@ -50,18 +50,20 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
   const [answer,setAnswer] = useState('');
   const [prepared,setPrepared] = useState(false);
   const [selection,setSelection] = useState<SelectionItem[]>([]);
+  const selectionRef=useRef<SelectionItem[]>([]);
   const [collectionNotice,setCollectionNotice] = useState('');
   const [selectionDraft,setSelectionDraft] = useState('');
   const collect=(offer:StoreOffer,destination:StoreDestination)=>{
     try{
-      setSelection(previous=>collectOffer(previous,offer,destination,true));
+      const next=collectOffer(selectionRef.current,offer,destination,true);
+      selectionRef.current=next;setSelection(next);
       setCollectionNotice((destination==='vision'?'Vision':'Agreement')+': added '+offer.title+'. Keep browsing.');
       setSelectionDraft('');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
   const stage=(destination:StoreDestination)=>{
     try{
-      const proposal=selectionToKs001(selection,destination);
+      const proposal=selectionToKs001(selectionRef.current,destination);
       setSelectionDraft(proposal);
       setCollectionNotice(destination==='vision'
         ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
@@ -107,8 +109,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
           onCollect={collect}
           selectionPanel={<StoreCollectionPanel
             items={selection}
-            onQuantity={(key,value)=>{setSelection(current=>updateSelectedQuantity(current,key,value));setSelectionDraft('');}}
-            onRemove={key=>{setSelection(current=>removeSelected(current,key));setSelectionDraft('');}}
+            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);setSelectionDraft('');}}
+            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);setSelectionDraft('');}}
             onContinue={stage}
             notice={collectionNotice}
             draftPreview={selectionDraft}
