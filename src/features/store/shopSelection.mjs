@@ -132,7 +132,7 @@ export function selectionToKs001(items,destination) {
   if (!['vision','agreement'].includes(destination) || !chosen.length)
     throw new Error('Select at least one item for that destination');
   const intent = destination==='vision'
-    ? 'I want to explore these Store choices for my Vision, not save a Dream or purchase them.'
+    ? 'I want to explore these Store choices for my Vision. This is an idea, not a saved Dream or a purchase.'
     : 'I have collected Store offers from one or more traders. Help me review these as one shopping request, but identify separate seller agreements as required. Do not accept or book anything.';
   const groups=groupSelectionBySeller(chosen);
   const lines=groups.flatMap((group,idx)=>{
