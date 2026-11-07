@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
+import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
+import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
+import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -31,7 +34,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview() {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void}) {
   const [page,setPage] = useState<Page>('shop');
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -46,6 +49,35 @@ export function StoreMasterpieceLayoutReview() {
   const [nextQuestion,setNextQuestion] = useState('');
   const [answer,setAnswer] = useState('');
   const [prepared,setPrepared] = useState(false);
+  const [selection,setSelection] = useState<SelectionItem[]>([]);
+  const selectionRef=useRef<SelectionItem[]>([]);
+  const [collectionNotice,setCollectionNotice] = useState('');
+  const [selectionDraft,setSelectionDraft] = useState('');
+  const collect=(offer:StoreOffer,destination:StoreDestination)=>{
+    try{
+      const next=collectOffer(selectionRef.current,offer,destination,true);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
+      setCollectionNotice((destination==='vision'?'Vision':'Agreement')+': added '+offer.title+'. Keep browsing.');
+      setSelectionDraft('');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
+  };
+  const quickAsk=(offer:StoreOffer)=>{
+    try{
+      const next=collectOffer(selectionRef.current,offer,'agreement',true);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
+      setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
+      setCollectionNotice('Example KS001 question prepared on the right. No live message has been sent.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
+  };
+  const stage=(destination:StoreDestination)=>{
+    try{
+      const proposal=selectionToKs001(selectionRef.current,destination);
+      setSelectionDraft(proposal);
+      setCollectionNotice(destination==='vision'
+        ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
+        : 'Example agreement enquiry prepared here for review only. Nothing was sent to KS001.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
+  };
   const visible = demoPublished(searchOffers(query));
   const selectedOffer = offerId ? getOfferById(offerId) : null;
   const selectedShop = storeId ? getStoreById(storeId) : null;
@@ -80,6 +112,19 @@ export function StoreMasterpieceLayoutReview() {
           query={query} onQueryChange={setQuery}
           offers={visible}
           stores={demoStores.map(store=>({...store,verified:false}))}
+          shoppingWide={shopFocused}
+          selection={selection}
+          onCollect={collect}
+          onQuickKs001={quickAsk}
+          selectionPanel={shopFocused ? <StoreCollectionPanel
+            items={selection}
+            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+            onContinue={stage}
+            notice={collectionNotice}
+            draftPreview={selectionDraft}
+            example
+          /> : undefined}
           searchStatus="ready"
           onOpenOffer={id=>{setOfferId(id);setNotice('');setPage('offer');}}
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}

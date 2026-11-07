@@ -35,6 +35,8 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
+import type { SelectionItem } from '../store/shopSelection.mjs';
+import { collectionTotals, formatListedMoney } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -344,6 +346,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
+  const [storeSelected,setStoreSelected]=useState<SelectionItem[]>([]);
+  const storeSelectedTotals=collectionTotals(storeSelected);
+  const previousStoreOwnerSignedIn=useRef(signedIn);
+  useEffect(()=>{
+    if(previousStoreOwnerSignedIn.current && !signedIn)setStoreSelected([]);
+    previousStoreOwnerSignedIn.current=signedIn;
+  },[signedIn]);
   // Shop in focus by default; the original three-panel shell stays mounted underneath.
   // The customer can switch to the compact workspace view without losing a draft.
   const [storeFocus, setStoreFocus] = useState(true);
@@ -629,7 +638,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     }
   };
   /** A Store question is placed into the SAME composer, never auto-sent. */
-  const prepareEmbeddedStoreQuestion=async(text:string)=>{
+  const prepareEmbeddedStoreQuestion=async(text:string,remainInShop=false)=>{
     if(!signedIn || !gateway || !liveController)
       throw new Error('Sign in and open My Work to ask KS001 about a Store.');
     if(liveBusy || livePending || workActionLock.current)
@@ -649,7 +658,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     writeDraft(id,text);
     setDraftRevision(n=>n+1);setLiveStarted(true);setLiveWork(true);
     if(mode!=='work')chooseMode('work');
-    closeEmbeddedStore('chat');
+    if(!remainInShop)closeEmbeddedStore('chat');
+  };
+  /** Vision is a distinct Dream authority. A Store pick may only become an
+      unsent Vision thought; it is never silently saved into a Dream or an Agreement. */
+  const stageStoreVision=async(text:string)=>{
+    if(!signedIn || mockSignedIn || !visionNorth.real)
+      throw new Error('Sign in to SecurePay before preparing a private Vision.');
+    if(visionNorth.busy || visionNorth.agentState?.busy || visionNorth.agentState?.pending)
+      throw new Error('Finish your current Vision action before adding Store ideas.');
+    if(visionNorth.draft.trim() && visionNorth.draft.trim()!==text.trim())
+      throw new Error('Your Vision composer already has unsent thoughts. Review them before replacing anything.');
+    visionNorth.setDraft(text);
   };
   /** The original Day 4 save/resume path protects work during Store switching. */
   const resumeEmbeddedStoreWork=async(conversationId:string)=>{
@@ -1075,6 +1095,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
               Chat · KS001
             </button>
+            <button type="button" onClick={()=>{chooseMode('vision');closeEmbeddedStore('chat');}}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Vision
+            </button>
             <button type="button" onClick={()=>closeEmbeddedStore('result')}
               disabled={storeHandoffBusy}
               className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
@@ -1091,14 +1116,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview />
-            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session}
+            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
             onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
               setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
             });}}
+            onStageSelections={async (text,destination)=>{
+              if(destination==='vision')await stageStoreVision(text);
+              else await prepareEmbeddedStoreQuestion(text,true);
+            }}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
             onOpenBusinessVision={async businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
@@ -1110,6 +1139,33 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       </section>}
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[28%] lg:max-w-[390px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {storeSelected.length>0 && (mode==='work'||mode==='vision') && <section
+          data-store-selection-parent-summary
+          aria-label="Selected Digital Store items for review"
+          className="mb-4 space-y-3 rounded-2xl border border-forest-200 bg-forest-50 p-4">
+          <p className="text-[0.66rem] font-semibold uppercase tracking-widest text-forest-700">Digital Store · Your draft selections</p>
+          <h3 className="font-display text-lg font-semibold text-forest-900">{storeSelectedTotals.quantityCount} selected</h3>
+          {(['vision','agreement'] as const).map(destination=>{
+            const entries=storeSelectedTotals.destinations[destination];
+            if(!entries.length)return null;
+            const group=storeSelectedTotals.byDestination[destination];
+            return <div key={destination} className="border-t border-forest-100 pt-2">
+              <p className="text-xs font-semibold text-forest-800">{destination==='vision'?'Ideas for Vision':'Considering for Agreement'}</p>
+              {entries.map(entry=><p key={entry.key} className="mt-1 text-xs leading-5 text-sand-700">{entry.quantity} × {entry.title} · {entry.sellerName}</p>)}
+              {Object.entries(group.subtotal).map(([currency,minor])=>
+                <p key={currency} className="mt-2 text-sm font-semibold text-forest-800">Listed subtotal: {formatListedMoney(minor,currency)}</p>)}
+              {group.unpriced>0 && <p className="mt-1 text-xs text-sand-600">{group.unpriced} item(s) need an established price</p>}
+            </div>;
+          })}
+          <p className="text-[0.7rem] leading-5 text-sand-700">
+            Provisional listed amounts, not a provider quote, saved Vision Dream, binding Agreement or payment.
+            KS001 must verify each chosen offer and seller before an Agreement can be reviewed.
+          </p>
+          {storeOpen && !storeFocus && <button type="button" onClick={()=>setStoreFocus(true)}
+            className="min-h-10 rounded-lg border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800">
+            Edit selections in full shop
+          </button>}
+        </section>}
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
           <section data-gate-d-authorised-anonymous-conversation-claim
             aria-label="Keep your KS001 conversation after signup"

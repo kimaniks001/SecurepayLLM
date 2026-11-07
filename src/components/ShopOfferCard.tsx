@@ -1,4 +1,6 @@
-import { ArrowUpRight, Box, Camera, MapPin, Paintbrush, Ruler, Smartphone, Store, Wrench } from 'lucide-react';
+import { ArrowUpRight, Box, Camera, Eye, Image as ImageIcon, MapPin, Paintbrush, Plus, Ruler, Smartphone, Store, Wrench, X } from 'lucide-react';
+import { useState } from 'react';
+import type { StoreDestination } from '../features/store/shopSelection.mjs';
 import type { StoreOffer } from '../types';
 
 /**
@@ -36,28 +38,70 @@ export function ShopOfferCover({offer,large=false}:{offer:StoreOffer;large?:bool
   </div>;
 }
 
-export function ShopOfferCard({offer,onOpen,onOpenStore}:{
-  offer:StoreOffer; onOpen:()=>void; onOpenStore:()=>void;
+export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,selectedCounts}:{
+  offer:StoreOffer;
+  onOpen:()=>void;
+  onOpenStore:()=>void;
+  onCollect?:(offer:StoreOffer,destination:StoreDestination)=>void;
+  onQuickKs001?:(offer:StoreOffer)=>void;
+  selectedCounts?:{vision:number;agreement:number};
 }) {
-  return <article className="group min-w-0 overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-forest-200 hover:shadow-lg">
-    <button type="button" onClick={onOpen} aria-label={'View offer: '+offer.title}
-      className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
-      <ShopOfferCover offer={offer}/>
-      <div className="px-4 pt-4">
-        <h3 className="line-clamp-2 min-h-12 font-display text-[1.04rem] font-semibold leading-snug text-forest-900 group-hover:text-forest-700">{offer.title}</h3>
-        <div className="mt-2 flex items-baseline justify-between gap-2">
-          <strong className="font-display text-lg tabular-nums text-forest-900">{offer.priceType==='unlisted'?'Ask for price':offer.price}</strong>
-          <ArrowUpRight size={18} className="shrink-0 text-forest-600"/>
-        </div>
-        {offer.serviceArea && <p className="mt-1 flex items-center gap-1.5 text-xs text-sand-600"><MapPin size={12}/><span className="line-clamp-1">{offer.serviceArea}</span></p>}
-        <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-sand-600">{offer.description}</p>
+  const [quickOpen,setQuickOpen]=useState(false);
+  const [imageOpen,setImageOpen]=useState(false);
+  const photo=offer.media.find(item=>item.url?.trim()&&!item.isExample)?.url;
+  const canUseForAgreement=offer.lifecycle==='published';
+  const add=(destination:StoreDestination)=>{
+    onCollect?.(offer,destination);
+    setQuickOpen(false);
+  };
+  return <article data-shop-quick-card className="group relative min-w-0 overflow-visible rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:z-30 hover:border-forest-200 hover:shadow-md focus-within:z-30">
+    <div className="overflow-hidden rounded-t-2xl">
+      <button type="button" onClick={()=>photo?setImageOpen(true):setQuickOpen(true)} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
+        className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
+        <ShopOfferCover offer={offer}/>
+      </button>
+    </div>
+    <div className="px-4 pt-3">
+      <button type="button" onClick={onOpen} className="line-clamp-2 min-h-11 text-left font-display text-[1.04rem] font-semibold leading-snug text-forest-900 hover:underline" aria-label={'Open full details for '+offer.title}>{offer.title}</button>
+      <div className="mt-1 flex items-baseline justify-between gap-2">
+        <strong className="font-display text-lg tabular-nums text-forest-900">{offer.priceType==='unlisted'?'Ask for price':offer.price}</strong>
+        <span className="text-[0.68rem] text-sand-600">Listed price</span>
       </div>
-    </button>
-    <div className="mx-4 mt-3 flex items-center justify-between gap-2 border-t border-cream-200 py-3">
+      {offer.serviceArea && <p className="mt-1 flex items-center gap-1.5 text-xs text-sand-600"><MapPin size={12}/><span className="line-clamp-1">{offer.serviceArea}</span></p>}
+      <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-sand-600">{offer.description}</p>
+      {(selectedCounts?.vision||selectedCounts?.agreement) ? <p role="status" className="mt-1 text-[0.7rem] font-semibold text-forest-700">{(selectedCounts?.vision||0)>0?'Vision ×'+selectedCounts?.vision+'  ':''}{(selectedCounts?.agreement||0)>0?'Agreement ×'+selectedCounts?.agreement:''}</p> : null}
+    </div>
+    <div className="mx-4 mt-2 flex items-center justify-between gap-2 border-t border-cream-200 py-3">
       <button type="button" onClick={onOpenStore} className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-forest-800 underline-offset-2 hover:underline" aria-label={'Visit '+offer.storeName+' shop'}>
         <Store size={14} className="shrink-0"/><span className="truncate">{offer.storeName}</span>
       </button>
-      <button type="button" onClick={onOpen} className="shrink-0 text-xs font-semibold text-forest-700 hover:underline">View offer →</button>
+      <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={()=>setQuickOpen(open=>!open)}
+        className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/> Quick look</button>
     </div>
+    <div data-shop-hover-preview className={`absolute inset-x-2 bottom-2 z-20 rounded-xl border border-forest-200 bg-white/98 p-3 shadow-xl backdrop-blur-md ${quickOpen?'block':'hidden group-hover:block group-focus-within:block'}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div><p className="text-[0.68rem] font-bold uppercase tracking-wider text-forest-700">Quick look</p><p className="mt-1 line-clamp-3 text-xs leading-5 text-sand-700">{offer.description}</p></div>
+        <button type="button" aria-label={'Close quick look for '+offer.title} onClick={()=>setQuickOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-cream-100"><X size={16}/></button>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button type="button" onClick={()=>add('vision')} disabled={!onCollect}
+          className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-forest-200 bg-forest-50 px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"><Plus size={14}/> Vision</button>
+        <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
+          className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40"><Plus size={14}/> Agreement</button>
+      </div>
+      <button type="button" disabled={!onQuickKs001||!canUseForAgreement} onClick={()=>{onQuickKs001?.(offer);setQuickOpen(false);}}
+        className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-forest-200 bg-white px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"><Plus size={14}/> Add to KS001 question</button>
+      <button type="button" onClick={onOpen} className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ArrowUpRight size={14}/> Open full item details</button>
+      {photo && <button type="button" onClick={()=>setImageOpen(true)} className="mt-1 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ImageIcon size={14}/> View full image</button>}
+      <p className="mt-1 text-[0.65rem] text-sand-500">Adding keeps you shopping; it does not book or pay.</p>
+    </div>
+    {imageOpen&&photo&&<div role="dialog" aria-modal="true" aria-label={'Image for '+offer.title}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/85 p-4" onClick={()=>setImageOpen(false)}>
+      <div className="relative max-h-full max-w-5xl" onClick={event=>event.stopPropagation()}>
+        <button type="button" onClick={()=>setImageOpen(false)} aria-label="Close full image" className="absolute right-2 top-2 flex size-11 items-center justify-center rounded-full bg-white text-forest-900"><X size={19}/></button>
+        <img src={photo} alt={'Photograph supplied for '+offer.title} className="max-h-[80vh] w-auto max-w-full rounded-xl object-contain"/>
+        <p className="mt-2 text-center text-xs text-white">Seller-provided image · Inspect details before agreeing.</p>
+      </div>
+    </div>}
   </article>;
 }
