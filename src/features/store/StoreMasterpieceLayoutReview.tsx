@@ -34,7 +34,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:boolean}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void}) {
   const [page,setPage] = useState<Page>('shop');
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
   const collect=(offer:StoreOffer,destination:StoreDestination)=>{
     try{
       const next=collectOffer(selectionRef.current,offer,destination,true);
-      selectionRef.current=next;setSelection(next);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setCollectionNotice((destination==='vision'?'Vision':'Agreement')+': added '+offer.title+'. Keep browsing.');
       setSelectionDraft('');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
@@ -64,7 +64,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
   const quickAsk=(offer:StoreOffer)=>{
     try{
       const next=collectOffer(selectionRef.current,offer,'agreement',true);
-      selectionRef.current=next;setSelection(next);
+      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
       setCollectionNotice('Example KS001 question prepared on the right. No live message has been sent.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
@@ -118,8 +118,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
           onQuickKs001={quickAsk}
           selectionPanel={<StoreCollectionPanel
             items={selection}
-            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);setSelectionDraft('');}}
-            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);setSelectionDraft('');}}
+            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
             onContinue={stage}
             notice={collectionNotice}
             draftPreview={selectionDraft}
