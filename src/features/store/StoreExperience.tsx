@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
+import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
+import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
@@ -57,7 +60,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, embedded = false }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, shoppingWide = false, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -68,6 +71,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onNavigate: (view: AppView) => void;
   onOpenBusinessVision: (businessKsNumber: string) => void;
   onAskKs001?: (message: string) => void;
+  onStageSelections?: (message: string, destination: StoreDestination) => Promise<void>;
+  shoppingWide?: boolean;
   /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
   embedded?: boolean;
 }) {
@@ -90,6 +95,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [signInGate, setSignInGate] = useState<'manage' | 'create' | 'connect' | null>(null);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showFullOffer, setShowFullOffer] = useState(false);
+  const [selection,setSelection]=useState<SelectionItem[]>([]);
+  const [collectionNotice,setCollectionNotice]=useState('');
+  const [collectionBusy,setCollectionBusy]=useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
   const [focusedEnquiry, setFocusedEnquiry] = useState(() =>
@@ -107,6 +115,26 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     });
   };
 
+  const collect=(offer:import('../../types').StoreOffer,destination:StoreDestination)=>{
+    try{
+      setSelection(current=>collectOffer(current,offer,destination,false));
+      setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'your agreement list')+'. Keep browsing.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
+  };
+  const stageCollection=async(destination:StoreDestination)=>{
+    if(collectionBusy)return;
+    setCollectionBusy(true);setCollectionNotice('');
+    try{
+      const text=selectionToKs001(selection,destination);
+      if(onStageSelections)await onStageSelections(text,destination);
+      else if(destination==='agreement' && onAskKs001)onAskKs001(text);
+      else throw new Error('This Store is not connected to a safe '+(destination==='vision'?'Vision':'KS001')+' handoff. Your selection remains here.');
+      setCollectionNotice(destination==='vision'
+        ? 'Your selected ideas are ready in the Vision composer for review. They have not been saved as a Dream.'
+        : 'Your selected offers are ready in the existing KS001 composer. No Agreement has been accepted or funded.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare the selected offers. They remain here.');}
+    finally{setCollectionBusy(false);}
+  };
   const previousStoreSession = useRef(sessionEpoch);
   useEffect(() => {
     // Unsent customer messages must not follow a former authenticated identity.
@@ -116,7 +144,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // delete an unsent Store enquiry. An actual sign-out clears private work.
     if (previousStoreSession.current.status === 'signed-in'
         && sessionEpoch.status === 'signed-out')
-      setCustomerDraft(emptyStoreCustomerDraft);
+      {setCustomerDraft(emptyStoreCustomerDraft);setSelection([]);setCollectionNotice('');}
     previousStoreSession.current = sessionEpoch;
   }, [sessionEpoch]);
   const [manageChoices, setManageChoices] = useState<BusinessRepresentationDto[] | null>(null);
@@ -434,6 +462,17 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     body = (
       <StoreHome
         embedded={embedded}
+        shoppingWide={shoppingWide}
+        selection={selection}
+        onCollect={collect}
+        selectionPanel={<StoreCollectionPanel
+          items={selection}
+          onQuantity={(key,value)=>setSelection(current=>updateSelectedQuantity(current,key,value))}
+          onRemove={key=>setSelection(current=>removeSelected(current,key))}
+          onContinue={destination=>{void stageCollection(destination);}}
+          notice={collectionNotice}
+          busy={collectionBusy}
+        />}
         onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
