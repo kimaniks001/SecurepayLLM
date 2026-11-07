@@ -54,5 +54,5 @@ test('the signed-in real Store still mounts its real StoreExperience, preserved 
   assert.match(live,/StoreConnectionsHome/);
   assert.match(live,/StoreEnquiryInbox/);
   assert.match(live,/StoreManagementHome/);
-  assert.match(live,/onUseOffer=/);
+  assert.match(live,/onUseOffer\(/);
 });
