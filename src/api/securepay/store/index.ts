@@ -6,6 +6,7 @@ import type {
   StoreFavouriteDto, StoreEnquiryDto, CreateStoreEnquiryRequest, RespondToStoreEnquiryRequest,
   SavedStoreEnquiryWorkDto,
   StoreReplyDraftDto, SaveStoreReplyDraftRequest,
+  CommunityProviderInterestDto, SaveCommunityProviderInterestRequest,
 } from './dto';
 
 /**
@@ -29,6 +30,13 @@ export function createStoreGateway(http: HttpClient) {
   };
   return {
     myProfile: () => http.request<StoreProfileResponse>('/api/v1/store/me/profile', { auth: 'required' }),
+    myCommunityProviderInterest: () => http.request<CommunityProviderInterestDto[]>('/api/v1/store/me/community-service-provider', { auth: 'required' }),
+    saveMyCommunityProviderInterest: (body: SaveCommunityProviderInterestRequest) =>
+      http.request<CommunityProviderInterestDto[]>('/api/v1/store/me/community-service-provider', { method: 'PUT', body, auth: 'required' }),
+    businessCommunityProviderInterest: (ks: string) =>
+      http.request<CommunityProviderInterestDto[]>(`${businessStore(ks)}/community-service-provider`, { auth: 'required' }),
+    saveBusinessCommunityProviderInterest: (ks: string, body: SaveCommunityProviderInterestRequest) =>
+      http.request<CommunityProviderInterestDto[]>(`${businessStore(ks)}/community-service-provider`, { method: 'PUT', body, auth: 'required' }),
     myFavourites: () => http.request<StoreFavouriteDto[]>('/api/v1/store/me/favourites', { auth: 'required' }),
     saveFavourite: (ks: string) => http.request<void>(`/api/v1/store/me/favourites/${segment(ks)}`, { method: 'POST', auth: 'required' }),
     removeFavourite: (ks: string) => http.request<void>(`/api/v1/store/me/favourites/${segment(ks)}`, { method: 'DELETE', auth: 'required' }),
