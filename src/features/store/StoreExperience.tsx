@@ -100,13 +100,13 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [showFullOffer, setShowFullOffer] = useState(false);
   const [selection,setSelection]=useState<SelectionItem[]>([]);
   const selectionRef=useRef<SelectionItem[]>([]);
+  const [collectionNotice,setCollectionNotice]=useState('');
   useEffect(()=>{
     if(workspaceSelection && workspaceSelection!==selectionRef.current){
       selectionRef.current=workspaceSelection;setSelection(workspaceSelection);
       setCollectionNotice('Selection updated in SecurePay Check. Listed prices are unchanged.');
     }
   },[workspaceSelection]);
-  const [collectionNotice,setCollectionNotice]=useState('');
   const [collectionBusy,setCollectionBusy]=useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
