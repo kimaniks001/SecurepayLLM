@@ -1,4 +1,4 @@
-import { ArrowUpRight, Box, Camera, Eye, Image as ImageIcon, MapPin, Paintbrush, Plus, Ruler, Smartphone, Store, Wrench, X } from 'lucide-react';
+import { ArrowUpRight, Box, Camera, Eye, MapPin, Paintbrush, Plus, Ruler, Smartphone, Store, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import type { StoreDestination } from '../features/store/shopSelection.mjs';
 import type { StoreOffer } from '../types';
@@ -38,28 +38,47 @@ export function ShopOfferCover({offer,large=false}:{offer:StoreOffer;large?:bool
   </div>;
 }
 
-export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,selectedCounts}:{
+export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,selectedCounts,quickOpen=false,onToggleQuick,onCloseQuick}:{
   offer:StoreOffer;
   onOpen:()=>void;
   onOpenStore:()=>void;
   onCollect?:(offer:StoreOffer,destination:StoreDestination)=>void;
   onQuickKs001?:(offer:StoreOffer)=>void;
   selectedCounts?:{vision:number;agreement:number};
+  quickOpen?:boolean;
+  onToggleQuick?:()=>void;
+  onCloseQuick?:()=>void;
 }) {
-  const [quickOpen,setQuickOpen]=useState(false);
   const [imageOpen,setImageOpen]=useState(false);
   const photo=offer.media.find(item=>item.url?.trim()&&!item.isExample)?.url;
   const canUseForAgreement=offer.lifecycle==='published';
   const add=(destination:StoreDestination)=>{
     onCollect?.(offer,destination);
-    setQuickOpen(false);
+    onCloseQuick?.();
   };
-  return <article data-shop-quick-card className="group relative min-w-0 overflow-visible rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:z-30 hover:border-forest-200 hover:shadow-md focus-within:z-30">
-    <div className="overflow-hidden rounded-t-2xl">
-      <button type="button" onClick={()=>photo?setImageOpen(true):setQuickOpen(true)} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
+  return <article data-shop-quick-card className="group min-w-0 overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:border-forest-200 hover:shadow-md">
+    <div className="group/visual relative overflow-hidden rounded-t-2xl">
+      <button type="button" onClick={()=>photo?setImageOpen(true):onToggleQuick?.()} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
         className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
         <ShopOfferCover offer={offer}/>
       </button>
+      {(onCollect||onQuickKs001) && <div data-shop-hover-preview
+        className={'absolute inset-x-2 bottom-2 z-10 rounded-xl border border-white/80 bg-white/95 p-2 shadow-md backdrop-blur-sm '+(quickOpen?'block':'hidden sm:group-hover/visual:block sm:group-focus-within/visual:block')}
+        aria-label={'Quick actions for '+offer.title}>
+        <div className="flex items-start justify-between gap-2">
+          <p className="line-clamp-2 min-w-0 flex-1 text-[0.7rem] leading-4 text-forest-800">{offer.description}</p>
+          <button type="button" onClick={onOpen} className="shrink-0 text-[0.7rem] font-semibold text-forest-700 underline">Details</button>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          <button type="button" onClick={()=>add('vision')} disabled={!onCollect}
+            className="flex min-h-9 items-center justify-center gap-0.5 rounded-lg border border-forest-200 bg-white px-1 text-[0.7rem] font-semibold text-forest-800 disabled:opacity-40"><Plus size={12}/> Vision</button>
+          <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
+            className="flex min-h-9 items-center justify-center gap-0.5 rounded-lg bg-forest-800 px-1 text-[0.7rem] font-semibold text-white disabled:opacity-40"><Plus size={12}/> Agreement</button>
+          <button type="button" onClick={()=>{onQuickKs001?.(offer);onCloseQuick?.();}} disabled={!onQuickKs001||!canUseForAgreement}
+            className="flex min-h-9 items-center justify-center rounded-lg border border-forest-200 bg-forest-50 px-1 text-[0.7rem] font-semibold text-forest-800 disabled:opacity-40">KS001</button>
+        </div>
+      </div>}
+
     </div>
     <div className="px-4 pt-3">
       <button type="button" onClick={onOpen} className="line-clamp-2 min-h-11 text-left font-display text-[1.04rem] font-semibold leading-snug text-forest-900 hover:underline" aria-label={'Open full details for '+offer.title}>{offer.title}</button>
@@ -75,25 +94,8 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
       <button type="button" onClick={onOpenStore} className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-forest-800 underline-offset-2 hover:underline" aria-label={'Visit '+offer.storeName+' shop'}>
         <Store size={14} className="shrink-0"/><span className="truncate">{offer.storeName}</span>
       </button>
-      <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={()=>setQuickOpen(open=>!open)}
-        className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/> Quick look</button>
-    </div>
-    <div data-shop-hover-preview className={`absolute inset-x-2 bottom-2 z-20 rounded-xl border border-forest-200 bg-white/98 p-3 shadow-xl backdrop-blur-md ${quickOpen?'block':'hidden group-hover:block group-focus-within:block'}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div><p className="text-[0.68rem] font-bold uppercase tracking-wider text-forest-700">Quick look</p><p className="mt-1 line-clamp-3 text-xs leading-5 text-sand-700">{offer.description}</p></div>
-        <button type="button" aria-label={'Close quick look for '+offer.title} onClick={()=>setQuickOpen(false)} className="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-cream-100"><X size={16}/></button>
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <button type="button" onClick={()=>add('vision')} disabled={!onCollect}
-          className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-forest-200 bg-forest-50 px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"><Plus size={14}/> Vision</button>
-        <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
-          className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40"><Plus size={14}/> Agreement</button>
-      </div>
-      <button type="button" disabled={!onQuickKs001||!canUseForAgreement} onClick={()=>{onQuickKs001?.(offer);setQuickOpen(false);}}
-        className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-forest-200 bg-white px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"><Plus size={14}/> Add to KS001 question</button>
-      <button type="button" onClick={onOpen} className="mt-2 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ArrowUpRight size={14}/> Open full item details</button>
-      {photo && <button type="button" onClick={()=>setImageOpen(true)} className="mt-1 inline-flex min-h-9 w-full items-center justify-center gap-1 text-xs font-semibold text-forest-700"><ImageIcon size={14}/> View full image</button>}
-      <p className="mt-1 text-[0.65rem] text-sand-500">Adding keeps you shopping; it does not book or pay.</p>
+      <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={onToggleQuick}
+        className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/>{quickOpen?'Hide peek':'Quick look'}</button>
     </div>
     {imageOpen&&photo&&<div role="dialog" aria-modal="true" aria-label={'Image for '+offer.title}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/85 p-4" onClick={()=>setImageOpen(false)}>
