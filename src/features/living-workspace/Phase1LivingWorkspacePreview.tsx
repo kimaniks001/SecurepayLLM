@@ -1161,6 +1161,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             Provisional listed amounts, not a provider quote, saved Vision Dream, binding Agreement or payment.
             KS001 must verify each chosen offer and seller before an Agreement can be reviewed.
           </p>
+          {storeOpen && !storeFocus && <button type="button" onClick={()=>setStoreFocus(true)}
+            className="min-h-10 rounded-lg border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800">
+            Edit selections in full shop
+          </button>}
         </section>}
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
           <section data-gate-d-authorised-anonymous-conversation-claim
