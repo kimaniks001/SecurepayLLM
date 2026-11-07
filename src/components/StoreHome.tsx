@@ -1,4 +1,5 @@
 import { Search, ShoppingBag, Store, Plus, MessageCircle, Package, Wrench, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 import type { StoreIdentity, StoreOffer } from '../types';
 import type { SelectionItem, StoreDestination } from '../features/store/shopSelection.mjs';
 import { ShopOfferCard } from './ShopOfferCard';
@@ -42,6 +43,9 @@ interface StoreHomeProps {
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
 export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, onCollect, onQuickKs001, selection = [], selectionPanel, shoppingWide = false, embedded = false }: StoreHomeProps) {
+  // A tapped peek is exclusive: two product panels must never cover the shelf together.
+  // Desktop hover works independently, only while the pointer is over that product image.
+  const [quickOfferId,setQuickOfferId]=useState<string|null>(null);
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className={shoppingWide && selectionPanel ? 'mx-auto w-full max-w-[1530px] px-3 py-4 sm:px-5' : embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
@@ -87,7 +91,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             <input
               type="search"
               value={query}
-              onChange={event => onQueryChange(event.target.value)}
+              onChange={event => {setQuickOfferId(null);onQueryChange(event.target.value);}}
               placeholder="Search goods, skills, services or a shop…"
               aria-label="Search Digital Stores"
               className="min-h-12 w-full rounded-xl border border-cream-300 bg-cream-50 pl-10 pr-4 text-sm text-forest-800 placeholder:text-sand-500 focus:border-forest-400 focus:outline-none"
@@ -100,7 +104,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
               {label:'CCTV',query:'CCTV',Icon:Package},
               {label:'Painting',query:'painting',Icon:Wrench},
               {label:'Survey',query:'survey',Icon:Wrench},
-            ].map(item=><button key={item.label} type="button" onClick={()=>onQueryChange(item.query)}
+            ].map(item=><button key={item.label} type="button" onClick={()=>{setQuickOfferId(null);onQueryChange(item.query);}}
               aria-pressed={query.toLowerCase()===item.query.toLowerCase()}
               className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium ${query.toLowerCase()===item.query.toLowerCase()?'border-forest-300 bg-forest-50 text-forest-800':'border-cream-200 bg-white text-sand-600 hover:border-forest-300'}`}>
               <item.Icon size={13}/>{item.label}
@@ -133,8 +137,11 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-label="Published Store offers">
               {offers.map((offer: StoreOffer) => (
                 <ShopOfferCard key={offer.id} offer={offer}
-                  onOpen={() => onOpenOffer(offer.id)}
-                  onOpenStore={() => onOpenStore(offer.storeId)}
+                  onOpen={() => {setQuickOfferId(null);onOpenOffer(offer.id);}}
+                  onOpenStore={() => {setQuickOfferId(null);onOpenStore(offer.storeId);}}
+                  quickOpen={quickOfferId===offer.id}
+                  onToggleQuick={()=>setQuickOfferId(current=>current===offer.id?null:offer.id)}
+                  onCloseQuick={()=>setQuickOfferId(null)}
                   onCollect={onCollect}
                   onQuickKs001={onQuickKs001}
                   selectedCounts={{
