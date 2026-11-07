@@ -5,7 +5,7 @@ import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -61,6 +61,14 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
       setSelectionDraft('');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
+  const quickAsk=(offer:StoreOffer)=>{
+    try{
+      const next=collectOffer(selectionRef.current,offer,'agreement',true);
+      selectionRef.current=next;setSelection(next);
+      setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
+      setCollectionNotice('Example KS001 question prepared on the right. No live message has been sent.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
+  };
   const stage=(destination:StoreDestination)=>{
     try{
       const proposal=selectionToKs001(selectionRef.current,destination);
@@ -107,6 +115,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:bo
           shoppingWide={shopFocused}
           selection={selection}
           onCollect={collect}
+          onQuickKs001={quickAsk}
           selectionPanel={<StoreCollectionPanel
             items={selection}
             onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);setSelectionDraft('');}}
