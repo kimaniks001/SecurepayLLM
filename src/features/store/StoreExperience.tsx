@@ -505,9 +505,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onBack={() => setShowFullOffer(false)}
             onInterested={() => onNavigate('signed-in')}
             onUseThis={() => controller.useThis()}
-            onAskSecurePay={() => onAskKs001
-              ? onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer))
-              : onNavigate('signed-in')}
+            onAskSecurePay={() => {
+              if(state.selectedOffer.status !== 'ready') return;
+              if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
+              else onNavigate('signed-in');
+            }}
             onShare={() => setShowShareSheet(true)}
             onViewStore={id => void controller.openStore(id)}
           />
@@ -522,9 +524,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           backLabel={returnContext ? `Back to ${returnContext.label}` : 'Results'}
           sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
-          onAskKs001={() => onAskKs001
-            ? onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer))
-            : onNavigate('signed-in')}
+          onAskKs001={() => {
+              if(state.selectedOffer.status !== 'ready') return;
+              if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
+              else onNavigate('signed-in');
+            }}
           onOpenStore={() => void controller.openStore(state.selectedOffer.status === 'ready' ? state.selectedOffer.data.store.id : '')}
           onOpenFull={() => setShowFullOffer(true)}
         />
