@@ -35,6 +35,7 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
+import { StoreKs001GuidedPreview } from './StoreKs001GuidedPreview';
 import type { SelectionItem } from '../store/shopSelection.mjs';
 import { collectionTotals, formatListedMoney, updateSelectedQuantity, removeSelected } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
@@ -1056,37 +1057,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm font-semibold text-forest-800">Open My Agreements</button>
           </section>}
         {uiOnlyPreview && mode==='work' && (storeOpen && storeReviewRoute
-          ? <section data-store-assistant-example className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-forest-700">Store assistance · Example only</p>
-              {storeSelected.length>0
-                ? <>
-                    <p className="text-sm leading-6 text-forest-900">
-                      You've selected {storeSelectedTotals.quantityCount} {storeSelectedTotals.quantityCount===1?'item':'items'} from the Store.
-                    </p>
-                    <div className="space-y-2 rounded-xl bg-forest-50 p-3">
-                      {storeSelected.map(item=><p key={item.key} className="text-xs text-forest-800">
-                        {item.quantity} × {item.title} · {item.destination==='vision'?'Vision':'Agreement'}
-                      </p>)}
-                    </div>
-                    <p className="text-sm font-semibold leading-6 text-forest-900">
-                      Would you like to compare these offers, or clarify the terms of one first?
-                    </p>
-                  </>
-                : <>
-                    <p className="text-sm leading-6 text-forest-900">
-                      Need help choosing something in the Store?
-                    </p>
-                    <p className="text-sm font-semibold text-forest-900">What are you looking for?</p>
-                  </>}
-              <p className="text-xs leading-5 text-sand-600">
-                This is a guided preview. The real KS001 conversation opens here for a signed-in person;
-                sample prices and selections have not been sent, saved or verified.
-              </p>
-              <button type="button" onClick={()=>setStoreAssistantOpen(false)}
-                className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">
-                Keep shopping
-              </button>
-            </section>
+          ? <StoreKs001GuidedPreview items={storeSelected}/>
           : <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
               onSelectExample={id=>setPhase2ExampleId(id)}/>)}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
@@ -1161,7 +1132,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected} />
+            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected} onOpenKs001Preview={()=>setStoreAssistantOpen(true)} />
             : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
