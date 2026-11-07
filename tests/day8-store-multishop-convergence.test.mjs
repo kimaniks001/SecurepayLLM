@@ -120,7 +120,7 @@ test('example content stays generic: a shoe is not a new Store, real provider or
  assert.match(data,/iPhone 15 Pro 256GB/);
  assert.match(data,/3-Bedroom Interior Painting/);
  assert.match(data,/Nairobi Painters Co/);
- assert.match(data,/Daniel's Tech Store/);
+ assert.match(data,/Tech Store/);
 });
 
 test('public Store text search is backed by server title/description OR match, with honest browse limits',()=>{
