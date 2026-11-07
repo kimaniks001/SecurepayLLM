@@ -17,7 +17,7 @@ export function classifyAssistRequest(input) {
   const q = String(input || '').toLowerCase();
   // Storage is physical space, never SecurePay Digital Stores.
   if (/\b(?:storage|self.storage|warehous(?:e|ing)|garage|parking bay|parking space|store my|store our|store a sofa|spare storage|store furniture|keep my sofa|keep our furniture)\b/.test(q)) return 'storage';
-  if (/\b(?:hotel|guesthouse|lodging|short.stay|airbnb|overnight|accommodation|holiday cottage|guest room|check.in|book a room)\b/.test(q)) return 'stays';
+  if (/\b(?:hotel|guesthouse|lodging|short.stay|airbnb|overnight|accommodation|cottage|holiday home|guest room|check.in|book a room)\b/.test(q)) return 'stays';
   if (/\b(?:ride|rider|taxi|transport|delivery|deliver|parcel|pickup|drop.off|courier|truck|lorry|drive|trip|move my goods)\b/.test(q)) return 'ride';
   if (/\b(?:invoice|receipt|quotation)\b/.test(q)) return 'documents';
   return null;
