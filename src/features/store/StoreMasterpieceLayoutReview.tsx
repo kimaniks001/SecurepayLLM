@@ -67,7 +67,9 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   };
   const quickAsk=(offer:StoreOffer)=>{
     try{
-      const next=collectOffer(selectionRef.current,offer,'agreement',true);
+      // Asking about an already selected item must not silently add another unit.
+      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
+      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',true);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setSelectionDraft(selectionToKs001(next,'agreement'));
       setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
