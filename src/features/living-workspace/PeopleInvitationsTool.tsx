@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { KsIdentitySelectionResult } from '../../api/securepay/agent/dto';
 type Purpose='agreement'|'circle'|'project'|'trust';
 const LABELS:Record<Purpose,string>={agreement:'Agreement',circle:'Circle',project:'Community project',trust:'Trust Project'};
@@ -14,21 +14,25 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],lo
   const [ks,setKs]=useState('');
   const [identity,setIdentity]=useState<KsIdentitySelectionResult|null>(null);
   const [ksBusy,setKsBusy]=useState(false);
+  const ksLookupSequence=useRef(0); // Ignore a delayed reply after the person changes the number.
   const [governance,setGovernance]=useState(false);
   const [governanceDuties,setGovernanceDuties]=useState('');
   const [noKs,setNoKs]=useState(false);
   const [inviteName,setInviteName]=useState('');
   const [shareNote,setShareNote]=useState('');
-  const canShare=!!inviteName.trim()&&!!shareNote.trim();
+  const canShare=!!inviteName.trim();
   const whatsappText=['Hello '+inviteName.trim()+',','I would like to invite you to participate in '+LABELS[purpose]+' on SecurePay.',
-    'Why: '+shareNote.trim()+'.',role.trim()?'Proposed role: '+role.trim()+'.':'',
+    shareNote.trim()?'Why: '+shareNote.trim()+'.':'',role.trim()?'Proposed role: '+role.trim()+'.':'',
     governance?'This includes proposed governance responsibilities which you must review and explicitly accept.':'',
-    'You do not need to agree simply because I invited you. Please ask me for the SecurePay invitation link when ready.'].filter(Boolean).join('\n');
+    'If you already have a KS Number, you can use it. If not, you can get one through SecurePay’s normal signup. Nothing is accepted automatically.',
+    'This is a personal message, not a SecurePay invitation link. Ask me for the invitation link when ready.'].filter(Boolean).join('\n');
   async function checkKs(){
     if(!onCheckKs||!ks.trim()||ksBusy)return;
+    const sequence=++ksLookupSequence.current;
+    const requested=ks.trim().toUpperCase().replace(/\s+/g,'');
     setKsBusy(true);setError('');setIdentity(null);
-    try{setIdentity(await onCheckKs(ks.trim()));}
-    catch{setError('Unable to confirm this KS Number. No participant was added.');}
+    try{const result=await onCheckKs(requested);if(sequence===ksLookupSequence.current)setIdentity(result);}
+    catch{if(sequence===ksLookupSequence.current)setError('Could not check that KS Number. Please try again. No one was added.');}
     finally{setKsBusy(false);}
   }
   const names=people.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).slice(0,20);
@@ -96,17 +100,18 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],lo
       })}</div>
     </div>}
     <div className="space-y-2 rounded-xl border border-cream-200 bg-cream-50 p-3">
-      <p className="text-sm font-semibold">Add with KS Number</p>
+      <p className="text-sm font-semibold">Already has a KS Number?</p>
+      <p className="text-xs text-sand-600">Enter the number they shared with you, for example KS003. We will check the SecurePay record, not their physical identity.</p>
       <div className="flex gap-2">
-        <input aria-label="KS Number" value={ks} onChange={e=>{setKs(e.target.value);setIdentity(null);}} placeholder="KS Number" maxLength={40}
+        <input aria-label="KS Number" value={ks} onChange={e=>{setKs(e.target.value);setIdentity(null);ksLookupSequence.current++;}} placeholder="e.g. KS003" maxLength={40}
           className="min-h-11 min-w-0 flex-1 rounded-lg border border-cream-200 bg-white px-3 text-sm"/>
-        <button type="button" onClick={()=>void checkKs()} disabled={!onCheckKs||ksBusy||!ks.trim()} className="rounded-full border border-cream-200 bg-white px-3 text-xs disabled:opacity-40">{ksBusy?'Checking…':'Check status'}</button>
+        <button type="button" onClick={()=>void checkKs()} disabled={!onCheckKs||ksBusy||!ks.trim()} className="rounded-full border border-cream-200 bg-white px-3 text-xs disabled:opacity-40">{ksBusy?'Checking…':'Check KS Number'}</button>
       </div>
       {identity&&<div role="status" className="text-xs">
-        <p className="font-semibold">{identity.status==='RESOLVED'?'KS identity found':identity.status==='NOT_PARTICIPANT_ELIGIBLE'?'Not eligible as an Agreement participant':identity.status==='NOT_FOUND'?'KS Number not found':'Status: '+identity.status.replace(/_/g,' ').toLowerCase()}</p>
+        <p className="font-semibold">{identity.status==='RESOLVED'?'KS Number confirmed':identity.status==='MALFORMED_KS_NUMBER'?'Check the format (e.g. KS003)':identity.status==='NOT_FOUND'?'We could not confirm that KS Number':identity.status==='UNSUPPORTED'?'KS Number check unavailable right now':'This KS Number cannot be used here right now'}</p>
         {identity.status==='RESOLVED'&&<p>{identity.displayName||'Name not provided'} · {identity.canonicalKsNumber||ks} · Lookup only</p>}
-        <p>Checking does not add this person or confirm their acceptance.</p>
-        {identity.status==='RESOLVED'&&<button type="button" onClick={()=>setPeople(current=>[current,identity.displayName||identity.canonicalKsNumber||ks].filter(Boolean).join('\n'))}
+        <p>This confirms only the SecurePay KS record. It does not prove who is holding the phone, add the person, invite them or show acceptance.</p>
+        {identity.status==='RESOLVED'&&<button type="button" onClick={()=>setPeople(current=>[current,identity.canonicalKsNumber||ks].filter(Boolean).join('\n'))}
           className="mt-2 rounded-full border border-cream-200 bg-white px-3 py-2">Use as proposed invitee</button>}
       </div>}
       {!onCheckKs&&<p className="text-xs text-sand-600">Start a live KS001 conversation to check identity status.</p>}
@@ -127,18 +132,18 @@ export function PeopleInvitationsTool({onPrepare,onCheckKs,agreementPeople=[],lo
       </label>
       <p className="text-xs text-sand-600">The recipient must review and explicitly accept these responsibilities. This does not assign the role yet.</p>
     </div>}
-    <button type="button" className="text-xs font-semibold underline" onClick={()=>setNoKs(v=>!v)}>{noKs?'Hide':'Person has no KS Number? Invite via WhatsApp'}</button>
+    <button type="button" className="text-xs font-semibold underline" onClick={()=>setNoKs(v=>!v)}>{noKs?'Hide invitation draft':'No KS Number yet? Invite them'}</button>
     {noKs&&<div className="space-y-2 rounded-xl border border-cream-200 p-3">
       <label className="block text-xs">Their name
         <input maxLength={100} value={inviteName} onChange={e=>setInviteName(e.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-cream-200 px-3" placeholder="First name"/>
       </label>
-      <label className="block text-xs">Why are you inviting them?
+      <label className="block text-xs">Why are you inviting them? (optional)
         <textarea rows={2} maxLength={300} value={shareNote} onChange={e=>setShareNote(e.target.value)} className="mt-1 w-full rounded-lg border border-cream-200 p-2" placeholder="Tell them about the work and why their participation matters"/>
       </label>
       {canShare&&<div className="rounded-lg bg-cream-50 p-2 text-xs whitespace-pre-wrap">{whatsappText}</div>}
       <a href={canShare?'https://wa.me/?text='+encodeURIComponent(whatsappText):undefined} target="_blank" rel="noopener noreferrer" aria-disabled={!canShare}
         className={canShare?'inline-block rounded-full bg-forest-800 px-4 py-3 text-xs font-semibold text-white':'pointer-events-none inline-block rounded-full bg-cream-100 px-4 py-3 text-xs text-sand-600'}>Open WhatsApp draft ↗</a>
-      <p className="text-xs text-sand-600">Opens your own WhatsApp share screen. No SecurePay invitation token is issued and nothing is sent automatically.</p>
+      <p className="text-xs text-sand-600">They can use their existing KS Number or sign up through the same SecurePay process. This only opens a personal WhatsApp draft; no official invitation, membership or Agreement is created.</p>
     </div>}
     <button type="button" aria-expanded={detailsOpen} onClick={()=>setDetailsOpen(v=>!v)}
       className="min-h-10 rounded-full border border-cream-200 bg-white px-4 text-xs font-semibold">{detailsOpen?'Less details':'More details'}</button>
