@@ -8,6 +8,6 @@ export function itemFromOffer(offer:{id:string;storeId:string;storeName:string;t
 export function collectOffer(previous:SelectionItem[],offer:Parameters<typeof itemFromOffer>[0],destination:StoreDestination,demo?:boolean):SelectionItem[];
 export function updateSelectedQuantity(items:SelectionItem[],key:string,quantity:number):SelectionItem[];
 export function removeSelected(items:SelectionItem[],key:string):SelectionItem[];
-export function collectionTotals(items:SelectionItem[]):{destinations:{vision:SelectionItem[];agreement:SelectionItem[]};subtotal:Record<string,number>;unpriced:number;itemCount:number;quantityCount:number};
+export function collectionTotals(items:SelectionItem[]):{destinations:{vision:SelectionItem[];agreement:SelectionItem[]};byDestination:{vision:{subtotal:Record<string,number>;unpriced:number};agreement:{subtotal:Record<string,number>;unpriced:number}};itemCount:number;quantityCount:number};
 export function formatListedMoney(minor:number,currency:string):string;
 export function selectionToKs001(items:SelectionItem[],destination:StoreDestination):string;
