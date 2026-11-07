@@ -52,17 +52,18 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
   const [imageOpen,setImageOpen]=useState(false);
   const photo=offer.media.find(item=>item.url?.trim()&&!item.isExample)?.url;
   const canUseForAgreement=offer.lifecycle==='published';
+  const quickEnabled=Boolean(onCollect||onQuickKs001);
   const add=(destination:StoreDestination)=>{
     onCollect?.(offer,destination);
     onCloseQuick?.();
   };
   return <article data-shop-quick-card className="group min-w-0 overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm transition-all duration-200 hover:border-forest-200 hover:shadow-md">
     <div className="group/visual relative overflow-hidden rounded-t-2xl">
-      <button type="button" onClick={()=>photo?setImageOpen(true):onToggleQuick?.()} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
+      <button type="button" onClick={()=>photo?setImageOpen(true):quickEnabled?onToggleQuick?.():onOpen()} aria-label={photo?'View larger image of '+offer.title:'Quick look at '+offer.title}
         className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
         <ShopOfferCover offer={offer}/>
       </button>
-      {(onCollect||onQuickKs001) && <div data-shop-hover-preview
+      {quickEnabled && <div data-shop-hover-preview
         className={'absolute inset-x-2 bottom-2 z-10 rounded-xl border border-white/80 bg-white/95 p-2 shadow-md backdrop-blur-sm '+(quickOpen?'block':'hidden sm:group-hover/visual:block sm:group-focus-within/visual:block')}
         aria-label={'Quick actions for '+offer.title}>
         <div className="flex items-start justify-between gap-2">
@@ -94,8 +95,10 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
       <button type="button" onClick={onOpenStore} className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-forest-800 underline-offset-2 hover:underline" aria-label={'Visit '+offer.storeName+' shop'}>
         <Store size={14} className="shrink-0"/><span className="truncate">{offer.storeName}</span>
       </button>
-      <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={onToggleQuick}
-        className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/>{quickOpen?'Hide peek':'Quick look'}</button>
+      {quickEnabled ?
+        <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={onToggleQuick}
+          className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/>{quickOpen?'Hide peek':'Quick look'}</button>
+      : <button type="button" onClick={onOpen} className="inline-flex min-h-9 shrink-0 items-center gap-1 text-xs font-semibold text-forest-700"><ArrowUpRight size={14}/> Details</button>}
     </div>
     {imageOpen&&photo&&<div role="dialog" aria-modal="true" aria-label={'Image for '+offer.title}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/85 p-4" onClick={()=>setImageOpen(false)}>
