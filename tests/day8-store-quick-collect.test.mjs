@@ -133,6 +133,14 @@ test('the original SecurePay Check right panel retains a selection summary after
  assert.match(parent,/not a provider quote, saved Vision Dream, binding Agreement or payment/);
 });
 
+test('compact workspace uses original SecurePay Check on right instead of duplicating a basket under the shelf',()=>{
+ assert.match(demo,/selectionPanel=\{shopFocused \?/);
+ assert.match(live,/selectionPanel=\{shoppingWide \|\| !embedded \?/);
+ assert.match(live,/shoppingWide=\{shoppingWide \|\| !embedded\}/);
+ assert.match(parent,/Edit selections in full shop/);
+ assert.match(parent,/onClick=\{\(\)=>setStoreFocus\(true\)\}/);
+});
+
 test('real KS001 and Vision stage only unsent drafts with consent, never auto accept or lose existing text',()=>{
  assert.match(parent,/const stageStoreVision=async/);
  assert.match(parent,/visionNorth\.setDraft\(text\)/);
