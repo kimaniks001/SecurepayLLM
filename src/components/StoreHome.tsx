@@ -1,4 +1,4 @@
-import { Search, ShoppingBag, Store, Plus, MessageCircle } from 'lucide-react';
+import { Search, ShoppingBag, Store, Plus, MessageCircle, Package, Wrench, ChevronRight } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
 import { ResultCard } from '../features/discovery/ui/ResultCard';
 import { resultFromStoreOffer } from '../features/discovery/result';
@@ -39,39 +39,67 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className={embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
-        <section className={embedded ? 'mb-4 rounded-2xl border border-cream-200 bg-white px-4 py-4' : 'sp-hero mb-4 px-5 py-5 md:px-7 md:py-6'}>
-          <div className="sp-kicker">{contextLabel ? `For ${contextLabel}` : 'Store'}</div>
-          <h1 className={embedded ? 'sp-type-display mt-1 text-xl text-forest-900' : 'sp-display mt-2 text-3xl text-forest-900 md:text-4xl'}>{embedded ? 'Find a real Store or offer' : contextLabel ? `Find what ${contextLabel} needs` : 'What are you looking for?'}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-sand-600">{contextLabel
-            ? `Keep ${contextLabel} in mind while you inspect real SecurePay offers. Opening an offer does not buy, agree or move money.`
-            : 'Find real offers published on SecurePay. Preview first, choose only when ready, and let Agreement handle the commitment.'}</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Store modes">
-            <div className="rounded-xl border border-forest-200 bg-forest-50 px-4 py-3">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-forest-700">Find</div>
-              <div className="mt-1 text-sm text-forest-900">Search offers and Stores</div>
-            </div>
-            <button type="button" onClick={onManageStore} className="min-h-11 rounded-xl border border-cream-200 bg-white px-4 py-3 text-left">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-wide text-sand-600">My Store</div>
-              <div className="mt-1 text-sm font-medium text-forest-800">See what people can find & what needs you</div>
+        <section aria-label="Digital Store entrance" className={embedded ? 'mb-4 rounded-2xl border border-cream-200 bg-white px-4 py-4' : 'sp-hero mb-4 px-5 py-5 md:px-7 md:py-6'}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="sp-kicker">{contextLabel ? `Finding things for ${contextLabel}` : 'Digital Stores · Goods and services'}</span>
+            <span className="rounded-full border border-forest-100 bg-forest-50 px-2.5 py-1 text-[0.65rem] font-semibold text-forest-700">Buy safe · Build smart</span>
+          </div>
+          <h1 className={embedded ? 'sp-type-display mt-2 text-2xl leading-tight text-forest-900' : 'sp-display mt-2 text-3xl text-forest-900 md:text-4xl'}>
+            {contextLabel ? `Find what ${contextLabel} needs` : 'Find it. Sell it. Agree clearly.'}
+          </h1>
+          <p className="mt-2 max-w-xl text-[0.82rem] leading-6 text-sand-600">
+            Browse things people sell and services they offer. Visit their Digital Stores, inspect an offer and make an enquiry.
+            You can also set up your own Store using the same KS Number.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Choose what to do in Digital Stores">
+            <a href="#store-search" className="flex min-h-20 flex-col justify-center rounded-xl border border-forest-300 bg-forest-50 px-3 py-3 text-left text-forest-800">
+              <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold"><ShoppingBag size={15}/> Shop</span>
+              <span className="mt-1 text-[0.7rem] text-sand-600">Find goods and services</span>
+            </a>
+            <button type="button" onClick={onCreateOffer} className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300">
+              <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold text-forest-800"><Plus size={15}/> Sell something</span>
+              <span className="mt-1 block text-[0.7rem] text-sand-600">Make your first offer</span>
+            </button>
+            <button type="button" onClick={onManageStore} className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300">
+              <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold text-forest-800"><Store size={15}/> My Store</span>
+              <span className="mt-1 block text-[0.7rem] text-sand-600">Manage offers and enquiries</span>
             </button>
           </div>
         </section>
 
         {connectionsPanel && <div className="mb-4">{connectionsPanel}</div>}
 
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sand-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="What are you looking for?" aria-label="Search the Store"
-            className="w-full rounded-xl border border-cream-200 bg-white pl-10 pr-4 py-2.5 text-[0.875rem] text-forest-800 placeholder:text-sand-400 focus:outline-none focus:border-forest-300"
-          />
-        </div>
-
-        <p className="mb-5 text-xs leading-5 text-sand-600">Search uses SecurePay’s real Store filters and published offers. Opening an offer lets you inspect it; it does not buy, agree or move money.</p>
+        <section id="store-search" aria-label="Shop for goods and services" className="mb-4 scroll-mt-8 rounded-2xl border border-cream-200 bg-white px-3 py-4 sm:px-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-display text-base text-forest-900">What are you looking for?</h2>
+            <span className="text-[0.68rem] text-sand-500">Goods · Services · Capacity</span>
+          </div>
+          <label className="relative block">
+            <span className="sr-only">Search Digital Stores</span>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sand-500"/>
+            <input
+              type="search"
+              value={query}
+              onChange={event => onQueryChange(event.target.value)}
+              placeholder="Try cement, phone, cleaning or CCTV"
+              aria-label="Search Digital Stores"
+              className="min-h-12 w-full rounded-xl border border-cream-300 bg-cream-50 pl-10 pr-4 text-sm text-forest-800 placeholder:text-sand-500 focus:border-forest-400 focus:outline-none"
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick searches">
+            {[
+              {label:'All offers',query:'',Icon:ShoppingBag},
+              {label:'Phones',query:'phone',Icon:Package},
+              {label:'CCTV',query:'CCTV',Icon:Package},
+              {label:'Painting',query:'painting',Icon:Wrench},
+              {label:'Survey',query:'survey',Icon:Wrench},
+            ].map(item=><button key={item.label} type="button" onClick={()=>onQueryChange(item.query)}
+              aria-pressed={query.toLowerCase()===item.query.toLowerCase()}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium ${query.toLowerCase()===item.query.toLowerCase()?'border-forest-300 bg-forest-50 text-forest-800':'border-cream-200 bg-white text-sand-600 hover:border-forest-300'}`}>
+              <item.Icon size={13}/>{item.label}
+            </button>)}
+          </div>
+        </section>
 
         {/* Real published sellers; the backend searches offers, not all registered
             businesses. Do not fabricate a Store directory from demo fixtures. */}
@@ -113,7 +141,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         {/* Offers */}
         <div className="mb-5">
-          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Offers</div>
+          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Browse offers</div>
           {searchStatus === 'loading' ? (
             <p role="status" className="text-[0.825rem] text-sand-500 text-center py-8">Searching…</p>
           ) : searchStatus === 'error' ? (
@@ -133,7 +161,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Published Store offers">
               {offers.map((offer: StoreOffer) => (
                 <ResultCard key={offer.id} offer={resultFromStoreOffer(offer)} onOpen={() => onOpenOffer(offer.id)} />
               ))}
@@ -142,7 +170,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
         </div>
 
         <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
-          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">Offer something on SecurePay</summary>
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">More ways to sell <ChevronRight size={14} className="ml-1 inline"/></summary>
           <div className="border-t border-cream-200 p-4">
             <div className="flex flex-col gap-2">
               <button
