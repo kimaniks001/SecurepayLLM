@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
+import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -14,21 +15,21 @@ import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers 
  * The entire KS001 three-panel masterpiece stays mounted around this view.
  */
 type Page = 'shop'|'offer'|'store'|'manage'|'create'|'ask';
-const PHOTO: Record<string, string> = {
-  'offer-cctv': 'https://images.unsplash.com/photo-1558002038-1055907df827?w=900&auto=format&fit=crop&q=78',
-  'offer-painting': 'https://images.unsplash.com/photo-1567016507665-356928ac6679?w=900&auto=format&fit=crop&q=78',
-  'offer-iphone': 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=900&auto=format&fit=crop&q=78',
-  'offer-survey': 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900&auto=format&fit=crop&q=78',
-  'offer-external': 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=900&auto=format&fit=crop&q=78',
-};
-const demoPublished = (offers: StoreOffer[]): StoreOffer[] => offers
-  .filter(offer => offer.lifecycle === 'published')
-  .map(offer => ({
-    ...offer,
-    media: PHOTO[offer.id]
-      ? [{ id:'example-photo-'+offer.id, url:PHOTO[offer.id], caption:'Illustrative image, not a verified seller photograph', isExample:true }]
-      : offer.media,
-  }));
+const demoPublished=(offers:StoreOffer[])=>offers.filter(offer=>offer.lifecycle==='published');
+
+function nextHelpfulQuestion(offer:StoreOffer) {
+  const title=offer.title.toLowerCase();
+  if(/survey|land/.test(title))return 'Where is the land, and which survey do you need?';
+  if(/paint|install|construction/.test(title))return 'Where will the work take place?';
+  if(offer.offerType==='service')return 'Where do you need the service?';
+  return 'Where should the item be delivered or collected?';
+}
+
+function itemCheck(offer:StoreOffer) {
+  if(/survey|land/.test(offer.title.toLowerCase()))return ['What sort of survey is required?','Which documents must the surveyor provide?','What date can the site work begin?'];
+  if(offer.offerType==='service'||offer.offerType==='package')return ['What work is included and excluded?','Where and when will the work be done?','What confirms that the work is complete?'];
+  return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
+}
 
 export function StoreMasterpieceLayoutReview() {
   const [page,setPage] = useState<Page>('shop');
@@ -42,6 +43,9 @@ export function StoreMasterpieceLayoutReview() {
   const [offerKind,setOfferKind] = useState('Goods');
   const [price,setPrice] = useState('');
   const [question,setQuestion] = useState('');
+  const [nextQuestion,setNextQuestion] = useState('');
+  const [answer,setAnswer] = useState('');
+  const [prepared,setPrepared] = useState(false);
   const visible = demoPublished(searchOffers(query));
   const selectedOffer = offerId ? getOfferById(offerId) : null;
   const selectedShop = storeId ? getStoreById(storeId) : null;
@@ -49,7 +53,8 @@ export function StoreMasterpieceLayoutReview() {
   const shopOffers = selectedShop ? demoPublished(getOffersByStore(selectedShop.id)) : [];
   const startEnquiry = (offer:StoreOffer) => {
     setQuestion('I am interested in '+offer.title+' from '+offer.storeName+
-      '. Help me check what is included, the actual price, availability and delivery or collection terms before I agree.');
+      '. Help me clarify what is included, confirm availability and terms, and prepare a fair-trade enquiry.');
+    setNextQuestion(nextHelpfulQuestion(offer));setAnswer('');setPrepared(false);
     setPage('ask');
     setNotice('');
   };
@@ -87,12 +92,9 @@ export function StoreMasterpieceLayoutReview() {
 
       {page==='offer'&&selectedOffer&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Sample offer details">
         <article className="rounded-2xl border border-cream-200 bg-white p-4 sm:p-5">
-          {PHOTO[selectedOffer.id]&&
-            <div className="overflow-hidden rounded-xl bg-cream-100">
-              <img loading="lazy" src={PHOTO[selectedOffer.id]} alt="Illustrative item photograph, not seller evidence" className="h-48 w-full object-cover"/>
-              <p className="px-3 py-1.5 text-[0.68rem] text-sand-600">Illustration only. Not an actual trader's product photograph.</p>
-            </div>}
-          <p className="sp-kicker mt-4">Example listing · {selectedOffer.offerType}</p>
+          <div className="overflow-hidden rounded-xl"><ShopOfferCover offer={selectedOffer} large/></div>
+          <p className="mt-2 text-xs text-sand-600">Example presentation, not a verified seller photo or live offer.</p>
+          <p className="sp-kicker mt-4">Example {selectedOffer.offerType.replace(/_/g,' ').toLowerCase()} offer</p>
           <h2 className="sp-type-display mt-1 text-2xl text-forest-900">{selectedOffer.title}</h2>
           <p className="mt-1 text-sm text-sand-600">{selectedOffer.storeName} · {selectedOffer.serviceArea}</p>
           <p className="mt-3 font-display text-2xl font-semibold text-forest-800">{selectedOffer.price}</p>
@@ -100,11 +102,7 @@ export function StoreMasterpieceLayoutReview() {
           <p className="mt-4 text-sm leading-6 text-sand-700">{selectedOffer.description}</p>
           <div className="mt-4 rounded-xl border border-cream-200 bg-cream-50 p-3 text-xs text-sand-700">
             <strong className="text-forest-900">Before you agree</strong>
-            <div className="mt-2 space-y-1">
-              <p>• What is included and excluded?</p>
-              <p>• Does the seller still have it or have time to deliver?</p>
-              <p>• How and when will you receive it?</p>
-            </div>
+            <ul className="mt-2 space-y-1.5">{itemCheck(selectedOffer).map(item=><li key={item}>• {item}</li>)}</ul>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={()=>startEnquiry(selectedOffer)}
@@ -128,12 +126,10 @@ export function StoreMasterpieceLayoutReview() {
         </section>
         <h3 className="mt-5 font-display text-lg text-forest-900">What this shop offers</h3>
         {shopOffers.length===0?<p className="mt-3 text-sm text-sand-600">No example offers are published for this sample shop.</p>
-          :<div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {shopOffers.map(offer=><button type="button" key={offer.id} onClick={()=>{setOfferId(offer.id);setPage('offer');}}
-              className="overflow-hidden rounded-xl border border-cream-200 bg-white text-left">
-              {PHOTO[offer.id]&&<img src={PHOTO[offer.id]} alt="Illustrative product or service" loading="lazy" className="h-28 w-full object-cover"/>}
-              <span className="block p-3"><strong className="block text-sm text-forest-800">{offer.title}</strong><span className="mt-1 block text-xs text-sand-600">{offer.price}</span><span className="mt-2 inline-block text-xs font-semibold text-forest-700">See offer →</span></span>
-            </button>)}
+          :<div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {shopOffers.map(offer=><ShopOfferCard key={offer.id} offer={offer}
+              onOpen={()=>{setOfferId(offer.id);setPage('offer');}}
+              onOpenStore={()=>{setStoreId(offer.storeId);}} />)}
           </div>}
       </div>}
 
@@ -189,15 +185,35 @@ export function StoreMasterpieceLayoutReview() {
         </div>
       </div>}
 
-      {page==='ask'&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Ask KS001 about Store sample">
-        <section className="rounded-2xl border border-cream-200 bg-white p-5">
-          <p className="sp-kicker">Ask KS001 · Store enquiry</p>
-          <h2 className="sp-type-display mt-1 text-2xl text-forest-900">Turn interest into a clear agreement.</h2>
-          <p className="mt-2 text-sm text-sand-600">This is the example request that the real Store can hand to the same KS001 conversation after the person chooses an actual published offer.</p>
-          <div className="mt-4 rounded-xl bg-forest-50 p-4 text-sm leading-6 text-forest-900">{question}</div>
-          <button type="button" onClick={()=>{setNotice('This is a visual preview. Nothing was sent to KS001, a seller, or SecurePay.');setPage('shop');}}
-            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800"><MessageCircle size={16}/> Return to the shop</button>
-          <p className="mt-3 text-xs text-sand-600">A verified backend and human action are required for real offers, messages, agreements or payments.</p>
+      {page==='ask'&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="KS001 example Store conversation">
+        <section className="mx-auto max-w-2xl rounded-2xl border border-cream-200 bg-white p-4 sm:p-6">
+          <p className="sp-kicker">KS001 · Shopping companion · Guided example</p>
+          <h2 className="sp-type-display mt-1 text-2xl text-forest-900">A question worth asking.</h2>
+          <p className="mt-2 text-xs leading-5 text-sand-600">The live Store hands the real offer to the same KS001 conversation. This review uses a guided example only; no message is sent.</p>
+          <div className="mt-4 rounded-xl bg-cream-50 p-4">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-sand-500">Your interest</p>
+            <p className="mt-2 text-sm leading-6 text-forest-900">{question}</p>
+          </div>
+          <div className="mt-4 rounded-xl border border-forest-100 bg-forest-50 p-4">
+            <div className="flex items-center gap-2"><MessageCircle size={16} className="text-forest-700"/><strong className="text-sm text-forest-800">KS001 would ask</strong></div>
+            <p className="mt-2 text-[0.95rem] leading-6 text-forest-900">{nextQuestion||'What are you hoping to achieve?'}</p>
+            <label className="mt-4 block text-xs font-semibold text-forest-800">Your answer (demo)
+              <input type="text" value={answer} maxLength={280} onChange={e=>{setAnswer(e.target.value);setPrepared(false);}}
+                placeholder="Tell KS001 in your own words…"
+                className="mt-2 min-h-11 w-full rounded-lg border border-forest-200 bg-white px-3 text-sm font-normal text-forest-900"/>
+            </label>
+            <button type="button" disabled={!answer.trim()} onClick={()=>setPrepared(true)}
+              className="mt-3 min-h-11 rounded-lg bg-forest-800 px-4 text-sm font-semibold text-white disabled:opacity-40">Preview what KS001 would remember</button>
+          </div>
+          {prepared&&<div className="mt-4 rounded-xl border border-cream-200 p-4" role="status">
+            <p className="text-xs font-bold uppercase tracking-wider text-sand-600">Your enquiry taking shape · Demo only</p>
+            <p className="mt-2 text-sm text-forest-900"><strong>Offer:</strong> {selectedOffer?.title||'Goods or service enquiry'}</p>
+            <p className="mt-1 text-sm text-forest-900"><strong>Seller:</strong> {selectedOffer?.storeName||'To be confirmed'}</p>
+            <p className="mt-1 text-sm text-forest-900"><strong>Your detail:</strong> {answer.trim()}</p>
+            <p className="mt-3 text-xs leading-5 text-sand-600">The actual availability, price, obligations and next steps must be agreed with the trader. No offer was accepted and no Agreement was created.</p>
+          </div>}
+          <button type="button" onClick={()=>{setNotice('This was a guided example only. Your offer is still available in the sample catalogue.');setPage('shop');}}
+            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800"><ArrowLeft size={16}/> Back to shopping</button>
         </section>
       </div>}
     </div>
