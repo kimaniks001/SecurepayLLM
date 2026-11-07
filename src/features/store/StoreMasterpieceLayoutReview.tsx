@@ -51,11 +51,11 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   const [prepared,setPrepared] = useState(false);
   const [selection,setSelection] = useState<SelectionItem[]>([]);
   const selectionRef=useRef<SelectionItem[]>([]);
+  const [collectionNotice,setCollectionNotice] = useState('');
+  const [selectionDraft,setSelectionDraft] = useState('');
   useEffect(()=>{
     if(workspaceSelection && workspaceSelection!==selectionRef.current){selectionRef.current=workspaceSelection;setSelection(workspaceSelection);setSelectionDraft('');}
   },[workspaceSelection]);
-  const [collectionNotice,setCollectionNotice] = useState('');
-  const [selectionDraft,setSelectionDraft] = useState('');
   const collect=(offer:StoreOffer,destination:StoreDestination)=>{
     try{
       const next=collectOffer(selectionRef.current,offer,destination,true);
